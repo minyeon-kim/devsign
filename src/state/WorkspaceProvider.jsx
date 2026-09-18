@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import {
   aiEditScenarios,
+  canvasPages,
   comments as seedComments,
   conflictPoints as seedConflicts,
   consoleLogLines as seedConsoleLogLines,
@@ -56,6 +56,20 @@ export function WorkspaceProvider({ children }) {
     initialHistoryEntries[initialHistoryEntries.length - 1]?.id ?? null
   )
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Which design "page"/file the Canvas file-tab bar has open — shared here
+  // (not local to CanvasPanel) so the Layers panel's frame tree stays in
+  // sync with whichever page is active.
+  const [activePageId, setActivePageId] = useState(canvasPages[0]?.id ?? null)
+  // The dockview API, handed up once DockLayout's onReady fires — stored
+  // here (rather than only as App-local state) so any panel deep in the
+  // tree (Canvas, Editor) can open/focus dockview panels itself, e.g. to
+  // open a layer's inspection tab, without prop-drilling dockApi through
+  // every intermediate component.
+  const [dockApi, setDockApi] = useState(null)
+  // Active Canvas toolbar tool (move/hand/frame/text/shape/comment) — kept
+  // here rather than local to CanvasPanel so the global cursor overlay can
+  // read it and swap its glyph while hovering the canvas surface.
+  const [canvasTool, setCanvasTool] = useState('move')
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -122,7 +136,6 @@ export function WorkspaceProvider({ children }) {
   const startFollowMe = useCallback(() => {
     setFollowedMemberId(null)
     setFollowingMe(true)
-    toast('Follow me is on — teammates can now follow your view.')
   }, [])
 
   const cancelFollowMe = useCallback(() => {
@@ -139,7 +152,9 @@ export function WorkspaceProvider({ children }) {
   }, [])
 
   // Mirror the followed teammate's mock viewport onto my own workspace
-  // whenever it changes — this is the "follow" in Follow Me.
+  // whenever it changes — this is the "follow" in Follow Me. (The
+  // FollowMeBanner already surfaces "Following X — label" persistently at
+  // the top of the screen, so this doesn't also need a transient toast.)
   useEffect(() => {
     if (!followedMemberId) return
     const member = teamMembers.find((m) => m.id === followedMemberId)
@@ -151,7 +166,6 @@ export function WorkspaceProvider({ children }) {
 
     setActiveFileIdState(target.fileId)
     setSelectedLayerId(target.layerId ?? null)
-    toast(`Following ${member.name} — ${target.label}`)
   }, [followedMemberId, remoteViewportIndex])
 
   const recordHistory = useCallback((entry) => {
@@ -257,7 +271,11 @@ export function WorkspaceProvider({ children }) {
     )
   }, [])
 
-  const addComment = useCallback((text) => {
+  // `target` is optional and identifies a *pinned* comment's anchor —
+  // `{ type: 'canvas', pageId, x, y }` or `{ type: 'editor', fileId, line }`.
+  // Plain comments (from the Comments panel composer) omit it entirely and
+  // just show up in the flat comment list as before.
+  const addComment = useCallback((text, target) => {
     const trimmed = text.trim()
     if (!trimmed) return
     setComments((prev) => [
@@ -270,6 +288,7 @@ export function WorkspaceProvider({ children }) {
         status: 'open',
         likes: 0,
         replies: 0,
+        ...(target ? { target } : {}),
       },
     ])
   }, [])
@@ -298,6 +317,12 @@ export function WorkspaceProvider({ children }) {
     rollbackTo,
     inspectorOpen,
     setInspectorOpen,
+    activePageId,
+    setActivePageId,
+    dockApi,
+    setDockApi,
+    canvasTool,
+    setCanvasTool,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

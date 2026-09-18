@@ -182,12 +182,21 @@
   --dv-paneview-active-outline-color: var(--primary);
 }
 
-/* Used by the editor/canvas areas to fully hide the OS cursor in favor of
-   the custom Figma-style local cursor. `!important` + the descendant
-   selector are needed because plenty of children (code lines, buttons,
-   canvas layers) set their own cursor-text/cursor-pointer utilities that
-   would otherwise win the cascade over a plain inherited cursor-none. */
-.force-cursor-none,
-.force-cursor-none * {
+/* Detached tabs become dockview "floating groups" — round them to match
+   the design system's capsule/pill panel language instead of dockview's
+   default square corners, and clip their content (titlebar + tabs) to the
+   same curve. */
+.dockview-theme-devsign .dv-resize-container {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Global custom cursor: the OS cursor is hidden everywhere in the app in
+   favor of the Figma-style <LocalCursor/> mounted once at the App root.
+   `!important` on the universal selector is needed because plenty of
+   elements (code lines, buttons, canvas layers, text inputs) set their own
+   cursor-text/cursor-pointer/etc utilities that would otherwise win the
+   cascade over a plain `cursor: none` on `body`. */
+* {
   cursor: none !important;
 }

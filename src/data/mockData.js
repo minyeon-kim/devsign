@@ -435,47 +435,110 @@ export const aiEditScenarios = [
   },
 ]
 
-// Mock frames + child layers rendered inside the Canvas panel. Each frame is
-// a selectable box; each entry in `layers` is a selectable shape/mockup
-// element positioned relative to its parent frame's top-left corner.
-// `kind` is the Figma node type used to pick the layer-tree icon
-// (frame | component | group | vector | text); `type` (below) is the
-// separate visual style used when rendering the shape on the Canvas.
-export const canvasFrames = [
+// Mock design "pages"/files switched between via the Canvas panel's file
+// tab bar (and kept in sync with the Layers panel through
+// WorkspaceProvider's `activePageId`). Each frame is a selectable box; each
+// entry in `layers` is a selectable shape/mockup element positioned
+// relative to its parent frame's top-left corner. `kind` is the Figma node
+// type used to pick the layer-tree icon (frame | component | group |
+// vector | text); `type` (below) is the separate visual style used when
+// rendering the shape on the Canvas.
+export const canvasPages = [
   {
-    id: 'frame-1',
-    name: 'Frame 1 - Mobile Screen',
-    kind: 'frame',
-    x: 80,
-    y: 40,
-    width: 280,
-    height: 560,
-    layers: [
-      { id: 'statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24 },
-      { id: 'nav-title', name: 'Nav Title', kind: 'text', type: 'text', x: 20, y: 40, width: 120, height: 16 },
-      { id: 'hero-card', name: 'Card', kind: 'component', type: 'card', x: 20, y: 72, width: 240, height: 130 },
-      { id: 'card-title', name: 'Title', kind: 'text', type: 'text', x: 20, y: 216, width: 180, height: 14 },
-      { id: 'card-subtitle-1', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 238, width: 220, height: 10 },
-      { id: 'card-subtitle-2', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 254, width: 140, height: 10 },
-      { id: 'avatar', name: 'Avatar', kind: 'vector', type: 'avatar', x: 20, y: 288, width: 32, height: 32 },
-      { id: 'meta-text', name: 'Meta', kind: 'text', type: 'text', x: 60, y: 298, width: 100, height: 10 },
+    id: 'page-1',
+    name: 'Mobile App',
+    frames: [
       {
-        id: 'primary-button',
-        name: 'Button',
-        kind: 'component',
-        type: 'button',
-        x: 20,
-        y: 496,
-        width: 240,
-        height: 44,
-        label: 'Continue',
+        id: 'frame-1',
+        name: 'Frame 1 - Mobile Screen',
+        kind: 'frame',
+        x: 80,
+        y: 40,
+        width: 280,
+        height: 560,
+        layers: [
+          { id: 'statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24 },
+          { id: 'nav-title', name: 'Nav Title', kind: 'text', type: 'text', x: 20, y: 40, width: 120, height: 16 },
+          { id: 'hero-card', name: 'Card', kind: 'component', type: 'card', x: 20, y: 72, width: 240, height: 130 },
+          { id: 'card-title', name: 'Title', kind: 'text', type: 'text', x: 20, y: 216, width: 180, height: 14 },
+          { id: 'card-subtitle-1', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 238, width: 220, height: 10 },
+          { id: 'card-subtitle-2', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 254, width: 140, height: 10 },
+          { id: 'avatar', name: 'Avatar', kind: 'vector', type: 'avatar', x: 20, y: 288, width: 32, height: 32 },
+          { id: 'meta-text', name: 'Meta', kind: 'text', type: 'text', x: 60, y: 298, width: 100, height: 10 },
+          {
+            id: 'primary-button',
+            name: 'Button',
+            kind: 'component',
+            type: 'button',
+            x: 20,
+            y: 496,
+            width: 240,
+            height: 44,
+            label: 'Continue',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'page-2',
+    name: 'Marketing Site',
+    frames: [
+      {
+        id: 'frame-2',
+        name: 'Hero Section - Landing Page',
+        kind: 'frame',
+        x: 80,
+        y: 40,
+        width: 480,
+        height: 320,
+        layers: [
+          { id: 'nav-bar', name: 'Nav Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 480, height: 28 },
+          { id: 'hero-heading', name: 'Heading', kind: 'text', type: 'text', x: 40, y: 60, width: 300, height: 20 },
+          { id: 'hero-subtitle-1', name: 'Subtitle', kind: 'text', type: 'text', x: 40, y: 92, width: 360, height: 10 },
+          { id: 'hero-subtitle-2', name: 'Subtitle', kind: 'text', type: 'text', x: 40, y: 108, width: 260, height: 10 },
+          {
+            id: 'hero-cta',
+            name: 'CTA Button',
+            kind: 'component',
+            type: 'button',
+            x: 40,
+            y: 144,
+            width: 160,
+            height: 40,
+            label: 'Get Started',
+          },
+        ],
       },
     ],
   },
 ]
 
-// The single page shown above the frame tree in the Layers panel.
-export const layerPages = [{ id: 'page-1', name: 'Page 1' }]
+// Flattened across all pages — used by id-based lookups (the Inspector
+// sidebar, Follow Me's viewport sequences) that don't need to know which
+// page a layer lives on.
+export const canvasFrames = canvasPages.flatMap((page) => page.frames)
+
+// Looks up a frame or layer by id anywhere across all pages, plus which page
+// and (for a layer) which frame it belongs to. Used by the "click a frame/
+// layer to open its inspection tab" feature — panels only carry a
+// `targetId` in their dockview params, and re-derive the rest here on every
+// render, matching this app's mock-data-driven convention (never trust a
+// serialized copy of data that could drift from the source of truth).
+export function findCanvasTarget(targetId) {
+  for (const page of canvasPages) {
+    for (const frame of page.frames) {
+      if (frame.id === targetId) {
+        return { page, frame, layer: null }
+      }
+      const layer = frame.layers.find((l) => l.id === targetId)
+      if (layer) {
+        return { page, frame, layer }
+      }
+    }
+  }
+  return null
+}
 
 // Design-spec values shown in the Inspector sidebar, keyed by layer `type`
 // (see `canvasFrames` above). Purely presentational mock data.
@@ -536,14 +599,22 @@ export const versionHistoryLog = [
 // Registry of dockable panel types, shared by the ActivityBar toolbar
 // (which panels can be toggled) and the initial dock layout (which panels
 // exist, their titles and icons).
+// `group` tags which docked "family" each panel belongs to (sidebar / main
+// editor area / bottom terminal strip) — used to re-dock a closed panel next
+// to its own kind instead of wherever `dockApi.panels[0]` happens to be
+// (that was the bug: reopening e.g. Canvas from the ActivityBar always
+// landed it inside the bottom Terminal group, since Terminal is the first
+// panel ever added in buildInitialLayout).
 export const panelDefinitions = [
-  { id: 'explorer', title: 'Explorer', component: 'explorer', iconName: 'Folder' },
-  { id: 'layers', title: 'Layers', component: 'layers', iconName: 'Layers' },
-  { id: 'canvas', title: 'Canvas', component: 'canvas', iconName: 'AppWindow' },
-  { id: 'editor', title: 'Code Editor', component: 'editor', iconName: 'FileCode' },
-  { id: 'preview', title: 'Preview', component: 'preview', iconName: 'Monitor' },
-  { id: 'terminal', title: 'Terminal', component: 'terminal', iconName: 'SquareTerminal' },
-  { id: 'conflict', title: 'Conflict Point', component: 'conflict', iconName: 'TriangleAlert' },
+  { id: 'explorer', title: 'Explorer', component: 'explorer', iconName: 'Folder', group: 'sidebar' },
+  { id: 'layers', title: 'Layers', component: 'layers', iconName: 'Layers', group: 'sidebar' },
+  { id: 'assets', title: 'Assets', component: 'assets', iconName: 'Component', group: 'sidebar' },
+  { id: 'canvas', title: 'Canvas', component: 'canvas', iconName: 'AppWindow', group: 'main' },
+  { id: 'editor', title: 'Code Editor', component: 'editor', iconName: 'FileCode', group: 'main' },
+  { id: 'preview', title: 'Preview', component: 'preview', iconName: 'Monitor', group: 'main' },
+  { id: 'terminal', title: 'Terminal', component: 'terminal', iconName: 'SquareTerminal', group: 'bottom' },
+  { id: 'console', title: 'Console', component: 'console', iconName: 'ScrollText', group: 'bottom' },
+  { id: 'conflict', title: 'Conflict Point', component: 'conflict', iconName: 'TriangleAlert', group: 'bottom' },
 ]
 
 // The left sidebar's Explorer/Layers split panels are kept between these

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Toaster } from '@/components/ui/sonner'
 import TopBar from '@/components/layout/TopBar'
 import ActivityBar from '@/components/layout/ActivityBar'
 import RightFloatingBar from '@/components/layout/RightFloatingBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
-import DockLayout from '@/components/dockview/DockLayout'
+import DockLayout, { openOrFocusPanel } from '@/components/dockview/DockLayout'
+import LocalCursor from '@/components/collab/LocalCursor'
 import { WorkspaceProvider } from '@/state/WorkspaceProvider'
 import { panelDefinitions } from '@/data/mockData'
 
@@ -35,17 +35,7 @@ function App() {
       return
     }
 
-    const reference = dockApi.panels[0]
-    dockApi.addPanel({
-      id: previewDef.id,
-      component: previewDef.component,
-      title: previewDef.title,
-      params: { iconName: previewDef.iconName },
-      position: reference
-        ? { direction: 'within', referencePanel: reference.id }
-        : undefined,
-      initialWidth: 380,
-    })
+    openOrFocusPanel(dockApi, previewDef)
   }
 
   return (
@@ -67,8 +57,18 @@ function App() {
             <InspectorSidebar />
           </div>
         </div>
+
+        {/* Single global cursor overlay — tracks the whole window and sits
+            above everything (modals included; it wins on z-index, not DOM
+            order) so the OS cursor, hidden site-wide via index.css, is
+            never left with nothing standing in for it. Mounted inside the
+            provider (rather than as TooltipProvider's other child) purely
+            so it can read the active Canvas tool from workspace context and
+            swap its glyph while hovering the canvas surface — this has no
+            effect on its DOM position, since a Context.Provider renders no
+            element of its own. */}
+        <LocalCursor />
       </WorkspaceProvider>
-      <Toaster position="bottom-right" />
     </TooltipProvider>
   )
 }

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   AppWindow,
   Bell,
+  Component,
   FileCode,
   Folder,
   Layers,
   Monitor,
+  ScrollText,
   Settings,
   SquareTerminal,
   TriangleAlert,
@@ -13,33 +15,18 @@ import {
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { panelDefinitions } from '@/data/mockData'
+import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 
 const panelIcons = {
   Folder,
   Layers,
+  Component,
   AppWindow,
   FileCode,
   Monitor,
+  ScrollText,
   SquareTerminal,
   TriangleAlert,
-}
-
-function openOrFocusPanel(dockApi, def) {
-  if (!dockApi) return
-  const existing = dockApi.getPanel(def.id)
-  if (existing) {
-    existing.api.setActive()
-    return
-  }
-
-  const reference = dockApi.panels[0]
-  dockApi.addPanel({
-    id: def.id,
-    component: def.component,
-    title: def.title,
-    params: { iconName: def.iconName },
-    position: reference ? { direction: 'within', referencePanel: reference.id } : undefined,
-  })
 }
 
 function ActivityBar({ dockApi }) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   AppWindow,
   Braces,
+  Component,
   FileCode,
   Folder,
   History,
@@ -10,6 +11,8 @@ import {
   Maximize2,
   MessageSquare,
   Monitor,
+  ScanEye,
+  ScrollText,
   Sparkles,
   SquareTerminal,
   TriangleAlert,
@@ -20,15 +23,18 @@ import { cn } from 'cn'
 const icons = {
   Folder,
   Layers,
+  Component,
   AppWindow,
   FileCode,
   Braces,
   Monitor,
+  ScrollText,
   Sparkles,
   SquareTerminal,
   TriangleAlert,
   MessageSquare,
   History,
+  ScanEye,
 }
 
 function CustomTab({ api, containerApi, params }) {
