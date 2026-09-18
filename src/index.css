@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "dockview-react/dist/styles/dockview.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -55,7 +56,7 @@
     --card-foreground: oklch(0.141 0.005 285.823);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.541 0.281 293.009);
+    --primary: oklch(0.52 0.22 270);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -66,7 +67,7 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.92 0.004 286.32);
     --input: oklch(0.92 0.004 286.32);
-    --ring: oklch(0.606 0.25 292.717);
+    --ring: oklch(0.55 0.225 270);
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
@@ -75,12 +76,12 @@
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.541 0.281 293.009);
+    --sidebar-primary: oklch(0.52 0.22 270);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.967 0.001 286.375);
     --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
     --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.606 0.25 292.717);
+    --sidebar-ring: oklch(0.55 0.225 270);
 }
 
 .dark {
@@ -90,7 +91,7 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.21 0.006 285.885);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.673 0.243 291.5);
+    --primary: oklch(0.6 0.225 270);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.274 0.006 286.033);
     --secondary-foreground: oklch(0.985 0 0);
@@ -101,7 +102,7 @@
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.673 0.243 291.5);
+    --ring: oklch(0.6 0.23 270);
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
@@ -109,12 +110,12 @@
     --chart-5: oklch(0.645 0.246 16.439);
     --sidebar: oklch(0.21 0.006 285.885);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.673 0.243 291.5);
+    --sidebar-primary: oklch(0.6 0.225 270);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.274 0.006 286.033);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.673 0.243 291.5);
+    --sidebar-ring: oklch(0.6 0.23 270);
 }
 
 @layer base {
@@ -127,4 +128,66 @@
   html {
     @apply font-sans;
     }
+}
+
+/* Dockview theme wired to our design tokens (violet/zinc dark IDE look). */
+.dockview-theme-devsign {
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-tabs-and-actions-container-height: 36px;
+  --dv-border-radius: 0px;
+  --dv-tab-border-radius: 0px;
+  --dv-sash-border-radius: 0px;
+  --dv-dropdown-border-radius: 0px;
+  --dv-tab-margin: 0;
+  --dv-spacing-padding: 0px;
+  --dv-tab-close-icon-size: inherit;
+
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--primary);
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0s;
+
+  --dv-icon-hover-background-color: var(--muted);
+  --dv-tabs-container-scrollbar-color: var(--border);
+
+  --dv-edge-dock-indicator-color: var(--primary);
+  --dv-drag-over-border-color: var(--primary);
+  --dv-drag-over-border: 2px solid var(--primary);
+  --dv-drag-over-background-color: color-mix(in oklch, var(--primary) 16%, transparent);
+
+  --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --dv-floating-border: 1px solid var(--border);
+  --dv-floating-group-border: 1px solid var(--border);
+  --dv-floating-titlebar-height: 32px;
+  --dv-floating-titlebar-background-color: var(--card);
+  --dv-floating-titlebar-border-bottom: 1px solid var(--border);
+
+  color-scheme: dark;
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--card);
+  /* The active tab needs to read as *raised*, one step brighter than the
+     editor surface below it — using --background here (our darkest surface)
+     made the selected tab look dimmer than the inactive ones next to it. */
+  --dv-activegroup-visiblepanel-tab-background-color: var(--muted);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--card);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--card);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--card);
+  --dv-tab-divider-color: var(--border);
+  --dv-activegroup-visiblepanel-tab-color: var(--foreground);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--muted-foreground);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-separator-border: var(--border);
+  --dv-paneview-header-border-color: var(--border);
+  --dv-paneview-active-outline-color: var(--primary);
+}
+
+/* Used by the editor/canvas areas to fully hide the OS cursor in favor of
+   the custom Figma-style local cursor. `!important` + the descendant
+   selector are needed because plenty of children (code lines, buttons,
+   canvas layers) set their own cursor-text/cursor-pointer utilities that
+   would otherwise win the cascade over a plain inherited cursor-none. */
+.force-cursor-none,
+.force-cursor-none * {
+  cursor: none !important;
 }

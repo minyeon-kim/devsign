@@ -1,0 +1,17 @@
+Conflict Detail Modal Revamp (2-Column Dashboard Layout):
+
+When clicking the 'View' button on a Conflict Point, completely revamp the modal into a 2-column dashboard layout exactly like the previously provided reference image.
+
+Left Panel: Implement top tabs (Overview/Diff/History), Expected (Design System) vs Current (Code) visual comparison cards, and the AI's Suggested change section (including the 'Preview change' button).
+
+Right Panel: Implement the Review status progress stepper, Required reviewers list, and the Comments thread layout.
+
+Right Toolbar Responsive Default Position (Right-aligned):
+
+The right floating toolbar is currently draggable, which is good. However, its default initial rendering position must be firmly attached to the far right edge of the screen (e.g., right-4). It should responsively stay at the right edge even when the browser window resizes, before the user manually drags it.
+
+Local User Custom Cursor (Figma-style):
+
+In addition to the multiplayer cursors, the local user's own mouse cursor must also be transformed into a custom Figma-style cursor.
+
+Hide the default system cursor (cursor-none) inside the editor/canvas area. Replace it with an arrow matching the user's profile color and a Name tag badge that follows the mouse movement in real-time."
