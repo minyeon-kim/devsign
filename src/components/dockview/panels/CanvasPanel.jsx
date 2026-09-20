@@ -362,6 +362,7 @@ function CanvasPanel() {
     setCanvasTool,
     comments,
     addComment,
+    getViewersForCanvasPage,
   } = useWorkspace()
   const activePage = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
   const commentMode = canvasTool === 'comment'
@@ -463,7 +464,7 @@ function CanvasPanel() {
           ))}
         </div>
 
-        <MultiplayerCursors />
+        <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} />
         <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} />
 
         {pendingComment && (

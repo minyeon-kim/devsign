@@ -17,12 +17,36 @@ function randomPoint() {
 // movement so it reads as a smooth, live pointer rather than a teleport.
 // Mounted independently inside both the Editor and Canvas panels, so each
 // gets its own coordinate space (percentage-based) and its own timers.
+//
+// `members` is expected to already be file/page-scoped (EditorPanel and
+// CanvasPanel each pass only the teammates currently "looking at" that
+// exact file/canvas page — see WorkspaceProvider's getViewersForFile /
+// getViewersForCanvasPage) — this component itself renders whoever it's
+// given, unfiltered. Because that list's *contents* can change over time
+// (a teammate's mock viewport rotates every few seconds) while its array
+// *identity* changes on every render regardless, timers are keyed off the
+// member-id list rather than the array reference, and a just-arrived
+// member without a stored point yet is skipped for one render instead of
+// crashing on it.
 function MultiplayerCursors({ members = teamMembers }) {
   const [points, setPoints] = useState(() =>
     Object.fromEntries(members.map((m) => [m.id, randomPoint()]))
   )
+  const memberIds = members.map((m) => m.id).join(',')
 
   useEffect(() => {
+    setPoints((prev) => {
+      let changed = false
+      const next = { ...prev }
+      members.forEach((m) => {
+        if (!next[m.id]) {
+          next[m.id] = randomPoint()
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+
     const timers = members.map((member, i) =>
       window.setInterval(
         () => {
@@ -32,12 +56,14 @@ function MultiplayerCursors({ members = teamMembers }) {
       )
     )
     return () => timers.forEach(window.clearInterval)
-  }, [members])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberIds])
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       {members.map((member) => {
         const point = points[member.id]
+        if (!point) return null
         return (
           <div
             key={member.id}

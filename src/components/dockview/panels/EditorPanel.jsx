@@ -135,7 +135,8 @@ function LineCommentThread({ lineComments, value, onChange, onSubmit, onClose })
 }
 
 function EditorPanel() {
-  const { activeFileId, setActiveFileId, getFileLines, comments, addComment } = useWorkspace()
+  const { activeFileId, setActiveFileId, getFileLines, comments, addComment, getViewersForFile } =
+    useWorkspace()
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
@@ -288,7 +289,7 @@ function EditorPanel() {
           viewport={viewport}
           onJump={jumpToRatio}
         />
-        <MultiplayerCursors />
+        <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
       </div>
 
       <div className="flex h-6 shrink-0 items-center justify-between border-t bg-card px-3 font-sans text-[11px] text-muted-foreground">

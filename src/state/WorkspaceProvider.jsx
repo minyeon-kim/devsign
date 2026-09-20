@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   aiEditScenarios,
   canvasPages,
@@ -6,8 +6,10 @@ import {
   conflictPoints as seedConflicts,
   consoleLogLines as seedConsoleLogLines,
   currentUser,
+  findCanvasTarget,
   initialChatMessages,
   initialHistoryEntries,
+  mergeListItems as seedMergeListItems,
   openFiles,
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
@@ -71,6 +73,14 @@ export function WorkspaceProvider({ children }) {
   // read it and swap its glyph while hovering the canvas surface.
   const [canvasTool, setCanvasTool] = useState('move')
 
+  // --- View routing (workspace vs. Merge Studio) ----------------------
+  // Switches the whole app body below TopBar, rather than living inside
+  // dockview — Merge Studio's "Merge List" sidebar + workspace is its own
+  // screen, not another dockable panel.
+  const [activeView, setActiveView] = useState('workspace')
+  const [mergeItems, setMergeItems] = useState(seedMergeListItems)
+  const [selectedMergeItemId, setSelectedMergeItemId] = useState(null)
+
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
   // `followedMemberId`: I'm watching a teammate's view — their mock
@@ -96,6 +106,76 @@ export function WorkspaceProvider({ children }) {
     }, REMOTE_VIEWPORT_INTERVAL)
     return () => window.clearInterval(interval)
   }, [])
+
+  // Each teammate's mock "current viewport" — same rotating entry that
+  // drives Follow Me — is what file-scoped multiplayer cursors are checked
+  // against: a teammate's cursor only ever renders inside the Editor tab or
+  // Canvas page it says they're looking at, never floating across an
+  // unrelated file/page. `layerId` doubles as "which canvas layer" — its
+  // page is looked up live via `findCanvasTarget` rather than storing a
+  // separate pageId, since layer ids are already unique across pages.
+  const memberViewports = useMemo(
+    () =>
+      teamMembers.map((member) => ({
+        member,
+        viewport: member.viewportSequence?.[remoteViewportIndex[member.id] ?? 0] ?? null,
+      })),
+    [remoteViewportIndex]
+  )
+
+  const getViewersForFile = useCallback(
+    (fileId) =>
+      memberViewports
+        .filter(({ viewport }) => viewport?.fileId === fileId)
+        .map(({ member }) => member),
+    [memberViewports]
+  )
+
+  const getViewersForCanvasPage = useCallback(
+    (pageId) =>
+      memberViewports
+        .filter(({ viewport }) => {
+          if (!viewport?.layerId) return false
+          return findCanvasTarget(viewport.layerId)?.page.id === pageId
+        })
+        .map(({ member }) => member),
+    [memberViewports]
+  )
+
+  const openMergeStudio = useCallback(() => {
+    setActiveView('mergeStudio')
+  }, [])
+
+  const exitMergeStudio = useCallback(() => {
+    setActiveView('workspace')
+  }, [])
+
+  // "Start New with Current Work" — snapshots whatever's open in the editor
+  // right now into a fresh Merge List entry, selects it, and enters Merge
+  // Studio already looking at it.
+  const startMergeFromOpenFiles = useCallback(() => {
+    const id = nextId('merge')
+    const fileNames = openFiles.map((f) => f.name)
+    setMergeItems((prev) => [
+      {
+        id,
+        title: 'New Merge — Current Work',
+        subtitle: `${fileNames.length} file${fileNames.length === 1 ? '' : 's'} · ${fileNames.join(', ')}`,
+        tag: 'Draft',
+        updatedLabel: 'Just now',
+        fileIds: openFiles.map((f) => f.id),
+        hasDesign: true,
+        designPageId: activePageId,
+        category: 'Workspace',
+        conflictLevel: 'None',
+        dueLabel: 'No due date',
+        dueBucket: 'none',
+      },
+      ...prev,
+    ])
+    setSelectedMergeItemId(id)
+    setActiveView('mergeStudio')
+  }, [activePageId])
 
   const appendTerminalLines = useCallback((lines, stagger = 140) => {
     lines.forEach((text, i) => {
@@ -323,6 +403,15 @@ export function WorkspaceProvider({ children }) {
     setDockApi,
     canvasTool,
     setCanvasTool,
+    getViewersForFile,
+    getViewersForCanvasPage,
+    activeView,
+    mergeItems,
+    selectedMergeItemId,
+    setSelectedMergeItemId,
+    openMergeStudio,
+    exitMergeStudio,
+    startMergeFromOpenFiles,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

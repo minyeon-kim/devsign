@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { DockviewReact } from 'dockview-react'
 import CustomTab from '@/components/dockview/CustomTab'
 import Watermark from '@/components/dockview/Watermark'
@@ -126,6 +127,13 @@ export function buildInitialLayout(api) {
 
 function DockLayout({ onReady }) {
   const { setDockApi } = useWorkspace()
+
+  // DockviewReact unmounts whenever the app switches away from the normal
+  // workspace body (e.g. into Merge Studio, see WorkspaceShell) — without
+  // this, context would keep handing out a reference to an already-disposed
+  // dockview instance, which anything reusing CanvasPanel/EditorPanel
+  // outside the IDE (Merge Studio's workspace) could call into.
+  useEffect(() => () => setDockApi(null), [setDockApi])
 
   return (
     <DockviewReact

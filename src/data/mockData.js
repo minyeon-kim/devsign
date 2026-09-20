@@ -100,6 +100,117 @@ export const layoutPresets = [
   },
 ]
 
+// Filter pills shown above the Merge Studio entry's "Merge List" sidebar,
+// and the seed items it filters. Each item is a previously saved merge
+// (design + code files bundled together for review) — "Start New with
+// Current Work" prepends a fresh one built from whatever's open in the
+// editor at the time.
+export const mergeFilterTags = ['All', 'In Progress', 'Needs Review', 'Draft']
+
+// Advanced filter dimensions for the Merge List sidebar — each a separate
+// pill row alongside the status tags above and the search input.
+export const mergeCategories = ['All', 'Marketing', 'Auth', 'Settings', 'Workspace']
+// Filters by content type rather than project category — 'Design' matches
+// items with a linked design page (`hasDesign`), 'Code' matches code-only
+// items, regardless of what project/category they belong to.
+export const mergeTypeFilters = ['All', 'Design', 'Code']
+export const mergeConflictLevels = ['Any', 'None', 'Low', 'Medium', 'High']
+export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
+
+// `fileIds` resolve against `openFiles`, and `designPageId` against
+// `canvasPages` — together they let the Merge Studio workspace jump the
+// shared activeFileId/activePageId to whatever a selected merge item is
+// actually about, reusing the real Editor/Canvas panels instead of a
+// separate static preview. `dueBucket` drives the sidebar's due-date filter
+// ('overdue' | 'soon' | 'none'); `dueLabel` is just its display text.
+export const mergeListItems = [
+  {
+    id: 'merge-flowbank',
+    title: 'FlowBank - Homepage',
+    subtitle: '3 files · Design + Code',
+    tag: 'In Progress',
+    updatedLabel: '2h ago',
+    fileIds: ['app', 'theme', 'tokens'],
+    hasDesign: true,
+    designPageId: 'page-2',
+    category: 'Marketing',
+    conflictLevel: 'High',
+    dueLabel: 'Due tomorrow',
+    dueBucket: 'soon',
+  },
+  {
+    id: 'merge-authmodal',
+    title: 'AuthModal.tsx',
+    subtitle: '1 file · Code only',
+    tag: 'Needs Review',
+    updatedLabel: '1d ago',
+    fileIds: ['app'],
+    hasDesign: false,
+    category: 'Auth',
+    conflictLevel: 'Medium',
+    dueLabel: 'Overdue by 1 day',
+    dueBucket: 'overdue',
+  },
+  {
+    id: 'merge-settings',
+    title: 'Settings Panel',
+    subtitle: '2 files · Design + Code',
+    tag: 'Draft',
+    updatedLabel: '3d ago',
+    fileIds: ['app', 'tokens'],
+    hasDesign: true,
+    designPageId: 'page-1',
+    category: 'Settings',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+  },
+]
+
+// Property-level differences between a design item's two variants, keyed by
+// merge item id — drives the Variant Inspector / Reconcile Diff panel next
+// to the "Option A vs Option B" artboards in Merge Studio's design compare
+// view. `optionAClass`/`optionBClass` are Tailwind swatch classes, only set
+// for color-type diffs. Items with no entry here (e.g. a freshly-started
+// merge) just show an empty "no differences detected" state.
+// `layerCodeMap` is the bidirectional code<->design link for Merge Studio's
+// split view: clicking a layer on the "Option A · Current" artboard jumps
+// the code window to that {fileId, line}, and clicking that same line back
+// resolves to the layer id (see MergeStudioWorkspace). Only layers present
+// here are individually linkable — everything else on the canvas stays
+// visual-only, same as an unmapped line in the editor.
+export const designMergeVariants = {
+  'merge-flowbank': {
+    propertyDiffs: [
+      {
+        id: 'accent',
+        label: 'Accent Color',
+        optionA: 'Indigo 500',
+        optionB: 'Violet 500',
+        optionAClass: 'bg-indigo-500',
+        optionBClass: 'bg-violet-500',
+      },
+      { id: 'cta-padding', label: 'CTA Button Padding', optionA: '8px 16px', optionB: '12px 24px' },
+      { id: 'heading-size', label: 'Heading Font Size', optionA: '28px', optionB: '32px' },
+    ],
+    layerCodeMap: {
+      'hero-heading': { fileId: 'app', line: 4 },
+      'hero-cta': { fileId: 'app', line: 16 },
+      'nav-bar': { fileId: 'theme', line: 8 },
+    },
+  },
+  'merge-settings': {
+    propertyDiffs: [
+      { id: 'radius', label: 'Card Corner Radius', optionA: '8px', optionB: '16px' },
+      { id: 'spacing', label: 'Section Spacing', optionA: '24px', optionB: '32px' },
+    ],
+    layerCodeMap: {
+      'primary-button': { fileId: 'app', line: 16 },
+      'hero-card': { fileId: 'tokens', line: 7 },
+    },
+  },
+}
+
 export const assets = [
   { id: 'icon-set', name: 'icon-set.svg' },
   { id: 'hero', name: 'hero.png' },
