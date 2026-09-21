@@ -24,7 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -35,8 +35,8 @@ const PROGRESS_STEPS = [
 
 // Turns the merge item + the user's resolutions + the canvas annotations
 // into the pre-flight summary shown at the top of the modal.
-function buildSummary(item, resolutions, annotations, preset, assemblies = {}) {
-  const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
+function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = []) {
+  const layers = frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
   const design = Object.entries(resolutions).map(([key, side]) => {
@@ -53,9 +53,12 @@ function buildSummary(item, resolutions, annotations, preset, assemblies = {}) {
         : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
     }
   })
+  for (const l of extraLayers) {
+    design.push({ key: `added-${l.id}`, text: `Design System · ${l.name}`, choice: 'Added to Option A and Option B' })
+  }
   for (const [layerId, a] of Object.entries(assemblies)) {
     const layer = layers.find((l) => l.id === layerId)
-    if (!layer) continue
+    if (!layer || extraLayers.some((l) => l.id === layerId)) continue
     const parts = [
       a.shape && `${a.shape} shape`,
       (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
@@ -270,11 +273,11 @@ function mergeEffect(prev = {}, e) {
 // Staging view of the combined result: Option B with every resolved option
 // and applied AI edit baked in, next to the merged code (incoming lines +
 // AI edits).
-function PreviewStep({ item, resolutions, annotations, preset, assemblies = {} }) {
+function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [] }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
-  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const frame = item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
   const overrides = {}
@@ -570,8 +573,8 @@ function WizardStepper({ step, run }) {
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, initialStep = 0, onStepChange, onClose, onComplete }) {
-  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies), [item, resolutions, annotations, preset, assemblies])
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, initialStep = 0, onStepChange, onClose, onComplete }) {
+  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers), [item, resolutions, annotations, preset, assemblies, extraLayers])
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
@@ -665,7 +668,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} />}
 
           {step === 2 && (
             <div className="space-y-5">

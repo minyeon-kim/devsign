@@ -115,3 +115,11 @@ export function recommendAssembly(layer) {
       return { rationale: 'Round the corners slightly to match the design system.', patch: { shape: 'rounded' } }
   }
 }
+
+// The artboard frame plus any layers pulled in from the Design System
+// library; the frame grows to keep them inside.
+export function frameWithLayers(frame, extra = []) {
+  if (!frame || !extra.length) return frame
+  const bottom = Math.max(frame.height, ...extra.map((l) => l.y + l.height + 16))
+  return { ...frame, height: bottom, layers: [...frame.layers, ...extra] }
+}

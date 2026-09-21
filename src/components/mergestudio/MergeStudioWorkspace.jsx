@@ -5,7 +5,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
-import { diffEffect } from '@/components/mergestudio/mergeEffects'
+import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -68,6 +68,8 @@ function MergeStudioWorkspace({ item }) {
   // shadow, alignment, icon), previewed live on Option B and bundled into the
   // merge wizard.
   const [assemblies, setAssemblies] = useState({})
+  // Layers pulled from the Design System library onto both artboards.
+  const [addedLayers, setAddedLayers] = useState([])
   const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -85,6 +87,7 @@ function MergeStudioWorkspace({ item }) {
     setMergeModal(null)
     setResolutions({})
     setAssemblies({})
+    setAddedLayers([])
     setHoverDiff(null)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
@@ -151,6 +154,40 @@ function MergeStudioWorkspace({ item }) {
     })
   }
 
+  // Design System library actions.
+  // Apply: restyle the selected element with a component's look (size only
+  // when the element is the same kind of component).
+  function applyComponent(def) {
+    if (!selectedLayer) return
+    const sameType = selectedLayer.type === def.type
+    assemble(selectedLayer.id, {
+      ...def.assembly,
+      ...(sameType && { width: def.width, height: def.height }),
+    })
+  }
+
+  // Add: pull a new instance onto both artboards, below the existing content,
+  // then select it.
+  function addComponent(def) {
+    if (!frame0) return
+    const width = Math.min(def.width, frame0.width - 24)
+    const layer = {
+      id: `${def.id}-${Date.now()}`,
+      name: def.name,
+      kind: 'component',
+      type: def.type,
+      label: def.label,
+      x: Math.max(8, Math.round((frame0.width - width) / 2)),
+      y: frame0.height + 12,
+      width,
+      height: def.height,
+    }
+    setAddedLayers((prev) => [...prev, layer])
+    setAssemblies((prev) => ({ ...prev, [layer.id]: { ...def.assembly } }))
+    setSyncSelection({ layerId: layer.id })
+    setAppliedPreset(null)
+  }
+
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
   }
@@ -165,7 +202,7 @@ function MergeStudioWorkspace({ item }) {
     const { layerId, fileId, line } = mergeFocus.target
     if (layerId) selectLayer(layerId)
     else if (fileId && line) selectLine(fileId, line)
-    setDeckOpen(false)
+    if (!mergeFocus.target.keepDeck) setDeckOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeFocus, item?.id])
 
@@ -187,13 +224,10 @@ function MergeStudioWorkspace({ item }) {
   }
 
   const files = item ? openFiles.filter((f) => item.fileIds?.includes(f.id)) : []
-  const selectedLayer = item?.hasDesign
-    ? canvasPages
-        .find((p) => p.id === item.designPageId)
-        ?.frames[0]?.layers.find((l) => l.id === syncSelection?.layerId)
-    : null
+  const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const frame0 = frameWithLayers(baseFrame, addedLayers)
+  const selectedLayer = frame0?.layers.find((l) => l.id === syncSelection?.layerId) ?? null
 
-  const frame0 = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
 
@@ -208,6 +242,7 @@ function MergeStudioWorkspace({ item }) {
           merged={item.tag === 'Merged'}
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
+          extraLayers={addedLayers}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
@@ -252,6 +287,8 @@ function MergeStudioWorkspace({ item }) {
           assembly={syncSelection?.layerId ? assemblies[syncSelection.layerId] : undefined}
           onAssemble={(patch) => syncSelection?.layerId && assemble(syncSelection.layerId, patch)}
           onAssembleReset={() => syncSelection?.layerId && resetAssembly(syncSelection.layerId)}
+          onApplyComponent={applyComponent}
+          onAddComponent={addComponent}
           onApplyPreset={setAppliedPreset}
         />
       )}
@@ -263,6 +300,7 @@ function MergeStudioWorkspace({ item }) {
           annotations={mergeModal.annotations}
           preset={mergeModal.preset}
           assemblies={assemblies}
+          extraLayers={addedLayers}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}
           onClose={() => {

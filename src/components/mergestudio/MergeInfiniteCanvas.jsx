@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, Check, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, Check, ChevronLeft, ChevronRight, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
-import { assemblyToOverride, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -797,6 +797,7 @@ function MergeInfiniteCanvas({
   resolutionCount,
   merged,
   assemblies,
+  extraLayers,
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -804,7 +805,8 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { getFileLines } = useWorkspace()
+  const { getFileLines, requestMergeFocus } = useWorkspace()
+  const [driftIdx, setDriftIdx] = useState(-1)
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(DEFAULT_LAYOUT)
   const [panning, setPanning] = useState(false)
@@ -823,7 +825,7 @@ function MergeInfiniteCanvas({
   const anchorElRef = useRef(null)
   const suppressClick = useRef(false)
   const page = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId) : null
-  const frame = page?.frames[0]
+  const frame = frameWithLayers(page?.frames[0], extraLayers)
 
   useEffect(() => {
     viewRef.current = view
@@ -855,6 +857,7 @@ function MergeInfiniteCanvas({
     setAiStage(null)
     setAnnotations([])
     setOpenNote(null)
+    setDriftIdx(-1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
 
@@ -920,6 +923,53 @@ function MergeInfiniteCanvas({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.nonce, item.id])
+
+  // Drifts: every place Option A and Option B differ — design layers with
+  // variant diffs, then incoming code lines. The < > pager steps through
+  // them: each jump selects the drift (neon outline) and pans to it.
+  const layerDiffMap = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const drifts = [
+    ...(frame?.layers ?? [])
+      .filter((l) => layerDiffMap[l.id])
+      .map((l) => ({
+        id: `d:${l.id}`,
+        kind: 'design',
+        layerId: l.id,
+        label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
+      })),
+    ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
+      diffs.map((d) => ({
+        id: `c:${fileId}:${d.line}`,
+        kind: 'code',
+        fileId,
+        line: d.line,
+        label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
+      }))
+    ),
+  ]
+  const matchedDrift = drifts.findIndex((d) =>
+    d.kind === 'design'
+      ? syncSelection?.layerId === d.layerId
+      : syncSelection?.fileId === d.fileId &&
+        syncSelection?.line != null &&
+        d.line >= syncSelection.line &&
+        d.line <= (syncSelection.endLine ?? syncSelection.line)
+  )
+  const currentDrift = matchedDrift >= 0 ? matchedDrift : driftIdx
+
+  function goDrift(dir) {
+    const n = drifts.length
+    if (!n) return
+    const next = currentDrift < 0 ? (dir > 0 ? 0 : n - 1) : (currentDrift + dir + n) % n
+    const d = drifts[next]
+    setDriftIdx(next)
+    requestMergeFocus({
+      itemId: item.id,
+      keepDeck: true,
+      label: d.label,
+      ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
+    })
+  }
 
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
@@ -1564,6 +1614,32 @@ function MergeInfiniteCanvas({
 
         {/* Canvas actions: batch-apply pending notes with AI, then merge. */}
         <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+          {drifts.length > 1 && (
+            <div
+              title={currentDrift >= 0 ? drifts[currentDrift].label : 'Jump between drifts'}
+              className="flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md"
+            >
+              <button
+                type="button"
+                onClick={() => goDrift(-1)}
+                title="Previous drift"
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="min-w-16 px-1 text-center font-medium text-foreground tabular-nums">
+                Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => goDrift(1)}
+                title="Next drift"
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
           {annotations.length > 0 && (
             <button
               type="button"

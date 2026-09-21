@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, CircleAlert, Code2, Crosshair, Palette, Sparkles, TriangleAlert, Info, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Code2, Crosshair, Palette, Sparkles, TriangleAlert, Info, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
@@ -108,6 +108,7 @@ function ConflictResolutionModal({ item, onClose }) {
   const blocks = useMemo(() => buildBlocks(item, getFileLines), [item, getFileLines])
   const [choices, setChoices] = useState({})
   const [aiApplied, setAiApplied] = useState(false)
+  const [active, setActive] = useState(0)
   const sev = severity[item.conflictLevel] ?? severity.Medium
   const SevIcon = sev.icon
   const resolved = blocks.filter((b) => choices[b.id]).length
@@ -123,6 +124,15 @@ function ConflictResolutionModal({ item, onClose }) {
     if (blocks[0]) locate(blocks[0])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // < > pager across the conflict blocks: jump the canvas and scroll the
+  // block list to the target.
+  function go(dir) {
+    const next = (active + dir + blocks.length) % blocks.length
+    setActive(next)
+    locate(blocks[next])
+    document.getElementById(`conflict-block-${next}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
 
   function autoResolve() {
     setChoices(Object.fromEntries(blocks.map((b) => [b.id, b.recommended])))
@@ -181,14 +191,45 @@ function ConflictResolutionModal({ item, onClose }) {
             </div>
           </div>
 
-          {blocks.map((b) => (
-            <section key={b.id}>
+          {blocks.length > 1 && (
+            <div className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                title="Previous conflict"
+                className="flex size-7 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="min-w-28 text-center text-xs font-medium text-foreground tabular-nums">
+                Conflict {active + 1} / {blocks.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                title="Next conflict"
+                className="flex size-7 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
+
+          {blocks.map((b, i) => (
+            <section
+              key={b.id}
+              id={`conflict-block-${i}`}
+              className={cn('rounded-2xl transition-shadow', active === i && blocks.length > 1 && 'ring-1 ring-lime-400/60 ring-offset-4 ring-offset-transparent')}
+            >
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
                 {b.kind === 'token' ? <Palette className="size-3.5 text-violet-500" /> : <Code2 className="size-3.5 text-violet-500" />}
                 {b.title}
                 <button
                   type="button"
-                  onClick={() => locate(b)}
+                  onClick={() => {
+                    setActive(blocks.indexOf(b))
+                    locate(b)
+                  }}
                   title="Show on canvas"
                   className="flex items-center gap-1 rounded-full border border-lime-400/60 px-2 py-0.5 text-[10px] font-medium text-lime-300 transition-colors hover:bg-lime-400/10"
                 >

@@ -1234,3 +1234,27 @@ export const liveMergeNotification = {
   unread: true,
   target: { itemId: 'merge-flowbank', card: 'b', label: 'Option B' },
 }
+
+// ---------------------------------------------------------------------
+// Design System component library (Block Deck → Library tab)
+// ---------------------------------------------------------------------
+// `type` matches the artboard layer types StaticLayer knows how to draw;
+// `assembly` is the Block Assemble patch (shape/fill/border/shadow/…) that
+// gives the ready-made component its look; width/height/label seed a new
+// layer when it's pulled onto the canvas.
+export const designSystemMeta = { name: 'Devsign DS', version: 'v2.4.0', syncedLabel: 'Synced 3m ago' }
+
+export const designSystemComponents = [
+  { id: 'ds-button-primary', name: 'Primary Button', category: 'Buttons', type: 'button', width: 160, height: 40, label: 'Continue', tokens: ['color.accent', 'radius.full'], assembly: { shape: 'pill', fill: 'gradient', shadow: 'glow' } },
+  { id: 'ds-button-secondary', name: 'Secondary Button', category: 'Buttons', type: 'button', width: 160, height: 40, label: 'Cancel', tokens: ['color.border', 'radius.lg'], assembly: { shape: 'rounded', fill: 'ghost', border: 'outline' } },
+  { id: 'ds-button-icon', name: 'Icon Button', category: 'Buttons', type: 'iconbtn', width: 36, height: 36, label: '+', tokens: ['color.muted', 'radius.full'], assembly: { shape: 'circle', fill: 'violet' } },
+  { id: 'ds-input-search', name: 'Search Field', category: 'Inputs', type: 'input', width: 240, height: 40, label: 'Search…', tokens: ['color.background', 'radius.full'], assembly: { shape: 'pill', border: 'outline' } },
+  { id: 'ds-input-text', name: 'Text Field', category: 'Inputs', type: 'input', width: 240, height: 40, label: 'Email address', tokens: ['color.background', 'radius.md'], assembly: { shape: 'rounded', border: 'outline' } },
+  { id: 'ds-chip-status', name: 'Status Chip', category: 'Chips', type: 'chip', width: 64, height: 22, label: 'Active', tokens: ['color.success'], assembly: { shape: 'pill', fill: 'emerald' } },
+  { id: 'ds-chip-tag', name: 'Tag', category: 'Chips', type: 'chip', width: 60, height: 22, label: 'Design', tokens: ['color.accent'], assembly: { shape: 'pill', fill: 'violet' } },
+  { id: 'ds-card-basic', name: 'Card', category: 'Surfaces', type: 'card', width: 240, height: 110, tokens: ['color.card', 'radius.lg', 'shadow.md'], assembly: { shape: 'rounded', shadow: 'soft' } },
+  { id: 'ds-card-media', name: 'Media Card', category: 'Surfaces', type: 'image', width: 240, height: 120, tokens: ['gradient.hero', 'radius.lg'], assembly: { shape: 'rounded' } },
+  { id: 'ds-toggle', name: 'Toggle', category: 'Controls', type: 'toggle', width: 52, height: 28, tokens: ['color.accent'], assembly: { fill: 'violet' } },
+  { id: 'ds-avatar', name: 'Avatar', category: 'Controls', type: 'avatar', width: 36, height: 36, tokens: ['radius.full'], assembly: { shape: 'circle', shadow: 'soft' } },
+  { id: 'ds-tabs', name: 'Tab Bar', category: 'Navigation', type: 'tabs', width: 240, height: 44, tokens: ['color.border'], assembly: {} },
+]

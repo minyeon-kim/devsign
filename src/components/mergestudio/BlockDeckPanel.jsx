@@ -3,6 +3,8 @@ import {
   Blocks,
   Check,
   GripHorizontal,
+  Library,
+  Search,
   GitMerge,
   MousePointerClick,
   Sparkles,
@@ -10,8 +12,16 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { blockDeckPresets, canvasPages, designMergeVariants, inspectorSpecsByType } from '@/data/mockData'
-import { ASSEMBLY_FILLS, SHAPES, blockTemplates, recommendAssembly } from '@/components/mergestudio/mergeEffects'
+import {
+  blockDeckPresets,
+  canvasPages,
+  designMergeVariants,
+  designSystemComponents,
+  designSystemMeta,
+  inspectorSpecsByType,
+} from '@/data/mockData'
+import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
@@ -498,12 +508,108 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onA
   )
 }
 
+// Design System library: browse the integrated component library, then
+// either restyle the selected element with a component ("Apply") or pull
+// a fresh instance onto both artboards ("Add").
+function ComponentPreview({ def }) {
+  const box = { w: 112, h: 52 }
+  const k = Math.min(1, box.w / def.width, box.h / def.height)
+  const layer = { id: def.id, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
+  const override = { ...assemblyToOverride(def.assembly, layer), static: true }
+  return (
+    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/40" style={{ width: box.w + 12, height: box.h + 12 }}>
+      <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
+        <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
+          <StaticLayer layer={layer} override={override} onSelect={() => {}} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ComponentsTab({ selectedLayer, onApply, onAdd }) {
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const categories = ['All', ...new Set(designSystemComponents.map((c) => c.category))]
+  const visible = designSystemComponents.filter(
+    (c) =>
+      (category === 'All' || c.category === category) &&
+      c.name.toLowerCase().includes(query.trim().toLowerCase())
+  )
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="space-y-2.5 border-b border-white/10 p-3">
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <Library className="size-3.5 text-indigo-500" />
+          <span className="font-semibold text-foreground">{designSystemMeta.name}</span>
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">{designSystemMeta.version}</span>
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-400">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            {designSystemMeta.syncedLabel}
+          </span>
+        </div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search components…"
+            className="h-8 w-full rounded-full border border-white/10 bg-background/40 pr-3 pl-7 text-xs outline-none focus:border-violet-500"
+          />
+        </div>
+        <Seg options={categories.map((c) => [c, c])} value={category} onChange={setCategory} />
+        <p className="text-[10px] text-muted-foreground">
+          {selectedLayer ? (
+            <>
+              <span className="font-medium text-foreground">Apply</span> restyles {selectedLayer.name};{' '}
+              <span className="font-medium text-foreground">Add</span> pulls a new one onto the canvas.
+            </>
+          ) : (
+            'Select an element to Apply a component to it, or Add one to the canvas.'
+          )}
+        </p>
+      </div>
+
+      <div className="space-y-2 p-3">
+        {visible.map((def) => (
+          <div key={def.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-background/30 p-2">
+            <ComponentPreview def={def} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">{def.name}</p>
+              <p className="mb-1.5 truncate text-[10px] text-muted-foreground">{def.tokens.join(' · ')}</p>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  disabled={!selectedLayer}
+                  onClick={() => onApply(def)}
+                  className="rounded-full border border-indigo-500/50 px-2.5 py-0.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAdd(def)}
+                  className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {visible.length === 0 && <p className="p-4 text-center text-[11px] text-muted-foreground">No components match.</p>}
+      </div>
+    </div>
+  )
+}
+
 // A floating, freely draggable window — rendered only while `open` (the
 // workspace opens it when an element, frame, or code line on the canvas is
 // clicked; there is no standalone trigger button). Drag it by its header
 // anywhere within Merge Studio. "Variant Compare" is the design-merge
 // inspector; "Block Assemble" is the AI style-suggestion picker.
-export const DECK_WIDTH = 288
+export const DECK_WIDTH = 320
 
 function BlockDeckPanel({
   open,
@@ -523,6 +629,8 @@ function BlockDeckPanel({
   assembly,
   onAssemble,
   onAssembleReset,
+  onApplyComponent,
+  onAddComponent,
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
@@ -589,7 +697,7 @@ function BlockDeckPanel({
           type="button"
           onClick={() => setTab('compare')}
           className={cn(
-            'flex-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
+            'flex-1 rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
             tab === 'compare' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
@@ -605,6 +713,17 @@ function BlockDeckPanel({
         >
           Block Assemble
           <Sparkles className="size-2.5 text-primary" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('library')}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
+            tab === 'library' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Library className="size-3 text-primary" />
+          Library
         </button>
       </div>
 
@@ -625,6 +744,8 @@ function BlockDeckPanel({
             This merge item has no design page to compare.
           </div>
         )
+      ) : tab === 'library' ? (
+        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} />
       ) : (
         <BlockAssembleTab
           selectedLayer={selectedLayer}
