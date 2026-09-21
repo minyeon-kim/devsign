@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Check, CircleAlert, Code2, Palette, Sparkles, TriangleAlert, Info, Wand2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Check, CircleAlert, Code2, Crosshair, Palette, Sparkles, TriangleAlert, Info, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
@@ -25,6 +25,7 @@ function buildBlocks(item, getFileLines) {
       blocks.push({
         id: `t:${layerId}:${diff.id}`,
         kind: 'token',
+        layerId,
         title: `${layer?.name ?? layerId} · ${diff.label}`,
         current: [diff.optionA],
         incoming: [diff.optionB],
@@ -41,6 +42,8 @@ function buildBlocks(item, getFileLines) {
       blocks.push({
         id: `c:${fileId}:${d.line}`,
         kind: 'code',
+        fileId,
+        line: d.line,
         title: `${file?.name ?? fileId} · line ${d.line}`,
         current: [lines[d.line - 1] ?? ''],
         incoming: [d.incoming],
@@ -101,13 +104,25 @@ function Side({ label, lines, tone, selected, onSelect }) {
 // "auto-resolve" recommendation, and per-block manual choice. Applying the
 // resolution clears the item's conflict badge.
 function ConflictResolutionModal({ item, onClose }) {
-  const { getFileLines, updateMergeItem } = useWorkspace()
+  const { getFileLines, updateMergeItem, requestMergeFocus } = useWorkspace()
   const blocks = useMemo(() => buildBlocks(item, getFileLines), [item, getFileLines])
   const [choices, setChoices] = useState({})
   const [aiApplied, setAiApplied] = useState(false)
   const sev = severity[item.conflictLevel] ?? severity.Medium
   const SevIcon = sev.icon
   const resolved = blocks.filter((b) => choices[b.id]).length
+
+  // Targeting a conflict = selecting its element on the canvas (which draws
+  // the neon outline and pans there). Blocks without a target do nothing.
+  function locate(b) {
+    if (b.layerId) requestMergeFocus({ itemId: item.id, layerId: b.layerId, label: b.title })
+    else if (b.fileId) requestMergeFocus({ itemId: item.id, fileId: b.fileId, line: b.line, label: b.title })
+  }
+
+  useEffect(() => {
+    if (blocks[0]) locate(blocks[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function autoResolve() {
     setChoices(Object.fromEntries(blocks.map((b) => [b.id, b.recommended])))
@@ -120,8 +135,11 @@ function ConflictResolutionModal({ item, onClose }) {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-3xl">
+    <Dialog open modal={false} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        overlay={false}
+        className="top-6 right-6 left-auto flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl"
+      >
         <DialogHeader className="shrink-0 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             {item.title}
@@ -168,6 +186,15 @@ function ConflictResolutionModal({ item, onClose }) {
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
                 {b.kind === 'token' ? <Palette className="size-3.5 text-violet-500" /> : <Code2 className="size-3.5 text-violet-500" />}
                 {b.title}
+                <button
+                  type="button"
+                  onClick={() => locate(b)}
+                  title="Show on canvas"
+                  className="flex items-center gap-1 rounded-full border border-lime-400/60 px-2 py-0.5 text-[10px] font-medium text-lime-300 transition-colors hover:bg-lime-400/10"
+                >
+                  <Crosshair className="size-3" />
+                  Locate
+                </button>
                 <span className="ml-auto flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                   <Sparkles className="size-2.5 text-violet-500" />
                   AI: {b.recommended === 'B' ? 'Incoming' : 'Current'} — {b.reason}

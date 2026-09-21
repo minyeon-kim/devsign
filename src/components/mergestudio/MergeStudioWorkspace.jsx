@@ -64,6 +64,10 @@ function MergeStudioWorkspace({ item }) {
   const [deckOpen, setDeckOpen] = useState(false)
   const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
   const [annotationsSnap, setAnnotationsSnap] = useState([])
+  // Block Assemble: per-layer structural edits (shape, size, fill, border,
+  // shadow, alignment, icon), previewed live on Option B and bundled into the
+  // merge wizard.
+  const [assemblies, setAssemblies] = useState({})
   const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -80,6 +84,7 @@ function MergeStudioWorkspace({ item }) {
     setDeckOpen(false)
     setMergeModal(null)
     setResolutions({})
+    setAssemblies({})
     setHoverDiff(null)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
@@ -134,6 +139,18 @@ function MergeStudioWorkspace({ item }) {
     setMergeModal({ annotations, step, preset })
   }
 
+  function assemble(layerId, patch) {
+    setAssemblies((prev) => ({ ...prev, [layerId]: { ...prev[layerId], ...patch } }))
+  }
+
+  function resetAssembly(layerId) {
+    setAssemblies((prev) => {
+      const next = { ...prev }
+      delete next[layerId]
+      return next
+    })
+  }
+
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
   }
@@ -176,6 +193,7 @@ function MergeStudioWorkspace({ item }) {
         ?.frames[0]?.layers.find((l) => l.id === syncSelection?.layerId)
     : null
 
+  const frame0 = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
 
@@ -189,6 +207,7 @@ function MergeStudioWorkspace({ item }) {
           resolutionCount={Object.keys(resolutions).length}
           merged={item.tag === 'Merged'}
           stage={mergeModal ? wizardStage : 'compare'}
+          assemblies={assemblies}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
@@ -228,6 +247,11 @@ function MergeStudioWorkspace({ item }) {
           onResolve={resolveDiff}
           onHoverDiff={setHoverDiff}
           onMerge={() => openWizard()}
+          selectedLayer={selectedLayer}
+          frameWidth={frame0?.width ?? 300}
+          assembly={syncSelection?.layerId ? assemblies[syncSelection.layerId] : undefined}
+          onAssemble={(patch) => syncSelection?.layerId && assemble(syncSelection.layerId, patch)}
+          onAssembleReset={() => syncSelection?.layerId && resetAssembly(syncSelection.layerId)}
           onApplyPreset={setAppliedPreset}
         />
       )}
@@ -238,6 +262,7 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           annotations={mergeModal.annotations}
           preset={mergeModal.preset}
+          assemblies={assemblies}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}
           onClose={() => {

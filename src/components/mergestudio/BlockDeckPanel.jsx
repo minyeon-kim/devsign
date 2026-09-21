@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from 'cn'
 import { blockDeckPresets, canvasPages, designMergeVariants, inspectorSpecsByType } from '@/data/mockData'
+import { ASSEMBLY_FILLS, SHAPES, blockTemplates, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
@@ -54,12 +55,211 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
   )
 }
 
+// ---- Modular builder controls (shared by Block Assemble and the manual
+// fallback in Variant Compare) ---------------------------------------
+function Seg({ options, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          className={cn(
+            'rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
+            value === id
+              ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
+              : 'bg-background/40 text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function ShapeControl({ assembly, onChange }) {
+  return (
+    <Field label="Shape">
+      <Seg options={SHAPES.map((s) => [s.id, s.label])} value={assembly.shape} onChange={(shape) => onChange({ shape })} />
+    </Field>
+  )
+}
+
+function SizeControl({ layer, assembly, onChange }) {
+  const w = assembly.width ?? layer.width
+  const h = assembly.height ?? layer.height
+  const num = (value, key) => (
+    <label className="flex flex-1 items-center gap-1.5 rounded-full border border-white/10 bg-background/40 px-2.5 py-1 text-[10px] text-muted-foreground focus-within:border-violet-500">
+      {key === 'width' ? 'W' : 'H'}
+      <input
+        type="number"
+        min={8}
+        max={1200}
+        value={Math.round(value)}
+        onChange={(e) => {
+          const n = Number(e.target.value)
+          if (n > 0) onChange({ [key]: n })
+        }}
+        className="w-full min-w-0 bg-transparent text-xs text-foreground outline-none"
+      />
+    </label>
+  )
+  return (
+    <Field label="Size">
+      <div className="flex gap-1.5">
+        {num(w, 'width')}
+        {num(h, 'height')}
+      </div>
+      <div className="mt-1.5 flex gap-1">
+        {[
+          ['S', 0.8],
+          ['M', 1],
+          ['L', 1.25],
+        ].map(([label, k]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onChange({ width: Math.round(layer.width * k), height: Math.round(layer.height * k) })}
+            className="rounded-full bg-background/40 px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </Field>
+  )
+}
+
+function FillControl({ assembly, onChange }) {
+  return (
+    <Field label="Fill">
+      <div className="flex flex-wrap gap-1.5">
+        {ASSEMBLY_FILLS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            title={f.label}
+            onClick={() => onChange({ fill: f.id })}
+            className={cn(
+              'size-6 rounded-full transition-transform hover:scale-110',
+              f.swatch,
+              assembly.fill === f.id && 'ring-2 ring-white ring-offset-1 ring-offset-transparent'
+            )}
+          />
+        ))}
+      </div>
+    </Field>
+  )
+}
+
+// The modular builder: block templates, then shape / size / fill /
+// border & shadow / content controls. Everything writes into the layer's
+// "assembly", which previews live on Option B and is bundled into the merge.
+function AssembleBuilder({ layer, frameWidth, assembly, onChange, onReset }) {
+  const a = assembly ?? {}
+  return (
+    <div className="space-y-3 border-b border-white/10 p-3">
+      <div className="flex items-center gap-1.5">
+        <Blocks className="size-3.5 text-indigo-500" />
+        <span className="text-xs font-semibold text-foreground">Build {layer.name}</span>
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={!assembly}
+          className="ml-auto rounded-full px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+        >
+          Reset
+        </button>
+      </div>
+
+      <Field label="Blocks">
+        <div className="flex flex-wrap gap-1.5">
+          {blockTemplates(layer, frameWidth).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onChange(t.patch)}
+              className="rounded-full border border-indigo-500/40 px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-indigo-500/15"
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <ShapeControl assembly={a} onChange={onChange} />
+      <SizeControl layer={layer} assembly={a} onChange={onChange} />
+      <FillControl assembly={a} onChange={onChange} />
+      <Field label="Border">
+        <Seg options={[['none', 'None'], ['outline', 'Outline'], ['thick', 'Thick']]} value={a.border ?? 'none'} onChange={(border) => onChange({ border })} />
+      </Field>
+      <Field label="Shadow">
+        <Seg options={[['none', 'None'], ['soft', 'Soft'], ['glow', 'Glow']]} value={a.shadow ?? 'none'} onChange={(shadow) => onChange({ shadow })} />
+      </Field>
+      {['button', 'input', 'chip'].includes(layer.type) && (
+        <>
+          <Field label="Alignment">
+            <Seg options={[['start', 'Left'], ['center', 'Center'], ['end', 'Right']]} value={a.align} onChange={(align) => onChange({ align })} />
+          </Field>
+          {layer.type !== 'input' && (
+            <Field label="Icon">
+              <Seg options={[[null, 'None'], ['left', 'Left'], ['right', 'Right']].map(([id, l]) => [id ?? 'none', l])} value={a.icon ?? 'none'} onChange={(icon) => onChange({ icon: icon === 'none' ? null : icon })} />
+            </Field>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// For elements with no parseable design-system options: an AI
+// recommendation (one-click apply) beside plain manual controls.
+function ManualFallback({ layer, assembly, onChange }) {
+  const rec = recommendAssembly(layer)
+  const a = assembly ?? {}
+  return (
+    <div className="space-y-3 rounded-xl border border-white/10 bg-background/30 p-2.5">
+      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">No design tokens found</p>
+      <div className="rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-2.5">
+        <p className="flex items-center gap-1 text-[11px] font-semibold text-foreground">
+          <Sparkles className="size-3 text-violet-500" />
+          AI recommends
+        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{rec.rationale}</p>
+        <button
+          type="button"
+          onClick={() => onChange(rec.patch)}
+          className="mt-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1 text-[10px] font-semibold text-white"
+        >
+          <Wand2 className="size-3" />
+          Apply recommendation
+        </button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">Or set it manually:</p>
+      <ShapeControl assembly={a} onChange={onChange} />
+      <SizeControl layer={layer} assembly={a} onChange={onChange} />
+      <FillControl assembly={a} onChange={onChange} />
+    </div>
+  )
+}
+
 // What used to be MergeCanvasCompare's own docked "Variant Inspector"
 // column — now a tab inside the floating Block Deck instead of a fixed
 // sidebar next to the artboards, so it can float freely like the rest of
 // the deck. Still entirely selection-driven: reacts to whichever layer was
 // last clicked on either artboard on the infinite canvas.
-function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, onMerge }) {
+function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, onMerge, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -124,6 +324,10 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
               </div>
             </div>
           </div>
+        )}
+
+        {selectedLayer && !specificDiffs && (
+          <ManualFallback layer={selectedLayer} assembly={assembly} onChange={onAssemble} />
         )}
 
         {diffs.map((diff) => (
@@ -206,7 +410,7 @@ function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
 // live-preview it on the Option B artboard; dismissing one just removes it
 // from view; "Generate alternatives" pulls more from the shared preset pool
 // until it's exhausted.
-function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset }) {
+function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPreset }) {
   const [visibleIds, setVisibleIds] = useState(() => blockDeckPresets.slice(0, 3).map((p) => p.id))
   // Dismissed suggestions stay dismissed — "Generate alternatives" only ever
   // pulls presets that have never been shown yet, so clearing a bad
@@ -239,7 +443,7 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
         )}
       </p>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
+      <div className="space-y-2 p-3">
         {visiblePresets.map((preset) => (
           <AiSuggestionCard
             key={preset.id}
@@ -271,6 +475,29 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
   )
 }
 
+// Block Assemble: structural builder for the selected element, then the AI
+// style suggestions below it.
+function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onAssembleReset, ...suggestionProps }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {selectedLayer ? (
+        <AssembleBuilder
+          layer={selectedLayer}
+          frameWidth={frameWidth}
+          assembly={assembly}
+          onChange={onAssemble}
+          onReset={onAssembleReset}
+        />
+      ) : (
+        <p className="border-b border-white/10 p-4 text-center text-[11px] text-muted-foreground">
+          Select an element on the canvas to assemble its shape, size and layout.
+        </p>
+      )}
+      <AiSuggestionsSection {...suggestionProps} />
+    </div>
+  )
+}
+
 // A floating, freely draggable window — rendered only while `open` (the
 // workspace opens it when an element, frame, or code line on the canvas is
 // clicked; there is no standalone trigger button). Drag it by its header
@@ -291,6 +518,11 @@ function BlockDeckPanel({
   onResolve,
   onHoverDiff,
   onMerge,
+  selectedLayer,
+  frameWidth,
+  assembly,
+  onAssemble,
+  onAssembleReset,
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
@@ -385,6 +617,8 @@ function BlockDeckPanel({
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
             onMerge={onMerge}
+            assembly={assembly}
+            onAssemble={onAssemble}
           />
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-xs text-muted-foreground">
@@ -393,6 +627,11 @@ function BlockDeckPanel({
         )
       ) : (
         <BlockAssembleTab
+          selectedLayer={selectedLayer}
+          frameWidth={frameWidth}
+          assembly={assembly}
+          onAssemble={onAssemble}
+          onAssembleReset={onAssembleReset}
           selectedLayerName={selectedLayerName}
           appliedPresetId={appliedPresetId}
           onApplyPreset={onApplyPreset}

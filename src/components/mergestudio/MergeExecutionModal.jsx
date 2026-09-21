@@ -24,7 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { diffEffect } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -35,7 +35,7 @@ const PROGRESS_STEPS = [
 
 // Turns the merge item + the user's resolutions + the canvas annotations
 // into the pre-flight summary shown at the top of the modal.
-function buildSummary(item, resolutions, annotations, preset) {
+function buildSummary(item, resolutions, annotations, preset, assemblies = {}) {
   const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
@@ -53,6 +53,19 @@ function buildSummary(item, resolutions, annotations, preset) {
         : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
     }
   })
+  for (const [layerId, a] of Object.entries(assemblies)) {
+    const layer = layers.find((l) => l.id === layerId)
+    if (!layer) continue
+    const parts = [
+      a.shape && `${a.shape} shape`,
+      (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
+      a.fill && `${ASSEMBLY_FILLS.find((f) => f.id === a.fill)?.label ?? a.fill} fill`,
+      a.border && a.border !== 'none' && `${a.border} border`,
+      a.shadow && a.shadow !== 'none' && `${a.shadow} shadow`,
+      a.icon && `icon ${a.icon}`,
+    ].filter(Boolean)
+    design.push({ key: `assembly-${layerId}`, text: `${layer.name} · Assembled block`, choice: parts.join(' · ') || 'Customized' })
+  }
   if (preset) {
     design.push({
       key: 'preset',
@@ -257,7 +270,7 @@ function mergeEffect(prev = {}, e) {
 // Staging view of the combined result: Option B with every resolved option
 // and applied AI edit baked in, next to the merged code (incoming lines +
 // AI edits).
-function PreviewStep({ item, resolutions, annotations, preset }) {
+function PreviewStep({ item, resolutions, annotations, preset, assemblies = {} }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
@@ -275,6 +288,11 @@ function PreviewStep({ item, resolutions, annotations, preset }) {
     for (const t of a.targets ?? []) overrides[t] = mergeEffect(overrides[t], a.effect)
   }
 
+  for (const [layerId, a] of Object.entries(assemblies)) {
+    const layer = frame?.layers.find((l) => l.id === layerId)
+    const o = layer && assemblyToOverride(a, layer)
+    if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
   if (preset) overrides[preset.layerId] = mergeEffect(overrides[preset.layerId], { className: preset.previewClass })
 
   const activeFile = files.find((f) => f.id === fileId) ?? files[0]
@@ -552,8 +570,8 @@ function WizardStepper({ step, run }) {
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, initialStep = 0, onStepChange, onClose, onComplete }) {
-  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset), [item, resolutions, annotations, preset])
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, initialStep = 0, onStepChange, onClose, onComplete }) {
+  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies), [item, resolutions, annotations, preset, assemblies])
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
@@ -623,10 +641,13 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, initialSt
   const canNext = step === 2 ? reviewValid : true
 
   return (
-    <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
+    // No overlay / blur and non-modal: the canvas stays sharp and visible
+    // behind the wizard, which docks to the right.
+    <Dialog open modal={false} onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent
+        overlay={false}
         showCloseButton={!busy}
-        className="flex max-h-[88vh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-3xl"
+        className="top-6 right-6 left-auto flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl"
       >
         <DialogHeader className="shrink-0 gap-3 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
@@ -644,7 +665,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, initialSt
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} />}
 
           {step === 2 && (
             <div className="space-y-5">

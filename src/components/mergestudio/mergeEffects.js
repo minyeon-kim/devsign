@@ -18,3 +18,100 @@ export function diffEffect(diff, side) {
   } else if (/weight/.test(diff.id)) effect.dh = delta / 50
   return effect
 }
+
+// ---------------------------------------------------------------------
+// Block Assemble: structural / modular edits beyond color
+// ---------------------------------------------------------------------
+
+export const GLOW_SHADOW = 'shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]'
+
+export const ASSEMBLY_FILLS = [
+  { id: 'indigo', label: 'Indigo', className: 'bg-indigo-500', swatch: 'bg-indigo-500' },
+  { id: 'violet', label: 'Violet', className: 'bg-violet-500', swatch: 'bg-violet-500' },
+  { id: 'emerald', label: 'Emerald', className: 'bg-emerald-500', swatch: 'bg-emerald-500' },
+  { id: 'rose', label: 'Rose', className: 'bg-rose-500', swatch: 'bg-rose-500' },
+  { id: 'amber', label: 'Amber', className: 'bg-amber-500', swatch: 'bg-amber-500' },
+  { id: 'gradient', label: 'Gradient', className: 'bg-gradient-to-r from-indigo-500 to-violet-500', swatch: 'bg-gradient-to-r from-indigo-500 to-violet-500' },
+  { id: 'surface', label: 'Surface', className: 'bg-card', swatch: 'bg-card border border-border' },
+  { id: 'ghost', label: 'Ghost', className: 'bg-transparent', swatch: 'bg-transparent border border-border' },
+]
+
+export const SHAPES = [
+  { id: 'square', label: 'Square', radius: 0 },
+  { id: 'rounded', label: 'Rounded', radius: 12 },
+  { id: 'pill', label: 'Pill', radius: 999 },
+  { id: 'circle', label: 'Circle', radius: 999 },
+]
+
+const BORDERS = { none: '', outline: 'border border-white/30', thick: 'border-2 border-white/60' }
+const SHADOWS = { none: '', soft: 'shadow-lg', glow: GLOW_SHADOW }
+
+// A layer's assembly: { shape, width, height, fill, border, shadow, align, icon }.
+// Converts it into a visual override (see StaticLayer): absolute width/
+// height become deltas from the layer's own size, shape becomes a radius.
+export function assemblyToOverride(assembly, layer) {
+  if (!assembly) return null
+  const override = {}
+  let w = assembly.width ?? layer.width
+  let h = assembly.height ?? layer.height
+  if (assembly.shape === 'circle') w = h = Math.min(w, h)
+  const shape = SHAPES.find((s) => s.id === assembly.shape)
+  if (shape) override.radius = shape.radius
+  override.dw = w - layer.width
+  override.dh = h - layer.height
+  const fill = ASSEMBLY_FILLS.find((f) => f.id === assembly.fill)
+  if (fill) override.className = fill.className
+  const extra = [BORDERS[assembly.border], SHADOWS[assembly.shadow]].filter(Boolean).join(' ')
+  if (extra) override.extraClass = extra
+  if (assembly.align) override.align = assembly.align
+  if (assembly.icon) override.icon = assembly.icon
+  return override
+}
+
+// Layers two overrides: later fill/radius/etc. win, size deltas add up.
+export function mergeOverride(a = {}, b = {}) {
+  return {
+    ...a,
+    ...(b.className && { className: b.className }),
+    ...(b.radius !== undefined && { radius: b.radius }),
+    ...(b.extraClass && { extraClass: [a.extraClass, b.extraClass].filter(Boolean).join(' ') }),
+    ...(b.align && { align: b.align }),
+    ...(b.icon && { icon: b.icon }),
+    dw: (a.dw ?? 0) + (b.dw ?? 0),
+    dh: (a.dh ?? 0) + (b.dh ?? 0),
+  }
+}
+
+// Modular block templates — each bundles several properties at once.
+export function blockTemplates(layer, frameWidth) {
+  return [
+    { id: 'solid-pill', label: 'Solid pill', patch: { shape: 'pill', fill: 'gradient', border: 'none', shadow: 'glow' } },
+    { id: 'ghost', label: 'Ghost outline', patch: { shape: 'rounded', fill: 'ghost', border: 'outline', shadow: 'none' } },
+    { id: 'compact', label: 'Compact', patch: { shape: 'rounded', width: Math.round(layer.width * 0.8), height: Math.round(layer.height * 0.85) } },
+    { id: 'wide', label: 'Full width', patch: { width: Math.max(layer.width, frameWidth - layer.x * 2) } },
+    { id: 'icon-circle', label: 'Icon circle', patch: { shape: 'circle', width: Math.min(layer.width, layer.height), height: Math.min(layer.width, layer.height), icon: 'left', fill: 'violet' } },
+  ]
+}
+
+// Rule-based "AI recommendation" per element type, used by both the
+// builder and the manual fallback for elements with no parseable tokens.
+export function recommendAssembly(layer) {
+  switch (layer.type) {
+    case 'button':
+      return { rationale: 'A pill gradient with a soft glow matches this file’s primary CTAs.', patch: { shape: 'pill', fill: 'gradient', shadow: 'glow' } }
+    case 'input':
+      return { rationale: 'Pill-shaped inputs with an outline match the new radius.lg token.', patch: { shape: 'pill', border: 'outline' } }
+    case 'card':
+      return { rationale: 'A larger radius with a soft shadow separates cards from the page.', patch: { shape: 'rounded', shadow: 'soft' } }
+    case 'chip':
+      return { rationale: 'Chips read best as violet pills.', patch: { shape: 'pill', fill: 'violet' } }
+    case 'toggle':
+      return { rationale: 'Use the violet accent for active toggles.', patch: { fill: 'violet' } }
+    case 'avatar':
+      return { rationale: 'Avatars stay circular; add a soft shadow for depth.', patch: { shape: 'circle', shadow: 'soft' } }
+    case 'image':
+      return { rationale: 'Round the image to match neighbouring cards.', patch: { shape: 'rounded' } }
+    default:
+      return { rationale: 'Round the corners slightly to match the design system.', patch: { shape: 'rounded' } }
+  }
+}

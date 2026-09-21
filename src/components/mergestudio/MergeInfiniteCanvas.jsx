@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUp, Check, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
+import { assemblyToOverride, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -261,13 +262,17 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   }
   const fill = override?.className
   const radiusStyle = override?.radius !== undefined ? { borderRadius: override.radius } : undefined
+  const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
+  const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
+  const extra = override?.extraClass
+  const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
   let content = null
   if (layer.type === 'bar') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('flex h-full w-full items-center justify-between rounded-sm px-2', fill ?? 'bg-muted')}
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-between rounded-sm px-2', fill ?? 'bg-muted', extra)}
       >
         <span className="text-[9px] text-muted-foreground">9:41</span>
         <div className="flex items-center gap-0.5">
@@ -280,17 +285,17 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   } else if (layer.type === 'card') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'border border-border bg-muted/40')}
+        style={contentStyle}
+        className={cn('h-full w-full rounded-lg', fill ?? 'border border-border bg-muted/40', extra)}
       />
     )
   } else if (layer.type === 'avatar') {
-    content = <div className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30')} />
+    content = <div style={contentStyle} className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30', extra)} />
   } else if (layer.type === 'input') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-background')}
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-background', extra)}
       >
         {layer.label ?? 'Input'}
       </div>
@@ -298,37 +303,39 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   } else if (layer.type === 'chip') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('flex h-full w-full items-center justify-center rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500')}
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
       >
+        {override?.icon === 'left' && iconEl}
         {layer.label ?? 'Chip'}
+        {override?.icon === 'right' && iconEl}
       </div>
     )
   } else if (layer.type === 'toggle') {
     content = (
-      <div style={radiusStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500')}>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500', extra)}>
         <span className="aspect-square h-full rounded-full bg-white shadow" />
       </div>
     )
   } else if (layer.type === 'image') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70')}
+        style={contentStyle}
+        className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70', extra)}
       />
     )
   } else if (layer.type === 'iconbtn') {
     content = (
       <div
-        style={radiusStyle}
-        className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted')}
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted', extra)}
       >
         {layer.label ?? '•'}
       </div>
     )
   } else if (layer.type === 'tabs') {
     content = (
-      <div style={radiusStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card')}>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card', extra)}>
         {['Home', 'Search', 'Profile'].map((t, i) => (
           <span key={t} className={i === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
             {t}
@@ -339,18 +346,20 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   } else if (layer.type === 'button') {
     content = (
       <div
-        style={radiusStyle}
+        style={contentStyle}
         className={cn(
-          'flex h-full w-full items-center justify-center rounded-md text-xs font-medium text-primary-foreground',
-          fill ?? 'bg-primary'
+          'flex h-full w-full items-center justify-center gap-1.5 rounded-md text-xs font-medium text-primary-foreground',
+          fill ?? 'bg-primary', extra
         )}
       >
+        {override?.icon === 'left' && iconEl}
         {layer.label ?? 'Button'}
+        {override?.icon === 'right' && iconEl}
       </div>
     )
   } else {
     content = (
-      <div style={radiusStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-muted-foreground/25')} />
+      <div style={contentStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-muted-foreground/25', extra)} />
     )
   }
 
@@ -787,6 +796,7 @@ function MergeInfiniteCanvas({
   focus,
   resolutionCount,
   merged,
+  assemblies,
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -1039,13 +1049,6 @@ function MergeInfiniteCanvas({
     onAnnotationsChange?.(annotations)
   }, [annotations, onAnnotationsChange])
 
-  // Layers with changes: those with variant diffs plus any AI-edited layer.
-  const changedRef = useRef(new Set())
-  changedRef.current = new Set([
-    ...Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}),
-    ...annotations.flatMap((a) => (a.effect ? (a.targets ?? []) : [])),
-  ])
-
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
@@ -1164,10 +1167,10 @@ function MergeInfiniteCanvas({
           pins.push({ id: a.id, n: i + 1, x: Math.round(r.left), y: Math.round(r.top) })
         })
 
-        // Changed-area regions: every changed design layer on both artboards,
-        // every changed code line in both diff columns (clipped to what is
-        // actually visible in the card / artboard), with the selected ones
-        // drawn stronger. A selected artboard gets a box around the frame.
+        // Selection regions, drawn only on demand: the selected design layer on
+        // both artboards, the selected code block in both diff columns
+        // (clipped to what is visible in the card / artboard), or a whole
+        // selected artboard.
         const boxes = []
         const clip = (r, c) => {
           const left = Math.max(r.left, c.left)
@@ -1187,8 +1190,9 @@ function MergeInfiniteCanvas({
           const layerEls = container.querySelectorAll(`[data-frame-key="${fk}"] [data-layer-id]`)
           layerEls.forEach((el) => {
             const id = el.getAttribute('data-layer-id')
+            // On-demand only: just the clicked / selected element.
             const strong = id === syncSelection?.layerId
-            if (!strong && !changedRef.current.has(id)) return
+            if (!strong) return
             const r = clip(rel(el.getBoundingClientRect()), fr)
             if (r) push(r, strong, `layer-${fk}-${id}`)
           })
@@ -1198,7 +1202,7 @@ function MergeInfiniteCanvas({
           const scroller = codeEl.querySelector('[data-code-scroll]')
           const sr = scroller ? rel(scroller.getBoundingClientRect()) : null
           const rows = []
-          codeEl.querySelectorAll('[data-changed], [data-selected]').forEach((el) => {
+          codeEl.querySelectorAll('[data-selected]').forEach((el) => {
             const r = sr && clip(rel(el.getBoundingClientRect()), sr)
             if (r) rows.push({ ...r, strong: el.hasAttribute('data-selected') })
           })
@@ -1344,9 +1348,14 @@ function MergeInfiniteCanvas({
   // selected layer's Variant Compare choice/hover and any applied AI preset
   // layered on top (preset fill > variant fill > annotation fill).
   const overrides = { ...edits }
+  for (const [layerId, assembly] of Object.entries(assemblies ?? {})) {
+    const layer = frame?.layers.find((l) => l.id === layerId)
+    const o = layer && assemblyToOverride(assembly, layer)
+    if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
   const selId = syncSelection?.layerId
   if (selId && (variantPreview || appliedPreset)) {
-    const base = edits[selId]
+    const base = overrides[selId]
     overrides[selId] = {
       ...base,
       radius: variantPreview?.radius ?? base?.radius,
