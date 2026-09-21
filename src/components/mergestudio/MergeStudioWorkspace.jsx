@@ -63,6 +63,7 @@ function MergeStudioWorkspace({ item }) {
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
   const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
+  const [annotationsSnap, setAnnotationsSnap] = useState([])
   const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -122,6 +123,17 @@ function MergeStudioWorkspace({ item }) {
     setDeckOpen(true)
   }
 
+  // Opens the 4-step merge wizard with everything chosen so far bundled in:
+  // Block Deck variant resolutions (via `resolutions`), the applied AI
+  // preset, and the canvas annotations.
+  function openWizard(annotations = annotationsSnap, step = 0) {
+    const preset =
+      appliedPreset && syncSelection?.layerId
+        ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+        : null
+    setMergeModal({ annotations, step, preset })
+  }
+
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
   }
@@ -177,7 +189,8 @@ function MergeStudioWorkspace({ item }) {
           resolutionCount={Object.keys(resolutions).length}
           merged={item.tag === 'Merged'}
           stage={mergeModal ? wizardStage : 'compare'}
-          onMerge={(annotations, step = 0) => setMergeModal({ annotations, step })}
+          onAnnotationsChange={setAnnotationsSnap}
+          onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
           files={files}
           syncSelection={syncSelection}
@@ -214,6 +227,7 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           onResolve={resolveDiff}
           onHoverDiff={setHoverDiff}
+          onMerge={() => openWizard()}
           onApplyPreset={setAppliedPreset}
         />
       )}
@@ -223,6 +237,7 @@ function MergeStudioWorkspace({ item }) {
           item={item}
           resolutions={resolutions}
           annotations={mergeModal.annotations}
+          preset={mergeModal.preset}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}
           onClose={() => {

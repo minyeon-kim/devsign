@@ -34,7 +34,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
-        linked && 'border-violet-500/50',
+        linked && 'border-lime-400/30',
         hovered && !highlighted && 'border-lime-400/70',
         highlighted && 'border-lime-400',
         !highlighted && accentClass
@@ -285,7 +285,57 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       />
     )
   } else if (layer.type === 'avatar') {
-    content = <div className={cn('h-full w-full rounded-full', fill ?? 'bg-muted-foreground/30')} />
+    content = <div className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30')} />
+  } else if (layer.type === 'input') {
+    content = (
+      <div
+        style={radiusStyle}
+        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-background')}
+      >
+        {layer.label ?? 'Input'}
+      </div>
+    )
+  } else if (layer.type === 'chip') {
+    content = (
+      <div
+        style={radiusStyle}
+        className={cn('flex h-full w-full items-center justify-center rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500')}
+      >
+        {layer.label ?? 'Chip'}
+      </div>
+    )
+  } else if (layer.type === 'toggle') {
+    content = (
+      <div style={radiusStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500')}>
+        <span className="aspect-square h-full rounded-full bg-white shadow" />
+      </div>
+    )
+  } else if (layer.type === 'image') {
+    content = (
+      <div
+        style={radiusStyle}
+        className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70')}
+      />
+    )
+  } else if (layer.type === 'iconbtn') {
+    content = (
+      <div
+        style={radiusStyle}
+        className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted')}
+      >
+        {layer.label ?? '•'}
+      </div>
+    )
+  } else if (layer.type === 'tabs') {
+    content = (
+      <div style={radiusStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card')}>
+        {['Home', 'Search', 'Profile'].map((t, i) => (
+          <span key={t} className={i === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+            {t}
+          </span>
+        ))}
+      </div>
+    )
   } else if (layer.type === 'button') {
     content = (
       <div
@@ -315,9 +365,9 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'absolute cursor-pointer',
-        linked && 'outline outline-1 outline-dashed outline-offset-2 outline-violet-500/60',
-        hovered && 'outline-2 outline-violet-500',
-        selected && 'outline outline-2 outline-solid outline-offset-1 outline-primary'
+        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-lime-400/70',
+        // selection is drawn by the neon bounding-box overlay, so no second ring here
+        selected && ''
       )}
       style={style}
     >
@@ -737,6 +787,7 @@ function MergeInfiniteCanvas({
   focus,
   resolutionCount,
   merged,
+  onAnnotationsChange,
   stage = 'compare',
   onMerge,
   onSelectLayer,
@@ -981,6 +1032,12 @@ function MergeInfiniteCanvas({
       codeEdits[`${a.fileId}:${a.line}`] = `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${a.summary}`
     }
   }
+
+  // Share the annotation list upward so the Block Deck's merge button can
+  // bundle it into the wizard.
+  useEffect(() => {
+    onAnnotationsChange?.(annotations)
+  }, [annotations, onAnnotationsChange])
 
   // Layers with changes: those with variant diffs plus any AI-edited layer.
   const changedRef = useRef(new Set())

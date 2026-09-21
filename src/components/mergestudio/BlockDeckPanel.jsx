@@ -59,7 +59,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
 // sidebar next to the artboards, so it can float freely like the rest of
 // the deck. Still entirely selection-driven: reacts to whichever layer was
 // last clicked on either artboard on the infinite canvas.
-function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
+function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, onMerge }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -143,11 +143,16 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
         <div className="shrink-0 border-t border-white/10 p-3">
           <button
             type="button"
-            disabled={resolvedCount < diffs.length}
-            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+            onClick={onMerge}
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:brightness-110"
           >
             <GitMerge className="size-3.5" />
             Reconcile &amp; Merge
+            {resolvedCount > 0 && (
+              <span className="rounded-full bg-white/20 px-1.5 text-[10px]">
+                {resolvedCount}/{diffs.length}
+              </span>
+            )}
           </button>
         </div>
       )}
@@ -285,6 +290,7 @@ function BlockDeckPanel({
   resolutions,
   onResolve,
   onHoverDiff,
+  onMerge,
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
@@ -378,6 +384,7 @@ function BlockDeckPanel({
             resolutions={resolutions}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
+            onMerge={onMerge}
           />
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-xs text-muted-foreground">

@@ -35,20 +35,31 @@ const PROGRESS_STEPS = [
 
 // Turns the merge item + the user's resolutions + the canvas annotations
 // into the pre-flight summary shown at the top of the modal.
-function buildSummary(item, resolutions, annotations) {
+function buildSummary(item, resolutions, annotations, preset) {
   const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
   const design = Object.entries(resolutions).map(([key, side]) => {
-    const [layerId, diffId] = key.split(':')
+    const split = key.indexOf(':')
+    const layerId = key.slice(0, split)
+    const diffId = key.slice(split + 1)
     const diff = layerDiffs[layerId]?.find((d) => d.id === diffId)
     const layer = layers.find((l) => l.id === layerId)
     return {
       key,
-      text: `${layer?.name ?? layerId} · ${diff?.label ?? diffId}`,
-      choice: side === 'A' ? `Kept ${diff?.optionA ?? 'A'}` : `Accepted ${diff?.optionB ?? 'B'}`,
+      text: `${layer?.name ?? layerId} · ${diff?.label ?? 'Design decision'}`,
+      choice: diff
+        ? side === 'A' ? `Kept ${diff.optionA}` : `Accepted ${diff.optionB}`
+        : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
     }
   })
+  if (preset) {
+    design.push({
+      key: 'preset',
+      text: `${layers.find((l) => l.id === preset.layerId)?.name ?? preset.layerId} · AI style preset`,
+      choice: `Applied ${preset.label}`,
+    })
+  }
 
   const files = openFiles
     .filter((f) => item.fileIds?.includes(f.id))
@@ -246,7 +257,7 @@ function mergeEffect(prev = {}, e) {
 // Staging view of the combined result: Option B with every resolved option
 // and applied AI edit baked in, next to the merged code (incoming lines +
 // AI edits).
-function PreviewStep({ item, resolutions, annotations }) {
+function PreviewStep({ item, resolutions, annotations, preset }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
@@ -263,6 +274,8 @@ function PreviewStep({ item, resolutions, annotations }) {
     if (!a.effect) continue
     for (const t of a.targets ?? []) overrides[t] = mergeEffect(overrides[t], a.effect)
   }
+
+  if (preset) overrides[preset.layerId] = mergeEffect(overrides[preset.layerId], { className: preset.previewClass })
 
   const activeFile = files.find((f) => f.id === fileId) ?? files[0]
   const lines = activeFile ? getFileLines(activeFile.id) : []
@@ -539,8 +552,8 @@ function WizardStepper({ step, run }) {
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, initialStep = 0, onStepChange, onClose, onComplete }) {
-  const summary = useMemo(() => buildSummary(item, resolutions, annotations), [item, resolutions, annotations])
+function MergeExecutionModal({ item, resolutions, annotations, preset, initialStep = 0, onStepChange, onClose, onComplete }) {
+  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset), [item, resolutions, annotations, preset])
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
@@ -631,7 +644,7 @@ function MergeExecutionModal({ item, resolutions, annotations, initialStep = 0, 
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} />}
 
           {step === 2 && (
             <div className="space-y-5">

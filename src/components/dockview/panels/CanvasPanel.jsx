@@ -132,7 +132,7 @@ function SelectionHandles() {
         <span
           key={pos}
           className={cn(
-            'pointer-events-none absolute z-10 size-2 rounded-[2px] border border-blue-500 bg-white',
+            'pointer-events-none absolute z-10 size-2 rounded-[2px] border border-lime-400 bg-white shadow-[0_0_6px_rgba(163,230,53,0.8)]',
             pos
           )}
         />
@@ -294,7 +294,7 @@ function CanvasLayer({ layer, isSelected, onSelect, commentMode }) {
   return (
     <div
       onClick={handleClick}
-      className={cn(base, isSelected && 'outline outline-2 outline-offset-1 outline-blue-500')}
+      className={cn(base, isSelected && 'outline outline-2 outline-offset-1 outline-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.6)]')}
       style={style}
     >
       {content}
@@ -322,7 +322,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode }) {
         }}
         className={cn(
           'relative h-full w-full cursor-pointer rounded-md border border-border bg-card shadow-lg',
-          isFrameSelected && 'outline outline-2 outline-offset-1 outline-blue-500'
+          isFrameSelected && 'outline outline-2 outline-offset-1 outline-lime-400 shadow-[0_0_12px_rgba(163,230,53,0.5)]'
         )}
       >
         {frame.layers.map((layer) => (
