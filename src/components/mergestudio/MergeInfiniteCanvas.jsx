@@ -11,7 +11,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
-const CODE_DIFF_WIDTH = 576
+const CODE_DIFF_WIDTH = 720
 // How far right content starts, so it clears the floating Merge List panel
 // (w-72 anchored left-4) docked over the same canvas surface instead of
 // pushing it in a fixed layout column.
@@ -415,7 +415,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <p className="mb-1.5 flex items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+      <p className="mb-1.5 flex w-fit items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
         <GripHorizontal className="size-3 shrink-0 text-muted-foreground/50" />
         {label}
       </p>
@@ -467,10 +467,15 @@ const CARD_GAP = 140
 
 // Sizes are in world units. Artboards leave w/h null until first resized
 // (they then derive their height from the frame's aspect ratio).
+// Compact unified layout: the code card (Code A | Code B columns) on top, with
+// the Option A artboard centered under the Code A column and Option B under
+// the Code B column — so each option reads as one column of code + design.
+const CODE_H = 380
+const COLUMN_W = CODE_DIFF_WIDTH / 2
 const DEFAULT_LAYOUT = {
-  code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: 380 },
-  a: { x: CODE_DIFF_WIDTH + CARD_GAP, y: 0, w: null, h: null },
-  b: { x: CODE_DIFF_WIDTH + CARD_GAP + ARTBOARD_PREVIEW_WIDTH + CARD_GAP, y: 0, w: null, h: null },
+  code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_H },
+  a: { x: (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
+  b: { x: COLUMN_W + (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
 }
 const DEFAULT_VIEW = { x: CONTENT_START_X, y: 40, zoom: 100 }
 
@@ -487,6 +492,19 @@ function linkGeometry(from, to, lift = 0) {
   const dx = Math.max(48, Math.abs(to.x - from.x) / 2) * dir
   const c1 = { x: from.x + dx, y: from.y - lift }
   const c2 = { x: to.x - dx, y: to.y - lift }
+  return {
+    d: `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`,
+    mid: { x: (from.x + 3 * c1.x + 3 * c2.x + to.x) / 8, y: (from.y + 3 * c1.y + 3 * c2.y + to.y) / 8 },
+    from,
+    to,
+  }
+}
+
+// Same idea for stacked cards: leaves/enters vertically.
+function linkGeometryV(from, to) {
+  const dy = Math.max(24, Math.abs(to.y - from.y) / 2) * (Math.sign(to.y - from.y) || 1)
+  const c1 = { x: from.x, y: from.y + dy }
+  const c2 = { x: to.x, y: to.y - dy }
   return {
     d: `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`,
     mid: { x: (from.x + 3 * c1.x + 3 * c2.x + to.x) / 8, y: (from.y + 3 * c1.y + 3 * c2.y + to.y) / 8 },
@@ -751,14 +769,52 @@ function classifyDiff(diff) {
 
 // Pinned callout explaining exactly what the current drift is. Stays put
 // while the user inspects (until dismissed or another drift is opened).
-function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentLine, incomingLine, onClose }) {
+// Design drifts are grouped by category (one heading per group, not per
+// row); each property is an aligned key / A / B row where the A and B pills
+// are the resolution control — click to keep A or accept B, click the
+// selected one again to clear.
+function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentLine, incomingLine, onResolve, onClose }) {
   const isDesign = drift.kind === 'design'
   const codeCat =
     /var\(|token|#[0-9a-f]{3,6}|oklch|--/i.test(`${currentLine ?? ''} ${incomingLine ?? ''}`)
-      ? { label: 'Token mismatch', className: 'bg-muted text-muted-foreground' }
+      ? { label: 'Token mismatch', className: 'bg-slate-700 text-muted-foreground' }
       : { label: 'Code change', className: 'bg-indigo-500/15 text-indigo-400' }
+
+  const groups = []
+  if (isDesign) {
+    for (const d of drift.diffs) {
+      const cat = classifyDiff(d)
+      let g = groups.find((x) => x.cat.label === cat.label)
+      if (!g) groups.push((g = { cat, diffs: [] }))
+      g.diffs.push(d)
+    }
+  }
+  const sideOf = (d) => resolutions?.[`${drift.layerId}:${d.id}`]
+  const resolvedCount = isDesign ? drift.diffs.filter((d) => sideOf(d)).length : 0
+
+  const pill = (d, side, value) => {
+    const on = sideOf(d) === side
+    return (
+      <button
+        type="button"
+        onClick={() => onResolve?.(d.id, on ? null : side)}
+        title={on ? 'Click to clear' : side === 'A' ? 'Keep current (A)' : 'Accept incoming (B)'}
+        className={cn(
+          'flex min-w-0 items-center justify-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors',
+          on
+            ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm'
+            : 'bg-slate-700 text-muted-foreground hover:bg-slate-600 hover:text-foreground'
+        )}
+      >
+        {on && <Check className="size-3 shrink-0" />}
+        <span className="shrink-0 opacity-70">{side}</span>
+        <span className="truncate">{value}</span>
+      </button>
+    )
+  }
+
   return (
-    <div className="absolute top-full left-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-slate-800 p-3 text-[11px] shadow-xl">
+    <div className="absolute top-full left-0 z-30 mt-2 w-80 rounded-2xl border border-white/10 bg-slate-800/90 p-3 text-[11px] shadow-xl backdrop-blur-md">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -770,46 +826,77 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
           type="button"
           onClick={onClose}
           title="Dismiss"
-          className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-slate-700 hover:text-foreground"
         >
           <X className="size-3" />
         </button>
       </div>
 
-      <div className="mt-2 space-y-2">
+      <div className="mt-3 space-y-3">
         {isDesign ? (
-          drift.diffs.map((d) => {
-            const cat = classifyDiff(d)
-            const side = resolutions?.[`${drift.layerId}:${d.id}`]
-            return (
-              <div key={d.id} className="rounded-xl bg-slate-800/70 p-2">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-semibold', cat.className)}>{cat.label}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {side ? `Resolved · ${side === 'A' ? 'kept A' : 'accepted B'}` : 'Unresolved'}
-                  </span>
-                </div>
-                <p className="mt-1.5 flex flex-wrap items-center gap-1 text-foreground">
-                  {d.label}:
-                  <span className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-destructive">A {d.optionA}</span>
-                  →
-                  <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">B {d.optionB}</span>
-                </p>
+          groups.map((g) => (
+            <section key={g.cat.label}>
+              <span className={cn('inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold', g.cat.className)}>
+                {g.cat.label}
+              </span>
+              <div className="mt-1.5 grid grid-cols-[5.5rem_1fr_1fr] items-center gap-x-1.5 gap-y-1.5">
+                {g.diffs.map((d) => (
+                  <div key={d.id} className="contents">
+                    <span className="truncate text-muted-foreground">{d.label}</span>
+                    {pill(d, 'A', d.optionA)}
+                    {pill(d, 'B', d.optionB)}
+                  </div>
+                ))}
               </div>
-            )
-          })
+            </section>
+          ))
         ) : (
-          <div className="rounded-xl bg-slate-800/70 p-2">
-            <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-semibold', codeCat.className)}>{codeCat.label}</span>
-            <p className="mt-1.5 text-muted-foreground">Incoming code changes this line:</p>
-            <p className="mt-1 rounded-md bg-destructive/10 px-2 py-1 font-mono text-[10px] break-words text-destructive/90">− {currentLine || ' '}</p>
-            <p className="mt-1 rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[10px] break-words text-emerald-400">+ {incomingLine}</p>
-          </div>
-        )}
-        {layerCodeTarget && (
-          <p className="text-[10px] text-muted-foreground">{layerCodeTarget}</p>
+          <section>
+            <span className={cn('inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold', codeCat.className)}>
+              {codeCat.label}
+            </span>
+            <div className="mt-1.5 grid grid-cols-[4.5rem_1fr] items-start gap-x-1.5 gap-y-1.5">
+              <span className="pt-1 text-muted-foreground">Current</span>
+              <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[10px] break-words text-destructive/90">{currentLine || ' '}</p>
+              <span className="pt-1 text-muted-foreground">Incoming</span>
+              <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[10px] break-words text-emerald-400">{incomingLine}</p>
+            </div>
+          </section>
         )}
       </div>
+
+      {(isDesign || layerCodeTarget) && (
+        <div className="mt-3 flex items-center gap-1.5 border-t border-border/60 pt-2.5">
+          {isDesign && (
+            <>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-1 text-[10px] font-medium',
+                  resolvedCount === drift.diffs.length ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
+                )}
+              >
+                {resolvedCount}/{drift.diffs.length} resolved
+              </span>
+              <button
+                type="button"
+                onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'A'))}
+                className="ml-auto rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
+              >
+                Keep all A
+              </button>
+              <button
+                type="button"
+                onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'B'))}
+                className="rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
+              >
+                Accept all B
+              </button>
+            </>
+          )}
+          {!isDesign && layerCodeTarget && <span className="text-[10px] text-muted-foreground">{layerCodeTarget}</span>}
+        </div>
+      )}
+      {isDesign && layerCodeTarget && <p className="mt-1.5 text-[10px] text-muted-foreground">{layerCodeTarget}</p>}
     </div>
   )
 }
@@ -944,6 +1031,7 @@ function MergeInfiniteCanvas({
   resolutions,
   extraLayers,
   onUndoChange,
+  onResolveDiff,
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -988,8 +1076,10 @@ function MergeInfiniteCanvas({
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
     const right = frame ? Math.max(lay.code.x + lay.code.w, lay.a.x + artW('a'), lay.b.x + artW('b')) : lay.code.x + lay.code.w
     const worldW = right - lay.code.x
-    const artH = frame ? 30 + (frame.height * ARTBOARD_PREVIEW_WIDTH) / frame.width : 0
-    const worldH = Math.max(lay.code.h, artH)
+    const artBottom = (k) =>
+      lay[k].y + 30 + (lay[k].h ?? (frame.height * (lay[k].w ?? ARTBOARD_PREVIEW_WIDTH)) / frame.width)
+    const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
+    const worldH = bottom - lay.code.y
     const availW = rect.width - CONTENT_START_X - 32 - reserve
     const availH = rect.height - 150
     const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
@@ -1316,6 +1406,15 @@ function MergeInfiniteCanvas({
                 label: 'Code changes',
                 gap: toRight ? rA.left - code.right : code.left - rA.right,
               })
+            } else if (rA.top >= code.bottom) {
+              // Stacked layout: from the bottom of the code card down to the
+              // Option A artboard's label.
+              const wrapA = find('[data-frame-key="a"]')
+              const wr = wrapA ? rel(wrapA.getBoundingClientRect()) : rA
+              const x = Math.min(Math.max(wr.left + 40, code.left + 12), code.right - 12)
+              const from = { x, y: code.bottom }
+              const to = { x, y: wr.top }
+              paths.push({ ...linkGeometryV(from, to), label: 'Code changes', axis: 'v', gap: to.y - from.y })
             }
           }
           // Option A -> Option B ("Design changes").
@@ -1721,8 +1820,8 @@ function MergeInfiniteCanvas({
         {links.paths.map((p, i) => {
           // Shrink the pill with the gap it sits in; hide it when the gap
           // is too tight to hold it without touching a card border.
-          const fit = Math.min(1, (p.gap - 16) / 108)
-          if (fit < 0.55) return null
+          const fit = p.axis === 'v' ? Math.min(1, (p.gap - 6) / 28) : Math.min(1, (p.gap - 16) / 108)
+          if (fit < (p.axis === 'v' ? 0.6 : 0.55)) return null
           return (
           <span
             key={i}
@@ -1831,6 +1930,7 @@ function MergeInfiniteCanvas({
                     layerCodeTarget={linked ? `Affects ${openFiles.find((f) => f.id === linked.fileId)?.name ?? linked.fileId} · line ${linked.line}` : null}
                     currentLine={original}
                     incomingLine={incoming}
+                    onResolve={(diffId, side) => onResolveDiff?.(d.layerId, diffId, side)}
                     onClose={() => setDriftHidden(d.id)}
                   />
                 )

@@ -225,7 +225,13 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function resolveDiff(layerId, diffId, side) {
-    setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
+    setResolutions((prev) => {
+      const next = { ...prev }
+      const key = `${layerId}:${diffId}`
+      if (side) next[key] = side
+      else delete next[key]
+      return next
+    })
   }
 
   // Inbox click -> select the target (without popping the Block Deck open);
@@ -295,6 +301,7 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           extraLayers={addedLayers}
           onUndoChange={undoChange}
+          onResolveDiff={resolveDiff}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
