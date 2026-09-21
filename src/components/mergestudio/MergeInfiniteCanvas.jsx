@@ -1758,13 +1758,39 @@ function MergeInfiniteCanvas({
           />
         )}
 
-        <div className="absolute top-3 left-[19rem] z-20">
+        {/* Header row: macro stepper centered, Apply with AI / Merge Changes on
+            the right. Kept clear of the docked Block Deck via `reserve`. */}
+        <div
+          className="absolute top-3 left-[18.5rem] z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3"
+          style={{ right: 12 + reserve }}
+        >
+          <div />
           <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
+          <div className="flex items-center justify-end gap-2">
+          {annotations.length > 0 && (
+            <button
+              type="button"
+              onClick={applyAll}
+              disabled={pendingCount === 0}
+              className="flex items-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Sparkles className="size-3.5 text-violet-500" />
+              Apply with AI
+              {pendingCount > 0 && (
+                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+          </div>
         </div>
 
-        {/* Canvas actions: batch-apply pending notes with AI, then merge. */}
-        <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
-          {drifts.length > 1 && (
+        {/* Contextual sub-toolbar directly under the header: the drift
+            navigator and its pinned info card. */}
+        {drifts.length > 1 && (
+          <div className="pointer-events-none absolute top-14 left-[18.5rem] z-20 flex justify-center" style={{ right: 12 + reserve }}>
+            <div className="pointer-events-auto">
             <div className="relative flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md">
               <button
                 type="button"
@@ -1810,43 +1836,9 @@ function MergeInfiniteCanvas({
                 )
               })()}
             </div>
-          )}
-          {annotations.length > 0 && (
-            <button
-              type="button"
-              onClick={applyAll}
-              disabled={pendingCount === 0}
-              className="flex items-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Sparkles className="size-3.5 text-violet-500" />
-              Apply with AI
-              {pendingCount > 0 && (
-                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => onMerge(annotations)}
-            disabled={merged}
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg transition-all',
-              merged
-                ? 'cursor-default border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110'
-            )}
-          >
-            {merged ? <Check className="size-3.5" /> : <GitMerge className="size-3.5" />}
-            {merged ? 'Merged' : 'Merge Changes'}
-            {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
-              <span className="rounded-full bg-white/20 px-1.5 text-[10px]">
-                {resolutionCount + annotations.filter((a) => a.status === 'done').length}
-              </span>
-            )}
-          </button>
-        </div>
+            </div>
+          </div>
+        )}
 
         {stage === 'compare' && (() => {
           const presetObj =

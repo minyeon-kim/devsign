@@ -88,6 +88,9 @@ export function WorkspaceProvider({ children }) {
   const [notifications, setNotifications] = useState(seedMergeNotifications)
   const [mergeFocus, setMergeFocus] = useState(null)
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
+  // The header's "Merge Changes" CTA: registered by the Merge Studio
+  // workspace ({ merged, count, open }) so the top bar can render it.
+  const [mergeCta, setMergeCta] = useState(null)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -481,6 +484,8 @@ export function WorkspaceProvider({ children }) {
     requestMergeFocus,
     mergePreviewOpen,
     setMergePreviewOpen,
+    mergeCta,
+    setMergeCta,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

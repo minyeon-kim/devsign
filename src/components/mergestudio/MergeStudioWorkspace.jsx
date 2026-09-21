@@ -59,6 +59,7 @@ function MergeStudioWorkspace({ item }) {
     requestMergeFocus,
     mergePreviewOpen,
     setMergePreviewOpen,
+    setMergeCta,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -262,6 +263,20 @@ function MergeStudioWorkspace({ item }) {
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const frame0 = frameWithLayers(baseFrame, addedLayers)
   const selectedLayer = frame0?.layers.find((l) => l.id === syncSelection?.layerId) ?? null
+
+  // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
+  const openWizardRef = useRef(null)
+  openWizardRef.current = () => openWizard()
+  const mergedNow = item?.tag === 'Merged'
+  const ctaCount = Object.keys(resolutions).length + annotationsSnap.filter((a) => a.status === 'done').length
+  useEffect(() => {
+    if (!item) {
+      setMergeCta(null)
+      return
+    }
+    setMergeCta({ merged: mergedNow, count: ctaCount, open: () => openWizardRef.current?.() })
+    return () => setMergeCta(null)
+  }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
