@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { canvasPages, designMergeVariants, openFiles } from '@/data/mockData'
+import { canvasPages, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
+import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
+import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
@@ -65,7 +67,18 @@ function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
 const DECK_RESERVE = DECK_WIDTH + 32
 
 function MergeStudioWorkspace({ item }) {
-  const { setActiveFileId, setActivePageId, completeMerge } = useWorkspace()
+  const {
+    setActiveFileId,
+    setActivePageId,
+    completeMerge,
+    updateMergeItem,
+    mergeDrawer,
+    setMergeDrawer,
+    mergeFocus,
+    requestMergeFocus,
+  } = useWorkspace()
+  const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
+  const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
@@ -118,6 +131,37 @@ function MergeStudioWorkspace({ item }) {
     setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
   }
 
+  // Inbox click -> select the target (without popping the Block Deck open);
+  // the canvas itself pans to it via the `focus` prop.
+  const handledFocus = useRef(null)
+  useEffect(() => {
+    if (!item || !mergeFocus || mergeFocus.target.itemId !== item.id) return
+    if (handledFocus.current === mergeFocus.nonce) return
+    handledFocus.current = mergeFocus.nonce
+    const { layerId, fileId, line } = mergeFocus.target
+    if (layerId) selectLayer(layerId)
+    else if (fileId && line) selectLine(fileId, line)
+    setDeckOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergeFocus, item?.id])
+
+  function rollbackTo(event) {
+    const entry = {
+      id: `mh-rb-${Date.now()}`,
+      kind: 'rollback',
+      title: `Rolled back to “${event.title}”`,
+      branch: event.branch,
+      authorId: 'jane',
+      time: 'Just now',
+      changes: [{ label: 'State restored', from: 'Current', to: event.time }],
+    }
+    setHistoryEvents((prev) => [entry, ...prev])
+    setCurrentHistoryId(entry.id)
+    setResolutions({})
+    setAppliedPreset(null)
+    if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'In Progress' })
+  }
+
   const files = item ? openFiles.filter((f) => item.fileIds?.includes(f.id)) : []
   const selectedLayer = item?.hasDesign
     ? canvasPages
@@ -134,6 +178,7 @@ function MergeStudioWorkspace({ item }) {
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={deckReserve}
+          focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length}
           merged={item.tag === 'Merged'}
           onMerge={(annotations) => setMergeModal({ annotations })}
@@ -185,6 +230,18 @@ function MergeStudioWorkspace({ item }) {
           onClose={() => setMergeModal(null)}
           onComplete={() => completeMerge(item.id)}
         />
+      )}
+
+      {mergeDrawer === 'history' && (
+        <MergeHistoryDrawer
+          events={historyEvents}
+          currentId={currentHistoryId}
+          onRollback={rollbackTo}
+          onClose={() => setMergeDrawer(null)}
+        />
+      )}
+      {mergeDrawer === 'inbox' && (
+        <MergeInboxDrawer onJump={(n) => requestMergeFocus(n.target)} onClose={() => setMergeDrawer(null)} />
       )}
 
       <MergeAiBar />

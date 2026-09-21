@@ -123,7 +123,7 @@ function ShareSettingsContent() {
 }
 
 function RightFloatingBar() {
-  const { inspectorOpen, setInspectorOpen } = useWorkspace()
+  const { inspectorOpen, setInspectorOpen, activeView, mergeDrawer, setMergeDrawer } = useWorkspace()
   const dragRef = useRef(null)
   const boxRef = useRef(null)
   // Default position: pinned to the right edge, vertically centered — window
@@ -229,6 +229,13 @@ function RightFloatingBar() {
   }
 
   function togglePanel(id) {
+    // In Merge Studio, Comment and History open the Inbox / Version History
+    // drawers instead of the workspace's own flyout panels.
+    if (activeView === 'mergeStudio' && (id === 'comments' || id === 'history')) {
+      const drawer = id === 'comments' ? 'inbox' : 'history'
+      setMergeDrawer(mergeDrawer === drawer ? null : drawer)
+      return
+    }
     setExpandedPanel((current) => {
       const next = current === id ? null : id
       // Opening from fully collapsed: if the toolbar is currently anchored

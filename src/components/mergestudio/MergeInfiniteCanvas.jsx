@@ -669,6 +669,7 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreview,
   reserve,
+  focus,
   resolutionCount,
   merged,
   onMerge,
@@ -741,6 +742,57 @@ function MergeInfiniteCanvas({
     if (frame && right > width - reserve - 24) setView(fitView(layout))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reserve])
+
+  // Inbox jump: after the target is selected (and the code tab has had a
+  // moment to switch), ease the view so the element sits at the center of
+  // the visible canvas, zooming in to at least 100% for small targets.
+  useEffect(() => {
+    if (!focus || focus.target.itemId !== item.id) return
+    let raf
+    const timer = setTimeout(() => {
+      const c = containerRef.current
+      if (!c) return
+      const { layerId, fileId, line, card } = focus.target
+      const el =
+        (layerId && c.querySelector(`[data-frame-key="a"] [data-layer-id="${layerId}"]`)) ||
+        (fileId && line && c.querySelector(`[data-code-line="${fileId}:${line}"]`)) ||
+        (card === 'code' || fileId ? c.querySelector('[data-card="code"]') : null) ||
+        (card ? c.querySelector(`[data-frame-key="${card}"]`) : null)
+      if (!el) return
+      const base = c.getBoundingClientRect()
+      const r = el.getBoundingClientRect()
+      const from = viewRef.current
+      const k0 = from.zoom / 100
+      // element center in world coordinates
+      const wx = (r.left + r.width / 2 - base.left - from.x) / k0
+      const wy = (r.top + r.height / 2 - base.top - from.y) / k0
+      const zoom = clampZoom(Math.max(from.zoom, layerId || line ? 110 : 80))
+      const k1 = zoom / 100
+      const to = {
+        zoom,
+        x: (CONTENT_START_X + base.width) / 2 - wx * k1,
+        y: base.height / 2 - 40 - wy * k1,
+      }
+      const t0 = performance.now()
+      const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
+      function tick(now) {
+        const t = Math.min(1, (now - t0) / 450)
+        const e = ease(t)
+        setView({
+          zoom: from.zoom + (to.zoom - from.zoom) * e,
+          x: from.x + (to.x - from.x) * e,
+          y: from.y + (to.y - from.y) * e,
+        })
+        if (t < 1) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }, 260)
+    return () => {
+      clearTimeout(timer)
+      cancelAnimationFrame(raf)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.nonce, item.id])
 
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))

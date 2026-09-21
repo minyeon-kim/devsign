@@ -38,7 +38,8 @@ const panelIcons = {
 // workspace and remembers what was requested, then opens/focuses it as soon
 // as dockview comes back online (the effect below watching `dockApi`).
 function ActivityBar({ dockApi }) {
-  const { exitMergeStudio } = useWorkspace()
+  const { exitMergeStudio, activeView, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const unreadCount = notifications.filter((n) => n.unread).length
   const [activePanelId, setActivePanelId] = useState(null)
   const pendingPanelRef = useRef(null)
 
@@ -96,8 +97,21 @@ function ActivityBar({ dockApi }) {
           <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
         <Tooltip>
-          <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <TooltipTrigger
+            onClick={() => {
+              if (activeView === 'mergeStudio') setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')
+            }}
+            className={cn(
+              'relative flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              activeView === 'mergeStudio' && mergeDrawer === 'inbox' && 'bg-primary/10 text-primary'
+            )}
+          >
             <Bell className="size-[18px]" />
+            {activeView === 'mergeStudio' && unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex min-w-3.5 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1 text-[9px] leading-[14px] font-semibold text-white">
+                {unreadCount}
+              </span>
+            )}
           </TooltipTrigger>
           <TooltipContent side="right">Notifications</TooltipContent>
         </Tooltip>

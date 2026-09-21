@@ -988,3 +988,128 @@ export const canvasTools = [
   { id: 'shape', label: 'Rectangle (R)', iconName: 'Square' },
   { id: 'comment', label: 'Comment (C)', iconName: 'MessageSquarePlus' },
 ]
+
+// ---------------------------------------------------------------------
+// Merge Studio collaboration data
+// ---------------------------------------------------------------------
+
+// Past merge / branch / review activity for the Version History drawer.
+// `changes` is what "Preview" expands; rolling back to an entry records a
+// new "rollback" event on top of the timeline.
+export const mergeHistoryEvents = [
+  {
+    id: 'mh-5',
+    kind: 'review',
+    title: 'Design review approved',
+    branch: 'merge/flowbank-homepage',
+    authorId: 'min',
+    time: 'Today, 10:42 AM',
+    changes: [{ label: 'Hero CTA · Accent Color', from: 'Indigo 500', to: 'Violet 500' }],
+  },
+  {
+    id: 'mh-4',
+    kind: 'merge',
+    title: 'Merged Settings Panel into main',
+    branch: 'merge/settings-panel',
+    authorId: 'james',
+    time: 'Today, 9:15 AM',
+    changes: [
+      { label: 'tokens.json · radius.card', from: '8px', to: '16px' },
+      { label: 'Primary Button · Corner Radius', from: '8px', to: '16px' },
+    ],
+  },
+  {
+    id: 'mh-3',
+    kind: 'ai',
+    title: 'AI resolved 2 token conflicts',
+    branch: 'merge/flowbank-homepage',
+    authorId: 'jane',
+    time: 'Yesterday, 5:30 PM',
+    changes: [
+      { label: 'theme.css · --accent', from: 'indigo-500', to: 'violet-500' },
+      { label: 'Nav Bar · Background', from: 'Transparent', to: 'Card Surface' },
+    ],
+  },
+  {
+    id: 'mh-2',
+    kind: 'commit',
+    title: 'Commit: tighten hero heading scale',
+    branch: 'merge/flowbank-homepage',
+    authorId: 'jane',
+    time: 'Yesterday, 3:12 PM',
+    changes: [{ label: 'Hero Heading · Font Size', from: '28px', to: '32px' }],
+  },
+  {
+    id: 'mh-1',
+    kind: 'branch',
+    title: 'Branch created from main',
+    branch: 'merge/flowbank-homepage',
+    authorId: 'james',
+    time: '2d ago',
+    changes: [{ label: 'Branch point', from: 'main@a41c9e2', to: 'merge/flowbank-homepage' }],
+  },
+]
+
+// Inbox items. `kind`: 'approval' | 'comment' | 'feedback'. `target` says
+// what to pan the canvas to when clicked: a design `layerId`, a code
+// `fileId` + `line`, or a whole `card` ('code' | 'a' | 'b').
+export const seedMergeNotifications = [
+  {
+    id: 'n-1',
+    kind: 'approval',
+    authorId: 'min',
+    text: 'approved the design changes on Hero CTA',
+    timeLabel: '4m ago',
+    unread: true,
+    target: { itemId: 'merge-flowbank', layerId: 'hero-cta', label: 'Hero CTA' },
+  },
+  {
+    id: 'n-2',
+    kind: 'comment',
+    authorId: 'james',
+    text: 'Should the CTA use the violet accent or stay neutral here?',
+    timeLabel: '22m ago',
+    unread: true,
+    target: { itemId: 'merge-flowbank', layerId: 'hero-cta', label: 'Hero CTA' },
+    replies: [{ id: 'r-1', authorId: 'jane', text: 'Leaning violet — it matches the new tokens.' }],
+  },
+  {
+    id: 'n-3',
+    kind: 'feedback',
+    authorId: 'jane',
+    text: 'AI: heading size differs between A and B on line 4',
+    timeLabel: '1h ago',
+    unread: true,
+    target: { itemId: 'merge-flowbank', fileId: 'app', line: 4, label: 'DesignCanvas.jsx:4' },
+  },
+  {
+    id: 'n-4',
+    kind: 'approval',
+    authorId: 'james',
+    text: 'approved the code changes',
+    timeLabel: '2h ago',
+    unread: false,
+    target: { itemId: 'merge-flowbank', card: 'code', label: 'Code window' },
+  },
+  {
+    id: 'n-5',
+    kind: 'comment',
+    authorId: 'min',
+    text: 'Padding looks tight on the primary button — can we match the 24px spec?',
+    timeLabel: 'Yesterday',
+    unread: false,
+    target: { itemId: 'merge-settings', layerId: 'primary-button', label: 'Primary Button' },
+    replies: [],
+  },
+]
+
+// Arrives a few seconds after entering Merge Studio to demo live feedback.
+export const liveMergeNotification = {
+  id: 'n-live',
+  kind: 'feedback',
+  authorId: 'james',
+  text: 'CI: GitHub Actions checks passed on merge/flowbank-homepage',
+  timeLabel: 'Just now',
+  unread: true,
+  target: { itemId: 'merge-flowbank', card: 'b', label: 'Option B' },
+}

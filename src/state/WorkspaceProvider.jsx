@@ -10,6 +10,8 @@ import {
   initialChatMessages,
   initialHistoryEntries,
   mergeListItems as seedMergeListItems,
+  seedMergeNotifications,
+  liveMergeNotification,
   openFiles,
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
@@ -80,6 +82,11 @@ export function WorkspaceProvider({ children }) {
   const [activeView, setActiveView] = useState('workspace')
   const [mergeItems, setMergeItems] = useState(seedMergeListItems)
   const [selectedMergeItemId, setSelectedMergeItemId] = useState(null)
+  // Merge Studio collaboration: which right-hand drawer is open, the inbox,
+  // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
+  const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
+  const [notifications, setNotifications] = useState(seedMergeNotifications)
+  const [mergeFocus, setMergeFocus] = useState(null)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -114,6 +121,15 @@ export function WorkspaceProvider({ children }) {
   // unrelated file/page. `layerId` doubles as "which canvas layer" — its
   // page is looked up live via `findCanvasTarget` rather than storing a
   // separate pageId, since layer ids are already unique across pages.
+  // A live notification lands shortly after entering Merge Studio.
+  useEffect(() => {
+    if (activeView !== 'mergeStudio') return
+    const timer = setTimeout(() => {
+      setNotifications((prev) => (prev.some((n) => n.id === liveMergeNotification.id) ? prev : [liveMergeNotification, ...prev]))
+    }, 9000)
+    return () => clearTimeout(timer)
+  }, [activeView])
+
   const memberViewports = useMemo(
     () =>
       teamMembers.map((member) => ({
@@ -149,6 +165,36 @@ export function WorkspaceProvider({ children }) {
   const exitMergeStudio = useCallback(() => {
     setActiveView('workspace')
   }, [])
+
+  const updateMergeItem = useCallback((id, patch) => {
+    setMergeItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+  }, [])
+
+  const requestMergeFocus = useCallback((target) => {
+    setSelectedMergeItemId(target.itemId)
+    setMergeFocus({ target, nonce: Date.now() })
+  }, [])
+
+  const markNotificationRead = useCallback((id, unread = false) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)))
+  }, [])
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
+  }, [])
+
+  const replyToNotification = useCallback(
+    (id, text) => {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, replies: [...(n.replies ?? []), { id: `r-${Date.now()}`, authorId: currentUser.id, text }] }
+            : n
+        )
+      )
+    },
+    []
+  )
 
   // Finalizes a merge item: marks it Merged and clears its conflict level.
   const completeMerge = useCallback((id) => {
@@ -423,6 +469,15 @@ export function WorkspaceProvider({ children }) {
     exitMergeStudio,
     startMergeFromOpenFiles,
     completeMerge,
+    updateMergeItem,
+    mergeDrawer,
+    setMergeDrawer,
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    replyToNotification,
+    mergeFocus,
+    requestMergeFocus,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

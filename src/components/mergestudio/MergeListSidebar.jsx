@@ -3,6 +3,7 @@ import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
 
 const conflictBadgeClass = {
   None: 'bg-emerald-500/15 text-emerald-500',
@@ -112,7 +113,7 @@ const statusTagClass = {
 // hairline divides that from the meta row (updated time · conflict · due)
 // so the eye reads title -> status -> details. The open item gets the
 // indigo glow on top of the tinted-border active state.
-function MergeItemCard({ item, active, onSelect }) {
+function MergeItemCard({ item, active, onSelect, onConflict }) {
   return (
     <button
       type="button"
@@ -144,9 +145,24 @@ function MergeItemCard({ item, active, onSelect }) {
         <span className="text-[10px] text-muted-foreground/70">{item.updatedLabel}</span>
         {item.conflictLevel && (
           <span
+            role={item.conflictLevel !== 'None' ? 'button' : undefined}
+            tabIndex={item.conflictLevel !== 'None' ? 0 : undefined}
+            title={item.conflictLevel !== 'None' ? 'Resolve conflicts' : undefined}
+            onClick={(event) => {
+              if (item.conflictLevel === 'None') return
+              event.stopPropagation()
+              onConflict(item)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && item.conflictLevel !== 'None') {
+                event.stopPropagation()
+                onConflict(item)
+              }
+            }}
             className={cn(
               'rounded-full px-2 py-0.5 text-[10px] font-medium',
-              conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None
+              conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None,
+              item.conflictLevel !== 'None' && 'cursor-pointer ring-1 ring-current/30 transition-all hover:ring-2'
             )}
           >
             {item.conflictLevel} conflict
@@ -181,6 +197,7 @@ function MergeListSidebar() {
   const [statusFilter, setStatusFilter] = useState([])
   const [conflictFilter, setConflictFilter] = useState([])
   const [dueFilter, setDueFilter] = useState([])
+  const [conflictItem, setConflictItem] = useState(null)
 
   const hasActiveFilters =
     query.trim() !== '' || statusFilter.length > 0 || conflictFilter.length > 0 || dueFilter.length > 0
@@ -261,6 +278,7 @@ function MergeListSidebar() {
             item={item}
             active={selectedMergeItemId === item.id}
             onSelect={setSelectedMergeItemId}
+            onConflict={setConflictItem}
           />
         ))}
         {visible.length === 0 && (
@@ -280,6 +298,12 @@ function MergeListSidebar() {
           Add Files to Merge
         </button>
       </div>
+      {conflictItem && (
+        <ConflictResolutionModal
+          item={mergeItems.find((i) => i.id === conflictItem.id) ?? conflictItem}
+          onClose={() => setConflictItem(null)}
+        />
+      )}
     </div>
   )
 }
