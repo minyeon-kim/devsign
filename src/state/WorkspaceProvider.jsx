@@ -150,6 +150,15 @@ export function WorkspaceProvider({ children }) {
     setActiveView('workspace')
   }, [])
 
+  // Finalizes a merge item: marks it Merged and clears its conflict level.
+  const completeMerge = useCallback((id) => {
+    setMergeItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' } : item
+      )
+    )
+  }, [])
+
   // "Start New with Current Work" — snapshots whatever's open in the editor
   // right now into a fresh Merge List entry, selects it, and enters Merge
   // Studio already looking at it.
@@ -413,6 +422,7 @@ export function WorkspaceProvider({ children }) {
     openMergeStudio,
     exitMergeStudio,
     startMergeFromOpenFiles,
+    completeMerge,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

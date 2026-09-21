@@ -104,6 +104,7 @@ const statusTagClass = {
   'In Progress': 'bg-indigo-500/15 text-indigo-400',
   'Needs Review': 'bg-violet-500/15 text-violet-400',
   Draft: 'bg-muted text-muted-foreground',
+  Merged: 'bg-emerald-500/15 text-emerald-400',
 }
 
 // One scannable card: title is the strongest element (with the status pill

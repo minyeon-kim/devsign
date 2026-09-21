@@ -115,14 +115,26 @@ export function buildInitialLayout(api) {
     position: { direction: 'within', referencePanel: panelById.layers.id },
   })
 
-  addDockPanel(api, panelById.preview, {
+  // Canvas sits beside the editor (with Preview as its sibling tab) so the
+  // canvas and terminal are both on screen from the first frame.
+  addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.editor.id },
-    initialWidth: 380,
+    initialWidth: 460,
+  })
+  addDockPanel(api, panelById.preview, {
+    position: { direction: 'within', referencePanel: panelById.canvas.id },
   })
 
   api.getPanel(panelById.editor.id)?.api.setActive()
+  api.getPanel(panelById.canvas.id)?.api.setActive()
   api.getPanel(panelById.terminal.id)?.api.setActive()
   api.getPanel(panelById.layers.id)?.api.setActive()
+
+  // Splitting the editor above the terminal defaults to a 50/50 split,
+  // which makes the terminal far too tall. Pin it to ~28% of the height.
+  const terminalGroup = api.getPanel(panelById.terminal.id)?.group
+  const height = Math.round(Math.min(260, Math.max(150, api.height * 0.28)))
+  terminalGroup?.api.setSize({ height })
 }
 
 function DockLayout({ onReady }) {

@@ -14,7 +14,7 @@ import { blockDeckPresets, canvasPages, designMergeVariants, inspectorSpecsByTyp
 
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
-    <div className="rounded-xl border bg-card p-2.5">
+    <div className="rounded-xl border border-white/10 bg-background/30 p-2.5">
       <p className="mb-1.5 text-[11px] font-medium text-foreground">{diff.label}</p>
       <div className="grid grid-cols-1 gap-1.5">
         <button
@@ -95,7 +95,7 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
         )}
 
         {selectedLayer && !specificDiffs && tokenSpec && (
-          <div className="rounded-xl border bg-background p-2.5">
+          <div className="rounded-xl border border-white/10 bg-background/30 p-2.5">
             <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Token Binding
             </p>
@@ -140,7 +140,7 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
       </div>
 
       {selectedLayer && (
-        <div className="shrink-0 border-t p-3">
+        <div className="shrink-0 border-t border-white/10 p-3">
           <button
             type="button"
             disabled={resolvedCount < diffs.length}
@@ -251,7 +251,7 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
         )}
       </div>
 
-      <div className="shrink-0 border-t p-3">
+      <div className="shrink-0 border-t border-white/10 p-3">
         <button
           type="button"
           onClick={generateAlternatives}
@@ -272,7 +272,6 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
 // anywhere within Merge Studio. "Variant Compare" is the design-merge
 // inspector; "Block Assemble" is the AI style-suggestion picker.
 export const DECK_WIDTH = 288
-const DECK_HEIGHT = 520
 
 function BlockDeckPanel({
   open,
@@ -325,14 +324,13 @@ function BlockDeckPanel({
       ref={rootRef}
       style={{
         width: DECK_WIDTH,
-        height: DECK_HEIGHT,
         ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: 16 }),
       }}
-      className="absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
+      className="absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl backdrop-saturate-150"
     >
       <div
         onPointerDown={handleDragStart}
-        className="flex h-10 shrink-0 cursor-grab items-center gap-1.5 border-b px-3 active:cursor-grabbing"
+        className="flex h-10 shrink-0 cursor-grab items-center gap-1.5 border-b border-white/10 px-3 active:cursor-grabbing"
       >
         <GripHorizontal className="size-3.5 shrink-0 text-muted-foreground/50" />
         <Blocks className="size-3.5 shrink-0 text-indigo-500" />
@@ -348,7 +346,7 @@ function BlockDeckPanel({
         </button>
       </div>
 
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b px-2">
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-white/10 px-2">
         <button
           type="button"
           onClick={() => setTab('compare')}

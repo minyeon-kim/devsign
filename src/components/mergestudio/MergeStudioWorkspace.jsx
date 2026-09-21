@@ -5,6 +5,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
+import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
@@ -64,12 +65,13 @@ function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
 const DECK_RESERVE = DECK_WIDTH + 32
 
 function MergeStudioWorkspace({ item }) {
-  const { setActiveFileId, setActivePageId } = useWorkspace()
+  const { setActiveFileId, setActivePageId, completeMerge } = useWorkspace()
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
-  // While the deck sits in its default docked spot the canvas makes room
-  // for it; once dragged it is a free-floating window and no longer does.
+  const [mergeModal, setMergeModal] = useState(null) // { annotations } snapshot while open
+  // While the deck sits in its default spot the canvas refits so Option B
+  // isn't covered by it; once dragged it floats freely and no longer does.
   const [deckFloating, setDeckFloating] = useState(false)
   // Variant Compare state lives here (not in the deck) so choosing — or
   // merely hovering — an option can live-preview on the Option B artboard.
@@ -81,6 +83,7 @@ function MergeStudioWorkspace({ item }) {
     setSyncSelection(null)
     setAppliedPreset(null)
     setDeckOpen(false)
+    setMergeModal(null)
     setResolutions({})
     setHoverDiff(null)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
@@ -128,9 +131,12 @@ function MergeStudioWorkspace({ item }) {
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
       {item ? (
-        <div className="flex min-h-0 flex-1" style={{ marginRight: deckReserve }}>
+        <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={deckReserve}
+          resolutionCount={Object.keys(resolutions).length}
+          merged={item.tag === 'Merged'}
+          onMerge={(annotations) => setMergeModal({ annotations })}
           item={item}
           files={files}
           syncSelection={syncSelection}
@@ -168,6 +174,16 @@ function MergeStudioWorkspace({ item }) {
           onResolve={resolveDiff}
           onHoverDiff={setHoverDiff}
           onApplyPreset={setAppliedPreset}
+        />
+      )}
+
+      {item && mergeModal && (
+        <MergeExecutionModal
+          item={item}
+          resolutions={resolutions}
+          annotations={mergeModal.annotations}
+          onClose={() => setMergeModal(null)}
+          onComplete={() => completeMerge(item.id)}
         />
       )}
 

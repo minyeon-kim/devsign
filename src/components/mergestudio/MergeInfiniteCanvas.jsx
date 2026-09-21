@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp, Frame as FrameIcon, GripHorizontal, Maximize, Minus, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowUp, Check, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -549,10 +549,81 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
   )
 }
 
-// A numbered annotation pin pinned to an element, with a note bubble
-// showing the comment and the AI's processing / result status.
-function AnnotationPin({ pin, annotation, open, onToggle }) {
+// Editable note popover. The input is the note itself: edit and press
+// Enter / Save to re-run the AI on the new text; the trash button removes
+// the annotation (and reverts what the AI changed for it). Keyed by the
+// saved text so the draft resets whenever the annotation updates.
+function NotePopover({ annotation, onSave, onDelete, onClose }) {
+  const [draft, setDraft] = useState(annotation.text)
   const thinking = annotation.status === 'thinking'
+  const pending = annotation.status === 'pending'
+  const dirty = draft.trim() !== '' && draft.trim() !== annotation.text
+
+  function submit(e) {
+    e.preventDefault()
+    if (dirty) onSave(draft.trim())
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      className="w-60 rounded-2xl border border-indigo-500/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
+    >
+      <div className="flex items-center gap-1.5">
+        <Pencil className="size-3 shrink-0 text-muted-foreground" />
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="min-w-0 flex-1 rounded-full bg-muted/60 px-2.5 py-1 text-foreground outline-none focus:ring-1 focus:ring-violet-500"
+        />
+        <button
+          type="button"
+          onClick={onDelete}
+          title="Delete annotation"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          title="Close"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+
+      <div className="mt-2 flex items-center gap-1.5">
+        <p
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium',
+            thinking || pending ? 'text-muted-foreground' : 'text-violet-500'
+          )}
+        >
+          <Sparkles className={cn('size-3 shrink-0', thinking && 'animate-pulse')} />
+          <span className="truncate">
+            {thinking ? 'AI is updating design & code…' : pending ? 'Waiting — use Apply with AI' : annotation.summary}
+          </span>
+        </p>
+        <button
+          type="submit"
+          disabled={!dirty}
+          className="shrink-0 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1 text-[10px] font-semibold text-white transition-opacity disabled:opacity-40"
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// A numbered annotation pin pinned to an element; clicking it toggles the
+// editable note popover.
+function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   return (
     <>
       <button
@@ -560,26 +631,24 @@ function AnnotationPin({ pin, annotation, open, onToggle }) {
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onToggle}
         style={{ left: pin.x - 10, top: pin.y - 10 }}
-        className="absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none bg-gradient-to-r from-indigo-500 to-violet-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-card"
+        className={cn(
+          'absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10px] font-bold text-white shadow-lg ring-2 ring-card',
+          annotation.status === 'pending'
+            ? 'bg-slate-700 ring-violet-500'
+            : 'bg-gradient-to-r from-indigo-500 to-violet-500'
+        )}
       >
         {pin.n}
       </button>
       {open && (
-        <div
-          onPointerDown={(e) => e.stopPropagation()}
-          style={{ left: pin.x + 14, top: pin.y - 6 }}
-          className="absolute z-30 w-56 rounded-2xl border border-indigo-500/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
-        >
-          <p className="text-foreground">{annotation.text}</p>
-          <p
-            className={cn(
-              'mt-1.5 flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium',
-              thinking ? 'text-muted-foreground' : 'text-violet-500'
-            )}
-          >
-            <Sparkles className={cn('size-3 shrink-0', thinking && 'animate-pulse')} />
-            {thinking ? 'AI is updating design & code…' : annotation.summary}
-          </p>
+        <div style={{ left: pin.x + 14, top: pin.y - 6 }} className="absolute z-30">
+          <NotePopover
+            key={`${annotation.id}:${annotation.text}`}
+            annotation={annotation}
+            onSave={onSave}
+            onDelete={onDelete}
+            onClose={onToggle}
+          />
         </div>
       )}
     </>
@@ -600,6 +669,9 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreview,
   reserve,
+  resolutionCount,
+  merged,
+  onMerge,
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
@@ -614,8 +686,6 @@ function MergeInfiniteCanvas({
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const [annotations, setAnnotations] = useState([])
   const [openNote, setOpenNote] = useState(null)
-  const [edits, setEdits] = useState({}) // layerId -> AI restyle applied to Option B
-  const [codeEdits, setCodeEdits] = useState({}) // `${fileId}:${line}` -> Code B line text
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [] })
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
@@ -642,7 +712,7 @@ function MergeInfiniteCanvas({
     const worldW = right - lay.code.x
     const artH = frame ? 30 + (frame.height * ARTBOARD_PREVIEW_WIDTH) / frame.width : 0
     const worldH = Math.max(lay.code.h, artH)
-    const availW = rect.width - CONTENT_START_X - 32
+    const availW = rect.width - CONTENT_START_X - 32 - reserve
     const availH = rect.height - 150
     const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
@@ -657,20 +727,18 @@ function MergeInfiniteCanvas({
     setAiStage(null)
     setAnnotations([])
     setOpenNote(null)
-    setEdits({})
-    setCodeEdits({})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
 
-  // When the Block Deck docks/undocks the canvas resizes; if that would clip
-  // the rightmost artboard, refit (otherwise leave the user's pan alone).
+  // When the (overlay) Block Deck opens over its default spot, refit if it
+  // would cover the rightmost artboard; otherwise leave the user's pan alone.
   useEffect(() => {
     const c = containerRef.current
     if (!c) return
     const width = c.getBoundingClientRect().width
     const bw = layout.b.w ?? ARTBOARD_PREVIEW_WIDTH
     const right = viewRef.current.x + (layout.b.x + bw) * (viewRef.current.zoom / 100)
-    if (frame && right > width - 24) setView(fitView(layout))
+    if (frame && right > width - reserve - 24) setView(fitView(layout))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reserve])
 
@@ -712,9 +780,28 @@ function MergeInfiniteCanvas({
     onSelectFrame()
   }
 
-  // Click-to-annotate: the note becomes a pin on the element, then the
-  // (mock) AI interprets it and — after a short "thinking" beat — restyles
-  // the Option B layer(s) and rewrites the linked Code B line, both live.
+  // Click-to-annotate: the note becomes a pin on the element; the (mock)
+  // AI interprets it after a short "thinking" beat and stores its result on
+  // the annotation. Option B restyles and Code B rewrites are *derived*
+  // from the annotation list (see `edits` / `codeEdits` below), so editing
+  // a note re-derives them and deleting one cleanly reverts its changes.
+  function runAi(id, text, delay = 800) {
+    setTimeout(() => {
+      const { effect, summary } = interpretAnnotation(text)
+      setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'done', effect, summary } : a)))
+    }, delay)
+  }
+
+  // "Apply with AI": processes every not-yet-applied note in one go
+  // (staggered slightly so the changes visibly land one after another).
+  const pendingCount = annotations.filter((a) => a.status === 'pending').length
+  function applyAll() {
+    const pending = annotations.filter((a) => a.status === 'pending')
+    if (!pending.length) return
+    setAnnotations((prev) => prev.map((a) => (a.status === 'pending' ? { ...a, status: 'thinking' } : a)))
+    pending.forEach((a, i) => runAi(a.id, a.text, 700 + i * 350))
+  }
+
   function submitAnnotation(text) {
     const meta = anchorMetaRef.current
     const layerId = syncSelection?.layerId
@@ -724,47 +811,49 @@ function MergeInfiniteCanvas({
       : meta.kind === 'frame'
         ? (frame?.layers.filter((l) => l.type === 'button').map((l) => l.id) ?? [])
         : []
-    const codeTarget = layerId && layerCodeMap[layerId]
-      ? layerCodeMap[layerId]
-      : syncSelection?.fileId && syncSelection?.line
-        ? { fileId: syncSelection.fileId, line: syncSelection.line }
-        : null
+    const codeTarget =
+      layerId && layerCodeMap[layerId]
+        ? layerCodeMap[layerId]
+        : syncSelection?.fileId && syncSelection?.line
+          ? { fileId: syncSelection.fileId, line: syncSelection.line }
+          : null
 
     setAnnotations((prev) => [
       ...prev,
-      { id, text, status: 'thinking', summary: '', kind: meta.kind, frameKey: meta.frameKey, layerId, ...codeTarget },
+      { id, text, status: 'pending', summary: '', effect: null, kind: meta.kind, frameKey: meta.frameKey, layerId, targets, ...codeTarget },
     ])
     setOpenNote(id)
     setAiStage(null)
+  }
 
-    setTimeout(() => {
-      const { effect, summary } = interpretAnnotation(text)
-      if (targets.length) {
-        setEdits((prev) => {
-          const next = { ...prev }
-          for (const t of targets) {
-            next[t] = {
-              ...prev[t],
-              ...(effect.className && { className: effect.className }),
-              ...(effect.radius !== undefined && { radius: effect.radius }),
-              dw: (prev[t]?.dw ?? 0) + (effect.dw ?? 0),
-              dh: (prev[t]?.dh ?? 0) + (effect.dh ?? 0),
-            }
-          }
-          return next
-        })
+  function saveAnnotation(id, text) {
+    setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, text, status: 'pending' } : a)))
+  }
+
+  function deleteAnnotation(id) {
+    setAnnotations((prev) => prev.filter((a) => a.id !== id))
+    setOpenNote(null)
+  }
+
+  const edits = {}
+  const codeEdits = {}
+  for (const a of annotations) {
+    if (!a.effect) continue
+    for (const t of a.targets ?? []) {
+      const prev = edits[t]
+      edits[t] = {
+        ...prev,
+        ...(a.effect.className && { className: a.effect.className }),
+        ...(a.effect.radius !== undefined && { radius: a.effect.radius }),
+        dw: (prev?.dw ?? 0) + (a.effect.dw ?? 0),
+        dh: (prev?.dh ?? 0) + (a.effect.dh ?? 0),
       }
-      if (codeTarget) {
-        const original = getFileLines(codeTarget.fileId)[codeTarget.line - 1] ?? ''
-        const incoming =
-          codeMergeVariants[item.id]?.[codeTarget.fileId]?.find((d) => d.line === codeTarget.line)?.incoming ?? original
-        setCodeEdits((prev) => ({
-          ...prev,
-          [`${codeTarget.fileId}:${codeTarget.line}`]: `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${summary}`,
-        }))
-      }
-      setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'done', summary } : a)))
-    }, 800)
+    }
+    if (a.fileId && a.line) {
+      const original = getFileLines(a.fileId)[a.line - 1] ?? ''
+      const incoming = codeMergeVariants[item.id]?.[a.fileId]?.find((d) => d.line === a.line)?.incoming ?? original
+      codeEdits[`${a.fileId}:${a.line}`] = `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${a.summary}`
+    }
   }
 
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
@@ -926,6 +1015,7 @@ function MergeInfiniteCanvas({
     const start = { px: e.clientX, py: e.clientY, vx: view.x, vy: view.y }
     setPanning(true)
     setAiStage(null)
+    setOpenNote(null)
     function onMove(m) {
       setView((v) => ({ ...v, x: start.vx + m.clientX - start.px, y: start.vy + m.clientY - start.py }))
     }
@@ -1025,11 +1115,6 @@ function MergeInfiniteCanvas({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b bg-card px-3 pl-[19rem] text-xs font-medium text-foreground">
-        <FrameIcon className="size-3.5 shrink-0 text-primary" />
-        Merge Canvas
-      </div>
-
       <div ref={containerRef} className="relative min-h-0 flex-1">
         <div
           ref={viewportRef}
@@ -1170,6 +1255,8 @@ function MergeInfiniteCanvas({
             annotation={annotations.find((a) => a.id === pin.id)}
             open={openNote === pin.id}
             onToggle={() => setOpenNote((cur) => (cur === pin.id ? null : pin.id))}
+            onSave={(text) => saveAnnotation(pin.id, text)}
+            onDelete={() => deleteAnnotation(pin.id)}
           />
         ))}
 
@@ -1184,6 +1271,45 @@ function MergeInfiniteCanvas({
             onSubmit={submitAnnotation}
           />
         )}
+
+        {/* Canvas actions: batch-apply pending notes with AI, then merge. */}
+        <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+          {annotations.length > 0 && (
+            <button
+              type="button"
+              onClick={applyAll}
+              disabled={pendingCount === 0}
+              className="flex items-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Sparkles className="size-3.5 text-violet-500" />
+              Apply with AI
+              {pendingCount > 0 && (
+                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onMerge(annotations)}
+            disabled={merged}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg transition-all',
+              merged
+                ? 'cursor-default border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+                : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110'
+            )}
+          >
+            {merged ? <Check className="size-3.5" /> : <GitMerge className="size-3.5" />}
+            {merged ? 'Merged' : 'Merge Changes'}
+            {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
+              <span className="rounded-full bg-white/20 px-1.5 text-[10px]">
+                {resolutionCount + annotations.filter((a) => a.status === 'done').length}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Zoom sits centered just above the AI bar (fixed bottom-5, ~46px
             tall), so the two never overlap. */}

@@ -105,7 +105,7 @@ export const layoutPresets = [
 // (design + code files bundled together for review) — "Start New with
 // Current Work" prepends a fresh one built from whatever's open in the
 // editor at the time.
-export const mergeFilterTags = ['All', 'In Progress', 'Needs Review', 'Draft']
+export const mergeFilterTags = ['All', 'In Progress', 'Needs Review', 'Draft', 'Merged']
 
 // Advanced filter dimensions for the Merge List sidebar — each a separate
 // pill row alongside the status tags above and the search input. (Category
