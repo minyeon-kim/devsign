@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { GripVertical, PenTool, Sparkles } from 'lucide-react'
+import { Columns2, GripVertical, PenTool, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
-import { designMergeVariants, openFiles } from '@/data/mockData'
+import { codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -19,25 +19,120 @@ const DEFAULT_SPLIT = 0.5
 // clipping the design pane depending on the browser's rounding.
 const SPLITTER_HALF_WIDTH = 6
 
+function CodeLine({ lineNumber, text, language, highlighted, accentClass, onClick, lineRef }) {
+  const tokens = tokenizeLine(text, language)
+  return (
+    <div
+      ref={lineRef}
+      onClick={onClick}
+      className={cn(
+        'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
+        highlighted && 'border-primary bg-primary/10',
+        !highlighted && accentClass
+      )}
+    >
+      <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
+      {/* min-w-0 lets this span actually shrink below its content's
+          intrinsic width so pre-wrap can kick in — without it the flex row
+          just grows past the panel instead of wrapping, which is what let
+          long lines force the whole code window wider than its resizable
+          share of the split. */}
+      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+        {text.length === 0 ? (
+          ' '
+        ) : (
+          tokens.map((token, j) => (
+            <span key={j} className={tokenClassName(token.type)}>
+              {token.text}
+            </span>
+          ))
+        )}
+      </span>
+    </div>
+  )
+}
+
+// The active file's two-column diff — "Code A · Current" next to "Code B ·
+// Incoming" — mirroring the Design pane's Option A/Option B artboards, but
+// for code. Lines with a mock diff entry (`codeMergeVariants`) get
+// removed/added-style tinting on each side; everything else renders
+// identically on both, same as a design layer with no mock property diff.
+function CodeDiffColumns({ file, lines, diffs, highlightLine, onSelectLine, highlightRef }) {
+  const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
+
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-2 divide-x divide-border overflow-auto bg-background font-mono text-[11px] leading-relaxed">
+      <div>
+        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Code A · Current
+        </p>
+        <div className="py-2">
+          {lines.map((line, i) => {
+            const lineNumber = i + 1
+            return (
+              <CodeLine
+                key={i}
+                lineRef={highlightLine === lineNumber ? highlightRef : undefined}
+                lineNumber={lineNumber}
+                text={line}
+                language={file.language}
+                highlighted={highlightLine === lineNumber}
+                accentClass={diffByLine.has(lineNumber) ? 'border-destructive/60 bg-destructive/5' : undefined}
+                onClick={() => onSelectLine?.(file.id, lineNumber)}
+              />
+            )
+          })}
+        </div>
+      </div>
+      <div>
+        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Code B · Incoming
+        </p>
+        <div className="py-2">
+          {lines.map((line, i) => {
+            const lineNumber = i + 1
+            const incoming = diffByLine.get(lineNumber)
+            const text = incoming ?? line
+            return (
+              <CodeLine
+                key={i}
+                lineNumber={lineNumber}
+                text={text}
+                language={file.language}
+                highlighted={highlightLine === lineNumber}
+                accentClass={incoming !== undefined ? 'border-emerald-500/60 bg-emerald-500/5' : undefined}
+                onClick={() => onSelectLine?.(file.id, lineNumber)}
+              />
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // All of the active merge item's code files live in one window, switched via
 // Chrome-style pill tabs (matching EditorPanel's own file tabs) — not
 // scattered across separate cards. The active tab is the shared
 // `activeFileId`, so it stays in sync with the rest of the app (returning to
-// the normal workspace picks up on whichever file was last open here).
-// `highlightLine` is the code->design sync's other half: whichever line a
-// selected design layer maps to gets a distinct highlight and is scrolled
-// into view; clicking any line (mapped or not) reports back via
+// the normal workspace picks up on whichever file was last open here). A
+// "Diff" toggle swaps the single-file view for the Code A/B comparison
+// above. `highlightLine` is the code->design sync's other half: whichever
+// line a selected design layer maps to gets a distinct highlight and is
+// scrolled into view; clicking any line (mapped or not) reports back via
 // `onSelectLine` so a design layer can highlight in turn.
-function UnifiedCodeWindow({ files, style, highlightFileId, highlightLine, onSelectLine }) {
+function UnifiedCodeWindow({ itemId, files, style, highlightFileId, highlightLine, onSelectLine }) {
   const { activeFileId, setActiveFileId, getFileLines } = useWorkspace()
+  const [diffMode, setDiffMode] = useState(false)
   const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
   const lines = activeFile ? getFileLines(activeFile.id) : []
   const highlightRef = useRef(null)
   const isHighlightedFile = activeFile && highlightFileId === activeFile.id
+  const diffs = codeMergeVariants[itemId]?.[activeFile?.id]
 
   useEffect(() => {
     highlightRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [highlightFileId, highlightLine])
+  }, [highlightFileId, highlightLine, diffMode])
 
   return (
     <div
@@ -67,41 +162,50 @@ function UnifiedCodeWindow({ files, style, highlightFileId, highlightLine, onSel
             )
           })}
         </div>
+        <button
+          type="button"
+          onClick={() => setDiffMode((v) => !v)}
+          title="Compare Code A vs Code B"
+          className={cn(
+            'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
+            diffMode
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          )}
+        >
+          <Columns2 className="size-3.5" />
+          Diff
+        </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto bg-background py-2 font-mono text-[11px] leading-relaxed">
-        {lines.map((line, i) => {
-          const lineNumber = i + 1
-          const tokens = tokenizeLine(line, activeFile.language)
-          const isHighlighted = isHighlightedFile && highlightLine === lineNumber
-          return (
-            <div
-              key={i}
-              ref={isHighlighted ? highlightRef : undefined}
-              onClick={() => onSelectLine?.(activeFile.id, lineNumber)}
-              className={cn(
-                'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
-                isHighlighted && 'border-primary bg-primary/10'
-              )}
-            >
-              <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">
-                {lineNumber}
-              </span>
-              <span className="whitespace-pre">
-                {line.length === 0 ? (
-                  ' '
-                ) : (
-                  tokens.map((token, j) => (
-                    <span key={j} className={tokenClassName(token.type)}>
-                      {token.text}
-                    </span>
-                  ))
-                )}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      {diffMode ? (
+        <CodeDiffColumns
+          file={activeFile}
+          lines={lines}
+          diffs={diffs}
+          highlightLine={isHighlightedFile ? highlightLine : undefined}
+          onSelectLine={onSelectLine}
+          highlightRef={highlightRef}
+        />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto bg-background py-2 font-mono text-[11px] leading-relaxed">
+          {lines.map((line, i) => {
+            const lineNumber = i + 1
+            const isHighlighted = isHighlightedFile && highlightLine === lineNumber
+            return (
+              <CodeLine
+                key={i}
+                lineRef={isHighlighted ? highlightRef : undefined}
+                lineNumber={lineNumber}
+                text={line}
+                language={activeFile.language}
+                highlighted={isHighlighted}
+                onClick={() => onSelectLine?.(activeFile.id, lineNumber)}
+              />
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -219,6 +323,7 @@ function MergeStudioWorkspace({ item }) {
   return (
     <div ref={containerRef} className="flex min-h-0 flex-1 bg-background p-4">
       <UnifiedCodeWindow
+        itemId={item.id}
         files={files}
         style={{
           width: item.hasDesign

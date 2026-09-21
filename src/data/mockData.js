@@ -134,6 +134,7 @@ export const mergeListItems = [
     conflictLevel: 'High',
     dueLabel: 'Due tomorrow',
     dueBucket: 'soon',
+    assigneeId: 'james',
   },
   {
     id: 'merge-authmodal',
@@ -147,6 +148,7 @@ export const mergeListItems = [
     conflictLevel: 'Medium',
     dueLabel: 'Overdue by 1 day',
     dueBucket: 'overdue',
+    assigneeId: 'min',
   },
   {
     id: 'merge-settings',
@@ -161,6 +163,7 @@ export const mergeListItems = [
     conflictLevel: 'Low',
     dueLabel: 'No due date',
     dueBucket: 'none',
+    assigneeId: 'jane',
   },
 ]
 
@@ -240,6 +243,37 @@ export const designMergeVariants = {
       'primary-button': { fileId: 'app', line: 16 },
       'hero-card': { fileId: 'tokens', line: 7 },
     },
+  },
+}
+
+// Line-level code differences for the "Code A · Current / Code B ·
+// Incoming" diff view — mirrors `designMergeVariants` but for the code
+// window instead of the canvas. Keyed by merge item id, then file id; each
+// entry names a 1-indexed `line` and its `incoming` replacement text. Lines
+// not listed render identically on both sides (no diff coloring); a
+// file/item with no entries just shows a plain, un-highlighted comparison.
+export const codeMergeVariants = {
+  'merge-flowbank': {
+    app: [
+      {
+        line: 16,
+        incoming: '      <Button onClick={() => setSelected(null)} className="accent-violet">Deselect</Button>',
+      },
+    ],
+    theme: [{ line: 3, incoming: '  --primary: oklch(0.6 0.25 292);' }],
+  },
+  'merge-authmodal': {
+    app: [
+      {
+        line: 16,
+        incoming:
+          '      <Button onClick={() => setSelected(null)} aria-label="Clear selection">Deselect</Button>',
+      },
+    ],
+  },
+  'merge-settings': {
+    app: [{ line: 16, incoming: '      <Button onClick={() => setSelected(null)} className="rounded-2xl">Deselect</Button>' }],
+    tokens: [{ line: 3, incoming: '    "primary": "#8b5cf6",' }],
   },
 }
 

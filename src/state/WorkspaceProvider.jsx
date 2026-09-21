@@ -170,6 +170,7 @@ export function WorkspaceProvider({ children }) {
         conflictLevel: 'None',
         dueLabel: 'No due date',
         dueBucket: 'none',
+        assigneeId: currentUser.id,
       },
       ...prev,
     ])
