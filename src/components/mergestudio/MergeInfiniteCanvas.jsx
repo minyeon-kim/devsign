@@ -21,11 +21,12 @@ const ARTBOARD_PREVIEW_WIDTH = 260
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, text, language, highlighted, accentClass, onClick, lineRef, linked, hovered, onHover }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, onClick, lineRef, linked, hovered, onHover }) {
   const tokens = tokenizeLine(text, language)
   return (
     <div
       ref={lineRef}
+      data-code-line={lineKey}
       onClick={onClick}
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
@@ -61,7 +62,7 @@ function CodeLine({ lineNumber, text, language, highlighted, accentClass, onClic
 // code. Lines with a mock diff entry (`codeMergeVariants`) get
 // removed/added-style tinting on each side; everything else renders
 // identically on both, same as a design layer with no mock property diff.
-function CodeDiffColumns({ file, lines, diffs, highlightLine, onSelectLine, highlightRef, linkedLines, hoverLine, hoverFileId, onHoverLine }) {
+function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, onSelectLine, highlightRef, linkedLines, hoverLine, hoverFileId, onHoverLine }) {
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
 
   return (
@@ -80,6 +81,7 @@ function CodeDiffColumns({ file, lines, diffs, highlightLine, onSelectLine, high
               <CodeLine
                 key={i}
                 lineRef={highlightLine === lineNumber ? highlightRef : undefined}
+                lineKey={`${file.id}:${lineNumber}`}
                 lineNumber={lineNumber}
                 text={line}
                 language={file.language}
@@ -101,7 +103,7 @@ function CodeDiffColumns({ file, lines, diffs, highlightLine, onSelectLine, high
         <div className="py-2">
           {lines.map((line, i) => {
             const lineNumber = i + 1
-            const incoming = diffByLine.get(lineNumber)
+            const incoming = incomingEdits?.[`${file.id}:${lineNumber}`] ?? diffByLine.get(lineNumber)
             const text = incoming ?? line
             return (
               <CodeLine
@@ -153,7 +155,7 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
 
@@ -202,6 +204,7 @@ function CodeWindowCard({ itemId, files, x, y, w, h, z, onDragStart, onResizeSta
       </div>
 
       <CodeDiffColumns
+        incomingEdits={incomingEdits}
         file={activeFile}
         lines={getFileLines(activeFile.id)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
@@ -314,7 +317,7 @@ function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onH
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, previewOverride, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -347,12 +350,12 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
           }}
         >
           {frame.layers.map((layer) => {
-            const override =
-              previewOverride?.layerId === layer.id
-                ? previewOverride
-                : layer.type === 'button' && accentClass
-                  ? { className: accentClass, static: true }
-                  : undefined
+            const o = overrides?.[layer.id]
+            const override = o
+              ? { ...o, className: o.className ?? (layer.type === 'button' ? accentClass : undefined) }
+              : layer.type === 'button' && accentClass
+                ? { className: accentClass, static: true }
+                : undefined
             return (
               <StaticLayer
                 key={layer.id}
@@ -386,23 +389,82 @@ function clampZoom(z) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
 }
 
-// Cubic connector between two screen-space anchors, leaving/entering
-// horizontally so it reads as a clean link between side-by-side cards.
-function connectorPath(from, to) {
-  const dx = Math.max(40, Math.abs(to.x - from.x) / 2) * Math.sign(to.x - from.x || 1)
-  return `M ${from.x} ${from.y} C ${from.x + dx} ${from.y}, ${to.x - dx} ${to.y}, ${to.x} ${to.y}`
+// Organic mind-map style link between two screen-space anchors: a smooth
+// cubic that leaves/enters horizontally, optionally arched by `lift` so
+// neighbouring nodes still get a visible curve. Also returns the curve's
+// midpoint (t = 0.5) where the branch label sits.
+function linkGeometry(from, to, lift = 0) {
+  const dir = Math.sign(to.x - from.x) || 1
+  const dx = Math.max(48, Math.abs(to.x - from.x) / 2) * dir
+  const c1 = { x: from.x + dx, y: from.y - lift }
+  const c2 = { x: to.x - dx, y: to.y - lift }
+  return {
+    d: `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`,
+    mid: { x: (from.x + 3 * c1.x + 3 * c2.x + to.x) / 8, y: (from.y + 3 * c1.y + 3 * c2.y + to.y) / 8 },
+    from,
+    to,
+  }
 }
 
-// Inline, Cursor-style command bar anchored to whatever was just clicked
-// (a design layer, an artboard, or a code line). Enter sends the prompt
-// — prefixed with the selection as context — through the shared chat.
-function InlineAiEdit({ anchor, label, onSubmit, onClose }) {
+const GLOW_CLASS = 'shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]'
+
+// Mock "AI": turns an annotation note into a restyle. Recognises a few
+// color / shape / size words (English + Korean); anything else falls back
+// to the indigo → violet gradient so a note always produces a visible,
+// reviewable change.
+function interpretAnnotation(text) {
+  const t = text.toLowerCase()
+  const effect = {}
+  const notes = []
+  const colors = [
+    [/violet|purple|보라/, 'bg-violet-500', 'violet fill'],
+    [/indigo|인디고/, 'bg-indigo-500', 'indigo fill'],
+    [/green|emerald|초록/, 'bg-emerald-500', 'green fill'],
+    [/red|rose|빨강/, 'bg-rose-500', 'rose fill'],
+    [/amber|yellow|orange|노랑|주황/, 'bg-amber-500', 'amber fill'],
+    [/gradient|그라데이션/, 'bg-gradient-to-r from-indigo-500 to-violet-500', 'indigo → violet gradient'],
+  ]
+  const color = colors.find(([re]) => re.test(t))
+  if (color) {
+    effect.className = color[1]
+    notes.push(color[2])
+  }
+  if (/glow|neon|글로우/.test(t)) {
+    effect.className = `${effect.className ?? 'bg-primary'} ${GLOW_CLASS}`
+    notes.push('glow')
+  }
+  if (/round|pill|radius|둥근|둥글/.test(t)) {
+    effect.radius = 999
+    notes.push('pill radius')
+  }
+  if (/bigger|larger|increase|padding|spacing|크게|여백|간격/.test(t)) {
+    effect.dw = 24
+    effect.dh = 12
+    notes.push('more room')
+  } else if (/smaller|shrink|compact|작게/.test(t)) {
+    effect.dw = -16
+    effect.dh = -8
+    notes.push('tighter size')
+  }
+  if (!notes.length) {
+    effect.className = 'bg-gradient-to-r from-indigo-500 to-violet-500'
+    notes.push('refreshed accent')
+  }
+  return { effect, summary: `Applied ${notes.join(', ')}` }
+}
+
+// One element, two states: a small sparkle circle *below* the clicked
+// element that widens (width + radius transition) into the "AI Edit"
+// prompt pill when clicked. Enter submits the prompt as an annotation.
+function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }) {
   const [text, setText] = useState('')
   const inputRef = useRef(null)
 
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [label])
+    if (!expanded) return
+    const id = setTimeout(() => inputRef.current?.focus(), 180)
+    return () => clearTimeout(id)
+  }, [expanded])
 
   function submit(e) {
     e.preventDefault()
@@ -416,30 +478,65 @@ function InlineAiEdit({ anchor, label, onSubmit, onClose }) {
       onSubmit={submit}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      style={{ left: anchor.left, top: anchor.top }}
-      className="absolute z-30 flex w-72 items-center gap-2 rounded-full border border-indigo-500/50 bg-card/95 py-1 pr-1 pl-3 shadow-2xl shadow-indigo-500/20 backdrop-blur-md focus-within:border-violet-500"
+      style={{ left, top, width: expanded ? 320 : 36 }}
+      className={cn(
+        'absolute z-30 flex h-9 items-center overflow-hidden rounded-full border p-[3px] shadow-2xl backdrop-blur-md transition-[width,border-color,background-color] duration-300 ease-out',
+        expanded
+          ? 'border-indigo-500/50 bg-card/95 shadow-indigo-500/20 focus-within:border-violet-500'
+          : 'border-transparent bg-transparent shadow-indigo-500/40'
+      )}
     >
-      <Sparkles className="size-3.5 shrink-0 text-violet-500" />
+      <button
+        type={expanded ? 'button' : 'submit'}
+        onClick={(e) => {
+          if (!expanded) {
+            e.preventDefault()
+            onExpand()
+          }
+        }}
+        title={expanded ? undefined : 'Edit with AI'}
+        className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white transition-transform hover:scale-105"
+      >
+        <Sparkles className="size-3.5" />
+      </button>
+      <span
+        className={cn(
+          'shrink-0 pl-2 text-[11px] font-semibold whitespace-nowrap text-foreground transition-opacity duration-200',
+          expanded ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0'
+        )}
+      >
+        AI Edit
+      </span>
       <input
         ref={inputRef}
+        tabIndex={expanded ? 0 : -1}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={`Edit ${label} with AI…`}
-        className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+        placeholder={`Describe a change to ${label}…`}
+        className={cn(
+          'min-w-0 flex-1 bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground transition-opacity duration-200',
+          expanded ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0'
+        )}
       />
       <button
         type="submit"
         disabled={!text.trim()}
         title="Apply"
-        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white disabled:opacity-40"
+        className={cn(
+          'flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white transition-opacity disabled:opacity-40',
+          !expanded && 'pointer-events-none opacity-0'
+        )}
       >
         <ArrowUp className="size-3.5" />
       </button>
       <button
         type="button"
         onClick={onClose}
-        title="Dismiss"
-        className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        title="Close"
+        className={cn(
+          'ml-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground',
+          !expanded && 'pointer-events-none opacity-0'
+        )}
       >
         <X className="size-3.5" />
       </button>
@@ -447,20 +544,40 @@ function InlineAiEdit({ anchor, label, onSubmit, onClose }) {
   )
 }
 
-// Step one of the two-step AI edit: a small sparkle badge floating at the
-// top-right of the clicked element. Clicking it opens the prompt bar.
-function AiEditBadge({ left, top, onClick }) {
+// A numbered annotation pin pinned to an element, with a note bubble
+// showing the comment and the AI's processing / result status.
+function AnnotationPin({ pin, annotation, open, onToggle }) {
+  const thinking = annotation.status === 'thinking'
   return (
-    <button
-      type="button"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={onClick}
-      title="Edit with AI"
-      style={{ left, top }}
-      className="absolute z-30 flex size-6 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40 ring-2 ring-card transition-transform hover:scale-110"
-    >
-      <Sparkles className="size-3.5" />
-    </button>
+    <>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onToggle}
+        style={{ left: pin.x - 10, top: pin.y - 10 }}
+        className="absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none bg-gradient-to-r from-indigo-500 to-violet-500 text-[10px] font-bold text-white shadow-lg ring-2 ring-card"
+      >
+        {pin.n}
+      </button>
+      {open && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{ left: pin.x + 14, top: pin.y - 6 }}
+          className="absolute z-30 w-56 rounded-2xl border border-indigo-500/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
+        >
+          <p className="text-foreground">{annotation.text}</p>
+          <p
+            className={cn(
+              'mt-1.5 flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium',
+              thinking ? 'text-muted-foreground' : 'text-violet-500'
+            )}
+          >
+            <Sparkles className={cn('size-3 shrink-0', thinking && 'animate-pulse')} />
+            {thinking ? 'AI is updating design & code…' : annotation.summary}
+          </p>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -481,7 +598,7 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { sendChatMessage } = useWorkspace()
+  const { getFileLines } = useWorkspace()
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(DEFAULT_LAYOUT)
   const [panning, setPanning] = useState(false)
@@ -489,7 +606,12 @@ function MergeInfiniteCanvas({
   const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
-  const [links, setLinks] = useState({ paths: [], anchor: null })
+  const [annotations, setAnnotations] = useState([])
+  const [openNote, setOpenNote] = useState(null)
+  const [edits, setEdits] = useState({}) // layerId -> AI restyle applied to Option B
+  const [codeEdits, setCodeEdits] = useState({}) // `${fileId}:${line}` -> Code B line text
+  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [] })
+  const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
   const viewRef = useRef(view)
@@ -509,6 +631,10 @@ function MergeInfiniteCanvas({
     setHover(null)
     setFrameSel(null)
     setAiStage(null)
+    setAnnotations([])
+    setOpenNote(null)
+    setEdits({})
+    setCodeEdits({})
   }, [item?.id])
 
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
@@ -529,21 +655,79 @@ function MergeInfiniteCanvas({
   // open the inline bar.
   function pickLayer(layerId, el) {
     anchorElRef.current = el
+    anchorMetaRef.current = { kind: 'layer', frameKey: el.closest('[data-frame-key]')?.dataset.frameKey }
     setFrameSel(null)
     setAiStage('badge')
     onSelectLayer(layerId)
   }
   function pickLine(fileId, line, el) {
     anchorElRef.current = el
+    anchorMetaRef.current = { kind: 'line' }
     setFrameSel(null)
     setAiStage('badge')
     onSelectLine(fileId, line)
   }
   function pickFrame(key, el) {
     anchorElRef.current = el
+    anchorMetaRef.current = { kind: 'frame', frameKey: key }
     setFrameSel(key)
     setAiStage('badge')
     onSelectFrame()
+  }
+
+  // Click-to-annotate: the note becomes a pin on the element, then the
+  // (mock) AI interprets it and — after a short "thinking" beat — restyles
+  // the Option B layer(s) and rewrites the linked Code B line, both live.
+  function submitAnnotation(text) {
+    const meta = anchorMetaRef.current
+    const layerId = syncSelection?.layerId
+    const id = `ann-${Date.now()}`
+    const targets = layerId
+      ? [layerId]
+      : meta.kind === 'frame'
+        ? (frame?.layers.filter((l) => l.type === 'button').map((l) => l.id) ?? [])
+        : []
+    const codeTarget = layerId && layerCodeMap[layerId]
+      ? layerCodeMap[layerId]
+      : syncSelection?.fileId && syncSelection?.line
+        ? { fileId: syncSelection.fileId, line: syncSelection.line }
+        : null
+
+    setAnnotations((prev) => [
+      ...prev,
+      { id, text, status: 'thinking', summary: '', kind: meta.kind, frameKey: meta.frameKey, layerId, ...codeTarget },
+    ])
+    setOpenNote(id)
+    setAiStage(null)
+
+    setTimeout(() => {
+      const { effect, summary } = interpretAnnotation(text)
+      if (targets.length) {
+        setEdits((prev) => {
+          const next = { ...prev }
+          for (const t of targets) {
+            next[t] = {
+              ...prev[t],
+              ...(effect.className && { className: effect.className }),
+              ...(effect.radius !== undefined && { radius: effect.radius }),
+              dw: (prev[t]?.dw ?? 0) + (effect.dw ?? 0),
+              dh: (prev[t]?.dh ?? 0) + (effect.dh ?? 0),
+            }
+          }
+          return next
+        })
+      }
+      if (codeTarget) {
+        const original = getFileLines(codeTarget.fileId)[codeTarget.line - 1] ?? ''
+        const incoming =
+          codeMergeVariants[item.id]?.[codeTarget.fileId]?.find((d) => d.line === codeTarget.line)?.incoming ?? original
+        setCodeEdits((prev) => ({
+          ...prev,
+          [`${codeTarget.fileId}:${codeTarget.line}`]: `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${summary}`,
+        }))
+      }
+      setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'done', summary } : a)))
+    }, 800)
   }
 
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
@@ -563,13 +747,13 @@ function MergeInfiniteCanvas({
     scroller.scrollTo({ top: el.offsetTop - scroller.clientHeight / 2, behavior: 'smooth' })
   }, [syncSelection?.fileId, syncSelection?.line])
 
-  // Connector + inline-bar anchor are measured from the live DOM every
-  // frame while something is selected, so they track panning, zooming,
-  // card dragging and the code scroller without any bookkeeping. State
-  // only updates when the result actually changes.
+  // Connectors, the AI-edit anchor, and annotation pins are measured from
+  // the live DOM every frame while any of them exist, so they track
+  // panning, zooming, card dragging/resizing and the code scroller without
+  // bookkeeping. State only updates when the result actually changes.
   useEffect(() => {
-    if (!hasSelection) {
-      setLinks((prev) => (prev.paths.length || prev.anchor ? { paths: [], anchor: null } : prev))
+    if (!hasSelection && annotations.length === 0) {
+      setLinks((prev) => (prev.paths.length || prev.anchor || prev.pins.length ? { paths: [], anchor: null, pins: [] } : prev))
       return
     }
     let raf
@@ -578,51 +762,74 @@ function MergeInfiniteCanvas({
       const base = container?.getBoundingClientRect()
       if (base) {
         const rel = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top })
-        const codeEl = container.querySelector('[data-card="code"]')
+        const find = (sel) => container.querySelector(sel)
         const paths = []
-        if (codeEl) {
-          const code = rel(codeEl.getBoundingClientRect())
-          const lineEl = highlightRef.current
-          const lineRect = lineEl?.isConnected ? rel(lineEl.getBoundingClientRect()) : null
-          const targets = syncSelection?.layerId
-            ? [...container.querySelectorAll(`[data-layer-id="${syncSelection.layerId}"]`)]
-            : frameSel
-              ? [...container.querySelectorAll(`[data-frame-key="${frameSel}"]`)]
-              : []
-          for (const el of targets) {
-            const t = rel(el.getBoundingClientRect())
+        const codeEl = find('[data-card="code"]')
+
+        if (hasSelection) {
+          const layerSel = (fk) => `[data-frame-key="${fk}"] [data-layer-id="${syncSelection?.layerId}"]`
+          const targetEl = (fk) => (syncSelection?.layerId ? find(layerSel(fk)) : frameSel ? find(`[data-frame-key="${fk}"]`) : null)
+          const aEl = targetEl('a')
+          const bEl = targetEl('b')
+          const edge = (el, side) => {
+            const r = rel(el.getBoundingClientRect())
+            return side === 'left' ? { x: r.left, y: (r.top + r.bottom) / 2 } : { x: r.right, y: (r.top + r.bottom) / 2 }
+          }
+
+          // Code -> design ("Code changes"): leaves the code card at the
+          // highlighted line's height.
+          const codeTargetEl = frameSel === 'b' ? bEl : aEl
+          if (codeEl && codeTargetEl) {
+            const code = rel(codeEl.getBoundingClientRect())
+            const lineEl = highlightRef.current
+            const lineRect = lineEl?.isConnected ? rel(lineEl.getBoundingClientRect()) : null
+            const t = rel(codeTargetEl.getBoundingClientRect())
             const toRight = t.left >= code.right - 1
-            const fromX = toRight ? code.right : code.left
             const rawY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
-            const fromY = Math.min(Math.max(rawY, code.top + 10), code.bottom - 10)
-            paths.push(connectorPath({ x: fromX, y: fromY }, { x: toRight ? t.left : t.right, y: (t.top + t.bottom) / 2 }))
+            const from = { x: toRight ? code.right : code.left, y: Math.min(Math.max(rawY, code.top + 10), code.bottom - 10) }
+            const to = edge(codeTargetEl, toRight ? 'left' : 'right')
+            paths.push({ ...linkGeometry(from, to), label: 'Code changes' })
+          }
+          // Option A -> Option B ("Design changes"), arched over the gap.
+          if (aEl && bEl) {
+            const a = rel(aEl.getBoundingClientRect())
+            const b = rel(bEl.getBoundingClientRect())
+            const forward = b.left >= a.right
+            paths.push({ ...linkGeometry(edge(aEl, forward ? 'right' : 'left'), edge(bEl, forward ? 'left' : 'right'), 42), label: 'Design changes' })
           }
         }
+
         let anchor = null
-        const a = anchorElRef.current
-        if (a?.isConnected) {
-          const r = rel(a.getBoundingClientRect())
-          anchor = {
-            l: Math.round(r.left),
-            r: Math.round(r.right),
-            t: Math.round(r.top),
-            b: Math.round(r.bottom),
-            w: Math.round(base.width),
-            h: Math.round(base.height),
-          }
+        const el = anchorElRef.current
+        if (hasSelection && el?.isConnected) {
+          const r = rel(el.getBoundingClientRect())
+          anchor = { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom), w: Math.round(base.width), h: Math.round(base.height) }
         }
-        setLinks((prev) => {
-          const same =
-            prev.paths.join('|') === paths.join('|') &&
-            JSON.stringify(prev.anchor) === JSON.stringify(anchor)
-          return same ? prev : { paths, anchor }
+
+        const pins = []
+        annotations.forEach((a, i) => {
+          const sel =
+            a.kind === 'layer' && a.layerId
+              ? `[data-frame-key="${a.frameKey}"] [data-layer-id="${a.layerId}"]`
+              : a.kind === 'frame'
+                ? `[data-frame-key="${a.frameKey}"]`
+                : a.fileId
+                  ? `[data-code-line="${a.fileId}:${a.line}"]`
+                  : null
+          const target = sel && find(sel)
+          if (!target) return
+          const r = rel(target.getBoundingClientRect())
+          pins.push({ id: a.id, n: i + 1, x: Math.round(r.left), y: Math.round(r.top) })
         })
+
+        const next = { paths, anchor, pins }
+        setLinks((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
       }
       raf = requestAnimationFrame(measure)
     }
     raf = requestAnimationFrame(measure)
     return () => cancelAnimationFrame(raf)
-  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel])
+  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel, annotations])
 
   const zoomAt = useCallback((nextZoom, cx, cy) => {
     setView((v) => {
@@ -739,16 +946,21 @@ function MergeInfiniteCanvas({
     }
   }
 
-  // Option B's live preview for the selected layer: Variant Compare
-  // choices/hover, with an applied AI preset's fill taking precedence.
-  const previewOverride =
-    syncSelection?.layerId && (variantPreview || appliedPreset)
-      ? {
-          ...variantPreview,
-          layerId: syncSelection.layerId,
-          className: appliedPreset?.previewClass ?? variantPreview?.className,
-        }
-      : undefined
+  // Option B's per-layer overrides: committed AI annotation edits, with the
+  // selected layer's Variant Compare choice/hover and any applied AI preset
+  // layered on top (preset fill > variant fill > annotation fill).
+  const overrides = { ...edits }
+  const selId = syncSelection?.layerId
+  if (selId && (variantPreview || appliedPreset)) {
+    const base = edits[selId]
+    overrides[selId] = {
+      ...base,
+      radius: variantPreview?.radius ?? base?.radius,
+      dw: (base?.dw ?? 0) + (variantPreview?.dw ?? 0),
+      dh: (base?.dh ?? 0) + (variantPreview?.dh ?? 0),
+      className: appliedPreset?.previewClass ?? variantPreview?.className ?? base?.className,
+    }
+  }
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
@@ -800,6 +1012,7 @@ function MergeInfiniteCanvas({
                   highlightFileId={syncSelection?.fileId}
                   highlightLine={syncSelection?.line}
                   onSelectLine={pickLine}
+                  incomingEdits={codeEdits}
                   highlightRef={highlightRef}
                 />
               )}
@@ -842,7 +1055,7 @@ function MergeInfiniteCanvas({
                     hoverLayerId={hover?.layerId}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
-                    previewOverride={previewOverride}
+                    overrides={overrides}
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                   />
@@ -853,34 +1066,58 @@ function MergeInfiniteCanvas({
         </div>
 
         <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
-          {links.paths.map((d, i) => (
+          <defs>
+            <linearGradient id="neon-link" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#bef264" />
+              <stop offset="100%" stopColor="#4ade80" />
+            </linearGradient>
+            <filter id="neon-glow" x="-20%" y="-50%" width="140%" height="200%">
+              <feGaussianBlur stdDeviation="4" />
+            </filter>
+          </defs>
+          {links.paths.map((p, i) => (
             <g key={i}>
-              <path d={d} fill="none" stroke="#a3e635" strokeWidth={6} strokeOpacity={0.18} />
-              <path d={d} fill="none" stroke="#a3e635" strokeWidth={2} strokeDasharray="6 4" style={{ filter: 'drop-shadow(0 0 4px #a3e635)' }} />
+              <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.55} strokeLinecap="round" filter="url(#neon-glow)" />
+              <path d={p.d} fill="none" stroke="url(#neon-link)" strokeWidth={2.5} strokeLinecap="round" />
+              {[p.from, p.to].map((pt, j) => (
+                <g key={j}>
+                  <circle cx={pt.x} cy={pt.y} r={9} fill="#a3e635" fillOpacity={0.22} filter="url(#neon-glow)" />
+                  <circle cx={pt.x} cy={pt.y} r={4} fill="#d9f99d" stroke="#a3e635" strokeWidth={1.5} />
+                </g>
+              ))}
             </g>
           ))}
         </svg>
 
-        {hasSelection && links.anchor && aiStage === 'badge' && (
-          <AiEditBadge
-            left={Math.min(Math.max(4, links.anchor.r - 12), links.anchor.w - 30)}
-            top={Math.min(Math.max(4, links.anchor.t - 14), links.anchor.h - 30)}
-            onClick={() => setAiStage('prompt')}
-          />
-        )}
+        {links.paths.map((p, i) => (
+          <span
+            key={i}
+            style={{ left: p.mid.x, top: p.mid.y }}
+            className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-lime-400/60 bg-card/95 px-2.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_12px_rgba(163,230,53,0.35)]"
+          >
+            {p.label}
+          </span>
+        ))}
 
-        {hasSelection && links.anchor && aiStage === 'prompt' && (
-          <InlineAiEdit
-            anchor={{
-              left: Math.min(Math.max(8, links.anchor.l), Math.max(8, links.anchor.w - 296)),
-              top: Math.min(Math.max(8, links.anchor.b + 8), Math.max(8, links.anchor.h - 130)),
-            }}
+        {links.pins.map((pin) => (
+          <AnnotationPin
+            key={pin.id}
+            pin={pin}
+            annotation={annotations.find((a) => a.id === pin.id)}
+            open={openNote === pin.id}
+            onToggle={() => setOpenNote((cur) => (cur === pin.id ? null : pin.id))}
+          />
+        ))}
+
+        {hasSelection && links.anchor && aiStage && (
+          <AiEditMorph
+            left={Math.min(Math.max(8, (links.anchor.l + links.anchor.r) / 2 - 18), Math.max(8, links.anchor.w - 336))}
+            top={Math.min(links.anchor.b + 10, Math.max(8, links.anchor.h - 56))}
+            expanded={aiStage === 'prompt'}
             label={selectionLabel}
+            onExpand={() => setAiStage('prompt')}
             onClose={() => setAiStage('badge')}
-            onSubmit={(text) => {
-              sendChatMessage(`Regarding "${selectionLabel}" in ${item.title}: ${text}`)
-              setAiStage(null)
-            }}
+            onSubmit={submitAnnotation}
           />
         )}
 
