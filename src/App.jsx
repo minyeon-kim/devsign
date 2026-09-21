@@ -51,28 +51,29 @@ function WorkspaceShell() {
 
       {!inMergeStudio && <FollowMeBanner />}
 
-      {/* RightFloatingBar + InspectorSidebar are rendered here, one level
-          above the workspace/Merge Studio branch, so both environments get
-          the exact same toolbar/instance instead of two separate copies —
-          "porting" it just means widening where it's mounted. Both position
-          themselves absolutely against this shared `relative` container.
-          ChatMorphWidget stays workspace-only; it's a distinct AI-chat
-          concern, not part of "the right-side toolbar". */}
+      {/* ActivityBar, RightFloatingBar, InspectorSidebar and ChatMorphWidget
+          are all rendered here, one level above the workspace/Merge Studio
+          branch, so every environment gets the exact same instance instead
+          of separate copies — "porting" a piece of chrome just means
+          widening where it's mounted. RightFloatingBar/InspectorSidebar
+          position themselves absolutely against this shared `relative`
+          container; ChatMorphWidget is `position: fixed` against the whole
+          viewport regardless of where it's mounted, which is exactly the
+          "floats above everything" behavior Merge Studio wants too. */}
       <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+        <ActivityBar dockApi={dockApi} />
+
         {inMergeStudio ? (
           <MergeStudioView />
         ) : (
-          <>
-            <ActivityBar dockApi={dockApi} />
-            <div className="min-w-0 flex-1">
-              <DockLayout />
-            </div>
-            <ChatMorphWidget />
-          </>
+          <div className="min-w-0 flex-1">
+            <DockLayout />
+          </div>
         )}
 
         <RightFloatingBar />
         <InspectorSidebar />
+        <ChatMorphWidget />
       </div>
     </div>
   )
