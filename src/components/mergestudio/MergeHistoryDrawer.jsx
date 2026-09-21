@@ -49,7 +49,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                 <div
                   className={cn(
                     'rounded-2xl border p-3 transition-colors',
-                    current ? 'border-primary bg-primary/10' : 'border-white/10 bg-background/30'
+                    current ? 'border-primary bg-primary/10' : 'border-white/10 bg-slate-800/70'
                   )}
                 >
                   <div className="flex items-start gap-2">
@@ -77,7 +77,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                   </div>
 
                   {previewing && (
-                    <ul className="mt-2.5 space-y-1.5 rounded-xl bg-background/50 p-2.5">
+                    <ul className="mt-2.5 space-y-1.5 rounded-xl bg-slate-800/70 p-2.5">
                       {event.changes.map((c) => (
                         <li key={c.label} className="text-[11px] leading-snug">
                           <span className="text-foreground">{c.label}</span>

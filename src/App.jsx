@@ -19,7 +19,7 @@ const previewDef = panelDefinitions.find((def) => def.id === 'preview')
 // instantiates WorkspaceProvider and so sits one level above where
 // useWorkspace() can be called.
 function WorkspaceShell() {
-  const { dockApi, activeView } = useWorkspace()
+  const { dockApi, activeView, mergePreviewOpen, setMergePreviewOpen } = useWorkspace()
   const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
@@ -33,6 +33,11 @@ function WorkspaceShell() {
   }, [dockApi])
 
   function togglePreview() {
+    // In Merge Studio the header Preview button opens the responsive preview.
+    if (activeView === 'mergeStudio') {
+      setMergePreviewOpen((v) => !v)
+      return
+    }
     if (!dockApi) return
     const panel = dockApi.getPanel(previewDef.id)
     if (panel) {
@@ -47,7 +52,7 @@ function WorkspaceShell() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <TopBar previewOpen={previewOpen} onTogglePreview={togglePreview} dockApi={dockApi} />
+      <TopBar previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen} onTogglePreview={togglePreview} dockApi={dockApi} />
 
       {!inMergeStudio && <FollowMeBanner />}
 

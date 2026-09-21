@@ -65,6 +65,9 @@ export function assemblyToOverride(assembly, layer) {
   if (extra) override.extraClass = extra
   if (assembly.align) override.align = assembly.align
   if (assembly.icon) override.icon = assembly.icon
+  // Replace-with-component: render as a different element type / label.
+  if (assembly.asType) override.asType = assembly.asType
+  if (assembly.asLabel) override.asLabel = assembly.asLabel
   return override
 }
 
@@ -77,6 +80,8 @@ export function mergeOverride(a = {}, b = {}) {
     ...(b.extraClass && { extraClass: [a.extraClass, b.extraClass].filter(Boolean).join(' ') }),
     ...(b.align && { align: b.align }),
     ...(b.icon && { icon: b.icon }),
+    ...(b.asType && { asType: b.asType }),
+    ...(b.asLabel && { asLabel: b.asLabel }),
     dw: (a.dw ?? 0) + (b.dw ?? 0),
     dh: (a.dh ?? 0) + (b.dh ?? 0),
   }
@@ -122,4 +127,34 @@ export function frameWithLayers(frame, extra = []) {
   if (!frame || !extra.length) return frame
   const bottom = Math.max(frame.height, ...extra.map((l) => l.y + l.height + 16))
   return { ...frame, height: bottom, layers: [...frame.layers, ...extra] }
+}
+
+// Which Design System components fit a selected element: `replace` types can
+// stand in for it (same role), `insert` types can be dropped into it when it
+// is a container.
+const REPLACE_GROUPS = {
+  button: ['button', 'iconbtn', 'chip'],
+  iconbtn: ['button', 'iconbtn', 'chip'],
+  chip: ['button', 'iconbtn', 'chip'],
+  input: ['input'],
+  card: ['card', 'image'],
+  image: ['image', 'card'],
+  toggle: ['toggle'],
+  avatar: ['avatar'],
+  tabs: ['tabs', 'bar'],
+  bar: ['bar', 'tabs'],
+  text: ['chip'],
+}
+const INSERT_INTO = {
+  card: ['button', 'iconbtn', 'chip', 'input', 'toggle', 'avatar'],
+  image: ['chip', 'iconbtn', 'avatar'],
+  bar: ['iconbtn', 'chip', 'avatar'],
+  tabs: ['iconbtn', 'chip'],
+}
+
+export function libraryCompat(layer) {
+  return {
+    replace: new Set(REPLACE_GROUPS[layer.type] ?? []),
+    insert: new Set(INSERT_INTO[layer.type] ?? []),
+  }
 }

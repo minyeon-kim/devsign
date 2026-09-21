@@ -6,6 +6,7 @@ import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
+import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -56,6 +57,8 @@ function MergeStudioWorkspace({ item }) {
     setMergeDrawer,
     mergeFocus,
     requestMergeFocus,
+    mergePreviewOpen,
+    setMergePreviewOpen,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -154,31 +157,63 @@ function MergeStudioWorkspace({ item }) {
     })
   }
 
+  // Changes log → Undo (annotation undo is handled inside the canvas).
+  function undoChange(entry) {
+    if (entry.kind === 'variant') {
+      setResolutions((prev) => {
+        const next = { ...prev }
+        delete next[entry.key]
+        return next
+      })
+    } else if (entry.kind === 'assembly') {
+      resetAssembly(entry.layerId)
+    } else if (entry.kind === 'component') {
+      setAddedLayers((prev) => prev.filter((l) => l.id !== entry.layerId))
+      resetAssembly(entry.layerId)
+      if (syncSelection?.layerId === entry.layerId) setSyncSelection(null)
+    } else if (entry.kind === 'preset') {
+      setAppliedPreset(null)
+    }
+  }
+
   // Design System library actions.
   // Apply: restyle the selected element with a component's look (size only
   // when the element is the same kind of component).
   function applyComponent(def) {
     if (!selectedLayer) return
-    const sameType = selectedLayer.type === def.type
-    assemble(selectedLayer.id, {
-      ...def.assembly,
-      ...(sameType && { width: def.width, height: def.height }),
-    })
+    // Replace: the layer takes on the component's role, look and size.
+    setAssemblies((prev) => ({
+      ...prev,
+      [selectedLayer.id]: {
+        ...def.assembly,
+        width: Math.min(def.width, Math.max(40, frame0.width - selectedLayer.x - 8)),
+        height: def.height,
+        ...(def.type !== selectedLayer.type && { asType: def.type, asLabel: def.label, asName: def.name }),
+      },
+    }))
+  }
+
+  // Insert: drop a component into the selected container element.
+  function insertComponent(def) {
+    if (selectedLayer) addComponent(def, selectedLayer)
   }
 
   // Add: pull a new instance onto both artboards, below the existing content,
   // then select it.
-  function addComponent(def) {
+  function addComponent(def, parent = null) {
     if (!frame0) return
-    const width = Math.min(def.width, frame0.width - 24)
+    const width = Math.min(def.width, (parent ? parent.width : frame0.width) - 24)
     const layer = {
       id: `${def.id}-${Date.now()}`,
       name: def.name,
       kind: 'component',
       type: def.type,
       label: def.label,
-      x: Math.max(8, Math.round((frame0.width - width) / 2)),
-      y: frame0.height + 12,
+      ...(parent
+        ? parent.type === 'bar' || parent.type === 'tabs'
+          ? { x: parent.x + parent.width - width - 12, y: parent.y + Math.round((parent.height - def.height) / 2) }
+          : { x: parent.x + 12, y: parent.y + 12 }
+        : { x: Math.max(8, Math.round((frame0.width - width) / 2)), y: frame0.height + 12 }),
       width,
       height: def.height,
     }
@@ -242,7 +277,9 @@ function MergeStudioWorkspace({ item }) {
           merged={item.tag === 'Merged'}
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
+          resolutions={resolutions}
           extraLayers={addedLayers}
+          onUndoChange={undoChange}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
@@ -288,7 +325,8 @@ function MergeStudioWorkspace({ item }) {
           onAssemble={(patch) => syncSelection?.layerId && assemble(syncSelection.layerId, patch)}
           onAssembleReset={() => syncSelection?.layerId && resetAssembly(syncSelection.layerId)}
           onApplyComponent={applyComponent}
-          onAddComponent={addComponent}
+          onAddComponent={(def) => addComponent(def)}
+          onInsertComponent={insertComponent}
           onApplyPreset={setAppliedPreset}
         />
       )}
@@ -308,6 +346,22 @@ function MergeStudioWorkspace({ item }) {
             setWizardStage('compare')
           }}
           onComplete={() => completeMerge(item.id)}
+        />
+      )}
+
+      {mergePreviewOpen && item && (
+        <MergePreviewOverlay
+          item={item}
+          resolutions={resolutions}
+          annotations={annotationsSnap}
+          preset={
+            appliedPreset && syncSelection?.layerId
+              ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+              : null
+          }
+          assemblies={assemblies}
+          extraLayers={addedLayers}
+          onClose={() => setMergePreviewOpen(false)}
         />
       )}
 

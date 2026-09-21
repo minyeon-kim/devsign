@@ -1,0 +1,93 @@
+import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
+
+// Turns the merge item + the user's resolutions + the canvas annotations
+// into the pre-flight summary shown at the top of the modal.
+export function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = []) {
+  const layers = frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)?.layers ?? []
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+
+  const design = Object.entries(resolutions).map(([key, side]) => {
+    const split = key.indexOf(':')
+    const layerId = key.slice(0, split)
+    const diffId = key.slice(split + 1)
+    const diff = layerDiffs[layerId]?.find((d) => d.id === diffId)
+    const layer = layers.find((l) => l.id === layerId)
+    return {
+      key,
+      text: `${layer?.name ?? layerId} · ${diff?.label ?? 'Design decision'}`,
+      choice: diff
+        ? side === 'A' ? `Kept ${diff.optionA}` : `Accepted ${diff.optionB}`
+        : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
+    }
+  })
+  for (const l of extraLayers) {
+    design.push({ key: `added-${l.id}`, text: `Design System · ${l.name}`, choice: 'Added to Option A and Option B' })
+  }
+  for (const [layerId, a] of Object.entries(assemblies)) {
+    const layer = layers.find((l) => l.id === layerId)
+    if (!layer || extraLayers.some((l) => l.id === layerId)) continue
+    const parts = [
+      a.asName && `replaced with ${a.asName}`,
+      a.shape && `${a.shape} shape`,
+      (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
+      a.fill && `${ASSEMBLY_FILLS.find((f) => f.id === a.fill)?.label ?? a.fill} fill`,
+      a.border && a.border !== 'none' && `${a.border} border`,
+      a.shadow && a.shadow !== 'none' && `${a.shadow} shadow`,
+      a.icon && `icon ${a.icon}`,
+    ].filter(Boolean)
+    design.push({ key: `assembly-${layerId}`, text: `${layer.name} · Assembled block`, choice: parts.join(' · ') || 'Customized' })
+  }
+  if (preset) {
+    design.push({
+      key: 'preset',
+      text: `${layers.find((l) => l.id === preset.layerId)?.name ?? preset.layerId} · AI style preset`,
+      choice: `Applied ${preset.label}`,
+    })
+  }
+
+  const files = openFiles
+    .filter((f) => item.fileIds?.includes(f.id))
+    .map((f) => ({
+      id: f.id,
+      name: f.name,
+      changed: codeMergeVariants[item.id]?.[f.id]?.length ?? 0,
+      aiLines: annotations.filter((a) => a.status === 'done' && a.fileId === f.id).length,
+    }))
+
+  return {
+    design,
+    files,
+    applied: annotations.filter((a) => a.status === 'done'),
+    pending: annotations.filter((a) => a.status !== 'done').length,
+  }
+}
+
+// Staged/merged design output: the artboard frame (plus library layers) and a
+// per-layer override map with every variant choice, AI edit, Block Assemble
+// edit and applied preset baked in. Used by the responsive Preview.
+export function buildOverrides(item, resolutions = {}, annotations = [], preset = null, assemblies = {}, extraLayers = []) {
+  const frame = item.hasDesign
+    ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)
+    : null
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const overrides = {}
+
+  for (const [key, side] of Object.entries(resolutions)) {
+    const split = key.indexOf(':')
+    const layerId = key.slice(0, split)
+    const diff = layerDiffs[layerId]?.find((d) => d.id === key.slice(split + 1))
+    if (diff) overrides[layerId] = mergeOverride(overrides[layerId], diffEffect(diff, side))
+  }
+  for (const a of annotations) {
+    if (!a.effect) continue
+    for (const t of a.targets ?? []) overrides[t] = mergeOverride(overrides[t], a.effect)
+  }
+  for (const [layerId, a] of Object.entries(assemblies)) {
+    const layer = frame?.layers.find((l) => l.id === layerId)
+    const o = layer && assemblyToOverride(a, layer)
+    if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
+  if (preset) overrides[preset.layerId] = mergeOverride(overrides[preset.layerId], { className: preset.previewClass })
+  return { frame, overrides }
+}

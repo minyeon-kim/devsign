@@ -122,7 +122,7 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
         'flex w-full flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-all',
         active
           ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_var(--primary),0_0_18px_color-mix(in_oklch,var(--primary)_55%,transparent)]'
-          : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50'
+          : 'border-white/10 bg-slate-800/70 hover:border-primary/40 hover:bg-slate-700/70'
       )}
     >
       <div className="flex w-full items-start justify-between gap-2">
@@ -245,7 +245,7 @@ function MergeListSidebar() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search merge items..."
-            className="h-8 w-full rounded-full border bg-background pr-3 pl-8 text-xs outline-none focus:ring-1 focus:ring-primary"
+            className="h-8 w-full rounded-full border bg-slate-800 pr-3 pl-8 text-xs outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 

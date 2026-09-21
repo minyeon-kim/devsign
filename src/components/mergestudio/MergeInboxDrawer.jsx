@@ -46,7 +46,7 @@ function InboxItem({ n, onJump }) {
   }
 
   return (
-    <div className={cn('rounded-2xl border p-3 transition-colors', n.unread ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-white/10 bg-background/30')}>
+    <div className={cn('rounded-2xl border p-3 transition-colors', n.unread ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-white/10 bg-slate-800/70')}>
       <button
         type="button"
         onClick={() => {
@@ -90,7 +90,7 @@ function InboxItem({ n, onJump }) {
                   </p>
                 </div>
               ))}
-              <form onSubmit={send} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-background/40 py-1 pr-1 pl-3 focus-within:border-violet-500">
+              <form onSubmit={send} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-800/70 py-1 pr-1 pl-3 focus-within:border-violet-500">
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}

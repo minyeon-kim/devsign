@@ -76,7 +76,7 @@ function Side({ label, lines, tone, selected, onSelect }) {
       onClick={onSelect}
       className={cn(
         'flex min-w-0 flex-1 flex-col rounded-2xl border p-2.5 text-left transition-colors',
-        selected ? 'border-primary bg-primary/10' : 'border-white/10 bg-background/30 hover:bg-muted/50'
+        selected ? 'border-primary bg-primary/10' : 'border-white/10 bg-slate-800/70 hover:bg-muted/50'
       )}
     >
       <span className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">

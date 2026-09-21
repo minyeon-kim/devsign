@@ -87,6 +87,7 @@ export function WorkspaceProvider({ children }) {
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
   const [notifications, setNotifications] = useState(seedMergeNotifications)
   const [mergeFocus, setMergeFocus] = useState(null)
+  const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -478,6 +479,8 @@ export function WorkspaceProvider({ children }) {
     replyToNotification,
     mergeFocus,
     requestMergeFocus,
+    mergePreviewOpen,
+    setMergePreviewOpen,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

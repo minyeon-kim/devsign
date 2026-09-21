@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, Check, ChevronLeft, ChevronRight, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -72,7 +73,7 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, hig
   return (
     <div
       data-code-scroll
-      className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-background font-mono text-[11px] leading-relaxed"
+      className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-slate-800 font-mono text-[11px] leading-relaxed"
     >
       <div>
         <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -261,6 +262,8 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     height: layer.height + (override?.dh ?? 0),
   }
   const fill = override?.className
+  const type = override?.asType ?? layer.type
+  const label = override?.asLabel ?? layer.label
   const radiusStyle = override?.radius !== undefined ? { borderRadius: override.radius } : undefined
   const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
   const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
@@ -268,7 +271,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
   let content = null
-  if (layer.type === 'bar') {
+  if (type === 'bar') {
     content = (
       <div
         style={contentStyle}
@@ -282,58 +285,58 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         </div>
       </div>
     )
-  } else if (layer.type === 'card') {
+  } else if (type === 'card') {
     content = (
       <div
         style={contentStyle}
         className={cn('h-full w-full rounded-lg', fill ?? 'border border-border bg-muted/40', extra)}
       />
     )
-  } else if (layer.type === 'avatar') {
+  } else if (type === 'avatar') {
     content = <div style={contentStyle} className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30', extra)} />
-  } else if (layer.type === 'input') {
+  } else if (type === 'input') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-background', extra)}
+        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-slate-800', extra)}
       >
-        {layer.label ?? 'Input'}
+        {label ?? 'Input'}
       </div>
     )
-  } else if (layer.type === 'chip') {
+  } else if (type === 'chip') {
     content = (
       <div
         style={contentStyle}
         className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
       >
         {override?.icon === 'left' && iconEl}
-        {layer.label ?? 'Chip'}
+        {label ?? 'Chip'}
         {override?.icon === 'right' && iconEl}
       </div>
     )
-  } else if (layer.type === 'toggle') {
+  } else if (type === 'toggle') {
     content = (
       <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500', extra)}>
         <span className="aspect-square h-full rounded-full bg-white shadow" />
       </div>
     )
-  } else if (layer.type === 'image') {
+  } else if (type === 'image') {
     content = (
       <div
         style={contentStyle}
         className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70', extra)}
       />
     )
-  } else if (layer.type === 'iconbtn') {
+  } else if (type === 'iconbtn') {
     content = (
       <div
         style={contentStyle}
         className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted', extra)}
       >
-        {layer.label ?? '•'}
+        {label ?? '•'}
       </div>
     )
-  } else if (layer.type === 'tabs') {
+  } else if (type === 'tabs') {
     content = (
       <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card', extra)}>
         {['Home', 'Search', 'Profile'].map((t, i) => (
@@ -343,7 +346,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         ))}
       </div>
     )
-  } else if (layer.type === 'button') {
+  } else if (type === 'button') {
     content = (
       <div
         style={contentStyle}
@@ -353,7 +356,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         )}
       >
         {override?.icon === 'left' && iconEl}
-        {layer.label ?? 'Button'}
+        {label ?? 'Button'}
         {override?.icon === 'right' && iconEl}
       </div>
     )
@@ -736,6 +739,147 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   )
 }
 
+// What kind of discrepancy a variant diff is, for the drift explainer.
+function classifyDiff(diff) {
+  const t = `${diff.id} ${diff.label}`.toLowerCase()
+  if (/color|accent|background|fill|chip/.test(t)) return { label: 'Color property shift', className: 'bg-violet-500/15 text-violet-400' }
+  if (/padding|spacing/.test(t)) return { label: 'Padding discrepancy', className: 'bg-amber-500/15 text-amber-500' }
+  if (/radius/.test(t)) return { label: 'Corner radius mismatch', className: 'bg-indigo-500/15 text-indigo-400' }
+  if (/size|weight/.test(t)) return { label: 'Typography shift', className: 'bg-sky-500/15 text-sky-500' }
+  return { label: 'Token mismatch', className: 'bg-muted text-muted-foreground' }
+}
+
+// Pinned callout explaining exactly what the current drift is. Stays put
+// while the user inspects (until dismissed or another drift is opened).
+function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentLine, incomingLine, onClose }) {
+  const isDesign = drift.kind === 'design'
+  const codeCat =
+    /var\(|token|#[0-9a-f]{3,6}|oklch|--/i.test(`${currentLine ?? ''} ${incomingLine ?? ''}`)
+      ? { label: 'Token mismatch', className: 'bg-muted text-muted-foreground' }
+      : { label: 'Code change', className: 'bg-indigo-500/15 text-indigo-400' }
+  return (
+    <div className="absolute top-full left-0 z-30 mt-2 w-72 rounded-2xl border border-border bg-slate-800 p-3 text-[11px] shadow-xl">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Drift {index + 1} of {total}
+          </p>
+          <p className="truncate text-xs font-semibold text-foreground">{drift.label}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          title="Dismiss"
+          className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-3" />
+        </button>
+      </div>
+
+      <div className="mt-2 space-y-2">
+        {isDesign ? (
+          drift.diffs.map((d) => {
+            const cat = classifyDiff(d)
+            const side = resolutions?.[`${drift.layerId}:${d.id}`]
+            return (
+              <div key={d.id} className="rounded-xl bg-slate-800/70 p-2">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-semibold', cat.className)}>{cat.label}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    {side ? `Resolved · ${side === 'A' ? 'kept A' : 'accepted B'}` : 'Unresolved'}
+                  </span>
+                </div>
+                <p className="mt-1.5 flex flex-wrap items-center gap-1 text-foreground">
+                  {d.label}:
+                  <span className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-destructive">A {d.optionA}</span>
+                  →
+                  <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">B {d.optionB}</span>
+                </p>
+              </div>
+            )
+          })
+        ) : (
+          <div className="rounded-xl bg-slate-800/70 p-2">
+            <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-semibold', codeCat.className)}>{codeCat.label}</span>
+            <p className="mt-1.5 text-muted-foreground">Incoming code changes this line:</p>
+            <p className="mt-1 rounded-md bg-destructive/10 px-2 py-1 font-mono text-[10px] break-words text-destructive/90">− {currentLine || ' '}</p>
+            <p className="mt-1 rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[10px] break-words text-emerald-400">+ {incomingLine}</p>
+          </div>
+        )}
+        {layerCodeTarget && (
+          <p className="text-[10px] text-muted-foreground">{layerCodeTarget}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Compare-stage "Changes log": every modification so far — variant
+// selections, Block Assemble / Design System edits, presets, AI notes — as
+// rows you can Undo individually, or click to pan the canvas to the element
+// (or code line) they touch.
+function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
+  const total = entries.length
+  return (
+    <div className="absolute right-3 bottom-3 z-20 w-80 max-w-[calc(100%-1.5rem)]">
+      {open && (
+        <div className="mb-2 max-h-80 space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
+          {total === 0 && codeRows.length === 0 && (
+            <p className="py-3 text-center text-muted-foreground">No changes yet — pick variants, assemble blocks, or annotate.</p>
+          )}
+          {entries.map((e) => {
+            const canJump = Boolean(e.layerId || e.fileId)
+            return (
+              <div key={e.id} className="flex items-center gap-1.5 rounded-xl bg-slate-800/70 px-2.5 py-1.5">
+                <button
+                  type="button"
+                  disabled={!canJump}
+                  onClick={() => onJump(e)}
+                  title={canJump ? 'Jump to element' : undefined}
+                  className="min-w-0 flex-1 text-left leading-snug disabled:cursor-default"
+                >
+                  <span className="block truncate text-foreground">{e.title}</span>
+                  <span className={cn('block truncate', e.kind === 'annotation' ? 'text-violet-400' : 'text-muted-foreground')}>{e.detail}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUndo(e)}
+                  title="Undo this change"
+                  className="flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Undo2 className="size-3" />
+                  Undo
+                </button>
+              </div>
+            )
+          })}
+          {codeRows.length > 0 && (
+            <div className="border-t border-border/60 pt-1.5">
+              <p className="mb-1 px-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Code</p>
+              {codeRows.map((f) => (
+                <p key={f.id} className="px-1 py-0.5 text-muted-foreground">
+                  <span className="text-foreground">{f.name}</span> · {f.changed} incoming line{f.changed === 1 ? '' : 's'}
+                  {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="ml-auto flex items-center gap-1.5 rounded-full border bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
+      >
+        <ListChecks className="size-3.5 text-indigo-500" />
+        Changes log
+        <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">{total}</span>
+        <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform', !open && 'rotate-180')} />
+      </button>
+    </div>
+  )
+}
+
 const MACRO_STEPS = [
   { id: 'compare', label: 'Compare' },
   { id: 'check', label: 'Check' },
@@ -797,7 +941,9 @@ function MergeInfiniteCanvas({
   resolutionCount,
   merged,
   assemblies,
+  resolutions,
   extraLayers,
+  onUndoChange,
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -807,6 +953,8 @@ function MergeInfiniteCanvas({
 }) {
   const { getFileLines, requestMergeFocus } = useWorkspace()
   const [driftIdx, setDriftIdx] = useState(-1)
+  const [driftHidden, setDriftHidden] = useState(null) // drift id whose card was dismissed
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(DEFAULT_LAYOUT)
   const [panning, setPanning] = useState(false)
@@ -935,6 +1083,7 @@ function MergeInfiniteCanvas({
         id: `d:${l.id}`,
         kind: 'design',
         layerId: l.id,
+        diffs: layerDiffMap[l.id],
         label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
       })),
     ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
@@ -963,6 +1112,7 @@ function MergeInfiniteCanvas({
     const next = currentDrift < 0 ? (dir > 0 ? 0 : n - 1) : (currentDrift + dir + n) % n
     const d = drifts[next]
     setDriftIdx(next)
+    setDriftHidden(null)
     requestMergeFocus({
       itemId: item.id,
       keepDeck: true,
@@ -1615,10 +1765,7 @@ function MergeInfiniteCanvas({
         {/* Canvas actions: batch-apply pending notes with AI, then merge. */}
         <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
           {drifts.length > 1 && (
-            <div
-              title={currentDrift >= 0 ? drifts[currentDrift].label : 'Jump between drifts'}
-              className="flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md"
-            >
+            <div className="relative flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => goDrift(-1)}
@@ -1627,9 +1774,14 @@ function MergeInfiniteCanvas({
               >
                 <ChevronLeft className="size-4" />
               </button>
-              <span className="min-w-16 px-1 text-center font-medium text-foreground tabular-nums">
+              <button
+                type="button"
+                title={currentDrift >= 0 ? 'Show / hide drift details' : 'Jump between drifts'}
+                onClick={() => currentDrift >= 0 && setDriftHidden((h) => (h === drifts[currentDrift].id ? null : drifts[currentDrift].id))}
+                className="min-w-16 rounded-full px-1 text-center font-medium text-foreground tabular-nums hover:bg-muted"
+              >
                 Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
-              </span>
+              </button>
               <button
                 type="button"
                 onClick={() => goDrift(1)}
@@ -1638,6 +1790,25 @@ function MergeInfiniteCanvas({
               >
                 <ChevronRight className="size-4" />
               </button>
+
+              {currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
+                const d = drifts[currentDrift]
+                const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
+                const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
+                const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
+                return (
+                  <DriftCard
+                    drift={d}
+                    index={currentDrift}
+                    total={drifts.length}
+                    resolutions={resolutions}
+                    layerCodeTarget={linked ? `Affects ${openFiles.find((f) => f.id === linked.fileId)?.name ?? linked.fileId} · line ${linked.line}` : null}
+                    currentLine={original}
+                    incomingLine={incoming}
+                    onClose={() => setDriftHidden(d.id)}
+                  />
+                )
+              })()}
             </div>
           )}
           {annotations.length > 0 && (
@@ -1676,6 +1847,50 @@ function MergeInfiniteCanvas({
             )}
           </button>
         </div>
+
+        {stage === 'compare' && (() => {
+          const presetObj =
+            appliedPreset && syncSelection?.layerId
+              ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+              : null
+          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [])
+          const entries = [
+            ...summary.design.map((d) => {
+              let kind = 'variant'
+              let layerId = d.key.slice(0, d.key.indexOf(':'))
+              if (d.key.startsWith('assembly-')) [kind, layerId] = ['assembly', d.key.slice(9)]
+              else if (d.key.startsWith('added-')) [kind, layerId] = ['component', d.key.slice(6)]
+              else if (d.key === 'preset') [kind, layerId] = ['preset', presetObj?.layerId]
+              return { id: d.key, key: d.key, kind, layerId, title: d.text, detail: d.choice }
+            }),
+            ...annotations.map((a) => ({
+              id: a.id,
+              kind: 'annotation',
+              layerId: a.layerId,
+              fileId: a.fileId,
+              line: a.line,
+              title: `“${a.text}”`,
+              detail: a.status === 'done' ? a.summary : a.status === 'thinking' ? 'AI is updating…' : 'Not applied yet',
+            })),
+          ]
+          return (
+            <ChangesLog
+              entries={entries}
+              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0)}
+              open={summaryOpen}
+              onToggle={() => setSummaryOpen((v) => !v)}
+              onJump={(e) =>
+                requestMergeFocus({
+                  itemId: item.id,
+                  keepDeck: true,
+                  label: e.title,
+                  ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
+                })
+              }
+              onUndo={(e) => (e.kind === 'annotation' ? deleteAnnotation(e.id) : onUndoChange?.(e))}
+            />
+          )
+        })()}
 
         {/* Zoom sits centered just above the AI bar (fixed bottom-5, ~46px
             tall), so the two never overlap. */}

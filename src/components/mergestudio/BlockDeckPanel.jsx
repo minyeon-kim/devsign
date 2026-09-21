@@ -21,11 +21,11 @@ import {
   inspectorSpecsByType,
 } from '@/data/mockData'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, recommendAssembly } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-background/30 p-2.5">
+    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-2.5">
       <p className="mb-1.5 text-[11px] font-medium text-foreground">{diff.label}</p>
       <div className="grid grid-cols-1 gap-1.5">
         <button
@@ -79,7 +79,7 @@ function Seg({ options, value, onChange }) {
             'rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
             value === id
               ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
-              : 'bg-background/40 text-muted-foreground hover:text-foreground'
+              : 'bg-slate-800/70 text-muted-foreground hover:text-foreground'
           )}
         >
           {label}
@@ -110,7 +110,7 @@ function SizeControl({ layer, assembly, onChange }) {
   const w = assembly.width ?? layer.width
   const h = assembly.height ?? layer.height
   const num = (value, key) => (
-    <label className="flex flex-1 items-center gap-1.5 rounded-full border border-white/10 bg-background/40 px-2.5 py-1 text-[10px] text-muted-foreground focus-within:border-violet-500">
+    <label className="flex flex-1 items-center gap-1.5 rounded-full border border-white/10 bg-slate-800/70 px-2.5 py-1 text-[10px] text-muted-foreground focus-within:border-violet-500">
       {key === 'width' ? 'W' : 'H'}
       <input
         type="number"
@@ -141,7 +141,7 @@ function SizeControl({ layer, assembly, onChange }) {
             key={label}
             type="button"
             onClick={() => onChange({ width: Math.round(layer.width * k), height: Math.round(layer.height * k) })}
-            className="rounded-full bg-background/40 px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            className="rounded-full bg-slate-800/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
           >
             {label}
           </button>
@@ -239,7 +239,7 @@ function ManualFallback({ layer, assembly, onChange }) {
   const rec = recommendAssembly(layer)
   const a = assembly ?? {}
   return (
-    <div className="space-y-3 rounded-xl border border-white/10 bg-background/30 p-2.5">
+    <div className="space-y-3 rounded-xl border border-white/10 bg-slate-800/70 p-2.5">
       <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">No design tokens found</p>
       <div className="rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-2.5">
         <p className="flex items-center gap-1 text-[11px] font-semibold text-foreground">
@@ -305,7 +305,7 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
         )}
 
         {selectedLayer && !specificDiffs && tokenSpec && (
-          <div className="rounded-xl border border-white/10 bg-background/30 p-2.5">
+          <div className="rounded-xl border border-white/10 bg-slate-800/70 p-2.5">
             <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Token Binding
             </p>
@@ -517,7 +517,7 @@ function ComponentPreview({ def }) {
   const layer = { id: def.id, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
   const override = { ...assemblyToOverride(def.assembly, layer), static: true }
   return (
-    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/40" style={{ width: box.w + 12, height: box.h + 12 }}>
+    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-800/70" style={{ width: box.w + 12, height: box.h + 12 }}>
       <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
         <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
           <StaticLayer layer={layer} override={override} onSelect={() => {}} />
@@ -527,15 +527,20 @@ function ComponentPreview({ def }) {
   )
 }
 
-function ComponentsTab({ selectedLayer, onApply, onAdd }) {
+function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
-  const categories = ['All', ...new Set(designSystemComponents.map((c) => c.category))]
-  const visible = designSystemComponents.filter(
-    (c) =>
-      (category === 'All' || c.category === category) &&
-      c.name.toLowerCase().includes(query.trim().toLowerCase())
+  const [showAll, setShowAll] = useState(false)
+  // Contextual: with an element selected, only components that can replace
+  // it or be inserted into it are listed (unless "Show all" is on).
+  const compat = selectedLayer ? libraryCompat(selectedLayer) : null
+  const modeOf = (def) => (!compat ? null : compat.replace.has(def.type) ? 'replace' : compat.insert.has(def.type) ? 'insert' : null)
+  const pool = designSystemComponents.filter((c) => showAll || !compat || modeOf(c))
+  const categories = ['All', ...new Set(pool.map((c) => c.category))]
+  const visible = pool.filter(
+    (c) => (category === 'All' || c.category === category) && c.name.toLowerCase().includes(query.trim().toLowerCase())
   )
+  const activeCategory = categories.includes(category) ? category : 'All'
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -555,49 +560,76 @@ function ComponentsTab({ selectedLayer, onApply, onAdd }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search components…"
-            className="h-8 w-full rounded-full border border-white/10 bg-background/40 pr-3 pl-7 text-xs outline-none focus:border-violet-500"
+            className="h-8 w-full rounded-full border border-white/10 bg-slate-800/70 pr-3 pl-7 text-xs outline-none focus:border-violet-500"
           />
         </div>
-        <Seg options={categories.map((c) => [c, c])} value={category} onChange={setCategory} />
-        <p className="text-[10px] text-muted-foreground">
-          {selectedLayer ? (
-            <>
-              <span className="font-medium text-foreground">Apply</span> restyles {selectedLayer.name};{' '}
-              <span className="font-medium text-foreground">Add</span> pulls a new one onto the canvas.
-            </>
-          ) : (
-            'Select an element to Apply a component to it, or Add one to the canvas.'
-          )}
-        </p>
+        <Seg options={categories.map((c) => [c, c])} value={activeCategory} onChange={setCategory} />
+
+        {selectedLayer ? (
+          <div className="flex items-start gap-2 rounded-xl bg-indigo-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+            <span className="min-w-0 flex-1">
+              {showAll ? 'Showing every component.' : `${pool.length} component${pool.length === 1 ? '' : 's'} fit`}{' '}
+              <span className="font-medium text-foreground">{selectedLayer.name}</span>
+              {showAll ? '' : ' — replace it or insert into it.'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="shrink-0 rounded-full border border-indigo-500/40 px-2 py-0.5 font-medium text-foreground hover:bg-indigo-500/15"
+            >
+              {showAll ? 'Only compatible' : 'Show all'}
+            </button>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">Select an element to see only the components that fit it, or Add one to the canvas.</p>
+        )}
       </div>
 
       <div className="space-y-2 p-3">
-        {visible.map((def) => (
-          <div key={def.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-background/30 p-2">
-            <ComponentPreview def={def} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-foreground">{def.name}</p>
-              <p className="mb-1.5 truncate text-[10px] text-muted-foreground">{def.tokens.join(' · ')}</p>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={!selectedLayer}
-                  onClick={() => onApply(def)}
-                  className="rounded-full border border-indigo-500/50 px-2.5 py-0.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAdd(def)}
-                  className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-0.5 text-[10px] font-semibold text-white"
-                >
-                  Add
-                </button>
+        {visible.map((def) => {
+          const mode = modeOf(def)
+          return (
+            <div key={def.id} className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-slate-800/70 p-2">
+              <ComponentPreview def={def} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-foreground">{def.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {mode === 'replace' ? `Replaces ${selectedLayer.name}` : mode === 'insert' ? `Inserts into ${selectedLayer.name}` : def.tokens.join(' · ')}
+                </p>
+                <div className="mt-1.5 flex gap-1">
+                  {mode === 'replace' && (
+                    <button
+                      type="button"
+                      onClick={() => onApply(def)}
+                      className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-0.5 text-[10px] font-semibold text-white"
+                    >
+                      Replace
+                    </button>
+                  )}
+                  {mode === 'insert' && (
+                    <button
+                      type="button"
+                      onClick={() => onInsert(def)}
+                      className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-0.5 text-[10px] font-semibold text-white"
+                    >
+                      Insert
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onAdd(def)}
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-[10px] font-semibold',
+                      mode ? 'border border-indigo-500/50 text-foreground hover:bg-indigo-500/15' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
+                    )}
+                  >
+                    Add to canvas
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         {visible.length === 0 && <p className="p-4 text-center text-[11px] text-muted-foreground">No components match.</p>}
       </div>
     </div>
@@ -631,6 +663,7 @@ function BlockDeckPanel({
   onAssembleReset,
   onApplyComponent,
   onAddComponent,
+  onInsertComponent,
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
@@ -745,7 +778,7 @@ function BlockDeckPanel({
           </div>
         )
       ) : tab === 'library' ? (
-        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} />
+        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onInsert={onInsertComponent} />
       ) : (
         <BlockAssembleTab
           selectedLayer={selectedLayer}

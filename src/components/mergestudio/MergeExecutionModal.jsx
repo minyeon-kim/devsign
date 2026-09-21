@@ -23,8 +23,9 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -32,67 +33,6 @@ const PROGRESS_STEPS = [
   { label: 'Requesting team reviews', icon: Send },
   { label: 'Starting GitHub Actions deployment', icon: Rocket },
 ]
-
-// Turns the merge item + the user's resolutions + the canvas annotations
-// into the pre-flight summary shown at the top of the modal.
-function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = []) {
-  const layers = frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)?.layers ?? []
-  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
-
-  const design = Object.entries(resolutions).map(([key, side]) => {
-    const split = key.indexOf(':')
-    const layerId = key.slice(0, split)
-    const diffId = key.slice(split + 1)
-    const diff = layerDiffs[layerId]?.find((d) => d.id === diffId)
-    const layer = layers.find((l) => l.id === layerId)
-    return {
-      key,
-      text: `${layer?.name ?? layerId} · ${diff?.label ?? 'Design decision'}`,
-      choice: diff
-        ? side === 'A' ? `Kept ${diff.optionA}` : `Accepted ${diff.optionB}`
-        : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
-    }
-  })
-  for (const l of extraLayers) {
-    design.push({ key: `added-${l.id}`, text: `Design System · ${l.name}`, choice: 'Added to Option A and Option B' })
-  }
-  for (const [layerId, a] of Object.entries(assemblies)) {
-    const layer = layers.find((l) => l.id === layerId)
-    if (!layer || extraLayers.some((l) => l.id === layerId)) continue
-    const parts = [
-      a.shape && `${a.shape} shape`,
-      (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
-      a.fill && `${ASSEMBLY_FILLS.find((f) => f.id === a.fill)?.label ?? a.fill} fill`,
-      a.border && a.border !== 'none' && `${a.border} border`,
-      a.shadow && a.shadow !== 'none' && `${a.shadow} shadow`,
-      a.icon && `icon ${a.icon}`,
-    ].filter(Boolean)
-    design.push({ key: `assembly-${layerId}`, text: `${layer.name} · Assembled block`, choice: parts.join(' · ') || 'Customized' })
-  }
-  if (preset) {
-    design.push({
-      key: 'preset',
-      text: `${layers.find((l) => l.id === preset.layerId)?.name ?? preset.layerId} · AI style preset`,
-      choice: `Applied ${preset.label}`,
-    })
-  }
-
-  const files = openFiles
-    .filter((f) => item.fileIds?.includes(f.id))
-    .map((f) => ({
-      id: f.id,
-      name: f.name,
-      changed: codeMergeVariants[item.id]?.[f.id]?.length ?? 0,
-      aiLines: annotations.filter((a) => a.status === 'done' && a.fileId === f.id).length,
-    }))
-
-  return {
-    design,
-    files,
-    applied: annotations.filter((a) => a.status === 'done'),
-    pending: annotations.filter((a) => a.status !== 'done').length,
-  }
-}
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -113,7 +53,7 @@ function SummarySection({ summary }) {
     <section>
       <SectionTitle icon={Sparkles}>Pre-flight summary</SectionTitle>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="rounded-2xl border bg-background/40 p-3">
+        <div className="rounded-2xl border bg-slate-800/70 p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
             <Palette className="size-3.5 text-violet-500" />
             Design
@@ -132,7 +72,7 @@ function SummarySection({ summary }) {
           )}
         </div>
 
-        <div className="rounded-2xl border bg-background/40 p-3">
+        <div className="rounded-2xl border bg-slate-800/70 p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
             <Code2 className="size-3.5 text-violet-500" />
             Code
@@ -154,7 +94,7 @@ function SummarySection({ summary }) {
           )}
         </div>
 
-        <div className="rounded-2xl border bg-background/40 p-3">
+        <div className="rounded-2xl border bg-slate-800/70 p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
             <MessageSquare className="size-3.5 text-violet-500" />
             AI annotations
@@ -237,7 +177,7 @@ function CheckStep({ item, resolutions, summary }) {
         </div>
         <ul className="space-y-1.5">
           {checks.map((c) => (
-            <li key={c.id} className="flex items-start gap-2.5 rounded-2xl border bg-background/40 px-3 py-2">
+            <li key={c.id} className="flex items-start gap-2.5 rounded-2xl border bg-slate-800/70 px-3 py-2">
               <span
                 className={cn(
                   'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full',
@@ -345,7 +285,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
           <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
             <Code2 className="size-3.5 text-violet-500" /> Code output
           </p>
-          <div className="overflow-hidden rounded-2xl border bg-background/40">
+          <div className="overflow-hidden rounded-2xl border bg-slate-800/70">
             <div className="flex gap-0.5 overflow-x-auto border-b bg-muted/30 px-1.5 pt-1.5">
               {files.map((f) => (
                 <button
@@ -416,7 +356,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
           ['code', codeNames, needCode],
           ['design', designNames, needDesign],
         ].map(([scope, names, needed]) => (
-          <div key={scope} className="rounded-2xl border bg-background/40 p-2.5">
+          <div key={scope} className="rounded-2xl border bg-slate-800/70 p-2.5">
             <ScopeBadge scope={scope} />
             <p className={cn('mt-1.5 text-[11px]', names.length ? 'text-foreground' : needed ? 'text-amber-500' : 'text-muted-foreground')}>
               {names.length ? names.join(', ') : needed ? 'Needs at least one reviewer' : 'Not required'}
@@ -694,11 +634,11 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                 <div className="space-y-2">
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-muted-foreground">Commit message</span>
-                    <Input value={commit} onChange={(e) => setCommit(e.target.value)} className="rounded-full" />
+                    <Input value={commit} onChange={(e) => setCommit(e.target.value)} className="rounded-full bg-slate-800 dark:bg-slate-800" />
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-muted-foreground">PR title</span>
-                    <Input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className="rounded-full" />
+                    <Input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className="rounded-full bg-slate-800 dark:bg-slate-800" />
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-muted-foreground">PR description</span>
@@ -707,7 +647,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                       onChange={(e) => setPrBody(e.target.value)}
                       rows={5}
                       placeholder="Describe this merge, or use Generate with AI…"
-                      className="w-full resize-none rounded-2xl border bg-transparent px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-violet-500"
+                      className="w-full resize-none rounded-2xl border bg-slate-800 px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-violet-500"
                     />
                   </label>
                   <label className="flex items-center gap-2 rounded-full border px-3 py-2 text-xs">
@@ -724,25 +664,25 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <div className="space-y-3">
               <SectionTitle icon={Rocket}>Ready to merge &amp; deploy</SectionTitle>
               <ul className="space-y-1.5 text-xs">
-                <li className="flex items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-3 py-2">
                   <GitBranch className="size-3.5 shrink-0 text-indigo-500" />
                   <span className="text-foreground">{branch} → main</span>
                 </li>
-                <li className="flex items-start gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                <li className="flex items-start gap-2 rounded-2xl border bg-slate-800/70 px-3 py-2">
                   <GitPullRequest className="mt-0.5 size-3.5 shrink-0 text-indigo-500" />
                   <span className="min-w-0">
                     <span className="block text-foreground">{prTitle}</span>
                     <span className="block truncate font-mono text-[11px] text-muted-foreground">{commit}</span>
                   </span>
                 </li>
-                <li className="flex flex-wrap items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                <li className="flex flex-wrap items-center gap-2 rounded-2xl border bg-slate-800/70 px-3 py-2">
                   <Send className="size-3.5 shrink-0 text-indigo-500" />
                   <ScopeBadge scope="code" />
                   <span className="text-foreground">{scopeNames('code').join(', ') || '—'}</span>
                   <ScopeBadge scope="design" />
                   <span className="text-foreground">{scopeNames('design').join(', ') || '—'}</span>
                 </li>
-                <li className="flex items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-3 py-2">
                   <Rocket className="size-3.5 shrink-0 text-violet-500" />
                   <span className="text-foreground">
                     {deploy ? 'GitHub Actions deployment will start after the PR is opened' : 'Deployment is turned off'}
