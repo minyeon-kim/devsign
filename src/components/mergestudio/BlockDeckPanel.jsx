@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Blocks,
   Check,
-  ChevronRight,
+  GripHorizontal,
   GitMerge,
   MousePointerClick,
   Sparkles,
@@ -259,39 +259,72 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
   )
 }
 
-// A floating panel docked to the right side of Merge Studio — collapsed to
-// a small pill by default so it doesn't compete with the infinite canvas
-// for space, expanding on click. "Variant Compare" is the design-merge
-// inspector (formerly a fixed sidebar next to the artboards); "Block
-// Assemble" is the AI style-suggestion picker.
-function BlockDeckPanel({ item, selectedLayerId, selectedLayerName, appliedPresetId, onApplyPreset }) {
-  const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState('compare')
+// A floating, freely draggable window — rendered only while `open` (the
+// workspace opens it when an element, frame, or code line on the canvas is
+// clicked; there is no standalone trigger button). Drag it by its header
+// anywhere within Merge Studio. "Variant Compare" is the design-merge
+// inspector; "Block Assemble" is the AI style-suggestion picker.
+const DECK_WIDTH = 288
+const DECK_HEIGHT = 520
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="absolute top-4 right-4 z-20 flex items-center gap-1.5 rounded-full border bg-card px-3 py-2 text-xs font-medium text-foreground shadow-lg transition-colors hover:bg-muted"
-      >
-        <Blocks className="size-3.5 text-primary" />
-        Block Deck
-      </button>
-    )
+function BlockDeckPanel({ open, onClose, item, selectedLayerId, selectedLayerName, appliedPresetId, onApplyPreset }) {
+  const [tab, setTab] = useState('compare')
+  const [pos, setPos] = useState(null)
+  const rootRef = useRef(null)
+
+  if (!open) return null
+
+  function handleDragStart(event) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    const root = rootRef.current
+    const bounds = root.offsetParent.getBoundingClientRect()
+    const rect = root.getBoundingClientRect()
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      left: rect.left - bounds.left,
+      top: rect.top - bounds.top,
+    }
+    function onMove(m) {
+      setPos({
+        left: Math.min(Math.max(0, start.left + m.clientX - start.x), Math.max(0, bounds.width - rect.width)),
+        top: Math.min(Math.max(0, start.top + m.clientY - start.y), Math.max(0, bounds.height - 48)),
+      })
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
   }
 
   return (
-    <div className="absolute top-4 right-4 z-20 flex h-[calc(100%-2rem)] max-h-[640px] w-72 flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl">
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b px-3">
-        <Blocks className="size-3.5 shrink-0 text-primary" />
+    <div
+      ref={rootRef}
+      style={{
+        width: DECK_WIDTH,
+        height: DECK_HEIGHT,
+        ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: 16 }),
+      }}
+      className="absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
+    >
+      <div
+        onPointerDown={handleDragStart}
+        className="flex h-10 shrink-0 cursor-grab items-center gap-1.5 border-b px-3 active:cursor-grabbing"
+      >
+        <GripHorizontal className="size-3.5 shrink-0 text-muted-foreground/50" />
+        <Blocks className="size-3.5 shrink-0 text-indigo-500" />
         <span className="flex-1 text-xs font-semibold text-foreground">Block Deck</span>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+          title="Close"
           className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <ChevronRight className="size-3.5" />
+          <X className="size-3.5" />
         </button>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
@@ -13,40 +13,56 @@ const conflictBadgeClass = {
 
 const dueBucketByFilter = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
 
-// A collapsed-by-default category: a header row (label + up/down chevron)
-// that expands to reveal its pill options underneath. Once a non-default
-// tag is picked, a removable pill badge renders next to the header — so the
-// active filter stays visible and easy to clear even while collapsed —
-// and the section auto-collapses back down.
-function AccordionFilterSection({ label, options, value, defaultValue, onChange }) {
+// A collapsed-by-default, multi-select category: a header row (label +
+// chevron) that expands to reveal its pill options. Clicking options
+// toggles them and never closes the section — it stays open until the
+// header is clicked again or the user clicks outside. Each picked tag also
+// renders as a removable pill next to the header, visible even collapsed.
+// An empty selection means "no filter" for that category.
+function AccordionFilterSection({ label, options, value, onChange }) {
   const [expanded, setExpanded] = useState(false)
-  const hasSelection = value !== defaultValue
+  const rootRef = useRef(null)
+  const choices = options.filter((o) => o !== 'All' && o !== 'Any')
+
+  useEffect(() => {
+    if (!expanded) return
+    function onDown(event) {
+      if (!rootRef.current?.contains(event.target)) setExpanded(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [expanded])
+
+  function toggle(option) {
+    onChange(value.includes(option) ? value.filter((v) => v !== option) : [...value, option])
+  }
 
   return (
-    <div className="border-b border-border/60 pb-2 last:border-none last:pb-0">
+    <div ref={rootRef} className="border-b border-border/60 pb-2 last:border-none last:pb-0">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left"
       >
-        <span className="flex items-center gap-1.5">
+        <span className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase">
             {label}
           </span>
-          {hasSelection && (
+          {value.map((v) => (
             <span
+              key={v}
               role="button"
               tabIndex={0}
               onClick={(event) => {
                 event.stopPropagation()
-                onChange(defaultValue)
+                toggle(v)
               }}
               className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary"
             >
-              {value}
+              {v}
               <X className="size-2.5" />
             </span>
-          )}
+          ))}
         </span>
         <ChevronDown
           className={cn(
@@ -58,17 +74,14 @@ function AccordionFilterSection({ label, options, value, defaultValue, onChange 
 
       {expanded && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {options.map((option) => (
+          {choices.map((option) => (
             <button
               key={option}
               type="button"
-              onClick={() => {
-                onChange(option)
-                setExpanded(false)
-              }}
+              onClick={() => toggle(option)}
               className={cn(
                 'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-                value === option
+                value.includes(option)
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               )}
@@ -141,37 +154,37 @@ function MergeItemCard({ item, active, onSelect }) {
 // the list being a rigid, layout-pushing sidebar box. Filters are an
 // accordion: each dimension (Status / Conflict Level / Due Date) starts
 // collapsed behind its header and expands on click; an active pick shows as
-// a removable pill next to that header.
+// removable pills next to that header (multi-select).
 function MergeListSidebar() {
   const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles } =
     useWorkspace()
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [conflictFilter, setConflictFilter] = useState('Any')
-  const [dueFilter, setDueFilter] = useState('Any')
+  const [statusFilter, setStatusFilter] = useState([])
+  const [conflictFilter, setConflictFilter] = useState([])
+  const [dueFilter, setDueFilter] = useState([])
 
   const hasActiveFilters =
-    query.trim() !== '' || statusFilter !== 'All' || conflictFilter !== 'Any' || dueFilter !== 'Any'
+    query.trim() !== '' || statusFilter.length > 0 || conflictFilter.length > 0 || dueFilter.length > 0
 
   function resetFilters() {
     setQuery('')
-    setStatusFilter('All')
-    setConflictFilter('Any')
-    setDueFilter('Any')
+    setStatusFilter([])
+    setConflictFilter([])
+    setDueFilter([])
   }
 
   const visible = mergeItems.filter((item) => {
     if (query.trim() && !item.title.toLowerCase().includes(query.trim().toLowerCase())) {
       return false
     }
-    if (statusFilter !== 'All' && item.tag !== statusFilter) return false
-    if (conflictFilter !== 'Any' && item.conflictLevel !== conflictFilter) return false
-    if (dueFilter !== 'Any' && item.dueBucket !== dueBucketByFilter[dueFilter]) return false
+    if (statusFilter.length && !statusFilter.includes(item.tag)) return false
+    if (conflictFilter.length && !conflictFilter.includes(item.conflictLevel)) return false
+    if (dueFilter.length && !dueFilter.some((d) => item.dueBucket === dueBucketByFilter[d])) return false
     return true
   })
 
   return (
-    <div className="absolute top-4 bottom-4 left-4 z-20 flex w-72 flex-col overflow-hidden rounded-2xl border bg-card/98 shadow-2xl backdrop-blur-sm">
+    <div className="absolute top-0 bottom-0 left-0 z-20 flex w-72 flex-col overflow-hidden rounded-r-2xl border-y-0 border-r border-l-0 bg-card/98 shadow-2xl backdrop-blur-sm">
       <div className="shrink-0 space-y-3 border-b p-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground">Merge List</p>
@@ -202,21 +215,18 @@ function MergeListSidebar() {
             label="Status"
             options={mergeFilterTags}
             value={statusFilter}
-            defaultValue="All"
             onChange={setStatusFilter}
           />
           <AccordionFilterSection
             label="Conflict Level"
             options={mergeConflictLevels}
             value={conflictFilter}
-            defaultValue="Any"
             onChange={setConflictFilter}
           />
           <AccordionFilterSection
             label="Due Date"
             options={mergeDueFilters}
             value={dueFilter}
-            defaultValue="Any"
             onChange={setDueFilter}
           />
         </div>
