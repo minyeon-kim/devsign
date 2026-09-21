@@ -271,12 +271,13 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
 // clicked; there is no standalone trigger button). Drag it by its header
 // anywhere within Merge Studio. "Variant Compare" is the design-merge
 // inspector; "Block Assemble" is the AI style-suggestion picker.
-const DECK_WIDTH = 288
+export const DECK_WIDTH = 288
 const DECK_HEIGHT = 520
 
 function BlockDeckPanel({
   open,
   onClose,
+  onFloat,
   item,
   selectedLayerId,
   selectedLayerName,
@@ -295,6 +296,7 @@ function BlockDeckPanel({
   function handleDragStart(event) {
     if (event.button !== 0) return
     event.preventDefault()
+    onFloat?.()
     const root = rootRef.current
     const bounds = root.offsetParent.getBoundingClientRect()
     const rect = root.getBoundingClientRect()

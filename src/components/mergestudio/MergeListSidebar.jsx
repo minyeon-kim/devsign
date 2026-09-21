@@ -100,50 +100,68 @@ function AccordionFilterSection({ label, options, value, onChange }) {
 // theme-consistent glows/tints) on top of the normal tinted-border active
 // state, so the open item is unmistakable at a glance versus merely
 // hovered/selected-but-not-open.
+const statusTagClass = {
+  'In Progress': 'bg-indigo-500/15 text-indigo-400',
+  'Needs Review': 'bg-violet-500/15 text-violet-400',
+  Draft: 'bg-muted text-muted-foreground',
+}
+
+// One scannable card: title is the strongest element (with the status pill
+// beside it, tinted per status), the file/subtitle line is quiet, and a
+// hairline divides that from the meta row (updated time · conflict · due)
+// so the eye reads title -> status -> details. The open item gets the
+// indigo glow on top of the tinted-border active state.
 function MergeItemCard({ item, active, onSelect }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(item.id)}
       className={cn(
-        'flex w-full flex-col items-start gap-1.5 rounded-2xl border p-3 text-left transition-all',
+        'flex w-full flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-all',
         active
           ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_var(--primary),0_0_18px_color-mix(in_oklch,var(--primary)_55%,transparent)]'
-          : 'border-border bg-card hover:bg-muted/60'
+          : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50'
       )}
     >
-      <div className="flex w-full items-center justify-between gap-2">
-        <span className="truncate text-xs font-medium text-foreground">{item.title}</span>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      <div className="flex w-full items-start justify-between gap-2">
+        <span className="min-w-0 flex-1 text-[13px] leading-snug font-semibold text-foreground">
+          {item.title}
+        </span>
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+            statusTagClass[item.tag] ?? 'bg-muted text-muted-foreground'
+          )}
+        >
           {item.tag}
         </span>
       </div>
-      <span className="text-[11px] text-muted-foreground">{item.subtitle}</span>
-      <div className="flex w-full items-center justify-between gap-2">
+
+      <span className="text-[11px] leading-snug text-muted-foreground">{item.subtitle}</span>
+
+      <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/60 pt-2.5">
         <span className="text-[10px] text-muted-foreground/70">{item.updatedLabel}</span>
-        <div className="flex items-center gap-1">
-          {item.conflictLevel && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
-                conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None
-              )}
-            >
-              {item.conflictLevel} conflict
-            </span>
-          )}
-        </div>
+        {item.conflictLevel && (
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-medium',
+              conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None
+            )}
+          >
+            {item.conflictLevel} conflict
+          </span>
+        )}
+        {item.dueLabel && (
+          <span
+            className={cn(
+              'ml-auto text-[10px]',
+              item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-muted-foreground/70'
+            )}
+          >
+            {item.dueLabel}
+          </span>
+        )}
       </div>
-      {item.dueLabel && (
-        <span
-          className={cn(
-            'text-[10px]',
-            item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-muted-foreground/70'
-          )}
-        >
-          {item.dueLabel}
-        </span>
-      )}
     </button>
   )
 }
@@ -185,9 +203,12 @@ function MergeListSidebar() {
 
   return (
     <div className="absolute top-0 bottom-0 left-0 z-20 flex w-72 flex-col overflow-hidden rounded-r-2xl border-y-0 border-r border-l-0 bg-card/98 shadow-2xl backdrop-blur-sm">
-      <div className="shrink-0 space-y-3 border-b p-3">
+      <div className="shrink-0 space-y-3.5 border-b p-4">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">Merge List</p>
+          <p className="flex items-baseline gap-1.5 text-sm font-semibold text-foreground">
+            Merge List
+            <span className="text-[11px] font-normal text-muted-foreground">{visible.length}</span>
+          </p>
           {hasActiveFilters && (
             <button
               type="button"
@@ -232,7 +253,7 @@ function MergeListSidebar() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
         {visible.map((item) => (
           <MergeItemCard
             key={item.id}
@@ -248,7 +269,7 @@ function MergeListSidebar() {
         )}
       </div>
 
-      <div className="shrink-0 border-t p-3">
+      <div className="shrink-0 border-t p-4">
         <button
           type="button"
           onClick={startMergeFromOpenFiles}

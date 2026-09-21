@@ -337,6 +337,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
+        data-frame-box
         className="relative overflow-hidden rounded-md border border-border bg-card shadow-lg"
         style={{ width: boxW, height: boxH }}
       >
@@ -376,12 +377,16 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
   )
 }
 
+// Gap between cards — wide enough that a connector's label pill fits
+// entirely in the empty space between two card edges.
+const CARD_GAP = 140
+
 // Sizes are in world units. Artboards leave w/h null until first resized
 // (they then derive their height from the frame's aspect ratio).
 const DEFAULT_LAYOUT = {
   code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: 380 },
-  a: { x: CODE_DIFF_WIDTH + 90, y: 0, w: null, h: null },
-  b: { x: CODE_DIFF_WIDTH + 90 + ARTBOARD_PREVIEW_WIDTH + 40, y: 0, w: null, h: null },
+  a: { x: CODE_DIFF_WIDTH + CARD_GAP, y: 0, w: null, h: null },
+  b: { x: CODE_DIFF_WIDTH + CARD_GAP + ARTBOARD_PREVIEW_WIDTH + CARD_GAP, y: 0, w: null, h: null },
 }
 const DEFAULT_VIEW = { x: CONTENT_START_X, y: 40, zoom: 100 }
 
@@ -594,6 +599,7 @@ function MergeInfiniteCanvas({
   syncSelection,
   appliedPreset,
   variantPreview,
+  reserve,
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
@@ -625,8 +631,26 @@ function MergeInfiniteCanvas({
     viewRef.current = view
   }, [view])
 
+  // Zoom/pan so the whole card row sits inside the visible canvas (right of
+  // the Merge List, left of any docked Block Deck) with breathing room.
+  function fitView(lay) {
+    const c = containerRef.current
+    if (!c) return DEFAULT_VIEW
+    const rect = c.getBoundingClientRect()
+    const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
+    const right = frame ? Math.max(lay.code.x + lay.code.w, lay.a.x + artW('a'), lay.b.x + artW('b')) : lay.code.x + lay.code.w
+    const worldW = right - lay.code.x
+    const artH = frame ? 30 + (frame.height * ARTBOARD_PREVIEW_WIDTH) / frame.width : 0
+    const worldH = Math.max(lay.code.h, artH)
+    const availW = rect.width - CONTENT_START_X - 32
+    const availH = rect.height - 150
+    const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
+    const k = zoom / 100
+    return { zoom, x: CONTENT_START_X + Math.max(0, (availW - worldW * k) / 2) - lay.code.x * k, y: 32 }
+  }
+
   useEffect(() => {
-    setView(DEFAULT_VIEW)
+    setView(fitView(DEFAULT_LAYOUT))
     setLayout(DEFAULT_LAYOUT)
     setHover(null)
     setFrameSel(null)
@@ -635,7 +659,20 @@ function MergeInfiniteCanvas({
     setOpenNote(null)
     setEdits({})
     setCodeEdits({})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
+
+  // When the Block Deck docks/undocks the canvas resizes; if that would clip
+  // the rightmost artboard, refit (otherwise leave the user's pan alone).
+  useEffect(() => {
+    const c = containerRef.current
+    if (!c) return
+    const width = c.getBoundingClientRect().width
+    const bw = layout.b.w ?? ARTBOARD_PREVIEW_WIDTH
+    const right = viewRef.current.x + (layout.b.x + bw) * (viewRef.current.zoom / 100)
+    if (frame && right > width - 24) setView(fitView(layout))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reserve])
 
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
@@ -767,35 +804,56 @@ function MergeInfiniteCanvas({
         const codeEl = find('[data-card="code"]')
 
         if (hasSelection) {
-          const layerSel = (fk) => `[data-frame-key="${fk}"] [data-layer-id="${syncSelection?.layerId}"]`
-          const targetEl = (fk) => (syncSelection?.layerId ? find(layerSel(fk)) : frameSel ? find(`[data-frame-key="${fk}"]`) : null)
-          const aEl = targetEl('a')
-          const bEl = targetEl('b')
-          const edge = (el, side) => {
-            const r = rel(el.getBoundingClientRect())
-            return side === 'left' ? { x: r.left, y: (r.top + r.bottom) / 2 } : { x: r.right, y: (r.top + r.bottom) / 2 }
+          // Links attach to the *card edges* (never inside a card), at the
+          // height of the selected element clamped to the card's body, so
+          // curves run through the empty gap between cards only.
+          const layerId = syncSelection?.layerId
+          const boxOf = (fk) => find(`[data-frame-key="${fk}"] [data-frame-box]`)
+          const markOf = (fk) => (layerId ? find(`[data-frame-key="${fk}"] [data-layer-id="${layerId}"]`) : null)
+          const clampY = (y, r) => Math.min(Math.max(y, r.top + 14), r.bottom - 14)
+          const yFor = (fk, r) => {
+            const m = markOf(fk)
+            if (!m) return (r.top + r.bottom) / 2
+            const mr = rel(m.getBoundingClientRect())
+            return clampY((mr.top + mr.bottom) / 2, r)
           }
+          const boxA = boxOf('a')
+          const boxB = boxOf('b')
+          const rA = boxA && rel(boxA.getBoundingClientRect())
+          const rB = boxB && rel(boxB.getBoundingClientRect())
 
-          // Code -> design ("Code changes"): leaves the code card at the
+          // Code -> Option A ("Code changes"): leaves the code card at the
           // highlighted line's height.
-          const codeTargetEl = frameSel === 'b' ? bEl : aEl
-          if (codeEl && codeTargetEl) {
+          if (codeEl && rA) {
             const code = rel(codeEl.getBoundingClientRect())
-            const lineEl = highlightRef.current
-            const lineRect = lineEl?.isConnected ? rel(lineEl.getBoundingClientRect()) : null
-            const t = rel(codeTargetEl.getBoundingClientRect())
-            const toRight = t.left >= code.right - 1
-            const rawY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
-            const from = { x: toRight ? code.right : code.left, y: Math.min(Math.max(rawY, code.top + 10), code.bottom - 10) }
-            const to = edge(codeTargetEl, toRight ? 'left' : 'right')
-            paths.push({ ...linkGeometry(from, to), label: 'Code changes' })
+            const toRight = rA.left >= code.right
+            const toLeft = rA.right <= code.left
+            if (toRight || toLeft) {
+              const lineEl = highlightRef.current
+              const lineRect = lineEl?.isConnected ? rel(lineEl.getBoundingClientRect()) : null
+              const lineY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
+              const from = { x: toRight ? code.right : code.left, y: clampY(lineY, code) }
+              const to = { x: toRight ? rA.left : rA.right, y: yFor('a', rA) }
+              paths.push({
+                ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
+                label: 'Code changes',
+                gap: toRight ? rA.left - code.right : code.left - rA.right,
+              })
+            }
           }
-          // Option A -> Option B ("Design changes"), arched over the gap.
-          if (aEl && bEl) {
-            const a = rel(aEl.getBoundingClientRect())
-            const b = rel(bEl.getBoundingClientRect())
-            const forward = b.left >= a.right
-            paths.push({ ...linkGeometry(edge(aEl, forward ? 'right' : 'left'), edge(bEl, forward ? 'left' : 'right'), 42), label: 'Design changes' })
+          // Option A -> Option B ("Design changes").
+          if (rA && rB) {
+            const forward = rB.left >= rA.right
+            const backward = rB.right <= rA.left
+            if (forward || backward) {
+              const from = { x: forward ? rA.right : rA.left, y: yFor('a', rA) }
+              const to = { x: forward ? rB.left : rB.right, y: yFor('b', rB) }
+              paths.push({
+                ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
+                label: 'Design changes',
+                gap: forward ? rB.left - rA.right : rA.left - rB.right,
+              })
+            }
           }
         }
 
@@ -1089,15 +1147,21 @@ function MergeInfiniteCanvas({
           ))}
         </svg>
 
-        {links.paths.map((p, i) => (
+        {links.paths.map((p, i) => {
+          // Shrink the pill with the gap it sits in; hide it when the gap
+          // is too tight to hold it without touching a card border.
+          const fit = Math.min(1, (p.gap - 16) / 108)
+          if (fit < 0.55) return null
+          return (
           <span
             key={i}
-            style={{ left: p.mid.x, top: p.mid.y }}
-            className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-lime-400/60 bg-card/95 px-2.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_12px_rgba(163,230,53,0.35)]"
+            style={{ left: p.mid.x, top: p.mid.y, transform: `translate(-50%, -50%) scale(${fit})` }}
+            className="pointer-events-none absolute z-10 rounded-full border border-lime-400/60 bg-card/95 px-2.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_12px_rgba(163,230,53,0.35)]"
           >
             {p.label}
           </span>
-        ))}
+          )
+        })}
 
         {links.pins.map((pin) => (
           <AnnotationPin
@@ -1143,7 +1207,7 @@ function MergeInfiniteCanvas({
             type="button"
             title="Reset view and layout"
             onClick={() => {
-              setView(DEFAULT_VIEW)
+              setView(fitView(DEFAULT_LAYOUT))
               setLayout(DEFAULT_LAYOUT)
             }}
             className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"

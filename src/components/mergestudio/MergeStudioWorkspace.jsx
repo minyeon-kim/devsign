@@ -4,7 +4,7 @@ import { canvasPages, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
-import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
+import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
@@ -60,11 +60,17 @@ function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
   return active ? { layerId, ...merged } : null
 }
 
+// Deck width plus its 16px right inset and 16px breathing room.
+const DECK_RESERVE = DECK_WIDTH + 32
+
 function MergeStudioWorkspace({ item }) {
   const { setActiveFileId, setActivePageId } = useWorkspace()
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
+  // While the deck sits in its default docked spot the canvas makes room
+  // for it; once dragged it is a free-floating window and no longer does.
+  const [deckFloating, setDeckFloating] = useState(false)
   // Variant Compare state lives here (not in the deck) so choosing — or
   // merely hovering — an option can live-preview on the Option B artboard.
   const [resolutions, setResolutions] = useState({})
@@ -116,12 +122,15 @@ function MergeStudioWorkspace({ item }) {
         ?.frames[0]?.layers.find((l) => l.id === syncSelection?.layerId)
     : null
 
+  const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
       {item ? (
+        <div className="flex min-h-0 flex-1" style={{ marginRight: deckReserve }}>
         <MergeInfiniteCanvas
+          reserve={deckReserve}
           item={item}
           files={files}
           syncSelection={syncSelection}
@@ -131,6 +140,7 @@ function MergeStudioWorkspace({ item }) {
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
         />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-card p-6 text-center">
           <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -149,6 +159,7 @@ function MergeStudioWorkspace({ item }) {
         <BlockDeckPanel
           open={deckOpen}
           onClose={() => setDeckOpen(false)}
+          onFloat={() => setDeckFloating(true)}
           item={item}
           selectedLayerId={syncSelection?.layerId}
           selectedLayerName={selectedLayer?.name}
