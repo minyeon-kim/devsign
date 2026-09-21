@@ -1,295 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
-import { Columns2, GripVertical, PenTool, Sparkles } from 'lucide-react'
-import { cn } from 'cn'
-import { codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
-import { getFileIconMeta } from '@/lib/fileIcons'
-import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
+import { useEffect, useState } from 'react'
+import { Sparkles } from 'lucide-react'
+import { designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeCanvasCompare from '@/components/mergestudio/MergeCanvasCompare'
+import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
+import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 
-const MIN_SPLIT = 0.28
-const MAX_SPLIT = 0.75
-const DEFAULT_SPLIT = 0.5
-// Half of the splitter's own width, subtracted from each side's percentage
-// so the two panes plus the splitter always sum to exactly the container's
-// width — without this, the panes' percentages alone summed to 100% *before*
-// accounting for the splitter, so the row was reliably a few pixels too
-// wide and depended on flex-shrink to quietly absorb the overflow. That
-// approximation is exactly the kind of thing that can tip into visibly
-// clipping the design pane depending on the browser's rounding.
-const SPLITTER_HALF_WIDTH = 6
-
-function CodeLine({ lineNumber, text, language, highlighted, accentClass, onClick, lineRef }) {
-  const tokens = tokenizeLine(text, language)
-  return (
-    <div
-      ref={lineRef}
-      onClick={onClick}
-      className={cn(
-        'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
-        highlighted && 'border-primary bg-primary/10',
-        !highlighted && accentClass
-      )}
-    >
-      <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
-      {/* min-w-0 lets this span actually shrink below its content's
-          intrinsic width so pre-wrap can kick in — without it the flex row
-          just grows past the panel instead of wrapping, which is what let
-          long lines force the whole code window wider than its resizable
-          share of the split. */}
-      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {text.length === 0 ? (
-          ' '
-        ) : (
-          tokens.map((token, j) => (
-            <span key={j} className={tokenClassName(token.type)}>
-              {token.text}
-            </span>
-          ))
-        )}
-      </span>
-    </div>
-  )
-}
-
-// The active file's two-column diff — "Code A · Current" next to "Code B ·
-// Incoming" — mirroring the Design pane's Option A/Option B artboards, but
-// for code. Lines with a mock diff entry (`codeMergeVariants`) get
-// removed/added-style tinting on each side; everything else renders
-// identically on both, same as a design layer with no mock property diff.
-function CodeDiffColumns({ file, lines, diffs, highlightLine, onSelectLine, highlightRef }) {
-  const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
-
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-2 divide-x divide-border overflow-auto bg-background font-mono text-[11px] leading-relaxed">
-      <div>
-        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Code A · Current
-        </p>
-        <div className="py-2">
-          {lines.map((line, i) => {
-            const lineNumber = i + 1
-            return (
-              <CodeLine
-                key={i}
-                lineRef={highlightLine === lineNumber ? highlightRef : undefined}
-                lineNumber={lineNumber}
-                text={line}
-                language={file.language}
-                highlighted={highlightLine === lineNumber}
-                accentClass={diffByLine.has(lineNumber) ? 'border-destructive/60 bg-destructive/5' : undefined}
-                onClick={() => onSelectLine?.(file.id, lineNumber)}
-              />
-            )
-          })}
-        </div>
-      </div>
-      <div>
-        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Code B · Incoming
-        </p>
-        <div className="py-2">
-          {lines.map((line, i) => {
-            const lineNumber = i + 1
-            const incoming = diffByLine.get(lineNumber)
-            const text = incoming ?? line
-            return (
-              <CodeLine
-                key={i}
-                lineNumber={lineNumber}
-                text={text}
-                language={file.language}
-                highlighted={highlightLine === lineNumber}
-                accentClass={incoming !== undefined ? 'border-emerald-500/60 bg-emerald-500/5' : undefined}
-                onClick={() => onSelectLine?.(file.id, lineNumber)}
-              />
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// All of the active merge item's code files live in one window, switched via
-// Chrome-style pill tabs (matching EditorPanel's own file tabs) — not
-// scattered across separate cards. The active tab is the shared
-// `activeFileId`, so it stays in sync with the rest of the app (returning to
-// the normal workspace picks up on whichever file was last open here). A
-// "Diff" toggle swaps the single-file view for the Code A/B comparison
-// above. `highlightLine` is the code->design sync's other half: whichever
-// line a selected design layer maps to gets a distinct highlight and is
-// scrolled into view; clicking any line (mapped or not) reports back via
-// `onSelectLine` so a design layer can highlight in turn.
-function UnifiedCodeWindow({ itemId, files, style, highlightFileId, highlightLine, onSelectLine }) {
-  const { activeFileId, setActiveFileId, getFileLines } = useWorkspace()
-  const [diffMode, setDiffMode] = useState(false)
-  const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
-  const lines = activeFile ? getFileLines(activeFile.id) : []
-  const highlightRef = useRef(null)
-  const isHighlightedFile = activeFile && highlightFileId === activeFile.id
-  const diffs = codeMergeVariants[itemId]?.[activeFile?.id]
-
-  useEffect(() => {
-    highlightRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [highlightFileId, highlightLine, diffMode])
-
-  return (
-    <div
-      style={style}
-      className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-          {files.map((file) => {
-            const { Icon, colorClass } = getFileIconMeta(file.name)
-            const active = activeFile?.id === file.id
-            return (
-              <button
-                key={file.id}
-                type="button"
-                onClick={() => setActiveFileId(file.id)}
-                className={cn(
-                  'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
-                  active
-                    ? 'bg-muted text-foreground ring-1 ring-border'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                )}
-              >
-                <Icon className={cn('size-3.5 shrink-0', colorClass)} />
-                {file.name}
-              </button>
-            )
-          })}
-        </div>
-        <button
-          type="button"
-          onClick={() => setDiffMode((v) => !v)}
-          title="Compare Code A vs Code B"
-          className={cn(
-            'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
-            diffMode
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          )}
-        >
-          <Columns2 className="size-3.5" />
-          Diff
-        </button>
-      </div>
-
-      {diffMode ? (
-        <CodeDiffColumns
-          file={activeFile}
-          lines={lines}
-          diffs={diffs}
-          highlightLine={isHighlightedFile ? highlightLine : undefined}
-          onSelectLine={onSelectLine}
-          highlightRef={highlightRef}
-        />
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto bg-background py-2 font-mono text-[11px] leading-relaxed">
-          {lines.map((line, i) => {
-            const lineNumber = i + 1
-            const isHighlighted = isHighlightedFile && highlightLine === lineNumber
-            return (
-              <CodeLine
-                key={i}
-                lineRef={isHighlighted ? highlightRef : undefined}
-                lineNumber={lineNumber}
-                text={line}
-                language={activeFile.language}
-                highlighted={isHighlighted}
-                onClick={() => onSelectLine?.(activeFile.id, lineNumber)}
-              />
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// The design side of the split — Option A / Option B artboards on an
-// infinite canvas plus a Variant Inspector (see MergeCanvasCompare).
-function DesignPane({ item, style, selectedLayerId, onSelectLayer }) {
-  return (
-    <div
-      style={style}
-      className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
-      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b bg-card px-3 text-xs font-medium text-foreground">
-        <PenTool className="size-3.5 shrink-0 text-primary" />
-        Design
-      </div>
-      <MergeCanvasCompare item={item} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
-    </div>
-  )
-}
-
-// A draggable handle between the code and design panes — drag adjusts
-// `splitRatio` (the code pane's share of the row's width), clamped so
-// neither side can be squeezed away entirely.
-function Splitter({ onDrag }) {
-  function handlePointerDown(event) {
-    event.preventDefault()
-    function onMove(moveEvent) {
-      onDrag(moveEvent.clientX)
-    }
-    function onUp() {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }
-
-  return (
-    <div
-      onPointerDown={handlePointerDown}
-      title="Drag to resize"
-      className="group flex w-3 shrink-0 cursor-col-resize items-center justify-center"
-    >
-      <div className="flex h-10 w-1.5 items-center justify-center rounded-full bg-border transition-colors group-hover:bg-primary">
-        <GripVertical className="size-3 text-muted-foreground/0 transition-colors group-hover:text-primary-foreground" />
-      </div>
-    </div>
-  )
-}
-
-// The right-hand side of Merge Studio. "Design + Code" items get a clean,
-// resizable two-column split — one unified code window on the left, the
-// design comparison on the right — instead of a cluttered row of many
-// cards. Selecting a layer on the Option A artboard jumps/highlights the
-// matching code line, and clicking a code line highlights its matching
-// layer back — see `designMergeVariants[item.id].layerCodeMap`. Code-only
-// items just get the unified code window, full width, with no sync (there's
-// nothing on this screen to sync it to).
+// The right-hand side of Merge Studio — a single shared infinite canvas
+// (MergeInfiniteCanvas) holding every code file and design artboard for the
+// active item as its own positioned card, with the Block Deck panel
+// floating on top of it. This component is just the orchestrator: it owns
+// the code<->design sync selection (driven by clicking a layer on an
+// artboard or a line in a code card — see `designMergeVariants[item.id]
+// .layerCodeMap`) and hands it to both children, plus resets the shared
+// activeFileId/activePageId whenever a different merge item is selected.
 function MergeStudioWorkspace({ item }) {
   const { setActiveFileId, setActivePageId } = useWorkspace()
-  const containerRef = useRef(null)
-  const [splitRatio, setSplitRatio] = useState(DEFAULT_SPLIT)
   const [syncSelection, setSyncSelection] = useState(null)
 
   useEffect(() => {
     if (!item) return
     setSyncSelection(null)
-    // Every newly-selected merge item starts from a balanced 50:50 split —
-    // a previous item's manual resize shouldn't carry over and potentially
-    // start the new one squeezed.
-    setSplitRatio(DEFAULT_SPLIT)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
-
-  function handleSplitDrag(clientX) {
-    const container = containerRef.current
-    if (!container) return
-    const rect = container.getBoundingClientRect()
-    const ratio = (clientX - rect.left) / rect.width
-    setSplitRatio(Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, ratio)))
-  }
 
   function selectLayer(layerId) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
@@ -321,30 +55,15 @@ function MergeStudioWorkspace({ item }) {
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
 
   return (
-    <div ref={containerRef} className="flex min-h-0 flex-1 bg-background p-4">
-      <UnifiedCodeWindow
-        itemId={item.id}
+    <div className="relative flex min-h-0 flex-1 bg-background p-4">
+      <MergeInfiniteCanvas
+        item={item}
         files={files}
-        style={{
-          width: item.hasDesign
-            ? `calc(${splitRatio * 100}% - ${SPLITTER_HALF_WIDTH}px)`
-            : '100%',
-        }}
-        highlightFileId={item.hasDesign ? syncSelection?.fileId : undefined}
-        highlightLine={item.hasDesign ? syncSelection?.line : undefined}
-        onSelectLine={item.hasDesign ? selectLine : undefined}
+        syncSelection={syncSelection}
+        onSelectLayer={selectLayer}
+        onSelectLine={selectLine}
       />
-      {item.hasDesign && (
-        <>
-          <Splitter onDrag={handleSplitDrag} />
-          <DesignPane
-            item={item}
-            style={{ width: `calc(${(1 - splitRatio) * 100}% - ${SPLITTER_HALF_WIDTH}px)` }}
-            selectedLayerId={syncSelection?.layerId}
-            onSelectLayer={selectLayer}
-          />
-        </>
-      )}
+      <BlockDeckPanel item={item} selectedLayerId={syncSelection?.layerId} />
     </div>
   )
 }

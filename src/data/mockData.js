@@ -179,10 +179,10 @@ export const mergeListItems = [
 // resolves to the layer id (see MergeStudioWorkspace). Only layers present
 // here are individually linkable — everything else on the canvas stays
 // visual-only, same as an unmapped line in the editor.
-// `layerDiffs` replaces a flat item-level diff list — the Variant Inspector
-// is selection-driven (see MergeCanvasCompare), so each linkable layer gets
+// `layerDiffs` replaces a flat item-level diff list — the Variant Compare
+// tab (see BlockDeckPanel) is selection-driven, so each linkable layer gets
 // its own small set of property differences. A layer with no entry here
-// still isn't a dead end when clicked: MergeCanvasCompare falls back to that
+// still isn't a dead end when clicked: BlockDeckPanel falls back to that
 // layer's generic token binding (via `inspectorSpecsByType`, keyed by
 // layer.type) plus a generic Keep A / Accept B choice.
 export const designMergeVariants = {
@@ -276,6 +276,18 @@ export const codeMergeVariants = {
     tokens: [{ line: 3, incoming: '    "primary": "#8b5cf6",' }],
   },
 }
+
+// Mock component-style presets for the "Block Assemble" tab of Merge
+// Studio's Block Deck panel — a small palette of pickable visual treatments
+// (purely presentational; picking one just previews/highlights it).
+export const blockDeckPresets = [
+  { id: 'neo-glow', label: 'Neo Glow', description: 'Soft indigo glow with a bright inner ring', previewClass: 'bg-primary shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]' },
+  { id: 'gradient-pill', label: 'Gradient Pill', description: 'Indigo → violet gradient fill', previewClass: 'bg-gradient-to-r from-indigo-500 to-violet-500' },
+  { id: 'soft-card', label: 'Soft Card', description: 'Low-contrast muted surface', previewClass: 'bg-muted border border-border' },
+  { id: 'outline-ghost', label: 'Outline Ghost', description: 'Transparent fill, accent outline', previewClass: 'bg-transparent border-2 border-primary' },
+  { id: 'glass-panel', label: 'Glass Panel', description: 'Translucent, blurred surface', previewClass: 'bg-card/60 backdrop-blur-sm border border-white/10' },
+  { id: 'solid-fill', label: 'Solid Fill', description: 'Flat solid violet fill', previewClass: 'bg-violet-500' },
+]
 
 export const assets = [
   { id: 'icon-set', name: 'icon-set.svg' },

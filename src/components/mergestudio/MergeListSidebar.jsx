@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { AlertTriangle, Clock, FilePlus2, RotateCcw, Search, Tag, User, X } from 'lucide-react'
+import { FilePlus2, RotateCcw, Search } from 'lucide-react'
 import { cn } from 'cn'
-import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { allPeople, mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
+import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const conflictBadgeClass = {
@@ -12,110 +11,35 @@ const conflictBadgeClass = {
   High: 'bg-destructive/15 text-destructive',
 }
 
-const dueBucketByFilterValue = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
+const dueBucketByFilter = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
 
-// One persistent pill per dimension (never a mixed catalog) — `value` is
-// what's matched against merge items (a person id for "Assigned to", the
-// raw label otherwise); `display` is what shows up in the pill/list.
-const filterDimensions = [
-  {
-    key: 'status',
-    label: 'Status',
-    icon: Tag,
-    options: mergeFilterTags.filter((v) => v !== 'All').map((v) => ({ value: v, display: v })),
-  },
-  {
-    key: 'assignee',
-    label: 'Assignee',
-    icon: User,
-    options: allPeople.map((p) => ({ value: p.id, display: p.name })),
-  },
-  {
-    key: 'conflict',
-    label: 'Conflict',
-    icon: AlertTriangle,
-    options: mergeConflictLevels.filter((v) => v !== 'Any').map((v) => ({ value: v, display: v })),
-  },
-  {
-    key: 'due',
-    label: 'Due Date',
-    icon: Clock,
-    options: mergeDueFilters.filter((v) => v !== 'Any').map((v) => ({ value: v, display: v })),
-  },
-]
-
-function matchesFilter(item, key, value) {
-  if (key === 'status') return item.tag === value
-  if (key === 'assignee') return item.assigneeId === value
-  if (key === 'conflict') return item.conflictLevel === value
-  if (key === 'due') return item.dueBucket === dueBucketByFilterValue[value]
-  return true
-}
-
-// A single filter category's own pill — always present (Status, Assignee,
-// Conflict Level, Due Date all show up whether or not they're set), never
-// mixed with any other category's values. Reads as just the dimension name
-// when unset ("Status"), or "Status: In Progress" with its icon once a
-// value is picked. Its dropdown only ever lists *this* dimension's own
-// options under a single header, so there's nothing to jumble it with —
-// plus a leading "Any ⟨Dimension⟩" entry to clear it from inside the menu.
-function CategoryFilterPill({ dim, value, onChange }) {
-  const Icon = dim.icon
-  const option = dim.options.find((o) => o.value === value)
-  const active = value != null
-
+// A clearly-labeled vertical section — a section title followed by its own
+// row of single-select pill buttons. Three of these (Status, Conflict
+// Level, Due Date), always visible, make up the whole filter bar — no
+// dropdown, no dynamically-added/removed chips.
+function FilterPillRow({ label, options, value, onChange }) {
   return (
-    <div
-      className={cn(
-        'flex shrink-0 items-center gap-1 rounded-full border py-1 pr-1 pl-2.5 text-[11px] font-medium transition-colors',
-        active
-          ? 'border-primary/30 bg-primary/10 text-foreground'
-          : 'border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground'
-      )}
-    >
-      <Icon className={cn('size-3', active ? 'text-primary' : 'text-muted-foreground')} />
-      <Popover>
-        <PopoverTrigger className="hover:underline">
-          {active ? `${dim.label}: ${option?.display ?? value}` : dim.label}
-        </PopoverTrigger>
-        <PopoverContent align="start" sideOffset={6} className="w-52 gap-0.5 rounded-2xl p-2">
-          <p className="px-1 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            {dim.label}
-          </p>
-          <PopoverClose
+    <div>
+      <p className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => (
+          <button
+            key={option}
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => onChange(option)}
             className={cn(
-              'flex w-full items-center rounded-xl px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted',
-              !active ? 'font-semibold text-primary' : 'text-muted-foreground'
+              'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+              value === option
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             )}
           >
-            Any {dim.label}
-          </PopoverClose>
-          {dim.options.map((opt) => (
-            <PopoverClose
-              key={opt.value}
-              type="button"
-              onClick={() => onChange(opt.value)}
-              className={cn(
-                'flex w-full items-center rounded-xl px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted',
-                opt.value === value ? 'font-semibold text-primary' : 'text-foreground'
-              )}
-            >
-              {opt.display}
-            </PopoverClose>
-          ))}
-        </PopoverContent>
-      </Popover>
-      {active && (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <X className="size-2.5" />
-        </button>
-      )}
+            {option}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -173,41 +97,39 @@ function MergeItemCard({ item, active, onSelect }) {
   )
 }
 
-const emptyFilterValues = Object.fromEntries(filterDimensions.map((d) => [d.key, null]))
-
-// Left sidebar shown while in the Merge Studio view — search + a filter bar
-// of persistent per-category pills (Status, Assignee, Conflict Level, Due
-// Date — never a single mixed dropdown) on top of the saved merge cards,
-// plus the entry point for adding more files to a merge. Selecting a card
-// is the "routing" trigger: MergeStudioWorkspace reacts to
-// `selectedMergeItemId` by syncing the shared activeFileId/activePageId to
-// that item's files.
+// Left sidebar shown while in the Merge Studio view — search plus the
+// original grouped filter layout (Status / Conflict Level / Due Date, each
+// its own always-visible vertical section of pill buttons, single-select
+// per section) on top of the saved merge cards, plus the entry point for
+// adding more files to a merge. Selecting a card is the "routing" trigger:
+// MergeStudioWorkspace reacts to `selectedMergeItemId` by syncing the
+// shared activeFileId/activePageId to that item's files.
 function MergeListSidebar() {
   const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles } =
     useWorkspace()
   const [query, setQuery] = useState('')
-  const [filterValues, setFilterValues] = useState(emptyFilterValues)
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [conflictFilter, setConflictFilter] = useState('Any')
+  const [dueFilter, setDueFilter] = useState('Any')
 
   const hasActiveFilters =
-    query.trim() !== '' || Object.values(filterValues).some((v) => v != null)
+    query.trim() !== '' || statusFilter !== 'All' || conflictFilter !== 'Any' || dueFilter !== 'Any'
 
   function resetFilters() {
     setQuery('')
-    setFilterValues(emptyFilterValues)
-  }
-
-  function setFilterValue(key, value) {
-    setFilterValues((prev) => ({ ...prev, [key]: value }))
+    setStatusFilter('All')
+    setConflictFilter('Any')
+    setDueFilter('Any')
   }
 
   const visible = mergeItems.filter((item) => {
     if (query.trim() && !item.title.toLowerCase().includes(query.trim().toLowerCase())) {
       return false
     }
-    return filterDimensions.every((dim) => {
-      const value = filterValues[dim.key]
-      return value == null || matchesFilter(item, dim.key, value)
-    })
+    if (statusFilter !== 'All' && item.tag !== statusFilter) return false
+    if (conflictFilter !== 'Any' && item.conflictLevel !== conflictFilter) return false
+    if (dueFilter !== 'Any' && item.dueBucket !== dueBucketByFilter[dueFilter]) return false
+    return true
   })
 
   return (
@@ -237,16 +159,14 @@ function MergeListSidebar() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {filterDimensions.map((dim) => (
-            <CategoryFilterPill
-              key={dim.key}
-              dim={dim}
-              value={filterValues[dim.key]}
-              onChange={(value) => setFilterValue(dim.key, value)}
-            />
-          ))}
-        </div>
+        <FilterPillRow label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
+        <FilterPillRow
+          label="Conflict Level"
+          options={mergeConflictLevels}
+          value={conflictFilter}
+          onChange={setConflictFilter}
+        />
+        <FilterPillRow label="Due Date" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
