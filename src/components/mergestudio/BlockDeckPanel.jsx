@@ -12,7 +12,7 @@ import {
 import { cn } from 'cn'
 import { blockDeckPresets, canvasPages, designMergeVariants, inspectorSpecsByType } from '@/data/mockData'
 
-function DiffRow({ diff, resolution, onResolve }) {
+function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
     <div className="rounded-xl border bg-card p-2.5">
       <p className="mb-1.5 text-[11px] font-medium text-foreground">{diff.label}</p>
@@ -20,6 +20,8 @@ function DiffRow({ diff, resolution, onResolve }) {
         <button
           type="button"
           onClick={() => onResolve(diff.id, 'A')}
+          onPointerEnter={() => onHover(diff.id, 'A')}
+          onPointerLeave={() => onHover(null)}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border p-1.5 text-left text-[10px] transition-colors',
             resolution === 'A'
@@ -34,6 +36,8 @@ function DiffRow({ diff, resolution, onResolve }) {
         <button
           type="button"
           onClick={() => onResolve(diff.id, 'B')}
+          onPointerEnter={() => onHover(diff.id, 'B')}
+          onPointerLeave={() => onHover(null)}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border p-1.5 text-left text-[10px] transition-colors',
             resolution === 'B'
@@ -55,8 +59,7 @@ function DiffRow({ diff, resolution, onResolve }) {
 // sidebar next to the artboards, so it can float freely like the rest of
 // the deck. Still entirely selection-driven: reacts to whichever layer was
 // last clicked on either artboard on the infinite canvas.
-function VariantCompareTab({ item, selectedLayerId }) {
-  const [resolutions, setResolutions] = useState({})
+function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -73,11 +76,7 @@ function VariantCompareTab({ item, selectedLayerId }) {
     : null
 
   const diffs = specificDiffs ?? (genericDiff ? [genericDiff] : [])
-  const resolvedCount = diffs.filter((d) => resolutions[d.id]).length
-
-  function resolve(diffId, side) {
-    setResolutions((prev) => ({ ...prev, [diffId]: side }))
-  }
+  const resolvedCount = diffs.filter((d) => resolutions[`${selectedLayerId}:${d.id}`]).length
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -128,7 +127,15 @@ function VariantCompareTab({ item, selectedLayerId }) {
         )}
 
         {diffs.map((diff) => (
-          <DiffRow key={diff.id} diff={diff} resolution={resolutions[diff.id]} onResolve={resolve} />
+          <DiffRow
+            key={diff.id}
+            diff={diff}
+            resolution={resolutions[`${selectedLayerId}:${diff.id}`]}
+            onResolve={(diffId, side) => onResolve(selectedLayerId, diffId, side)}
+            onHover={(diffId, side) =>
+              onHoverDiff(diffId ? { layerId: selectedLayerId, diffId, side } : null)
+            }
+          />
         ))}
       </div>
 
@@ -267,7 +274,18 @@ function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset })
 const DECK_WIDTH = 288
 const DECK_HEIGHT = 520
 
-function BlockDeckPanel({ open, onClose, item, selectedLayerId, selectedLayerName, appliedPresetId, onApplyPreset }) {
+function BlockDeckPanel({
+  open,
+  onClose,
+  item,
+  selectedLayerId,
+  selectedLayerName,
+  appliedPresetId,
+  onApplyPreset,
+  resolutions,
+  onResolve,
+  onHoverDiff,
+}) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
   const rootRef = useRef(null)
@@ -354,7 +372,13 @@ function BlockDeckPanel({ open, onClose, item, selectedLayerId, selectedLayerNam
 
       {tab === 'compare' ? (
         item.hasDesign ? (
-          <VariantCompareTab item={item} selectedLayerId={selectedLayerId} />
+          <VariantCompareTab
+            item={item}
+            selectedLayerId={selectedLayerId}
+            resolutions={resolutions}
+            onResolve={onResolve}
+            onHoverDiff={onHoverDiff}
+          />
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-xs text-muted-foreground">
             This merge item has no design page to compare.

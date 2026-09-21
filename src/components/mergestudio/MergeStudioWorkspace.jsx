@@ -18,17 +18,65 @@ import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 // .layerCodeMap`) plus the currently live-previewed AI Block Deck
 // suggestion, and hands both to its children, resetting them whenever a
 // different merge item or layer is selected.
+// Translates one Variant Compare choice into a visual override for the
+// Option B layer: color diffs swap the fill class; radius sets the corner
+// radius; size / padding / spacing / weight grow or shrink the box by the
+// delta from Option A's value (so picking A is always "no change").
+function diffEffect(diff, side) {
+  const value = parseFloat(side === 'A' ? diff.optionA : diff.optionB)
+  const base = parseFloat(diff.optionA)
+  const effect = {}
+  const cls = side === 'A' ? diff.optionAClass : diff.optionBClass
+  if (cls) effect.className = cls
+  if (Number.isNaN(value)) return effect
+  const delta = value - base
+  if (/radius/.test(diff.id)) effect.radius = value
+  else if (/size/.test(diff.id)) effect.dh = delta
+  else if (/padding|spacing/.test(diff.id)) {
+    effect.dw = delta * 2
+    effect.dh = delta * 2
+  } else if (/weight/.test(diff.id)) effect.dh = delta / 50
+  return effect
+}
+
+// The hovered option (if it belongs to this layer) beats the committed
+// choice for the same diff, so hovering previews without committing.
+function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
+  const diffs = designMergeVariants[itemId]?.layerDiffs?.[layerId]
+  if (!layerId || !diffs) return null
+  const merged = {}
+  let active = false
+  for (const diff of diffs) {
+    const hovered = hoverDiff?.layerId === layerId && hoverDiff.diffId === diff.id ? hoverDiff.side : null
+    const side = hovered ?? resolutions[`${layerId}:${diff.id}`]
+    if (!side) continue
+    active = true
+    const e = diffEffect(diff, side)
+    if (e.className) merged.className = e.className
+    if (e.radius !== undefined) merged.radius = e.radius
+    merged.dw = (merged.dw ?? 0) + (e.dw ?? 0)
+    merged.dh = (merged.dh ?? 0) + (e.dh ?? 0)
+  }
+  return active ? { layerId, ...merged } : null
+}
+
 function MergeStudioWorkspace({ item }) {
   const { setActiveFileId, setActivePageId } = useWorkspace()
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
+  // Variant Compare state lives here (not in the deck) so choosing — or
+  // merely hovering — an option can live-preview on the Option B artboard.
+  const [resolutions, setResolutions] = useState({})
+  const [hoverDiff, setHoverDiff] = useState(null) // { layerId, diffId, side }
 
   useEffect(() => {
     if (!item) return
     setSyncSelection(null)
     setAppliedPreset(null)
     setDeckOpen(false)
+    setResolutions({})
+    setHoverDiff(null)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,12 +105,18 @@ function MergeStudioWorkspace({ item }) {
     setDeckOpen(true)
   }
 
+  function resolveDiff(layerId, diffId, side) {
+    setResolutions((prev) => ({ ...prev, [`${layerId}:${diffId}`]: side }))
+  }
+
   const files = item ? openFiles.filter((f) => item.fileIds?.includes(f.id)) : []
   const selectedLayer = item?.hasDesign
     ? canvasPages
         .find((p) => p.id === item.designPageId)
         ?.frames[0]?.layers.find((l) => l.id === syncSelection?.layerId)
     : null
+
+  const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
@@ -72,6 +126,7 @@ function MergeStudioWorkspace({ item }) {
           files={files}
           syncSelection={syncSelection}
           appliedPreset={appliedPreset}
+          variantPreview={variantPreview}
           onSelectLayer={selectLayer}
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
@@ -98,6 +153,9 @@ function MergeStudioWorkspace({ item }) {
           selectedLayerId={syncSelection?.layerId}
           selectedLayerName={selectedLayer?.name}
           appliedPresetId={appliedPreset?.id}
+          resolutions={resolutions}
+          onResolve={resolveDiff}
+          onHoverDiff={setHoverDiff}
           onApplyPreset={setAppliedPreset}
         />
       )}

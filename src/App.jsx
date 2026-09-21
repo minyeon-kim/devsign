@@ -73,7 +73,7 @@ function WorkspaceShell() {
 
         <RightFloatingBar />
         <InspectorSidebar />
-        <ChatMorphWidget />
+        {!inMergeStudio && <ChatMorphWidget />}
       </div>
     </div>
   )
