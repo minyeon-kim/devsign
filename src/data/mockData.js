@@ -215,10 +215,14 @@ export const designMergeVariants = {
         },
       ],
     },
+    // `span` = how many lines the layer's code block covers (default 1), so
+    // selecting either side highlights the whole block on the other.
     layerCodeMap: {
-      'hero-heading': { fileId: 'app', line: 4 },
-      'hero-cta': { fileId: 'app', line: 16 },
-      'nav-bar': { fileId: 'theme', line: 8 },
+      'hero-heading': { fileId: 'app', line: 4, span: 2 },
+      'hero-subtitle-1': { fileId: 'app', line: 7, span: 2 },
+      'hero-subtitle-2': { fileId: 'app', line: 9, span: 6 },
+      'hero-cta': { fileId: 'app', line: 16, span: 1 },
+      'nav-bar': { fileId: 'theme', line: 2, span: 5 },
     },
   },
   'merge-settings': {
@@ -240,8 +244,11 @@ export const designMergeVariants = {
       ],
     },
     layerCodeMap: {
-      'primary-button': { fileId: 'app', line: 16 },
-      'hero-card': { fileId: 'tokens', line: 7 },
+      'nav-title': { fileId: 'app', line: 4, span: 2 },
+      'primary-button': { fileId: 'app', line: 16, span: 1 },
+      'hero-card': { fileId: 'tokens', line: 7, span: 5 },
+      'avatar': { fileId: 'tokens', line: 2, span: 5 },
+      'card-title': { fileId: 'app', line: 9, span: 6 },
     },
   },
 }

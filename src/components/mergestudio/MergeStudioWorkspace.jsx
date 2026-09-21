@@ -5,6 +5,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
+import { diffEffect } from '@/components/mergestudio/mergeEffects'
 import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -21,27 +22,6 @@ import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 // .layerCodeMap`) plus the currently live-previewed AI Block Deck
 // suggestion, and hands both to its children, resetting them whenever a
 // different merge item or layer is selected.
-// Translates one Variant Compare choice into a visual override for the
-// Option B layer: color diffs swap the fill class; radius sets the corner
-// radius; size / padding / spacing / weight grow or shrink the box by the
-// delta from Option A's value (so picking A is always "no change").
-function diffEffect(diff, side) {
-  const value = parseFloat(side === 'A' ? diff.optionA : diff.optionB)
-  const base = parseFloat(diff.optionA)
-  const effect = {}
-  const cls = side === 'A' ? diff.optionAClass : diff.optionBClass
-  if (cls) effect.className = cls
-  if (Number.isNaN(value)) return effect
-  const delta = value - base
-  if (/radius/.test(diff.id)) effect.radius = value
-  else if (/size/.test(diff.id)) effect.dh = delta
-  else if (/padding|spacing/.test(diff.id)) {
-    effect.dw = delta * 2
-    effect.dh = delta * 2
-  } else if (/weight/.test(diff.id)) effect.dh = delta / 50
-  return effect
-}
-
 // The hovered option (if it belongs to this layer) beats the committed
 // choice for the same diff, so hovering previews without committing.
 function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
@@ -82,7 +62,8 @@ function MergeStudioWorkspace({ item }) {
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
-  const [mergeModal, setMergeModal] = useState(null) // { annotations } snapshot while open
+  const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
+  const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   const [deckFloating, setDeckFloating] = useState(false)
@@ -107,7 +88,12 @@ function MergeStudioWorkspace({ item }) {
   function selectLayer(layerId) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
     const target = map[layerId]
-    setSyncSelection({ layerId, fileId: target?.fileId, line: target?.line })
+    setSyncSelection({
+      layerId,
+      fileId: target?.fileId,
+      line: target?.line,
+      endLine: target ? target.line + (target.span ?? 1) - 1 : undefined,
+    })
     setAppliedPreset(null)
     setDeckOpen(true)
     if (target?.fileId) setActiveFileId(target.fileId)
@@ -121,8 +107,17 @@ function MergeStudioWorkspace({ item }) {
 
   function selectLine(fileId, line) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
-    const layerId = Object.keys(map).find((id) => map[id].fileId === fileId && map[id].line === line)
-    setSyncSelection({ layerId, fileId, line })
+    // Any line inside a layer's code block resolves to that layer and
+    // selects the whole block.
+    const layerId = Object.keys(map).find(
+      (id) => map[id].fileId === fileId && line >= map[id].line && line <= map[id].line + (map[id].span ?? 1) - 1
+    )
+    const t = layerId ? map[layerId] : null
+    setSyncSelection(
+      t
+        ? { layerId, fileId, line: t.line, endLine: t.line + (t.span ?? 1) - 1 }
+        : { layerId: undefined, fileId, line, endLine: line }
+    )
     setAppliedPreset(null)
     setDeckOpen(true)
   }
@@ -181,7 +176,8 @@ function MergeStudioWorkspace({ item }) {
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length}
           merged={item.tag === 'Merged'}
-          onMerge={(annotations) => setMergeModal({ annotations })}
+          stage={mergeModal ? wizardStage : 'compare'}
+          onMerge={(annotations, step = 0) => setMergeModal({ annotations, step })}
           item={item}
           files={files}
           syncSelection={syncSelection}
@@ -227,7 +223,12 @@ function MergeStudioWorkspace({ item }) {
           item={item}
           resolutions={resolutions}
           annotations={mergeModal.annotations}
-          onClose={() => setMergeModal(null)}
+          initialStep={mergeModal.step}
+          onStepChange={setWizardStage}
+          onClose={() => {
+            setMergeModal(null)
+            setWizardStage('compare')
+          }}
           onComplete={() => completeMerge(item.id)}
         />
       )}

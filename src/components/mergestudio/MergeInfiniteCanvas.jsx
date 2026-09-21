@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp, Check, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, Check, GitMerge, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -27,14 +27,16 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
     <div
       ref={lineRef}
       data-code-line={lineKey}
+      data-changed={accentClass ? 'true' : undefined}
+      data-selected={highlighted ? 'true' : undefined}
       onClick={onClick}
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
         linked && 'border-violet-500/50',
-        hovered && !highlighted && 'bg-violet-500/15',
-        highlighted && 'border-primary bg-primary/10',
+        hovered && !highlighted && 'border-lime-400/70',
+        highlighted && 'border-lime-400',
         !highlighted && accentClass
       )}
     >
@@ -62,7 +64,8 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
 // code. Lines with a mock diff entry (`codeMergeVariants`) get
 // removed/added-style tinting on each side; everything else renders
 // identically on both, same as a design layer with no mock property diff.
-function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, onSelectLine, highlightRef, linkedLines, hoverLine, hoverFileId, onHoverLine }) {
+function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
+  const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
 
   return (
@@ -85,11 +88,11 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, onS
                 lineNumber={lineNumber}
                 text={line}
                 language={file.language}
-                highlighted={highlightLine === lineNumber}
-                accentClass={diffByLine.has(lineNumber) ? 'border-destructive/60 bg-destructive/5' : undefined}
+                highlighted={inRange(lineNumber, highlightLine, highlightEnd)}
+                accentClass={diffByLine.has(lineNumber) ? 'border-destructive/60' : undefined}
                 onClick={(e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)}
                 linked={linkedLines?.has(`${file.id}:${lineNumber}`)}
-                hovered={hoverFileId === file.id && hoverLine === lineNumber}
+                hovered={hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)}
                 onHover={(n) => onHoverLine?.(file.id, n)}
               />
             )
@@ -110,12 +113,13 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, onS
                 key={i}
                 lineNumber={lineNumber}
                 text={text}
+                lineKey={`${file.id}:${lineNumber}:b`}
                 language={file.language}
-                highlighted={highlightLine === lineNumber}
-                accentClass={incoming !== undefined ? 'border-emerald-500/60 bg-emerald-500/5' : undefined}
+                highlighted={inRange(lineNumber, highlightLine, highlightEnd)}
+                accentClass={incoming !== undefined ? 'border-emerald-500/60' : undefined}
                 onClick={(e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)}
                 linked={linkedLines?.has(`${file.id}:${lineNumber}`)}
-                hovered={hoverFileId === file.id && hoverLine === lineNumber}
+                hovered={hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)}
                 onHover={(n) => onHoverLine?.(file.id, n)}
               />
             )
@@ -155,8 +159,9 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
+  const rootRef = useRef(null)
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
 
   useEffect(() => {
@@ -171,10 +176,25 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
   }, [highlightFileId, highlightLine])
 
   const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
+
+  // Bring the selected block into view once the right file tab has actually
+  // rendered (scrolling from the canvas ran before the tab switched).
+  useEffect(() => {
+    if (!activeFile || highlightFileId !== activeFile.id || !highlightLine) return
+    const raf = requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector('[data-selected]')
+      const scroller = el?.closest('[data-code-scroll]')
+      if (!el || !scroller) return
+      scroller.scrollTo({ top: Math.max(0, el.offsetTop - scroller.clientHeight / 3), behavior: 'smooth' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [activeFile?.id, highlightFileId, highlightLine, highlightEnd])
+
   if (!activeFile) return null
 
   return (
     <div
+      ref={rootRef}
       data-card="code"
       className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-card shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
@@ -209,6 +229,8 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
         lines={getFileLines(activeFile.id)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
         highlightLine={highlightFileId === activeFile.id ? highlightLine : undefined}
+        highlightEnd={highlightEnd}
+        hoverEnd={hoverEnd}
         onSelectLine={onSelectLine}
         highlightRef={highlightRef}
         linkedLines={linkedLines}
@@ -230,7 +252,7 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
 // button layer as currently showing a live-previewed AI Block Deck
 // suggestion, rendering a small badge so the change reads as suggested
 // rather than a permanent edit.
-function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover }) {
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover }) {
   const style = {
     left: layer.x,
     top: layer.y,
@@ -655,6 +677,49 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   )
 }
 
+const MACRO_STEPS = [
+  { id: 'compare', label: 'Compare' },
+  { id: 'check', label: 'Check' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'review', label: 'Review' },
+  { id: 'deploy', label: 'Deploy' },
+]
+
+// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review ➔ Deploy. The
+// current stage is filled with the accent gradient (Compare while working
+// on the canvas; the wizard's step while Merge Changes is open). Clicking a
+// later step opens the merge wizard at that step.
+function MacroStepper({ stage, disabled, onOpenStep }) {
+  const current = Math.max(0, MACRO_STEPS.findIndex((s) => s.id === stage))
+  return (
+    <ol className="flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 shadow-lg backdrop-blur-md">
+      {MACRO_STEPS.map((s, i) => {
+        const active = i === current
+        const done = i < current
+        return (
+          <li key={s.id} className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={i === 0 || disabled}
+              onClick={() => onOpenStep(i - 1)}
+              className={cn(
+                'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                active && 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30',
+                done && 'text-emerald-400',
+                !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
+              )}
+            >
+              {done && <Check className="size-3" />}
+              {s.label}
+            </button>
+            {i < MACRO_STEPS.length - 1 && <ArrowRight className="size-3 text-muted-foreground/50" />}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 // The shared spatial workspace for a merge item — a true infinite canvas.
 // Content lives in "world" coordinates under one transform (`view`): drag
 // the empty dot-grid to pan, scroll/trackpad to pan, pinch or Ctrl/Cmd +
@@ -672,6 +737,7 @@ function MergeInfiniteCanvas({
   focus,
   resolutionCount,
   merged,
+  stage = 'compare',
   onMerge,
   onSelectLayer,
   onSelectLine,
@@ -687,7 +753,7 @@ function MergeInfiniteCanvas({
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const [annotations, setAnnotations] = useState([])
   const [openNote, setOpenNote] = useState(null)
-  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [] })
+  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
@@ -796,16 +862,24 @@ function MergeInfiniteCanvas({
 
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
-  const linkedLines = new Set(Object.values(layerCodeMap).map((t) => `${t.fileId}:${t.line}`))
+  const spanEnd = (t) => t.line + (t.span ?? 1) - 1
+  const linkedLines = new Set(
+    Object.values(layerCodeMap).flatMap((t) =>
+      Array.from({ length: t.span ?? 1 }, (_, i) => `${t.fileId}:${t.line + i}`)
+    )
+  )
   function hoverLayer(layerId) {
     const t = layerId ? layerCodeMap[layerId] : null
-    setHover(layerId ? { layerId, fileId: t?.fileId, line: t?.line } : null)
+    setHover(layerId ? { layerId, fileId: t?.fileId, line: t?.line, endLine: t && spanEnd(t) } : null)
   }
   function hoverLine(fileId, line) {
     const layerId = line
-      ? Object.keys(layerCodeMap).find((id) => layerCodeMap[id].fileId === fileId && layerCodeMap[id].line === line)
+      ? Object.keys(layerCodeMap).find(
+          (id) => layerCodeMap[id].fileId === fileId && line >= layerCodeMap[id].line && line <= spanEnd(layerCodeMap[id])
+        )
       : null
-    setHover(line ? { layerId, fileId, line } : null)
+    const t = layerId ? layerCodeMap[layerId] : null
+    setHover(line ? { layerId, fileId, line: t ? t.line : line, endLine: t ? spanEnd(t) : line } : null)
   }
 
   // Selection wrappers: remember the clicked element (inline-AI anchor) and
@@ -908,6 +982,13 @@ function MergeInfiniteCanvas({
     }
   }
 
+  // Layers with changes: those with variant diffs plus any AI-edited layer.
+  const changedRef = useRef(new Set())
+  changedRef.current = new Set([
+    ...Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}),
+    ...annotations.flatMap((a) => (a.effect ? (a.targets ?? []) : [])),
+  ])
+
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
@@ -917,23 +998,12 @@ function MergeInfiniteCanvas({
     : (frame?.layers.find((l) => l.id === syncSelection?.layerId)?.name ??
       (syncSelection?.line ? `line ${syncSelection.line}` : 'selection'))
 
-  // Reverse sync: scroll the code window's own scroller (not the canvas).
-  useEffect(() => {
-    const el = highlightRef.current
-    const scroller = el?.closest('[data-code-scroll]')
-    if (!el || !scroller) return
-    scroller.scrollTo({ top: el.offsetTop - scroller.clientHeight / 2, behavior: 'smooth' })
-  }, [syncSelection?.fileId, syncSelection?.line])
 
   // Connectors, the AI-edit anchor, and annotation pins are measured from
   // the live DOM every frame while any of them exist, so they track
   // panning, zooming, card dragging/resizing and the code scroller without
   // bookkeeping. State only updates when the result actually changes.
   useEffect(() => {
-    if (!hasSelection && annotations.length === 0) {
-      setLinks((prev) => (prev.paths.length || prev.anchor || prev.pins.length ? { paths: [], anchor: null, pins: [] } : prev))
-      return
-    }
     let raf
     function measure() {
       const container = containerRef.current
@@ -942,6 +1012,7 @@ function MergeInfiniteCanvas({
         const rel = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top })
         const find = (sel) => container.querySelector(sel)
         const paths = []
+        const tethers = []
         const codeEl = find('[data-card="code"]')
 
         if (hasSelection) {
@@ -975,6 +1046,11 @@ function MergeInfiniteCanvas({
               const lineY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
               const from = { x: toRight ? code.right : code.left, y: clampY(lineY, code) }
               const to = { x: toRight ? rA.left : rA.right, y: yFor('a', rA) }
+              const mark = markOf('a')
+              if (mark) {
+                const mr = rel(mark.getBoundingClientRect())
+                tethers.push({ x1: to.x, y1: to.y, x2: toRight ? mr.left - 3 : mr.right + 3, y2: to.y })
+              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Code changes',
@@ -989,6 +1065,16 @@ function MergeInfiniteCanvas({
             if (forward || backward) {
               const from = { x: forward ? rA.right : rA.left, y: yFor('a', rA) }
               const to = { x: forward ? rB.left : rB.right, y: yFor('b', rB) }
+              const markA = markOf('a')
+              const markB = markOf('b')
+              if (markA) {
+                const mr = rel(markA.getBoundingClientRect())
+                tethers.push({ x1: from.x, y1: from.y, x2: forward ? mr.right + 3 : mr.left - 3, y2: from.y })
+              }
+              if (markB) {
+                const mr = rel(markB.getBoundingClientRect())
+                tethers.push({ x1: to.x, y1: to.y, x2: forward ? mr.left - 3 : mr.right + 3, y2: to.y })
+              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Design changes',
@@ -1021,14 +1107,65 @@ function MergeInfiniteCanvas({
           pins.push({ id: a.id, n: i + 1, x: Math.round(r.left), y: Math.round(r.top) })
         })
 
-        const next = { paths, anchor, pins }
+        // Changed-area regions: every changed design layer on both artboards,
+        // every changed code line in both diff columns (clipped to what is
+        // actually visible in the card / artboard), with the selected ones
+        // drawn stronger. A selected artboard gets a box around the frame.
+        const boxes = []
+        const clip = (r, c) => {
+          const left = Math.max(r.left, c.left)
+          const right = Math.min(r.right, c.right)
+          const top = Math.max(r.top, c.top)
+          const bottom = Math.min(r.bottom, c.bottom)
+          return right - left > 2 && bottom - top > 2 ? { left, right, top, bottom } : null
+        }
+        const push = (r, strong, key) =>
+          boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong })
+
+        for (const fk of ['a', 'b']) {
+          const frameBox = find(`[data-frame-key="${fk}"] [data-frame-box]`)
+          if (!frameBox) continue
+          const fr = rel(frameBox.getBoundingClientRect())
+          if (frameSel === fk) push(fr, true, `frame-${fk}`)
+          const layerEls = container.querySelectorAll(`[data-frame-key="${fk}"] [data-layer-id]`)
+          layerEls.forEach((el) => {
+            const id = el.getAttribute('data-layer-id')
+            const strong = id === syncSelection?.layerId
+            if (!strong && !changedRef.current.has(id)) return
+            const r = clip(rel(el.getBoundingClientRect()), fr)
+            if (r) push(r, strong, `layer-${fk}-${id}`)
+          })
+        }
+
+        if (codeEl) {
+          const scroller = codeEl.querySelector('[data-code-scroll]')
+          const sr = scroller ? rel(scroller.getBoundingClientRect()) : null
+          const rows = []
+          codeEl.querySelectorAll('[data-changed], [data-selected]').forEach((el) => {
+            const r = sr && clip(rel(el.getBoundingClientRect()), sr)
+            if (r) rows.push({ ...r, strong: el.hasAttribute('data-selected') })
+          })
+          // merge vertically adjacent rows of the same column into one region
+          rows.sort((a, b) => Math.round(a.left) - Math.round(b.left) || a.top - b.top)
+          const merged = []
+          for (const r of rows) {
+            const last = merged[merged.length - 1]
+            if (last && Math.abs(last.left - r.left) < 2 && r.top - last.bottom < 3) {
+              last.bottom = Math.max(last.bottom, r.bottom)
+              last.strong = last.strong || r.strong
+            } else merged.push({ ...r })
+          }
+          merged.forEach((r, i) => push(r, r.strong, `code-${i}`))
+        }
+
+        const next = { paths, anchor, pins, boxes, tethers }
         setLinks((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
       }
       raf = requestAnimationFrame(measure)
     }
     raf = requestAnimationFrame(measure)
     return () => cancelAnimationFrame(raf)
-  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel, annotations])
+  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel, annotations, item.id])
 
   const zoomAt = useCallback((nextZoom, cx, cy) => {
     setView((v) => {
@@ -1202,10 +1339,12 @@ function MergeInfiniteCanvas({
                   onClickCapture={swallowDragClick}
                   linkedLines={linkedLines}
                   hoverLine={hover?.line}
+                  hoverEnd={hover?.endLine}
                   hoverFileId={hover?.fileId}
                   onHoverLine={hoverLine}
                   highlightFileId={syncSelection?.fileId}
                   highlightLine={syncSelection?.line}
+                  highlightEnd={syncSelection?.endLine}
                   onSelectLine={pickLine}
                   incomingEdits={codeEdits}
                   highlightRef={highlightRef}
@@ -1270,6 +1409,35 @@ function MergeInfiniteCanvas({
               <feGaussianBlur stdDeviation="4" />
             </filter>
           </defs>
+          {links.boxes.map((b) => (
+            <g key={b.key}>
+              <rect
+                x={b.x}
+                y={b.y}
+                width={b.w}
+                height={b.h}
+                rx={5}
+                fill="none"
+                stroke="#a3e635"
+                strokeWidth={b.strong ? 2.25 : 1.25}
+                strokeOpacity={b.strong ? 1 : 0.6}
+                style={{ filter: `drop-shadow(0 0 ${b.strong ? 8 : 4}px #a3e635)` }}
+              />
+            </g>
+          ))}
+          {links.tethers.map((t, i) => (
+            <line
+              key={i}
+              x1={t.x1}
+              y1={t.y1}
+              x2={t.x2}
+              y2={t.y2}
+              stroke="#a3e635"
+              strokeWidth={2}
+              strokeLinecap="round"
+              style={{ filter: 'drop-shadow(0 0 4px #a3e635)' }}
+            />
+          ))}
           {links.paths.map((p, i) => (
             <g key={i}>
               <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.55} strokeLinecap="round" filter="url(#neon-glow)" />
@@ -1323,6 +1491,10 @@ function MergeInfiniteCanvas({
             onSubmit={submitAnnotation}
           />
         )}
+
+        <div className="absolute top-3 left-[19rem] z-20">
+          <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
+        </div>
 
         {/* Canvas actions: batch-apply pending notes with AI, then merge. */}
         <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">

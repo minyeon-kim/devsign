@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  ArrowRight,
   Check,
   CheckCircle2,
+  ChevronLeft,
   Code2,
   GitBranch,
   GitPullRequest,
@@ -12,6 +14,7 @@ import {
   Send,
   Sparkles,
   TriangleAlert,
+  MonitorPlay,
 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -19,6 +22,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { useWorkspace } from '@/state/WorkspaceProvider'
+import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { diffEffect } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -150,7 +156,199 @@ function SummarySection({ summary }) {
   )
 }
 
-function ReviewerSection({ reviewers, setReviewers }) {
+export const WIZARD_STEPS = [
+  { id: 'check', label: 'Check' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'review', label: 'Review' },
+  { id: 'deploy', label: 'Deploy' },
+]
+
+const scopeMeta = {
+  code: { label: 'Code', icon: Code2, className: 'bg-indigo-500 text-white', idle: 'text-indigo-400 ring-1 ring-indigo-500/40' },
+  design: { label: 'Design', icon: Palette, className: 'bg-violet-500 text-white', idle: 'text-violet-400 ring-1 ring-violet-500/40' },
+}
+
+function ScopeBadge({ scope }) {
+  const meta = scopeMeta[scope]
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', meta.className)}>
+      <meta.icon className="size-3" />
+      {meta.label} review
+    </span>
+  )
+}
+
+// ----- Step 1: Check ---------------------------------------------------
+function CheckStep({ item, resolutions, summary }) {
+  const totalDiffs = Object.values(designMergeVariants[item.id]?.layerDiffs ?? {}).reduce((n, d) => n + d.length, 0)
+  const resolved = Object.keys(resolutions).length
+  const checks = [
+    item.conflictLevel === 'None'
+      ? { id: 'conflict', ok: true, title: 'No merge conflicts', note: 'Current and Incoming can be combined cleanly.' }
+      : { id: 'conflict', ok: false, title: `${item.conflictLevel} conflict flagged`, note: 'Resolve it from the Merge List badge, or continue and review the result in Preview.' },
+    totalDiffs === 0 || resolved >= totalDiffs
+      ? { id: 'options', ok: true, title: totalDiffs === 0 ? 'No variant differences' : 'All variant options decided', note: `${resolved} of ${totalDiffs} design decisions made.` }
+      : { id: 'options', ok: false, title: `${totalDiffs - resolved} design option${totalDiffs - resolved === 1 ? '' : 's'} undecided`, note: 'Undecided options default to Incoming (B).' },
+    summary.pending === 0
+      ? { id: 'ai', ok: true, title: 'AI annotations applied', note: `${summary.applied.length} applied.` }
+      : { id: 'ai', ok: false, title: `${summary.pending} annotation${summary.pending === 1 ? '' : 's'} not applied`, note: 'Use “Apply with AI” on the canvas to include them.' },
+  ]
+  const warnings = checks.filter((c) => !c.ok).length
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <SectionTitle icon={CheckCircle2}>Readiness</SectionTitle>
+        <div
+          className={cn(
+            'mb-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium',
+            warnings ? 'bg-amber-500/15 text-amber-500' : 'bg-emerald-500/15 text-emerald-400'
+          )}
+        >
+          {warnings ? <TriangleAlert className="size-3.5" /> : <Check className="size-3.5" />}
+          {warnings ? `${warnings} warning${warnings === 1 ? '' : 's'} — you can still continue` : 'Ready to merge'}
+        </div>
+        <ul className="space-y-1.5">
+          {checks.map((c) => (
+            <li key={c.id} className="flex items-start gap-2.5 rounded-2xl border bg-background/40 px-3 py-2">
+              <span
+                className={cn(
+                  'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full',
+                  c.ok ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-500'
+                )}
+              >
+                {c.ok ? <Check className="size-3" /> : <TriangleAlert className="size-2.5" />}
+              </span>
+              <span className="text-xs">
+                <span className="font-medium text-foreground">{c.title}</span>
+                <span className="block text-[11px] text-muted-foreground">{c.note}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <SummarySection summary={summary} />
+    </div>
+  )
+}
+
+// ----- Step 2: Preview -------------------------------------------------
+function mergeEffect(prev = {}, e) {
+  return {
+    ...prev,
+    ...(e.className && { className: e.className }),
+    ...(e.radius !== undefined && { radius: e.radius }),
+    dw: (prev.dw ?? 0) + (e.dw ?? 0),
+    dh: (prev.dh ?? 0) + (e.dh ?? 0),
+  }
+}
+
+// Staging view of the combined result: Option B with every resolved option
+// and applied AI edit baked in, next to the merged code (incoming lines +
+// AI edits).
+function PreviewStep({ item, resolutions, annotations }) {
+  const { getFileLines } = useWorkspace()
+  const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
+  const [fileId, setFileId] = useState(files[0]?.id)
+  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+
+  const overrides = {}
+  for (const [key, side] of Object.entries(resolutions)) {
+    const [layerId, diffId] = key.split(':')
+    const diff = layerDiffs[layerId]?.find((d) => d.id === diffId)
+    if (diff) overrides[layerId] = mergeEffect(overrides[layerId], diffEffect(diff, side))
+  }
+  for (const a of annotations) {
+    if (!a.effect) continue
+    for (const t of a.targets ?? []) overrides[t] = mergeEffect(overrides[t], a.effect)
+  }
+
+  const activeFile = files.find((f) => f.id === fileId) ?? files[0]
+  const lines = activeFile ? getFileLines(activeFile.id) : []
+  const incoming = new Map((codeMergeVariants[item.id]?.[activeFile?.id] ?? []).map((d) => [d.line, d.incoming]))
+  const aiLines = new Map(
+    annotations.filter((a) => a.status === 'done' && a.fileId === activeFile?.id && a.line).map((a) => [a.line, a.summary])
+  )
+
+  const previewW = 240
+  const scale = frame ? previewW / frame.width : 1
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-foreground">
+        <MonitorPlay className="size-3.5 text-indigo-500" />
+        Staging preview — the combined result that will be merged
+        <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-400">
+          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+          Live
+        </span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
+        {frame && (
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+              <Palette className="size-3.5 text-violet-500" /> Design output
+            </p>
+            <div className="overflow-hidden rounded-md border bg-card shadow-lg" style={{ width: previewW, height: frame.height * scale }}>
+              <div className="relative" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                {frame.layers.map((layer) => {
+                  const o = overrides[layer.id]
+                  const override = o
+                    ? { ...o, className: o.className ?? (layer.type === 'button' ? 'bg-violet-500' : undefined), static: true }
+                    : layer.type === 'button'
+                      ? { className: 'bg-violet-500', static: true }
+                      : undefined
+                  return <StaticLayer key={layer.id} layer={layer} override={override} onSelect={() => {}} />
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            <Code2 className="size-3.5 text-violet-500" /> Code output
+          </p>
+          <div className="overflow-hidden rounded-2xl border bg-background/40">
+            <div className="flex gap-0.5 overflow-x-auto border-b bg-muted/30 px-1.5 pt-1.5">
+              {files.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFileId(f.id)}
+                  className={cn(
+                    'shrink-0 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
+                    f.id === activeFile?.id ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+            <div className="max-h-64 overflow-auto py-2 font-mono text-[11px] leading-relaxed">
+              {lines.map((line, i) => {
+                const n = i + 1
+                const text = (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
+                const changed = incoming.has(n) || aiLines.has(n)
+                return (
+                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-lime-400' : 'border-transparent')}>
+                    <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{n}</span>
+                    <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-foreground/90">{text || ' '}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ----- Step 3: Review --------------------------------------------------
+function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
   function togglePerson(id) {
     setReviewers((prev) => {
       const next = { ...prev }
@@ -160,24 +358,43 @@ function ReviewerSection({ reviewers, setReviewers }) {
     })
   }
 
-  function toggleType(id, type) {
+  function toggleScope(id, scope) {
     setReviewers((prev) => {
       const current = prev[id] ?? []
-      const types = current.includes(type) ? current.filter((t) => t !== type) : [...current, type]
+      const scopes = current.includes(scope) ? current.filter((t) => t !== scope) : [...current, scope]
       const next = { ...prev }
-      if (types.length) next[id] = types
+      if (scopes.length) next[id] = scopes
       else delete next[id]
       return next
     })
   }
 
+  const byScope = (scope) => allPeople.filter((p) => reviewers[p.id]?.includes(scope)).map((p) => p.name)
+  const codeNames = byScope('code')
+  const designNames = byScope('design')
+
   return (
     <section>
-      <SectionTitle icon={Send}>Request review</SectionTitle>
+      <SectionTitle icon={Send}>Reviewers</SectionTitle>
+
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        {[
+          ['code', codeNames, needCode],
+          ['design', designNames, needDesign],
+        ].map(([scope, names, needed]) => (
+          <div key={scope} className="rounded-2xl border bg-background/40 p-2.5">
+            <ScopeBadge scope={scope} />
+            <p className={cn('mt-1.5 text-[11px]', names.length ? 'text-foreground' : needed ? 'text-amber-500' : 'text-muted-foreground')}>
+              {names.length ? names.join(', ') : needed ? 'Needs at least one reviewer' : 'Not required'}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-1.5">
         {allPeople.map((person) => {
-          const types = reviewers[person.id]
-          const selected = Boolean(types)
+          const scopes = reviewers[person.id]
+          const selected = Boolean(scopes)
           return (
             <div
               key={person.id}
@@ -186,39 +403,34 @@ function ReviewerSection({ reviewers, setReviewers }) {
                 selected ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-border'
               )}
             >
-              <button
-                type="button"
-                onClick={() => togglePerson(person.id)}
-                className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-              >
+              <button type="button" onClick={() => togglePerson(person.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                 <Avatar size="sm">
-                  <AvatarFallback className={cn('text-[9px] font-semibold text-white', person.colorClass)}>
-                    {person.initials}
-                  </AvatarFallback>
+                  <AvatarFallback className={cn('text-[9px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
                 </Avatar>
                 <span className="text-xs font-medium text-foreground">{person.name}</span>
                 <span className="text-[11px] text-muted-foreground">{person.role}</span>
                 {selected && <Check className="ml-auto size-3.5 shrink-0 text-indigo-500" />}
               </button>
               {selected &&
-                [
-                  ['code', 'Code'],
-                  ['design', 'Design'],
-                ].map(([type, label]) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => toggleType(person.id, type)}
-                    className={cn(
-                      'rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors',
-                      types.includes(type)
-                        ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+                ['code', 'design'].map((scope) => {
+                  const on = scopes.includes(scope)
+                  const meta = scopeMeta[scope]
+                  return (
+                    <button
+                      key={scope}
+                      type="button"
+                      onClick={() => toggleScope(person.id, scope)}
+                      title={`${on ? 'Remove' : 'Add'} ${meta.label.toLowerCase()} review`}
+                      className={cn(
+                        'flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors',
+                        on ? meta.className : cn('bg-transparent opacity-70 hover:opacity-100', meta.idle)
+                      )}
+                    >
+                      <meta.icon className="size-3" />
+                      {meta.label}
+                    </button>
+                  )
+                })}
             </div>
           )
         })}
@@ -297,14 +509,42 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
   )
 }
 
-// The "Merge Changes" flow: pre-flight summary -> reviewers -> commit/PR
-// settings -> a stepped progress state -> success. Rendered only while
-// open (the parent mounts it per click), so every session starts fresh.
-function MergeExecutionModal({ item, resolutions, annotations, onClose, onComplete }) {
+function WizardStepper({ step, run }) {
+  return (
+    <ol className="flex items-center gap-1.5">
+      {WIZARD_STEPS.map((s, i) => {
+        const done = i < step || (i === step && run === 'success')
+        const active = i === step && run !== 'success'
+        return (
+          <li key={s.id} className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors',
+                active && 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30',
+                done && 'bg-emerald-500/15 text-emerald-400',
+                !active && !done && 'bg-muted text-muted-foreground'
+              )}
+            >
+              {done ? <Check className="size-3" /> : <span className="text-[10px] opacity-80">{i + 1}</span>}
+              {s.label}
+            </span>
+            {i < WIZARD_STEPS.length - 1 && <ArrowRight className="size-3 text-muted-foreground/50" />}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
+// only while open (the parent mounts it per click), so every session starts
+// fresh. `onStepChange` lets the canvas header stepper mirror the stage.
+function MergeExecutionModal({ item, resolutions, annotations, initialStep = 0, onStepChange, onClose, onComplete }) {
   const summary = useMemo(() => buildSummary(item, resolutions, annotations), [item, resolutions, annotations])
   const branch = `merge/${slugify(item.title)}`
-  const [stage, setStage] = useState('form') // form | progress | success
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(initialStep)
+  const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
+  const [progress, setProgress] = useState(0)
   const [reviewers, setReviewers] = useState({ james: ['code'], min: ['design'] })
   const [commit, setCommit] = useState(`merge: ${item.title}`)
   const [prTitle, setPrTitle] = useState(`Merge: ${item.title}`)
@@ -313,22 +553,32 @@ function MergeExecutionModal({ item, resolutions, annotations, onClose, onComple
   const [generating, setGenerating] = useState(false)
   const [prNumber] = useState(() => 100 + Math.floor(Math.random() * 90))
 
+  const needCode = summary.files.length > 0
+  const needDesign = item.hasDesign
+  const hasScope = (scope) => Object.values(reviewers).some((s) => s.includes(scope))
+  const reviewersOk = (!needCode || hasScope('code')) && (!needDesign || hasScope('design'))
   const reviewerIds = Object.keys(reviewers)
   const reviewerNames = reviewerIds.map((id) => allPeople.find((p) => p.id === id)?.name).filter(Boolean)
+  const scopeNames = (scope) => allPeople.filter((p) => reviewers[p.id]?.includes(scope)).map((p) => p.name)
+  const reviewValid = reviewersOk && commit.trim() && prTitle.trim()
 
   useEffect(() => {
-    if (stage !== 'progress') return
-    const timer = setInterval(() => setStep((s) => s + 1), 750)
+    onStepChange?.(WIZARD_STEPS[step].id)
+  }, [step, onStepChange])
+
+  useEffect(() => {
+    if (run !== 'progress') return
+    const timer = setInterval(() => setProgress((s) => s + 1), 750)
     return () => clearInterval(timer)
-  }, [stage])
+  }, [run])
 
   useEffect(() => {
-    if (stage === 'progress' && step >= PROGRESS_STEPS.length) {
-      setStage('success')
+    if (run === 'progress' && progress >= PROGRESS_STEPS.length) {
+      setRun('success')
       onComplete()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, stage])
+  }, [progress, run])
 
   function generateWithAi() {
     setGenerating(true)
@@ -348,39 +598,44 @@ function MergeExecutionModal({ item, resolutions, annotations, onClose, onComple
           ...summary.applied.map((x) => `- AI: ${x.summary} (“${x.text}”)`),
           '',
           '## Review',
-          `Requested from ${reviewerNames.join(', ') || 'no one yet'}.`,
+          `Code: ${scopeNames('code').join(', ') || '—'} · Design: ${scopeNames('design').join(', ') || '—'}`,
         ].join('\n')
       )
       setGenerating(false)
     }, 900)
   }
 
-  const busy = stage === 'progress'
+  const busy = run === 'progress'
+  const last = step === WIZARD_STEPS.length - 1
+  const canNext = step === 2 ? reviewValid : true
 
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent
         showCloseButton={!busy}
-        className="flex max-h-[88vh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl"
+        className="flex max-h-[88vh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-3xl"
       >
-        <DialogHeader className="shrink-0 border-b px-5 py-4">
+        <DialogHeader className="shrink-0 gap-3 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
               <GitPullRequest className="size-3.5" />
             </span>
-            {stage === 'success' ? 'Merge in progress' : 'Merge changes'}
+            {run === 'success' ? 'Merge in progress' : 'Merge changes'}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1.5 text-xs">
             <GitBranch className="size-3" />
             {branch} → main
           </DialogDescription>
+          <WizardStepper step={step} run={run} />
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {stage === 'form' && (
+          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} />}
+
+          {step === 2 && (
             <div className="space-y-5">
-              <SummarySection summary={summary} />
-              <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} />
+              <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
 
               <section>
                 <SectionTitle
@@ -392,11 +647,7 @@ function MergeExecutionModal({ item, resolutions, annotations, onClose, onComple
                       disabled={generating}
                       className="flex items-center gap-1 rounded-full border border-indigo-500/50 px-2.5 py-1 text-[10px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-indigo-500/15 disabled:opacity-60"
                     >
-                      {generating ? (
-                        <Loader2 className="size-3 animate-spin text-violet-500" />
-                      ) : (
-                        <Sparkles className="size-3 text-violet-500" />
-                      )}
+                      {generating ? <Loader2 className="size-3 animate-spin text-violet-500" /> : <Sparkles className="size-3 text-violet-500" />}
                       {generating ? 'Generating…' : 'Generate with AI'}
                     </button>
                   }
@@ -432,40 +683,45 @@ function MergeExecutionModal({ item, resolutions, annotations, onClose, onComple
             </div>
           )}
 
-          {stage === 'progress' && <ProgressView step={Math.min(step, PROGRESS_STEPS.length - 1)} />}
-          {stage === 'success' && (
+          {step === 3 && run === 'idle' && (
+            <div className="space-y-3">
+              <SectionTitle icon={Rocket}>Ready to merge &amp; deploy</SectionTitle>
+              <ul className="space-y-1.5 text-xs">
+                <li className="flex items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                  <GitBranch className="size-3.5 shrink-0 text-indigo-500" />
+                  <span className="text-foreground">{branch} → main</span>
+                </li>
+                <li className="flex items-start gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                  <GitPullRequest className="mt-0.5 size-3.5 shrink-0 text-indigo-500" />
+                  <span className="min-w-0">
+                    <span className="block text-foreground">{prTitle}</span>
+                    <span className="block truncate font-mono text-[11px] text-muted-foreground">{commit}</span>
+                  </span>
+                </li>
+                <li className="flex flex-wrap items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                  <Send className="size-3.5 shrink-0 text-indigo-500" />
+                  <ScopeBadge scope="code" />
+                  <span className="text-foreground">{scopeNames('code').join(', ') || '—'}</span>
+                  <ScopeBadge scope="design" />
+                  <span className="text-foreground">{scopeNames('design').join(', ') || '—'}</span>
+                </li>
+                <li className="flex items-center gap-2 rounded-2xl border bg-background/40 px-3 py-2">
+                  <Rocket className="size-3.5 shrink-0 text-violet-500" />
+                  <span className="text-foreground">
+                    {deploy ? 'GitHub Actions deployment will start after the PR is opened' : 'Deployment is turned off'}
+                  </span>
+                </li>
+              </ul>
+            </div>
+          )}
+          {step === 3 && run === 'progress' && <ProgressView step={Math.min(progress, PROGRESS_STEPS.length - 1)} />}
+          {step === 3 && run === 'success' && (
             <SuccessView prTitle={prTitle} reviewerNames={reviewerNames} deploy={deploy} prNumber={prNumber} />
           )}
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t px-5 py-3">
-          {stage === 'form' && (
-            <>
-              {reviewerIds.length === 0 && (
-                <span className="mr-auto text-[11px] text-muted-foreground">Select at least one reviewer.</span>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={reviewerIds.length === 0 || !commit.trim() || !prTitle.trim()}
-                onClick={() => {
-                  setStep(0)
-                  setStage('progress')
-                }}
-                className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
-              >
-                <Send className="size-3.5" />
-                Request Review &amp; Merge
-              </button>
-            </>
-          )}
-          {stage === 'success' && (
+          {run === 'success' ? (
             <button
               type="button"
               onClick={onClose}
@@ -473,6 +729,57 @@ function MergeExecutionModal({ item, resolutions, annotations, onClose, onComple
             >
               Done
             </button>
+          ) : (
+            <>
+              {step === 2 && !reviewValid && (
+                <span className="mr-auto text-[11px] text-amber-500">
+                  {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
+                </span>
+              )}
+              {step === 0 ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setStep((s) => s - 1)}
+                  className="flex items-center gap-1 rounded-full px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                >
+                  <ChevronLeft className="size-3.5" />
+                  Back
+                </button>
+              )}
+              {!last ? (
+                <button
+                  type="button"
+                  disabled={!canNext}
+                  onClick={() => setStep((s) => s + 1)}
+                  className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                >
+                  Next: {WIZARD_STEPS[step + 1].label}
+                  <ArrowRight className="size-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setProgress(0)
+                    setRun('progress')
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                >
+                  <Rocket className="size-3.5" />
+                  Merge &amp; Deploy
+                </button>
+              )}
+            </>
           )}
         </div>
       </DialogContent>
