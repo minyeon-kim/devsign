@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { Check, GitMerge, SlidersHorizontal } from 'lucide-react'
+import { Check, GitMerge, MousePointerClick, SlidersHorizontal } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, designMergeVariants } from '@/data/mockData'
+import { canvasPages, designMergeVariants, inspectorSpecsByType } from '@/data/mockData'
+
+// Option B's own fixed accent — a simple, permanent visual reminder that
+// it's a different variant, independent of whatever layer happens to be
+// selected right now.
+const OPTION_B_ACCENT = 'bg-violet-500'
 
 // A read-only re-rendering of a frame's layers — separate from CanvasPanel's
 // interactive CanvasFrame/CanvasLayer (no zoom/tools) since this is a
-// side-by-side *comparison* artboard, not an editable canvas. It's still
-// clickable when `onSelect` is passed (Option A only, see StaticFrame) —
-// that's the design->code half of the bidirectional sync. `accentClass` lets
-// Option B visualize a color-type property diff without needing per-variant
-// frame geometry.
+// side-by-side *comparison* artboard, not an editable canvas. Both Option A
+// and Option B are clickable (see StaticFrame) — clicking either drives the
+// Variant Inspector and, for linked layers, the code sync.
 function StaticLayer({ layer, accentClass, selected, onSelect }) {
   const style = { left: layer.x, top: layer.y, width: layer.width, height: layer.height }
 
@@ -48,8 +51,7 @@ function StaticLayer({ layer, accentClass, selected, onSelect }) {
     <div
       onClick={onSelect}
       className={cn(
-        'absolute',
-        onSelect && 'cursor-pointer',
+        'absolute cursor-pointer',
         selected && 'outline outline-2 outline-offset-1 outline-primary'
       )}
       style={style}
@@ -87,8 +89,8 @@ function StaticFrame({ frame, label, accentClass, selectedLayerId, onSelectLayer
               key={layer.id}
               layer={layer}
               accentClass={layer.type === 'button' ? accentClass : undefined}
-              selected={onSelectLayer ? selectedLayerId === layer.id : false}
-              onSelect={onSelectLayer ? () => onSelectLayer(layer.id) : undefined}
+              selected={selectedLayerId === layer.id}
+              onSelect={() => onSelectLayer(layer.id)}
             />
           ))}
         </div>
@@ -137,17 +139,32 @@ function DiffRow({ diff, resolution, onResolve }) {
 
 // Merge Studio's design-side comparison — two artboards ("Option A" /
 // "Option B") laid out on a scrollable, dot-grid "infinite canvas" (visually
-// matching the real Canvas panel) plus a Variant Inspector listing their
-// property-level differences, each resolvable to A or B. This is a
-// dedicated comparison surface rather than the live editable Canvas —
-// merging here is about reconciling two variants, not editing one design.
+// matching the real Canvas panel) plus a Variant Inspector. Unlike a static
+// summary, the inspector is driven entirely by whichever layer was last
+// clicked on either artboard: layers with mock diff data (`layerDiffs`) show
+// real resolvable A/B rows; any other layer still shows something useful —
+// its actual token binding (reused from the same `inspectorSpecsByType` data
+// the main workspace's Inspect panel uses) plus a generic keep/accept
+// choice — rather than a dead-end "no differences" message.
 function MergeCanvasCompare({ item, selectedLayerId, onSelectLayer }) {
   const [resolutions, setResolutions] = useState({})
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
-  const diffs = designMergeVariants[item.id]?.propertyDiffs ?? []
-  const optionBAccent = diffs.find((d) => d.optionBClass)?.optionBClass
-  const resolvedCount = Object.keys(resolutions).length
+  const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
+  const specificDiffs = designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]
+  const tokenSpec = selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null
+
+  const genericDiff = selectedLayer
+    ? {
+        id: `layer:${selectedLayer.id}`,
+        label: `${selectedLayer.name} — Design Decision`,
+        optionA: 'Keep current design',
+        optionB: 'Accept incoming design',
+      }
+    : null
+
+  const diffs = specificDiffs ?? (genericDiff ? [genericDiff] : [])
+  const resolvedCount = diffs.filter((d) => resolutions[d.id]).length
 
   function resolve(diffId, side) {
     setResolutions((prev) => ({ ...prev, [diffId]: side }))
@@ -178,7 +195,13 @@ function MergeCanvasCompare({ item, selectedLayerId, onSelectLayer }) {
             selectedLayerId={selectedLayerId}
             onSelectLayer={onSelectLayer}
           />
-          <StaticFrame frame={frame} label="Option B · Incoming" accentClass={optionBAccent} />
+          <StaticFrame
+            frame={frame}
+            label="Option B · Incoming"
+            accentClass={OPTION_B_ACCENT}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={onSelectLayer}
+          />
         </div>
       </div>
 
@@ -189,22 +212,58 @@ function MergeCanvasCompare({ item, selectedLayerId, onSelectLayer }) {
             Variant Inspector
           </div>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            {resolvedCount} of {diffs.length} resolved
+            {selectedLayer ? `${resolvedCount} of ${diffs.length} resolved` : 'Nothing selected'}
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-          {diffs.length === 0 && (
-            <p className="p-2 text-center text-[11px] text-muted-foreground">
-              No property differences detected.
-            </p>
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3">
+          {!selectedLayer && (
+            <div className="flex flex-col items-center gap-2 p-3 text-center">
+              <MousePointerClick className="size-4 text-muted-foreground" />
+              <p className="text-[11px] text-muted-foreground">
+                Select an element, frame, or component on either artboard to inspect it.
+              </p>
+            </div>
           )}
+
+          {selectedLayer && !specificDiffs && tokenSpec && (
+            <div className="rounded-xl border bg-background p-2.5">
+              <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Token Binding
+              </p>
+              <div className="space-y-1 text-[11px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Fill</span>
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <span
+                      className="size-2.5 rounded-sm border border-border"
+                      style={{ background: tokenSpec.fill.color }}
+                    />
+                    {tokenSpec.fill.token}
+                  </span>
+                </div>
+                {tokenSpec.typography && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="text-foreground">
+                      {tokenSpec.typography.font} {tokenSpec.typography.size}/{tokenSpec.typography.weight}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Layout</span>
+                  <span className="text-foreground">{tokenSpec.layout.mode}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {diffs.map((diff) => (
             <DiffRow key={diff.id} diff={diff} resolution={resolutions[diff.id]} onResolve={resolve} />
           ))}
         </div>
 
-        {diffs.length > 0 && (
+        {selectedLayer && (
           <div className="shrink-0 border-t p-3">
             <button
               type="button"

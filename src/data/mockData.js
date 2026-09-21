@@ -108,12 +108,9 @@ export const layoutPresets = [
 export const mergeFilterTags = ['All', 'In Progress', 'Needs Review', 'Draft']
 
 // Advanced filter dimensions for the Merge List sidebar — each a separate
-// pill row alongside the status tags above and the search input.
-export const mergeCategories = ['All', 'Marketing', 'Auth', 'Settings', 'Workspace']
-// Filters by content type rather than project category — 'Design' matches
-// items with a linked design page (`hasDesign`), 'Code' matches code-only
-// items, regardless of what project/category they belong to.
-export const mergeTypeFilters = ['All', 'Design', 'Code']
+// pill row alongside the status tags above and the search input. (Category
+// and content-type pills were removed for a cleaner filter section — a
+// Reset button now clears whatever's left instead.)
 export const mergeConflictLevels = ['Any', 'None', 'Low', 'Medium', 'High']
 export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
 
@@ -179,20 +176,42 @@ export const mergeListItems = [
 // resolves to the layer id (see MergeStudioWorkspace). Only layers present
 // here are individually linkable — everything else on the canvas stays
 // visual-only, same as an unmapped line in the editor.
+// `layerDiffs` replaces a flat item-level diff list — the Variant Inspector
+// is selection-driven (see MergeCanvasCompare), so each linkable layer gets
+// its own small set of property differences. A layer with no entry here
+// still isn't a dead end when clicked: MergeCanvasCompare falls back to that
+// layer's generic token binding (via `inspectorSpecsByType`, keyed by
+// layer.type) plus a generic Keep A / Accept B choice.
 export const designMergeVariants = {
   'merge-flowbank': {
-    propertyDiffs: [
-      {
-        id: 'accent',
-        label: 'Accent Color',
-        optionA: 'Indigo 500',
-        optionB: 'Violet 500',
-        optionAClass: 'bg-indigo-500',
-        optionBClass: 'bg-violet-500',
-      },
-      { id: 'cta-padding', label: 'CTA Button Padding', optionA: '8px 16px', optionB: '12px 24px' },
-      { id: 'heading-size', label: 'Heading Font Size', optionA: '28px', optionB: '32px' },
-    ],
+    layerDiffs: {
+      'hero-heading': [
+        { id: 'heading-size', label: 'Font Size', optionA: '28px', optionB: '32px' },
+        { id: 'heading-weight', label: 'Font Weight', optionA: '600', optionB: '700' },
+      ],
+      'hero-cta': [
+        {
+          id: 'accent',
+          label: 'Accent Color',
+          optionA: 'Indigo 500',
+          optionB: 'Violet 500',
+          optionAClass: 'bg-indigo-500',
+          optionBClass: 'bg-violet-500',
+        },
+        { id: 'cta-padding', label: 'Padding', optionA: '8px 16px', optionB: '12px 24px' },
+        { id: 'cta-radius', label: 'Corner Radius', optionA: '6px', optionB: '10px' },
+      ],
+      'nav-bar': [
+        {
+          id: 'nav-bg',
+          label: 'Background',
+          optionA: 'Transparent',
+          optionB: 'Card Surface',
+          optionAClass: 'border border-border bg-transparent',
+          optionBClass: 'bg-card',
+        },
+      ],
+    },
     layerCodeMap: {
       'hero-heading': { fileId: 'app', line: 4 },
       'hero-cta': { fileId: 'app', line: 16 },
@@ -200,10 +219,23 @@ export const designMergeVariants = {
     },
   },
   'merge-settings': {
-    propertyDiffs: [
-      { id: 'radius', label: 'Card Corner Radius', optionA: '8px', optionB: '16px' },
-      { id: 'spacing', label: 'Section Spacing', optionA: '24px', optionB: '32px' },
-    ],
+    layerDiffs: {
+      'primary-button': [
+        {
+          id: 'accent',
+          label: 'Accent Color',
+          optionA: 'Indigo 500',
+          optionB: 'Violet 500',
+          optionAClass: 'bg-indigo-500',
+          optionBClass: 'bg-violet-500',
+        },
+        { id: 'radius', label: 'Corner Radius', optionA: '8px', optionB: '16px' },
+      ],
+      'hero-card': [
+        { id: 'card-radius', label: 'Corner Radius', optionA: '8px', optionB: '16px' },
+        { id: 'card-spacing', label: 'Inner Spacing', optionA: '24px', optionB: '32px' },
+      ],
+    },
     layerCodeMap: {
       'primary-button': { fileId: 'app', line: 16 },
       'hero-card': { fileId: 'tokens', line: 7 },

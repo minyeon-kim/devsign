@@ -43,28 +43,37 @@ function WorkspaceShell() {
     openOrFocusPanel(dockApi, previewDef)
   }
 
+  const inMergeStudio = activeView === 'mergeStudio'
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <TopBar previewOpen={previewOpen} onTogglePreview={togglePreview} dockApi={dockApi} />
 
-      {activeView === 'mergeStudio' ? (
-        <MergeStudioView />
-      ) : (
-        <>
-          <FollowMeBanner />
-          <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-            <ActivityBar dockApi={dockApi} />
+      {!inMergeStudio && <FollowMeBanner />}
 
+      {/* RightFloatingBar + InspectorSidebar are rendered here, one level
+          above the workspace/Merge Studio branch, so both environments get
+          the exact same toolbar/instance instead of two separate copies —
+          "porting" it just means widening where it's mounted. Both position
+          themselves absolutely against this shared `relative` container.
+          ChatMorphWidget stays workspace-only; it's a distinct AI-chat
+          concern, not part of "the right-side toolbar". */}
+      <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+        {inMergeStudio ? (
+          <MergeStudioView />
+        ) : (
+          <>
+            <ActivityBar dockApi={dockApi} />
             <div className="min-w-0 flex-1">
               <DockLayout />
             </div>
-
-            <RightFloatingBar />
             <ChatMorphWidget />
-            <InspectorSidebar />
-          </div>
-        </>
-      )}
+          </>
+        )}
+
+        <RightFloatingBar />
+        <InspectorSidebar />
+      </div>
     </div>
   )
 }

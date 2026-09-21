@@ -1,13 +1,7 @@
 import { useState } from 'react'
-import { FilePlus2, Search } from 'lucide-react'
+import { FilePlus2, RotateCcw, Search } from 'lucide-react'
 import { cn } from 'cn'
-import {
-  mergeCategories,
-  mergeConflictLevels,
-  mergeDueFilters,
-  mergeFilterTags,
-  mergeTypeFilters,
-} from '@/data/mockData'
+import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const conflictBadgeClass = {
@@ -108,21 +102,25 @@ function MergeListSidebar() {
     useWorkspace()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
-  const [typeFilter, setTypeFilter] = useState('All')
-  const [categoryFilter, setCategoryFilter] = useState('All')
   const [conflictFilter, setConflictFilter] = useState('Any')
   const [dueFilter, setDueFilter] = useState('Any')
 
   const dueBucketByFilter = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
+  const hasActiveFilters =
+    query.trim() !== '' || statusFilter !== 'All' || conflictFilter !== 'Any' || dueFilter !== 'Any'
+
+  function resetFilters() {
+    setQuery('')
+    setStatusFilter('All')
+    setConflictFilter('Any')
+    setDueFilter('Any')
+  }
 
   const visible = mergeItems.filter((item) => {
     if (query.trim() && !item.title.toLowerCase().includes(query.trim().toLowerCase())) {
       return false
     }
     if (statusFilter !== 'All' && item.tag !== statusFilter) return false
-    if (typeFilter === 'Design' && !item.hasDesign) return false
-    if (typeFilter === 'Code' && item.hasDesign) return false
-    if (categoryFilter !== 'All' && item.category !== categoryFilter) return false
     if (conflictFilter !== 'Any' && item.conflictLevel !== conflictFilter) return false
     if (dueFilter !== 'Any' && item.dueBucket !== dueBucketByFilter[dueFilter]) return false
     return true
@@ -131,7 +129,19 @@ function MergeListSidebar() {
   return (
     <div className="flex h-full w-80 shrink-0 flex-col border-r bg-card">
       <div className="shrink-0 space-y-3 border-b p-3">
-        <p className="text-sm font-semibold text-foreground">Merge List</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground">Merge List</p>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <RotateCcw className="size-3" />
+              Reset
+            </button>
+          )}
+        </div>
 
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -144,13 +154,6 @@ function MergeListSidebar() {
         </div>
 
         <FilterPillRow label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
-        <FilterPillRow label="Type" options={mergeTypeFilters} value={typeFilter} onChange={setTypeFilter} />
-        <FilterPillRow
-          label="Category"
-          options={mergeCategories}
-          value={categoryFilter}
-          onChange={setCategoryFilter}
-        />
         <FilterPillRow
           label="Conflict Level"
           options={mergeConflictLevels}
