@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Blocks, Check, ChevronRight, GitMerge, MousePointerClick } from 'lucide-react'
+import {
+  Blocks,
+  Check,
+  ChevronRight,
+  GitMerge,
+  MousePointerClick,
+  Sparkles,
+  Wand2,
+  X,
+} from 'lucide-react'
 import { cn } from 'cn'
 import { blockDeckPresets, canvasPages, designMergeVariants, inspectorSpecsByType } from '@/data/mockData'
 
@@ -139,32 +148,113 @@ function VariantCompareTab({ item, selectedLayerId }) {
   )
 }
 
-// A small palette of mock component/style presets — purely a picker;
-// selecting one is just a visual "staged for the canvas" state, no deeper
-// wiring, matching the mocked nature of the rest of this app's tooling.
-function BlockAssembleTab() {
-  const [selectedId, setSelectedId] = useState(null)
+// A single AI-generated style suggestion — badge, preview swatch, rationale
+// copy explaining why the (mock) model picked it, and its own dismiss
+// button so an unsatisfactory suggestion can be cleared without affecting
+// the rest of the list.
+function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
+  return (
+    <div
+      className={cn(
+        'group relative rounded-xl border p-2.5 text-left transition-colors',
+        applied ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60'
+      )}
+    >
+      <button type="button" onClick={() => onApply(preset)} className="flex w-full items-start gap-2.5 text-left">
+        <span className={cn('size-8 shrink-0 rounded-full', preset.previewClass)} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-foreground">{preset.label}</span>
+            <span className="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+              <Sparkles className="size-2.5" />
+              AI
+            </span>
+            {applied && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
+          </span>
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+            {preset.rationale}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(preset.id)}
+        title="Dismiss suggestion"
+        className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  )
+}
+
+// The AI-driven "Block Assemble" tab — a short list of mock AI style
+// suggestions (badged, with rationale) for whichever canvas layer is
+// currently selected. Picking one calls `onApplyPreset` so the parent can
+// live-preview it on the Option B artboard; dismissing one just removes it
+// from view; "Generate alternatives" pulls more from the shared preset pool
+// until it's exhausted.
+function BlockAssembleTab({ selectedLayerName, appliedPresetId, onApplyPreset }) {
+  const [visibleIds, setVisibleIds] = useState(() => blockDeckPresets.slice(0, 3).map((p) => p.id))
+  // Dismissed suggestions stay dismissed — "Generate alternatives" only ever
+  // pulls presets that have never been shown yet, so clearing a bad
+  // suggestion never brings that exact one back.
+  const [seenIds, setSeenIds] = useState(() => new Set(visibleIds))
+
+  const visiblePresets = blockDeckPresets.filter((p) => visibleIds.includes(p.id))
+  const hasMore = seenIds.size < blockDeckPresets.length
+
+  function generateAlternatives() {
+    const next = blockDeckPresets.find((p) => !seenIds.has(p.id))
+    if (!next) return
+    setVisibleIds((prev) => [...prev, next.id])
+    setSeenIds((prev) => new Set(prev).add(next.id))
+  }
+
+  function deleteSuggestion(id) {
+    setVisibleIds((prev) => prev.filter((v) => v !== id))
+  }
 
   return (
-    <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-      {blockDeckPresets.map((preset) => (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <p className="shrink-0 px-3 pt-2 text-[10px] text-muted-foreground">
+        {selectedLayerName ? (
+          <>
+            Suggestions for <span className="font-medium text-foreground">{selectedLayerName}</span>
+          </>
+        ) : (
+          'Select a canvas element to preview suggestions on it'
+        )}
+      </p>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
+        {visiblePresets.map((preset) => (
+          <AiSuggestionCard
+            key={preset.id}
+            preset={preset}
+            applied={appliedPresetId === preset.id}
+            onApply={onApplyPreset}
+            onDelete={deleteSuggestion}
+          />
+        ))}
+        {visiblePresets.length === 0 && (
+          <p className="p-3 text-center text-[11px] text-muted-foreground">
+            All suggestions dismissed. Generate more below.
+          </p>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t p-3">
         <button
-          key={preset.id}
           type="button"
-          onClick={() => setSelectedId(preset.id)}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-colors',
-            selectedId === preset.id ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
-          )}
+          onClick={generateAlternatives}
+          disabled={!hasMore}
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-primary/40 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <span className={cn('size-8 shrink-0 rounded-full', preset.previewClass)} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-medium text-foreground">{preset.label}</span>
-            <span className="block truncate text-[10px] text-muted-foreground">{preset.description}</span>
-          </span>
-          {selectedId === preset.id && <Check className="size-3.5 shrink-0 text-primary" />}
+          <Wand2 className="size-3.5" />
+          {hasMore ? 'Generate alternatives' : 'No more alternatives'}
         </button>
-      ))}
+      </div>
     </div>
   )
 }
@@ -173,8 +263,8 @@ function BlockAssembleTab() {
 // a small pill by default so it doesn't compete with the infinite canvas
 // for space, expanding on click. "Variant Compare" is the design-merge
 // inspector (formerly a fixed sidebar next to the artboards); "Block
-// Assemble" is a palette of mock component-style presets.
-function BlockDeckPanel({ item, selectedLayerId }) {
+// Assemble" is the AI style-suggestion picker.
+function BlockDeckPanel({ item, selectedLayerId, selectedLayerName, appliedPresetId, onApplyPreset }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState('compare')
 
@@ -220,11 +310,12 @@ function BlockDeckPanel({ item, selectedLayerId }) {
           type="button"
           onClick={() => setTab('assemble')}
           className={cn(
-            'flex-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
+            'flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
             tab === 'assemble' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Block Assemble
+          <Sparkles className="size-2.5 text-primary" />
         </button>
       </div>
 
@@ -237,7 +328,11 @@ function BlockDeckPanel({ item, selectedLayerId }) {
           </div>
         )
       ) : (
-        <BlockAssembleTab />
+        <BlockAssembleTab
+          selectedLayerName={selectedLayerName}
+          appliedPresetId={appliedPresetId}
+          onApplyPreset={onApplyPreset}
+        />
       )}
     </div>
   )

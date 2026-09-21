@@ -277,16 +277,55 @@ export const codeMergeVariants = {
   },
 }
 
-// Mock component-style presets for the "Block Assemble" tab of Merge
-// Studio's Block Deck panel — a small palette of pickable visual treatments
-// (purely presentational; picking one just previews/highlights it).
+// Mock AI-generated component-style suggestions for the "Block Assemble" tab
+// of Merge Studio's Block Deck panel — each one pairs a pickable visual
+// treatment with a short `rationale` explaining why the (mock) AI suggested
+// it, so the tab can present itself as AI-driven rather than a plain style
+// picker. Purely presentational: picking one live-previews `previewClass` on
+// the currently selected canvas layer.
 export const blockDeckPresets = [
-  { id: 'neo-glow', label: 'Neo Glow', description: 'Soft indigo glow with a bright inner ring', previewClass: 'bg-primary shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]' },
-  { id: 'gradient-pill', label: 'Gradient Pill', description: 'Indigo → violet gradient fill', previewClass: 'bg-gradient-to-r from-indigo-500 to-violet-500' },
-  { id: 'soft-card', label: 'Soft Card', description: 'Low-contrast muted surface', previewClass: 'bg-muted border border-border' },
-  { id: 'outline-ghost', label: 'Outline Ghost', description: 'Transparent fill, accent outline', previewClass: 'bg-transparent border-2 border-primary' },
-  { id: 'glass-panel', label: 'Glass Panel', description: 'Translucent, blurred surface', previewClass: 'bg-card/60 backdrop-blur-sm border border-white/10' },
-  { id: 'solid-fill', label: 'Solid Fill', description: 'Flat solid violet fill', previewClass: 'bg-violet-500' },
+  {
+    id: 'neo-glow',
+    label: 'Neo Glow',
+    description: 'Soft indigo glow with a bright inner ring',
+    previewClass: 'bg-primary shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]',
+    rationale: "Matches the glow treatment already used on this file's primary CTAs.",
+  },
+  {
+    id: 'gradient-pill',
+    label: 'Gradient Pill',
+    description: 'Indigo → violet gradient fill',
+    previewClass: 'bg-gradient-to-r from-indigo-500 to-violet-500',
+    rationale: "Applies the same indigo → violet gradient found across the design system's hero buttons.",
+  },
+  {
+    id: 'soft-card',
+    label: 'Soft Card',
+    description: 'Low-contrast muted surface',
+    previewClass: 'bg-muted border border-border',
+    rationale: 'Reduces visual weight to match the calmer surfaces used in lower-priority actions.',
+  },
+  {
+    id: 'outline-ghost',
+    label: 'Outline Ghost',
+    description: 'Transparent fill, accent outline',
+    previewClass: 'bg-transparent border-2 border-primary',
+    rationale: 'Improves contrast against busy backgrounds, consistent with the accessibility guidelines.',
+  },
+  {
+    id: 'glass-panel',
+    label: 'Glass Panel',
+    description: 'Translucent, blurred surface',
+    previewClass: 'bg-card/60 backdrop-blur-sm border border-white/10',
+    rationale: 'Echoes the frosted-glass treatment used in floating toolbar components.',
+  },
+  {
+    id: 'solid-fill',
+    label: 'Solid Fill',
+    description: 'Flat solid violet fill',
+    previewClass: 'bg-violet-500',
+    rationale: 'A safe, high-contrast fallback that still matches the core brand palette.',
+  },
 ]
 
 export const assets = [

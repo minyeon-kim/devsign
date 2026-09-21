@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FilePlus2, RotateCcw, Search } from 'lucide-react'
+import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -13,33 +13,71 @@ const conflictBadgeClass = {
 
 const dueBucketByFilter = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
 
-// A clearly-labeled vertical section — a section title followed by its own
-// row of single-select pill buttons. Three of these (Status, Conflict
-// Level, Due Date), always visible, make up the whole filter bar — no
-// dropdown, no dynamically-added/removed chips.
-function FilterPillRow({ label, options, value, onChange }) {
+// A collapsed-by-default category: a header row (label + up/down chevron)
+// that expands to reveal its pill options underneath. Once a non-default
+// tag is picked, a removable pill badge renders next to the header — so the
+// active filter stays visible and easy to clear even while collapsed —
+// and the section auto-collapses back down.
+function AccordionFilterSection({ label, options, value, defaultValue, onChange }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasSelection = value !== defaultValue
+
   return (
-    <div>
-      <p className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            className={cn(
-              'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-              value === option
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+    <div className="border-b border-border/60 pb-2 last:border-none last:pb-0">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left"
+      >
+        <span className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase">
+            {label}
+          </span>
+          {hasSelection && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation()
+                onChange(defaultValue)
+              }}
+              className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary"
+            >
+              {value}
+              <X className="size-2.5" />
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            'size-3.5 shrink-0 text-muted-foreground transition-transform',
+            expanded && 'rotate-180'
+          )}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                onChange(option)
+                setExpanded(false)
+              }}
+              className={cn(
+                'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+                value === option
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -97,13 +135,13 @@ function MergeItemCard({ item, active, onSelect }) {
   )
 }
 
-// Left sidebar shown while in the Merge Studio view — search plus the
-// original grouped filter layout (Status / Conflict Level / Due Date, each
-// its own always-visible vertical section of pill buttons, single-select
-// per section) on top of the saved merge cards, plus the entry point for
-// adding more files to a merge. Selecting a card is the "routing" trigger:
-// MergeStudioWorkspace reacts to `selectedMergeItemId` by syncing the
-// shared activeFileId/activePageId to that item's files.
+// A floating panel docked to the left side of Merge Studio's infinite
+// canvas — same treatment as the Block Deck panel on the right, so the
+// canvas itself spans the full workspace width underneath both instead of
+// the list being a rigid, layout-pushing sidebar box. Filters are an
+// accordion: each dimension (Status / Conflict Level / Due Date) starts
+// collapsed behind its header and expands on click; an active pick shows as
+// a removable pill next to that header.
 function MergeListSidebar() {
   const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles } =
     useWorkspace()
@@ -133,7 +171,7 @@ function MergeListSidebar() {
   })
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-r bg-card">
+    <div className="absolute top-4 bottom-4 left-4 z-20 flex w-72 flex-col overflow-hidden rounded-2xl border bg-card/98 shadow-2xl backdrop-blur-sm">
       <div className="shrink-0 space-y-3 border-b p-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground">Merge List</p>
@@ -159,14 +197,29 @@ function MergeListSidebar() {
           />
         </div>
 
-        <FilterPillRow label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
-        <FilterPillRow
-          label="Conflict Level"
-          options={mergeConflictLevels}
-          value={conflictFilter}
-          onChange={setConflictFilter}
-        />
-        <FilterPillRow label="Due Date" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
+        <div className="space-y-1.5">
+          <AccordionFilterSection
+            label="Status"
+            options={mergeFilterTags}
+            value={statusFilter}
+            defaultValue="All"
+            onChange={setStatusFilter}
+          />
+          <AccordionFilterSection
+            label="Conflict Level"
+            options={mergeConflictLevels}
+            value={conflictFilter}
+            defaultValue="Any"
+            onChange={setConflictFilter}
+          />
+          <AccordionFilterSection
+            label="Due Date"
+            options={mergeDueFilters}
+            value={dueFilter}
+            defaultValue="Any"
+            onChange={setDueFilter}
+          />
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
