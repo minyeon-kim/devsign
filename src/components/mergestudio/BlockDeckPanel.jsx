@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronRight,
   Columns3,
-  GripHorizontal,
   Library,
   Search,
   MousePointerClick,
@@ -844,7 +843,6 @@ function BlockDeckPanel({
         onPointerDown={handleDragStart}
         className="flex h-12 shrink-0 cursor-grab items-center gap-2 border-b border-white/10 px-4 active:cursor-grabbing"
       >
-        <GripHorizontal className="size-4 shrink-0 text-muted-foreground/50" />
         <Blocks className="size-4 shrink-0 text-indigo-500" />
         <span className="flex-1 text-sm font-semibold text-foreground">Block Deck</span>
         {/* Fold-only now — no separate "X" close. The deck stays docked;

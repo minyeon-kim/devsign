@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, Maximize, Minus, PanelRight, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -229,7 +229,6 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
       onClickCapture={onClickCapture}
     >
       <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-slate-950 px-1.5 pt-1.5">
-        <GripHorizontal className="mr-1 size-3.5 shrink-0 text-muted-foreground/50" />
         {files.map((file) => {
           const meta = getFileIconMeta(file.name)
           const active = file.id === activeFile.id
@@ -440,8 +439,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <p className="mb-1.5 flex w-fit items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-        <GripHorizontal className="size-3 shrink-0 text-muted-foreground/50" />
+      <p className="mb-1.5 flex w-fit items-center rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
         {label}
       </p>
       <div
@@ -938,7 +936,7 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { getFileLines, requestMergeFocus } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen } = useWorkspace()
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
@@ -1802,13 +1800,37 @@ function MergeInfiniteCanvas({
             [leftInset, right: 12+reserve] box, matching the workspace
             canvas regardless of sidebar/deck state. */}
         <div
-          className="absolute top-3 z-20 flex h-9 items-center transition-[left] duration-300"
+          className="pointer-events-none absolute top-3 z-20 flex h-9 items-center transition-[left] duration-300"
           style={{ left: leftInset, right: 12 + reserve }}
         >
-          <div className="absolute left-1/2 -translate-x-1/2">
+          {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
+              cluster that used to live here moved up to
+              MergeStudioWorkspace.jsx instead — it needs to stay on screen
+              even before an item is selected (this whole canvas doesn't
+              mount until one is), so it can't live inside this
+              per-item component. `pointer-events-none` on this outer box
+              (only the two clusters below opt back in) — otherwise this
+              row's own empty space, right where the floating back button
+              sits at this same `left: leftInset` starting edge, silently
+              swallows clicks meant for it, since a transparent box still
+              hit-tests above whatever's underneath it. */}
+          <div className="pointer-events-auto absolute left-1/2 -translate-x-1/2">
             <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="pointer-events-auto ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMergePreviewOpen((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-lg backdrop-blur-md transition-colors',
+              mergePreviewOpen
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-card/90 text-foreground hover:bg-muted'
+            )}
+          >
+            <PanelRight className="size-3.5" />
+            Preview
+          </button>
           {annotations.length > 0 && (
             <button
               type="button"
@@ -1897,8 +1919,10 @@ function MergeInfiniteCanvas({
           panel is open), pushed clear of the centered AI chat bar's
           measured right edge (`zoomRowRight`, see the layout effect above)
           instead of a fixed `right-3` that could overlap it at narrower
-          window widths. */}
-      <div ref={zoomRowRef} className="absolute bottom-3 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
+          window widths. `bottom-5` — not `bottom-3` — to sit on the exact
+          same baseline as the AI chat bar (`fixed bottom-5` in
+          MergeAiBar.jsx), instead of 8px higher. */}
+      <div ref={zoomRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
         <div className="flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-2 text-sm shadow-lg backdrop-blur-sm">
           <button
             type="button"

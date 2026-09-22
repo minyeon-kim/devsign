@@ -8,7 +8,6 @@ import {
   Code2,
   GitBranch,
   GitPullRequest,
-  GripHorizontal,
   ListChecks,
   Loader2,
   MessageSquare,
@@ -794,7 +793,6 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
           className="shrink-0 cursor-grab gap-3 border-b px-5 py-4 active:cursor-grabbing"
         >
           <DialogTitle className="flex items-center gap-2 text-base">
-            <GripHorizontal className="size-3.5 shrink-0 text-muted-foreground/40" />
             <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
               <GitPullRequest className="size-3.5" />
             </span>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Folder, GitMerge, Layers, Settings } from 'lucide-react'
+import { Bell, Folder, Layers, PanelLeft, Settings } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { panelDefinitions } from '@/data/mockData'
@@ -79,7 +79,7 @@ function ActivityBar({ dockApi }) {
                 !mergeListCollapsed && 'bg-primary/10 text-primary'
               )}
             >
-              <GitMerge className="size-[18px]" />
+              <PanelLeft className="size-[18px]" />
             </TooltipTrigger>
             <TooltipContent side="right">{mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}</TooltipContent>
           </Tooltip>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
+import { ChevronDown, FilePlus2, RotateCcw, Search, Sparkles, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -236,11 +236,20 @@ function MergeListSidebar() {
       )}
     >
       <div className="flex h-full min-w-72 flex-1 flex-col">
-      <div className="shrink-0 space-y-3.5 border-b p-4">
+      <div className="shrink-0 space-y-2 border-b p-4">
+        {/* "Merge Studio" is the primary title here now (this panel's own
+            top-level context) — back-to-workspace moved out to a floating
+            canvas button, and the collapse toggle lives in the
+            ActivityBar, so this header is purely identity: workspace name,
+            then this panel's own (smaller, secondary) name underneath. */}
+        <p className="flex items-center gap-1.5 text-base font-bold text-foreground">
+          <Sparkles className="size-4 text-primary" />
+          Merge Studio
+        </p>
         <div className="flex items-center justify-between">
-          <p className="flex items-baseline gap-2 text-base font-semibold text-foreground">
+          <p className="flex items-baseline gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Merge List
-            <span className="text-xs font-normal text-muted-foreground">{visible.length}</span>
+            <span className="text-xs font-normal text-muted-foreground normal-case">{visible.length}</span>
           </p>
           <div className="flex items-center gap-1">
             {hasActiveFilters && (
