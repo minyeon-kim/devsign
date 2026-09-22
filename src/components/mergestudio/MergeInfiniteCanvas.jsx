@@ -908,7 +908,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
 function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
   const total = entries.length
   return (
-    <div className="absolute right-3 bottom-3 z-20 w-80 max-w-[calc(100%-1.5rem)]">
+    <div className="absolute right-3 bottom-[8.5rem] z-20 w-80 max-w-[calc(100%-1.5rem)]">
       {open && (
         <div className="mb-2 max-h-80 space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
           {total === 0 && codeRows.length === 0 && (
@@ -917,7 +917,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
           {entries.map((e) => {
             const canJump = Boolean(e.layerId || e.fileId)
             return (
-              <div key={e.id} className="flex items-center gap-1.5 rounded-xl bg-slate-800/70 px-2.5 py-1.5">
+              <div key={e.id} className="flex items-center gap-2 rounded-xl bg-slate-800/70 px-3 py-2">
                 <button
                   type="button"
                   disabled={!canJump}
@@ -932,9 +932,9 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
                   type="button"
                   onClick={() => onUndo(e)}
                   title="Undo this change"
-                  className="flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                  className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <Undo2 className="size-3" />
+                  <Undo2 className="size-3.5" />
                   Undo
                 </button>
               </div>
@@ -942,9 +942,9 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
           })}
           {codeRows.length > 0 && (
             <div className="border-t border-border/60 pt-1.5">
-              <p className="mb-1 px-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Code</p>
+              <p className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Code</p>
               {codeRows.map((f) => (
-                <p key={f.id} className="px-1 py-0.5 text-muted-foreground">
+                <p key={f.id} className="px-1 py-1 text-sm text-muted-foreground">
                   <span className="text-foreground">{f.name}</span> · {f.changed} incoming line{f.changed === 1 ? '' : 's'}
                   {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
                 </p>
@@ -956,11 +956,11 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
       <button
         type="button"
         onClick={onToggle}
-        className="ml-auto flex items-center gap-1.5 rounded-full border bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
+        className="ml-auto flex items-center gap-1.5 rounded-full border bg-card/90 px-4 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
       >
-        <ListChecks className="size-3.5 text-indigo-500" />
+        <ListChecks className="size-4 text-indigo-500" />
         Changes log
-        <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">{total}</span>
+        <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2 text-xs text-white">{total}</span>
         <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
@@ -1986,7 +1986,7 @@ function MergeInfiniteCanvas({
 
         {/* Zoom sits centered just above the AI bar (fixed bottom-5, ~46px
             tall), so the two never overlap. */}
-        <div className="absolute bottom-[4.75rem] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm">
+        <div className="absolute bottom-[8.5rem] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm">
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
