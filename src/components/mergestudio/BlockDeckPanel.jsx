@@ -7,7 +7,6 @@ import {
   GripHorizontal,
   Library,
   Search,
-  GitMerge,
   MousePointerClick,
   Sparkles,
   Wand2,
@@ -23,7 +22,9 @@ import {
   inspectorSpecsByType,
 } from '@/data/mockData'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   return (
@@ -276,7 +277,60 @@ function ManualFallback({ layer, assembly, onChange }) {
 // sidebar next to the artboards, so it can float freely like the rest of
 // the deck. Still entirely selection-driven: reacts to whichever layer was
 // last clicked on either artboard on the infinite canvas.
-function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, onMerge, assembly, onAssemble }) {
+// Every drift for this item (design + code, via the same `buildDrifts` the
+// canvas's own < > pager and the merge wizard's Check step use) as a
+// clickable overview list — jumping to one pans/selects it on the canvas
+// exactly like the canvas's own drift navigator. Consolidated here so the
+// Compare tab is the one place to both see drift history and review each
+// one's detail, instead of duplicating that list in a separate floating
+// panel on the canvas.
+function DriftHistoryList({ item, frame, resolutions, activeLayerId }) {
+  const { requestMergeFocus } = useWorkspace()
+  const drifts = buildDrifts(item, frame)
+  if (!drifts.length) return null
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Drift History · {drifts.length}</p>
+      {drifts.map((d) => {
+        const resolved = d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
+        const active = d.kind === 'design' && d.layerId === activeLayerId
+        return (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() =>
+              requestMergeFocus({
+                itemId: item.id,
+                keepDeck: true,
+                label: d.label,
+                ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
+              })
+            }
+            className={cn(
+              'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors',
+              active ? 'border-primary/40 bg-primary/10' : 'border-white/10 bg-slate-800/70 hover:bg-slate-700/70'
+            )}
+          >
+            <span
+              className={cn(
+                'flex size-4 shrink-0 items-center justify-center rounded-full',
+                resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
+              )}
+            >
+              {resolved && <Check className="size-2.5" />}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-foreground">{d.label}</span>
+            <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {d.kind === 'design' ? 'Design' : 'Code'}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -302,11 +356,13 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
       </p>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+        <DriftHistoryList item={item} frame={frame} resolutions={resolutions} activeLayerId={selectedLayerId} />
+
         {!selectedLayer && (
           <div className="flex flex-col items-center gap-2 p-3 text-center">
             <MousePointerClick className="size-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Select an element, frame, or component on the canvas to inspect it.
+              Select an element, frame, or component on the canvas — or a drift above — to inspect it.
             </p>
           </div>
         )}
@@ -359,24 +415,6 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
           />
         ))}
       </div>
-
-      {selectedLayer && (
-        <div className="shrink-0 border-t border-white/10 p-4">
-          <button
-            type="button"
-            onClick={onMerge}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:brightness-110"
-          >
-            <GitMerge className="size-4" />
-            Reconcile &amp; Merge
-            {resolvedCount > 0 && (
-              <span className="rounded-full bg-white/20 px-2 text-xs">
-                {resolvedCount}/{diffs.length}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -667,7 +705,6 @@ function BlockDeckPanel({
   resolutions,
   onResolve,
   onHoverDiff,
-  onMerge,
   selectedLayer,
   frameWidth,
   assembly,
@@ -809,7 +846,6 @@ function BlockDeckPanel({
             resolutions={resolutions}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
-            onMerge={onMerge}
             assembly={assembly}
             onAssemble={onAssemble}
           />

@@ -133,7 +133,10 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
         <span
           className={cn(
             'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap',
-            STATUS_CHIP_CLASS
+            // "Merged" gets its own unmistakable emerald/green treatment so a
+            // completed merge reads as done at a glance; every other status
+            // keeps sharing the one muted tone (see STATUS_CHIP_CLASS above).
+            item.tag === 'Merged' ? 'bg-emerald-500/15 text-emerald-400' : STATUS_CHIP_CLASS
           )}
         >
           {item.tag}

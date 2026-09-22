@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
@@ -1080,9 +1080,11 @@ function MergeInfiniteCanvas({
   const [annotations, setAnnotations] = useState([])
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
+  const [driftCardOffset, setDriftCardOffset] = useState(null)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
+  const driftCardRef = useRef(null)
   const viewRef = useRef(view)
   const highlightRef = useRef(null)
   const anchorElRef = useRef(null)
@@ -1163,9 +1165,13 @@ function MergeInfiniteCanvas({
       const wy = (r.top + r.height / 2 - base.top - from.y) / k0
       const zoom = clampZoom(Math.max(from.zoom, layerId || line ? 110 : 80))
       const k1 = zoom / 100
+      // Center within the *visible* area, not the full container — when a
+      // right-docked panel (Block Deck, or the Merge Changes wizard while
+      // its drift review is open) reserves space via `reserve`, the target
+      // would otherwise land centered behind it.
       const to = {
         zoom,
-        x: (CONTENT_START_X + base.width) / 2 - wx * k1,
+        x: (CONTENT_START_X + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
       }
       const t0 = performance.now()
@@ -1680,6 +1686,56 @@ function MergeInfiniteCanvas({
   // ActivityBar toggle reclaims that space for them too.
   const leftInset = listCollapsed ? 16 : 296
 
+  // Drift popover placement: defaults to a fixed top-left spot (clearing
+  // the Merge List panel via `leftInset`) so it doesn't jump around as you
+  // page through drifts with the < > navigator — but if that fixed spot
+  // would land squarely on top of the very target it's describing (the
+  // highlighted layer or code line), nudge it to the nearest clear area
+  // next to the target instead, so the thing being explained is never
+  // hidden under the card explaining it. Content/size stays identical;
+  // only the left/top offset changes.
+  useLayoutEffect(() => {
+    setDriftCardOffset(null)
+    const d = stage === 'compare' && currentDrift >= 0 ? drifts[currentDrift] : null
+    const c = containerRef.current
+    const card = driftCardRef.current
+    if (!d || !c || !card) return
+    const selector =
+      d.kind === 'design'
+        ? `[data-frame-key="a"] [data-layer-id="${d.layerId}"]`
+        : `[data-code-line="${d.fileId}:${d.line}"]`
+    const raf = requestAnimationFrame(() => {
+      const targetEl = c.querySelector(selector)
+      if (!targetEl) return
+      const base = c.getBoundingClientRect()
+      const t = targetEl.getBoundingClientRect()
+      const target = { left: t.left - base.left, top: t.top - base.top, right: t.right - base.left, bottom: t.bottom - base.top }
+      const defaultLeft = leftInset
+      const defaultTop = 100
+      const w = card.offsetWidth || 384
+      const h = card.offsetHeight || 200
+      const overlaps =
+        defaultLeft < target.right && defaultLeft + w > target.left && defaultTop < target.bottom && defaultTop + h > target.top
+      if (!overlaps) return
+      // Prefer sliding just right of the target; if that would run off the
+      // visible canvas, drop below it instead — both clamped on-screen.
+      const maxLeft = Math.max(16, base.width - w - 16)
+      const maxTop = Math.max(16, base.height - h - 16)
+      let left = target.right + 16
+      let top = defaultTop
+      if (left > maxLeft) {
+        left = defaultLeft
+        top = Math.min(target.bottom + 16, maxTop)
+      }
+      setDriftCardOffset({ left: Math.min(Math.max(left, 16), maxLeft), top: Math.min(Math.max(top, 16), maxTop) })
+    })
+    return () => cancelAnimationFrame(raf)
+    // `drifts` is rebuilt every render; keying off `currentDrift`/`item.id`
+    // (which the array's own contents are derived from) avoids re-running
+    // this on every render while still catching the drift that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, currentDrift, item.id, leftInset, view.zoom, view.x, view.y])
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div ref={containerRef} className="relative min-h-0 flex-1">
@@ -1957,18 +2013,24 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
-        {/* Drift detail card: pinned to a fixed top-left spot in the canvas
-            (clearing the Merge List panel via `leftInset`) so it never jumps
-            around as you page through drifts with the < > navigator. Hidden
-            once a review step (Check/Preview/Review/Deploy) takes over —
-            the step review modal is the one showing drift detail then. */}
+        {/* Drift detail card: defaults to a fixed top-left spot in the canvas
+            (clearing the Merge List panel via `leftInset`) so it doesn't
+            jump around as you page through drifts with the < > navigator —
+            auto-offset (see the layout effect above) only when that spot
+            would otherwise cover the target it's describing. Hidden once a
+            review step (Check/Preview/Review/Deploy) takes over — the step
+            review modal is the one showing drift detail then. */}
         {stage === 'compare' && currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
           const d = drifts[currentDrift]
           const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
           const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
           const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
           return (
-            <div style={{ left: leftInset, top: 100 }} className="absolute z-30 transition-[left] duration-300">
+            <div
+              ref={driftCardRef}
+              style={driftCardOffset ?? { left: leftInset, top: 100 }}
+              className="absolute z-30 transition-[left,top] duration-300"
+            >
               <DriftCard
                 drift={d}
                 index={currentDrift}
@@ -2028,12 +2090,17 @@ function MergeInfiniteCanvas({
           )
         })()}
 
-        {/* Zoom lives as its own floating pill in the bottom-left corner —
-            clear of the centered AI bar entirely, and shifted right of the
-            Merge List panel via `leftInset` (matching the header's
-            treatment) so it's never hidden behind it. */}
+        {/* Zoom lives as its own floating pill in the bottom-left corner,
+            shifted right of the Merge List panel via `leftInset` (matching
+            the header's treatment) so it's never hidden behind it. Raised
+            well above `bottom-3` (`bottom-52`) so it clears the AI chat
+            bar's full height — including its optional image-chip row and
+            two-row composer — at any viewport width; the AI bar is
+            horizontally centered and wide enough to reach under this corner
+            on typical/narrow windows, so the two only stay clear of each
+            other vertically, not by side-stepping horizontally. */}
         <div
-          className="absolute bottom-3 z-20 flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm transition-[left] duration-300"
+          className="absolute bottom-52 z-20 flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm transition-[left] duration-300"
           style={{ left: leftInset }}
         >
           <button

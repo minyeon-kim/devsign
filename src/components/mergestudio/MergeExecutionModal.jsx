@@ -8,6 +8,7 @@ import {
   Code2,
   GitBranch,
   GitPullRequest,
+  GripHorizontal,
   ListChecks,
   Loader2,
   MessageSquare,
@@ -124,6 +125,12 @@ function SummarySection({ summary }) {
     </section>
   )
 }
+
+// Reserved width for the canvas to shift clear of, while the wizard is open
+// and docked to its default right-side spot (max-w-2xl + its right-6
+// margin + breathing room). Matches the `reserve`/`DECK_RESERVE` pattern
+// the Block Deck already uses for the same purpose.
+export const WIZARD_RESERVE = 720
 
 export const WIZARD_STEPS = [
   { id: 'check', label: 'Check' },
@@ -671,6 +678,35 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   const [generating, setGenerating] = useState(false)
   const [prNumber] = useState(() => 100 + Math.floor(Math.random() * 90))
 
+  // Free dragging: starts at the default docked spot (top-16/right-6, via
+  // CSS) until the user first drags the header, after which `pos` takes
+  // over as an explicit viewport-relative left/top (the dialog is `fixed`,
+  // so plain client coordinates work with no container/offset math needed).
+  const [pos, setPos] = useState(null)
+  function handleHeaderPointerDown(event) {
+    if (event.button !== 0 || event.target.closest('button, a, input, textarea')) return
+    const content = event.currentTarget.closest('[data-slot="dialog-content"]')
+    if (!content) return
+    event.preventDefault()
+    const rect = content.getBoundingClientRect()
+    const startX = event.clientX
+    const startY = event.clientY
+    const startLeft = rect.left
+    const startTop = rect.top
+    function onMove(m) {
+      setPos({
+        left: Math.min(Math.max(8, startLeft + m.clientX - startX), window.innerWidth - rect.width - 8),
+        top: Math.min(Math.max(8, startTop + m.clientY - startY), window.innerHeight - 60),
+      })
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   const needCode = summary.files.length > 0
   const needDesign = item.hasDesign
   const hasScope = (scope) => Object.values(reviewers).some((s) => s.includes(scope))
@@ -734,10 +770,21 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
       <DialogContent
         overlay={false}
         showCloseButton={!busy}
-        className="top-6 right-6 left-auto flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl"
+        style={pos ? { left: pos.left, top: pos.top, right: 'auto' } : undefined}
+        className={cn(
+          'flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl',
+          // Default dock: `top-16` (not `top-6`) so it opens clear of the
+          // 44px app header instead of covering it; free dragging (see
+          // `pos` above) takes over as soon as the user drags the header.
+          !pos && 'top-16 right-6 left-auto'
+        )}
       >
-        <DialogHeader className="shrink-0 gap-3 border-b px-5 py-4">
+        <DialogHeader
+          onPointerDown={handleHeaderPointerDown}
+          className="shrink-0 cursor-grab gap-3 border-b px-5 py-4 active:cursor-grabbing"
+        >
           <DialogTitle className="flex items-center gap-2 text-base">
+            <GripHorizontal className="size-3.5 shrink-0 text-muted-foreground/40" />
             <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
               <GitPullRequest className="size-3.5" />
             </span>

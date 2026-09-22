@@ -7,7 +7,7 @@ import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
-import MergeExecutionModal from '@/components/mergestudio/MergeExecutionModal'
+import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
@@ -326,6 +326,13 @@ function MergeStudioWorkspace({ item }) {
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
+  // While the wizard's own drift review is open (Check step), shift the
+  // canvas clear of it too — same `reserve` mechanism the Block Deck uses
+  // — so paging through drifts there doesn't hide the target behind the
+  // floating wizard window. Takes whichever panel reserves more, since
+  // both dock to the same right-hand edge.
+  const wizardReserve = mergeModal && wizardStage === 'check' ? WIZARD_RESERVE : 0
+  const reserve = Math.max(deckReserve, wizardReserve)
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
 
   return (
@@ -333,7 +340,7 @@ function MergeStudioWorkspace({ item }) {
       {item ? (
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
-          reserve={deckReserve}
+          reserve={reserve}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length}
@@ -382,7 +389,6 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           onResolve={resolveDiff}
           onHoverDiff={setHoverDiff}
-          onMerge={() => openWizard()}
           selectedLayer={selectedLayer}
           frameWidth={frame0?.width ?? 300}
           assembly={deckLayerId ? assemblies[deckLayerId] : undefined}
