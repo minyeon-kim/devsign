@@ -7,6 +7,7 @@ import {
   Folder,
   Layers,
   Monitor,
+  PanelLeft,
   ScrollText,
   Settings,
   SquareTerminal,
@@ -38,7 +39,16 @@ const panelIcons = {
 // workspace and remembers what was requested, then opens/focuses it as soon
 // as dockview comes back online (the effect below watching `dockApi`).
 function ActivityBar({ dockApi }) {
-  const { exitMergeStudio, activeView, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const {
+    exitMergeStudio,
+    activeView,
+    notifications,
+    mergeDrawer,
+    setMergeDrawer,
+    mergeListCollapsed,
+    setMergeListCollapsed,
+  } = useWorkspace()
+  const inMergeStudio = activeView === 'mergeStudio'
   const unreadCount = notifications.filter((n) => n.unread).length
   const [activePanelId, setActivePanelId] = useState(null)
   const pendingPanelRef = useRef(null)
@@ -71,6 +81,20 @@ function ActivityBar({ dockApi }) {
   return (
     <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
       <div className="flex flex-col items-center gap-1">
+        {inMergeStudio && (
+          <Tooltip>
+            <TooltipTrigger
+              onClick={() => setMergeListCollapsed((v) => !v)}
+              className={cn(
+                'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                mergeListCollapsed && 'bg-primary/10 text-primary'
+              )}
+            >
+              <PanelLeft className="size-[18px]" />
+            </TooltipTrigger>
+            <TooltipContent side="right">{mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}</TooltipContent>
+          </Tooltip>
+        )}
         {panelDefinitions.map((def) => {
           const Icon = panelIcons[def.iconName]
           return (

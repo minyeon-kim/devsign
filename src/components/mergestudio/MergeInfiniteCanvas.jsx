@@ -800,35 +800,35 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
         onClick={() => onResolve?.(d.id, on ? null : side)}
         title={on ? 'Click to clear' : side === 'A' ? 'Keep current (A)' : 'Accept incoming (B)'}
         className={cn(
-          'flex min-w-0 items-center justify-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors',
+          'flex min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors',
           on
             ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm'
             : 'bg-slate-700 text-muted-foreground hover:bg-slate-600 hover:text-foreground'
         )}
       >
-        {on && <Check className="size-3 shrink-0" />}
-        <span className="shrink-0 opacity-70">{side}</span>
+        {on && <Check className="size-3.5 shrink-0" />}
+        <span className="shrink-0 text-[10px] opacity-70">{side}</span>
         <span className="truncate">{value}</span>
       </button>
     )
   }
 
   return (
-    <div className="absolute top-full left-0 z-30 mt-2 w-80 rounded-2xl border border-white/10 bg-slate-800/90 p-3 text-[11px] shadow-xl backdrop-blur-md">
+    <div className="w-96 rounded-2xl border border-white/10 bg-slate-800/90 p-4 text-sm shadow-xl backdrop-blur-md">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Drift {index + 1} of {total}
           </p>
-          <p className="truncate text-xs font-semibold text-foreground">{drift.label}</p>
+          <p className="truncate text-base font-semibold text-foreground">{drift.label}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           title="Dismiss"
-          className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-slate-700 hover:text-foreground"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-slate-700 hover:text-foreground"
         >
-          <X className="size-3" />
+          <X className="size-3.5" />
         </button>
       </div>
 
@@ -836,13 +836,13 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
         {isDesign ? (
           groups.map((g) => (
             <section key={g.cat.label}>
-              <span className={cn('inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold', g.cat.className)}>
+              <span className={cn('inline-block rounded-full px-2.5 py-1 text-xs font-semibold', g.cat.className)}>
                 {g.cat.label}
               </span>
-              <div className="mt-1.5 grid grid-cols-[5.5rem_1fr_1fr] items-center gap-x-1.5 gap-y-1.5">
+              <div className="mt-2 grid grid-cols-[6.5rem_1fr_1fr] items-center gap-x-2 gap-y-2">
                 {g.diffs.map((d) => (
                   <div key={d.id} className="contents">
-                    <span className="truncate text-muted-foreground">{d.label}</span>
+                    <span className="truncate text-sm text-muted-foreground">{d.label}</span>
                     {pill(d, 'A', d.optionA)}
                     {pill(d, 'B', d.optionB)}
                   </div>
@@ -852,14 +852,14 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
           ))
         ) : (
           <section>
-            <span className={cn('inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold', codeCat.className)}>
+            <span className={cn('inline-block rounded-full px-2.5 py-1 text-xs font-semibold', codeCat.className)}>
               {codeCat.label}
             </span>
-            <div className="mt-1.5 grid grid-cols-[4.5rem_1fr] items-start gap-x-1.5 gap-y-1.5">
-              <span className="pt-1 text-muted-foreground">Current</span>
-              <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[10px] break-words text-destructive/90">{currentLine || ' '}</p>
-              <span className="pt-1 text-muted-foreground">Incoming</span>
-              <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[10px] break-words text-emerald-400">{incomingLine}</p>
+            <div className="mt-2 grid grid-cols-[5.5rem_1fr] items-start gap-x-2 gap-y-2">
+              <span className="pt-1 text-sm text-muted-foreground">Current</span>
+              <p className="rounded-md bg-destructive/10 px-2.5 py-1.5 font-mono text-xs break-words text-destructive/90">{currentLine || ' '}</p>
+              <span className="pt-1 text-sm text-muted-foreground">Incoming</span>
+              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 font-mono text-xs break-words text-emerald-400">{incomingLine}</p>
             </div>
           </section>
         )}
@@ -871,7 +871,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
             <>
               <span
                 className={cn(
-                  'rounded-full px-2 py-1 text-[10px] font-medium',
+                  'rounded-full px-2.5 py-1 text-xs font-medium',
                   resolvedCount === drift.diffs.length ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
                 )}
               >
@@ -880,23 +880,23 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
               <button
                 type="button"
                 onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'A'))}
-                className="ml-auto rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
+                className="ml-auto rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
               >
                 Keep all A
               </button>
               <button
                 type="button"
                 onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'B'))}
-                className="rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
+                className="rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
               >
                 Accept all B
               </button>
             </>
           )}
-          {!isDesign && layerCodeTarget && <span className="text-[10px] text-muted-foreground">{layerCodeTarget}</span>}
+          {!isDesign && layerCodeTarget && <span className="text-sm text-muted-foreground">{layerCodeTarget}</span>}
         </div>
       )}
-      {isDesign && layerCodeTarget && <p className="mt-1.5 text-[10px] text-muted-foreground">{layerCodeTarget}</p>}
+      {isDesign && layerCodeTarget && <p className="mt-2 text-sm text-muted-foreground">{layerCodeTarget}</p>}
     </div>
   )
 }
@@ -1024,6 +1024,7 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreview,
   reserve,
+  listCollapsed,
   focus,
   resolutionCount,
   merged,
@@ -1666,6 +1667,10 @@ function MergeInfiniteCanvas({
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
+  // Left inset the header/toolbar rows and the drift card clear, so they
+  // never sit under the (floating) Merge List panel — collapsing it via the
+  // ActivityBar toggle reclaims that space for them too.
+  const leftInset = listCollapsed ? 16 : 296
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
@@ -1860,8 +1865,8 @@ function MergeInfiniteCanvas({
         {/* Header row: macro stepper centered, Apply with AI / Merge Changes on
             the right. Kept clear of the docked Block Deck via `reserve`. */}
         <div
-          className="absolute top-3 left-[18.5rem] z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3"
-          style={{ right: 12 + reserve }}
+          className="absolute top-3 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3 transition-[left] duration-300"
+          style={{ left: leftInset, right: 12 + reserve }}
         >
           <div />
           <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
@@ -1888,7 +1893,7 @@ function MergeInfiniteCanvas({
         {/* Contextual sub-toolbar directly under the header: the drift
             navigator and its pinned info card. */}
         {drifts.length > 1 && (
-          <div className="pointer-events-none absolute top-14 left-[18.5rem] z-20 flex justify-center" style={{ right: 12 + reserve }}>
+          <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
             <div className="pointer-events-auto">
             <div className="relative flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md">
               <button
@@ -1916,29 +1921,35 @@ function MergeInfiniteCanvas({
                 <ChevronRight className="size-4" />
               </button>
 
-              {currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
-                const d = drifts[currentDrift]
-                const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
-                const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
-                const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
-                return (
-                  <DriftCard
-                    drift={d}
-                    index={currentDrift}
-                    total={drifts.length}
-                    resolutions={resolutions}
-                    layerCodeTarget={linked ? `Affects ${openFiles.find((f) => f.id === linked.fileId)?.name ?? linked.fileId} · line ${linked.line}` : null}
-                    currentLine={original}
-                    incomingLine={incoming}
-                    onResolve={(diffId, side) => onResolveDiff?.(d.layerId, diffId, side)}
-                    onClose={() => setDriftHidden(d.id)}
-                  />
-                )
-              })()}
             </div>
             </div>
           </div>
         )}
+
+        {/* Drift detail card: pinned to a fixed top-left spot in the canvas
+            (clearing the Merge List panel via `leftInset`) so it never jumps
+            around as you page through drifts with the < > navigator. */}
+        {currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
+          const d = drifts[currentDrift]
+          const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
+          const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
+          const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
+          return (
+            <div style={{ left: leftInset, top: 100 }} className="absolute z-30 transition-[left] duration-300">
+              <DriftCard
+                drift={d}
+                index={currentDrift}
+                total={drifts.length}
+                resolutions={resolutions}
+                layerCodeTarget={linked ? `Affects ${openFiles.find((f) => f.id === linked.fileId)?.name ?? linked.fileId} · line ${linked.line}` : null}
+                currentLine={original}
+                incomingLine={incoming}
+                onResolve={(diffId, side) => onResolveDiff?.(d.layerId, diffId, side)}
+                onClose={() => setDriftHidden(d.id)}
+              />
+            </div>
+          )
+        })()}
 
         {stage === 'compare' && (() => {
           const presetObj =

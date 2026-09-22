@@ -191,7 +191,7 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
 // collapsed behind its header and expands on click; an active pick shows as
 // removable pills next to that header (multi-select).
 function MergeListSidebar() {
-  const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles } =
+  const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles, mergeListCollapsed } =
     useWorkspace()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState([])
@@ -220,7 +220,13 @@ function MergeListSidebar() {
   })
 
   return (
-    <div className="absolute top-0 bottom-0 left-0 z-20 flex w-72 flex-col overflow-hidden rounded-r-2xl border-y-0 border-r border-l-0 bg-card/98 shadow-2xl backdrop-blur-sm">
+    <div
+      className={cn(
+        'absolute top-0 bottom-0 left-0 z-20 flex flex-col overflow-hidden rounded-r-2xl border-y-0 border-l-0 bg-card/98 backdrop-blur-sm transition-[width,opacity,box-shadow] duration-300 ease-in-out',
+        mergeListCollapsed ? 'w-0 border-r-0 opacity-0 shadow-none' : 'w-72 border-r opacity-100 shadow-2xl'
+      )}
+    >
+      <div className="flex h-full min-w-72 flex-1 flex-col">
       <div className="shrink-0 space-y-3.5 border-b p-4">
         <div className="flex items-center justify-between">
           <p className="flex items-baseline gap-1.5 text-sm font-semibold text-foreground">
@@ -297,6 +303,7 @@ function MergeListSidebar() {
           <FilePlus2 className="size-3.5" />
           Add Files to Merge
         </button>
+      </div>
       </div>
       {conflictItem && (
         <ConflictResolutionModal

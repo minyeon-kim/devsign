@@ -92,6 +92,8 @@ export function WorkspaceProvider({ children }) {
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
   const [mergeCta, setMergeCta] = useState(null)
+  // Left Merge List sidebar collapse, toggled from the ActivityBar.
+  const [mergeListCollapsed, setMergeListCollapsed] = useState(false)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -488,6 +490,8 @@ export function WorkspaceProvider({ children }) {
     setMergePreviewOpen,
     mergeCta,
     setMergeCta,
+    mergeListCollapsed,
+    setMergeListCollapsed,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

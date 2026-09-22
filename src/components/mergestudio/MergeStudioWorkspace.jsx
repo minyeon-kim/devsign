@@ -84,6 +84,7 @@ function MergeStudioWorkspace({ item }) {
     mergePreviewOpen,
     setMergePreviewOpen,
     setMergeCta,
+    mergeListCollapsed,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -333,6 +334,7 @@ function MergeStudioWorkspace({ item }) {
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={deckReserve}
+          listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length}
           merged={item.tag === 'Merged'}
