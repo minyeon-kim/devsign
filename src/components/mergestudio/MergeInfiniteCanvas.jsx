@@ -1745,23 +1745,36 @@ function MergeInfiniteCanvas({
           ))}
         </svg>
 
-        {/* Dimension overlay: a subtle width × height readout under each
-            "strong" (actually-selected, not just linked) box — divided
-            back out of the current zoom so it reads the element's real
-            design size, not however many screen pixels it happens to take
-            up at the moment. `b.w - 6` / `b.h - 6` undoes the 3px outline
-            padding `push()` adds around the measured element. */}
+        {/* Dimension overlay: a width × height readout for each "strong"
+            (actually-selected, not just linked) box — divided back out of
+            the current zoom so it reads the element's real design size,
+            not however many screen pixels it happens to take up at the
+            moment. `b.w - 6` / `b.h - 6` undoes the 3px outline padding
+            `push()` adds around the measured element. Guarded against a
+            zero/invalid zoom (would otherwise divide by zero and print
+            "NaN × NaN"), and right-aligned to the box's own bottom-right
+            corner (`-translate-x-full`) rather than extending past it —
+            sitting just below it, within its own footprint, instead of
+            spilling sideways into whatever neighboring element happens to
+            sit directly to the right (a Subscribe button next to a form
+            field, say), which centering *or* a rightward offset both did. */}
         {links.boxes
           .filter((b) => b.strong)
-          .map((b) => (
-            <span
-              key={`dim-${b.key}`}
-              style={{ left: b.x + b.w / 2, top: b.y + b.h + 6 }}
-              className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-            >
-              {Math.round((b.w - 6) / (view.zoom / 100))} × {Math.round((b.h - 6) / (view.zoom / 100))}
-            </span>
-          ))}
+          .map((b) => {
+            const zoomFactor = view.zoom > 0 ? view.zoom / 100 : 1
+            const w = Math.round((b.w - 6) / zoomFactor)
+            const h = Math.round((b.h - 6) / zoomFactor)
+            if (!Number.isFinite(w) || !Number.isFinite(h)) return null
+            return (
+              <span
+                key={`dim-${b.key}`}
+                style={{ left: b.x + b.w, top: b.y + b.h + 6 }}
+                className="pointer-events-none absolute z-10 -translate-x-full rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+              >
+                {Math.max(0, w)} × {Math.max(0, h)}
+              </span>
+            )
+          })}
 
         {links.pins.map((pin) => (
           <AnnotationPin
