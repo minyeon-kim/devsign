@@ -10,6 +10,7 @@ import {
   initialChatMessages,
   initialHistoryEntries,
   mergeListItems as seedMergeListItems,
+  registerMergeVariants,
   seedMergeNotifications,
   liveMergeNotification,
   openFiles,
@@ -214,6 +215,7 @@ export function WorkspaceProvider({ children }) {
   // Studio already looking at it.
   const startMergeFromOpenFiles = useCallback(() => {
     const id = nextId('merge')
+    registerMergeVariants(id, activePageId)
     const fileNames = openFiles.map((f) => f.name)
     setMergeItems((prev) => [
       {

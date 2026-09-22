@@ -1652,7 +1652,7 @@ function MergeInfiniteCanvas({
     const o = layer && assemblyToOverride(assembly, layer)
     if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
-  const selId = syncSelection?.layerId
+  const selId = variantPreview?.layerId ?? syncSelection?.layerId
   if (selId && (variantPreview || appliedPreset)) {
     const base = overrides[selId]
     overrides[selId] = {

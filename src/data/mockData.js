@@ -139,11 +139,12 @@ export const mergeListItems = [
   {
     id: 'merge-authmodal',
     title: 'AuthModal.tsx',
-    subtitle: '1 file · Code only',
+    subtitle: '2 files · Design + Code',
     tag: 'Needs Review',
     updatedLabel: '1d ago',
-    fileIds: ['app'],
-    hasDesign: false,
+    fileIds: ['app', 'tokens'],
+    hasDesign: true,
+    designPageId: 'page-1',
     category: 'Auth',
     conflictLevel: 'Medium',
     dueLabel: 'Overdue by 1 day',
@@ -1258,3 +1259,26 @@ export const designSystemComponents = [
   { id: 'ds-avatar', name: 'Avatar', category: 'Controls', type: 'avatar', width: 36, height: 36, tokens: ['radius.full'], assembly: { shape: 'circle', shadow: 'soft' } },
   { id: 'ds-tabs', name: 'Tab Bar', category: 'Navigation', type: 'tabs', width: 240, height: 44, tokens: ['color.border'], assembly: {} },
 ]
+
+// ---------------------------------------------------------------------
+// Uniform merge-item data
+// ---------------------------------------------------------------------
+// Every merge item — seeded or created later ("New Merge") — must have the
+// same shape of data (design variants + layer↔code map + code diffs) so it
+// behaves like the others: drifts to page through, a Block Deck target, and
+// no empty panels. `registerMergeVariants` fills any missing piece from the
+// template item that shares its design page.
+const VARIANT_TEMPLATE_BY_PAGE = { 'page-1': 'merge-settings', 'page-2': 'merge-flowbank' }
+
+export function registerMergeVariants(itemId, pageId) {
+  const templateId = VARIANT_TEMPLATE_BY_PAGE[pageId] ?? 'merge-settings'
+  if (itemId === templateId) return
+  const clone = (v) => JSON.parse(JSON.stringify(v))
+  if (!designMergeVariants[itemId]) designMergeVariants[itemId] = clone(designMergeVariants[templateId])
+  const code = (codeMergeVariants[itemId] ??= {})
+  for (const [fileId, diffs] of Object.entries(codeMergeVariants[templateId] ?? {})) {
+    if (!code[fileId]) code[fileId] = clone(diffs)
+  }
+}
+
+registerMergeVariants('merge-authmodal', 'page-1')

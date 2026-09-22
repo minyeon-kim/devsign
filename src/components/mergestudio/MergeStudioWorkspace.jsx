@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { canvasPages, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -42,6 +42,30 @@ function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
     merged.dh = (merged.dh ?? 0) + (e.dh ?? 0)
   }
   return active ? { layerId, ...merged } : null
+}
+
+// A smart default target so the Block Deck never opens on "Nothing selected":
+// the primary CTA (a button with variant options), else the first layer with
+// options, else any button, else the first layer.
+function defaultLayerFor(item) {
+  if (!item?.hasDesign) return null
+  const frame = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]
+  const diffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const layers = frame?.layers ?? []
+  return (
+    (layers.find((l) => l.type === 'button' && diffs[l.id]) ??
+      layers.find((l) => diffs[l.id]) ??
+      layers.find((l) => l.type === 'button') ??
+      layers[0])?.id ?? null
+  )
+}
+
+// Fallback for code-only data: the first incoming code diff.
+function defaultLineFor(item) {
+  for (const [fileId, diffs] of Object.entries(codeMergeVariants[item?.id] ?? {})) {
+    if (diffs[0]) return { fileId, line: diffs[0].line, endLine: diffs[0].line }
+  }
+  return null
 }
 
 // Deck width plus its 16px right inset and 16px breathing room.
@@ -93,6 +117,19 @@ function MergeStudioWorkspace({ item }) {
     setAssemblies({})
     setAddedLayers([])
     setHoverDiff(null)
+    // Uniform initialization: every item starts with a default selected element.
+    const defLayer = defaultLayerFor(item)
+    if (defLayer) {
+      const t = designMergeVariants[item.id]?.layerCodeMap?.[defLayer]
+      setSyncSelection({
+        layerId: defLayer,
+        fileId: t?.fileId,
+        line: t?.line,
+        endLine: t ? t.line + (t.span ?? 1) - 1 : undefined,
+      })
+    } else {
+      setSyncSelection(defaultLineFor(item))
+    }
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,7 +150,7 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function selectFrame() {
-    setSyncSelection(null)
+    // Keep the current selection so the Block Deck still has a target.
     setAppliedPreset(null)
     setDeckOpen(true)
   }
@@ -268,7 +305,10 @@ function MergeStudioWorkspace({ item }) {
   const files = item ? openFiles.filter((f) => item.fileIds?.includes(f.id)) : []
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const frame0 = frameWithLayers(baseFrame, addedLayers)
-  const selectedLayer = frame0?.layers.find((l) => l.id === syncSelection?.layerId) ?? null
+  // Block Deck target: the selected layer, or the smart default when the
+  // selection is an unmapped code line / nothing.
+  const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
+  const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
 
   // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
   const openWizardRef = useRef(null)
@@ -285,7 +325,7 @@ function MergeStudioWorkspace({ item }) {
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
-  const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, syncSelection?.layerId, resolutions, hoverDiff) : null
+  const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
@@ -334,7 +374,7 @@ function MergeStudioWorkspace({ item }) {
           onClose={() => setDeckOpen(false)}
           onFloat={() => setDeckFloating(true)}
           item={item}
-          selectedLayerId={syncSelection?.layerId}
+          selectedLayerId={deckLayerId}
           selectedLayerName={selectedLayer?.name}
           appliedPresetId={appliedPreset?.id}
           resolutions={resolutions}
@@ -343,9 +383,9 @@ function MergeStudioWorkspace({ item }) {
           onMerge={() => openWizard()}
           selectedLayer={selectedLayer}
           frameWidth={frame0?.width ?? 300}
-          assembly={syncSelection?.layerId ? assemblies[syncSelection.layerId] : undefined}
-          onAssemble={(patch) => syncSelection?.layerId && assemble(syncSelection.layerId, patch)}
-          onAssembleReset={() => syncSelection?.layerId && resetAssembly(syncSelection.layerId)}
+          assembly={deckLayerId ? assemblies[deckLayerId] : undefined}
+          onAssemble={(patch) => deckLayerId && assemble(deckLayerId, patch)}
+          onAssembleReset={() => deckLayerId && resetAssembly(deckLayerId)}
           onApplyComponent={applyComponent}
           onAddComponent={(def) => addComponent(def)}
           onInsertComponent={insertComponent}
