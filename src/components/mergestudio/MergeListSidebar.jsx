@@ -120,8 +120,10 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
       onClick={() => onSelect(item.id)}
       className={cn(
         'flex w-full flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-all',
+        // Selected state: a lighter slate surface plus a soft accent tint,
+        // instead of a heavy glowing border — clean elevation, not a frame.
         active
-          ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_var(--primary),0_0_18px_color-mix(in_oklch,var(--primary)_55%,transparent)]'
+          ? 'border-white/10 bg-slate-700/80 ring-1 ring-inset ring-primary/25'
           : 'border-white/10 bg-slate-800/70 hover:border-primary/40 hover:bg-slate-700/70'
       )}
     >
@@ -298,7 +300,7 @@ function MergeListSidebar() {
         <button
           type="button"
           onClick={startMergeFromOpenFiles}
-          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:brightness-110"
         >
           <FilePlus2 className="size-3.5" />
           Add Files to Merge

@@ -77,14 +77,14 @@ function LocalCursor({ containerRef }) {
         />
       ) : (
         <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
           fill="none"
           className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
         >
           <path
-            d="M2 2L17 8.5L9.8 10.2L7.5 17.5L2 2Z"
+            d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"
             fill={currentUser.cursorColor}
             stroke="rgba(0,0,0,0.25)"
             strokeWidth="1"
@@ -93,7 +93,7 @@ function LocalCursor({ containerRef }) {
         </svg>
       )}
       <span
-        className="ml-3.5 -mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-white shadow-md"
+        className="ml-1.5 -mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-white shadow-md"
         style={{ backgroundColor: currentUser.cursorColor }}
       >
         {currentUser.name}
