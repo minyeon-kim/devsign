@@ -66,9 +66,11 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
       </div>
 
       {/* Layout icon lives in the right-hand cluster, next to the
-          profile/share controls, per the Follow Me revision brief. */}
+          profile/share controls, per the Follow Me revision brief — but
+          only outside Merge Studio, where `dockApi` is null and there's no
+          dockview layout to rearrange in the first place. */}
       <div className="ml-auto flex shrink-0 items-center gap-3">
-        <LayoutMenu dockApi={dockApi} />
+        {!inMergeStudio && <LayoutMenu dockApi={dockApi} />}
         <UserPresence />
         {/* The [Merge Changes] CTA moved into the canvas's own drift-nav
             row (right beside the drift pager), so it lives in the review

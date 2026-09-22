@@ -300,7 +300,14 @@ function severityOf(d) {
   return 'low'
 }
 
-const SEVERITY_DOT_CLASS = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-emerald-500' }
+// A clean pill tag per row — matching the Merge List sidebar's own
+// High/Medium/Low conflict badge exactly (`conflictBadgeClass` in
+// MergeListSidebar.jsx) — instead of tinting the whole row's background.
+const SEVERITY_TAG_CLASS = {
+  high: 'bg-destructive/15 text-destructive',
+  medium: 'bg-amber-500/15 text-amber-500',
+  low: 'bg-sky-500/15 text-sky-500',
+}
 
 function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDiff, expandedId, onExpand }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
@@ -322,7 +329,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
 
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Drift History · {drifts.length}</p>
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Detected Drifts · {drifts.length}</p>
       {drifts.map((d) => {
         const resolved = d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
         const open = expandedId === d.id
@@ -336,6 +343,8 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
               // The active/open row gets an unmissable primary ring on top
               // of its own tinted surface — not just a border color change
               // — so it's obvious at a glance which one you're reviewing.
+              // Closed rows stay on the same plain surface as before; the
+              // severity tag (not a row-wide tint) carries that signal now.
               open ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30' : 'border-white/10 bg-slate-800/70'
             )}
           >
@@ -345,10 +354,16 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
             >
               <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
-              <span
-                title={`${severityOf(d)} conflict`}
-                className={cn('size-2 shrink-0 rounded-full', SEVERITY_DOT_CLASS[severityOf(d)])}
-              />
+              {/* Source badge on the left (was the right, past the label);
+                  the checkmark now sits on the right instead (was here on
+                  the left, right after the chevron). */}
+              <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {d.kind === 'design' ? 'Design' : 'Code'}
+              </span>
+              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
+              <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', SEVERITY_TAG_CLASS[severityOf(d)])}>
+                {severityOf(d) === 'high' ? 'High' : severityOf(d) === 'medium' ? 'Medium' : 'Low'}
+              </span>
               <span
                 className={cn(
                   'flex size-4 shrink-0 items-center justify-center rounded-full',
@@ -356,10 +371,6 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
                 )}
               >
                 {resolved && <Check className="size-2.5" />}
-              </span>
-              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
-              <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {d.kind === 'design' ? 'Design' : 'Code'}
               </span>
             </button>
 
@@ -760,7 +771,6 @@ export const DECK_WIDTH = 360
 
 function BlockDeckPanel({
   open,
-  onClose,
   onFloat,
   item,
   selectedLayerId,
@@ -837,6 +847,8 @@ function BlockDeckPanel({
         <GripHorizontal className="size-4 shrink-0 text-muted-foreground/50" />
         <Blocks className="size-4 shrink-0 text-indigo-500" />
         <span className="flex-1 text-sm font-semibold text-foreground">Block Deck</span>
+        {/* Fold-only now — no separate "X" close. The deck stays docked;
+            collapsing is the one and only way to get it out of the way. */}
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
@@ -845,15 +857,6 @@ function BlockDeckPanel({
           className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <ChevronDown className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          onPointerDown={(e) => e.stopPropagation()}
-          title="Close"
-          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <X className="size-4" />
         </button>
       </div>
 

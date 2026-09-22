@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, GripHorizontal, Maximize, Minus, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -627,7 +627,14 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
           }
         }}
         title={expanded ? undefined : 'Edit with AI'}
-        className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600"
+        // A clean, minimalist white icon — no filled circle behind it —
+        // marking the element as AI-editable; a drop shadow keeps it
+        // legible over whatever's underneath instead of needing a solid
+        // background chip.
+        className={cn(
+          'flex size-[28px] shrink-0 items-center justify-center text-white transition-opacity',
+          !expanded && 'drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] hover:opacity-80'
+        )}
       >
         <Sparkles className="size-3.5" />
       </button>
@@ -782,153 +789,6 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   )
 }
 
-// What kind of discrepancy a variant diff is, for the drift explainer.
-function classifyDiff(diff) {
-  const t = `${diff.id} ${diff.label}`.toLowerCase()
-  // A cohesive two-tone system: any real property change reads as indigo,
-  // and a plain token reference (nothing to resolve) reads as neutral
-  // slate — instead of a different accent hue per category.
-  if (/color|accent|background|fill|chip/.test(t)) return { label: 'Color property shift', className: 'bg-indigo-500/15 text-indigo-400' }
-  if (/padding|spacing/.test(t)) return { label: 'Padding discrepancy', className: 'bg-indigo-500/15 text-indigo-400' }
-  if (/radius/.test(t)) return { label: 'Corner radius mismatch', className: 'bg-indigo-500/15 text-indigo-400' }
-  if (/size|weight/.test(t)) return { label: 'Typography shift', className: 'bg-indigo-500/15 text-indigo-400' }
-  return { label: 'Token mismatch', className: 'bg-slate-700 text-muted-foreground' }
-}
-
-// Pinned callout explaining exactly what the current drift is. Stays put
-// while the user inspects (until dismissed or another drift is opened).
-// Design drifts are grouped by category (one heading per group, not per
-// row); each property is an aligned key / A / B row where the A and B pills
-// are the resolution control — click to keep A or accept B, click the
-// selected one again to clear.
-function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentLine, incomingLine, onResolve, onClose }) {
-  const isDesign = drift.kind === 'design'
-  const codeCat =
-    /var\(|token|#[0-9a-f]{3,6}|oklch|--/i.test(`${currentLine ?? ''} ${incomingLine ?? ''}`)
-      ? { label: 'Token mismatch', className: 'bg-slate-700 text-muted-foreground' }
-      : { label: 'Code change', className: 'bg-indigo-500/15 text-indigo-400' } // matches classifyDiff's palette
-
-  const groups = []
-  if (isDesign) {
-    for (const d of drift.diffs) {
-      const cat = classifyDiff(d)
-      let g = groups.find((x) => x.cat.label === cat.label)
-      if (!g) groups.push((g = { cat, diffs: [] }))
-      g.diffs.push(d)
-    }
-  }
-  const sideOf = (d) => resolutions?.[`${drift.layerId}:${d.id}`]
-  const resolvedCount = isDesign ? drift.diffs.filter((d) => sideOf(d)).length : 0
-
-  const pill = (d, side, value) => {
-    const on = sideOf(d) === side
-    return (
-      <button
-        type="button"
-        onClick={() => onResolve?.(d.id, on ? null : side)}
-        title={on ? 'Click to clear' : side === 'A' ? 'Keep current (A)' : 'Accept incoming (B)'}
-        className={cn(
-          'flex min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors',
-          on
-            ? 'bg-slate-600 text-white shadow-sm'
-            : 'bg-slate-700 text-muted-foreground hover:bg-slate-600 hover:text-foreground'
-        )}
-      >
-        {on && <Check className="size-3.5 shrink-0" />}
-        <span className="shrink-0 text-[10px] opacity-70">{side}</span>
-        <span className="truncate">{value}</span>
-      </button>
-    )
-  }
-
-  return (
-    <div className="w-96 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm shadow-xl">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Drift {index + 1} of {total}
-          </p>
-          <p className="truncate text-base font-semibold text-foreground">{drift.label}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          title="Dismiss"
-          className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-slate-700 hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-
-      <div className="mt-3 space-y-3">
-        {isDesign ? (
-          groups.map((g) => (
-            <section key={g.cat.label}>
-              <span className={cn('inline-block rounded-full px-2.5 py-1 text-xs font-semibold', g.cat.className)}>
-                {g.cat.label}
-              </span>
-              <div className="mt-2 grid grid-cols-[6.5rem_1fr_1fr] items-center gap-x-2 gap-y-2">
-                {g.diffs.map((d) => (
-                  <div key={d.id} className="contents">
-                    <span className="truncate text-sm text-muted-foreground">{d.label}</span>
-                    {pill(d, 'A', d.optionA)}
-                    {pill(d, 'B', d.optionB)}
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))
-        ) : (
-          <section>
-            <span className={cn('inline-block rounded-full px-2.5 py-1 text-xs font-semibold', codeCat.className)}>
-              {codeCat.label}
-            </span>
-            <div className="mt-2 grid grid-cols-[5.5rem_1fr] items-start gap-x-2 gap-y-2">
-              <span className="pt-1 text-sm text-muted-foreground">Current</span>
-              <p className="rounded-md bg-destructive/10 px-2.5 py-1.5 font-mono text-xs break-words text-destructive/90">{currentLine || ' '}</p>
-              <span className="pt-1 text-sm text-muted-foreground">Incoming</span>
-              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 font-mono text-xs break-words text-emerald-400">{incomingLine}</p>
-            </div>
-          </section>
-        )}
-      </div>
-
-      {(isDesign || layerCodeTarget) && (
-        <div className="mt-3 flex items-center gap-1.5 border-t border-border/60 pt-2.5">
-          {isDesign && (
-            <>
-              <span
-                className={cn(
-                  'rounded-full px-2.5 py-1 text-xs font-medium',
-                  resolvedCount === drift.diffs.length ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
-                )}
-              >
-                {resolvedCount}/{drift.diffs.length} resolved
-              </span>
-              <button
-                type="button"
-                onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'A'))}
-                className="ml-auto rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
-              >
-                Keep all A
-              </button>
-              <button
-                type="button"
-                onClick={() => drift.diffs.forEach((d) => onResolve?.(d.id, 'B'))}
-                className="rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-slate-700 hover:text-foreground"
-              >
-                Accept all B
-              </button>
-            </>
-          )}
-          {!isDesign && layerCodeTarget && <span className="text-sm text-muted-foreground">{layerCodeTarget}</span>}
-        </div>
-      )}
-      {isDesign && layerCodeTarget && <p className="mt-2 text-sm text-muted-foreground">{layerCodeTarget}</p>}
-    </div>
-  )
-}
-
 // Compare-stage "Changes log": every modification so far — variant
 // selections, Block Assemble / Design System edits, presets, AI notes — as
 // rows you can Undo individually, or click to pan the canvas to the element
@@ -936,14 +796,14 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
 function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
   const total = entries.length
   return (
-    // `w-80` only while the panel is actually open (it needs a stable
-    // width for its scrollable list) — collapsed, the box shrinks to the
-    // button's own content width instead of silently reserving 320px of
-    // invisible layout space next to it, which used to push whatever sits
-    // to its left (the zoom pill) further out than necessary.
-    <div className={open ? 'w-80 max-w-[calc(100%-1.5rem)]' : ''}>
+    // `relative`, sized to just the button — the expanded panel is
+    // `absolute` (popped up above it via `bottom-full`), so opening it
+    // never changes this wrapper's own layout box. It used to grow to
+    // `w-80` in normal flow instead, which pushed whatever sits to its
+    // left (the zoom pill) further out the moment it opened.
+    <div className="relative">
       {open && (
-        <div className="mb-2 max-h-80 space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
+        <div className="absolute right-0 bottom-full mb-2 max-h-80 w-80 max-w-[calc(100vw-1.5rem)] space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
           {total === 0 && codeRows.length === 0 && (
             <p className="py-3 text-center text-muted-foreground">No changes yet — pick variants, assemble blocks, or annotate.</p>
           )}
@@ -1063,7 +923,6 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreview,
   reserve,
-  leftReserve = 0,
   listCollapsed,
   focus,
   resolutionCount,
@@ -1072,7 +931,6 @@ function MergeInfiniteCanvas({
   resolutions,
   extraLayers,
   onUndoChange,
-  onResolveDiff,
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -1082,7 +940,6 @@ function MergeInfiniteCanvas({
 }) {
   const { getFileLines, requestMergeFocus } = useWorkspace()
   const [driftIdx, setDriftIdx] = useState(-1)
-  const [driftHidden, setDriftHidden] = useState(null) // drift id whose card was dismissed
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(DEFAULT_LAYOUT)
@@ -1094,12 +951,10 @@ function MergeInfiniteCanvas({
   const [annotations, setAnnotations] = useState([])
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
-  const [driftCardOffset, setDriftCardOffset] = useState(null)
   const [zoomRowRight, setZoomRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
-  const driftCardRef = useRef(null)
   const zoomRowRef = useRef(null)
   const viewRef = useRef(view)
   const highlightRef = useRef(null)
@@ -1181,14 +1036,13 @@ function MergeInfiniteCanvas({
       const wy = (r.top + r.height / 2 - base.top - from.y) / k0
       const zoom = clampZoom(Math.max(from.zoom, layerId || line ? 110 : 80))
       const k1 = zoom / 100
-      // Center within the *visible* band, not the full container — a
-      // right-docked panel (the Block Deck) reserves space via `reserve`,
-      // and the left-docked Merge Changes wizard reserves space via
-      // `leftReserve`; either would otherwise leave the target centered
-      // (partly or fully) behind it.
+      // Center within the *visible* area, not the full container — when a
+      // right-docked panel (Block Deck, or the Merge Changes wizard)
+      // reserves space via `reserve`, the target would otherwise land
+      // centered behind it.
       const to = {
         zoom,
-        x: (CONTENT_START_X + leftReserve + (base.width - reserve)) / 2 - wx * k1,
+        x: (CONTENT_START_X + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
       }
       const t0 = performance.now()
@@ -1233,10 +1087,16 @@ function MergeInfiniteCanvas({
     const next = currentDrift < 0 ? (dir > 0 ? 0 : n - 1) : (currentDrift + dir + n) % n
     const d = drifts[next]
     setDriftIdx(next)
-    setDriftHidden(null)
+    // `openDeck: true`, not `keepDeck` — the canvas's own floating drift
+    // popover is gone (its detail now lives inline in the Block Deck's
+    // Compare tab), so the pager needs the deck actually forced open to
+    // show anything for the drift it just jumped to; `keepDeck` alone
+    // would only avoid closing an already-open deck, not open a closed
+    // one. `noPan` stays: quickly paging through drifts still shouldn't
+    // yank the camera around, only select/highlight.
     requestMergeFocus({
       itemId: item.id,
-      keepDeck: true,
+      openDeck: true,
       noPan: true,
       label: d.label,
       ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
@@ -1703,56 +1563,6 @@ function MergeInfiniteCanvas({
   // ActivityBar toggle reclaims that space for them too.
   const leftInset = listCollapsed ? 16 : 296
 
-  // Drift popover placement: defaults to a fixed top-left spot (clearing
-  // the Merge List panel via `leftInset`) so it doesn't jump around as you
-  // page through drifts with the < > navigator — but if that fixed spot
-  // would land squarely on top of the very target it's describing (the
-  // highlighted layer or code line), nudge it to the nearest clear area
-  // next to the target instead, so the thing being explained is never
-  // hidden under the card explaining it. Content/size stays identical;
-  // only the left/top offset changes.
-  useLayoutEffect(() => {
-    setDriftCardOffset(null)
-    const d = stage === 'compare' && currentDrift >= 0 ? drifts[currentDrift] : null
-    const c = containerRef.current
-    const card = driftCardRef.current
-    if (!d || !c || !card) return
-    const selector =
-      d.kind === 'design'
-        ? `[data-frame-key="a"] [data-layer-id="${d.layerId}"]`
-        : `[data-code-line="${d.fileId}:${d.line}"]`
-    const raf = requestAnimationFrame(() => {
-      const targetEl = c.querySelector(selector)
-      if (!targetEl) return
-      const base = c.getBoundingClientRect()
-      const t = targetEl.getBoundingClientRect()
-      const target = { left: t.left - base.left, top: t.top - base.top, right: t.right - base.left, bottom: t.bottom - base.top }
-      const defaultLeft = leftInset
-      const defaultTop = 100
-      const w = card.offsetWidth || 384
-      const h = card.offsetHeight || 200
-      const overlaps =
-        defaultLeft < target.right && defaultLeft + w > target.left && defaultTop < target.bottom && defaultTop + h > target.top
-      if (!overlaps) return
-      // Prefer sliding just right of the target; if that would run off the
-      // visible canvas, drop below it instead — both clamped on-screen.
-      const maxLeft = Math.max(16, base.width - w - 16)
-      const maxTop = Math.max(16, base.height - h - 16)
-      let left = target.right + 16
-      let top = defaultTop
-      if (left > maxLeft) {
-        left = defaultLeft
-        top = Math.min(target.bottom + 16, maxTop)
-      }
-      setDriftCardOffset({ left: Math.min(Math.max(left, 16), maxLeft), top: Math.min(Math.max(top, 16), maxTop) })
-    })
-    return () => cancelAnimationFrame(raf)
-    // `drifts` is rebuilt every render; keying off `currentDrift`/`item.id`
-    // (which the array's own contents are derived from) avoids re-running
-    // this on every render while still catching the drift that matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, currentDrift, item.id, leftInset, view.zoom, view.x, view.y])
-
   // Zoom pill + Changes Log placement: right-anchored at `right-3` by
   // default, but the AI chat bar is independently centered on the *whole*
   // viewport — at narrower windows its right edge can reach past where
@@ -1937,22 +1747,6 @@ function MergeInfiniteCanvas({
           ))}
         </svg>
 
-        {links.paths.map((p, i) => {
-          // Shrink the pill with the gap it sits in; hide it when the gap
-          // is too tight to hold it without touching a card border.
-          const fit = p.axis === 'v' ? Math.min(1, (p.gap - 6) / 28) : Math.min(1, (p.gap - 16) / 108)
-          if (fit < (p.axis === 'v' ? 0.6 : 0.55)) return null
-          return (
-          <span
-            key={i}
-            style={{ left: p.mid.x, top: p.mid.y, transform: `translate(-50%, -50%) scale(${fit})` }}
-            className="pointer-events-none absolute z-10 rounded-full border border-lime-400/60 bg-card/95 px-2.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_12px_rgba(163,230,53,0.35)]"
-          >
-            {p.label}
-          </span>
-          )
-        })}
-
         {/* Dimension overlay: a subtle width × height readout under each
             "strong" (actually-selected, not just linked) box — divided
             back out of the current zoom so it reads the element's real
@@ -1965,7 +1759,7 @@ function MergeInfiniteCanvas({
             <span
               key={`dim-${b.key}`}
               style={{ left: b.x + b.w / 2, top: b.y + b.h + 6 }}
-              className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-full border border-lime-400/60 bg-card/95 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_10px_rgba(163,230,53,0.3)]"
+              className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
             >
               {Math.round((b.w - 6) / (view.zoom / 100))} × {Math.round((b.h - 6) / (view.zoom / 100))}
             </span>
@@ -2037,7 +1831,13 @@ function MergeInfiniteCanvas({
         {/* Contextual sub-toolbar directly under the header: the drift
             navigator (when there's more than one) sits right next to the
             main [Merge Changes] CTA, so review and merge live in the same
-            row instead of the CTA being off in the top header. */}
+            row instead of the CTA being off in the top header. Hidden
+            entirely once the wizard modal takes over (`stage` stops being
+            'compare') — its own header already covers the same ground
+            (step progress instead of the pager, since drift detail now
+            lives in the Block Deck), so leaving this up too would just be
+            redundant, clashing UI. */}
+        {stage === 'compare' && (
         <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
@@ -2050,14 +1850,12 @@ function MergeInfiniteCanvas({
                 >
                   <ChevronLeft className="size-4.5" />
                 </button>
-                <button
-                  type="button"
-                  title={currentDrift >= 0 ? 'Show / hide drift details' : 'Jump between drifts'}
-                  onClick={() => currentDrift >= 0 && setDriftHidden((h) => (h === drifts[currentDrift].id ? null : drifts[currentDrift].id))}
-                  className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums hover:bg-muted"
-                >
+                {/* Plain label, not a button — drift detail now lives inline
+                    in the Block Deck's Compare tab (no more floating
+                    popover here for this to show/hide). */}
+                <span className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums">
                   Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
-                </button>
+                </span>
                 <button
                   type="button"
                   onClick={() => goDrift(1)}
@@ -2090,40 +1888,7 @@ function MergeInfiniteCanvas({
             </button>
           </div>
         </div>
-
-        {/* Drift detail card: defaults to a fixed top-left spot in the canvas
-            (clearing the Merge List panel via `leftInset`) so it doesn't
-            jump around as you page through drifts with the < > navigator —
-            auto-offset (see the layout effect above) only when that spot
-            would otherwise cover the target it's describing. Hidden once a
-            review step (Check/Preview/Review/Deploy) takes over — the step
-            review modal is the one showing drift detail then. */}
-        {stage === 'compare' && currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
-          const d = drifts[currentDrift]
-          const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
-          const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
-          const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
-          return (
-            <div
-              ref={driftCardRef}
-              style={driftCardOffset ?? { left: leftInset, top: 100 }}
-              className="absolute z-30 transition-[left,top] duration-300"
-            >
-              <DriftCard
-                drift={d}
-                index={currentDrift}
-                total={drifts.length}
-                resolutions={resolutions}
-                layerCodeTarget={linked ? `Affects ${openFiles.find((f) => f.id === linked.fileId)?.name ?? linked.fileId} · line ${linked.line}` : null}
-                currentLine={original}
-                incomingLine={incoming}
-                onResolve={(diffId, side) => onResolveDiff?.(d.layerId, diffId, side)}
-                onClose={() => setDriftHidden(d.id)}
-              />
-            </div>
-          )
-        })()}
-
+        )}
       </div>
 
       {/* Bottom-right row: zoom pill sits directly beside the Changes Log

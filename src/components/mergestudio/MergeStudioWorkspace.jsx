@@ -279,10 +279,15 @@ function MergeStudioWorkspace({ item }) {
     if (!item || !mergeFocus || mergeFocus.target.itemId !== item.id) return
     if (handledFocus.current === mergeFocus.nonce) return
     handledFocus.current = mergeFocus.nonce
-    const { layerId, fileId, line, keepDeck } = mergeFocus.target
-    if (layerId) selectLayer(layerId, { openDeck: !keepDeck })
-    else if (fileId && line) selectLine(fileId, line, { openDeck: !keepDeck })
-    if (!keepDeck) setDeckOpen(false)
+    // `openDeck: true` forces the deck open (used by the canvas's own
+    // drift pager now that its floating popover is gone and the deck is
+    // the only place left showing drift detail); `keepDeck: true` leaves
+    // whatever the deck's current state is alone; neither set means the
+    // old default — a plain jump closes the deck so the canvas is clear.
+    const { layerId, fileId, line, keepDeck, openDeck: forceOpen } = mergeFocus.target
+    if (layerId) selectLayer(layerId, { openDeck: forceOpen ?? !keepDeck })
+    else if (fileId && line) selectLine(fileId, line, { openDeck: forceOpen ?? !keepDeck })
+    if (!keepDeck && !forceOpen) setDeckOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeFocus, item?.id])
 
@@ -325,15 +330,16 @@ function MergeStudioWorkspace({ item }) {
     return () => setMergeCta(null)
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
-  // The Block Deck still docks right, so it keeps reserving space there.
-  const reserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
-  // The wizard now docks *left* by default (see MergeExecutionModal), so it
-  // reserves space on that side instead — whenever it's open (any step,
-  // not just Check), so a target being reviewed is never hidden behind the
-  // floating wizard window. Dragging the wizard elsewhere is the user
-  // taking over positioning themselves; the reserve still holds so it
-  // doesn't snap back to fighting for that space if they drag it back.
-  const leftReserve = mergeModal ? WIZARD_RESERVE : 0
+  const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
+  // The wizard docks right too (same side as the Block Deck), and reserves
+  // space there whenever it's open (any step, not just Check) so a target
+  // being reviewed is never hidden behind the floating wizard window.
+  // Dragging the wizard elsewhere is the user taking over positioning
+  // themselves; the reserve still holds so it doesn't snap back to
+  // fighting for that space if they drag it back. Takes whichever of the
+  // two reserves more, since both dock to the same edge.
+  const wizardReserve = mergeModal ? WIZARD_RESERVE : 0
+  const reserve = Math.max(deckReserve, wizardReserve)
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
 
   return (
@@ -342,7 +348,6 @@ function MergeStudioWorkspace({ item }) {
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={reserve}
-          leftReserve={leftReserve}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length}
@@ -352,7 +357,6 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           extraLayers={addedLayers}
           onUndoChange={undoChange}
-          onResolveDiff={resolveDiff}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
@@ -382,7 +386,6 @@ function MergeStudioWorkspace({ item }) {
       {item && (
         <BlockDeckPanel
           open={deckOpen}
-          onClose={() => setDeckOpen(false)}
           onFloat={() => setDeckFloating(true)}
           item={item}
           selectedLayerId={deckLayerId}
