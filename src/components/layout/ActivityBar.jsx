@@ -121,7 +121,7 @@ function ActivityBar({ dockApi }) {
           >
             <Bell className="size-[18px]" />
             {activeView === 'mergeStudio' && unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex min-w-3.5 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1 text-[9px] leading-[14px] font-semibold text-white">
+              <span className="absolute top-1 right-1 flex min-w-3.5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] leading-[14px] font-semibold text-white">
                 {unreadCount}
               </span>
             )}

@@ -73,10 +73,10 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, hig
   return (
     <div
       data-code-scroll
-      className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-slate-800 font-mono text-[11px] leading-relaxed"
+      className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-slate-900 font-mono text-[11px] leading-relaxed"
     >
       <div>
-        <p className="sticky top-0 z-10 border-b bg-slate-800 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <p className="sticky top-0 z-10 border-b bg-slate-900 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
           Code A
         </p>
         <div className="py-2">
@@ -102,7 +102,7 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, hig
         </div>
       </div>
       <div>
-        <p className="sticky top-0 z-10 border-b bg-slate-800 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <p className="sticky top-0 z-10 border-b bg-slate-900 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
           Code B
         </p>
         <div className="py-2">
@@ -198,12 +198,12 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
     <div
       ref={rootRef}
       data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-slate-800 shadow-lg will-change-transform active:cursor-grabbing"
+      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-slate-900/60 px-1.5 pt-1.5">
+      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-slate-950 px-1.5 pt-1.5">
         <GripHorizontal className="mr-1 size-3.5 shrink-0 text-muted-foreground/50" />
         {files.map((file) => {
           const meta = getFileIconMeta(file.name)
@@ -215,7 +215,7 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
               onClick={() => setActiveFileId(file.id)}
               className={cn(
                 'flex shrink-0 items-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
-                active ? 'bg-slate-800 text-foreground' : 'text-muted-foreground hover:text-foreground'
+                active ? 'bg-slate-900 text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <meta.Icon className={cn('size-3 shrink-0', meta.colorClass)} />
@@ -602,7 +602,7 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
           }
         }}
         title={expanded ? undefined : 'Edit with AI'}
-        className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white transition-transform hover:scale-105"
+        className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600"
       >
         <Sparkles className="size-3.5" />
       </button>
@@ -630,7 +630,7 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
         disabled={!text.trim()}
         title="Apply"
         className={cn(
-          'flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white transition-opacity disabled:opacity-40',
+          'flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600 disabled:opacity-40',
           !expanded && 'pointer-events-none opacity-0'
         )}
       >
@@ -714,7 +714,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
         <button
           type="submit"
           disabled={!dirty}
-          className="shrink-0 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1 text-[10px] font-semibold text-white transition-opacity disabled:opacity-40"
+          className="shrink-0 rounded-full bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
         >
           Save
         </button>
@@ -737,7 +737,7 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
           'absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10px] font-bold text-white shadow-lg ring-2 ring-card',
           annotation.status === 'pending'
             ? 'bg-slate-700 ring-violet-500'
-            : 'bg-gradient-to-r from-indigo-500 to-violet-500'
+            : 'bg-slate-600 ring-indigo-500'
         )}
       >
         {pin.n}
@@ -760,11 +760,14 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
 // What kind of discrepancy a variant diff is, for the drift explainer.
 function classifyDiff(diff) {
   const t = `${diff.id} ${diff.label}`.toLowerCase()
-  if (/color|accent|background|fill|chip/.test(t)) return { label: 'Color property shift', className: 'bg-violet-500/15 text-violet-400' }
-  if (/padding|spacing/.test(t)) return { label: 'Padding discrepancy', className: 'bg-amber-500/15 text-amber-500' }
+  // A cohesive two-tone system: any real property change reads as indigo,
+  // and a plain token reference (nothing to resolve) reads as neutral
+  // slate — instead of a different accent hue per category.
+  if (/color|accent|background|fill|chip/.test(t)) return { label: 'Color property shift', className: 'bg-indigo-500/15 text-indigo-400' }
+  if (/padding|spacing/.test(t)) return { label: 'Padding discrepancy', className: 'bg-indigo-500/15 text-indigo-400' }
   if (/radius/.test(t)) return { label: 'Corner radius mismatch', className: 'bg-indigo-500/15 text-indigo-400' }
-  if (/size|weight/.test(t)) return { label: 'Typography shift', className: 'bg-sky-500/15 text-sky-500' }
-  return { label: 'Token mismatch', className: 'bg-muted text-muted-foreground' }
+  if (/size|weight/.test(t)) return { label: 'Typography shift', className: 'bg-indigo-500/15 text-indigo-400' }
+  return { label: 'Token mismatch', className: 'bg-slate-700 text-muted-foreground' }
 }
 
 // Pinned callout explaining exactly what the current drift is. Stays put
@@ -778,7 +781,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
   const codeCat =
     /var\(|token|#[0-9a-f]{3,6}|oklch|--/i.test(`${currentLine ?? ''} ${incomingLine ?? ''}`)
       ? { label: 'Token mismatch', className: 'bg-slate-700 text-muted-foreground' }
-      : { label: 'Code change', className: 'bg-indigo-500/15 text-indigo-400' }
+      : { label: 'Code change', className: 'bg-indigo-500/15 text-indigo-400' } // matches classifyDiff's palette
 
   const groups = []
   if (isDesign) {
@@ -802,7 +805,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
         className={cn(
           'flex min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors',
           on
-            ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm'
+            ? 'bg-slate-600 text-white shadow-sm'
             : 'bg-slate-700 text-muted-foreground hover:bg-slate-600 hover:text-foreground'
         )}
       >
@@ -814,7 +817,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
   }
 
   return (
-    <div className="w-96 rounded-2xl border border-white/10 bg-slate-800 p-4 text-sm shadow-xl">
+    <div className="w-96 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm shadow-xl">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -960,7 +963,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
       >
         <ListChecks className="size-4 text-indigo-500" />
         Changes log
-        <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2 text-xs text-white">{total}</span>
+        <span className="rounded-full bg-indigo-500/20 px-2 text-xs text-indigo-300">{total}</span>
         <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
@@ -994,7 +997,7 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               onClick={() => onOpenStep(i - 1)}
               className={cn(
                 'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                active && 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30',
+                active && 'bg-slate-700 text-white',
                 done && 'text-emerald-400',
                 !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
               )}
@@ -1811,11 +1814,11 @@ function MergeInfiniteCanvas({
           ))}
           {links.paths.map((p, i) => (
             <g key={i}>
-              <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.55} strokeLinecap="round" filter="url(#neon-glow)" />
-              <path d={p.d} fill="none" stroke="url(#neon-link)" strokeWidth={2.5} strokeLinecap="round" />
+              <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.32} strokeLinecap="round" filter="url(#neon-glow)" />
+              <path d={p.d} fill="none" stroke="url(#neon-link)" strokeWidth={2.5} strokeOpacity={0.85} strokeLinecap="round" />
               {[p.from, p.to].map((pt, j) => (
                 <g key={j}>
-                  <circle cx={pt.x} cy={pt.y} r={9} fill="#a3e635" fillOpacity={0.22} filter="url(#neon-glow)" />
+                  <circle cx={pt.x} cy={pt.y} r={9} fill="#a3e635" fillOpacity={0.14} filter="url(#neon-glow)" />
                   <circle cx={pt.x} cy={pt.y} r={4} fill="#d9f99d" stroke="#a3e635" strokeWidth={1.5} />
                 </g>
               ))}
@@ -1882,7 +1885,7 @@ function MergeInfiniteCanvas({
               <Sparkles className="size-3.5 text-violet-500" />
               Apply with AI
               {pendingCount > 0 && (
-                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-1.5 text-[10px] text-white">
+                <span className="rounded-full bg-indigo-500/20 px-1.5 text-[10px] text-indigo-300">
                   {pendingCount}
                 </span>
               )}
@@ -1896,20 +1899,20 @@ function MergeInfiniteCanvas({
         {drifts.length > 1 && (
           <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
             <div className="pointer-events-auto">
-            <div className="relative flex items-center gap-0.5 rounded-full border bg-card/90 p-1 text-xs shadow-lg backdrop-blur-md">
+            <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => goDrift(-1)}
                 title="Previous drift"
-                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <ChevronLeft className="size-4" />
+                <ChevronLeft className="size-4.5" />
               </button>
               <button
                 type="button"
                 title={currentDrift >= 0 ? 'Show / hide drift details' : 'Jump between drifts'}
                 onClick={() => currentDrift >= 0 && setDriftHidden((h) => (h === drifts[currentDrift].id ? null : drifts[currentDrift].id))}
-                className="min-w-16 rounded-full px-1 text-center font-medium text-foreground tabular-nums hover:bg-muted"
+                className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums hover:bg-muted"
               >
                 Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
               </button>
@@ -1917,9 +1920,9 @@ function MergeInfiniteCanvas({
                 type="button"
                 onClick={() => goDrift(1)}
                 title="Next drift"
-                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-4.5" />
               </button>
 
             </div>
@@ -2001,23 +2004,23 @@ function MergeInfiniteCanvas({
             Merge List panel via `leftInset` (matching the header's
             treatment) so it's never hidden behind it. */}
         <div
-          className="absolute bottom-3 z-20 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm transition-[left] duration-300"
+          className="absolute bottom-3 z-20 flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm transition-[left] duration-300"
           style={{ left: leftInset }}
         >
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Minus className="size-3.5" />
+            <Minus className="size-4" />
           </button>
-          <span className="w-10 text-center tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
+          <span className="w-12 text-center text-sm tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
           <button
             type="button"
             onClick={() => zoomFromCenter(ZOOM_STEP)}
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Plus className="size-3.5" />
+            <Plus className="size-4" />
           </button>
           <button
             type="button"
@@ -2026,9 +2029,9 @@ function MergeInfiniteCanvas({
               setView(fitView(DEFAULT_LAYOUT))
               setLayout(DEFAULT_LAYOUT)
             }}
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Maximize className="size-3.5" />
+            <Maximize className="size-4" />
           </button>
         </div>
       </div>

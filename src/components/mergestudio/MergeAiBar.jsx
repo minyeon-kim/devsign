@@ -121,7 +121,7 @@ function MergeAiBar() {
           type="submit"
           disabled={!input.trim() && images.length === 0}
           title="Send"
-          className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white transition-opacity disabled:opacity-40"
+          className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
         >
           <ArrowUp className="size-4.5" />
         </button>

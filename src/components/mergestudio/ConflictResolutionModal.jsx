@@ -192,7 +192,7 @@ function ConflictResolutionModal({ item, onClose }) {
                   'flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
                   aiApplied
                     ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                    : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/30 hover:brightness-110'
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
                 )}
               >
                 {aiApplied ? <Check className="size-3.5" /> : <Wand2 className="size-3.5" />}

@@ -114,7 +114,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                               onRollback(event)
                               setConfirmId(null)
                             }}
-                            className="flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1 text-[10px] font-semibold text-white"
+                            className="flex items-center gap-1 rounded-full bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600"
                           >
                             <RotateCcw className="size-3" />
                             Confirm rollback

@@ -101,12 +101,10 @@ function AccordionFilterSection({ label, options, value, onChange }) {
 // theme-consistent glows/tints) on top of the normal tinted-border active
 // state, so the open item is unmistakable at a glance versus merely
 // hovered/selected-but-not-open.
-const statusTagClass = {
-  'In Progress': 'bg-indigo-500/15 text-indigo-400',
-  'Needs Review': 'bg-violet-500/15 text-violet-400',
-  Draft: 'bg-muted text-muted-foreground',
-  Merged: 'bg-emerald-500/15 text-emerald-400',
-}
+// One muted, harmonious tone for every status — the label text alone (In
+// Progress / Needs Review / Draft / Merged) carries the meaning, so the
+// chip itself doesn't need to compete in a different color per value.
+const STATUS_CHIP_CLASS = 'bg-indigo-500/10 text-indigo-300'
 
 // One scannable card: title is the strongest element (with the status pill
 // beside it, tinted per status), the file/subtitle line is quiet, and a
@@ -119,7 +117,7 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
       type="button"
       onClick={() => onSelect(item.id)}
       className={cn(
-        'flex w-full flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-all',
+        'flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all',
         // Selected state: a solid, brighter slate surface plus a soft accent
         // ring — no heavy border, and none of the text dims against it (see
         // the subtitle/meta spans below), so it stays sharp, not washed out.
@@ -128,25 +126,25 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
           : 'border-white/10 bg-slate-800/70 hover:border-primary/40 hover:bg-slate-700/70'
       )}
     >
-      <div className="flex w-full items-start justify-between gap-2">
-        <span className="min-w-0 flex-1 text-[13px] leading-snug font-semibold text-foreground">
+      <div className="flex w-full items-center justify-between gap-2">
+        <span className="min-w-0 flex-1 text-sm leading-snug font-semibold text-foreground">
           {item.title}
         </span>
         <span
           className={cn(
-            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
-            statusTagClass[item.tag] ?? 'bg-muted text-muted-foreground'
+            'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap',
+            STATUS_CHIP_CLASS
           )}
         >
           {item.tag}
         </span>
       </div>
 
-      <span className={cn("text-[11px] leading-snug", active ? "text-foreground/90" : "text-muted-foreground")}>{item.subtitle}</span>
+      <span className={cn("text-xs leading-snug", active ? "text-foreground/90" : "text-muted-foreground")}>{item.subtitle}</span>
 
       <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/60 pt-2.5">
-        <span className={cn("text-[10px]", active ? "text-muted-foreground" : "text-muted-foreground/70")}>{item.updatedLabel}</span>
-        {item.conflictLevel && (
+        <span className={cn("text-[11px]", active ? "text-muted-foreground" : "text-muted-foreground/70")}>{item.updatedLabel}</span>
+        {item.conflictLevel && item.conflictLevel !== 'None' && (
           <span
             role={item.conflictLevel !== 'None' ? 'button' : undefined}
             tabIndex={item.conflictLevel !== 'None' ? 0 : undefined}
@@ -163,18 +161,18 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
               }
             }}
             className={cn(
-              'rounded-full px-2 py-0.5 text-[10px] font-medium',
+              'rounded-full px-2 py-0.5 text-[11px] font-medium',
               conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None,
               item.conflictLevel !== 'None' && 'cursor-pointer ring-1 ring-current/30 transition-all hover:ring-2'
             )}
           >
-            {item.conflictLevel} conflict
+            {item.conflictLevel}
           </span>
         )}
         {item.dueLabel && (
           <span
             className={cn(
-              'ml-auto text-[10px]',
+              'ml-auto text-[11px]',
               item.dueBucket === 'overdue' ? 'font-medium text-destructive' : active ? 'text-muted-foreground' : 'text-muted-foreground/70'
             )}
           >
@@ -238,9 +236,9 @@ function MergeListSidebar() {
       <div className="flex h-full min-w-72 flex-1 flex-col">
       <div className="shrink-0 space-y-3.5 border-b p-4">
         <div className="flex items-center justify-between">
-          <p className="flex items-baseline gap-1.5 text-sm font-semibold text-foreground">
+          <p className="flex items-baseline gap-2 text-base font-semibold text-foreground">
             Merge List
-            <span className="text-[11px] font-normal text-muted-foreground">{visible.length}</span>
+            <span className="text-xs font-normal text-muted-foreground">{visible.length}</span>
           </p>
           <div className="flex items-center gap-1">
             {hasActiveFilters && (
@@ -268,12 +266,12 @@ function MergeListSidebar() {
         </div>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search merge items..."
-            className="h-8 w-full rounded-full border bg-slate-800 pr-3 pl-8 text-xs outline-none focus:ring-1 focus:ring-primary"
+            className="h-9 w-full rounded-full border bg-slate-800 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 

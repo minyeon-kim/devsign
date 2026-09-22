@@ -100,7 +100,7 @@ function InboxItem({ n, onJump }) {
                 <button
                   type="submit"
                   disabled={!draft.trim()}
-                  className="flex size-6 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white disabled:opacity-40"
+                  className="flex size-6 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
                   <Send className="size-3" />
                 </button>
@@ -146,7 +146,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
             onClick={() => setTab(id)}
             className={cn(
               'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-              tab === id ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              tab === id ? 'bg-slate-700 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
             {label}
