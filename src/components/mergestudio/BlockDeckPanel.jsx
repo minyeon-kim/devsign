@@ -603,12 +603,16 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                 <p className="truncate text-xs text-muted-foreground">
                   {mode === 'replace' ? `Replaces ${selectedLayer.name}` : mode === 'insert' ? `Inserts into ${selectedLayer.name}` : def.tokens.join(' · ')}
                 </p>
-                <div className="mt-2 flex gap-1.5">
+                {/* Fixed 2-col grid instead of a flex row — "Replace"/"Insert"
+                    and "Add to canvas" each get a stable half-width cell, so
+                    the longer label never wraps or gets squeezed. Alone
+                    (no mode), "Add to canvas" spans both columns. */}
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   {mode === 'replace' && (
                     <button
                       type="button"
                       onClick={() => onApply(def)}
-                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Replace
                     </button>
@@ -617,7 +621,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                     <button
                       type="button"
                       onClick={() => onInsert(def)}
-                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Insert
                     </button>
@@ -626,7 +630,8 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                     type="button"
                     onClick={() => onAdd(def)}
                     className={cn(
-                      'rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap',
+                      'w-full truncate rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap',
+                      !mode && 'col-span-2',
                       mode ? 'border border-indigo-500/50 text-foreground hover:bg-indigo-500/15' : 'bg-slate-700 text-foreground hover:bg-slate-600'
                     )}
                   >

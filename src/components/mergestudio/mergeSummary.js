@@ -63,6 +63,44 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
   }
 }
 
+// Every drift between Option A/Current and Option B/Incoming for an item —
+// design property diffs (grouped per layer) plus raw code-line diffs, with
+// a code line dropped when it's already covered by a design layer's own
+// code-span (see `layerCodeMap`): that's the *same* underlying change, so
+// counting it again as a separate "code" drift would be a redundant
+// duplicate — and, since selecting that line reverse-syncs back to the
+// owning layer, it could make `< >` navigation loop back on itself.
+// Shared by the canvas's own drift pager and the merge wizard's Check step,
+// so both walk the exact same list.
+export function buildDrifts(item, frame) {
+  const layerDiffMap = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+  const codeCoveredByDesign = (fileId, line) =>
+    Object.values(codeMap).some((t) => t.fileId === fileId && line >= t.line && line <= t.line + (t.span ?? 1) - 1)
+  return [
+    ...(frame?.layers ?? [])
+      .filter((l) => layerDiffMap[l.id])
+      .map((l) => ({
+        id: `d:${l.id}`,
+        kind: 'design',
+        layerId: l.id,
+        diffs: layerDiffMap[l.id],
+        label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
+      })),
+    ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
+      diffs
+        .filter((d) => !codeCoveredByDesign(fileId, d.line))
+        .map((d) => ({
+          id: `c:${fileId}:${d.line}`,
+          kind: 'code',
+          fileId,
+          line: d.line,
+          label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
+        }))
+    ),
+  ]
+}
+
 // Staged/merged design output: the artboard frame (plus library layers) and a
 // per-layer override map with every variant choice, AI edit, Block Assemble
 // edit and applied preset baked in. Used by the responsive Preview.

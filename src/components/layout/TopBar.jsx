@@ -1,5 +1,4 @@
-import { ArrowLeft, Check, GitMerge, PanelRight, Search, Sparkles } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowLeft, PanelRight, Search, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Logo from '@/components/layout/Logo'
@@ -9,7 +8,7 @@ import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function TopBar({ previewOpen, onTogglePreview, dockApi }) {
-  const { activeView, exitMergeStudio, mergeCta } = useWorkspace()
+  const { activeView, exitMergeStudio } = useWorkspace()
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
@@ -49,29 +48,11 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
       <div className="ml-auto flex shrink-0 items-center gap-3">
         <LayoutMenu dockApi={dockApi} />
         <UserPresence />
-        {inMergeStudio ? (
-          // Already inside Merge Studio: the entry button is replaced by the
-          // primary Merge Changes CTA.
-          <button
-            type="button"
-            disabled={!mergeCta || mergeCta.merged}
-            onClick={() => mergeCta?.open()}
-            className={cn(
-              'flex h-7 items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all disabled:cursor-default',
-              mergeCta?.merged
-                ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30 hover:brightness-110 disabled:opacity-50'
-            )}
-          >
-            {mergeCta?.merged ? <Check className="size-3.5" /> : <GitMerge className="size-3.5" />}
-            {mergeCta?.merged ? 'Merged' : 'Merge Changes'}
-            {!mergeCta?.merged && mergeCta?.count > 0 && (
-              <span className="rounded-full bg-white/20 px-1.5 text-[10px]">{mergeCta.count}</span>
-            )}
-          </button>
-        ) : (
-          <MergeStudioMenu />
-        )}
+        {/* The [Merge Changes] CTA moved into the canvas's own drift-nav
+            row (right beside the drift pager), so it lives in the review
+            context instead of the top header. Outside Merge Studio, this
+            slot is still the entry point into it. */}
+        {!inMergeStudio && <MergeStudioMenu />}
         <Button
           variant={previewOpen ? 'default' : 'outline'}
           size="sm"

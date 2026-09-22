@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Git
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
-import { buildSummary } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -23,7 +23,7 @@ const ARTBOARD_PREVIEW_WIDTH = 260
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, onClick, lineRef, linked, hovered, onHover }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover }) {
   const tokens = tokenizeLine(text, language)
   return (
     <div
@@ -35,7 +35,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
-        'flex cursor-pointer gap-3 border-l border-transparent px-3 hover:bg-muted/40',
+        'flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
         linked && 'border-lime-400/30',
         hovered && !highlighted && 'border-lime-400/70',
         highlighted && 'border-lime-400',
@@ -43,6 +43,18 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       )}
     >
       <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
+      {/* The unified diff's own gutter mark — a bare `-`/`+` (no line
+          renumbering, git-diff style) — separate from the line number
+          above, which stays the file's real line for every row. */}
+      <span
+        className={cn(
+          'w-3 shrink-0 text-center font-bold select-none',
+          diffMark === '-' && 'text-destructive',
+          diffMark === '+' && 'text-emerald-400'
+        )}
+      >
+        {diffMark}
+      </span>
       {/* min-w-0 lets this span actually shrink below its content's
           intrinsic width so pre-wrap can kick in, instead of the row
           growing past the card and needing horizontal scroll. */}
@@ -61,72 +73,80 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
   )
 }
 
-// A file's two-column diff — "Code A · Current" next to "Code B ·
-// Incoming" — mirroring the design artboards' Option A/Option B, but for
-// code. Lines with a mock diff entry (`codeMergeVariants`) get
-// removed/added-style tinting on each side; everything else renders
-// identically on both, same as a design layer with no mock property diff.
-function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
+// A single vertical, git-style unified diff — no more Code A / Code B
+// columns (or file tabs' worth of split panes) to compare side by side.
+// An unchanged line renders once, plain. A changed line renders as a
+// removed row (`-`, red) directly above the added row (`+`, green) it was
+// replaced by, so the whole file reads top-to-bottom in one pass.
+function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
   const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
 
   return (
     <div
       data-code-scroll
-      className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-slate-900 font-mono text-[11px] leading-relaxed"
+      className="relative min-h-0 flex-1 overflow-auto bg-slate-900 font-mono text-[11px] leading-relaxed"
     >
-      <div>
-        <p className="sticky top-0 z-10 border-b bg-slate-900 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Code A
-        </p>
-        <div className="py-2">
-          {lines.map((line, i) => {
-            const lineNumber = i + 1
+      <div className="py-2">
+        {lines.map((line, i) => {
+          const lineNumber = i + 1
+          const incoming = incomingEdits?.[`${file.id}:${lineNumber}`] ?? diffByLine.get(lineNumber)
+          const changed = incoming !== undefined
+          const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
+          const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
+          const linked = linkedLines?.has(`${file.id}:${lineNumber}`)
+          const onHover = (n) => onHoverLine?.(file.id, n)
+          const onClick = (e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)
+
+          if (!changed) {
             return (
               <CodeLine
                 key={i}
-                lineRef={highlightLine === lineNumber ? highlightRef : undefined}
+                lineRef={isHighlighted ? highlightRef : undefined}
                 lineKey={`${file.id}:${lineNumber}`}
                 lineNumber={lineNumber}
                 text={line}
                 language={file.language}
-                highlighted={inRange(lineNumber, highlightLine, highlightEnd)}
-                accentClass={diffByLine.has(lineNumber) ? 'border-destructive/60' : undefined}
-                onClick={(e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)}
-                linked={linkedLines?.has(`${file.id}:${lineNumber}`)}
-                hovered={hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)}
-                onHover={(n) => onHoverLine?.(file.id, n)}
+                highlighted={isHighlighted}
+                onClick={onClick}
+                linked={linked}
+                hovered={isHovered}
+                onHover={onHover}
               />
             )
-          })}
-        </div>
-      </div>
-      <div>
-        <p className="sticky top-0 z-10 border-b bg-slate-900 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Code B
-        </p>
-        <div className="py-2">
-          {lines.map((line, i) => {
-            const lineNumber = i + 1
-            const incoming = incomingEdits?.[`${file.id}:${lineNumber}`] ?? diffByLine.get(lineNumber)
-            const text = incoming ?? line
-            return (
+          }
+          return (
+            <div key={i} data-diff-pair={changed ? 'true' : undefined}>
               <CodeLine
-                key={i}
+                lineRef={isHighlighted ? highlightRef : undefined}
+                lineKey={`${file.id}:${lineNumber}`}
                 lineNumber={lineNumber}
-                text={text}
-                lineKey={`${file.id}:${lineNumber}:b`}
+                text={line}
                 language={file.language}
-                highlighted={inRange(lineNumber, highlightLine, highlightEnd)}
-                accentClass={incoming !== undefined ? 'border-emerald-500/60' : undefined}
-                onClick={(e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)}
-                linked={linkedLines?.has(`${file.id}:${lineNumber}`)}
-                hovered={hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)}
-                onHover={(n) => onHoverLine?.(file.id, n)}
+                highlighted={isHighlighted}
+                accentClass="border-destructive/60 bg-destructive/10"
+                diffMark="-"
+                onClick={onClick}
+                linked={linked}
+                hovered={isHovered}
+                onHover={onHover}
               />
-            )
-          })}
-        </div>
+              <CodeLine
+                lineNumber={lineNumber}
+                text={incoming}
+                lineKey={`${file.id}:${lineNumber}:incoming`}
+                language={file.language}
+                highlighted={isHighlighted}
+                accentClass="border-emerald-500/60 bg-emerald-500/10"
+                diffMark="+"
+                onClick={onClick}
+                linked={linked}
+                hovered={isHovered}
+                onHover={onHover}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -225,7 +245,7 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
         })}
       </div>
 
-      <CodeDiffColumns
+      <UnifiedDiffView
         incomingEdits={incomingEdits}
         file={activeFile}
         lines={getFileLines(activeFile.id)}
@@ -993,7 +1013,10 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
           <li key={s.id} className="flex items-center gap-1">
             <button
               type="button"
-              disabled={i === 0 || disabled}
+              // Strict progression: revisiting an already-passed step is
+              // fine, but you can only ever advance one step at a time —
+              // no jumping straight to e.g. Deploy from Compare/Check.
+              disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
                 'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
@@ -1167,40 +1190,10 @@ function MergeInfiniteCanvas({
   }, [focus?.nonce, item.id])
 
   // Drifts: every place Option A and Option B differ — design layers with
-  // variant diffs, then incoming code lines. The < > pager steps through
+  // variant diffs, then incoming code lines (`buildDrifts`, shared with the
+  // merge wizard's own step-review pager). The < > pager steps through
   // them: each jump selects the drift (neon outline) and pans to it.
-  const layerDiffMap = designMergeVariants[item.id]?.layerDiffs ?? {}
-  // A code line already covered by a design layer's own code-span (see
-  // `layerCodeMap` below) is the *same* underlying change as that layer's
-  // design drift — selecting it re-selects that layer via reverse-sync, so
-  // counting it again as its own standalone "code" drift is a redundant
-  // duplicate of an identical block, and previously deadlocked the pager
-  // (advancing past it snapped straight back to the owning design drift).
-  const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
-  const codeCoveredByDesign = (fileId, line) =>
-    Object.values(codeMap).some((t) => t.fileId === fileId && line >= t.line && line <= t.line + (t.span ?? 1) - 1)
-  const drifts = [
-    ...(frame?.layers ?? [])
-      .filter((l) => layerDiffMap[l.id])
-      .map((l) => ({
-        id: `d:${l.id}`,
-        kind: 'design',
-        layerId: l.id,
-        diffs: layerDiffMap[l.id],
-        label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
-      })),
-    ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
-      diffs
-        .filter((d) => !codeCoveredByDesign(fileId, d.line))
-        .map((d) => ({
-          id: `c:${fileId}:${d.line}`,
-          kind: 'code',
-          fileId,
-          line: d.line,
-          label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
-        }))
-    ),
-  ]
+  const drifts = buildDrifts(item, frame)
   const matchedDrift = drifts.findIndex((d) =>
     d.kind === 'design'
       ? syncSelection?.layerId === d.layerId
@@ -1877,8 +1870,10 @@ function MergeInfiniteCanvas({
           />
         )}
 
-        {/* Header row: macro stepper centered, Apply with AI / Merge Changes on
-            the right. Kept clear of the docked Block Deck via `reserve`. */}
+        {/* Header row: macro stepper centered, Apply with AI on the right
+            (the [Merge Changes] CTA itself now lives in the drift-nav row
+            below, next to the drift pager). Kept clear of the docked Block
+            Deck via `reserve`. */}
         <div
           className="absolute top-3 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3 transition-[left] duration-300"
           style={{ left: leftInset, right: 12 + reserve }}
@@ -1906,45 +1901,68 @@ function MergeInfiniteCanvas({
         </div>
 
         {/* Contextual sub-toolbar directly under the header: the drift
-            navigator and its pinned info card. */}
-        {drifts.length > 1 && (
-          <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
-            <div className="pointer-events-auto">
-            <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => goDrift(-1)}
-                title="Previous drift"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <ChevronLeft className="size-4.5" />
-              </button>
-              <button
-                type="button"
-                title={currentDrift >= 0 ? 'Show / hide drift details' : 'Jump between drifts'}
-                onClick={() => currentDrift >= 0 && setDriftHidden((h) => (h === drifts[currentDrift].id ? null : drifts[currentDrift].id))}
-                className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums hover:bg-muted"
-              >
-                Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
-              </button>
-              <button
-                type="button"
-                onClick={() => goDrift(1)}
-                title="Next drift"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <ChevronRight className="size-4.5" />
-              </button>
+            navigator (when there's more than one) sits right next to the
+            main [Merge Changes] CTA, so review and merge live in the same
+            row instead of the CTA being off in the top header. */}
+        <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
+          <div className="pointer-events-auto flex items-center gap-2">
+            {drifts.length > 1 && (
+              <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => goDrift(-1)}
+                  title="Previous drift"
+                  className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <ChevronLeft className="size-4.5" />
+                </button>
+                <button
+                  type="button"
+                  title={currentDrift >= 0 ? 'Show / hide drift details' : 'Jump between drifts'}
+                  onClick={() => currentDrift >= 0 && setDriftHidden((h) => (h === drifts[currentDrift].id ? null : drifts[currentDrift].id))}
+                  className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums hover:bg-muted"
+                >
+                  Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goDrift(1)}
+                  title="Next drift"
+                  className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <ChevronRight className="size-4.5" />
+                </button>
+              </div>
+            )}
 
-            </div>
-            </div>
+            <button
+              type="button"
+              disabled={merged}
+              onClick={() => onMerge(annotations)}
+              className={cn(
+                'flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                merged
+                  ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+                  : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110 disabled:opacity-50'
+              )}
+            >
+              {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
+              {merged ? 'Merged' : 'Merge Changes'}
+              {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
+                <span className="rounded-full bg-white/20 px-1.5 text-xs">
+                  {resolutionCount + annotations.filter((a) => a.status === 'done').length}
+                </span>
+              )}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Drift detail card: pinned to a fixed top-left spot in the canvas
             (clearing the Merge List panel via `leftInset`) so it never jumps
-            around as you page through drifts with the < > navigator. */}
-        {currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
+            around as you page through drifts with the < > navigator. Hidden
+            once a review step (Check/Preview/Review/Deploy) takes over —
+            the step review modal is the one showing drift detail then. */}
+        {stage === 'compare' && currentDrift >= 0 && driftHidden !== drifts[currentDrift].id && (() => {
           const d = drifts[currentDrift]
           const linked = d.kind === 'design' ? layerCodeMap[d.layerId] : null
           const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
