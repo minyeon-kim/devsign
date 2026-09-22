@@ -36,10 +36,15 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
+        // The diff tint (red/green background) stays on regardless of
+        // selection — only the left border changes to show the lime
+        // selection state on top of it. Dropping `accentClass` here used to
+        // wash the row back to plain/untinted the moment it was selected,
+        // hiding exactly the red/green diff it was selected to review.
+        accentClass,
         linked && 'border-lime-400/30',
         hovered && !highlighted && 'border-lime-400/70',
-        highlighted && 'border-lime-400',
-        !highlighted && accentClass
+        highlighted && 'border-lime-400'
       )}
     >
       <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
@@ -931,7 +936,12 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
 function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
   const total = entries.length
   return (
-    <div className="absolute right-3 bottom-3 z-20 w-80 max-w-[calc(100%-1.5rem)]">
+    // `w-80` only while the panel is actually open (it needs a stable
+    // width for its scrollable list) — collapsed, the box shrinks to the
+    // button's own content width instead of silently reserving 320px of
+    // invisible layout space next to it, which used to push whatever sits
+    // to its left (the zoom pill) further out than necessary.
+    <div className={open ? 'w-80 max-w-[calc(100%-1.5rem)]' : ''}>
       {open && (
         <div className="mb-2 max-h-80 space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
           {total === 0 && codeRows.length === 0 && (
@@ -1081,10 +1091,12 @@ function MergeInfiniteCanvas({
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
   const [driftCardOffset, setDriftCardOffset] = useState(null)
+  const [zoomRowRight, setZoomRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
   const driftCardRef = useRef(null)
+  const zoomRowRef = useRef(null)
   const viewRef = useRef(view)
   const highlightRef = useRef(null)
   const anchorElRef = useRef(null)
@@ -1736,6 +1748,36 @@ function MergeInfiniteCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, currentDrift, item.id, leftInset, view.zoom, view.x, view.y])
 
+  // Zoom pill + Changes Log placement: right-anchored at `right-3` by
+  // default, but the AI chat bar is independently centered on the *whole*
+  // viewport — at narrower windows its right edge can reach past where
+  // that default would put this row. Measuring the AI bar's actual rect
+  // and pushing `right` out just enough to clear it (recomputed on resize
+  // and whenever the row's own width changes, e.g. the Changes Log panel
+  // opening) keeps the two from ever overlapping, at any window size,
+  // instead of relying on a fixed offset that only happens to work at
+  // some widths.
+  useLayoutEffect(() => {
+    function recompute() {
+      const row = zoomRowRef.current
+      const aiBar = document.querySelector('[data-ai-bar]')
+      if (!row || !aiBar) return
+      const aiRight = aiBar.getBoundingClientRect().right
+      const rowWidth = row.getBoundingClientRect().width
+      const minLeft = aiRight + 12
+      const desiredLeft = window.innerWidth - 12 - rowWidth
+      setZoomRowRight(desiredLeft < minLeft ? Math.max(12, window.innerWidth - minLeft - rowWidth) : 12)
+    }
+    recompute()
+    const ro = new ResizeObserver(recompute)
+    if (zoomRowRef.current) ro.observe(zoomRowRef.current)
+    window.addEventListener('resize', recompute)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', recompute)
+    }
+  }, [summaryOpen])
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div ref={containerRef} className="relative min-h-0 flex-1">
@@ -1929,14 +1971,23 @@ function MergeInfiniteCanvas({
         {/* Header row: macro stepper centered, Apply with AI on the right
             (the [Merge Changes] CTA itself now lives in the drift-nav row
             below, next to the drift pager). Kept clear of the docked Block
-            Deck via `reserve`. */}
+            Deck via `reserve`. The stepper is centered with its own
+            `absolute left-1/2` inside this box (not a `1fr auto 1fr` grid)
+            so its position never depends on how wide the right-side
+            "Apply with AI" button happens to be — a 1fr/auto/1fr grid only
+            centers the middle column when both flanking columns have equal
+            content width, and the empty left column vs. a real button on
+            the right broke that. This way it's always dead-center of the
+            [leftInset, right: 12+reserve] box, matching the workspace
+            canvas regardless of sidebar/deck state. */}
         <div
-          className="absolute top-3 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3 transition-[left] duration-300"
+          className="absolute top-3 z-20 flex h-9 items-center transition-[left] duration-300"
           style={{ left: leftInset, right: 12 + reserve }}
         >
-          <div />
-          <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
-          <div className="flex items-center justify-end gap-2">
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
+          </div>
+          <div className="ml-auto flex items-center gap-2">
           {annotations.length > 0 && (
             <button
               type="button"
@@ -2046,6 +2097,45 @@ function MergeInfiniteCanvas({
           )
         })()}
 
+      </div>
+
+      {/* Bottom-right row: zoom pill sits directly beside the Changes Log
+          toggle (both `items-end`-aligned so the zoom pill's bottom edge
+          always lines up with the log's own button, whether or not its
+          panel is open), pushed clear of the centered AI chat bar's
+          measured right edge (`zoomRowRight`, see the layout effect above)
+          instead of a fixed `right-3` that could overlap it at narrower
+          window widths. */}
+      <div ref={zoomRowRef} className="absolute bottom-3 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
+        <div className="flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => zoomFromCenter(-ZOOM_STEP)}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-12 text-center text-sm tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
+          <button
+            type="button"
+            onClick={() => zoomFromCenter(ZOOM_STEP)}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            title="Reset view and layout"
+            onClick={() => {
+              setView(fitView(DEFAULT_LAYOUT))
+              setLayout(DEFAULT_LAYOUT)
+            }}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Maximize className="size-4" />
+          </button>
+        </div>
+
         {stage === 'compare' && (() => {
           const presetObj =
             appliedPreset && syncSelection?.layerId
@@ -2089,47 +2179,6 @@ function MergeInfiniteCanvas({
             />
           )
         })()}
-
-        {/* Zoom lives as its own floating pill in the bottom-left corner,
-            shifted right of the Merge List panel via `leftInset` (matching
-            the header's treatment) so it's never hidden behind it. Raised
-            well above `bottom-3` (`bottom-52`) so it clears the AI chat
-            bar's full height — including its optional image-chip row and
-            two-row composer — at any viewport width; the AI bar is
-            horizontally centered and wide enough to reach under this corner
-            on typical/narrow windows, so the two only stay clear of each
-            other vertically, not by side-stepping horizontally. */}
-        <div
-          className="absolute bottom-52 z-20 flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm transition-[left] duration-300"
-          style={{ left: leftInset }}
-        >
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(-ZOOM_STEP)}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Minus className="size-4" />
-          </button>
-          <span className="w-12 text-center text-sm tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(ZOOM_STEP)}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Plus className="size-4" />
-          </button>
-          <button
-            type="button"
-            title="Reset view and layout"
-            onClick={() => {
-              setView(fitView(DEFAULT_LAYOUT))
-              setLayout(DEFAULT_LAYOUT)
-            }}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Maximize className="size-4" />
-          </button>
-        </div>
       </div>
     </div>
   )

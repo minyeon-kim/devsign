@@ -326,12 +326,14 @@ function MergeStudioWorkspace({ item }) {
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
-  // While the wizard's own drift review is open (Check step), shift the
-  // canvas clear of it too — same `reserve` mechanism the Block Deck uses
-  // — so paging through drifts there doesn't hide the target behind the
-  // floating wizard window. Takes whichever panel reserves more, since
-  // both dock to the same right-hand edge.
-  const wizardReserve = mergeModal && wizardStage === 'check' ? WIZARD_RESERVE : 0
+  // Whenever the wizard modal is open (any step, not just Check), shift the
+  // canvas clear of it too — same `reserve` mechanism the Block Deck uses —
+  // so a target being reviewed is never hidden behind the floating wizard
+  // window. Takes whichever panel reserves more, since both dock to the
+  // same right-hand edge by default (dragging the wizard elsewhere is the
+  // user taking over positioning themselves; the reserve still holds so it
+  // doesn't snap back to fighting for that space if they drag it back).
+  const wizardReserve = mergeModal ? WIZARD_RESERVE : 0
   const reserve = Math.max(deckReserve, wizardReserve)
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
 

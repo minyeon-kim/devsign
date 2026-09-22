@@ -1,4 +1,5 @@
-import { ArrowLeft, PanelRight, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronsLeft, ChevronsRight, PanelRight, Search, Sparkles } from 'lucide-react'
+import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Logo from '@/components/layout/Logo'
@@ -8,7 +9,7 @@ import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function TopBar({ previewOpen, onTogglePreview, dockApi }) {
-  const { activeView, exitMergeStudio } = useWorkspace()
+  const { activeView, exitMergeStudio, mergeListCollapsed, setMergeListCollapsed } = useWorkspace()
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
@@ -16,13 +17,31 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
       <div className="flex shrink-0 items-center gap-2">
         {inMergeStudio ? (
           <>
+            {/* A prominent, unmissable white icon button — swapped from the
+                previous muted text button so "back" reads instantly, not
+                just on hover. */}
             <button
               type="button"
               onClick={exitMergeStudio}
-              className="flex items-center gap-1.5 rounded-full py-1.5 pr-3 pl-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Back to Workspace"
+              className="flex size-7 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition-colors hover:bg-white/90"
             >
-              <ArrowLeft className="size-3.5" />
-              Back to Workspace
+              <ArrowLeft className="size-4" strokeWidth={2.5} />
+            </button>
+            {/* Merge List collapse/expand: relocated here (out of the
+                panel's own header, and duplicated from the ActivityBar
+                icon) so there's one consistent, always-visible spot for it
+                regardless of the panel's own open/closed state. */}
+            <button
+              type="button"
+              onClick={() => setMergeListCollapsed((v) => !v)}
+              title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
+              className={cn(
+                'flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                !mergeListCollapsed && 'bg-primary/10 text-primary'
+              )}
+            >
+              {mergeListCollapsed ? <ChevronsRight className="size-3.5" /> : <ChevronsLeft className="size-3.5" />}
             </button>
             <span className="h-4 w-px bg-border" />
             <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-tight text-foreground/90">

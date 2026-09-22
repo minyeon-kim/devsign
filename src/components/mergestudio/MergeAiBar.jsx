@@ -43,6 +43,7 @@ function MergeAiBar() {
   return (
     <form
       onSubmit={submit}
+      data-ai-bar
       className="fixed bottom-5 left-1/2 z-40 w-[min(680px,calc(100vw-4rem))] -translate-x-1/2 rounded-3xl border border-indigo-500/40 bg-card/95 p-3 shadow-2xl shadow-indigo-500/10 backdrop-blur-md focus-within:border-violet-500"
     >
       {images.length > 0 && (

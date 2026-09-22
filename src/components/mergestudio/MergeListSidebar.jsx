@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronsLeft, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
+import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -201,7 +201,6 @@ function MergeListSidebar() {
     setSelectedMergeItemId,
     startMergeFromOpenFiles,
     mergeListCollapsed,
-    setMergeListCollapsed,
   } = useWorkspace()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState([])
@@ -254,17 +253,6 @@ function MergeListSidebar() {
                 Reset
               </button>
             )}
-            {/* Natural, in-panel access to collapse — the ActivityBar icon
-                (see item 6's "activity bar toggle") stays as the way back
-                in once this panel itself is gone. */}
-            <button
-              type="button"
-              onClick={() => setMergeListCollapsed(true)}
-              title="Collapse Merge List"
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronsLeft className="size-3.5" />
-            </button>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import {
   Blocks,
   Check,
   ChevronDown,
+  ChevronRight,
   Columns3,
   GripHorizontal,
   Library,
@@ -16,6 +17,7 @@ import { cn } from 'cn'
 import {
   blockDeckPresets,
   canvasPages,
+  codeMergeVariants,
   designMergeVariants,
   designSystemComponents,
   designSystemMeta,
@@ -278,52 +280,94 @@ function ManualFallback({ layer, assembly, onChange }) {
 // the deck. Still entirely selection-driven: reacts to whichever layer was
 // last clicked on either artboard on the infinite canvas.
 // Every drift for this item (design + code, via the same `buildDrifts` the
-// canvas's own < > pager and the merge wizard's Check step use) as a
-// clickable overview list — jumping to one pans/selects it on the canvas
-// exactly like the canvas's own drift navigator. Consolidated here so the
-// Compare tab is the one place to both see drift history and review each
-// one's detail, instead of duplicating that list in a separate floating
-// panel on the canvas.
-function DriftHistoryList({ item, frame, resolutions, activeLayerId }) {
-  const { requestMergeFocus } = useWorkspace()
+// canvas's own < > pager and the merge wizard's Check step use), as an
+// accordion: one row open at a time, its detail (A/B pills for a design
+// drift, current/incoming for a code drift) expanding in place while every
+// other row collapses back to its summary line — so reviewing one drift
+// never leaves a wall of everyone else's detail on screen too. Opening a
+// row also jumps/selects it on the canvas, exactly like the canvas's own
+// drift navigator. Consolidated here so the Compare tab is the one place
+// to both see drift history and review each one's detail.
+function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDiff, expandedId, onExpand }) {
+  const { requestMergeFocus, getFileLines } = useWorkspace()
   const drifts = buildDrifts(item, frame)
   if (!drifts.length) return null
+
+  function toggle(d) {
+    const opening = expandedId !== d.id
+    onExpand(opening ? d.id : null)
+    if (opening) {
+      requestMergeFocus({
+        itemId: item.id,
+        keepDeck: true,
+        label: d.label,
+        ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
+      })
+    }
+  }
+
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Drift History · {drifts.length}</p>
       {drifts.map((d) => {
         const resolved = d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
-        const active = d.kind === 'design' && d.layerId === activeLayerId
+        const open = expandedId === d.id
+        const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
+        const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
         return (
-          <button
+          <div
             key={d.id}
-            type="button"
-            onClick={() =>
-              requestMergeFocus({
-                itemId: item.id,
-                keepDeck: true,
-                label: d.label,
-                ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
-              })
-            }
             className={cn(
-              'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors',
-              active ? 'border-primary/40 bg-primary/10' : 'border-white/10 bg-slate-800/70 hover:bg-slate-700/70'
+              'overflow-hidden rounded-xl border transition-colors',
+              // The active/open row gets an unmissable primary ring on top
+              // of its own tinted surface — not just a border color change
+              // — so it's obvious at a glance which one you're reviewing.
+              open ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30' : 'border-white/10 bg-slate-800/70'
             )}
           >
-            <span
-              className={cn(
-                'flex size-4 shrink-0 items-center justify-center rounded-full',
-                resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
-              )}
+            <button
+              type="button"
+              onClick={() => toggle(d)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
             >
-              {resolved && <Check className="size-2.5" />}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-foreground">{d.label}</span>
-            <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {d.kind === 'design' ? 'Design' : 'Code'}
-            </span>
-          </button>
+              <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+              <span
+                className={cn(
+                  'flex size-4 shrink-0 items-center justify-center rounded-full',
+                  resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
+                )}
+              >
+                {resolved && <Check className="size-2.5" />}
+              </span>
+              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
+              <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {d.kind === 'design' ? 'Design' : 'Code'}
+              </span>
+            </button>
+
+            {open && (
+              <div className="space-y-2 border-t border-white/10 px-3 py-2.5">
+                {d.kind === 'design' ? (
+                  d.diffs.map((diff) => (
+                    <DiffRow
+                      key={diff.id}
+                      diff={diff}
+                      resolution={resolutions[`${d.layerId}:${diff.id}`]}
+                      onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
+                      onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
+                    />
+                  ))
+                ) : (
+                  <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
+                    <span className="pt-1 text-muted-foreground">Current</span>
+                    <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
+                    <span className="pt-1 text-muted-foreground">Incoming</span>
+                    <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[11px] break-words text-emerald-400">{incoming}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )
       })}
     </div>
@@ -337,26 +381,36 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
   const specificDiffs = designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]
   const tokenSpec = selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null
 
-  const genericDiff = selectedLayer
-    ? {
-        id: `layer:${selectedLayer.id}`,
-        label: `${selectedLayer.name} — Design Decision`,
-        optionA: 'Keep current design',
-        optionB: 'Accept incoming design',
-      }
-    : null
+  // Which drift row the accordion has open — defaults to whichever design
+  // drift matches the canvas's current selection, so clicking a layer on
+  // the canvas still opens its detail here automatically; the user can
+  // then expand any other row instead, same as clicking one directly.
+  const [expandedId, setExpandedId] = useState(selectedLayerId ? `d:${selectedLayerId}` : null)
+  useEffect(() => {
+    if (selectedLayerId && designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) {
+      setExpandedId(`d:${selectedLayerId}`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLayerId])
 
-  const diffs = specificDiffs ?? (genericDiff ? [genericDiff] : [])
-  const resolvedCount = diffs.filter((d) => resolutions[`${selectedLayerId}:${d.id}`]).length
+  const resolvedCount = specificDiffs?.filter((d) => resolutions[`${selectedLayerId}:${d.id}`]).length ?? 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="shrink-0 px-4 pt-3 text-xs text-muted-foreground">
-        {selectedLayer ? `${resolvedCount} of ${diffs.length} resolved` : 'Nothing selected'}
+        {selectedLayer && specificDiffs ? `${resolvedCount} of ${specificDiffs.length} resolved` : 'Nothing selected'}
       </p>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
-        <DriftHistoryList item={item} frame={frame} resolutions={resolutions} activeLayerId={selectedLayerId} />
+        <DriftHistoryAccordion
+          item={item}
+          frame={frame}
+          resolutions={resolutions}
+          onResolve={onResolve}
+          onHoverDiff={onHoverDiff}
+          expandedId={expandedId}
+          onExpand={setExpandedId}
+        />
 
         {!selectedLayer && (
           <div className="flex flex-col items-center gap-2 p-3 text-center">
@@ -402,18 +456,6 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
         {selectedLayer && !specificDiffs && (
           <ManualFallback layer={selectedLayer} assembly={assembly} onChange={onAssemble} />
         )}
-
-        {diffs.map((diff) => (
-          <DiffRow
-            key={diff.id}
-            diff={diff}
-            resolution={resolutions[`${selectedLayerId}:${diff.id}`]}
-            onResolve={(diffId, side) => onResolve(selectedLayerId, diffId, side)}
-            onHover={(diffId, side) =>
-              onHoverDiff(diffId ? { layerId: selectedLayerId, diffId, side } : null)
-            }
-          />
-        ))}
       </div>
     </div>
   )
@@ -642,9 +684,9 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                   {mode === 'replace' ? `Replaces ${selectedLayer.name}` : mode === 'insert' ? `Inserts into ${selectedLayer.name}` : def.tokens.join(' · ')}
                 </p>
                 {/* Fixed 2-col grid instead of a flex row — "Replace"/"Insert"
-                    and "Add to canvas" each get a stable half-width cell, so
-                    the longer label never wraps or gets squeezed. Alone
-                    (no mode), "Add to canvas" spans both columns. */}
+                    and "Add" each get a stable half-width cell, so the
+                    longer label never wraps or gets squeezed. Alone (no
+                    mode), "Add" spans both columns. */}
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {mode === 'replace' && (
                     <button
@@ -673,7 +715,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                       mode ? 'border border-indigo-500/50 text-foreground hover:bg-indigo-500/15' : 'bg-slate-700 text-foreground hover:bg-slate-600'
                     )}
                   >
-                    Add to canvas
+                    Add
                   </button>
                 </div>
               </div>
