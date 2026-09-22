@@ -136,7 +136,7 @@ function MergeStudioWorkspace({ item }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
 
-  function selectLayer(layerId) {
+  function selectLayer(layerId, { openDeck = true } = {}) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
     const target = map[layerId]
     setSyncSelection({
@@ -146,7 +146,7 @@ function MergeStudioWorkspace({ item }) {
       endLine: target ? target.line + (target.span ?? 1) - 1 : undefined,
     })
     setAppliedPreset(null)
-    setDeckOpen(true)
+    if (openDeck) setDeckOpen(true)
     if (target?.fileId) setActiveFileId(target.fileId)
   }
 
@@ -156,7 +156,7 @@ function MergeStudioWorkspace({ item }) {
     setDeckOpen(true)
   }
 
-  function selectLine(fileId, line) {
+  function selectLine(fileId, line, { openDeck = true } = {}) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
     // Any line inside a layer's code block resolves to that layer and
     // selects the whole block.
@@ -170,7 +170,7 @@ function MergeStudioWorkspace({ item }) {
         : { layerId: undefined, fileId, line, endLine: line }
     )
     setAppliedPreset(null)
-    setDeckOpen(true)
+    if (openDeck) setDeckOpen(true)
   }
 
   // Opens the 4-step merge wizard with everything chosen so far bundled in:
@@ -279,10 +279,10 @@ function MergeStudioWorkspace({ item }) {
     if (!item || !mergeFocus || mergeFocus.target.itemId !== item.id) return
     if (handledFocus.current === mergeFocus.nonce) return
     handledFocus.current = mergeFocus.nonce
-    const { layerId, fileId, line } = mergeFocus.target
-    if (layerId) selectLayer(layerId)
-    else if (fileId && line) selectLine(fileId, line)
-    if (!mergeFocus.target.keepDeck) setDeckOpen(false)
+    const { layerId, fileId, line, keepDeck } = mergeFocus.target
+    if (layerId) selectLayer(layerId, { openDeck: !keepDeck })
+    else if (fileId && line) selectLine(fileId, line, { openDeck: !keepDeck })
+    if (!keepDeck) setDeckOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeFocus, item?.id])
 

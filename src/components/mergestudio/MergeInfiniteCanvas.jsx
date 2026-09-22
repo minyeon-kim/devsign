@@ -1116,7 +1116,7 @@ function MergeInfiniteCanvas({
   // moment to switch), ease the view so the element sits at the center of
   // the visible canvas, zooming in to at least 100% for small targets.
   useEffect(() => {
-    if (!focus || focus.target.itemId !== item.id) return
+    if (!focus || focus.target.itemId !== item.id || focus.target.noPan) return
     let raf
     const timer = setTimeout(() => {
       const c = containerRef.current
@@ -1207,6 +1207,7 @@ function MergeInfiniteCanvas({
     requestMergeFocus({
       itemId: item.id,
       keepDeck: true,
+      noPan: true,
       label: d.label,
       ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
     })
@@ -1995,9 +1996,14 @@ function MergeInfiniteCanvas({
           )
         })()}
 
-        {/* Zoom sits centered just above the AI bar (fixed bottom-5, ~46px
-            tall), so the two never overlap. */}
-        <div className="absolute bottom-[8.5rem] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm">
+        {/* Zoom lives as its own floating pill in the bottom-left corner —
+            clear of the centered AI bar entirely, and shifted right of the
+            Merge List panel via `leftInset` (matching the header's
+            treatment) so it's never hidden behind it. */}
+        <div
+          className="absolute bottom-3 z-20 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm transition-[left] duration-300"
+          style={{ left: leftInset }}
+        >
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}

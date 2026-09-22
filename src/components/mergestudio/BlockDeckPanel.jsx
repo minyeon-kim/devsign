@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import {
   Blocks,
   Check,
+  ChevronDown,
   GripHorizontal,
   Library,
   Search,
@@ -667,6 +668,7 @@ function BlockDeckPanel({
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
+  const [collapsed, setCollapsed] = useState(false)
   const rootRef = useRef(null)
 
   if (!open) return null
@@ -716,6 +718,15 @@ function BlockDeckPanel({
         <span className="flex-1 text-xs font-semibold text-foreground">Block Deck</span>
         <button
           type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          onPointerDown={(e) => e.stopPropagation()}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <ChevronDown className={cn('size-3.5 transition-transform', collapsed && 'rotate-180')} />
+        </button>
+        <button
+          type="button"
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
           title="Close"
@@ -725,6 +736,8 @@ function BlockDeckPanel({
         </button>
       </div>
 
+      {!collapsed && (
+      <>
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-white/10 px-2">
         <button
           type="button"
@@ -790,6 +803,8 @@ function BlockDeckPanel({
           appliedPresetId={appliedPresetId}
           onApplyPreset={onApplyPreset}
         />
+      )}
+      </>
       )}
     </div>
   )
