@@ -35,7 +35,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
-        'flex cursor-pointer gap-3 border-l-2 border-transparent px-3 hover:bg-muted/40',
+        'flex cursor-pointer gap-3 border-l border-transparent px-3 hover:bg-muted/40',
         linked && 'border-lime-400/30',
         hovered && !highlighted && 'border-lime-400/70',
         highlighted && 'border-lime-400',
@@ -76,7 +76,7 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, hig
       className="relative grid min-h-0 flex-1 grid-cols-2 content-start divide-x divide-border overflow-auto bg-slate-800 font-mono text-[11px] leading-relaxed"
     >
       <div>
-        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <p className="sticky top-0 z-10 border-b bg-slate-800 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
           Code A
         </p>
         <div className="py-2">
@@ -102,7 +102,7 @@ function CodeDiffColumns({ incomingEdits, file, lines, diffs, highlightLine, hig
         </div>
       </div>
       <div>
-        <p className="sticky top-0 z-10 border-b bg-card px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <p className="sticky top-0 z-10 border-b bg-slate-800 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
           Code B
         </p>
         <div className="py-2">
@@ -198,12 +198,12 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
     <div
       ref={rootRef}
       data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-card shadow-lg will-change-transform active:cursor-grabbing"
+      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-slate-800 shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-muted/30 px-1.5 pt-1.5">
+      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-slate-900/60 px-1.5 pt-1.5">
         <GripHorizontal className="mr-1 size-3.5 shrink-0 text-muted-foreground/50" />
         {files.map((file) => {
           const meta = getFileIconMeta(file.name)
@@ -215,7 +215,7 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
               onClick={() => setActiveFileId(file.id)}
               className={cn(
                 'flex shrink-0 items-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
-                active ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                active ? 'bg-slate-800 text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <meta.Icon className={cn('size-3 shrink-0', meta.colorClass)} />
@@ -814,7 +814,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
   }
 
   return (
-    <div className="w-96 rounded-2xl border border-white/10 bg-slate-800/90 p-4 text-sm shadow-xl backdrop-blur-md">
+    <div className="w-96 rounded-2xl border border-white/10 bg-slate-800 p-4 text-sm shadow-xl">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -1790,9 +1790,9 @@ function MergeInfiniteCanvas({
                 rx={5}
                 fill="none"
                 stroke="#a3e635"
-                strokeWidth={b.strong ? 2.25 : 1.25}
-                strokeOpacity={b.strong ? 1 : 0.6}
-                style={{ filter: `drop-shadow(0 0 ${b.strong ? 8 : 4}px #a3e635)` }}
+                strokeWidth={b.strong ? 1.5 : 1}
+                strokeOpacity={b.strong ? 0.9 : 0.5}
+                style={{ filter: `drop-shadow(0 0 ${b.strong ? 4 : 2}px #a3e635)` }}
               />
             </g>
           ))}

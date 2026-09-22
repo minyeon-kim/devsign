@@ -214,13 +214,13 @@ export const designMergeVariants = {
           optionAClass: 'bg-indigo-500',
           optionBClass: 'bg-violet-500',
         },
-        { id: 'signup-radius', label: 'Corner Radius', optionA: '6px', optionB: '999px' },
+        { id: 'signup-radius', label: 'Corner Radius', optionA: '6px', optionB: '20px' },
       ],
       'hero-secondary': [
         { id: 'secondary-radius', label: 'Corner Radius', optionA: '6px', optionB: '12px' },
         { id: 'secondary-padding', label: 'Padding', optionA: '8px 16px', optionB: '10px 20px' },
       ],
-      'signup-email': [{ id: 'email-radius', label: 'Corner Radius', optionA: '6px', optionB: '999px' }],
+      'signup-email': [{ id: 'email-radius', label: 'Corner Radius', optionA: '6px', optionB: '20px' }],
       'feature-card-1': [
         { id: 'fc-radius', label: 'Corner Radius', optionA: '8px', optionB: '16px' },
         { id: 'fc-spacing', label: 'Inner Spacing', optionA: '16px', optionB: '24px' },
@@ -263,7 +263,7 @@ export const designMergeVariants = {
         },
         { id: 'radius', label: 'Corner Radius', optionA: '8px', optionB: '16px' },
       ],
-      'search-input': [{ id: 'search-radius', label: 'Corner Radius', optionA: '8px', optionB: '999px' }],
+      'search-input': [{ id: 'search-radius', label: 'Corner Radius', optionA: '8px', optionB: '20px' }],
       'notify-toggle': [
         {
           id: 'toggle-accent',

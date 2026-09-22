@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronsLeft, FilePlus2, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -120,10 +120,11 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
       onClick={() => onSelect(item.id)}
       className={cn(
         'flex w-full flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-all',
-        // Selected state: a lighter slate surface plus a soft accent tint,
-        // instead of a heavy glowing border — clean elevation, not a frame.
+        // Selected state: a solid, brighter slate surface plus a soft accent
+        // ring — no heavy border, and none of the text dims against it (see
+        // the subtitle/meta spans below), so it stays sharp, not washed out.
         active
-          ? 'border-white/10 bg-slate-700/80 ring-1 ring-inset ring-primary/25'
+          ? 'border-white/10 bg-slate-700 ring-1 ring-inset ring-primary/25'
           : 'border-white/10 bg-slate-800/70 hover:border-primary/40 hover:bg-slate-700/70'
       )}
     >
@@ -141,10 +142,10 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
         </span>
       </div>
 
-      <span className="text-[11px] leading-snug text-muted-foreground">{item.subtitle}</span>
+      <span className={cn("text-[11px] leading-snug", active ? "text-foreground/90" : "text-muted-foreground")}>{item.subtitle}</span>
 
       <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/60 pt-2.5">
-        <span className="text-[10px] text-muted-foreground/70">{item.updatedLabel}</span>
+        <span className={cn("text-[10px]", active ? "text-muted-foreground" : "text-muted-foreground/70")}>{item.updatedLabel}</span>
         {item.conflictLevel && (
           <span
             role={item.conflictLevel !== 'None' ? 'button' : undefined}
@@ -174,7 +175,7 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
           <span
             className={cn(
               'ml-auto text-[10px]',
-              item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-muted-foreground/70'
+              item.dueBucket === 'overdue' ? 'font-medium text-destructive' : active ? 'text-muted-foreground' : 'text-muted-foreground/70'
             )}
           >
             {item.dueLabel}
@@ -193,8 +194,14 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
 // collapsed behind its header and expands on click; an active pick shows as
 // removable pills next to that header (multi-select).
 function MergeListSidebar() {
-  const { mergeItems, selectedMergeItemId, setSelectedMergeItemId, startMergeFromOpenFiles, mergeListCollapsed } =
-    useWorkspace()
+  const {
+    mergeItems,
+    selectedMergeItemId,
+    setSelectedMergeItemId,
+    startMergeFromOpenFiles,
+    mergeListCollapsed,
+    setMergeListCollapsed,
+  } = useWorkspace()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState([])
   const [conflictFilter, setConflictFilter] = useState([])
@@ -235,16 +242,29 @@ function MergeListSidebar() {
             Merge List
             <span className="text-[11px] font-normal text-muted-foreground">{visible.length}</span>
           </p>
-          {hasActiveFilters && (
+          <div className="flex items-center gap-1">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <RotateCcw className="size-3" />
+                Reset
+              </button>
+            )}
+            {/* Natural, in-panel access to collapse — the ActivityBar icon
+                (see item 6's "activity bar toggle") stays as the way back
+                in once this panel itself is gone. */}
             <button
               type="button"
-              onClick={resetFilters}
-              className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setMergeListCollapsed(true)}
+              title="Collapse Merge List"
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <RotateCcw className="size-3" />
-              Reset
+              <ChevronsLeft className="size-3.5" />
             </button>
-          )}
+          </div>
         </div>
 
         <div className="relative">

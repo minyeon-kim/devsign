@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Blocks,
   Check,
   ChevronDown,
+  Columns3,
   GripHorizontal,
   Library,
   Search,
@@ -668,8 +669,16 @@ function BlockDeckPanel({
 }) {
   const [tab, setTab] = useState('compare')
   const [pos, setPos] = useState(null)
-  const [collapsed, setCollapsed] = useState(false)
+  // Collapsed at rest (no selection yet) — but every fresh selection (a new
+  // layer/frame/code diff clicked on the canvas) re-expands it automatically
+  // so the right, context-aware tab content is immediately visible instead
+  // of hiding behind a chevron the user has to remember to click.
+  const [collapsed, setCollapsed] = useState(true)
   const rootRef = useRef(null)
+
+  useEffect(() => {
+    setCollapsed(false)
+  }, [selectedLayerId])
 
   if (!open) return null
 
@@ -743,35 +752,41 @@ function BlockDeckPanel({
           type="button"
           onClick={() => setTab('compare')}
           className={cn(
-            'flex-1 rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
-            tab === 'compare' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+            'flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
+            tab === 'compare' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          Variant Compare
+          <Columns3 className="size-3" />
+          Compare
         </button>
         <button
           type="button"
           onClick={() => setTab('assemble')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
-            tab === 'assemble' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+            tab === 'assemble' ? 'bg-violet-500 text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          Block Assemble
-          <Sparkles className="size-2.5 text-primary" />
+          <Sparkles className="size-3" />
+          Assemble
         </button>
         <button
           type="button"
           onClick={() => setTab('library')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors',
-            tab === 'library' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+            tab === 'library' ? 'bg-sky-500 text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          <Library className="size-3 text-primary" />
+          <Library className="size-3" />
           Library
         </button>
       </div>
+      <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-3 py-1.5 text-[10px] leading-snug text-muted-foreground">
+        {tab === 'compare' && 'Choose current (A) or incoming (B) for each variant property.'}
+        {tab === 'assemble' && 'Build a custom shape, size and style from scratch, or accept an AI suggestion.'}
+        {tab === 'library' && 'Pull ready-made components from the Design System.'}
+      </p>
 
       {tab === 'compare' ? (
         item.hasDesign ? (

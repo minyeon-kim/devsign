@@ -56,14 +56,24 @@ function buildBlocks(item, getFileLines) {
   if (!blocks.length) {
     const file = openFiles.find((f) => item.fileIds?.includes(f.id))
     const lines = file ? getFileLines(file.id) : []
+    // No mock diff data at all for this item — fall back to a realistic,
+    // single-property change (a shared button style token) instead of a
+    // generic multi-line dump, so the block still reads as a real decision.
+    const idx = lines.findIndex((l) => l.includes('<Button'))
+    const line = idx >= 0 ? lines[idx] : (lines[0] ?? '')
+    const incomingLine = line.includes('className=')
+      ? line.replace(/className="[^"]*"/, 'className="rounded-full bg-violet-500"')
+      : line.replace('<Button', '<Button className="rounded-full bg-violet-500"')
     blocks.push({
       id: 'c:fallback',
       kind: 'code',
-      title: `${file?.name ?? 'File'} · lines 1–3`,
-      current: lines.slice(0, 3),
-      incoming: lines.slice(0, 3).map((l, i) => (i === 0 ? `${l}` : l)).concat('// merged: incoming handler signature'),
+      fileId: file?.id,
+      line: idx >= 0 ? idx + 1 : 1,
+      title: `${file?.name ?? 'File'} · line ${idx >= 0 ? idx + 1 : 1}`,
+      current: [line],
+      incoming: [incomingLine],
       recommended: 'B',
-      reason: 'Keeps the incoming handler signature',
+      reason: 'Matches the shared button style token',
     })
   }
   return blocks
