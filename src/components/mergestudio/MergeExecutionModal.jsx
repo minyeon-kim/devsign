@@ -4,9 +4,11 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   Code2,
   GitBranch,
   GitPullRequest,
+  ListChecks,
   Loader2,
   MessageSquare,
   Palette,
@@ -23,7 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { buildSummary } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
@@ -146,7 +148,148 @@ function ScopeBadge({ scope }) {
 }
 
 // ----- Step 1: Check ---------------------------------------------------
-function CheckStep({ item, resolutions, summary }) {
+// The step-review walkthrough: `< >` through every drift one at a time
+// (design property diffs, then raw code-line diffs — the exact same list
+// the canvas's own pager uses, via `buildDrifts`). Selecting a drift here
+// pans the canvas live to it (no `noPan` — unlike the canvas's own pager,
+// the point here *is* to watch the element move into view while your
+// attention is on this modal) and highlights it there in real time.
+// "Mark Resolved" accepts Incoming for any undecided property and advances
+// to the next un-resolved drift automatically.
+function DriftReviewSection({ item, resolutions, onResolveDiff }) {
+  const { requestMergeFocus } = useWorkspace()
+  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const drifts = useMemo(() => buildDrifts(item, frame), [item, frame])
+  const [index, setIndex] = useState(0)
+  const [resolvedIds, setResolvedIds] = useState(() => new Set())
+
+  const isDriftResolved = (d) =>
+    resolvedIds.has(d.id) || (d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`]))
+  const resolvedCount = drifts.filter(isDriftResolved).length
+
+  function focusDrift(d) {
+    requestMergeFocus({
+      itemId: item.id,
+      keepDeck: true,
+      label: d.label,
+      ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
+    })
+  }
+
+  function goTo(i) {
+    const next = Math.min(Math.max(i, 0), drifts.length - 1)
+    setIndex(next)
+    focusDrift(drifts[next])
+  }
+
+  // Land on the first drift as soon as there's something to review, so the
+  // canvas is already pointing at it before the user touches < >.
+  useEffect(() => {
+    if (drifts.length) focusDrift(drifts[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id])
+
+  function markResolved(d) {
+    if (d.kind === 'design') {
+      for (const diff of d.diffs) {
+        if (!resolutions[`${d.layerId}:${diff.id}`]) onResolveDiff(d.layerId, diff.id, 'B')
+      }
+    }
+    setResolvedIds((prev) => new Set(prev).add(d.id))
+    const nextUnresolved = drifts.findIndex((x, i) => i > index && !isDriftResolved(x))
+    if (nextUnresolved >= 0) goTo(nextUnresolved)
+    else if (index < drifts.length - 1) goTo(index + 1)
+  }
+
+  if (!drifts.length) return null
+  const d = drifts[index]
+  const resolved = isDriftResolved(d)
+
+  return (
+    <section>
+      <SectionTitle
+        icon={ListChecks}
+        aside={
+          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', resolvedCount === drifts.length ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-muted-foreground')}>
+            {resolvedCount}/{drifts.length} resolved
+          </span>
+        }
+      >
+        Review Drifts
+      </SectionTitle>
+
+      <div className="rounded-2xl border bg-slate-800/70 p-3">
+        <div className="mb-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => goTo(index - 1)}
+            disabled={index === 0}
+            className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <span className="min-w-0 flex-1 truncate text-center text-xs font-medium text-foreground">
+            Drift {index + 1}/{drifts.length} · {d.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => goTo(index + 1)}
+            disabled={index === drifts.length - 1}
+            className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+
+        {d.kind === 'design' ? (
+          <div className="space-y-1.5">
+            {d.diffs.map((diff) => {
+              const side = resolutions[`${d.layerId}:${diff.id}`]
+              return (
+                <div key={diff.id} className="flex items-center gap-2 rounded-xl bg-background/40 p-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{diff.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => onResolveDiff(d.layerId, diff.id, 'A')}
+                    className={cn('shrink-0 truncate rounded-full px-2 py-1', side === 'A' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
+                  >
+                    A · {diff.optionA}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onResolveDiff(d.layerId, diff.id, 'B')}
+                    className={cn('shrink-0 truncate rounded-full px-2 py-1', side === 'B' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
+                  >
+                    B · {diff.optionB}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="rounded-xl bg-background/40 p-2 text-xs text-muted-foreground">
+            {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — reviewed in the unified diff view.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => markResolved(d)}
+          disabled={resolved}
+          className={cn(
+            'mt-3 flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors',
+            resolved ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-white hover:bg-slate-600'
+          )}
+        >
+          <Check className="size-3.5" />
+          {resolved ? 'Resolved' : 'Mark Resolved'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function CheckStep({ item, resolutions, summary, onResolveDiff }) {
   const totalDiffs = Object.values(designMergeVariants[item.id]?.layerDiffs ?? {}).reduce((n, d) => n + d.length, 0)
   const resolved = Object.keys(resolutions).length
   const checks = [
@@ -194,6 +337,7 @@ function CheckStep({ item, resolutions, summary }) {
           ))}
         </ul>
       </section>
+      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
       <SummarySection summary={summary} />
     </div>
   )
@@ -513,7 +657,7 @@ function WizardStepper({ step, run }) {
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, initialStep = 0, onStepChange, onClose, onComplete }) {
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, onResolveDiff, initialStep = 0, onStepChange, onClose, onComplete }) {
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers), [item, resolutions, annotations, preset, assemblies, extraLayers])
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
@@ -607,7 +751,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
+          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} />}
           {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} />}
 
           {step === 2 && (
@@ -740,6 +884,11 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   className="flex items-center gap-1.5 rounded-full bg-slate-700 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
                   Next: {WIZARD_STEPS[step + 1].label}
+                  {/* Running total of what will actually be merged, so it's
+                      visible at every step, not just buried in a summary. */}
+                  <span className="rounded-full bg-white/20 px-1.5 text-[10px]">
+                    {summary.design.length + summary.applied.length}
+                  </span>
                   <ArrowRight className="size-3.5" />
                 </button>
               ) : (

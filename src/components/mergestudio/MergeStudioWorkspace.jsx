@@ -403,6 +403,7 @@ function MergeStudioWorkspace({ item }) {
           preset={mergeModal.preset}
           assemblies={assemblies}
           extraLayers={addedLayers}
+          onResolveDiff={resolveDiff}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}
           onClose={() => {
