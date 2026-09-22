@@ -33,8 +33,12 @@ const TOPBAR_HEIGHT = 44
 // (that pill is `h-11`/44px tall) instead of reading as a thin sliver next
 // to it.
 const COLLAPSED_WIDTH = 48
-// drag strip (36) + separator (1) + 4 icon buttons (36 each) + 5 gaps (4 each) + padding (12)
-const COLLAPSED_HEIGHT_GUESS = 36 + 1 + 4 * 36 + 5 * 4 + 12
+// 4 icon buttons (36 each) + 3 gaps (6 each) + padding (12)
+const COLLAPSED_HEIGHT_GUESS = 4 * 36 + 3 * 6 + 12
+// Pointer travel (px) before a press on the toolbar counts as a drag rather
+// than a click — the whole toolbar is the drag surface now, so this is what
+// keeps ordinary icon clicks working.
+const DRAG_THRESHOLD = 4
 const EXPANDED_WIDTH = 380
 // How much room to reserve below the toolbar when a panel first opens.
 const EXPANDED_PREFERRED_HEIGHT = 420
@@ -127,6 +131,7 @@ function ShareSettingsContent() {
 function RightFloatingBar() {
   const { inspectorOpen, setInspectorOpen, activeView, mergeDrawer, setMergeDrawer } = useWorkspace()
   const dragRef = useRef(null)
+  const suppressClickRef = useRef(false)
   const boxRef = useRef(null)
   // Default position: pinned to the right edge, vertically centered — window
   // dimensions are known synchronously on the client, so this is correct
@@ -207,22 +212,40 @@ function RightFloatingBar() {
   // input/button row pinned) once content exceeds this cap.
   const expandedMaxHeight = containerHeight - clampedTop - EDGE_MARGIN
 
+  // Press-and-move anywhere on the toolbar to reposition it. The drag only
+  // arms once the pointer travels past DRAG_THRESHOLD, so a plain press on
+  // an icon button still reaches its onClick; after a real drag, the click
+  // that follows pointerup is swallowed (see onClickCapture below) so
+  // dropping the toolbar doesn't also toggle whatever icon was grabbed.
   function handleDragStart(event) {
-    event.preventDefault()
-    setUserMoved(true)
+    if (event.button !== 0) return
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
       startLeft: clampedLeft,
       startTop: clampedTop,
+      dragging: false,
     }
 
     function onMove(moveEvent) {
-      const { startX, startY, startLeft, startTop } = dragRef.current
-      setLeft(startLeft + (moveEvent.clientX - startX))
-      setTop(startTop + (moveEvent.clientY - startY))
+      const drag = dragRef.current
+      if (!drag) return
+      const dx = moveEvent.clientX - drag.startX
+      const dy = moveEvent.clientY - drag.startY
+      if (!drag.dragging) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
+        drag.dragging = true
+        setUserMoved(true)
+        document.body.style.cursor = 'grabbing'
+      }
+      moveEvent.preventDefault()
+      setLeft(drag.startLeft + dx)
+      setTop(drag.startTop + dy)
     }
     function onUp() {
+      suppressClickRef.current = Boolean(dragRef.current?.dragging)
+      dragRef.current = null
+      document.body.style.cursor = ''
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
@@ -254,19 +277,12 @@ function RightFloatingBar() {
     })
   }
 
-  // Drag area, no grip glyph — a dedicated (but icon-less) strip rather
-  // than layering the drag trigger on top of the icon buttons below it,
-  // which would otherwise also arm a (harmless but pointless) drag on
-  // every ordinary click.
-  const dragHandle = (
-    <button
-      type="button"
-      onPointerDown={handleDragStart}
-      title="Drag to reposition"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted active:cursor-grabbing"
-      style={{ cursor: 'grab' }}
-    />
-  )
+  function handleClickCapture(event) {
+    if (!suppressClickRef.current) return
+    suppressClickRef.current = false
+    event.stopPropagation()
+    event.preventDefault()
+  }
 
   return (
     <div
@@ -293,11 +309,12 @@ function RightFloatingBar() {
         {expandedPanel ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div
-              className="flex shrink-0 items-center gap-1.5 border-b px-2.5"
+              onPointerDown={handleDragStart}
+              onClickCapture={handleClickCapture}
+              title="Drag to reposition"
+              className="flex shrink-0 cursor-grab items-center gap-1.5 border-b px-2.5"
               style={{ height: HEADER_HEIGHT }}
             >
-              {dragHandle}
-              <Separator orientation="vertical" className="h-4" />
               {panelSwitcher.map(({ id, Icon, label }) => (
                 <button
                   key={id}
@@ -343,10 +360,11 @@ function RightFloatingBar() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5 p-1.5 animate-in fade-in-0 duration-200">
-            {dragHandle}
-            <Separator />
-
+          <div
+            onPointerDown={handleDragStart}
+            onClickCapture={handleClickCapture}
+            className="flex cursor-grab flex-col gap-1.5 p-1.5 animate-in fade-in-0 duration-200"
+          >
             {panelSwitcher.map(({ id, Icon, label }) => (
               <Tooltip key={id}>
                 <TooltipTrigger onClick={() => togglePanel(id)} className={flyoutTriggerClass}>

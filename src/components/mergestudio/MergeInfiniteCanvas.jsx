@@ -500,7 +500,14 @@ const DEFAULT_LAYOUT = {
   a: { x: (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
   b: { x: COLUMN_W + (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
 }
-const DEFAULT_VIEW = { x: CONTENT_START_X, y: 40, zoom: 100 }
+// Vertical room reserved above the cards for the two-tier floating top
+// controls (Compare > Check stepper at `top-3`, drift pager / Merge CTA row
+// at `top-14`, ~100px to its bottom edge) plus breathing room, so a freshly
+// opened merge target never lands underneath them.
+const TOP_CONTROLS_CLEARANCE = 124
+// Room kept free below the cards for the bottom zoom controls / Changes Log.
+const BOTTOM_CONTROLS_CLEARANCE = 80
+const DEFAULT_VIEW = { x: CONTENT_START_X, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
 
 function clampZoom(z) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
@@ -979,10 +986,16 @@ function MergeInfiniteCanvas({
     const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
     const worldH = bottom - lay.code.y
     const availW = rect.width - CONTENT_START_X - 32 - reserve
-    const availH = rect.height - 150
+    const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
     const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
-    return { zoom, x: CONTENT_START_X + Math.max(0, (availW - worldW * k) / 2) - lay.code.x * k, y: 32 }
+    return {
+      zoom,
+      x: CONTENT_START_X + Math.max(0, (availW - worldW * k) / 2) - lay.code.x * k,
+      // Below the top controls, vertically centered in what's left when the
+      // content is shorter than the available height.
+      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - lay.code.y * k,
+    }
   }
 
   useEffect(() => {
