@@ -1,18 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  AppWindow,
-  Bell,
-  Component,
-  FileCode,
-  Folder,
-  Layers,
-  Monitor,
-  PanelLeft,
-  ScrollText,
-  Settings,
-  SquareTerminal,
-  TriangleAlert,
-} from 'lucide-react'
+import { Bell, Folder, GitMerge, Layers, Settings } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { panelDefinitions } from '@/data/mockData'
@@ -22,14 +9,14 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const panelIcons = {
   Folder,
   Layers,
-  Component,
-  AppWindow,
-  FileCode,
-  Monitor,
-  ScrollText,
-  SquareTerminal,
-  TriangleAlert,
 }
+
+// Only Files and Layers get a shortcut here — the rest of `panelDefinitions`
+// (Assets, Canvas, Editor, Preview, Terminal, Console, Conflict) stay real
+// dockview panels (reachable via their own tabs, or the TopBar's Preview
+// button), just without a redundant/confusing activity-bar entry that would
+// otherwise exit Merge Studio for something not meant to be a "sidebar".
+const ACTIVITY_BAR_PANEL_IDS = ['explorer', 'layers']
 
 // This is the app's persistent left-nav "spine" — rendered once, one level
 // above the workspace/Merge Studio branch (see App.jsx), so it's always in
@@ -52,6 +39,7 @@ function ActivityBar({ dockApi }) {
   const unreadCount = notifications.filter((n) => n.unread).length
   const [activePanelId, setActivePanelId] = useState(null)
   const pendingPanelRef = useRef(null)
+  const activityBarPanels = panelDefinitions.filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
 
   useEffect(() => {
     if (!dockApi) return
@@ -87,15 +75,16 @@ function ActivityBar({ dockApi }) {
               onClick={() => setMergeListCollapsed((v) => !v)}
               className={cn(
                 'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                mergeListCollapsed && 'bg-primary/10 text-primary'
+                // Active = the Merge List is actually showing (not collapsed).
+                !mergeListCollapsed && 'bg-primary/10 text-primary'
               )}
             >
-              <PanelLeft className="size-[18px]" />
+              <GitMerge className="size-[18px]" />
             </TooltipTrigger>
             <TooltipContent side="right">{mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}</TooltipContent>
           </Tooltip>
         )}
-        {panelDefinitions.map((def) => {
+        {activityBarPanels.map((def) => {
           const Icon = panelIcons[def.iconName]
           return (
             <Tooltip key={def.id}>
@@ -103,7 +92,7 @@ function ActivityBar({ dockApi }) {
                 onClick={() => handleIconClick(def)}
                 className={cn(
                   'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                  activePanelId === def.id && 'bg-primary/10 text-primary'
+                  !inMergeStudio && activePanelId === def.id && 'bg-primary/10 text-primary'
                 )}
               >
                 <Icon className="size-[18px]" />
