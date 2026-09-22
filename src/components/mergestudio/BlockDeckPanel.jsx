@@ -288,6 +288,20 @@ function ManualFallback({ layer, assembly, onChange }) {
 // row also jumps/selects it on the canvas, exactly like the canvas's own
 // drift navigator. Consolidated here so the Compare tab is the one place
 // to both see drift history and review each one's detail.
+// No per-drift severity exists in the mock data (only a per-*item*
+// conflictLevel, which would paint every row in the list the same color) —
+// so this derives a reasonable per-row signal from how many properties are
+// actually in conflict: more properties touched reads as a bigger conflict.
+// A code drift is always a single line, so it reads as the mildest case.
+function severityOf(d) {
+  if (d.kind !== 'design') return 'low'
+  if (d.diffs.length >= 3) return 'high'
+  if (d.diffs.length === 2) return 'medium'
+  return 'low'
+}
+
+const SEVERITY_DOT_CLASS = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-emerald-500' }
+
 function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDiff, expandedId, onExpand }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
   const drifts = buildDrifts(item, frame)
@@ -332,6 +346,10 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
             >
               <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
               <span
+                title={`${severityOf(d)} conflict`}
+                className={cn('size-2 shrink-0 rounded-full', SEVERITY_DOT_CLASS[severityOf(d)])}
+              />
+              <span
                 className={cn(
                   'flex size-4 shrink-0 items-center justify-center rounded-full',
                   resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
@@ -358,11 +376,16 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
                     />
                   ))
                 ) : (
-                  <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
-                    <span className="pt-1 text-muted-foreground">Current</span>
-                    <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
-                    <span className="pt-1 text-muted-foreground">Incoming</span>
-                    <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[11px] break-words text-emerald-400">{incoming}</p>
+                  // Same card treatment as a design drift's DiffRow (rounded,
+                  // bordered, tinted surface) — embedded directly in the
+                  // flow here, not a separate floating popover.
+                  <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
+                    <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
+                      <span className="pt-1 text-muted-foreground">Current</span>
+                      <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
+                      <span className="pt-1 text-muted-foreground">Incoming</span>
+                      <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[11px] break-words text-emerald-400">{incoming}</p>
+                    </div>
                   </div>
                 )}
               </div>

@@ -989,7 +989,10 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
       <button
         type="button"
         onClick={onToggle}
-        className="ml-auto flex items-center gap-1.5 rounded-full border bg-card/90 px-4 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
+        // `h-11` explicitly, matching the adjacent zoom pill's own height —
+        // relying on padding alone to happen to match was fragile (it
+        // didn't: this button used to render visibly shorter).
+        className="ml-auto flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-4 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
       >
         <ListChecks className="size-4 text-indigo-500" />
         Changes log
@@ -1060,6 +1063,7 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreview,
   reserve,
+  leftReserve = 0,
   listCollapsed,
   focus,
   resolutionCount,
@@ -1177,13 +1181,14 @@ function MergeInfiniteCanvas({
       const wy = (r.top + r.height / 2 - base.top - from.y) / k0
       const zoom = clampZoom(Math.max(from.zoom, layerId || line ? 110 : 80))
       const k1 = zoom / 100
-      // Center within the *visible* area, not the full container — when a
-      // right-docked panel (Block Deck, or the Merge Changes wizard while
-      // its drift review is open) reserves space via `reserve`, the target
-      // would otherwise land centered behind it.
+      // Center within the *visible* band, not the full container — a
+      // right-docked panel (the Block Deck) reserves space via `reserve`,
+      // and the left-docked Merge Changes wizard reserves space via
+      // `leftReserve`; either would otherwise leave the target centered
+      // (partly or fully) behind it.
       const to = {
         zoom,
-        x: (CONTENT_START_X + (base.width - reserve)) / 2 - wx * k1,
+        x: (CONTENT_START_X + leftReserve + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
       }
       const t0 = performance.now()
@@ -1779,7 +1784,11 @@ function MergeInfiniteCanvas({
   }, [summaryOpen])
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
+    // `bg-slate-800`, not the shared `bg-card` token — a dedicated, slightly
+    // brighter/airier tone for just the canvas surface (vs. the darker
+    // `bg-card`/`bg-slate-900` still used by panels and the code window),
+    // so the whole app's other dark surfaces are untouched.
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-800">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         <div
           ref={viewportRef}
@@ -1944,6 +1953,24 @@ function MergeInfiniteCanvas({
           )
         })}
 
+        {/* Dimension overlay: a subtle width × height readout under each
+            "strong" (actually-selected, not just linked) box — divided
+            back out of the current zoom so it reads the element's real
+            design size, not however many screen pixels it happens to take
+            up at the moment. `b.w - 6` / `b.h - 6` undoes the 3px outline
+            padding `push()` adds around the measured element. */}
+        {links.boxes
+          .filter((b) => b.strong)
+          .map((b) => (
+            <span
+              key={`dim-${b.key}`}
+              style={{ left: b.x + b.w / 2, top: b.y + b.h + 6 }}
+              className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-full border border-lime-400/60 bg-card/95 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-lime-300 shadow-[0_0_10px_rgba(163,230,53,0.3)]"
+            >
+              {Math.round((b.w - 6) / (view.zoom / 100))} × {Math.round((b.h - 6) / (view.zoom / 100))}
+            </span>
+          ))}
+
         {links.pins.map((pin) => (
           <AnnotationPin
             key={pin.id}
@@ -2107,7 +2134,7 @@ function MergeInfiniteCanvas({
           instead of a fixed `right-3` that could overlap it at narrower
           window widths. */}
       <div ref={zoomRowRef} className="absolute bottom-3 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
-        <div className="flex items-center gap-1.5 rounded-full border bg-card/90 px-2 py-1.5 text-sm shadow-lg backdrop-blur-sm">
+        <div className="flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-2 text-sm shadow-lg backdrop-blur-sm">
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}

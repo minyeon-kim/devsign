@@ -1243,7 +1243,7 @@ export const liveMergeNotification = {
 // `assembly` is the Block Assemble patch (shape/fill/border/shadow/…) that
 // gives the ready-made component its look; width/height/label seed a new
 // layer when it's pulled onto the canvas.
-export const designSystemMeta = { name: 'Devsign DS', version: 'v2.4.0', syncedLabel: 'Synced 3m ago' }
+export const designSystemMeta = { name: 'Design System', version: 'v2.4.0', syncedLabel: 'Synced 3m ago' }
 
 export const designSystemComponents = [
   { id: 'ds-button-primary', name: 'Primary Button', category: 'Buttons', type: 'button', width: 160, height: 40, label: 'Continue', tokens: ['color.accent', 'radius.full'], assembly: { shape: 'pill', fill: 'gradient', shadow: 'glow' } },

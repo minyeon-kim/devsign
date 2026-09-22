@@ -127,9 +127,12 @@ function SummarySection({ summary }) {
 }
 
 // Reserved width for the canvas to shift clear of, while the wizard is open
-// and docked to its default right-side spot (max-w-2xl + its right-6
-// margin + breathing room). Matches the `reserve`/`DECK_RESERVE` pattern
-// the Block Deck already uses for the same purpose.
+// and docked to its default left-side spot (max-w-2xl + its left-6 margin
+// + breathing room). Matches the `reserve`/`DECK_RESERVE` pattern the
+// Block Deck already uses for the same purpose (that one reserves space on
+// the *right*, since the deck still docks there; this one reserves the
+// *left*, since the wizard now docks left instead of right — so neither
+// the code comparison nor the artboards sit hidden behind it).
 export const WIZARD_RESERVE = 720
 
 export const WIZARD_STEPS = [
@@ -780,9 +783,12 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         className={cn(
           'flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl',
           // Default dock: `top-16` (not `top-6`) so it opens clear of the
-          // 44px app header instead of covering it; free dragging (see
-          // `pos` above) takes over as soon as the user drags the header.
-          !pos && 'top-16 right-6 left-auto'
+          // 44px app header instead of covering it. Docked toward the
+          // *left* (not the traditional right) so it sits over the Merge
+          // List's own territory instead of the central code comparison /
+          // artboards — free dragging (see `pos` above) takes over as soon
+          // as the user drags the header.
+          !pos && 'top-16 left-6 right-auto'
         )}
       >
         <DialogHeader

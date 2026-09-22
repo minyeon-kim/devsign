@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronsLeft, ChevronsRight, PanelRight, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, PanelLeft, PanelRight, Search, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,10 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
             {/* Merge List collapse/expand: relocated here (out of the
                 panel's own header, and duplicated from the ActivityBar
                 icon) so there's one consistent, always-visible spot for it
-                regardless of the panel's own open/closed state. */}
+                regardless of the panel's own open/closed state. A single
+                static "split panel" glyph (ChatGPT's sidebar-toggle style)
+                rather than swapping chevron direction by state — the icon
+                itself doesn't need to change, just its tinted/idle color. */}
             <button
               type="button"
               onClick={() => setMergeListCollapsed((v) => !v)}
@@ -41,7 +44,7 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
                 !mergeListCollapsed && 'bg-primary/10 text-primary'
               )}
             >
-              {mergeListCollapsed ? <ChevronsRight className="size-3.5" /> : <ChevronsLeft className="size-3.5" />}
+              <PanelLeft className="size-3.5" />
             </button>
             <span className="h-4 w-px bg-border" />
             <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-tight text-foreground/90">
