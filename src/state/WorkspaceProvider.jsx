@@ -179,7 +179,11 @@ export function WorkspaceProvider({ children }) {
 
   const requestMergeFocus = useCallback((target) => {
     setSelectedMergeItemId(target.itemId)
-    setMergeFocus({ target, nonce: Date.now() })
+    // A monotonic counter, not Date.now() — two focus requests inside the
+    // same millisecond (e.g. rapid drift-nav clicks) would otherwise get an
+    // identical nonce, so the second one's "already handled" guard in
+    // MergeStudioWorkspace would silently swallow it.
+    setMergeFocus({ target, nonce: nextId('focus') })
   }, [])
 
   const markNotificationRead = useCallback((id, unread = false) => {

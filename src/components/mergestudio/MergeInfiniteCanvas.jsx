@@ -911,7 +911,7 @@ function DriftCard({ drift, index, total, resolutions, layerCodeTarget, currentL
 function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
   const total = entries.length
   return (
-    <div className="absolute right-3 bottom-[8.5rem] z-20 w-80 max-w-[calc(100%-1.5rem)]">
+    <div className="absolute right-3 bottom-3 z-20 w-80 max-w-[calc(100%-1.5rem)]">
       {open && (
         <div className="mb-2 max-h-80 space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
           {total === 0 && codeRows.length === 0 && (
@@ -1170,6 +1170,15 @@ function MergeInfiniteCanvas({
   // variant diffs, then incoming code lines. The < > pager steps through
   // them: each jump selects the drift (neon outline) and pans to it.
   const layerDiffMap = designMergeVariants[item.id]?.layerDiffs ?? {}
+  // A code line already covered by a design layer's own code-span (see
+  // `layerCodeMap` below) is the *same* underlying change as that layer's
+  // design drift — selecting it re-selects that layer via reverse-sync, so
+  // counting it again as its own standalone "code" drift is a redundant
+  // duplicate of an identical block, and previously deadlocked the pager
+  // (advancing past it snapped straight back to the owning design drift).
+  const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+  const codeCoveredByDesign = (fileId, line) =>
+    Object.values(codeMap).some((t) => t.fileId === fileId && line >= t.line && line <= t.line + (t.span ?? 1) - 1)
   const drifts = [
     ...(frame?.layers ?? [])
       .filter((l) => layerDiffMap[l.id])
@@ -1181,13 +1190,15 @@ function MergeInfiniteCanvas({
         label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
       })),
     ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
-      diffs.map((d) => ({
-        id: `c:${fileId}:${d.line}`,
-        kind: 'code',
-        fileId,
-        line: d.line,
-        label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
-      }))
+      diffs
+        .filter((d) => !codeCoveredByDesign(fileId, d.line))
+        .map((d) => ({
+          id: `c:${fileId}:${d.line}`,
+          kind: 'code',
+          fileId,
+          line: d.line,
+          label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
+        }))
     ),
   ]
   const matchedDrift = drifts.findIndex((d) =>

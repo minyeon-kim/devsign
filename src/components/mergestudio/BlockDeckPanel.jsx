@@ -136,7 +136,7 @@ function SizeControl({ layer, assembly, onChange }) {
         {num(w, 'width')}
         {num(h, 'height')}
       </div>
-      <div className="mt-2 flex gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {[
           ['S', 0.8],
           ['M', 1],
@@ -608,7 +608,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                     <button
                       type="button"
                       onClick={() => onApply(def)}
-                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold transition-colors"
+                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Replace
                     </button>
@@ -617,7 +617,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                     <button
                       type="button"
                       onClick={() => onInsert(def)}
-                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold transition-colors"
+                      className="rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Insert
                     </button>
@@ -626,7 +626,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
                     type="button"
                     onClick={() => onAdd(def)}
                     className={cn(
-                      'rounded-full px-3 py-1 text-xs font-semibold',
+                      'rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap',
                       mode ? 'border border-indigo-500/50 text-foreground hover:bg-indigo-500/15' : 'bg-slate-700 text-foreground hover:bg-slate-600'
                     )}
                   >
@@ -772,7 +772,7 @@ function BlockDeckPanel({
           onClick={() => setTab('assemble')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
-            tab === 'assemble' ? 'bg-violet-500 text-white' : 'text-muted-foreground hover:text-foreground'
+            tab === 'assemble' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           <Sparkles className="size-3.5" />
@@ -783,7 +783,7 @@ function BlockDeckPanel({
           onClick={() => setTab('library')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
-            tab === 'library' ? 'bg-sky-500 text-white' : 'text-muted-foreground hover:text-foreground'
+            tab === 'library' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           <Library className="size-3.5" />
