@@ -21,7 +21,7 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
       onClick={() => onSelect(id)}
       style={{ paddingLeft: 8 + depth * 16 }}
       className={cn(
-        'flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-muted hover:text-foreground',
+        'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-xs transition-colors hover:bg-muted hover:text-foreground',
         selected ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
       )}
     >
@@ -37,7 +37,7 @@ function LayersPanel() {
 
   return (
     <Tabs defaultValue="layers" className="flex h-full flex-col gap-0 bg-card">
-      <div className="flex h-9 shrink-0 items-center border-b px-2">
+      <div className="flex h-9 shrink-0 items-center border-b border-border/60 px-2">
         <TabsList variant="line">
           <TabsTrigger value="layers" className="gap-1.5">
             <LayersIcon className="size-3.5" />
@@ -88,7 +88,7 @@ function LayersPanel() {
         {assets.map((asset) => (
           <div
             key={asset.id}
-            className="cursor-default rounded-md px-2 py-1.5 hover:bg-muted hover:text-foreground"
+            className="cursor-default rounded-lg px-2 py-1.5 transition-colors hover:bg-muted hover:text-foreground"
           >
             {asset.name}
           </div>

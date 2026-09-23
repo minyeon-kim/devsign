@@ -21,12 +21,11 @@ function ExplorerPanel() {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b px-3 text-xs font-medium">
-        <Folder className="size-3.5 text-muted-foreground" />
-        Explorer
-      </div>
-      <div className="flex-1 overflow-auto p-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5 px-2 py-1 text-foreground/70">
+      {/* No in-panel "Explorer" header here — the dockview tab above
+          already reads "Explorer", so repeating it would just be a
+          redundant label and an extra hard-edged divider. */}
+      <div className="flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 px-2 py-1.5 text-foreground/70">
           <Folder className="size-3.5" />
           src
         </div>
@@ -64,7 +63,7 @@ function ExplorerPanel() {
               onDoubleClick={() => startRename(file)}
               title="Double-click to rename"
               className={cn(
-                'flex w-full items-center gap-1.5 rounded-md py-1 pr-2 pl-6 text-left hover:bg-muted hover:text-foreground',
+                'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-6 text-left transition-colors hover:bg-muted hover:text-foreground',
                 active && 'bg-primary/10 text-primary'
               )}
             >

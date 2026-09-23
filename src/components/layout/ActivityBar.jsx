@@ -70,7 +70,7 @@ function WorkspaceSwitcher({ currentProjectId }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         title={currentProject?.name ?? 'Switch project'}
-        className="flex size-9 items-center justify-center rounded-xl bg-primary text-[11px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-105"
+        className="flex size-9 items-center justify-center rounded-xl bg-primary text-[11px] font-semibold text-primary-foreground shadow-sm transition-[filter] duration-150 hover:brightness-110"
       >
         {currentProject ? initialsFor(currentProject.name) : '?'}
       </DropdownMenuTrigger>
@@ -116,14 +116,14 @@ function ActivityBar({ dockApi }) {
   }, [dockApi])
 
   return (
-    <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
+    <nav className="flex w-12 shrink-0 flex-col items-center gap-1.5 border-r border-border/60 bg-card py-2.5">
       {projects.length > 1 && (
         <>
           <WorkspaceSwitcher currentProjectId={projectId} />
-          <Separator className="my-1" />
+          <Separator className="my-1 bg-border/60" />
         </>
       )}
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center gap-1.5">
         {panelDefinitions
           .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
           .map((def) => {
@@ -144,7 +144,7 @@ function ActivityBar({ dockApi }) {
             )
           })}
       </div>
-      <div className="mt-auto flex flex-col items-center gap-1">
+      <div className="mt-auto flex flex-col items-center gap-1.5">
         <Tooltip>
           <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <Settings className="size-[18px]" />
