@@ -1181,7 +1181,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="space-y-3 border-b border-white/10 p-4">
+      <div className="space-y-3 border-b border-white/10 px-4 pt-3 pb-4">
         <div className="flex items-center gap-2 text-sm">
           <Library className="size-4 text-indigo-500" />
           <span className="font-semibold text-foreground">{designSystemMeta.name}</span>
@@ -1420,11 +1420,14 @@ function BlockDeckPanel({
           Library
         </button>
       </div>
-      <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
-        {tab === 'compare' && 'Compare visual drifts and style tokens: keep the Original Design, take the Current Implementation, or set your own value.'}
-        {tab === 'assemble' && 'Edit the element’s copy and compose its shape, size and style — or accept an AI suggestion.'}
-        {tab === 'library' && 'Pull ready-made components from the Design System.'}
-      </p>
+      {/* Library needs no intro line — its Design System header and search
+          sit directly under the tabs. */}
+      {tab !== 'library' && (
+        <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
+          {tab === 'compare' && 'Compare visual drifts and style tokens: keep the Original Design, take the Current Implementation, or set your own value.'}
+          {tab === 'assemble' && 'Edit the element’s copy and compose its shape, size and style — or accept an AI suggestion.'}
+        </p>
+      )}
 
       {tab === 'compare' ? (
         item.hasDesign ? (
