@@ -367,26 +367,37 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setConfirmExitOpen(true)}
-        className={cn('absolute top-3 left-4 z-40 flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
-      >
-        <ArrowLeft className="size-3.5" />
-        Workspace
-      </button>
-
-      {mergeListCollapsed && (
+      {/* Top-left row: exit, then the Merge List toggle — both always
+          present, with a comfortable gap. The toggle is click-only (no
+          hover flyout, no auto-close): the window stays open until it's
+          toggled here or closed from its own header. */}
+      <div className="absolute top-3 left-4 z-40 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setMergeListCollapsed(false)}
-          title="Show Merge List"
-          className={cn('absolute top-14 left-4 z-30 flex h-9 items-center gap-2 rounded-full pr-4 pl-3 text-xs font-medium text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+          onClick={() => setConfirmExitOpen(true)}
+          className={cn('flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
         >
-          <PanelLeftOpen className="size-3.5 text-indigo-400" />
-          Merge List
+          <ArrowLeft className="size-3.5" />
+          Workspace
         </button>
-      )}
+        <button
+          type="button"
+          onClick={() => setMergeListCollapsed((v) => !v)}
+          aria-pressed={!mergeListCollapsed}
+          title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
+          className={cn(
+            'flex h-9 items-center gap-2 rounded-full pr-2 pl-3 text-xs font-medium transition-colors',
+            FLOATING_PILL,
+            mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100 hover:bg-indigo-500/25'
+          )}
+        >
+          {mergeListCollapsed ? <PanelLeftOpen className="size-3.5 text-indigo-400" /> : <PanelLeftClose className="size-3.5 text-indigo-300" />}
+          Merge List
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 text-[10px] font-semibold text-white tabular-nums">
+            {mergeItems.length}
+          </span>
+        </button>
+      </div>
 
     <div
       // Floating glass window that slides/fades over the canvas (transform
@@ -395,7 +406,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       aria-hidden={mergeListCollapsed}
       inert={mergeListCollapsed}
       className={cn(
-        'absolute top-14 bottom-4 left-4 z-30 flex w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        'absolute top-[60px] bottom-4 left-4 z-30 flex w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
         FLOATING_PANEL,
         mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       )}

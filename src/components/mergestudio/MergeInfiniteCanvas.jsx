@@ -1441,7 +1441,7 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, setMergeListCollapsed, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -1989,21 +1989,6 @@ function MergeInfiniteCanvas({
     zoomAt(viewRef.current.zoom + delta, rect.width / 2, rect.height / 2)
   }
 
-  // Click-away dismissal for the Merge List overlay drawer: a plain click
-  // (not a pan/drag — same 4px threshold as card drags) anywhere on the
-  // canvas viewport collapses it. Listened for in the *capture* phase and
-  // never stops propagation, so it sees clicks on cards, code lines and
-  // layers too without swallowing or altering them; the floating controls
-  // outside the viewport (stepper, zoom row, etc.) aren't affected.
-  const dismissDownRef = useRef(null)
-  function onViewportPointerDownCapture(e) {
-    dismissDownRef.current = e.button === 0 && !listCollapsed ? { x: e.clientX, y: e.clientY } : null
-  }
-  function onViewportPointerUpCapture(e) {
-    const down = dismissDownRef.current
-    dismissDownRef.current = null
-    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 4) setMergeListCollapsed(true)
-  }
 
   function startPan(e) {
     if (e.target !== e.currentTarget || e.button !== 0) return
@@ -2170,8 +2155,6 @@ function MergeInfiniteCanvas({
         <div
           ref={viewportRef}
           onPointerDown={startPan}
-          onPointerDownCapture={onViewportPointerDownCapture}
-          onPointerUpCapture={onViewportPointerUpCapture}
           className={cn('absolute inset-0 overflow-hidden', panning ? 'cursor-grabbing' : 'cursor-grab')}
           style={{
             touchAction: 'none',
