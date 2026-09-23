@@ -128,10 +128,10 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
       <PopoverTrigger
         title="Filter"
         aria-label={count ? `Filter (${count} active)` : 'Filter'}
-        // A pill matching the search input beside it: same 36px height,
+        // A pill matching the search input beside it: same 32px height,
         // fully rounded, same borderless soft fill.
         className={cn(
-          'flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+          'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
           // Borderless soft fill, matching the search field beside it.
           count ? 'bg-white/[0.09] text-[#FFFFFF]' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.08] hover:text-white'
         )}

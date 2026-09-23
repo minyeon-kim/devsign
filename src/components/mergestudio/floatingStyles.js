@@ -14,3 +14,13 @@ export const SEGMENT_TAB = 'flex h-8 min-w-0 flex-1 items-center justify-center 
 // Count badge inside a button or title (Merge Changes, Changes log, …);
 // callers add their own colors.
 export const COUNT_BADGE = 'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] leading-none font-semibold tabular-nums'
+
+// Category tabs — one style for the Inbox filters (All / Approvals / …) and
+// the Merge List's sub-navigation (Merges / Files / Layers): small
+// left-aligned text pills; the active one is a soft fill (no outline).
+export const CATEGORY_TAB = 'inline-flex h-7 shrink-0 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors'
+export const CATEGORY_TAB_ACTIVE = 'bg-white/[0.08] text-[#FFFFFF]'
+export const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+// The row those tabs sit in: directly under the panel title — no divider
+// above or below it, just spacing.
+export const CATEGORY_TAB_ROW = 'flex shrink-0 items-center gap-1 px-5 pb-3'

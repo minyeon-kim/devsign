@@ -2,24 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ChartLine,
-  CircleCheck,
   CircleDot,
   CircleUser,
   FilePlus2,
-  Eye,
-  Files,
   Braces,
   CodeXml,
   Frame,
-  GitMerge,
   Image,
-  Layers,
   PanelBottom,
   PanelLeftClose,
   PanelLeftOpen,
   PanelTop,
   Pencil,
-  PencilLine,
   RectangleHorizontal,
   Search,
   Square,
@@ -28,6 +22,9 @@ import {
   TextCursorInput,
   ToggleRight,
   Type,
+  CalendarDays,
+  ChevronRight,
+  GitMerge,
 } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
@@ -38,28 +35,27 @@ import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/M
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
-// Status as its own at-a-glance cue: an outlined pill (so it never reads as
-// one of the filled severity pills beside it) with a distinct colored icon
-// per state — in progress, waiting on review, draft, done.
-const STATUS_STYLE = {
-  'In Progress': { icon: CircleDot, iconClass: 'text-indigo-400' },
-  'Needs Review': { icon: Eye, iconClass: 'text-violet-400' },
-  Draft: { icon: PencilLine, iconClass: 'text-muted-foreground' },
-  Merged: { icon: CircleCheck, iconClass: 'text-emerald-400' },
-}
+// Merge List spacing grid — one set of numbers for the whole panel:
+//   inset 20px (px-5) for header and content; 12px inside grouped
+//   surfaces (px-3); 16px between groups (space-y-4); 8px from a group label
+//   to its surface (mb-2); controls 28px (h-7) or 32px (h-8).
+// Grouped surface: a subtle tonal lift + hairline ring, so sections and
+// lists read as containers without heavy boxes.
+const GROUP_SURFACE = 'overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07]'
+const GROUP_LABEL = 'mb-2 flex h-7 items-center gap-2 text-[11px] font-medium tracking-wider text-slate-500 uppercase'
 
-function StatusPill({ status }) {
-  const style = STATUS_STYLE[status] ?? STATUS_STYLE.Draft
-  const Icon = style.icon
-  return (
-    <span className="flex h-5 shrink-0 items-center justify-center gap-1 rounded-full px-1.5 text-[11px] font-medium whitespace-nowrap text-foreground/90 ring-1 ring-inset ring-white/15">
-      <Icon className={cn('size-2.5', style.iconClass)} />
-      {status}
-    </span>
-  )
-}
+// Merge List sections, in the order that needs attention first. Anything
+// with an unexpected status lands in "Other".
+const WORKFLOW_GROUPS = [
+  { id: 'review', label: 'Needs review', tags: ['Needs Review'], dot: 'bg-violet-400' },
+  { id: 'progress', label: 'In progress', tags: ['In Progress'], dot: 'bg-indigo-400' },
+  { id: 'draft', label: 'Draft', tags: ['Draft'], dot: 'bg-slate-400' },
+  { id: 'merged', label: 'Merged', tags: ['Merged'], dot: 'bg-emerald-400' },
+  { id: 'other', label: 'Other', tags: null, dot: 'bg-slate-600' },
+]
+const KNOWN_TAGS = new Set(WORKFLOW_GROUPS.flatMap((g) => g.tags ?? []))
 
 // Left-hand type icon — bare, no tile: a monochrome glyph for what the merge item mainly
 // is (the icon shape carries the type, not color), readable at a glance (a scaled-down screen preview was too small to
@@ -128,72 +124,79 @@ function PeopleStack({ item }) {
   )
 }
 
-// One scannable card, top to bottom:
-//   top row — status (left) and last update (right) on their own line;
-//   header  — type icon + the title, which gets the full width (ellipsis
-//             only if it truly doesn't fit), then the file line;
-//   footer  — conflict level (the shared SeverityPill, same as the Block
-//             Deck's drift rows) and the due date (red once overdue) on the
-//             left, stacked assignee/reviewer avatars on the right.
-// Hover brightens the border; the open item gets the tinted active state.
-function MergeItemCard({ item, active, onSelect }) {
+// One merge item, laid out on the exact grid of an Inbox feed row (the
+// studio's reference): a 32px lead slot (type icon) + 12px gap, then
+//   tier 1 — title (status is the section; last update in the tooltip);
+//   tier 2 — file line, then the due date on its own line (red once
+//            overdue) when there is one;
+//   tier 3 — conflict level (the shared SeverityPill, same as the Block
+//            Deck's drift rows) ··· stacked reviewer avatars.
+// Flat row; the open item gets a soft surface and the left accent bar.
+function MergeItemBody({ item, trailing }) {
   const hasDue = item.dueBucket !== 'none' && item.dueLabel
+  return (
+    <>
+      <span className="flex h-6 w-8 shrink-0 items-center justify-center">
+        <ItemTypeBadge item={item} />
+      </span>
+      <span className="min-w-0 flex-1">
+        {/* Tier 1 — the title (status is the section it sits in; the last
+            update is in the row's tooltip). */}
+        <span className="flex h-6 items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#FFFFFF]">{item.title}</span>
+          {trailing}
+        </span>
+        {/* Tier 2 — the file line, then (only when set) the due date. */}
+        <span className="block truncate text-xs text-slate-400">{item.subtitle}</span>
+        {hasDue && (
+          <span className={cn('mt-0.5 flex items-center gap-1 text-xs', item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-slate-500')}>
+            <CalendarDays className="size-3 shrink-0" />
+            {item.dueLabel}
+          </span>
+        )}
+        {/* Tier 3 — only what's unique to the item: conflict level ··· people. */}
+        <span className="mt-3 flex items-center gap-1.5">
+          <SeverityPill level={item.conflictLevel} title={`Conflict: ${item.conflictLevel}`} />
+          <PeopleStack item={item} />
+        </span>
+      </span>
+    </>
+  )
+}
+
+function MergeItemCard({ item, active, onSelect }) {
   return (
     <button
       type="button"
-      title={item.title}
+      title={`${item.title} · updated ${item.updatedLabel}`}
       aria-current={active ? 'true' : undefined}
       onClick={() => onSelect(item.id)}
       className={cn(
-        // Flat feed row (same language as the Inbox): no box, border or
-        // shadow — rows are separated by the list's hairline dividers.
-        'relative flex w-full flex-col gap-3 px-5 py-4 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
+        // Inside its group surface: 12px sides (the panel grid), a 32px lead
+        // slot + 12px gap, then a stacked text column.
+        'group/card relative flex w-full items-start gap-3 px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
         active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
       )}
     >
       {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
-      {/* Top mini-row: status on its own line (left) with the last update
-          (right), so the title below gets the card's full width. */}
-      <div className="-mb-1 flex w-full items-center justify-between gap-2">
-        <StatusPill status={item.tag} />
-        <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">{item.updatedLabel}</span>
-      </div>
-
-      <div className="flex w-full items-start gap-2.5">
-        <ItemTypeBadge item={item} />
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="truncate text-sm leading-5 font-semibold text-[#FFFFFF]">{item.title}</p>
-          <p className="truncate text-xs leading-4 text-slate-400">{item.subtitle}</p>
-        </div>
-      </div>
-
-      <div className="flex w-full items-center gap-2">
-        <SeverityPill level={item.conflictLevel} title={`Conflict: ${item.conflictLevel}`} />
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate text-xs',
-            item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-slate-400'
-          )}
-        >
-          {hasDue ? item.dueLabel : null}
-        </span>
-        <PeopleStack item={item} />
-      </div>
+      <MergeItemBody
+        item={item}
+        // Drill-down cue: the card opens its own view (files & layers).
+        trailing={<ChevronRight className="size-3.5 shrink-0 text-slate-500 transition-[translate,color] group-hover/card:translate-x-0.5 group-hover/card:text-slate-300" />}
+      />
     </button>
   )
 }
 
-// Files tab: the open merge item's files (plus Merge Studio's copy.json),
-// each with its incoming-change and hand-edit counts. Clicking one jumps the
-// code window to its first change.
-function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
-  if (!files.length) return <EmptyTab text="This merge item has no files." />
+// The open item's files (plus Merge Studio's copy.json), shown in its
+// drill-down view, each with incoming-change and hand-edit counts. Clicking
+// one jumps the code window to its first change.
+function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
+  if (!files.length) return <DetailEmpty text="This merge item has no files." />
   return (
-    <div className="px-5 py-4">
-      <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Files · {files.length}</p>
-      <div className="-mx-5 divide-y divide-white/[0.06]">
+    <div className="space-y-px p-1">
       {files.map((f) => {
         const meta = getFileIconMeta(f.name)
         const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
@@ -209,24 +212,23 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             className={cn(
-              'relative flex w-full items-center gap-3 px-5 py-3 text-left transition-colors',
-              active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
+              'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors',
+              active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
             )}
           >
-            {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
             <meta.Icon className={cn('size-4 shrink-0', meta.colorClass)} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-[#FFFFFF]">{f.name}</span>
-              <span className="block truncate text-[11px] text-slate-500">{f.path}</span>
+              <span className="block truncate text-[13px] text-slate-100">{f.name}</span>
+              <span title={f.path} className="block truncate text-[11px] text-slate-500">{f.path}</span>
             </span>
             {/* Counts as plain colored figures — no pills. */}
             {incoming.length > 0 && (
-              <span title="Incoming changes" className="shrink-0 text-xs font-semibold text-emerald-400 tabular-nums">
+              <span title="Incoming changes" className="shrink-0 text-xs font-medium text-emerald-400 tabular-nums">
                 +{incoming.length}
               </span>
             )}
             {edits.length > 0 && (
-              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-violet-300 tabular-nums">
+              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-violet-300 tabular-nums">
                 <Pencil className="size-3" />
                 {edits.length}
               </span>
@@ -234,7 +236,6 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
           </button>
         )
       })}
-      </div>
     </div>
   )
 }
@@ -283,22 +284,20 @@ function layerTree(layers) {
   return rows
 }
 
-// Layers tab: the frame's layer tree. Violet dot = drifts from the Original
-// Design, pencil = edited here (Assemble or text); clicking selects the
-// layer on the canvas and pans to it.
-function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
-  if (!frame) return <EmptyTab text="This merge item has no design page." />
+// The open item's layer tree, in its drill-down view. Violet dot = drifts
+// from the Original Design, pencil = edited here (Assemble or text);
+// clicking selects the layer on the canvas and pans to it.
+function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
+  if (!frame) return <DetailEmpty text="This merge item has no design page." />
   const drifted = designMergeVariants[item.id]?.layerDiffs ?? {}
   const rows = layerTree(frame.layers)
   return (
-    <div className="px-5 py-4">
-      <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Layers · {rows.length}</p>
-      {/* Flat tree: the frame as a plain header row, layers beneath — no box. */}
-      <div className="flex h-9 items-center gap-2 border-b border-white/[0.06] text-[13px] font-semibold text-[#FFFFFF]">
+    <div className="p-1">
+      <div className="flex h-8 items-center gap-2 px-2 text-xs font-medium text-slate-300">
         <Frame className="size-3.5 shrink-0 text-indigo-400" />
         <span className="truncate">{frame.name}</span>
       </div>
-      <div className="-mx-2 space-y-px pt-1.5">
+      <div className="space-y-px">
       {rows.map(({ layer, depth }) => {
         const Icon = LAYER_ICONS[layer.type] ?? Square
         const active = selectedLayerId === layer.id
@@ -308,9 +307,9 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
             ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onSelect(layer.id)}
-            style={{ paddingLeft: 8 + depth * 14 }}
+            style={{ paddingLeft: 8 + (depth + 1) * 12 }}
             className={cn(
-              'flex h-8 w-full items-center gap-2 rounded-lg pr-2.5 text-left text-[13px] font-medium transition-colors',
+              'flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-[13px] transition-colors',
               active ? 'bg-white/[0.08] text-[#FFFFFF]' : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
             )}
           >
@@ -326,23 +325,66 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
   )
 }
 
-function EmptyTab({ text }) {
-  return <p className="px-5 py-8 text-center text-[13px] text-slate-400">{text}</p>
+function DetailEmpty({ text }) {
+  return <p className="px-2 py-4 text-center text-xs text-slate-500">{text}</p>
 }
 
-const TABS = [
-  ['merges', 'Merges', GitMerge],
-  ['files', 'Files', Files],
-  ['layers', 'Layers', Layers],
+// The drill-down view pushed in when a merge item is opened: the item
+// itself as a header card (same 3-tier layout as its list card), then its
+// Files and Layers behind a small switch — on the same 20 / 12 / 16 / 8px
+// grid and type scale as the list view.
+const DETAIL_VIEWS = [
+  ['files', 'Files'],
+  ['layers', 'Layers'],
 ]
+
+function ItemDetailView({ item, files, frame, view, flashView, onView, selectedLayerId, selectedFileId, manualCode, editedLayerIds, onOpenFile, onSelectLayer }) {
+  const counts = { files: files.length, layers: frame ? layerTree(frame.layers).length : 0 }
+  return (
+    <div className="space-y-4 px-5 pt-1 pb-5">
+      <div title={`${item.title} · updated ${item.updatedLabel}`} className={cn(GROUP_SURFACE, 'flex items-start gap-3 px-3 py-3.5')}>
+        <MergeItemBody item={item} />
+      </div>
+      <section>
+        <div className="mb-2 flex h-7 items-center gap-1">
+          {DETAIL_VIEWS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={view === id}
+              onClick={() => onView(id)}
+              className={cn(
+                CATEGORY_TAB,
+                'gap-1.5 transition-[background-color,color,box-shadow] duration-300',
+                view === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE,
+                flashView === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
+              )}
+            >
+              {label}
+              <span className="text-[11px] text-slate-500 tabular-nums">{counts[id]}</span>
+            </button>
+          ))}
+        </div>
+        <div className={GROUP_SURFACE}>
+          {view === 'files' ? (
+            <FilesList item={item} files={files} manualCode={manualCode} activeFileId={selectedFileId} onOpen={onOpenFile} />
+          ) : (
+            <LayersList item={item} frame={frame} selectedLayerId={selectedLayerId} editedLayerIds={editedLayerIds} onSelect={onSelectLayer} />
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
 
 // Merge Studio's left-side chrome, floating over the full-width canvas:
 // a standalone `← Workspace` pill pinned top-left, and below it the Merge
 // List as a glass window (backdrop blur, translucent surface, soft indigo
-// edge glow — the same family as the Block Deck and Changes log) with
-// Merges / Files / Layers tabs. It collapses to a small pill; clicking the
-// canvas collapses it too. Filters in Merges are one row of dropdown chips
-// (Status / Conflict / Due), each a multi-select menu.
+// edge glow — the same family as the Block Deck and Changes log). It is a
+// two-level navigation stack: the list (search, filters, status sections)
+// and, pushed in when an item is opened, that item's Files / Layers with a
+// "Back to Merge List" header. It collapses to a small pill; clicking the
+// canvas collapses it too.
 function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), onExplore }) {
   const {
     mergeItems,
@@ -355,25 +397,42 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
     requestMergeFocus,
   } = useWorkspace()
   const [confirmExitOpen, setConfirmExitOpen] = useState(false)
-  const [tab, setTab] = useState('merges')
-  // Context-aware tab: clicking a design element shows Layers, a code line
-  // shows Files. Only switches when the tab actually changes, and marks the
-  // newly shown tab with a brief highlight so the change is noticed rather
-  // than jarring.
-  const [flashTab, setFlashTab] = useState(null)
+  // Navigation stack: 'list' or 'detail' (the open item's Files / Layers).
+  // `navDir` picks the slide direction — forward pushes in from the right,
+  // back returns from the left; null (first render) doesn't animate.
+  const [stack, setStack] = useState('list')
+  const [navDir, setNavDir] = useState(null)
+  const [detailView, setDetailView] = useState('files')
+  const inDetail = stack === 'detail' && Boolean(item)
+  function push() {
+    setNavDir('forward')
+    setStack('detail')
+  }
+  function pop() {
+    setNavDir('back')
+    setStack('list')
+  }
+  // Context-aware view: clicking a design element shows Layers, a code line
+  // shows Files (pushing the item's view in if the list is showing). Only switches when the
+  // view actually changes, and marks it with a brief highlight so the
+  // change is noticed rather than jarring.
+  const [flashView, setFlashView] = useState(null)
   const lastFocus = useRef(null)
   useEffect(() => {
     if (!focusTab || !item || lastFocus.current === focusTab.nonce) return
     lastFocus.current = focusTab.nonce
-    if (tab === focusTab.tab) return
-    setTab(focusTab.tab)
-    setFlashTab(focusTab.tab)
-    const t = setTimeout(() => setFlashTab(null), 900)
+    if (stack !== 'detail') push()
+    if (detailView === focusTab.tab) return
+    setDetailView(focusTab.tab)
+    setFlashView(focusTab.tab)
+    const t = setTimeout(() => setFlashView(null), 900)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTab?.nonce])
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  // Collapsed Merge List sections — Merged starts folded away.
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set(['merged']))
 
   // Any filter change also counts as exploring the list for the onboarding
   // guide.
@@ -439,68 +498,55 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       )}
     >
       <div className="flex min-h-0 min-w-72 flex-1 flex-col">
-      {/* Flat header, same language as the Inbox: title row, tab row and
-          context line separated by hairlines only — no boxes or fills. */}
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/[0.06] px-5">
+      {/* View 1 — the list. Kept mounted (just hidden) while an item's view
+          is pushed in, so search, filters, folded sections and scroll
+          position are all still there on the way back. */}
+      <div
+        className={cn(
+          'min-h-0 flex-1 flex-col',
+          inDetail ? 'hidden' : 'flex',
+          navDir === 'back' && 'animate-in fade-in slide-in-from-left-4 duration-200'
+        )}
+      >
+      <div className="flex h-12 shrink-0 items-center gap-2 px-5">
         <GitMerge className="size-4 shrink-0 text-indigo-500" />
-        <span className="flex flex-1 items-center gap-1.5 text-[15px] font-semibold text-foreground">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
           Merge List
           <span className={cn(COUNT_BADGE, 'bg-indigo-500/15 text-indigo-300')}>{visible.length}</span>
         </span>
       </div>
 
-      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
-        {TABS.map(([id, label, Icon]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => {
-              setTab(id)
-              onExplore?.()
-            }}
-            className={cn(
-              SEGMENT_TAB,
-              'transition-[background-color,color,box-shadow] duration-300',
-              // Flat: no outline — the active tab is white text on a soft
-              // surface, the rest quiet gray.
-              tab === id ? 'bg-white/[0.07] font-semibold text-[#FFFFFF]' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200',
-              flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
-            )}
-          >
-            <Icon className="size-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-      {/* Context line only where it tells you something: which item the
-          Files / Layers tabs are showing (Merges needs no helper text). */}
-      {tab !== 'merges' && (
-        <p className="shrink-0 truncate border-b border-white/[0.06] px-5 py-2.5 text-xs leading-snug text-slate-500">
-          {item ? <>In <span className="font-medium text-slate-200">{item.title}</span></> : 'No merge item open.'}
-        </p>
-      )}
-
       <div className="min-h-0 flex-1 overflow-auto">
-        {tab === 'merges' ? (
-          <div className="space-y-4 px-5 pt-4 pb-2">
+          <div className="space-y-4 px-5 pt-1 pb-5">
             {/* Search and a single Filter button on one row, straight in the
                 panel's flow (no box around them); what's filtered shows as
                 removable chips below, only when set. */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
                 <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500" />
+                  <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-500" />
                   <input
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value)
                       onExplore?.()
                     }}
-                    placeholder="Search merges…"
-                    className="h-9 w-full rounded-full bg-white/[0.05] pr-3 pl-9 text-sm text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
+                    placeholder="Search…"
+                    className="h-8 w-full rounded-full bg-white/[0.05] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
                   />
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
+                {/* Add files lives with the list's own controls. */}
+                <button
+                  type="button"
+                  data-guide="add-files"
+                  title="Add files — start a merge item from your open files"
+                  aria-label="Add files"
+                  onClick={startMergeFromOpenFiles}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-300 transition-colors hover:bg-white/[0.09] hover:text-white"
+                >
+                  <FilePlus2 className="size-4" />
+                </button>
               </div>
               <ActiveFilterChips
                 value={filters}
@@ -512,58 +558,100 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               />
             </div>
 
-            {/* Add Files sits under the search tools, right above the list it
-                adds to — a quiet flat action, not the first thing you see. */}
-            <button
-              type="button"
-              data-guide="add-files"
-              onClick={startMergeFromOpenFiles}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-white/[0.05] px-4 text-[13px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
-            >
-              <FilePlus2 className="size-3.5" />
-              Add Files to Merge
-            </button>
 
-            <div data-guide="merge-items">
-            <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Merge Items · {visible.length}</p>
-            {/* Full-bleed rows split by hairlines, like the Inbox feed. */}
-            <div className="-mx-5 divide-y divide-white/[0.06]">
-            {visible.map((item) => (
-              <MergeItemCard
-                key={item.id}
-                item={item}
-                active={selectedMergeItemId === item.id}
-                onSelect={setSelectedMergeItemId}
-              />
-            ))}
+            <div data-guide="merge-items" className="space-y-4">
             {visible.length === 0 && (
-              <p className="px-5 py-6 text-center text-[13px] text-slate-400">
-                No merge items match these filters.
-              </p>
+              <p className={cn(GROUP_SURFACE, 'py-6 text-center text-[13px] text-slate-400')}>No merge items match these filters.</p>
             )}
-            </div>
+            {/* Grouped by workflow status (what needs you first), each a
+                small collapsible section with a count — not one flat list. */}
+            {WORKFLOW_GROUPS.map((g) => {
+              const groupItems = visible.filter((it) => (g.tags ? g.tags.includes(it.tag) : !KNOWN_TAGS.has(it.tag)))
+              if (!groupItems.length) return null
+              const open = !collapsedGroups.has(g.id)
+              return (
+                <section key={g.id}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() =>
+                      setCollapsedGroups((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(g.id)) next.delete(g.id)
+                        else next.add(g.id)
+                        return next
+                      })
+                    }
+                    // Structural guidepost: stronger than row metadata —
+                    // semibold, light, a clear dot — with a quiet count.
+                    className="group/section mb-2 flex h-7 w-full items-center gap-2 text-xs font-semibold tracking-wide text-slate-200 uppercase transition-colors hover:text-white"
+                  >
+                    <ChevronRight className={cn('size-3.5 text-slate-500 transition-transform', open && 'rotate-90')} />
+                    <span className={cn('size-2 rounded-full', g.dot)} />
+                    {g.label}
+                    <span className="font-medium text-slate-500 tabular-nums">{groupItems.length}</span>
+                  </button>
+                  {open && (
+                    // The section's items on one grouped surface, split by hairlines.
+                    <div className={cn(GROUP_SURFACE, 'divide-y divide-white/[0.06]')}>
+                      {groupItems.map((it) => (
+                            <MergeItemCard
+                              key={it.id}
+                              item={it}
+                              active={selectedMergeItemId === it.id}
+                              onSelect={() => {
+                                setSelectedMergeItemId(it.id)
+                                push()
+                                onExplore?.()
+                              }}
+                            />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
             </div>
           </div>
-        ) : !item ? (
-          <EmptyTab text="Open a merge item to browse its files and layers." />
-        ) : tab === 'files' ? (
-          <FilesTab
-            item={item}
-            files={files}
-            manualCode={manualCode}
-            activeFileId={selectedFileId}
-            onOpen={(f, line) => requestMergeFocus({ itemId: item.id, fileId: f.id, line, keepDeck: true, label: f.name })}
-          />
-        ) : (
-          <LayersTab
-            item={item}
-            frame={frame}
-            selectedLayerId={selectedLayerId}
-            editedLayerIds={editedLayerIds}
-            onSelect={(layerId) => requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, label: layerId })}
-          />
-        )}
       </div>
+      </div>
+
+      {/* View 2 — the open item's Files / Layers, pushed in from the right. */}
+      {inDetail && (
+        <div className={cn('flex min-h-0 flex-1 flex-col', navDir === 'forward' && 'animate-in fade-in slide-in-from-right-4 duration-200')}>
+          <div className="flex h-12 shrink-0 items-center px-5">
+            <button
+              type="button"
+              onClick={pop}
+              // Ghost pill; the negative margin keeps the arrow on the 20px
+              // inset line with the list view's title icon.
+              className="-ml-2 flex h-8 items-center gap-2 rounded-full pr-3 pl-2 text-sm font-semibold text-foreground transition-colors hover:bg-white/[0.06]"
+            >
+              <ArrowLeft className="size-4 shrink-0 text-slate-400" />
+              Back to Merge List
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <ItemDetailView
+              item={item}
+              files={files}
+              frame={frame}
+              view={detailView}
+              flashView={flashView}
+              onView={(v) => {
+                setDetailView(v)
+                onExplore?.()
+              }}
+              selectedLayerId={selectedLayerId}
+              selectedFileId={selectedFileId}
+              manualCode={manualCode}
+              editedLayerIds={editedLayerIds}
+              onOpenFile={(f, line) => requestMergeFocus({ itemId: item.id, fileId: f.id, line, keepDeck: true, label: f.name })}
+              onSelectLayer={(layerId) => requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, label: layerId })}
+            />
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

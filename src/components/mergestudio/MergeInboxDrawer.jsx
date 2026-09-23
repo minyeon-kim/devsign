@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, CATEGORY_TAB_ROW } from '@/components/mergestudio/floatingStyles'
 
 const tabs = [
   ['all', 'All'],
@@ -244,25 +245,21 @@ function MergeInboxDrawer({ onJump, onClose }) {
           type="button"
           onClick={markAllNotificationsRead}
           disabled={unread === 0}
-          className="flex items-center justify-center gap-1 rounded-full px-2 h-6 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+          className="flex h-7 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
-          <CheckCheck className="size-3" />
+          <CheckCheck className="size-3.5" />
           Mark all read
         </button>
       }
     >
-      <div className="flex shrink-0 items-center gap-1 border-b border-white/[0.06] px-5 py-3">
+      <div className={CATEGORY_TAB_ROW}>
         {tabs.map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={cn(
-              'inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
-              // Subtle secondary control: the active filter is a hairline
-              // outline, so the comment stream stays the loudest thing here.
-              tab === id ? 'text-slate-100 ring-1 ring-inset ring-white/25' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-            )}
+            // Shared category-tab style (same as the Merge List's Files / Layers switch).
+            className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             {label}
           </button>

@@ -12,19 +12,19 @@ import { cn } from 'cn'
 export const GUIDE_STEPS = [
   {
     title: 'Explore the Merge List',
-    body: 'Try a tab — Merges, Files, Layers — or narrow the list with the Status, Conflict and Due filters.',
+    body: 'Items are grouped by status — open one to see its files and layers, or narrow the list with the Status, Conflict and Due filters.',
     targets: [
       { id: 'merge-list', side: 'right', round: 'rounded-2xl' },
-      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List to browse merge items, switch tabs and filter by Status, Conflict or Due.' },
+      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List to browse merge items by status and filter by Status, Conflict or Due.' },
     ],
   },
   {
     title: 'Open a merge item',
-    body: 'Click an item to open its comparison canvas — or use Add Files to Merge (under the search bar) to start one from your open files.',
+    body: 'Click an item to open its comparison canvas — or use the Add files button next to the search to start one from your open files.',
     targets: [
       { id: 'merge-items', side: 'right', round: 'rounded-xl' },
-      // On the Files / Layers tab the item list isn't mounted.
-      { id: 'merge-list', side: 'right', round: 'rounded-2xl', body: 'Switch back to the Merges tab and click an item — or use Add Files to Merge to start one from your open files.' },
+      // While an item's Files / Layers view is pushed in, the list is hidden.
+      { id: 'merge-list', side: 'right', round: 'rounded-2xl', body: 'Use Back to Merge List, then click an item — or add your open files as a new one.' },
       { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List and click an item — or add your open files as a new one.' },
     ],
   },
