@@ -27,6 +27,7 @@ import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFil
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
+import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -311,12 +312,16 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
 }
 
 function CheckStep({ item, resolutions, summary, onResolveDiff }) {
+  // Conflict resolution opens from here — the pre-merge check is where a
+  // flagged conflict matters (the Merge List cards no longer carry a
+  // conflict badge).
+  const [conflictOpen, setConflictOpen] = useState(false)
   const totalDiffs = Object.values(designMergeVariants[item.id]?.layerDiffs ?? {}).reduce((n, d) => n + d.length, 0)
   const resolved = Object.keys(resolutions).length
   const checks = [
     item.conflictLevel === 'None'
       ? { id: 'conflict', ok: true, title: 'No merge conflicts', note: 'Current and Incoming can be combined cleanly.' }
-      : { id: 'conflict', ok: false, title: `${item.conflictLevel} conflict flagged`, note: 'Resolve it from the Merge List badge, or continue and review the result in Preview.' },
+      : { id: 'conflict', ok: false, title: `${item.conflictLevel} conflict flagged`, note: 'Resolve it now, or continue and review the result in Preview.', action: { label: 'Resolve conflicts', run: () => setConflictOpen(true) } },
     totalDiffs === 0 || resolved >= totalDiffs
       ? { id: 'options', ok: true, title: totalDiffs === 0 ? 'No variant differences' : 'All variant options decided', note: `${resolved} of ${totalDiffs} design decisions made.` }
       : { id: 'options', ok: false, title: `${totalDiffs - resolved} design option${totalDiffs - resolved === 1 ? '' : 's'} undecided`, note: 'Undecided options default to the Current Implementation.' },
@@ -350,16 +355,26 @@ function CheckStep({ item, resolutions, summary, onResolveDiff }) {
               >
                 {c.ok ? <Check className="size-3" /> : <TriangleAlert className="size-2.5" />}
               </span>
-              <span className="text-sm">
+              <span className="min-w-0 flex-1 text-sm">
                 <span className="font-medium text-foreground">{c.title}</span>
                 <span className="block text-xs text-muted-foreground">{c.note}</span>
               </span>
+              {c.action && (
+                <button
+                  type="button"
+                  onClick={c.action.run}
+                  className="flex h-7 shrink-0 items-center justify-center self-center rounded-full border border-white/15 px-3 text-xs font-medium text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
+                >
+                  {c.action.label}
+                </button>
+              )}
             </li>
           ))}
         </ul>
       </section>
       <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
       <SummarySection summary={summary} />
+      {conflictOpen && <ConflictResolutionModal item={item} onClose={() => setConflictOpen(false)} />}
     </div>
   )
 }

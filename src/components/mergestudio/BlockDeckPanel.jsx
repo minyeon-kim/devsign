@@ -42,6 +42,7 @@ import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { FLOATING_PANEL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 
 // One variant property as a single compact row: `Label  [Original → Current]`
 // where clicking either side chooses it (hover previews it on the
@@ -731,14 +732,8 @@ function severityOf(d) {
   return 'low'
 }
 
-// A clean pill tag per row — matching the Merge List sidebar's own
-// High/Medium/Low conflict badge exactly (`conflictBadgeClass` in
-// MergeListSidebar.jsx) — instead of tinting the whole row's background.
-const SEVERITY_TAG_CLASS = {
-  high: 'bg-destructive/15 text-destructive',
-  medium: 'bg-amber-500/15 text-amber-500',
-  low: 'bg-sky-500/15 text-sky-500',
-}
+// Each row's severity is the shared SeverityPill (ConflictTag.jsx) — the
+// same pill the Merge List cards use for their conflict level.
 
 function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, expandedId, onExpand }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
@@ -790,9 +785,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
                   lines up for top-to-bottom priority scanning; then the label
                   (`Nav Bar · 1 change` / `File.tsx · line 12`), then the
                   checkmark on the far right. */}
-              <span className={cn('w-[58px] shrink-0 rounded-full py-0.5 text-center text-[11px] font-medium', SEVERITY_TAG_CLASS[severityOf(d)])}>
-                {severityOf(d) === 'high' ? 'High' : severityOf(d) === 'medium' ? 'Medium' : 'Low'}
-              </span>
+              <SeverityPill level={severityOf(d)} />
               <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
               <span
                 className={cn(

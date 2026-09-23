@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, CircleAlert, Code2, Crosshair, Palette, Sparkles, TriangleAlert, Info, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Code2, Crosshair, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-
-const severity = {
-  High: { icon: TriangleAlert, className: 'bg-destructive/15 text-destructive' },
-  Medium: { icon: CircleAlert, className: 'bg-amber-500/15 text-amber-500' },
-  Low: { icon: Info, className: 'bg-sky-500/15 text-sky-500' },
-}
+import ConflictTag from '@/components/mergestudio/ConflictTag'
 
 // Derives the conflicting blocks for a merge item from its real mock data:
 // design token diffs (`designMergeVariants.layerDiffs`) and incoming code
@@ -119,8 +114,6 @@ function ConflictResolutionModal({ item, onClose }) {
   const [choices, setChoices] = useState({})
   const [aiApplied, setAiApplied] = useState(false)
   const [active, setActive] = useState(0)
-  const sev = severity[item.conflictLevel] ?? severity.Medium
-  const SevIcon = sev.icon
   const resolved = blocks.filter((b) => choices[b.id]).length
 
   // Targeting a conflict = selecting its element on the canvas (which draws
@@ -163,10 +156,7 @@ function ConflictResolutionModal({ item, onClose }) {
         <DialogHeader className="shrink-0 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             {item.title}
-            <span className={cn('flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium', sev.className)}>
-              <SevIcon className="size-3" />
-              {item.conflictLevel} conflict
-            </span>
+            <ConflictTag level={item.conflictLevel} />
           </DialogTitle>
           <DialogDescription className="text-xs">
             Choose Current or Incoming for each conflicting block, or let AI resolve them all.

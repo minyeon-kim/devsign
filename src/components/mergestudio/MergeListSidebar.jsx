@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ChartLine,
-  ChevronDown,
+  CircleCheck,
   CircleDot,
   CircleUser,
   FilePlus2,
+  Eye,
   Files,
+  Braces,
+  CodeXml,
   Frame,
   GitMerge,
   Image,
@@ -16,8 +19,8 @@ import {
   PanelLeftOpen,
   PanelTop,
   Pencil,
+  PencilLine,
   RectangleHorizontal,
-  RotateCcw,
   Search,
   Square,
   Table,
@@ -27,157 +30,157 @@ import {
   Type,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { codeMergeVariants, designMergeVariants, mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
+import { allPeople, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
+import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
+import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
 
-const conflictBadgeClass = {
-  None: 'bg-emerald-500/15 text-emerald-500',
-  Low: 'bg-sky-500/15 text-sky-500',
-  Medium: 'bg-amber-500/15 text-amber-500',
-  High: 'bg-destructive/15 text-destructive',
+// Status as its own at-a-glance cue: an outlined pill (so it never reads as
+// one of the filled severity pills beside it) with a distinct colored icon
+// per state — in progress, waiting on review, draft, done.
+const STATUS_STYLE = {
+  'In Progress': { icon: CircleDot, iconClass: 'text-indigo-400' },
+  'Needs Review': { icon: Eye, iconClass: 'text-violet-400' },
+  Draft: { icon: PencilLine, iconClass: 'text-muted-foreground' },
+  Merged: { icon: CircleCheck, iconClass: 'text-emerald-400' },
 }
 
-const dueBucketByFilter = { Overdue: 'overdue', 'Due Soon': 'soon', 'No Due Date': 'none' }
-
-// One compact filter chip per category (Status / Conflict / Due), laid out
-// as equal-width columns so the row spans exactly the search box's width:
-// the pill shows the category name, or the picked value (or "Name · N" for
-// several), and opens a small checkbox menu.
-// Checkbox items keep the menu open (Base UI's default), so multi-select
-// works without reopening it. An empty selection means "no filter" for
-// that category.
-function FilterChip({ label, options, value, onChange }) {
-  const choices = options.filter((o) => o !== 'All' && o !== 'Any')
-  const active = value.length > 0
-  const summary = value.length === 1 ? value[0] : active ? `${label} · ${value.length}` : label
-
-  function toggle(option, checked) {
-    onChange(checked ? [...value, option] : value.filter((v) => v !== option))
-  }
-
+function StatusPill({ status }) {
+  const style = STATUS_STYLE[status] ?? STATUS_STYLE.Draft
+  const Icon = style.icon
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={cn(
-          'flex h-8 w-full min-w-0 items-center justify-between gap-1 rounded-full border px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
-          active
-            ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-200'
-            : 'border-white/10 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
-        )}
-      >
-        <span className="truncate">{summary}</span>
-        <ChevronDown className="size-3 shrink-0 opacity-70" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-44 rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl">
-        {choices.map((option) => (
-          <DropdownMenuCheckboxItem
-            key={option}
-            checked={value.includes(option)}
-            onCheckedChange={(checked) => toggle(option, checked)}
-            className="rounded-lg text-xs"
-          >
-            {option}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <span className="flex h-5 shrink-0 items-center justify-center gap-1 rounded-full px-1.5 text-[10px] font-medium whitespace-nowrap text-foreground/90 ring-1 ring-inset ring-white/15">
+      <Icon className={cn('size-2.5', style.iconClass)} />
+      {status}
+    </span>
   )
 }
 
-// The distinct "currently open" indicator: a vibrant indigo/purple glow
-// (via the same color-mix technique used elsewhere in this app for
-// theme-consistent glows/tints) on top of the normal tinted-border active
-// state, so the open item is unmistakable at a glance versus merely
-// hovered/selected-but-not-open.
-// One muted, harmonious tone for every status — the label text alone (In
-// Progress / Needs Review / Draft / Merged) carries the meaning, so the
-// chip itself doesn't need to compete in a different color per value.
-const STATUS_CHIP_CLASS = 'bg-indigo-500/10 text-indigo-300'
+// Left-hand type icon — bare, no tile: a monochrome glyph for what the merge item mainly
+// is (the icon shape carries the type, not color), readable at a glance (a scaled-down screen preview was too small to
+// tell apart). A code-file title (AuthModal.tsx) is code; otherwise an item
+// with a design page is a design; otherwise, only token/JSON files, tokens.
+const CODE_EXT = /\.(tsx|jsx|ts|js|css|py)$/i
+const ITEM_TYPE = {
+  code: { icon: CodeXml, label: 'Code component' },
+  design: { icon: Frame, label: 'Design frame' },
+  tokens: { icon: Braces, label: 'Design tokens' },
+}
 
-// One scannable card: title is the strongest element (with the status pill
-// beside it, tinted per status), the file/subtitle line is quiet, and a
-// hairline divides that from the meta row (updated time · conflict · due)
-// so the eye reads title -> status -> details. The open item gets the
-// indigo glow on top of the tinted-border active state.
-function MergeItemCard({ item, active, onSelect, onConflict }) {
+function itemTypeOf(item) {
+  if (CODE_EXT.test(item.title)) return ITEM_TYPE.code
+  if (item.hasDesign) return ITEM_TYPE.design
+  const names = (item.fileIds ?? []).map((id) => openFiles.find((f) => f.id === id)?.name ?? '')
+  if (names.length && names.every((n) => n.endsWith('.json'))) return ITEM_TYPE.tokens
+  return ITEM_TYPE.code
+}
+
+function ItemTypeBadge({ item }) {
+  const type = itemTypeOf(item)
+  const Icon = type.icon
+  return (
+    <span title={type.label} className="mt-0.5 flex shrink-0 text-muted-foreground">
+      <Icon className="size-4" />
+    </span>
+  )
+}
+
+// Everyone on the item — assignee, then reviewers — as overlapping avatars
+// (up to three, then "+N"); hovering the stack lists each name and role.
+function PeopleStack({ item }) {
+  const people = peopleOnItem(item)
+    .map((p) => ({ ...p, person: allPeople.find((x) => x.id === p.id) }))
+    .filter((p) => p.person)
+  if (!people.length) return null
+  const shown = people.slice(0, 3)
+  const extra = people.length - shown.length
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span />}
+        aria-label={people.map((p) => `${p.person.name} (${p.role})`).join(', ')}
+        className="ml-auto flex shrink-0 items-center -space-x-1.5"
+      >
+        {shown.map(({ id, person }) => (
+          <span key={id} className={cn('flex size-5 items-center justify-center rounded-full text-[8px] font-semibold text-white ring-2 ring-slate-800', person.colorClass)}>
+            {person.initials}
+          </span>
+        ))}
+        {extra > 0 && (
+          <span className="flex size-5 items-center justify-center rounded-full bg-slate-600 text-[8px] font-semibold text-white ring-2 ring-slate-800">+{extra}</span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="top" className="flex-col items-stretch gap-1 px-2.5 py-2">
+        {people.map(({ id, person, role }) => (
+          <span key={id} className="flex items-center gap-1.5 text-[11px]">
+            <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[7px] font-semibold text-white', person.colorClass)}>{person.initials}</span>
+            <span className="font-medium">{person.name}</span>
+            <span className="opacity-60">{role}</span>
+          </span>
+        ))}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+// One scannable card, top to bottom:
+//   top row — status (left) and last update (right) on their own line;
+//   header  — type icon + the title, which gets the full width (ellipsis
+//             only if it truly doesn't fit), then the file line;
+//   footer  — conflict level (the shared SeverityPill, same as the Block
+//             Deck's drift rows) and the due date (red once overdue) on the
+//             left, stacked assignee/reviewer avatars on the right.
+// Hover brightens the border; the open item gets the tinted active state.
+function MergeItemCard({ item, active, onSelect }) {
+  const hasDue = item.dueBucket !== 'none' && item.dueLabel
   return (
     <button
       type="button"
+      title={item.title}
+      aria-current={active ? 'true' : undefined}
       onClick={() => onSelect(item.id)}
       className={cn(
-        'flex w-full flex-col gap-2.5 rounded-xl border p-3.5 text-left shadow-sm transition-colors',
-        // Same card + active treatment as the Block Deck's drift rows.
+        'relative flex w-full flex-col gap-3.5 overflow-hidden rounded-xl border px-3.5 py-3.5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none',
+        // The item loaded in the center comparison: accent border + tinted
+        // surface (same treatment as the Block Deck's open drift row), plus
+        // a left accent bar so it's unmistakable even at a glance.
         active
           ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30'
-          : 'border-white/10 bg-slate-800/70 hover:bg-white/5'
+          : 'border-white/10 bg-slate-800/70 hover:border-white/20 hover:bg-white/5'
       )}
     >
-      <div className="flex w-full items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 text-sm leading-snug font-semibold text-foreground">
-          {item.title}
-        </span>
-        <span
-          className={cn(
-            'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap',
-            // "Merged" gets its own unmistakable emerald/green treatment so a
-            // completed merge reads as done at a glance; every other status
-            // keeps sharing the one muted tone (see STATUS_CHIP_CLASS above).
-            item.tag === 'Merged' ? 'bg-emerald-500/15 text-emerald-400' : STATUS_CHIP_CLASS
-          )}
-        >
-          {item.tag}
-        </span>
+      {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+      {/* Top mini-row: status on its own line (left) with the last update
+          (right), so the title below gets the card's full width. */}
+      <div className="-mb-1 flex w-full items-center justify-between gap-2">
+        <StatusPill status={item.tag} />
+        <span className={cn('shrink-0 text-[11px]', active ? 'text-muted-foreground' : 'text-muted-foreground/70')}>{item.updatedLabel}</span>
       </div>
 
-      <span className={cn("text-xs leading-snug", active ? "text-foreground/90" : "text-muted-foreground")}>{item.subtitle}</span>
+      <div className="flex w-full items-start gap-2.5">
+        <ItemTypeBadge item={item} />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate text-[13px] leading-5 font-semibold text-foreground">{item.title}</p>
+          <p className={cn('truncate text-xs leading-4', active ? 'text-foreground/90' : 'text-muted-foreground')}>{item.subtitle}</p>
+        </div>
+      </div>
 
-      <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-white/10 pt-2.5">
-        <span className={cn("text-[11px]", active ? "text-muted-foreground" : "text-muted-foreground/70")}>{item.updatedLabel}</span>
-        {item.conflictLevel && item.conflictLevel !== 'None' && (
-          <span
-            role={item.conflictLevel !== 'None' ? 'button' : undefined}
-            tabIndex={item.conflictLevel !== 'None' ? 0 : undefined}
-            title={item.conflictLevel !== 'None' ? 'Resolve conflicts' : undefined}
-            onClick={(event) => {
-              if (item.conflictLevel === 'None') return
-              event.stopPropagation()
-              onConflict(item)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && item.conflictLevel !== 'None') {
-                event.stopPropagation()
-                onConflict(item)
-              }
-            }}
-            className={cn(
-              'rounded-full px-2 py-0.5 text-[11px] font-medium',
-              conflictBadgeClass[item.conflictLevel] ?? conflictBadgeClass.None,
-              item.conflictLevel !== 'None' && 'cursor-pointer ring-1 ring-current/30 transition-all hover:ring-2'
-            )}
-          >
-            {item.conflictLevel}
-          </span>
-        )}
-        {item.dueLabel && (
-          <span
-            className={cn(
-              'ml-auto text-[11px]',
-              item.dueBucket === 'overdue' ? 'font-medium text-destructive' : active ? 'text-muted-foreground' : 'text-muted-foreground/70'
-            )}
-          >
-            {item.dueLabel}
-          </span>
-        )}
+      <div className="flex w-full items-center gap-2">
+        <SeverityPill level={item.conflictLevel} title={`Conflict: ${item.conflictLevel}`} />
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-[11px]',
+            item.dueBucket === 'overdue' ? 'font-medium text-destructive' : active ? 'text-muted-foreground' : 'text-muted-foreground/70'
+          )}
+        >
+          {hasDue ? item.dueLabel : null}
+        </span>
+        <PeopleStack item={item} />
       </div>
     </button>
   )
@@ -368,29 +371,19 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTab?.nonce])
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState([])
-  const [conflictFilter, setConflictFilter] = useState([])
-  const [dueFilter, setDueFilter] = useState([])
-  const [conflictItem, setConflictItem] = useState(null)
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
 
-  const hasActiveFilters =
-    query.trim() !== '' || statusFilter.length > 0 || conflictFilter.length > 0 || dueFilter.length > 0
-
-  function resetFilters() {
-    setQuery('')
-    setStatusFilter([])
-    setConflictFilter([])
-    setDueFilter([])
+  // Any filter change also counts as exploring the list for the onboarding
+  // guide.
+  function changeFilters(next) {
+    setFilters(next)
+    onExplore?.()
   }
+  const dueDays = mergeItems.map(dueDateOf).filter(Boolean)
 
   const visible = mergeItems.filter((item) => {
-    if (query.trim() && !item.title.toLowerCase().includes(query.trim().toLowerCase())) {
-      return false
-    }
-    if (statusFilter.length && !statusFilter.includes(item.tag)) return false
-    if (conflictFilter.length && !conflictFilter.includes(item.conflictLevel)) return false
-    if (dueFilter.length && !dueFilter.some((d) => item.dueBucket === dueBucketByFilter[d])) return false
-    return true
+    if (query.trim() && !item.title.toLowerCase().includes(query.trim().toLowerCase())) return false
+    return matchesFilters(item, filters)
   })
 
   return (
@@ -483,13 +476,13 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           </button>
         ))}
       </div>
-      <p className="shrink-0 truncate border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
-        {tab === 'merges'
-          ? 'Pick a merge item to review.'
-          : item
-            ? <>In <span className="font-medium text-foreground">{item.title}</span></>
-            : 'No merge item open.'}
-      </p>
+      {/* Context line only where it tells you something: which item the
+          Files / Layers tabs are showing (Merges needs no helper text). */}
+      {tab !== 'merges' && (
+        <p className="shrink-0 truncate border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
+          {item ? <>In <span className="font-medium text-foreground">{item.title}</span></> : 'No merge item open.'}
+        </p>
+      )}
 
       <div className="min-h-0 flex-1 overflow-auto">
         {tab === 'merges' ? (
@@ -505,37 +498,36 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               <FilePlus2 className="size-3.5" />
               Add Files to Merge
             </button>
-            <div className="space-y-2 rounded-xl border border-white/10 bg-slate-800/70 p-2.5 shadow-sm">
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value)
-                    onExplore?.()
-                  }}
-                  placeholder="Search merge items..."
-                  className="h-9 w-full rounded-full border border-white/10 bg-slate-900 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
-                />
+            {/* Search and a single Filter button on one row, straight in the
+                panel's flow (no box around them); what's filtered shows as
+                removable chips below, only when set. */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value)
+                      onExplore?.()
+                    }}
+                    placeholder="Search merges…"
+                    className="h-9 w-full rounded-full border border-white/10 bg-slate-900 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <FilterChip label="Status" options={mergeFilterTags} value={statusFilter} onChange={(v) => { setStatusFilter(v); onExplore?.() }} />
-                <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={(v) => { setConflictFilter(v); onExplore?.() }} />
-                <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={(v) => { setDueFilter(v); onExplore?.() }} />
-              </div>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="flex w-fit items-center justify-center gap-1 rounded-full px-2 h-5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <RotateCcw className="size-3" />
-                  Reset filters
-                </button>
-              )}
+              <ActiveFilterChips
+                value={filters}
+                query={query}
+                shown={visible.length}
+                total={mergeItems.length}
+                onChange={changeFilters}
+                onClearQuery={() => setQuery('')}
+              />
             </div>
 
-            <div data-guide="merge-items" className="space-y-1.5">
+            <div data-guide="merge-items" className="space-y-2">
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Merge Items · {visible.length}</p>
             {visible.map((item) => (
               <MergeItemCard
@@ -543,7 +535,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 item={item}
                 active={selectedMergeItemId === item.id}
                 onSelect={setSelectedMergeItemId}
-                onConflict={setConflictItem}
               />
             ))}
             {visible.length === 0 && (
@@ -576,13 +567,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
 
       </div>
     </div>
-      {conflictItem && (
-        <ConflictResolutionModal
-          item={mergeItems.find((i) => i.id === conflictItem.id) ?? conflictItem}
-          onClose={() => setConflictItem(null)}
-        />
-      )}
-
       <Dialog open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
         <DialogContent
           showCloseButton={false}
