@@ -1164,7 +1164,7 @@ function ComponentPreview({ def }) {
   )
 }
 
-function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
+function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [showAll, setShowAll] = useState(false)
@@ -1218,7 +1218,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
             </button>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Select an element to see only the components that fit it, or Add one to the canvas.</p>
+          <p className="text-xs text-muted-foreground">Select an element to see only the components that fit it — or Add / drag one onto the canvas and place it.</p>
         )}
       </div>
 
@@ -1227,7 +1227,18 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
           const mode = modeOf(def)
           return (
             <div key={def.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-800/70 p-3">
-              <ComponentPreview def={def} />
+              {/* Drag the preview onto an artboard to place it exactly. */}
+              <div
+                title="Drag onto the canvas to place"
+                className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  if (e.button !== 0 || !onDrag) return
+                  e.preventDefault()
+                  onDrag(def)
+                }}
+              >
+                <ComponentPreview def={def} />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{def.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -1313,6 +1324,7 @@ function BlockDeckPanel({
   onAssembleReset,
   onApplyComponent,
   onAddComponent,
+  onDragComponent,
   onInsertComponent,
   onTabSwitch,
 }) {
@@ -1456,7 +1468,7 @@ function BlockDeckPanel({
           </div>
         )
       ) : tab === 'library' ? (
-        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onInsert={onInsertComponent} />
+        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
       ) : (
         <BlockAssembleTab
           selectedLayer={selectedLayer}

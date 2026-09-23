@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
@@ -11,6 +11,7 @@ import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeGuide from '@/components/mergestudio/MergeGuide'
+import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine } from '@/components/mergestudio/copyFile'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
@@ -317,9 +318,10 @@ function MergeStudioWorkspace({ item }) {
     if (selectedLayer) addComponent(def, selectedLayer)
   }
 
-  // Add: pull a new instance onto both artboards, below the existing content,
-  // then select it.
-  function addComponent(def, parent = null) {
+  // Add: pull a new instance onto both artboards, then select it. `at` is the
+  // spot picked in placement mode (PlacementOverlay); without one (and no
+  // parent) it falls back to centered below the existing content.
+  function addComponent(def, parent = null, at = null) {
     if (!frame0) return
     const width = Math.min(def.width, (parent ? parent.width : frame0.width) - 24)
     const layer = {
@@ -328,7 +330,9 @@ function MergeStudioWorkspace({ item }) {
       kind: 'component',
       type: def.type,
       label: def.label,
-      ...(parent
+      ...(at
+        ? { x: at.x, y: at.y }
+        : parent
         ? parent.type === 'bar' || parent.type === 'tabs'
           ? { x: parent.x + parent.width - width - 12, y: parent.y + Math.round((parent.height - def.height) / 2) }
           : { x: parent.x + 12, y: parent.y + 12 }
@@ -341,6 +345,22 @@ function MergeStudioWorkspace({ item }) {
     setSyncSelection({ layerId: layer.id })
     setAppliedPreset(null)
   }
+
+  // Placement mode for a Library component: { def, mode: 'click' | 'drag' }.
+  const [placing, setPlacing] = useState(null)
+  const placingRef = useRef(null)
+  placingRef.current = placing
+  const addRef = useRef(addComponent)
+  addRef.current = addComponent
+  // Stable callbacks, so the overlay's window listeners aren't re-bound on
+  // every render mid-drag.
+  const placeComponent = useCallback((at) => {
+    const p = placingRef.current
+    setPlacing(null)
+    if (p) addRef.current(p.def, null, at)
+  }, [])
+  const cancelPlacing = useCallback(() => setPlacing(null), [])
+  useEffect(() => setPlacing(null), [item?.id])
 
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => {
@@ -553,7 +573,8 @@ function MergeStudioWorkspace({ item }) {
           onAssemble={(patch) => deckLayerId && assemble(deckLayerId, patch)}
           onAssembleReset={() => deckLayerId && resetAssembly(deckLayerId)}
           onApplyComponent={applyComponent}
-          onAddComponent={(def) => addComponent(def)}
+          onAddComponent={(def) => setPlacing({ def, mode: 'click' })}
+          onDragComponent={(def) => setPlacing({ def, mode: 'drag' })}
           onInsertComponent={insertComponent}
           onApplyPreset={setAppliedPreset}
         />
@@ -584,6 +605,17 @@ function MergeStudioWorkspace({ item }) {
             setWizardStage('compare')
           }}
           onComplete={() => completeMerge(item.id)}
+        />
+      )}
+
+      {/* Library "Add" / drag: place the component where you want it. */}
+      {placing && frame0 && (
+        <PlacementOverlay
+          def={placing.def}
+          mode={placing.mode}
+          frame={frame0}
+          onPlace={placeComponent}
+          onCancel={cancelPlacing}
         />
       )}
 
