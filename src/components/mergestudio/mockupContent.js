@@ -26,6 +26,11 @@ export const LAYER_MOCKUP = {
   'feature-card-1': { icon: 'zap', title: 'Instant transfers', body: 'Settle in seconds, 24/7.' },
   'feature-card-2': { icon: 'shield', title: 'Built-in controls', body: 'Approvals and card limits.' },
   'feature-card-3': { icon: 'chart', title: 'Live insights', body: 'Cash flow at a glance.' },
+  // Product dashboard band (Merge Studio mockup extension, see below)
+  'dash-heading': { text: 'Your finances, live', tone: 'strong', weight: 700 },
+  'dash-subtitle': { text: 'Real-time balances and activity across every account.', tone: 'muted' },
+  'cashflow-chart': { role: 'cashflow' },
+  'txn-table': { role: 'transactions' },
 
   // Mobile App · Frame 1
   statusbar: { role: 'status' },
@@ -44,6 +49,28 @@ export const LAYER_MOCKUP = {
   'email-input': { placeholder: 'Enter your email…', icon: 'mail' },
   'toggle-label': { text: 'Email notifications', tone: 'strong', weight: 500 },
   'tab-bar': { tabs: [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']] },
+}
+
+// Extra mockup-only layers appended to a frame inside Merge Studio, so the
+// comparison artboards show a real product surface (live cash-flow chart,
+// transaction history) rather than just the hero. Shared frame data — and
+// the main app's canvas — never see these.
+export const MOCKUP_EXTENSIONS = {
+  'frame-2': {
+    height: 640,
+    layers: [
+      { id: 'dash-heading', name: 'Dashboard Heading', kind: 'text', type: 'text', x: 40, y: 416, width: 260, height: 15 },
+      { id: 'dash-subtitle', name: 'Dashboard Subtitle', kind: 'text', type: 'text', x: 40, y: 436, width: 320, height: 9 },
+      { id: 'cashflow-chart', name: 'Cash Flow Chart', kind: 'component', type: 'chart', x: 40, y: 458, width: 196, height: 166 },
+      { id: 'txn-table', name: 'Transactions', kind: 'component', type: 'table', x: 246, y: 458, width: 194, height: 166 },
+    ],
+  },
+}
+
+export function withMockupExtension(frame) {
+  const ext = frame && MOCKUP_EXTENSIONS[frame.id]
+  if (!ext) return frame
+  return { ...frame, height: Math.max(frame.height, ext.height), layers: [...frame.layers, ...ext.layers] }
 }
 
 // Buttons/chips drawn as outlined secondary actions — they don't take the

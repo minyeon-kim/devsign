@@ -26,7 +26,7 @@ import {
 } from '@/data/mockData'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
-import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One variant property: keep the Original Design value, take the Current
@@ -584,7 +584,7 @@ function TextContentSection({ slots, onEditText }) {
 
 function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, textSlots, onEditText, onResolve, onHoverDiff, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
-  const frame = page?.frames[0]
+  const frame = frameWithLayers(page?.frames[0])
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
   const specificDiffs = designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]
   const tokenSpec = selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null
@@ -816,7 +816,7 @@ function ComponentPreview({ def }) {
   const layer = { id: def.id, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
   const override = { ...assemblyToOverride(def.assembly, layer), static: true }
   return (
-    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-800/70" style={{ width: box.w + 12, height: box.h + 12 }}>
+    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-slate-200" style={{ width: box.w + 12, height: box.h + 12 }}>
       <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
         <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
           <StaticLayer layer={layer} override={override} onSelect={() => {}} />

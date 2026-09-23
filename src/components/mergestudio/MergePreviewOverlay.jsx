@@ -4,6 +4,7 @@ import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 
 const DEVICES = [
   { id: 'mobile', label: 'Mobile', icon: Smartphone, w: 390, h: 844 },
@@ -117,17 +118,17 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
           <div className="flex flex-col items-center gap-3">
             <div style={{ width: (vw + 24) * scale, height: (vh + 24) * scale }}>
               <div
-                className="overflow-hidden rounded-[2rem] border-[12px] border-slate-800 bg-card shadow-2xl"
+                className="overflow-hidden rounded-[2rem] border-[12px] border-slate-800 bg-white shadow-2xl"
                 style={{ width: vw + 24, height: vh + 24, transform: `scale(${scale})`, transformOrigin: 'top left' }}
               >
-                <div className="h-full w-full overflow-y-auto bg-slate-800" onClick={() => setSelectedId(null)}>
+                <div className="h-full w-full overflow-y-auto bg-white" onClick={() => setSelectedId(null)}>
                   <div className="mx-auto" style={{ width: frame.width * k, height: frame.height * k }}>
                     <div className="relative" style={{ width: frame.width, height: frame.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
                       {frame.layers.map((layer) => {
                         const o = source === 'merged' ? overrides[layer.id] : undefined
                         const override =
-                          o || layer.type === 'button' && source !== 'a'
-                            ? { ...o, className: o?.className ?? (layer.type === 'button' ? 'bg-violet-500' : undefined), static: true }
+                          o || (layer.type === 'button' && !isSecondaryLayer(layer.id) && source !== 'a')
+                            ? { ...o, className: o?.className ?? (layer.type === 'button' && !isSecondaryLayer(layer.id) ? 'bg-violet-500' : undefined), static: true }
                             : undefined
                         return (
                           <StaticLayer

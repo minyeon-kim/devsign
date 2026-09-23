@@ -27,6 +27,7 @@ import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFil
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
+import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
@@ -429,13 +430,14 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
             <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <Palette className="size-4 text-violet-500" /> Design output
             </p>
-            <div className="overflow-hidden rounded-md border bg-card shadow-lg" style={{ width: previewW, height: frame.height * scale }}>
+            <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg" style={{ width: previewW, height: frame.height * scale }}>
               <div className="relative" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                 {frame.layers.map((layer) => {
                   const o = overrides[layer.id]
+                  const primary = layer.type === 'button' && !isSecondaryLayer(layer.id)
                   const override = o
-                    ? { ...o, className: o.className ?? (layer.type === 'button' ? 'bg-violet-500' : undefined), static: true }
-                    : layer.type === 'button'
+                    ? { ...o, className: o.className ?? (primary ? 'bg-violet-500' : undefined), static: true }
+                    : primary
                       ? { className: 'bg-violet-500', static: true }
                       : undefined
                   return <StaticLayer key={layer.id} layer={layer} override={override} onSelect={() => {}} />

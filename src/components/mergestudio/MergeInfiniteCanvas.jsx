@@ -20,7 +20,7 @@ const CODE_DIFF_WIDTH = 820
 // (w-72 anchored left-4) docked over the same canvas surface instead of
 // pushing it in a fixed layout column.
 const CONTENT_START_X = 304
-const ARTBOARD_PREVIEW_WIDTH = 440
+const ARTBOARD_PREVIEW_WIDTH = 600
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
 // selected right now, unless an AI Block Deck suggestion is actively
@@ -411,8 +411,120 @@ function SlotEditor({ value, onLive, onCommit, onCancel, className, style }) {
       }}
       onBlur={() => finish(true)}
       style={{ font: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', ...style }}
-      className={cn('w-full min-w-0 rounded-sm bg-slate-950/80 px-0.5 text-inherit outline-none ring-1 ring-emerald-400', className)}
+      className={cn('w-full min-w-0 rounded-sm bg-white px-0.5 text-inherit outline-none ring-2 ring-emerald-500', className)}
     />
+  )
+}
+
+// Fill / border classes from drift data and Block Assemble can use the app's
+// theme tokens, which resolve dark in the studio; inside the light product
+// mockup they map to their light-palette equivalents.
+const LIGHT_TOKEN_CLASSES = {
+  'bg-card': 'bg-slate-50',
+  'bg-muted': 'bg-slate-100',
+  'bg-primary': 'bg-indigo-500',
+  'bg-background': 'bg-white',
+  'border-border': 'border-slate-200',
+  'text-foreground': 'text-slate-900',
+  'text-muted-foreground': 'text-slate-500',
+  'border-white/30': 'border-slate-300',
+  'border-white/60': 'border-slate-400',
+}
+function lightClasses(cls) {
+  return cls?.split(/\s+/).map((c) => LIGHT_TOKEN_CLASSES[c] ?? c).join(' ')
+}
+
+// Mockup-only product widgets for the dashboard band (see
+// MOCKUP_EXTENSIONS): a 30-day cash-flow area chart and a transaction
+// history table, drawn at artboard scale in the light product palette.
+const CASH_FLOW = [42, 48, 45, 53, 51, 58, 55, 62, 60, 67, 64, 71, 76, 73, 81]
+function CashFlowChart({ style, className }) {
+  const w = 100
+  const hgt = 44
+  const max = 90
+  const pts = CASH_FLOW.map((v, i) => [(i / (CASH_FLOW.length - 1)) * w, hgt - (v / max) * hgt])
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+  const [lx, ly] = pts[pts.length - 1]
+  return (
+    <div style={style} className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm', className)}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[8px] font-semibold text-slate-900">Cash flow</p>
+          <p className="text-[6px] text-slate-400">Last 30 days · All accounts</p>
+        </div>
+        <div className="flex rounded-full bg-slate-100 p-[1.5px] text-[5.5px] font-semibold text-slate-500">
+          {['1W', '1M', '3M', '1Y'].map((t) => (
+            <span key={t} className={cn('rounded-full px-1 py-[1px]', t === '1M' && 'bg-white text-slate-900 shadow-sm')}>{t}</span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-1.5">
+        <span className="text-[13px] font-bold tracking-tight text-slate-900 tabular-nums">$248,930.12</span>
+        <span className="rounded-full bg-emerald-50 px-1 text-[6px] font-semibold text-emerald-600">+12.4%</span>
+      </div>
+      <div className="relative mt-1 min-h-0 flex-1">
+        <svg viewBox={`0 0 ${w} ${hgt}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+          <defs>
+            <linearGradient id="ms-cashflow-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line key={f} x1="0" x2={w} y1={hgt * f} y2={hgt * f} stroke="#e2e8f0" strokeWidth="0.6" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d={`${line} L${w} ${hgt} L0 ${hgt} Z`} fill="url(#ms-cashflow-fill)" />
+          <path d={line} fill="none" stroke="#6366f1" strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <circle cx={lx} cy={ly} r="1.6" fill="#fff" stroke="#6366f1" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
+      <div className="mt-1 flex justify-between text-[5.5px] text-slate-400 tabular-nums">
+        {['Jun 1', 'Jun 8', 'Jun 15', 'Jun 22', 'Jun 30'].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const TRANSACTIONS = [
+  { name: 'Stripe payout', meta: 'Jun 30 · Revenue', amount: '+$12,400.00', status: 'Settled', tone: 'emerald', mark: 'S', markClass: 'bg-indigo-500' },
+  { name: 'Amazon Web Services', meta: 'Jun 29 · Infrastructure', amount: '−$2,318.40', status: 'Pending', tone: 'amber', mark: 'A', markClass: 'bg-amber-500' },
+  { name: 'Figma', meta: 'Jun 28 · Software', amount: '−$144.00', status: 'Settled', tone: 'emerald', mark: 'F', markClass: 'bg-rose-500' },
+  { name: 'Gusto payroll', meta: 'Jun 27 · Payroll', amount: '−$48,210.00', status: 'Scheduled', tone: 'slate', mark: 'G', markClass: 'bg-emerald-500' },
+]
+const STATUS_TONE = {
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber: 'bg-amber-50 text-amber-700 ring-amber-200',
+  slate: 'bg-slate-100 text-slate-600 ring-slate-200',
+}
+function TransactionsTable({ style, className }) {
+  return (
+    <div style={style} className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm', className)}>
+      <div className="flex items-center justify-between px-2.5 pt-2.5 pb-1.5">
+        <p className="text-[8px] font-semibold text-slate-900">Recent transactions</p>
+        <span className="text-[6.5px] font-semibold text-indigo-600">View all</span>
+      </div>
+      <div className="flex justify-between border-y border-slate-100 bg-slate-50 px-2.5 py-[3px] text-[5.5px] font-semibold tracking-wide text-slate-400 uppercase">
+        <span>Merchant</span>
+        <span>Amount</span>
+      </div>
+      <div className="flex-1 divide-y divide-slate-100">
+        {TRANSACTIONS.map((t) => (
+          <div key={t.name} className="flex items-center gap-1.5 px-2.5 py-[5px]">
+            <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-md text-[6.5px] font-bold text-white', t.markClass)}>{t.mark}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[7px] font-semibold text-slate-900">{t.name}</span>
+              <span className="block truncate text-[5.5px] text-slate-400">{t.meta}</span>
+            </span>
+            <span className="flex shrink-0 flex-col items-end gap-[2px]">
+              <span className={cn('text-[7px] font-semibold tabular-nums', t.amount.startsWith('+') ? 'text-emerald-600' : 'text-slate-900')}>{t.amount}</span>
+              <span className={cn('rounded-full px-1 text-[5px] font-semibold ring-1', STATUS_TONE[t.tone])}>{t.status}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -434,7 +546,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     width: layer.width + (override?.dw ?? 0),
     height: layer.height + (override?.dh ?? 0),
   }
-  const fill = override?.className
+  const fill = lightClasses(override?.className)
   const type = override?.asType ?? layer.type
   const copy = override?.copy
   const label = copy?.label ?? override?.asLabel ?? layer.label
@@ -444,7 +556,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       : undefined
   const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
   const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
-  const extra = override?.extraClass
+  const extra = lightClasses(override?.extraClass)
   const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
   // Realistic product content for this layer (see mockupContent.js); a
@@ -477,12 +589,15 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   const h = style.height
   const trailing = override?.icon === 'right' ? iconEl : mock.trailingArrow ? <ArrowRight className="size-3.5 shrink-0" /> : null
 
+  // Light-mode product UI: the artboards render as a real, light SaaS screen
+  // inside the dark studio, so every class here is an explicit light-palette
+  // value rather than an app theme token (those resolve dark in the studio).
   let content = null
   if (type === 'bar' && mock.role === 'status') {
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-between px-4 text-[10px] font-semibold text-foreground', fill, extra)}>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-between px-4 text-[10px] font-semibold text-slate-900', fill, extra)}>
         <span>9:41</span>
-        <span className="flex items-center gap-1 text-foreground/90">
+        <span className="flex items-center gap-1">
           <Signal className="size-2.5" />
           <Wifi className="size-2.5" />
           <BatteryFull className="size-3" />
@@ -493,37 +608,41 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-4 border-b border-white/5 text-[9px] font-medium text-muted-foreground', fill ?? 'bg-slate-900/80', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-4 border-b border-slate-200 text-[9px] font-medium text-slate-500', fill ?? 'bg-white/95', extra)}
       >
         {(mock.links ?? ['Overview', 'Activity', 'Settings']).map((l, i) => (
-          <span key={l} className={i === 0 ? 'text-foreground' : undefined}>{l}</span>
+          <span key={l} className={i === 0 ? 'text-slate-900' : undefined}>{l}</span>
         ))}
       </div>
     )
   } else if (type === 'card' && mock.role === 'container') {
     content = (
-      <div style={contentStyle} className={cn('h-full w-full rounded-xl border border-white/10 shadow-sm', fill ?? 'bg-slate-800/70', extra)} />
+      <div style={contentStyle} className={cn('h-full w-full rounded-xl border border-slate-200 shadow-sm', fill ?? 'bg-white', extra)} />
     )
   } else if (type === 'card') {
     const Icon = { zap: Zap, shield: ShieldCheck, chart: ChartColumn }[mock.icon] ?? Blocks
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full flex-col gap-1 overflow-hidden rounded-xl border border-white/10 p-2.5', fill ?? 'bg-slate-800/70', extra)}
+        className={cn('flex h-full w-full flex-col gap-1 overflow-hidden rounded-xl border border-slate-200 p-2.5 shadow-sm', fill ?? 'bg-white', extra)}
       >
-        <span className="mb-0.5 flex size-5 items-center justify-center rounded-md bg-indigo-500/20 text-indigo-300">
+        <span className="mb-0.5 flex size-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
           <Icon className="size-3" />
         </span>
-        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate text-[9px] font-semibold text-foreground', style: { fontSize: 9, fontWeight: 600 } })}
-        {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 text-[7.5px] leading-snug text-muted-foreground', style: { fontSize: 7.5 } })}
+        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate font-semibold text-slate-900', style: { fontSize: 9, fontWeight: 600 } })}
+        {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 leading-snug text-slate-500', style: { fontSize: 7.5 } })}
       </div>
     )
+  } else if (type === 'chart') {
+    content = <CashFlowChart style={contentStyle} className={cn(fill, extra)} />
+  } else if (type === 'table') {
+    content = <TransactionsTable style={contentStyle} className={cn(fill, extra)} />
   } else if (type === 'avatar') {
     content = (
       <div
         style={contentStyle}
         className={cn(
-          'flex h-full w-full items-center justify-center rounded-full font-semibold text-white ring-2 ring-card',
+          'flex h-full w-full items-center justify-center rounded-full font-semibold text-white ring-2 ring-white',
           fill ?? cn('bg-gradient-to-br', mock.gradient ?? 'from-slate-400 to-slate-600'),
           extra
         )}
@@ -536,9 +655,9 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center gap-2 rounded-lg border border-white/10 px-3 text-muted-foreground shadow-inner', fill ?? 'bg-slate-950/60', extra)}
+        className={cn('flex h-full w-full items-center gap-2 rounded-lg border border-slate-300 px-3 text-slate-400 shadow-sm', fill ?? 'bg-white', extra)}
       >
-        {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground/80" />}
+        {Icon && <Icon className="size-3.5 shrink-0 text-slate-400" />}
         {slotText('label', copy?.label ?? override?.asLabel ?? mock.placeholder ?? layer.label ?? 'Input', {
           className: 'truncate',
           style: { fontSize: Math.min(11, Math.max(8, h * 0.3)) },
@@ -547,8 +666,8 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     )
   } else if (type === 'chip' && mock.role === 'logo') {
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center gap-1.5 text-[10px] font-bold tracking-tight text-foreground', fill, extra)}>
-        <span className="size-3.5 shrink-0 rounded-[4px] bg-gradient-to-br from-indigo-400 to-violet-600" />
+      <div style={contentStyle} className={cn('flex h-full w-full items-center gap-1.5 text-[10px] font-bold tracking-tight text-slate-900', fill, extra)}>
+        <span className="size-3.5 shrink-0 rounded-[4px] bg-gradient-to-br from-indigo-500 to-violet-600" />
         {slotText('label', label ?? 'Logo')}
       </div>
     )
@@ -556,7 +675,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full border border-white/15 font-semibold text-foreground', fill ?? 'bg-white/5', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full border border-slate-300 font-semibold text-slate-700 shadow-sm', fill ?? 'bg-white', extra)}
       >
         {slotText('label', label ?? 'Chip', { style: { fontSize: Math.max(8, h * 0.4) } })}
       </div>
@@ -574,7 +693,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     )
   } else if (type === 'toggle') {
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px] shadow-inner', fill ?? 'bg-indigo-500', extra)}>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500', extra)}>
         <span className="aspect-square h-full rounded-full bg-white shadow-md" />
       </div>
     )
@@ -582,18 +701,18 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-white/10 p-2', fill ?? 'bg-gradient-to-br from-indigo-500/35 via-slate-800 to-violet-500/30', extra)}
+        className={cn('flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-slate-200 p-2 shadow-md', fill ?? 'bg-white', extra)}
       >
         <div>
-          <p className="text-[6.5px] font-medium tracking-wide text-muted-foreground uppercase">Balance</p>
-          <p className="text-[12px] font-bold text-foreground tabular-nums">$12,480.00</p>
-          <p className="flex items-center gap-0.5 text-[6.5px] font-semibold text-emerald-400">
-            <TrendingUp className="size-2" /> +8.2% this month
+          <p className="text-[6.5px] font-semibold tracking-wide text-slate-400 uppercase">Total balance</p>
+          <p className="text-[12px] font-bold text-slate-900 tabular-nums">$12,480.00</p>
+          <p className="mt-0.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1 text-[6.5px] font-semibold text-emerald-600">
+            <TrendingUp className="size-2" /> 8.2%
           </p>
         </div>
         <div className="flex h-7 items-end gap-[3px]">
           {[40, 65, 50, 80, 60, 95, 75].map((v, i) => (
-            <span key={i} className={cn('flex-1 rounded-sm', i === 5 ? 'bg-violet-400' : 'bg-indigo-400/50')} style={{ height: `${v}%` }} />
+            <span key={i} className={cn('flex-1 rounded-sm', i === 5 ? 'bg-indigo-500' : 'bg-indigo-100')} style={{ height: `${v}%` }} />
           ))}
         </div>
       </div>
@@ -602,21 +721,24 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('relative h-full w-full overflow-hidden rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/40 to-violet-500/25', extra)}
+        className={cn('relative h-full w-full overflow-hidden rounded-lg border border-slate-200', fill ?? 'bg-gradient-to-b from-indigo-50 to-white', extra)}
       >
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5 L100 40 L0 40 Z" fill="rgba(167,139,250,0.25)" />
-          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5" fill="none" stroke="#a78bfa" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+          {[10, 20, 30].map((y) => (
+            <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="#e2e8f0" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5 L100 40 L0 40 Z" fill="rgba(99,102,241,0.14)" />
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5" fill="none" stroke="#6366f1" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         </svg>
-        <span className="absolute top-1.5 left-2 text-[8px] font-semibold text-foreground">$84.2k</span>
-        <span className="absolute top-1.5 right-2 text-[7px] font-semibold text-emerald-400">+12%</span>
+        <span className="absolute top-1.5 left-2 text-[8px] font-bold text-slate-900 tabular-nums">$84.2k</span>
+        <span className="absolute top-1.5 right-2 rounded-full bg-emerald-50 px-1 text-[7px] font-semibold text-emerald-600">+12%</span>
       </div>
     )
   } else if (type === 'iconbtn') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center rounded-full border border-white/10 text-foreground', fill ?? 'bg-slate-800', extra)}
+        className={cn('flex h-full w-full items-center justify-center rounded-full border border-slate-200 text-slate-700 shadow-sm', fill ?? 'bg-white', extra)}
       >
         {mock.icon === 'menu' ? <Menu className="size-3.5" /> : <span className="text-sm">{label ?? '•'}</span>}
       </div>
@@ -624,11 +746,11 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   } else if (type === 'tabs') {
     const icons = { home: House, search: Search, user: User }
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-white/10 px-2 text-[8px]', fill ?? 'bg-slate-900', extra)}>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-slate-200 px-2 text-[8px]', fill ?? 'bg-white', extra)}>
         {(mock.tabs ?? [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']]).map(([icon, t], i) => {
           const Icon = icons[icon] ?? House
           return (
-            <span key={t} className={cn('flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-300' : 'text-muted-foreground')}>
+            <span key={t} className={cn('flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
               <Icon className="size-3" />
               {t}
             </span>
@@ -640,7 +762,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 font-semibold text-foreground', fill ?? 'bg-white/5', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 font-semibold text-slate-800 shadow-sm', fill ?? 'bg-white', extra)}
       >
         {override?.icon === 'left' && iconEl}
         {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
@@ -651,7 +773,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg font-semibold text-white shadow-sm', fill ?? 'bg-primary', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg font-semibold text-white shadow-sm shadow-indigo-500/30', fill ?? 'bg-indigo-500', extra)}
       >
         {override?.icon === 'left' && iconEl}
         {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
@@ -661,7 +783,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   } else if (type === 'text') {
     // Real copy, sized from the layer's (possibly drifted) height so a
     // font-size or weight change reads as an actual typographic change.
-    const tone = { strong: 'text-foreground', muted: 'text-muted-foreground', subtle: 'text-muted-foreground/70' }[mock.tone ?? 'muted']
+    const tone = { strong: 'text-slate-900', muted: 'text-slate-500', subtle: 'text-slate-400' }[mock.tone ?? 'muted']
     const text = copy?.text ?? mock.text ?? layer.name
     content = (
       <div
@@ -681,7 +803,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
             mock.strongPrefix && text.includes(mock.strongPrefix) ? (
               <>
                 {text.slice(0, text.indexOf(mock.strongPrefix))}
-                <span className="font-semibold text-foreground">{mock.strongPrefix}</span>
+                <span className="font-semibold text-slate-900">{mock.strongPrefix}</span>
                 {text.slice(text.indexOf(mock.strongPrefix) + mock.strongPrefix.length)}
               </>
             ) : undefined,
@@ -690,7 +812,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     )
   } else {
     content = (
-      <div style={contentStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-muted-foreground/25', extra)} />
+      <div style={contentStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-slate-200', extra)} />
     )
   }
 
@@ -770,7 +892,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
         data-frame-box
-        className="relative overflow-hidden rounded-md bg-card shadow-lg ring-1 ring-white/5"
+        // Pristine light product surface inside the dark studio.
+        className="relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40 ring-1 ring-slate-200/80"
         style={{ width: boxW, height: boxH }}
       >
         <div
@@ -815,7 +938,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
 
 // Gap between cards — wide enough that a connector's label pill fits
 // entirely in the empty space between two card edges.
-const CARD_GAP = 140
+const CARD_GAP = 96
 
 // Sizes are in world units. Artboards leave h null until first resized
 // (they then derive their height from the frame's aspect ratio).
@@ -824,12 +947,12 @@ const CARD_GAP = 140
 // acting as the inspector. Artboards are as wide as ARTBOARD_PREVIEW_WIDTH
 // allows while staying under ARTBOARD_MAX_H tall, so a tall mobile frame
 // doesn't push the code window off screen.
-const ARTBOARD_MAX_H = 460
+const ARTBOARD_MAX_H = 760
 const RIGHT_TOOLBAR_CLEARANCE = 64
 const ARTBOARD_LABEL_H = 30
-const CODE_H = 250
+const CODE_H = 210
 const CODE_ONLY_H = 440
-const CODE_GAP_Y = 48
+const CODE_GAP_Y = 36
 function defaultLayout(frame) {
   if (!frame) {
     const off = { x: 0, y: 0, w: ARTBOARD_PREVIEW_WIDTH, h: null }
@@ -857,7 +980,7 @@ const TOP_CONTROLS_CLEARANCE = 124
 const BOTTOM_CONTROLS_CLEARANCE = 150
 // Fitting may zoom past 100% so the comparison fills the available canvas
 // on large screens instead of sitting small in the middle of it.
-const MAX_FIT_ZOOM = 1.35
+const MAX_FIT_ZOOM = 1.8
 const DEFAULT_VIEW = { x: CONTENT_START_X, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
 
 function clampZoom(z) {

@@ -1,3 +1,5 @@
+import { withMockupExtension } from '@/components/mergestudio/mockupContent'
+
 // Translates one Variant Compare choice into a visual override for the
 // Option B layer: color diffs swap the fill class; radius sets the corner
 // radius; size / padding / spacing / weight grow or shrink the box by the
@@ -149,7 +151,9 @@ export function recommendAssembly(layer) {
 
 // The artboard frame plus any layers pulled in from the Design System
 // library; the frame grows to keep them inside.
-export function frameWithLayers(frame, extra = []) {
+export function frameWithLayers(baseFrame, extra = []) {
+  // Merge Studio's own mockup-only layers ride along with the frame first.
+  const frame = withMockupExtension(baseFrame)
   if (!frame || !extra.length) return frame
   const bottom = Math.max(frame.height, ...extra.map((l) => l.y + l.height + 16))
   return { ...frame, height: bottom, layers: [...frame.layers, ...extra] }
