@@ -37,13 +37,16 @@ function LayersPanel() {
 
   return (
     <Tabs defaultValue="layers" className="flex h-full flex-col gap-0 bg-card">
-      <div className="flex h-9 shrink-0 items-center border-b border-border/60 px-2">
+      {/* Same h-9 height, border, and px-3 as Explorer's header — only
+          difference is Layers actually needs two switchable views, so
+          this stays a real tab list instead of a static label. */}
+      <div className="flex h-9 shrink-0 items-center border-b border-border/60 px-3">
         <TabsList variant="line">
-          <TabsTrigger value="layers" className="gap-1.5">
+          <TabsTrigger value="layers" className="gap-1.5 text-xs font-medium">
             <LayersIcon className="size-3.5" />
             Layers
           </TabsTrigger>
-          <TabsTrigger value="assets" className="gap-1.5">
+          <TabsTrigger value="assets" className="gap-1.5 text-xs font-medium">
             <Component className="size-3.5" />
             Assets
           </TabsTrigger>
