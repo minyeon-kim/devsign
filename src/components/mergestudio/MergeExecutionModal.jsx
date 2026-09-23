@@ -136,6 +136,10 @@ function SummarySection({ summary }) {
 // artboards sit hidden behind either one.
 export const WIZARD_RESERVE = 720
 
+// Top edge the wizard docks at and can't be dragged above: just below the
+// studio's top toolbar row (matches the Block Deck's DECK_TOP).
+const WIZARD_TOP = 60
+
 export const WIZARD_STEPS = [
   { id: 'check', label: 'Check' },
   { id: 'preview', label: 'Preview' },
@@ -694,7 +698,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   const [generating, setGenerating] = useState(false)
   const [prNumber] = useState(() => 100 + Math.floor(Math.random() * 90))
 
-  // Free dragging: starts at the default docked spot (top-16/right-6, via
+  // Free dragging: starts at the default docked spot (top-[60px]/right-6, via
   // CSS) until the user first drags the header, after which `pos` takes
   // over as an explicit viewport-relative left/top (the dialog is `fixed`,
   // so plain client coordinates work with no container/offset math needed).
@@ -717,7 +721,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
     function onMove(m) {
       setPos({
         left: Math.min(Math.max(8, startLeft + m.clientX - startX), window.innerWidth - rect.width - 8),
-        top: Math.min(Math.max(8, startTop + m.clientY - startY), window.innerHeight - 60),
+        top: Math.min(Math.max(WIZARD_TOP, startTop + m.clientY - startY), window.innerHeight - 60),
       })
     }
     function onUp() {
@@ -794,13 +798,15 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         showCloseButton={!busy}
         style={pos ? { left: pos.left, top: pos.top, right: 'auto' } : undefined}
         className={cn(
-          'flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl',
-          // Default dock: `top-16` (not `top-6`) so it opens clear of the
-          // 44px app header instead of covering it. Docked toward the
+          'flex max-h-[calc(100vh-76px)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl',
+          // Default dock: `top-[60px]` — the same line as the Block Deck and
+          // Merge List — so it opens below the studio's top toolbar row
+          // (stepper, avatars, Preview) and never covers it; dragging
+          // can't lift it above that line either. Docked toward the
           // *right* so it sits clear of the central code comparison /
           // artboards instead of covering them — free dragging (see `pos`
           // above) takes over as soon as the user drags the header.
-          !pos && 'top-16 right-6 left-auto'
+          !pos && 'top-[60px] right-6 left-auto'
         )}
       >
         <DialogHeader

@@ -1419,7 +1419,6 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreviews,
   reserve,
-  headerReserve = 0,
   onDriftNav,
   listCollapsed,
   focus,
@@ -2370,11 +2369,12 @@ function MergeInfiniteCanvas({
         </div>
 
         {/* Right-hand header cluster (notifications + avatars, Preview,
-            Apply with AI): pinned top-right. The docked Block Deck sits
-            below this row (DECK_TOP), so only the wizard pushes it aside. */}
+            Apply with AI): pinned top-right. The docked Block Deck and the
+            merge wizard both open below this row (60px), so neither pushes
+            it aside. */}
         <div
           className="pointer-events-none absolute top-3 z-20 flex h-9 items-center"
-          style={{ left: leftInset, right: 12 + headerReserve }}
+          style={{ left: leftInset, right: 12 }}
         >
           {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
               cluster that used to live here moved up to

@@ -473,7 +473,6 @@ function MergeStudioWorkspace({ item }) {
         <MergeInfiniteCanvas
           onDriftNav={() => advanceGuide(3)}
           reserve={reserve}
-          headerReserve={wizardReserve}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
