@@ -80,7 +80,11 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
       onPointerLeave={() => onHover(null)}
       className={cn(
         'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 h-6 text-[11px] font-medium whitespace-nowrap transition-colors',
-        resolution === side ? 'bg-indigo-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+        // The chosen side: a solid light neutral gray (slate-300) with dark
+        // text — bright enough to catch the eye at once, a step short of pure
+        // white so it doesn't glare, and no saturated fill; the color
+        // swatch inside still shows the value.
+        resolution === side ? 'bg-slate-300 font-semibold text-slate-900 shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
       )}
     >
       {cls && <span className={cn('size-2 shrink-0 rounded-full', cls)} />}
@@ -116,7 +120,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
           }}
           className={cn(
             'flex size-5 shrink-0 items-center justify-center rounded-full transition-colors',
-            editing || custom != null ? 'bg-violet-500/20 text-violet-300' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+            editing || custom != null ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
           )}
         >
           <Pencil className="size-3" />
@@ -138,18 +142,18 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
             }
           }}
           placeholder={`Custom ${diff.label.toLowerCase()}, e.g. ${diff.optionB}`}
-          className="mt-1.5 ml-[80px] h-7 w-[calc(100%-80px)] rounded-full border border-violet-500/60 bg-slate-950/60 px-3 text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="mt-1.5 ml-[80px] h-7 w-[calc(100%-80px)] rounded-full border border-white/25 bg-slate-950/60 px-3 text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
         />
       ) : (
         custom != null && (
-          <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-violet-500/15 pr-1 pl-2.5 text-[11px] text-violet-200">
-            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-violet-300/80 uppercase">Custom</span>
+          <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-white/[0.06] pr-1 pl-2.5 text-[11px] text-foreground ring-1 ring-inset ring-white/15">
+            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Custom</span>
             <span className="min-w-0 flex-1 truncate font-medium">{custom}</span>
             <button
               type="button"
               title="Clear custom value"
               onClick={() => onResolve(diff.id, null)}
-              className="flex size-4 shrink-0 items-center justify-center rounded-full text-violet-300 hover:bg-violet-500/25"
+              className="flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
             >
               <X className="size-3" />
             </button>
@@ -787,13 +791,16 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
                   checkmark on the far right. */}
               <SeverityPill level={severityOf(d)} />
               <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
+              {/* Resolved: a solid mint circle with a dark check and a soft
+                  mint glow — unmissable at a glance. Pending: plain gray. */}
               <span
+                title={resolved ? 'Resolved' : 'Not resolved yet'}
                 className={cn(
-                  'flex size-4 shrink-0 items-center justify-center rounded-full',
-                  resolved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-muted-foreground'
+                  'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
+                  resolved ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
                 )}
               >
-                {resolved && <Check className="size-2.5" />}
+                {resolved && <Check strokeWidth={3.5} className="size-2.5" />}
               </span>
             </button>
 
