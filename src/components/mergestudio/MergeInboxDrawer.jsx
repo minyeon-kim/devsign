@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, CheckCheck, ChevronDown, CircleCheck, MessageSquare, Send, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Bell, CheckCheck, ChevronDown, CircleCheck, Crosshair, MessageSquare, Send, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
@@ -61,11 +61,19 @@ function InboxItem({ n, onJump }) {
   }
 
   return (
-    // Solid neutral cards, clearly lifted off the dark drawer: unread is the
-    // brightest surface (plus the violet dot); read items a step dimmer.
-    <div className={cn('rounded-2xl border p-4 shadow-sm shadow-black/30 transition-colors', n.unread ? 'border-white/20 bg-[oklch(0.33_0_0)]' : 'border-white/12 bg-[oklch(0.3_0_0)]')}>
+    // Elevated, luminous neutral cards — the comment stream is the focus of
+    // this panel: unread is the brightest surface (plus the violet dot),
+    // read a step dimmer; both brighten on hover since the card jumps to
+    // its element.
+    <div
+      className={cn(
+        'group rounded-2xl border p-4 shadow-md shadow-black/30 transition-colors',
+        n.unread ? 'border-white/25 bg-[oklch(0.37_0_0)] hover:bg-[oklch(0.4_0_0)]' : 'border-white/15 bg-[oklch(0.33_0_0)] hover:bg-[oklch(0.36_0_0)]'
+      )}
+    >
       <button
         type="button"
+        title={`Jump to ${n.target.label} on the canvas`}
         onClick={() => {
           markNotificationRead(n.id)
           onJump(n)
@@ -77,15 +85,23 @@ function InboxItem({ n, onJump }) {
           {/* Header row: who (name + role) · when, with the unread dot. */}
           <span className="flex items-center gap-2">
             <Byline person={author} className="flex-1" />
-            <span className="shrink-0 text-[11px] text-slate-400">{n.timeLabel}</span>
+            <Icon title={n.kind} className={cn('size-3.5 shrink-0', className)} />
+            <span className="shrink-0 text-[11px] text-slate-300">{n.timeLabel}</span>
             {n.unread && <span className="size-2 shrink-0 rounded-full bg-violet-500" />}
           </span>
-          {/* What they said, on its own line below the byline. */}
-          <span className="mt-1.5 block text-[13px] leading-relaxed text-white">{n.text}</span>
-          <span className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
-            <Icon className={cn('size-3.5', className)} />
-            <span className="flex h-5 items-center rounded-full bg-white/[0.06] px-2 font-medium text-slate-300 ring-1 ring-inset ring-white/10">{n.target.label}</span>
+          {/* Which element this is about — up top, before the message. */}
+          <span className="mt-2 flex items-center gap-1.5">
+            <span className="flex h-6 min-w-0 items-center gap-1 rounded-full bg-black/25 px-2.5 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/15">
+              <Crosshair className="size-3 shrink-0 text-emerald-400" />
+              <span className="truncate">{n.target.label}</span>
+            </span>
+            <span className="flex items-center gap-0.5 text-[11px] font-medium text-slate-300 opacity-0 transition-opacity group-hover:opacity-100">
+              Jump to element
+              <ArrowUpRight className="size-3" />
+            </span>
           </span>
+          {/* What they said. */}
+          <span className="mt-2.5 block text-[13px] leading-relaxed text-[#FFFFFF]">{n.text}</span>
         </span>
       </button>
 
@@ -166,8 +182,9 @@ function MergeInboxDrawer({ onJump, onClose }) {
             onClick={() => setTab(id)}
             className={cn(
               'inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
-              // Active: a solid light pill with dark, bold text — unmistakable.
-              tab === id ? 'bg-slate-200 font-semibold text-slate-900 shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              // Subtle secondary control: the active filter is a hairline
+              // outline, so the comment stream stays the loudest thing here.
+              tab === id ? 'text-slate-100 ring-1 ring-inset ring-white/25' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
             )}
           >
             {label}

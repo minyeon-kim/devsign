@@ -1647,9 +1647,33 @@ function MergeInfiniteCanvas({
           y: from.y + (to.y - from.y) * e,
         })
         if (t < 1) raf = requestAnimationFrame(tick)
+        else if (focus.target.pulse) pulseTarget()
       }
       raf = requestAnimationFrame(tick)
     }, 260)
+    // Inbox jumps: once the pan lands, pulse a green ring on the target (on
+    // every artboard showing it) so it's obvious what the comment is about.
+    function pulseTarget() {
+      const c = containerRef.current
+      if (!c) return
+      const { layerId, fileId, line, card } = focus.target
+      const els = layerId
+        ? [...c.querySelectorAll(`[data-layer-id="${layerId}"]`)]
+        : fileId && line
+          ? [...c.querySelectorAll(`[data-code-line="${fileId}:${line}"]`)]
+          : card === 'code' || fileId
+            ? [...c.querySelectorAll('[data-card="code"]')]
+            : [...c.querySelectorAll(`[data-frame-key="${card}"]`)]
+      for (const el of els) {
+        el.animate?.(
+          [
+            { boxShadow: '0 0 0 0 rgba(52, 211, 153, 0.95)' },
+            { boxShadow: '0 0 0 12px rgba(52, 211, 153, 0)' },
+          ],
+          { duration: 750, iterations: 2, easing: 'ease-out' }
+        )
+      }
+    }
     return () => {
       clearTimeout(timer)
       cancelAnimationFrame(raf)

@@ -723,7 +723,7 @@ function MergeStudioWorkspace({ item }) {
         />
       )}
       {mergeDrawer === 'inbox' && (
-        <MergeInboxDrawer onJump={(n) => requestMergeFocus(n.target)} onClose={() => setMergeDrawer(null)} />
+        <MergeInboxDrawer onJump={(n) => requestMergeFocus({ ...n.target, pulse: true })} onClose={() => setMergeDrawer(null)} />
       )}
 
       <MergeAiBar />
