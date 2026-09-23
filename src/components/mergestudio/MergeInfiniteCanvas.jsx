@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Undo2, Maximize, Menu, Minus, PanelRight, Pencil, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Undo2, Maximize, Menu, Minus, PanelRight, Pencil, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -11,15 +11,15 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
 const CODE_DIFF_WIDTH = 820
-// How far right content starts, so it clears the floating Merge List panel
-// (w-72 anchored left-4) docked over the same canvas surface instead of
-// pushing it in a fixed layout column.
-const CONTENT_START_X = 304
+// How far right content starts, so it clears the floating Merge List window
+// (w-72 at left-4, plus breathing room) over the same canvas surface.
+const CONTENT_START_X = 320
 const ARTBOARD_PREVIEW_WIDTH = 600
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
@@ -1348,7 +1348,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
         // `h-11` explicitly, matching the adjacent zoom pill's own height —
         // relying on padding alone to happen to match was fragile (it
         // didn't: this button used to render visibly shorter).
-        className="ml-auto flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-4 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
+        className={cn('ml-auto flex h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
       >
         <ListChecks className="size-4 text-indigo-500" />
         Changes log
@@ -1374,7 +1374,7 @@ const MACRO_STEPS = [
 function MacroStepper({ stage, disabled, onOpenStep }) {
   const current = Math.max(0, MACRO_STEPS.findIndex((s) => s.id === stage))
   return (
-    <ol className="flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 shadow-lg backdrop-blur-md">
+    <ol className={cn('flex items-center gap-1 rounded-full px-1.5 py-1', FLOATING_PILL)}>
       {MACRO_STEPS.map((s, i) => {
         const active = i === current
         const done = i < current
@@ -1441,7 +1441,8 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, setMergeListCollapsed } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, setMergeListCollapsed, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
@@ -2395,17 +2396,35 @@ function MergeInfiniteCanvas({
               avatars that follow-on-click + your own profile menu) — that
               bar is hidden in Merge Studio, so it lives here instead, in a
               glass pill matched to the Preview button's 30px height. */}
-          <div className="flex h-[30px] items-center rounded-full border bg-card/90 pr-1.5 pl-1 shadow-lg backdrop-blur-md">
+          <div className={cn('flex h-[30px] items-center gap-1 rounded-full pr-1.5 pl-1', FLOATING_PILL)}>
+            {/* Notifications (the merge inbox) live with the people who
+                send them: right beside the avatars. */}
+            <button
+              type="button"
+              title="Notifications"
+              onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
+              className={cn(
+                'relative flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+                mergeDrawer === 'inbox' && 'bg-indigo-500/20 text-indigo-300'
+              )}
+            >
+              <Bell className="size-3.5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] leading-[14px] font-semibold text-white ring-2 ring-card">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <span className="h-4 w-px bg-white/10" />
             <UserPresence />
           </div>
           <button
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-lg backdrop-blur-md transition-colors',
-              mergePreviewOpen
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card/90 text-foreground hover:bg-muted'
+              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
+              FLOATING_PILL,
+              mergePreviewOpen ? 'border-primary bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
             )}
           >
             <PanelRight className="size-3.5" />
@@ -2443,7 +2462,7 @@ function MergeInfiniteCanvas({
         <div className="pointer-events-none absolute top-14 z-20 flex justify-center " style={{ left: leftInset, right: 12 + reserve }}>
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
-              <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">
+              <div className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
                 <button
                   type="button"
                   onClick={() => goDrift(-1)}
@@ -2503,7 +2522,7 @@ function MergeInfiniteCanvas({
           same baseline as the AI chat bar (`fixed bottom-5` in
           MergeAiBar.jsx), instead of 8px higher. */}
       <div ref={zoomRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
-        <div className="flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-2 text-sm shadow-lg backdrop-blur-sm">
+        <div className={cn('flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}>
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}

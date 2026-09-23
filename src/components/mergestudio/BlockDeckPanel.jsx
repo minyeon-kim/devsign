@@ -42,6 +42,7 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { FLOATING_PANEL } from '@/components/mergestudio/floatingStyles'
 
 // One variant property as a single compact row: `Label  [Original → Current]`
 // where clicking either side chooses it (hover previews it on the
@@ -1358,7 +1359,7 @@ function BlockDeckPanel({
         width: DECK_WIDTH,
         ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: 16 }),
       }}
-      className="absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl backdrop-saturate-150"
+      className={cn('absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl', FLOATING_PANEL)}
     >
       <div
         onPointerDown={handleDragStart}

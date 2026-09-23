@@ -1,7 +1,34 @@
 import { useState } from 'react'
-import { ArrowLeft, ChevronDown, FilePlus2, RotateCcw, Search } from 'lucide-react'
+import {
+  ArrowLeft,
+  ChartLine,
+  ChevronDown,
+  CircleDot,
+  CircleUser,
+  FilePlus2,
+  Files,
+  Frame,
+  GitMerge,
+  Image,
+  Layers,
+  PanelBottom,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelTop,
+  Pencil,
+  RectangleHorizontal,
+  RotateCcw,
+  Search,
+  Square,
+  Table,
+  Tag,
+  TextCursorInput,
+  ToggleRight,
+  Type,
+} from 'lucide-react'
 import { cn } from 'cn'
-import { mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
+import { codeMergeVariants, designMergeVariants, mergeConflictLevels, mergeDueFilters, mergeFilterTags } from '@/data/mockData'
+import { getFileIconMeta } from '@/lib/fileIcons'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -11,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
+import { FLOATING_PANEL, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
 const conflictBadgeClass = {
   None: 'bg-emerald-500/15 text-emerald-500',
@@ -157,21 +185,160 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
   )
 }
 
-// A floating panel docked to the left side of Merge Studio's infinite
-// canvas — same treatment as the Block Deck panel on the right, so the
-// canvas itself spans the full workspace width underneath both instead of
-// the list being a rigid, layout-pushing sidebar box. Filters are one row of
-// dropdown chips (Status / Conflict / Due), each a multi-select menu.
-function MergeListSidebar() {
+// Files tab: the open merge item's files (plus Merge Studio's copy.json),
+// each with its incoming-change and hand-edit counts. Clicking one jumps the
+// code window to its first change.
+function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
+  if (!files.length) return <EmptyTab text="This merge item has no files." />
+  return (
+    <div className="space-y-1 p-2">
+      {files.map((f) => {
+        const meta = getFileIconMeta(f.name)
+        const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
+        const edits = Object.keys(manualCode ?? {})
+          .filter((k) => k.startsWith(`${f.id}:`))
+          .map((k) => Number(k.slice(k.lastIndexOf(':') + 1)))
+        const firstLine = Math.min(...incoming.map((d) => d.line), ...edits, Infinity)
+        const active = activeFileId === f.id
+        return (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors',
+              active ? 'bg-indigo-500/15 ring-1 ring-inset ring-indigo-500/30' : 'hover:bg-white/5'
+            )}
+          >
+            <meta.Icon className={cn('size-4 shrink-0', meta.colorClass)} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium text-foreground">{f.name}</span>
+              <span className="block truncate text-[10px] text-muted-foreground">{f.path}</span>
+            </span>
+            {incoming.length > 0 && (
+              <span title="Incoming changes" className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-400 tabular-nums">
+                +{incoming.length}
+              </span>
+            )}
+            {edits.length > 0 && (
+              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 text-[10px] font-semibold text-violet-300 tabular-nums">
+                <Pencil className="size-2.5" />
+                {edits.length}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+const LAYER_ICONS = {
+  text: Type,
+  button: RectangleHorizontal,
+  input: TextCursorInput,
+  chip: Tag,
+  image: Image,
+  avatar: CircleUser,
+  card: Square,
+  bar: PanelTop,
+  tabs: PanelBottom,
+  toggle: ToggleRight,
+  iconbtn: CircleDot,
+  chart: ChartLine,
+  table: Table,
+}
+const CONTAINER_TYPES = new Set(['card', 'bar'])
+
+// Nests layers under the smallest card/bar that fully contains them, so the
+// flat frame reads as a real layer tree (a chip inside its card, the logo
+// inside the nav bar).
+function layerTree(layers) {
+  const inside = (c, l) => c.id !== l.id && l.x >= c.x && l.y >= c.y && l.x + l.width <= c.x + c.width && l.y + l.height <= c.y + c.height
+  const parentOf = {}
+  for (const l of layers) {
+    const containers = layers.filter((c) => CONTAINER_TYPES.has(c.type) && inside(c, l))
+    containers.sort((a, b) => a.width * a.height - b.width * b.height)
+    parentOf[l.id] = containers[0]?.id ?? null
+  }
+  const rows = []
+  const walk = (parentId, depth) => {
+    for (const l of layers.filter((x) => parentOf[x.id] === parentId)) {
+      rows.push({ layer: l, depth })
+      walk(l.id, depth + 1)
+    }
+  }
+  walk(null, 0)
+  return rows
+}
+
+// Layers tab: the frame's layer tree. Violet dot = drifts from the Original
+// Design, pencil = edited here (Assemble or text); clicking selects the
+// layer on the canvas and pans to it.
+function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
+  if (!frame) return <EmptyTab text="This merge item has no design page." />
+  const drifted = designMergeVariants[item.id]?.layerDiffs ?? {}
+  return (
+    <div className="p-2">
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-foreground">
+        <Frame className="size-3.5 text-indigo-400" />
+        <span className="truncate">{frame.name}</span>
+      </div>
+      {layerTree(frame.layers).map(({ layer, depth }) => {
+        const Icon = LAYER_ICONS[layer.type] ?? Square
+        const active = selectedLayerId === layer.id
+        return (
+          <button
+            key={layer.id}
+            type="button"
+            onClick={() => onSelect(layer.id)}
+            style={{ paddingLeft: 14 + depth * 14 }}
+            className={cn(
+              'flex h-7 w-full items-center gap-2 rounded-lg pr-2.5 text-left text-xs transition-colors',
+              active ? 'bg-indigo-500/20 text-foreground ring-1 ring-inset ring-indigo-500/30' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+            )}
+          >
+            <Icon className={cn('size-3.5 shrink-0', active ? 'text-indigo-300' : 'text-muted-foreground/80')} />
+            <span className="min-w-0 flex-1 truncate">{layer.name}</span>
+            {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-violet-300" />}
+            {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-violet-400" />}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function EmptyTab({ text }) {
+  return <p className="p-6 text-center text-xs text-muted-foreground">{text}</p>
+}
+
+const TABS = [
+  ['merges', 'Merges', GitMerge],
+  ['files', 'Files', Files],
+  ['layers', 'Layers', Layers],
+]
+
+// Merge Studio's left-side chrome, floating over the full-width canvas:
+// a standalone `← Workspace` pill pinned top-left, and below it the Merge
+// List as a glass window (backdrop blur, translucent surface, soft indigo
+// edge glow — the same family as the Block Deck and Changes log) with
+// Merges / Files / Layers tabs. It collapses to a small pill; clicking the
+// canvas collapses it too. Filters in Merges are one row of dropdown chips
+// (Status / Conflict / Due), each a multi-select menu.
+function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, editedLayerIds = new Set() }) {
   const {
     mergeItems,
     selectedMergeItemId,
     setSelectedMergeItemId,
     startMergeFromOpenFiles,
     mergeListCollapsed,
+    setMergeListCollapsed,
     exitMergeStudio,
+    requestMergeFocus,
   } = useWorkspace()
   const [confirmExitOpen, setConfirmExitOpen] = useState(false)
+  const [tab, setTab] = useState('merges')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState([])
   const [conflictFilter, setConflictFilter] = useState([])
@@ -199,37 +366,42 @@ function MergeListSidebar() {
   })
 
   return (
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirmExitOpen(true)}
+        className={cn('absolute top-3 left-4 z-40 flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+      >
+        <ArrowLeft className="size-3.5" />
+        Workspace
+      </button>
+
+      {mergeListCollapsed && (
+        <button
+          type="button"
+          onClick={() => setMergeListCollapsed(false)}
+          title="Show Merge List"
+          className={cn('absolute top-14 left-4 z-30 flex h-9 items-center gap-2 rounded-full pr-4 pl-3 text-xs font-medium text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+        >
+          <PanelLeftOpen className="size-3.5 text-indigo-400" />
+          Merge List
+        </button>
+      )}
+
     <div
-      // Overlay drawer: a fixed-width glass panel that slides over the canvas
-      // (transform only) instead of animating its width — nothing on the
-      // canvas is laid out around it, so toggling it never shifts the
-      // canvas or its centered floating controls.
+      // Floating glass window that slides/fades over the canvas (transform
+      // only), so toggling it never shifts the canvas or its centered
+      // floating controls.
       aria-hidden={mergeListCollapsed}
       inert={mergeListCollapsed}
       className={cn(
-        'absolute top-0 bottom-0 left-0 z-30 flex w-72 flex-col overflow-hidden rounded-r-2xl border-y-0 border-l-0 border-r border-white/10 bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl backdrop-saturate-150 transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
-        mergeListCollapsed ? 'pointer-events-none -translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+        'absolute top-14 bottom-4 left-4 z-30 flex w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        FLOATING_PANEL,
+        mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       )}
     >
       <div className="flex h-full min-w-72 flex-1 flex-col">
-      <div className="flex shrink-0 flex-col gap-3 border-b px-4 pt-4 pb-5">
-        {/* Header: navigation (← Workspace) on top — it lives inside the
-            drawer, so it's isolated from the canvas's floating widgets and
-            right-side panels at any window size — then "Merge List" as the
-            pane's single title, with its count and a Reset for filters.
-            The collapse toggle stays in the ActivityBar. Every row shares the
-            same px-4 inset (no negative margins), so the button, title,
-            search box and filter chips all line up on one left/right edge;
-            pb-5 gives the chips the same breathing room above the divider
-            that the header has at the top. */}
-        <button
-          type="button"
-          onClick={() => setConfirmExitOpen(true)}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-white/10 bg-muted/50 px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:border-indigo-500/40 hover:bg-indigo-500/10"
-        >
-          <ArrowLeft className="size-3.5" />
-          Workspace
-        </button>
+      <div className="flex shrink-0 flex-col gap-3 border-b border-white/10 px-4 pt-3.5 pb-3">
         <div className="flex items-center justify-between gap-2">
           <p className="flex items-center gap-1.5 text-sm leading-tight font-semibold text-foreground">
             Merge List
@@ -237,18 +409,37 @@ function MergeListSidebar() {
               {visible.length}
             </span>
           </p>
-          {hasActiveFilters && (
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              onClick={resetFilters}
-              className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Hide Merge List"
+              onClick={() => setMergeListCollapsed(true)}
+              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
             >
-              <RotateCcw className="size-3" />
-              Reset
+              <PanelLeftClose className="size-3.5" />
             </button>
-          )}
+          </div>
         </div>
 
+        {/* Merges / Files / Layers */}
+        <div className="flex gap-1 rounded-full bg-black/25 p-1 ring-1 ring-white/5">
+          {TABS.map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-colors',
+                tab === id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/30' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Icon className="size-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'merges' && (
         <div className="flex flex-col gap-2">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -256,7 +447,7 @@ function MergeListSidebar() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search merge items..."
-            className="h-9 w-full rounded-full border bg-slate-800 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
+            className="h-9 w-full rounded-full border border-white/10 bg-black/25 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
@@ -265,27 +456,66 @@ function MergeListSidebar() {
           <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={setConflictFilter} />
           <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
         </div>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <RotateCcw className="size-3" />
+            Reset filters
+          </button>
+        )}
         </div>
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
-        {visible.map((item) => (
-          <MergeItemCard
-            key={item.id}
-            item={item}
-            active={selectedMergeItemId === item.id}
-            onSelect={setSelectedMergeItemId}
-            onConflict={setConflictItem}
-          />
-        ))}
-        {visible.length === 0 && (
-          <p className="p-3 text-center text-xs text-muted-foreground">
-            No merge items match these filters.
+        )}
+        {tab !== 'merges' && item && (
+          <p className="truncate text-[11px] text-muted-foreground">
+            In <span className="font-medium text-foreground">{item.title}</span>
           </p>
         )}
       </div>
 
-      <div className="shrink-0 border-t p-4">
+      <div className="min-h-0 flex-1 overflow-auto">
+        {tab === 'merges' ? (
+          <div className="space-y-3 px-4 py-4">
+            {visible.map((item) => (
+              <MergeItemCard
+                key={item.id}
+                item={item}
+                active={selectedMergeItemId === item.id}
+                onSelect={setSelectedMergeItemId}
+                onConflict={setConflictItem}
+              />
+            ))}
+            {visible.length === 0 && (
+              <p className="p-3 text-center text-xs text-muted-foreground">
+                No merge items match these filters.
+              </p>
+            )}
+          </div>
+        ) : !item ? (
+          <EmptyTab text="Open a merge item to browse its files and layers." />
+        ) : tab === 'files' ? (
+          <FilesTab
+            item={item}
+            files={files}
+            manualCode={manualCode}
+            activeFileId={selectedFileId}
+            onOpen={(f, line) => requestMergeFocus({ itemId: item.id, fileId: f.id, line, keepDeck: true, label: f.name })}
+          />
+        ) : (
+          <LayersTab
+            item={item}
+            frame={frame}
+            selectedLayerId={selectedLayerId}
+            editedLayerIds={editedLayerIds}
+            onSelect={(layerId) => requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, label: layerId })}
+          />
+        )}
+      </div>
+
+      {tab === 'merges' && (
+      <div className="shrink-0 border-t border-white/10 p-4">
         <button
           type="button"
           onClick={startMergeFromOpenFiles}
@@ -295,7 +525,9 @@ function MergeListSidebar() {
           Add Files to Merge
         </button>
       </div>
+      )}
       </div>
+    </div>
       {conflictItem && (
         <ConflictResolutionModal
           item={mergeItems.find((i) => i.id === conflictItem.id) ?? conflictItem}
@@ -303,7 +535,6 @@ function MergeListSidebar() {
         />
       )}
 
-      {/* Portaled, so it renders fine from inside the drawer. */}
       <Dialog open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
         <DialogContent
           showCloseButton={false}
@@ -337,7 +568,7 @@ function MergeListSidebar() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
 

@@ -472,7 +472,15 @@ function MergeStudioWorkspace({ item }) {
         </div>
       )}
 
-      <MergeListSidebar />
+      <MergeListSidebar
+        item={item}
+        files={files}
+        frame={frame0}
+        selectedLayerId={syncSelection?.layerId}
+        selectedFileId={syncSelection?.fileId}
+        manualCode={manualCode}
+        editedLayerIds={new Set([...Object.keys(assemblies), ...Object.keys(copyEdits(frame0, manualCode))])}
+      />
 
       {item && (
         <BlockDeckPanel
