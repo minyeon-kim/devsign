@@ -61,9 +61,9 @@ function InboxItem({ n, onJump }) {
   }
 
   return (
-    // Solid neutral cards (no tint): unread is just a touch brighter, with a
-    // stronger edge and the violet dot; read items sit back slightly.
-    <div className={cn('rounded-2xl border p-4 transition-colors', n.unread ? 'border-white/15 bg-slate-800' : 'border-white/[0.07] bg-slate-800/60')}>
+    // Solid neutral cards, clearly lifted off the dark drawer: unread is the
+    // brightest surface (plus the violet dot); read items a step dimmer.
+    <div className={cn('rounded-2xl border p-4 shadow-sm shadow-black/30 transition-colors', n.unread ? 'border-white/20 bg-[oklch(0.33_0_0)]' : 'border-white/12 bg-[oklch(0.3_0_0)]')}>
       <button
         type="button"
         onClick={() => {
@@ -165,14 +165,15 @@ function MergeInboxDrawer({ onJump, onClose }) {
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              'inline-flex items-center justify-center rounded-full px-2.5 h-6 text-[11px] font-medium transition-colors',
-              tab === id ? 'bg-slate-700 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              'inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
+              // Active: a solid light pill with dark, bold text — unmistakable.
+              tab === id ? 'bg-slate-200 font-semibold text-slate-900 shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'
             )}
           >
             {label}
           </button>
         ))}
-        {unread > 0 && <span className="ml-auto text-[10px] text-muted-foreground">{unread} unread</span>}
+        {unread > 0 && <span className="ml-auto text-[11px] text-slate-400">{unread} unread</span>}
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
