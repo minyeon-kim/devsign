@@ -1,42 +1,88 @@
-import { ArrowRight, GitBranch } from 'lucide-react'
+import { ArrowRight, Bell, Folder, History, Layers } from 'lucide-react'
+import { cn } from 'cn'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-// Frontend-only illustration of the core Devsign flow (Design <-> Code,
-// drift detected) — no images, just layered CSS/HTML blocks.
-function DriftIllustration() {
+const TOKEN_SWATCHES = ['bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500']
+const CHART_BARS = [40, 65, 50, 80, 55, 92, 70]
+const ACTIVITY_ROWS = [
+  { color: 'bg-sky-500/80', width: 'w-3/4' },
+  { color: 'bg-violet-500/80', width: 'w-1/2' },
+]
+
+// Frontend-only "screenshot" of the DevSign product UI — a believable
+// mini dashboard (window chrome, nav rail, token swatches, a gradient
+// bar chart, activity rows) built from plain CSS/HTML, not an image
+// asset, so it stays in step with the app's real dark theme instead of
+// drifting from it like a static export would.
+function ProductPreview() {
   return (
-    <div className="relative h-56 w-full max-w-sm shrink-0">
-      <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
+    <div className="relative w-full max-w-md shrink-0 lg:-mr-4">
+      <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-3xl" aria-hidden="true" />
 
-      {/* Design panel */}
-      <div className="absolute top-2 left-0 w-48 rounded-2xl border border-border/80 bg-card/90 p-3 shadow-lg backdrop-blur-sm">
-        <p className="text-[10px] font-medium text-muted-foreground">Design</p>
-        <div className="mt-2 h-2 w-3/4 rounded-full bg-foreground/15" />
-        <div className="mt-1.5 h-2 w-1/2 rounded-full bg-foreground/10" />
-        <div className="mt-3 h-6 w-20 rounded-full bg-violet-500/70" />
-      </div>
-
-      {/* Code panel */}
-      <div className="absolute top-16 left-20 w-48 rounded-2xl border border-border/80 bg-slate-950/90 p-3 shadow-lg backdrop-blur-sm">
-        <p className="text-[10px] font-medium text-muted-foreground">Code</p>
-        <div className="mt-2 space-y-1 font-mono text-[9px] leading-relaxed">
-          <p>
-            <span className="text-violet-400">.button</span> <span className="text-foreground/50">{'{'}</span>
-          </p>
-          <p className="pl-2 text-sky-400">
-            radius: <span className="text-emerald-400">8px</span>
-            <span className="text-foreground/40">;</span>
-          </p>
-          <p className="text-foreground/50">{'}'}</p>
+      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+        {/* Window titlebar */}
+        <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/40 px-3 py-2">
+          <span className="size-2 rounded-full bg-destructive/60" />
+          <span className="size-2 rounded-full bg-amber-500/60" />
+          <span className="size-2 rounded-full bg-emerald-500/60" />
+          <div className="ml-2 flex-1 truncate rounded-md bg-background/60 px-2 py-1 text-[9px] text-muted-foreground">
+            devsign.app/projects/design-system-v2
+          </div>
+          <Bell className="size-3 shrink-0 text-muted-foreground" />
         </div>
-        <div className="mt-2.5 h-6 w-20 rounded-md border-2 border-dashed border-destructive/70 bg-destructive/10" />
+
+        <div className="flex">
+          {/* Nav rail */}
+          <div className="flex w-9 shrink-0 flex-col items-center gap-2.5 border-r border-border/60 bg-card py-3">
+            <div className="size-5 rounded-md bg-primary" />
+            <Folder className="size-3.5 text-primary" />
+            <Layers className="size-3.5 text-muted-foreground" />
+            <History className="size-3.5 text-muted-foreground" />
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 space-y-2.5 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-foreground">Design tokens</p>
+              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[8px] font-medium text-primary">
+                Synced
+              </span>
+            </div>
+
+            <div className="flex gap-1.5">
+              {TOKEN_SWATCHES.map((color) => (
+                <div key={color} className={cn('size-5 rounded-md shadow-sm', color)} />
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-2 shadow-sm">
+              <div className="flex h-12 items-end gap-1">
+                {CHART_BARS.map((height, index) => (
+                  <div
+                    key={index}
+                    className="flex-1 rounded-sm bg-gradient-to-t from-primary/70 to-primary/20"
+                    style={{ height: `${height}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2 shadow-sm">
+              {ACTIVITY_ROWS.map((row, index) => (
+                <div key={index} className="flex items-center gap-1.5">
+                  <div className={cn('size-3.5 shrink-0 rounded-full', row.color)} />
+                  <div className={cn('h-1.5 rounded-full bg-foreground/10', row.width)} />
+                  <div className="h-1.5 w-6 shrink-0 rounded-full bg-foreground/5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Drift indicator between the two panels */}
-      <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border border-destructive/40 bg-card px-2.5 py-1 text-[10px] font-medium text-destructive shadow-md">
-        <GitBranch className="size-3" />
-        Drift detected
+      <div className="absolute -top-3 -right-3 flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[9px] font-medium text-foreground shadow-lg">
+        <span className="size-1.5 rounded-full bg-emerald-500" />3 components synced
       </div>
     </div>
   )
@@ -50,19 +96,18 @@ function HeroSection() {
           Design meets development
         </Badge>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-          Keep design and development in sync.
+          디자인 시스템을 코드로, 일관성을 자동으로.
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Devsign detects design-dev drift, highlights conflicts, and helps teams merge changes
-          faster.
+          DevSign은 디자인 토큰과 컴포넌트를 동기화하여 개발 효율성을 극대화합니다.
         </p>
         <Button variant="ghost" className="mt-5 gap-1.5 px-0 text-primary hover:bg-transparent hover:text-primary/80">
-          Learn how Devsign works
+          Learn how DevSign works
           <ArrowRight className="size-3.5" />
         </Button>
       </div>
 
-      <DriftIllustration />
+      <ProductPreview />
     </div>
   )
 }
