@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
@@ -362,42 +362,6 @@ function MergeStudioWorkspace({ item }) {
   }, [])
   const cancelPlacing = useCallback(() => setPlacing(null), [])
 
-  // A selected layer that was added from the Library stays fully editable
-  // (LayerTransformHandles): moved / resized geometry is written back into
-  // the layer itself, and the Assemble size/offset overrides it supersedes
-  // are dropped so the precision inputs read the same numbers.
-  const editableLayer = addedLayers.find((l) => l.id === syncSelection?.layerId) ?? null
-  const editableAssembly = editableLayer ? assemblies[editableLayer.id] : null
-  const editableGeom = editableLayer && {
-    x: editableLayer.x + (editableAssembly?.dx ?? 0),
-    y: editableLayer.y + (editableAssembly?.dy ?? 0),
-    w: editableAssembly?.width ?? editableLayer.width,
-    h: editableAssembly?.height ?? editableLayer.height,
-  }
-  const editableId = editableLayer?.id
-  const changeAddedLayer = useCallback(
-    (g) => {
-      setAddedLayers((prev) => prev.map((l) => (l.id === editableId ? { ...l, x: g.x, y: g.y, width: g.w, height: g.h } : l)))
-      setAssemblies((prev) => {
-        const a = prev[editableId]
-        if (!a || (a.dx === undefined && a.dy === undefined && a.width === undefined && a.height === undefined)) return prev
-        // eslint-disable-next-line no-unused-vars
-        const { dx, dy, width, height, ...rest } = a
-        return { ...prev, [editableId]: rest }
-      })
-    },
-    [editableId]
-  )
-  const deleteAddedLayer = useCallback(() => {
-    if (!editableId) return
-    setAddedLayers((prev) => prev.filter((l) => l.id !== editableId))
-    setAssemblies((prev) => {
-      const next = { ...prev }
-      delete next[editableId]
-      return next
-    })
-    setSyncSelection(null)
-  }, [editableId])
   useEffect(() => setPlacing(null), [item?.id])
 
   function resolveDiff(layerId, diffId, side) {
@@ -449,6 +413,64 @@ function MergeStudioWorkspace({ item }) {
 
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const frame0 = frameWithLayers(baseFrame, addedLayers)
+
+  // Direct manipulation of the selected canvas element (LayerTransformHandles).
+  // - A layer added from the Library is ours: moves / resizes are written
+  //   into the layer itself (it shows on both artboards), and it can be
+  //   deleted.
+  // - An original design layer can't change on the Original Design, so the
+  //   edit goes through its Assemble entry (dx / dy / width / height — the
+  //   same values as the precision inputs) and renders on the Current
+  //   Implementation; it can be reset but not deleted.
+  const selId = syncSelection?.layerId
+  const selLayer = selId ? frame0?.layers.find((l) => l.id === selId) : null
+  const selIsAdded = Boolean(selId && addedLayers.some((l) => l.id === selId))
+  const selAssembly = selId ? assemblies[selId] : null
+  const selHasGeomEdit = Boolean(selAssembly && ['dx', 'dy', 'width', 'height'].some((k) => selAssembly[k] !== undefined))
+  const changeSelectedGeom = useCallback(
+    (g) => {
+      if (!selLayer) return
+      if (selIsAdded) {
+        setAddedLayers((prev) => prev.map((l) => (l.id === selLayer.id ? { ...l, x: g.x, y: g.y, width: g.w, height: g.h } : l)))
+        setAssemblies((prev) => {
+          const a = prev[selLayer.id]
+          if (!a || (a.dx === undefined && a.dy === undefined && a.width === undefined && a.height === undefined)) return prev
+          // eslint-disable-next-line no-unused-vars
+          const { dx, dy, width, height, ...rest } = a
+          return { ...prev, [selLayer.id]: rest }
+        })
+      } else {
+        setAssemblies((prev) => ({
+          ...prev,
+          [selLayer.id]: { ...prev[selLayer.id], dx: g.x - selLayer.x, dy: g.y - selLayer.y, width: g.w, height: g.h },
+        }))
+      }
+    },
+    [selLayer, selIsAdded]
+  )
+  const deleteAddedLayer = useCallback(() => {
+    if (!selIsAdded) return
+    setAddedLayers((prev) => prev.filter((l) => l.id !== selId))
+    setAssemblies((prev) => {
+      const next = { ...prev }
+      delete next[selId]
+      return next
+    })
+    setSyncSelection(null)
+  }, [selId, selIsAdded])
+  const resetSelectedGeom = useCallback(() => {
+    setAssemblies((prev) => {
+      const a = prev[selId]
+      if (!a) return prev
+      // eslint-disable-next-line no-unused-vars
+      const { dx, dy, width, height, ...rest } = a
+      const next = { ...prev }
+      if (Object.keys(rest).length) next[selId] = rest
+      else delete next[selId]
+      return next
+    })
+  }, [selId])
+  const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
   const copy = copyFile(frame0)
   const files = item ? [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
   // Block Deck target: the selected layer, or the smart default when the
@@ -646,14 +668,16 @@ function MergeStudioWorkspace({ item }) {
         />
       )}
 
-      {/* A selected Library-added layer: move / resize / delete handles. */}
-      {editableLayer && frame0 && !placing && !mergeModal && !mergePreviewOpen && (
+      {/* The selected canvas element: bounding box handles to move / resize
+          (plus delete for Library-added layers, reset for edited ones). */}
+      {selLayer && frame0 && !placing && !mergeModal && !mergePreviewOpen && (
         <LayerTransformHandles
-          layerId={editableLayer.id}
-          geom={editableGeom}
+          layerId={selLayer.id}
           frame={frame0}
-          onChange={changeAddedLayer}
-          onDelete={deleteAddedLayer}
+          boards={handleBoards}
+          onChange={changeSelectedGeom}
+          onDelete={selIsAdded ? deleteAddedLayer : undefined}
+          onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
         />
       )}
 

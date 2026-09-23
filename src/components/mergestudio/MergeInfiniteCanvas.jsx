@@ -862,6 +862,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80'
       )}
       style={style}
+      data-layer-id={layer.id}
     >
       {/* No corner badge on the selection — the only AI affordance on a
           selected element is the AI Edit chip at its bottom-right edge. */}
