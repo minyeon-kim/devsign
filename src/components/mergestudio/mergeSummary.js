@@ -1,5 +1,5 @@
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
-import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 
 // Turns the merge item + the user's resolutions + the canvas annotations
@@ -39,6 +39,14 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
       a.shape && `${a.shape} shape`,
       (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
       a.fill && `${ASSEMBLY_FILLS.find((f) => f.id === a.fill)?.label ?? a.fill} fill`,
+      a.fillColor && `fill ${a.fillColor}`,
+      a.radius !== undefined && `radius ${a.radius}px`,
+      (a.dx || a.dy) && `moved ${a.dx ?? 0},${a.dy ?? 0}px`,
+      (a.padX !== undefined || a.padY !== undefined) && `padding ${a.padY ?? '–'}/${a.padX ?? '–'}px`,
+      a.gap !== undefined && `gap ${a.gap}px`,
+      a.direction && `${a.direction === 'column' ? 'vertical' : 'horizontal'} layout`,
+      a.stroke && `${a.stroke.width}px ${a.stroke.color} stroke`,
+      a.opacity !== undefined && a.opacity !== 100 && `${a.opacity}% opacity`,
       a.border && a.border !== 'none' && `${a.border} border`,
       a.shadow && a.shadow !== 'none' && `${a.shadow} shadow`,
       a.icon && `icon ${a.icon}`,
@@ -122,7 +130,7 @@ export function buildOverrides(item, resolutions = {}, annotations = [], preset 
   // Undecided options default to the Current Implementation's value.
   for (const [layerId, diffs] of Object.entries(layerDiffs)) {
     for (const diff of diffs) {
-      overrides[layerId] = mergeOverride(overrides[layerId], diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'))
+      overrides[layerId] = mergeOverride(overrides[layerId], yieldToExact(diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'), assemblies[layerId]))
     }
   }
   for (const a of annotations) {

@@ -24,6 +24,17 @@ export function diffEffect(diff, side) {
   return effect
 }
 
+// Drops the parts of a drift effect that an exact Assemble value replaces
+// (typed W/H or radius), so the two never stack.
+export function yieldToExact(effect, assembly) {
+  if (!assembly) return effect
+  const e = { ...effect }
+  if (assembly.width !== undefined) delete e.dw
+  if (assembly.height !== undefined) delete e.dh
+  if (assembly.radius !== undefined || assembly.shape) delete e.radius
+  return e
+}
+
 export function isCustomResolution(side) {
   return typeof side === 'object' && side !== null && typeof side.custom === 'string'
 }
@@ -48,14 +59,14 @@ function customFillClass(text) {
 export const GLOW_SHADOW = 'shadow-[0_0_16px_4px_color-mix(in_oklch,var(--primary)_65%,transparent)]'
 
 export const ASSEMBLY_FILLS = [
-  { id: 'indigo', label: 'Indigo', className: 'bg-indigo-500', swatch: 'bg-indigo-500' },
-  { id: 'violet', label: 'Violet', className: 'bg-violet-500', swatch: 'bg-violet-500' },
-  { id: 'emerald', label: 'Emerald', className: 'bg-emerald-500', swatch: 'bg-emerald-500' },
-  { id: 'rose', label: 'Rose', className: 'bg-rose-500', swatch: 'bg-rose-500' },
-  { id: 'amber', label: 'Amber', className: 'bg-amber-500', swatch: 'bg-amber-500' },
-  { id: 'gradient', label: 'Gradient', className: 'bg-gradient-to-r from-indigo-500 to-violet-500', swatch: 'bg-gradient-to-r from-indigo-500 to-violet-500' },
-  { id: 'surface', label: 'Surface', className: 'bg-card', swatch: 'bg-card border border-border' },
-  { id: 'ghost', label: 'Ghost', className: 'bg-transparent', swatch: 'bg-transparent border border-border' },
+  { id: 'indigo', label: 'Indigo', token: 'indigo-500', hex: '#6366f1', className: 'bg-indigo-500', swatch: 'bg-indigo-500' },
+  { id: 'violet', label: 'Violet', token: 'violet-500', hex: '#8b5cf6', className: 'bg-violet-500', swatch: 'bg-violet-500' },
+  { id: 'emerald', label: 'Emerald', token: 'emerald-500', hex: '#10b981', className: 'bg-emerald-500', swatch: 'bg-emerald-500' },
+  { id: 'rose', label: 'Rose', token: 'rose-500', hex: '#f43f5e', className: 'bg-rose-500', swatch: 'bg-rose-500' },
+  { id: 'amber', label: 'Amber', token: 'amber-500', hex: '#f59e0b', className: 'bg-amber-500', swatch: 'bg-amber-500' },
+  { id: 'gradient', label: 'Gradient', token: 'gradient.brand', hex: '#6366f1', className: 'bg-gradient-to-r from-indigo-500 to-violet-500', swatch: 'bg-gradient-to-r from-indigo-500 to-violet-500' },
+  { id: 'surface', label: 'Surface', token: 'surface', hex: '#f8fafc', className: 'bg-card', swatch: 'bg-card border border-border' },
+  { id: 'ghost', label: 'Ghost', token: 'transparent', hex: '#ffffff', className: 'bg-transparent', swatch: 'bg-transparent border border-border' },
 ]
 
 export const SHAPES = [
@@ -87,11 +98,24 @@ export function assemblyToOverride(assembly, layer) {
   if (extra) override.extraClass = extra
   if (assembly.align) override.align = assembly.align
   if (assembly.icon) override.icon = assembly.icon
+  // Precision inspector values (exact px / colors) beat the presets above.
+  if (assembly.radius !== undefined) override.radius = assembly.radius
+  if (assembly.fillColor) override.fillStyle = { background: assembly.fillColor }
+  if (assembly.stroke) override.strokeStyle = { border: `${assembly.stroke.width}px solid ${assembly.stroke.color}` }
+  if (assembly.padX !== undefined || assembly.padY !== undefined) override.padding = { x: assembly.padX, y: assembly.padY }
+  if (assembly.gap !== undefined) override.gap = assembly.gap
+  if (assembly.direction) override.direction = assembly.direction
+  if (assembly.valign) override.valign = assembly.valign
+  if (assembly.opacity !== undefined) override.opacity = assembly.opacity
+  if (assembly.dx) override.dx = assembly.dx
+  if (assembly.dy) override.dy = assembly.dy
   // Replace-with-component: render as a different element type / label.
   if (assembly.asType) override.asType = assembly.asType
   if (assembly.asLabel) override.asLabel = assembly.asLabel
   return override
 }
+
+const PRECISION_KEYS = ['strokeStyle', 'padding', 'gap', 'direction', 'valign', 'opacity', 'dx', 'dy']
 
 // Layers two overrides: later fill/radius/etc. win, size deltas add up.
 export function mergeOverride(a = {}, b = {}) {
@@ -110,6 +134,7 @@ export function mergeOverride(a = {}, b = {}) {
     ...(b.asType && { asType: b.asType }),
     ...(b.asLabel && { asLabel: b.asLabel }),
     ...(b.copy && { copy: { ...a.copy, ...b.copy } }),
+    ...Object.fromEntries(PRECISION_KEYS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]])),
     dw: (a.dw ?? 0) + (b.dw ?? 0),
     dh: (a.dh ?? 0) + (b.dh ?? 0),
   }
@@ -119,7 +144,7 @@ export function mergeOverride(a = {}, b = {}) {
 export function blockTemplates(layer, frameWidth) {
   return [
     { id: 'solid-pill', label: 'Solid pill', patch: { shape: 'pill', fill: 'gradient', border: 'none', shadow: 'glow' } },
-    { id: 'ghost', label: 'Ghost outline', patch: { shape: 'rounded', fill: 'ghost', border: 'outline', shadow: 'none' } },
+    { id: 'ghost', label: 'Ghost outline', patch: { shape: 'rounded', fill: 'ghost', stroke: { color: '#cbd5e1', width: 1 }, shadow: 'none' } },
     { id: 'compact', label: 'Compact', patch: { shape: 'rounded', width: Math.round(layer.width * 0.8), height: Math.round(layer.height * 0.85) } },
     { id: 'wide', label: 'Full width', patch: { width: Math.max(layer.width, frameWidth - layer.x * 2) } },
     { id: 'icon-circle', label: 'Icon circle', patch: { shape: 'circle', width: Math.min(layer.width, layer.height), height: Math.min(layer.width, layer.height), icon: 'left', fill: 'violet' } },
@@ -133,7 +158,7 @@ export function recommendAssembly(layer) {
     case 'button':
       return { rationale: 'A pill gradient with a soft glow matches this file’s primary CTAs.', patch: { shape: 'pill', fill: 'gradient', shadow: 'glow' } }
     case 'input':
-      return { rationale: 'Pill-shaped inputs with an outline match the new radius.lg token.', patch: { shape: 'pill', border: 'outline' } }
+      return { rationale: 'Pill-shaped inputs with an outline match the new radius.lg token.', patch: { shape: 'pill', stroke: { color: '#cbd5e1', width: 1 } } }
     case 'card':
       return { rationale: 'A larger radius with a soft shadow separates cards from the page.', patch: { shape: 'rounded', shadow: 'soft' } }
     case 'chip':

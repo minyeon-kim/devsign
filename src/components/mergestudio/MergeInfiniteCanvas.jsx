@@ -541,8 +541,8 @@ function TransactionsTable({ style, className }) {
 export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed }) {
   const [editingSlot, setEditingSlot] = useState(null)
   const style = {
-    left: layer.x,
-    top: layer.y,
+    left: layer.x + (override?.dx ?? 0),
+    top: layer.y + (override?.dy ?? 0),
     width: layer.width + (override?.dw ?? 0),
     height: layer.height + (override?.dh ?? 0),
   }
@@ -554,8 +554,24 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
     override?.radius !== undefined || override?.fillStyle
       ? { ...(override.radius !== undefined && { borderRadius: override.radius }), ...override.fillStyle }
       : undefined
-  const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
-  const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
+  // Auto-layout values from the Assemble inspector: direction, gap, padding
+  // and the 3×3 alignment (horizontal/vertical mapped onto the main/cross
+  // axis for the chosen direction), plus exact stroke and opacity.
+  const FLEX = { start: 'flex-start', center: 'center', end: 'flex-end' }
+  const column = override?.direction === 'column'
+  const hAlign = FLEX[override?.align]
+  const vAlign = FLEX[override?.valign]
+  const layoutStyle = {
+    ...(override?.direction && { flexDirection: override.direction }),
+    ...((column ? vAlign : hAlign) && { justifyContent: column ? vAlign : hAlign }),
+    ...((column ? hAlign : vAlign) && { alignItems: column ? hAlign : vAlign }),
+    ...(override?.gap !== undefined && { gap: override.gap }),
+    ...(override?.padding?.x !== undefined && { paddingLeft: override.padding.x, paddingRight: override.padding.x }),
+    ...(override?.padding?.y !== undefined && { paddingTop: override.padding.y, paddingBottom: override.padding.y }),
+    ...override?.strokeStyle,
+    ...(override?.opacity !== undefined && { opacity: override.opacity / 100 }),
+  }
+  const contentStyle = Object.keys(layoutStyle).length ? { ...radiusStyle, ...layoutStyle } : radiusStyle
   const extra = lightClasses(override?.extraClass)
   const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
@@ -1889,8 +1905,10 @@ function MergeInfiniteCanvas({
           const bottom = Math.min(r.bottom, c.bottom)
           return right - left > 2 && bottom - top > 2 ? { left, right, top, bottom } : null
         }
-        const push = (r, strong, key) =>
-          boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong })
+        // `size` (optional): the element's real design size — its unscaled
+        // layout box, unaffected by canvas zoom or artboard scaling.
+        const push = (r, strong, key, size) =>
+          boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong, size })
 
         for (const fk of ['a', 'b']) {
           const frameBox = find(`[data-frame-key="${fk}"] [data-frame-box]`)
@@ -1904,7 +1922,7 @@ function MergeInfiniteCanvas({
             const strong = id === syncSelection?.layerId
             if (!strong) return
             const r = clip(rel(el.getBoundingClientRect()), fr)
-            if (r) push(r, strong, `layer-${fk}-${id}`)
+            if (r) push(r, strong, `layer-${fk}-${id}`, { w: el.offsetWidth, h: el.offsetHeight })
           })
         }
 
@@ -2086,14 +2104,17 @@ function MergeInfiniteCanvas({
   }
   // Variant drifts: every drifted layer renders its Current Implementation
   // value (or the chosen / hovered one) underneath the edits above.
+  // Exact values set in the Assemble inspector (radius, W/H) win over the
+  // drift's default, so what's typed is exactly what renders.
   for (const [layerId, e] of Object.entries(variantPreviews ?? {})) {
     const base = overrides[layerId]
+    const exact = assemblies?.[layerId] ?? {}
     overrides[layerId] = {
       ...base,
-      radius: e.radius ?? base?.radius,
+      radius: exact.radius !== undefined || exact.shape ? base?.radius : (e.radius ?? base?.radius),
       fontWeight: e.fontWeight ?? base?.fontWeight,
-      dw: (base?.dw ?? 0) + (e.dw ?? 0),
-      dh: (base?.dh ?? 0) + (e.dh ?? 0),
+      dw: (base?.dw ?? 0) + (exact.width !== undefined ? 0 : (e.dw ?? 0)),
+      dh: (base?.dh ?? 0) + (exact.height !== undefined ? 0 : (e.dh ?? 0)),
       className: base?.className ?? e.className,
     }
   }
@@ -2301,8 +2322,8 @@ function MergeInfiniteCanvas({
           .filter((b) => b.strong && !b.key.startsWith('code-'))
           .map((b) => {
             const zoomFactor = view.zoom > 0 ? view.zoom / 100 : 1
-            const w = Math.round((b.w - 6) / zoomFactor)
-            const h = Math.round((b.h - 6) / zoomFactor)
+            const w = b.size ? b.size.w : Math.round((b.w - 6) / zoomFactor)
+            const h = b.size ? b.size.h : Math.round((b.h - 6) / zoomFactor)
             if (!Number.isFinite(w) || !Number.isFinite(h)) return null
             return (
               <span

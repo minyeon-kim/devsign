@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowDown,
   ArrowRight,
+  BetweenHorizontalStart,
+  Blend,
   Blocks,
+  Circle,
+  Link2,
+  Link2Off,
+  Minus,
+  MoveHorizontal,
+  MoveVertical,
+  Plus,
+  RectangleHorizontal,
+  Square,
+  SquareRoundCorner,
   Check,
   ChevronDown,
   ChevronRight,
@@ -232,151 +245,431 @@ function Seg({ options, value, onChange }) {
   )
 }
 
-// A distinct, clearly-bounded card grouping one property control — the
-// "Syntropic Studio" structure: every setting lives in its own labeled
-// surface instead of a flat stack of bare labels.
-function Field({ label, children }) {
+// ---- Figma-style precision inspector ---------------------------------
+// Compact sections of exact controls: numeric fields with units (type,
+// ↑/↓ to nudge, Shift for ×10, or drag the field's label to scrub), color
+// fields that take HEX / rgb() / oklch() or a design-token name beside a
+// native swatch picker, and auto-layout direction / gap / padding / 3×3
+// alignment. Every change writes the layer's assembly and previews live.
+
+// Per-type defaults shown as each field's placeholder, so an untouched
+// property still reads as its real rendered value.
+const TYPE_DEFAULTS = {
+  button: { radius: 8, gap: 6, align: 'center', valign: 'center', direction: 'row', fill: 'indigo-500' },
+  chip: { radius: 999, gap: 4, align: 'center', valign: 'center', direction: 'row', fill: 'indigo-500' },
+  input: { radius: 8, gap: 8, padX: 12, align: 'start', valign: 'center', direction: 'row', fill: '#ffffff' },
+  card: { radius: 12, gap: 4, padX: 10, padY: 10, align: 'start', valign: 'start', direction: 'column', fill: '#ffffff' },
+  iconbtn: { radius: 999, align: 'center', valign: 'center', direction: 'row', fill: '#ffffff' },
+  avatar: { radius: 999 },
+  toggle: { radius: 999, fill: 'indigo-500' },
+  image: { radius: 8 },
+  chart: { radius: 12, fill: '#ffffff' },
+  table: { radius: 12, fill: '#ffffff' },
+  text: { radius: 2 },
+}
+const AUTO_LAYOUT_TYPES = new Set(['button', 'chip', 'input', 'card', 'iconbtn'])
+
+function InspectorSection({ title, action, children }) {
   return (
-    <div className="rounded-xl bg-slate-800/40 p-3">
-      <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
+    <div className="space-y-2 border-t border-white/10 px-4 py-3">
+      <div className="flex h-5 items-center justify-between">
+        <p className="text-[11px] font-semibold text-foreground/90">{title}</p>
+        {action}
+      </div>
       {children}
     </div>
   )
 }
 
-function ShapeControl({ assembly, onChange }) {
-  return (
-    <Field label="Shape">
-      <Seg options={SHAPES.map((s) => [s.id, s.label])} value={assembly.shape} onChange={(shape) => onChange({ shape })} />
-    </Field>
-  )
-}
+// A pill numeric field: prefix label (drag it to scrub), value, unit.
+function NumInput({ label, value, placeholder, unit = 'px', min = -9999, max = 9999, title, onChange }) {
+  const [draft, setDraft] = useState(null)
+  const clamp = (n) => Math.min(max, Math.max(min, Math.round(n)))
+  const shown = draft ?? (value === undefined || value === null ? '' : String(Math.round(value)))
+  const base = value ?? (Number.isFinite(Number(placeholder)) ? Number(placeholder) : 0)
 
-function SizeControl({ layer, assembly, onChange }) {
-  const w = assembly.width ?? layer.width
-  const h = assembly.height ?? layer.height
-  const num = (value, key) => (
-    <label className="flex flex-1 items-center gap-2 rounded-full border border-white/10 bg-slate-800/70 px-3 py-1.5 text-xs text-muted-foreground focus-within:border-violet-500">
-      {key === 'width' ? 'W' : 'H'}
+  function scrub(e) {
+    e.preventDefault()
+    const startX = e.clientX
+    const start = Number.isFinite(base) ? base : 0
+    function move(m) {
+      onChange(clamp(start + Math.round((m.clientX - startX) / 2) * (m.shiftKey ? 10 : 1)))
+    }
+    function up() {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  return (
+    <label
+      title={title}
+      className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-slate-900/80 pr-2.5 pl-2 ring-1 ring-white/10 transition-shadow focus-within:ring-violet-500"
+    >
+      <span onPointerDown={scrub} className="w-3.5 shrink-0 cursor-ew-resize text-center text-[10px] font-medium text-muted-foreground select-none">
+        {label}
+      </span>
       <input
-        type="number"
-        min={8}
-        max={1200}
-        value={Math.round(value)}
-        onChange={(e) => {
-          const n = Number(e.target.value)
-          if (n > 0) onChange({ [key]: n })
+        inputMode="numeric"
+        value={shown}
+        placeholder={placeholder === undefined ? 'Auto' : String(placeholder)}
+        onFocus={(e) => {
+          setDraft(shown)
+          e.target.select()
         }}
-        className="w-full min-w-0 bg-transparent text-sm text-foreground outline-none"
+        onChange={(e) => {
+          setDraft(e.target.value)
+          const n = parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(clamp(n))
+        }}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault()
+            const next = clamp((Number.isFinite(base) ? base : 0) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1))
+            setDraft(String(next))
+            onChange(next)
+          }
+        }}
+        className="w-full min-w-0 bg-transparent text-[12px] text-foreground tabular-nums outline-none placeholder:text-muted-foreground/60"
       />
+      {unit && <span className="shrink-0 text-[10px] text-muted-foreground">{unit}</span>}
     </label>
   )
+}
+
+// Color text → assembly patch: a literal color becomes an exact fill; a
+// token name (`violet-500`, `bg-rose-500`, `primary`, `surface`…) maps to a
+// design-system fill. null for text that's neither (yet).
+function parseColorInput(text) {
+  const t = text.trim()
+  if (!t) return {}
+  if (/^[0-9a-f]{6}$/i.test(t)) return { hex: `#${t}` }
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(t) || /^(rgba?|hsla?|oklch)\(.+\)$/i.test(t)) return { hex: t }
+  const key = t.toLowerCase().replace(/^(bg-|color\.|--)/, '')
+  const bare = key.replace(/-\d{2,3}$/, '')
+  const fill =
+    ASSEMBLY_FILLS.find((f) => f.token === key || f.id === bare || f.label.toLowerCase() === bare) ??
+    (bare === 'primary' ? ASSEMBLY_FILLS.find((f) => f.id === 'indigo') : null)
+  return fill ? { token: fill } : null
+}
+
+// A color row: native swatch picker + a HEX/token text field.
+function ColorField({ value, swatchHex, swatchClass, placeholder, onHex, onToken, onClear }) {
+  const [draft, setDraft] = useState(null)
+  const invalid = draft !== null && parseColorInput(draft) === null
+  function apply(text) {
+    const parsed = parseColorInput(text)
+    if (!parsed) return
+    if (parsed.hex) onHex(parsed.hex)
+    else if (parsed.token) onToken(parsed.token)
+    else onClear?.()
+  }
   return (
-    <Field label="Size">
-      <div className="flex gap-2">
-        {num(w, 'width')}
-        {num(h, 'height')}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {[
-          ['S', 0.8],
-          ['M', 1],
-          ['L', 1.25],
-        ].map(([label, k]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => onChange({ width: Math.round(layer.width * k), height: Math.round(layer.height * k) })}
-            className="rounded-full bg-slate-800/70 px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </Field>
+    <div
+      className={cn(
+        'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-full bg-slate-900/80 pr-2.5 pl-1 ring-1 transition-shadow focus-within:ring-violet-500',
+        invalid ? 'ring-destructive/60' : 'ring-white/10'
+      )}
+    >
+      <span className={cn('relative size-5 shrink-0 overflow-hidden rounded-full ring-1 ring-white/20', swatchClass)} style={swatchClass ? undefined : { background: swatchHex }}>
+        <input
+          type="color"
+          title="Pick a color"
+          value={/^#[0-9a-f]{6}$/i.test(swatchHex ?? '') ? swatchHex : '#6366f1'}
+          onChange={(e) => onHex(e.target.value)}
+          className="absolute inset-0 size-full cursor-pointer opacity-0"
+        />
+      </span>
+      <input
+        value={draft ?? value ?? ''}
+        placeholder={placeholder}
+        spellCheck={false}
+        onFocus={(e) => {
+          setDraft(value ?? '')
+          e.target.select()
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          apply(e.target.value)
+        }}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        className="w-full min-w-0 bg-transparent font-mono text-[11px] text-foreground uppercase outline-none placeholder:normal-case placeholder:font-sans placeholder:text-muted-foreground/60"
+      />
+    </div>
   )
 }
 
-function FillControl({ assembly, onChange }) {
+function IconToggle({ active, title, onClick, children }) {
   return (
-    <Field label="Fill">
-      <div className="flex flex-wrap gap-2">
-        {ASSEMBLY_FILLS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            title={f.label}
-            onClick={() => onChange({ fill: f.id })}
-            className={cn(
-              'size-7 rounded-full transition-transform hover:scale-110',
-              f.swatch,
-              assembly.fill === f.id && 'ring-2 ring-white ring-offset-1 ring-offset-transparent'
-            )}
-          />
-        ))}
-      </div>
-    </Field>
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'flex h-7 flex-1 items-center justify-center rounded-full transition-colors',
+        active ? 'bg-indigo-500 text-white' : 'bg-slate-900/80 text-muted-foreground ring-1 ring-white/10 hover:text-foreground'
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
-// The modular builder: block templates, then shape / size / fill /
-// border & shadow / content controls. Everything writes into the layer's
-// "assembly", which previews live on the Current Implementation and is bundled into the merge.
-// Each property lives in its own card (see `Field`) with generous padding
-// between groups, instead of one dense, flat stack of controls.
-function AssembleBuilder({ layer, frameWidth, assembly, onChange, onReset }) {
+// Figma's 3×3 alignment box: sets horizontal + vertical alignment at once.
+function AlignGrid({ h, v, onChange }) {
+  const axes = ['start', 'center', 'end']
+  return (
+    <div className="grid size-[76px] shrink-0 grid-cols-3 gap-0.5 rounded-xl bg-slate-900/80 p-1.5 ring-1 ring-white/10">
+      {axes.map((vv) =>
+        axes.map((hh) => {
+          const active = h === hh && v === vv
+          return (
+            <button
+              key={`${vv}-${hh}`}
+              type="button"
+              title={`Align ${vv === 'center' ? 'middle' : vv === 'start' ? 'top' : 'bottom'} ${hh === 'start' ? 'left' : hh === 'end' ? 'right' : 'center'}`}
+              onClick={() => onChange({ align: hh, valign: vv })}
+              className="group flex items-center justify-center rounded-md hover:bg-white/5"
+            >
+              <span className={cn('rounded-full transition-all', active ? 'h-2.5 w-1 bg-indigo-400' : 'size-1 bg-muted-foreground/40 group-hover:bg-muted-foreground')} />
+            </button>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+// `driftEffect`: the Current Implementation's own drift for this layer, so
+// untouched W / H / radius read as what's actually rendered.
+function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections = ['layout', 'autolayout', 'appearance', 'fill', 'stroke', 'effects'] }) {
   const a = assembly ?? {}
+  const d = TYPE_DEFAULTS[layer.type] ?? {}
+  const [lockRatio, setLockRatio] = useState(false)
+  const w = a.width ?? layer.width + (driftEffect?.dw ?? 0)
+  const h = a.height ?? layer.height + (driftEffect?.dh ?? 0)
+  const has = (id) => sections.includes(id)
+  const fillToken = ASSEMBLY_FILLS.find((f) => f.id === a.fill)
+  const shapeRadius = SHAPES.find((sh) => sh.id === a.shape)?.radius
+  const direction = a.direction ?? d.direction ?? 'row'
+
   return (
-    <div className="space-y-3 border-b border-white/10 p-4">
-      <div className="flex items-center gap-2">
+    <div>
+      {has('layout') && (
+        <InspectorSection title="Layout">
+          <div className="flex gap-2">
+            <NumInput label="X" value={layer.x + (a.dx ?? 0)} title="X position" onChange={(x) => onChange({ dx: x - layer.x })} />
+            <NumInput label="Y" value={layer.y + (a.dy ?? 0)} title="Y position" onChange={(y) => onChange({ dy: y - layer.y })} />
+          </div>
+          <div className="flex items-center gap-2">
+            <NumInput
+              label="W"
+              value={w}
+              min={8}
+              title="Width"
+              onChange={(nw) => onChange(lockRatio ? { width: nw, height: Math.round((nw * h) / w) } : { width: nw })}
+            />
+            <NumInput
+              label="H"
+              value={h}
+              min={8}
+              title="Height"
+              onChange={(nh) => onChange(lockRatio ? { height: nh, width: Math.round((nh * w) / h) } : { height: nh })}
+            />
+            <button
+              type="button"
+              title={lockRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+              onClick={() => setLockRatio((v) => !v)}
+              className={cn('flex size-7 shrink-0 items-center justify-center rounded-full transition-colors', lockRatio ? 'bg-indigo-500/20 text-indigo-300' : 'text-muted-foreground hover:bg-white/5')}
+            >
+              {lockRatio ? <Link2 className="size-3.5" /> : <Link2Off className="size-3.5" />}
+            </button>
+          </div>
+        </InspectorSection>
+      )}
+
+      {has('autolayout') && AUTO_LAYOUT_TYPES.has(layer.type) && (
+        <InspectorSection title="Auto layout">
+          <div className="flex gap-3">
+            <AlignGrid h={a.align ?? d.align ?? 'center'} v={a.valign ?? d.valign ?? 'center'} onChange={onChange} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex gap-1.5">
+                <IconToggle active={direction === 'row'} title="Horizontal" onClick={() => onChange({ direction: 'row' })}>
+                  <ArrowRight className="size-3.5" />
+                </IconToggle>
+                <IconToggle active={direction === 'column'} title="Vertical" onClick={() => onChange({ direction: 'column' })}>
+                  <ArrowDown className="size-3.5" />
+                </IconToggle>
+              </div>
+              <NumInput label={<BetweenHorizontalStart className="size-3" />} value={a.gap} placeholder={d.gap} title="Gap between items" min={0} onChange={(gap) => onChange({ gap })} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <NumInput label={<MoveHorizontal className="size-3" />} value={a.padX} placeholder={d.padX} title="Horizontal padding" min={0} onChange={(padX) => onChange({ padX })} />
+            <NumInput label={<MoveVertical className="size-3" />} value={a.padY} placeholder={d.padY} title="Vertical padding" min={0} onChange={(padY) => onChange({ padY })} />
+          </div>
+        </InspectorSection>
+      )}
+
+      {has('appearance') && (
+        <InspectorSection title="Appearance">
+          <div className="flex gap-2">
+            <NumInput label={<Blend className="size-3" />} value={a.opacity} placeholder={100} unit="%" min={0} max={100} title="Opacity" onChange={(opacity) => onChange({ opacity })} />
+            <NumInput
+              label={<SquareRoundCorner className="size-3" />}
+              value={a.radius ?? shapeRadius}
+              placeholder={driftEffect?.radius ?? d.radius}
+              min={0}
+              max={999}
+              title="Corner radius"
+              onChange={(radius) => onChange({ radius })}
+            />
+          </div>
+          <div className="flex gap-1.5">
+            {[
+              ['Square', 0, Square],
+              ['Rounded', 12, RectangleHorizontal],
+              ['Pill', 999, Circle],
+            ].map(([label, r, Icon]) => (
+              <IconToggle key={label} active={(a.radius ?? shapeRadius) === r} title={`${label} corners (${r}px)`} onClick={() => onChange({ radius: r })}>
+                <Icon className="size-3" />
+                <span className="ml-1 text-[10px]">{label}</span>
+              </IconToggle>
+            ))}
+          </div>
+        </InspectorSection>
+      )}
+
+      {has('fill') && (
+        <InspectorSection
+          title="Fill"
+          action={
+            (a.fill || a.fillColor) && (
+              <button type="button" title="Remove fill override" onClick={() => onChange({ fill: undefined, fillColor: undefined })} className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground">
+                <Minus className="size-3" />
+              </button>
+            )
+          }
+        >
+          <ColorField
+            value={a.fillColor ?? fillToken?.token}
+            swatchHex={a.fillColor ?? fillToken?.hex}
+            swatchClass={!a.fillColor && fillToken ? fillToken.swatch : undefined}
+            placeholder={`${d.fill ?? 'Default'} · HEX or token`}
+            onHex={(fillColor) => onChange({ fillColor, fill: undefined })}
+            onToken={(f) => onChange({ fill: f.id, fillColor: undefined })}
+            onClear={() => onChange({ fill: undefined, fillColor: undefined })}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {ASSEMBLY_FILLS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                title={`${f.label} · ${f.token}`}
+                onClick={() => onChange({ fill: f.id, fillColor: undefined })}
+                className={cn('size-5 rounded-full transition-transform hover:scale-110', f.swatch, a.fill === f.id && !a.fillColor && 'ring-2 ring-white ring-offset-1 ring-offset-slate-900')}
+              />
+            ))}
+          </div>
+        </InspectorSection>
+      )}
+
+      {has('stroke') && (
+        <InspectorSection
+          title="Stroke"
+          action={
+            <button
+              type="button"
+              title={a.stroke ? 'Remove stroke' : 'Add stroke'}
+              onClick={() => onChange(a.stroke ? { stroke: undefined, border: 'none' } : { stroke: { color: '#cbd5e1', width: 1 } })}
+              className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground"
+            >
+              {a.stroke ? <Minus className="size-3" /> : <Plus className="size-3" />}
+            </button>
+          }
+        >
+          {a.stroke ? (
+            <div className="flex gap-2">
+              <ColorField
+                value={a.stroke.color}
+                swatchHex={a.stroke.color}
+                placeholder="HEX or token"
+                onHex={(color) => onChange({ stroke: { ...a.stroke, color } })}
+                onToken={(f) => onChange({ stroke: { ...a.stroke, color: f.hex } })}
+              />
+              <div className="w-[76px] shrink-0">
+                <NumInput label="W" value={a.stroke.width} min={0} max={24} title="Stroke width" onChange={(width) => onChange({ stroke: { ...a.stroke, width } })} />
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/70">No stroke</p>
+          )}
+        </InspectorSection>
+      )}
+
+      {has('effects') && (
+        <InspectorSection title="Effects">
+          <div className="flex gap-1.5">
+            {[['none', 'None'], ['soft', 'Drop shadow'], ['glow', 'Glow']].map(([id, label]) => (
+              <IconToggle key={id} active={(a.shadow ?? 'none') === id} title={label} onClick={() => onChange({ shadow: id })}>
+                <span className="text-[10px]">{label}</span>
+              </IconToggle>
+            ))}
+          </div>
+          {['button', 'chip'].includes(layer.type) && (
+            <div className="flex items-center gap-2">
+              <span className="w-10 shrink-0 text-[10px] text-muted-foreground">Icon</span>
+              {[['none', 'None'], ['left', 'Leading'], ['right', 'Trailing']].map(([id, label]) => (
+                <IconToggle key={id} active={(a.icon ?? 'none') === id} title={`${label} icon`} onClick={() => onChange({ icon: id === 'none' ? null : id })}>
+                  <span className="text-[10px]">{label}</span>
+                </IconToggle>
+              ))}
+            </div>
+          )}
+        </InspectorSection>
+      )}
+    </div>
+  )
+}
+
+// The Assemble inspector for the selected element: one-click block presets
+// up top, then the precision sections. Everything writes into the layer's
+// "assembly", which previews live on the Current Implementation and is
+// bundled into the merge.
+function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, onReset }) {
+  return (
+    <div className="border-b border-white/10 pb-1">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <Blocks className="size-4 text-indigo-500" />
-        <span className="text-sm font-semibold text-foreground">Build {layer.name}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{layer.name}</span>
+        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-muted-foreground capitalize">{layer.type}</span>
         <button
           type="button"
           onClick={onReset}
           disabled={!assembly}
-          className="ml-auto rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+          className="rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
         >
           Reset
         </button>
       </div>
-
-      <Field label="Blocks">
-        <div className="flex flex-wrap gap-2">
-          {blockTemplates(layer, frameWidth).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onChange(t.patch)}
-              className="rounded-full border border-indigo-500/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-indigo-500/15"
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <ShapeControl assembly={a} onChange={onChange} />
-      <SizeControl layer={layer} assembly={a} onChange={onChange} />
-      <FillControl assembly={a} onChange={onChange} />
-      <Field label="Border">
-        <Seg options={[['none', 'None'], ['outline', 'Outline'], ['thick', 'Thick']]} value={a.border ?? 'none'} onChange={(border) => onChange({ border })} />
-      </Field>
-      <Field label="Shadow">
-        <Seg options={[['none', 'None'], ['soft', 'Soft'], ['glow', 'Glow']]} value={a.shadow ?? 'none'} onChange={(shadow) => onChange({ shadow })} />
-      </Field>
-      {['button', 'input', 'chip'].includes(layer.type) && (
-        <>
-          <Field label="Alignment">
-            <Seg options={[['start', 'Left'], ['center', 'Center'], ['end', 'Right']]} value={a.align} onChange={(align) => onChange({ align })} />
-          </Field>
-          {layer.type !== 'input' && (
-            <Field label="Icon">
-              <Seg options={[[null, 'None'], ['left', 'Left'], ['right', 'Right']].map(([id, l]) => [id ?? 'none', l])} value={a.icon ?? 'none'} onChange={(icon) => onChange({ icon: icon === 'none' ? null : icon })} />
-            </Field>
-          )}
-        </>
-      )}
+      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+        {blockTemplates(layer, frameWidth).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.patch)}
+            className="shrink-0 rounded-full border border-indigo-500/40 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-indigo-500/15"
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <PrecisionInspector layer={layer} assembly={assembly} driftEffect={driftEffect} onChange={onChange} />
     </div>
   )
 }
@@ -404,10 +697,10 @@ function ManualFallback({ layer, assembly, onChange }) {
           Apply recommendation
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">Or set it manually:</p>
-      <ShapeControl assembly={a} onChange={onChange} />
-      <SizeControl layer={layer} assembly={a} onChange={onChange} />
-      <FillControl assembly={a} onChange={onChange} />
+      <p className="text-xs text-muted-foreground">Or set it precisely:</p>
+      <div className="-mx-3.5 -mb-3.5">
+        <PrecisionInspector layer={layer} assembly={a} onChange={onChange} sections={['layout', 'appearance', 'fill']} />
+      </div>
     </div>
   )
 }
@@ -824,7 +1117,7 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
 // style suggestions below it.
 // Assemble is where an element is composed: its content copy first (the
 // Text card, bound to copy.json), then its shape / size / style.
-function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onAssembleReset, textSlots, onEditText, ...suggestionProps }) {
+function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, ...suggestionProps }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {textSlots?.length > 0 && (
@@ -837,6 +1130,7 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onA
           layer={selectedLayer}
           frameWidth={frameWidth}
           assembly={assembly}
+          driftEffect={driftEffect}
           onChange={onAssemble}
           onReset={onAssembleReset}
         />
@@ -999,6 +1293,7 @@ function BlockDeckPanel({
   appliedPresetId,
   onApplyPreset,
   resolutions,
+  driftEffect,
   textSlots,
   onEditText,
   manualCode,
@@ -1157,6 +1452,7 @@ function BlockDeckPanel({
           assembly={assembly}
           onAssemble={onAssemble}
           onAssembleReset={onAssembleReset}
+          driftEffect={driftEffect}
           textSlots={textSlots}
           onEditText={onEditText}
           selectedLayerName={selectedLayerName}

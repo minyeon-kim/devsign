@@ -476,6 +476,7 @@ function MergeStudioWorkspace({ item }) {
 
       {item && (
         <BlockDeckPanel
+          driftEffect={deckLayerId ? variantPreviews?.[deckLayerId] : undefined}
           textSlots={textSlots}
           onEditText={editText}
           open={deckOpen}

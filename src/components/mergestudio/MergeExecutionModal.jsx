@@ -29,7 +29,7 @@ import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -385,7 +385,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   // Undecided options default to the Current Implementation's value.
   for (const [layerId, diffs] of Object.entries(layerDiffs)) {
     for (const diff of diffs) {
-      overrides[layerId] = mergeEffect(overrides[layerId], diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'))
+      overrides[layerId] = mergeEffect(overrides[layerId], yieldToExact(diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'), assemblies[layerId]))
     }
   }
   for (const a of annotations) {
