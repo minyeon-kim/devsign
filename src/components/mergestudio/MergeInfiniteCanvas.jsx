@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Undo2, Maximize, Menu, Minus, PanelRight, Pencil, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -987,7 +987,7 @@ function defaultLayout(frame) {
 }
 // Vertical room reserved above the cards for the two-tier floating top
 // controls (Compare > Check stepper at `top-3`, drift pager / Merge CTA row
-// at `top-14`, ~100px to its bottom edge) plus breathing room, so a freshly
+// at `top-[60px]`, ~104px to its bottom edge) plus breathing room, so a freshly
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
 // Room kept free below the cards for the bottom AI bar (~135px tall at
@@ -1374,7 +1374,7 @@ const MACRO_STEPS = [
 function MacroStepper({ stage, disabled, onOpenStep }) {
   const current = Math.max(0, MACRO_STEPS.findIndex((s) => s.id === stage))
   return (
-    <ol className={cn('flex items-center gap-1 rounded-full px-1.5 py-1', FLOATING_PILL)}>
+    <ol className={cn('flex h-10 items-center gap-1 rounded-full px-1.5', FLOATING_PILL)}>
       {MACRO_STEPS.map((s, i) => {
         const active = i === current
         const done = i < current
@@ -1388,7 +1388,7 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
-                'flex items-center justify-center gap-1 rounded-full px-2.5 h-6 text-[11px] font-semibold transition-colors',
+                'flex h-7 items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors',
                 active && 'bg-slate-700 text-white',
                 done && 'text-emerald-400',
                 !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
@@ -2364,7 +2364,7 @@ function MergeInfiniteCanvas({
         {/* Top-center stepper: centered on the whole studio canvas
             (absolute left-1/2), independent of the right-docked Block Deck
             / wizard reserve, so opening or closing them never moves it. */}
-        <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-9 -translate-x-1/2 items-center">
+        <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-10 -translate-x-1/2 items-center">
           <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
         </div>
 
@@ -2373,7 +2373,7 @@ function MergeInfiniteCanvas({
             merge wizard both open below this row (60px), so neither pushes
             it aside. */}
         <div
-          className="pointer-events-none absolute top-3 z-20 flex h-9 items-center"
+          className="pointer-events-none absolute top-3 z-20 flex h-10 items-center"
           style={{ left: leftInset, right: 12 }}
         >
           {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
@@ -2392,7 +2392,7 @@ function MergeInfiniteCanvas({
               avatars that follow-on-click + your own profile menu) — that
               bar is hidden in Merge Studio, so it lives here instead, in a
               glass pill matched to the Preview button's 30px height. */}
-          <div className={cn('flex h-[30px] items-center gap-1 rounded-full pr-1.5 pl-1', FLOATING_PILL)}>
+          <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
             {/* Notifications (the merge inbox) live with the people who
                 send them: right beside the avatars. */}
             <button
@@ -2400,11 +2400,11 @@ function MergeInfiniteCanvas({
               title="Notifications"
               onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
               className={cn(
-                'relative flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+                'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
                 mergeDrawer === 'inbox' && 'bg-indigo-500/20 text-indigo-300'
               )}
             >
-              <Bell className="size-3.5" />
+              <Bell className="size-4" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] leading-[14px] font-semibold text-white ring-2 ring-card">
                   {unreadCount}
@@ -2417,24 +2417,28 @@ function MergeInfiniteCanvas({
           <button
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
+            title={mergePreviewOpen ? 'Close preview' : 'Preview'}
+            aria-label="Preview"
+            aria-pressed={mergePreviewOpen}
             className={cn(
-              // 30px: same height as the notifications/avatars pill beside it.
-              'flex h-[30px] items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors',
+              // Icon-only, same 40px height as the notifications/avatars
+              // pill beside it.
+              'flex size-10 items-center justify-center rounded-full transition-colors',
               FLOATING_PILL,
               mergePreviewOpen ? 'border-primary bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
             )}
           >
-            <PanelRight className="size-3.5" />
-            Preview
+            {/* Outline play triangle, nudged 1px right to sit optically centered. */}
+            <Play className="size-4 translate-x-px" />
           </button>
           {annotations.length > 0 && (
             <button
               type="button"
               onClick={applyAll}
               disabled={pendingCount === 0}
-              className="flex h-[30px] items-center justify-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-full border border-indigo-500/50 bg-card/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Sparkles className="size-3.5 text-violet-500" />
+              <Sparkles className="size-4 text-violet-500" />
               Apply with AI
               {pendingCount > 0 && (
                 <span className={cn(COUNT_BADGE, 'bg-indigo-500/20 text-indigo-300')}>
@@ -2456,7 +2460,7 @@ function MergeInfiniteCanvas({
             lives in the Block Deck), so leaving this up too would just be
             redundant, clashing UI. */}
         {stage === 'compare' && (
-        <div className="pointer-events-none absolute top-14 left-1/2 z-20 flex -translate-x-1/2 justify-center">
+        <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
               <div data-guide="drift-nav" className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>

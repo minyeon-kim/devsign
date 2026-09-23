@@ -396,9 +396,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         <button
           type="button"
           onClick={() => setConfirmExitOpen(true)}
-          className={cn('flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+          className={cn('flex h-10 items-center justify-center gap-2 rounded-full px-4.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
         >
-          <ArrowLeft className="size-3.5" />
+          <ArrowLeft className="size-4" />
           Workspace
         </button>
         <button
@@ -408,12 +408,12 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
           className={cn(
-            'flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-xs font-medium transition-colors',
+            'flex h-10 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-medium transition-colors',
             FLOATING_PILL,
             mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100 hover:bg-indigo-500/25'
           )}
         >
-          {mergeListCollapsed ? <PanelLeftOpen className="size-3.5 text-indigo-400" /> : <PanelLeftClose className="size-3.5 text-indigo-300" />}
+          {mergeListCollapsed ? <PanelLeftOpen className="size-4 text-indigo-400" /> : <PanelLeftClose className="size-4 text-indigo-300" />}
           Merge List
           <span className={cn(COUNT_BADGE, 'bg-indigo-500 text-white')}>
             {mergeItems.length}
@@ -445,14 +445,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           Merge List
           <span className={cn(COUNT_BADGE, 'bg-indigo-500/15 text-indigo-300')}>{visible.length}</span>
         </span>
-        <button
-          type="button"
-          title="Hide Merge List"
-          onClick={() => setMergeListCollapsed(true)}
-          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <PanelLeftClose className="size-4" />
-        </button>
       </div>
 
       <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
