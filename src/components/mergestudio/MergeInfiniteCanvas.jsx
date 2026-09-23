@@ -863,15 +863,9 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       )}
       style={style}
     >
+      {/* No corner badge on the selection — the only AI affordance on a
+          selected element is the AI Edit chip at its bottom-right edge. */}
       {content}
-      {selected && override && !override.static && (
-        <span
-          title="Live preview"
-          className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow"
-        >
-          <Sparkles className="size-2 text-white" />
-        </span>
-      )}
     </div>
   )
 }
