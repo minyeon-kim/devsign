@@ -7,6 +7,7 @@ import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import UserPresence from '@/components/layout/UserPresence'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
@@ -943,7 +944,7 @@ function MergeInfiniteCanvas({
   onSelectLine,
   onSelectFrame,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, setMergeListCollapsed } = useWorkspace()
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
@@ -972,6 +973,15 @@ function MergeInfiniteCanvas({
     viewRef.current = view
   }, [view])
 
+  // Left edge of the unobstructed canvas *right now*: the Merge List is an
+  // overlay drawer, so content only needs to clear it while it's open. Only
+  // read when a view is (re)computed — opening a target, Reset view, an
+  // inbox jump — never on the drawer toggle itself, so toggling it never
+  // moves the canvas.
+  function contentStartX() {
+    return listCollapsed ? 16 : CONTENT_START_X
+  }
+
   // Zoom/pan so the whole card row sits inside the visible canvas (right of
   // the Merge List, left of any docked Block Deck) with breathing room.
   function fitView(lay) {
@@ -985,13 +995,31 @@ function MergeInfiniteCanvas({
       lay[k].y + 30 + (lay[k].h ?? (frame.height * (lay[k].w ?? ARTBOARD_PREVIEW_WIDTH)) / frame.width)
     const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
     const worldH = bottom - lay.code.y
-    const availW = rect.width - CONTENT_START_X - 32 - reserve
+    const startX = contentStartX()
+    const visRight = rect.width - 32 - reserve
+    const availW = visRight - startX
     const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
     const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
+    const contentW = worldW * k
+    // Horizontal axis to center on: the bottom AI chat bar's own center
+    // (it's centered on the whole viewport, not on this canvas's visible
+    // strip, so centering on the strip's midpoint left the cards visibly
+    // shifted off the bar's axis). Falls back to the visible strip's
+    // midpoint if the bar isn't mounted. The result is then clamped so the
+    // content never slides under the Merge List drawer or a right-docked
+    // panel — it only drifts off the bar's axis when there isn't room on
+    // one side to stay centered on it.
+    const aiBar = document.querySelector('[data-ai-bar]')
+    const aiRect = aiBar?.getBoundingClientRect()
+    const axis = aiRect?.width ? aiRect.left + aiRect.width / 2 - rect.left : (startX + visRight) / 2
+    const left =
+      contentW >= availW
+        ? startX
+        : Math.min(Math.max(axis - contentW / 2, startX), visRight - contentW)
     return {
       zoom,
-      x: CONTENT_START_X + Math.max(0, (availW - worldW * k) / 2) - lay.code.x * k,
+      x: left - lay.code.x * k,
       // Below the top controls, vertically centered in what's left when the
       // content is shorter than the available height.
       y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - lay.code.y * k,
@@ -1053,7 +1081,7 @@ function MergeInfiniteCanvas({
       // centered behind it.
       const to = {
         zoom,
-        x: (CONTENT_START_X + (base.width - reserve)) / 2 - wx * k1,
+        x: (contentStartX() + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
       }
       const t0 = performance.now()
@@ -1462,6 +1490,22 @@ function MergeInfiniteCanvas({
     zoomAt(viewRef.current.zoom + delta, rect.width / 2, rect.height / 2)
   }
 
+  // Click-away dismissal for the Merge List overlay drawer: a plain click
+  // (not a pan/drag — same 4px threshold as card drags) anywhere on the
+  // canvas viewport collapses it. Listened for in the *capture* phase and
+  // never stops propagation, so it sees clicks on cards, code lines and
+  // layers too without swallowing or altering them; the floating controls
+  // outside the viewport (stepper, zoom row, etc.) aren't affected.
+  const dismissDownRef = useRef(null)
+  function onViewportPointerDownCapture(e) {
+    dismissDownRef.current = e.button === 0 && !listCollapsed ? { x: e.clientX, y: e.clientY } : null
+  }
+  function onViewportPointerUpCapture(e) {
+    const down = dismissDownRef.current
+    dismissDownRef.current = null
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 4) setMergeListCollapsed(true)
+  }
+
   function startPan(e) {
     if (e.target !== e.currentTarget || e.button !== 0) return
     const start = { px: e.clientX, py: e.clientY, vx: view.x, vy: view.y }
@@ -1569,10 +1613,11 @@ function MergeInfiniteCanvas({
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
-  // Left inset the header/toolbar rows and the drift card clear, so they
-  // never sit under the (floating) Merge List panel — collapsing it via the
-  // ActivityBar toggle reclaims that space for them too.
-  const leftInset = listCollapsed ? 16 : 296
+  // Left inset of the floating header/toolbar rows. Fixed regardless of the
+  // Merge List drawer: it overlays the canvas rather than pushing it, so
+  // the rows (and the stepper centered within them) keep one stable center
+  // axis instead of jumping sideways each time the drawer toggles.
+  const leftInset = 16
 
   // Zoom pill + Changes Log placement: right-anchored at `right-3` by
   // default, but the AI chat bar is independently centered on the *whole*
@@ -1614,6 +1659,8 @@ function MergeInfiniteCanvas({
         <div
           ref={viewportRef}
           onPointerDown={startPan}
+          onPointerDownCapture={onViewportPointerDownCapture}
+          onPointerUpCapture={onViewportPointerUpCapture}
           className={cn('absolute inset-0 overflow-hidden', panning ? 'cursor-grabbing' : 'cursor-grab')}
           style={{
             touchAction: 'none',
@@ -1772,7 +1819,10 @@ function MergeInfiniteCanvas({
             sit directly to the right (a Subscribe button next to a form
             field, say), which centering *or* a rightward offset both did. */}
         {links.boxes
-          .filter((b) => b.strong)
+          // Design boxes only — code-line selections (`code-*`) already
+          // read clearly from their own row highlight, and a size readout
+          // on them was just clutter.
+          .filter((b) => b.strong && !b.key.startsWith('code-'))
           .map((b) => {
             const zoomFactor = view.zoom > 0 ? view.zoom / 100 : 1
             const w = Math.round((b.w - 6) / zoomFactor)
@@ -1826,7 +1876,7 @@ function MergeInfiniteCanvas({
             [leftInset, right: 12+reserve] box, matching the workspace
             canvas regardless of sidebar/deck state. */}
         <div
-          className="pointer-events-none absolute top-3 z-20 flex h-9 items-center transition-[left] duration-300"
+          className="pointer-events-none absolute top-3 z-20 flex h-9 items-center"
           style={{ left: leftInset, right: 12 + reserve }}
         >
           {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
@@ -1844,6 +1894,13 @@ function MergeInfiniteCanvas({
             <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
           </div>
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
+          {/* Same presence cluster as the main Workspace TopBar (teammate
+              avatars that follow-on-click + your own profile menu) — that
+              bar is hidden in Merge Studio, so it lives here instead, in a
+              glass pill matched to the Preview button's 30px height. */}
+          <div className="flex h-[30px] items-center rounded-full border bg-card/90 pr-1.5 pl-1 shadow-lg backdrop-blur-md">
+            <UserPresence />
+          </div>
           <button
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
@@ -1886,7 +1943,7 @@ function MergeInfiniteCanvas({
             lives in the Block Deck), so leaving this up too would just be
             redundant, clashing UI. */}
         {stage === 'compare' && (
-        <div className="pointer-events-none absolute top-14 z-20 flex justify-center transition-[left] duration-300" style={{ left: leftInset, right: 12 + reserve }}>
+        <div className="pointer-events-none absolute top-14 z-20 flex justify-center " style={{ left: leftInset, right: 12 + reserve }}>
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
               <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">

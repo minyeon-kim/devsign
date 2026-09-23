@@ -86,7 +86,7 @@ function MultiplayerCursors({ members = teamMembers }) {
               />
             </svg>
             <span
-              className="ml-1.5 -mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-white shadow-md"
+              className="absolute top-3.5 left-3.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] leading-none font-medium whitespace-nowrap text-white shadow-md"
               style={{ backgroundColor: member.cursorColor }}
             >
               {member.name}

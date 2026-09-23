@@ -92,8 +92,11 @@ function LocalCursor({ containerRef }) {
           />
         </svg>
       )}
+      {/* Name tag tucked against the arrow's bottom-right tail (Figma-style
+          multiplayer cursor). Absolutely positioned so it doesn't shift the
+          arrow's own hotspot. */}
       <span
-        className="ml-1.5 -mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap text-white shadow-md"
+        className="absolute top-3.5 left-3.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] leading-none font-medium whitespace-nowrap text-white shadow-md"
         style={{ backgroundColor: currentUser.cursorColor }}
       >
         {currentUser.name}

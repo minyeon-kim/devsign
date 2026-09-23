@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
@@ -86,9 +85,7 @@ function MergeStudioWorkspace({ item }) {
     setMergePreviewOpen,
     setMergeCta,
     mergeListCollapsed,
-    exitMergeStudio,
   } = useWorkspace()
-  const [confirmExitOpen, setConfirmExitOpen] = useState(false)
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
   const [syncSelection, setSyncSelection] = useState(null)
@@ -347,57 +344,6 @@ function MergeStudioWorkspace({ item }) {
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
-      {/* Floating "Back to Workspace" — moved out of the Merge List
-          header (that panel's collapse toggle now lives solely in the
-          ActivityBar, and this button needs to stay reachable even while
-          the panel is collapsed, which the old in-header placement
-          couldn't do). Shifts with the same `leftInset` the canvas's own
-          floating widgets use, so it clears the panel exactly like they
-          do. Still opens the same glass confirmation modal before actually
-          leaving. */}
-      <button
-        type="button"
-        onClick={() => setConfirmExitOpen(true)}
-        className="absolute top-3 z-20 flex items-center gap-1.5 rounded-full border bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-[left] duration-300 hover:bg-muted"
-        style={{ left: mergeListCollapsed ? 16 : 296 }}
-      >
-        <ArrowLeft className="size-3.5" />
-        Back to Workspace
-      </button>
-
-      <Dialog open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="rounded-2xl border border-white/10 bg-card/90 p-5 shadow-2xl backdrop-blur-xl"
-        >
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <ArrowLeft className="size-4.5" strokeWidth={2.5} />
-          </div>
-          <DialogTitle className="text-base font-semibold">Back to Workspace?</DialogTitle>
-          <DialogDescription>
-            You'll leave Merge Studio and return to the main workspace. Your merge progress stays saved.
-          </DialogDescription>
-          <div className="mt-1 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirmExitOpen(false)}
-              className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmExitOpen(false)
-                exitMergeStudio()
-              }}
-              className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110"
-            >
-              Back to Workspace
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {item ? (
         <div className="flex min-h-0 flex-1">
