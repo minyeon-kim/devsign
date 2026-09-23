@@ -49,25 +49,30 @@ function WorkspaceShell({ project }) {
 
   return (
     <WorkspaceProvider projectId={project.id}>
-      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-        <TopBar
-          project={project}
-          previewOpen={previewOpen}
-          onTogglePreview={togglePreview}
-          dockApi={dockApi}
-        />
-        <FollowMeBanner />
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        {/* Full-height, spanning both the top bar and the content below it
+            — a single unbroken border separates it from everything else,
+            Slack-sidebar style, instead of the top bar cutting across it. */}
+        <ActivityBar dockApi={dockApi} />
 
-        <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-          <ActivityBar dockApi={dockApi} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <TopBar
+            project={project}
+            previewOpen={previewOpen}
+            onTogglePreview={togglePreview}
+            dockApi={dockApi}
+          />
+          <FollowMeBanner />
 
-          <div className="min-w-0 flex-1">
-            <DockLayout onReady={setDockApi} />
+          <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+            <div className="min-w-0 flex-1">
+              <DockLayout onReady={setDockApi} />
+            </div>
+
+            <RightFloatingBar />
+            <ChatMorphWidget />
+            <InspectorSidebar />
           </div>
-
-          <RightFloatingBar />
-          <ChatMorphWidget />
-          <InspectorSidebar />
         </div>
       </div>
     </WorkspaceProvider>

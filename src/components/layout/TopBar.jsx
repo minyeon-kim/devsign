@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import Logo from '@/components/layout/Logo'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import UserPresence from '@/components/layout/UserPresence'
 import { panelDefinitions } from '@/data/mockData'
@@ -33,7 +32,6 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
   return (
     <header className="relative flex h-11 shrink-0 items-center gap-3 border-b bg-card px-3">
       <div className="flex min-w-0 max-w-[280px] shrink-0 items-center gap-2">
-        <Logo />
         <Button
           variant="ghost"
           size="icon-sm"
