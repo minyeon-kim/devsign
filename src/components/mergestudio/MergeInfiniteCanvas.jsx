@@ -2360,6 +2360,15 @@ function MergeInfiniteCanvas({
             the right broke that. This way it's always dead-center of the
             [leftInset, right: 12+reserve] box, matching the workspace
             canvas regardless of sidebar/deck state. */}
+        {/* Top-center stepper: centered on the whole studio canvas
+            (absolute left-1/2), independent of the right-docked Block Deck
+            / wizard reserve, so opening or closing them never moves it. */}
+        <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-9 -translate-x-1/2 items-center">
+          <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
+        </div>
+
+        {/* Right-hand header cluster (notifications + avatars, Preview,
+            Apply with AI): this one does step aside for the docked deck. */}
         <div
           className="pointer-events-none absolute top-3 z-20 flex h-9 items-center"
           style={{ left: leftInset, right: 12 + reserve }}
@@ -2375,9 +2384,6 @@ function MergeInfiniteCanvas({
               sits at this same `left: leftInset` starting edge, silently
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
-          <div className="pointer-events-auto absolute left-1/2 -translate-x-1/2">
-            <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
-          </div>
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
           {/* Same presence cluster as the main Workspace TopBar (teammate
               avatars that follow-on-click + your own profile menu) — that
@@ -2446,7 +2452,7 @@ function MergeInfiniteCanvas({
             lives in the Block Deck), so leaving this up too would just be
             redundant, clashing UI. */}
         {stage === 'compare' && (
-        <div className="pointer-events-none absolute top-14 z-20 flex justify-center " style={{ left: leftInset, right: 12 + reserve }}>
+        <div className="pointer-events-none absolute top-14 left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
               <div className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
