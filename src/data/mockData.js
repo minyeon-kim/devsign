@@ -145,10 +145,7 @@ export const dashboardTeamMemberCount = 8
 // `type` drives the semantic color/icon on the full Activity page (see
 // src/pages/ActivityPage.jsx) — one of 'changes' | 'conflict' | 'merge' |
 // 'comment' | 'file' | 'mention'. `dateGroup` buckets rows into the
-// page's "Today / Yesterday / <date>" sections. Older fields
-// (actorName/actorInitials/actorColorClass/action/target/timestamp) are
-// what the compact dashboard widget (RecentActivity.jsx) already reads —
-// kept as-is so that widget needs no changes.
+// page's "Today / Yesterday / <date>" sections.
 export const activities = [
   {
     id: 'activity-1',
