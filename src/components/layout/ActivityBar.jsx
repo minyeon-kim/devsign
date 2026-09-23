@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { panelDefinitions, projects } from '@/data/mockData'
+import { panelDefinitions, projects, sidebarWidthConstraints } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const panelIcons = {
@@ -29,21 +29,43 @@ const panelIcons = {
 // entries from it directly.
 const ACTIVITY_BAR_PANEL_IDS = ['explorer', 'layers']
 
-function openOrFocusPanel(dockApi, def) {
+// A real open/close toggle (not just focus-or-open): clicking an already
+// -open panel's icon closes it entirely; clicking again re-adds it. Explorer
+// and Layers are independent stacked dockview groups (not tabs sharing one
+// group — both are visible side by side), so re-adding one tries to restore
+// it right back next to whichever sidebar sibling is still open, matching
+// DockLayout.buildInitialLayout's original stack instead of dropping it
+// into an unrelated group.
+function toggleSidebarPanel(dockApi, def) {
   if (!dockApi) return
+
   const existing = dockApi.getPanel(def.id)
   if (existing) {
-    existing.api.setActive()
+    existing.api.close()
     return
   }
 
-  const reference = dockApi.panels[0]
+  const explorerPanel = dockApi.getPanel('explorer')
+  const layersPanel = dockApi.getPanel('layers')
+  const editorPanel = dockApi.getPanel('editor') ?? dockApi.panels[0]
+
+  let position
+  if (def.id === 'explorer' && layersPanel) {
+    position = { direction: 'above', referencePanel: layersPanel.id }
+  } else if (def.id === 'layers' && explorerPanel) {
+    position = { direction: 'below', referencePanel: explorerPanel.id }
+  } else if (editorPanel) {
+    position = { direction: 'left', referencePanel: editorPanel.id }
+  }
+
   dockApi.addPanel({
     id: def.id,
     component: def.component,
     title: def.title,
     params: { iconName: def.iconName },
-    position: reference ? { direction: 'within', referencePanel: reference.id } : undefined,
+    position,
+    ...(def.id === 'explorer' ? { initialWidth: 260, initialHeight: 220 } : {}),
+    ...sidebarWidthConstraints,
   })
 }
 
@@ -104,14 +126,23 @@ function WorkspaceSwitcher({ currentProjectId }) {
 
 function ActivityBar({ dockApi }) {
   const { projectId } = useWorkspace()
-  const [activePanelId, setActivePanelId] = useState(null)
+  // Which sidebar panels currently exist in the layout — this is "is it
+  // open", not "is it focused": Explorer and Layers are separate stacked
+  // groups that are both visible at once, so the icon's highlighted state
+  // tracks open/closed rather than last-focused.
+  const [openPanelIds, setOpenPanelIds] = useState(() => new Set())
 
   useEffect(() => {
     if (!dockApi) return
-    const disposable = dockApi.onDidActivePanelChange((event) => {
-      setActivePanelId(event?.panel?.id ?? null)
-    })
-    setActivePanelId(dockApi.activePanel?.id ?? null)
+
+    const syncOpenPanels = () => {
+      setOpenPanelIds(
+        new Set(ACTIVITY_BAR_PANEL_IDS.filter((id) => !!dockApi.getPanel(id)))
+      )
+    }
+    syncOpenPanels()
+
+    const disposable = dockApi.onDidLayoutChange(syncOpenPanels)
     return () => disposable.dispose()
   }, [dockApi])
 
@@ -128,18 +159,22 @@ function ActivityBar({ dockApi }) {
           .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
           .map((def) => {
             const Icon = panelIcons[def.iconName]
+            const isOpen = openPanelIds.has(def.id)
             return (
               <Tooltip key={def.id}>
                 <TooltipTrigger
-                  onClick={() => openOrFocusPanel(dockApi, def)}
+                  onClick={() => toggleSidebarPanel(dockApi, def)}
+                  aria-pressed={isOpen}
                   className={cn(
                     'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                    activePanelId === def.id && 'bg-primary/10 text-primary'
+                    isOpen && 'bg-primary/10 text-primary'
                   )}
                 >
                   <Icon className="size-[18px]" />
                 </TooltipTrigger>
-                <TooltipContent side="right">{def.title}</TooltipContent>
+                <TooltipContent side="right">
+                  {def.title} · {isOpen ? 'hide' : 'show'}
+                </TooltipContent>
               </Tooltip>
             )
           })}
