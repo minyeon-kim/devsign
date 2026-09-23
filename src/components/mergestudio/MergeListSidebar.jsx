@@ -35,7 +35,18 @@ import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/M
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import {
+  AVATAR_RING,
+  AVATAR_RING_ON_ACTIVE,
+  AVATAR_RING_ON_HOVER,
+  AVATAR_RING_ON_SURFACE,
+  CATEGORY_TAB,
+  CATEGORY_TAB_ACTIVE,
+  CATEGORY_TAB_IDLE,
+  COUNT_BADGE,
+  FLOATING_PANEL,
+  FLOATING_PILL,
+} from '@/components/mergestudio/floatingStyles'
 
 // Merge List spacing grid — one set of numbers for the whole panel:
 //   inset 20px (px-5) for header and content; 12px inside grouped
@@ -86,30 +97,37 @@ function ItemTypeBadge({ item }) {
   )
 }
 
-// Everyone on the item — assignee, then reviewers — as overlapping avatars
-// (up to three, then "+N"); hovering the stack lists each name and role.
+// Everyone on the item — assignee, then reviewers — as a Figma-style
+// avatar group: at most two overlapping avatars, and anyone beyond that
+// collapsed into one "+N" circle of the same size (so 3 people read
+// "A B +1", never a pile of circles). The left-most avatar sits on top and
+// each next one tucks underneath it; a soft ring in the card's own tone
+// (not a dark outline) separates them. Hovering the group lists every name
+// and role.
+const MAX_AVATARS = 2
+const AVATAR = cn('relative flex h-5 shrink-0 items-center justify-center rounded-full text-[8px] font-semibold', AVATAR_RING)
+
 function PeopleStack({ item }) {
   const people = peopleOnItem(item)
     .map((p) => ({ ...p, person: allPeople.find((x) => x.id === p.id) }))
     .filter((p) => p.person)
   if (!people.length) return null
-  const shown = people.slice(0, 3)
+  const shown = people.slice(0, MAX_AVATARS)
   const extra = people.length - shown.length
   return (
     <Tooltip>
       <TooltipTrigger
         render={<span />}
         aria-label={people.map((p) => `${p.person.name} (${p.role})`).join(', ')}
-        className="ml-auto flex shrink-0 items-center -space-x-1.5"
+        className="ml-auto flex shrink-0 items-center -space-x-1"
       >
-        {shown.map(({ id, person }) => (
-          <span key={id} className={cn('flex size-5 items-center justify-center rounded-full text-[8px] font-semibold text-white ring-2 ring-slate-800', person.colorClass)}>
+        {shown.map(({ id, person }, i) => (
+          <span key={id} style={{ zIndex: shown.length + 1 - i }} className={cn(AVATAR, 'w-5 text-white', person.colorClass)}>
             {person.initials}
           </span>
         ))}
-        {extra > 0 && (
-          <span className="flex size-5 items-center justify-center rounded-full bg-slate-600 text-[8px] font-semibold text-white ring-2 ring-slate-800">+{extra}</span>
-        )}
+        {/* Overflow: a quiet neutral circle, wider only for 2-digit counts. */}
+        {extra > 0 && <span style={{ zIndex: 1 }} className={cn(AVATAR, 'min-w-5 bg-[#3b3b42] px-1 font-medium text-slate-200 tabular-nums')}>+{extra}</span>}
       </TooltipTrigger>
       <TooltipContent side="top" className="flex-col items-stretch gap-1 px-2.5 py-2">
         {people.map(({ id, person, role }) => (
@@ -177,7 +195,7 @@ function MergeItemCard({ item, active, onSelect }) {
         'group/card relative flex w-full items-start gap-3 px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
-        active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
+        active ? cn('bg-white/[0.06]', AVATAR_RING_ON_ACTIVE) : cn('hover:bg-white/[0.03]', AVATAR_RING_ON_HOVER)
       )}
     >
       {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
@@ -342,7 +360,7 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
   const counts = { files: files.length, layers: frame ? layerTree(frame.layers).length : 0 }
   return (
     <div className="space-y-4 px-5 pt-1 pb-5">
-      <div title={`${item.title} · updated ${item.updatedLabel}`} className={cn(GROUP_SURFACE, 'flex items-start gap-3 px-3 py-3.5')}>
+      <div title={`${item.title} · updated ${item.updatedLabel}`} className={cn(GROUP_SURFACE, AVATAR_RING_ON_SURFACE, 'flex items-start gap-3 px-3 py-3.5')}>
         <MergeItemBody item={item} />
       </div>
       <section>
@@ -593,7 +611,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                   </button>
                   {open && (
                     // The section's items on one grouped surface, split by hairlines.
-                    <div className={cn(GROUP_SURFACE, 'divide-y divide-white/[0.06]')}>
+                    <div className={cn(GROUP_SURFACE, AVATAR_RING_ON_SURFACE, 'divide-y divide-white/[0.06]')}>
                       {groupItems.map((it) => (
                             <MergeItemCard
                               key={it.id}

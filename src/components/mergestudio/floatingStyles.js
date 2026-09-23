@@ -24,3 +24,31 @@ export const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/5 hover:text-sla
 // The row those tabs sit in: directly under the panel title — no divider
 // above or below it, just spacing.
 export const CATEGORY_TAB_ROW = 'flex shrink-0 items-center gap-1 px-5 pb-3'
+
+// Stacked avatars (Figma-style): a thin ring in the color of the surface
+// the stack sits on — not a dark outline — so each avatar looks cut out of
+// the one it overlaps. Surfaces set `--avatar-ring` to their own tone
+// (AVATAR_RING_ON_* below); it falls back to the panel color.
+export const AVATAR_RING = 'ring-[1.5px] ring-[var(--avatar-ring,var(--card))]'
+// Merge List group surface (white 2.5% over the panel), and a card's
+// hover / active fills stacked on top of it. Written out in full so
+// Tailwind picks the classes up.
+export const AVATAR_RING_ON_SURFACE = '[--avatar-ring:color-mix(in_oklab,var(--card),white_2.5%)]'
+export const AVATAR_RING_ON_HOVER = 'hover:[--avatar-ring:color-mix(in_oklab,var(--card),white_5.5%)]'
+export const AVATAR_RING_ON_ACTIVE = '[--avatar-ring:color-mix(in_oklab,var(--card),white_8.5%)]'
+
+// The teammate presence stack in the studio's top pill (the shared
+// UserPresence component, styled from its Merge Studio wrapper only): the
+// left-most avatar on top, each next one tucked beneath it, and the soft
+// pill-colored ring in place of the avatars' outline.
+export const PRESENCE_STACK = [
+  'flex items-center',
+  '[&_[data-slot=avatar-group]>*]:relative',
+  '[&_[data-slot=avatar-group]>*:nth-child(1)]:z-[4]',
+  '[&_[data-slot=avatar-group]>*:nth-child(2)]:z-[3]',
+  '[&_[data-slot=avatar-group]>*:nth-child(3)]:z-[2]',
+  '[&_[data-slot=avatar-group]>*:nth-child(4)]:z-[1]',
+  '[&_[data-slot=avatar-group]_[data-slot=avatar]]:after:border-transparent',
+  '[&_[data-slot=avatar-group]_[data-slot=avatar]]:ring-[1.5px]',
+  '[&_[data-slot=avatar-group]_[data-slot=avatar]]:ring-[var(--card)]',
+].join(' ')

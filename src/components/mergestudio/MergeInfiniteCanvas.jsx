@@ -11,7 +11,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
-import { COUNT_BADGE, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
@@ -2555,7 +2555,12 @@ function MergeInfiniteCanvas({
               )}
             </button>
             <span className="h-4 w-px bg-white/10" />
-            <UserPresence />
+            {/* Studio-scoped styling for the shared presence stack (the
+                component itself is untouched): left-on-top order and the
+                soft surface-colored ring. */}
+            <span className={PRESENCE_STACK}>
+              <UserPresence />
+            </span>
           </div>
           <MergeShareButton item={item} />
           <button
