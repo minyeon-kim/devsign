@@ -136,50 +136,11 @@ export const projects = [
 // (WorkspaceProvider, dockview panels, etc.), only by the project
 // dashboard screen and its cards.
 
-// Design-token drift the AI has flagged across projects — feeds both the
-// dashboard's "Needs attention" section and the StatsGrid's "Drift
-// detected" count. Kept in the same Token / Project / Design-vs-code
-// shape the Active Conflicts row renders directly. `aiInsights` below
-// intentionally reuses these same three token names in its pattern card
-// so AI Insights reads as commentary on this list, not a separate topic.
-export const dashboardActiveConflicts = [
-  {
-    id: 'drift-button-height',
-    token: 'Button / Height',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    designValue: '48px',
-    codeValue: '40px',
-    severity: 'high',
-  },
-  {
-    id: 'drift-input-padding',
-    token: 'Input / Padding',
-    projectId: 'design-system-v2',
-    projectName: 'Design System v2',
-    designValue: '16px',
-    codeValue: '12px',
-    severity: 'medium',
-  },
-  {
-    id: 'drift-card-radius',
-    token: 'Card / Radius',
-    projectId: 'design-system-v2',
-    projectName: 'Design System v2',
-    designValue: '12px',
-    codeValue: '8px',
-    severity: 'medium',
-  },
-  {
-    id: 'drift-nav-icon-size',
-    token: 'Nav Icon / Size',
-    projectId: 'mobile-nav-revamp',
-    projectName: 'Mobile Nav Revamp',
-    designValue: '24px',
-    codeValue: '20px',
-    severity: 'low',
-  },
-]
+// "Team members" on the dashboard's stat card is intentionally a flat
+// display number rather than `allPeople.length` — the roster used
+// elsewhere (Follow Me, assignees) is deliberately small for that demo,
+// but the dashboard is meant to read like a real team's project hub.
+export const dashboardTeamMemberCount = 8
 
 // `type` drives the semantic color/icon on the full Activity page (see
 // src/pages/ActivityPage.jsx) — one of 'changes' | 'conflict' | 'merge' |
@@ -330,7 +291,7 @@ export const aiInsights = [
     id: 'insight-similar-conflicts',
     kind: 'pattern',
     title: '3 similar conflicts found',
-    items: ['Button / Height', 'Input / Padding', 'Card / Radius'],
+    items: ['Button / height', 'Input / padding', 'Card / radius'],
   },
   {
     id: 'insight-drift',

@@ -17,12 +17,17 @@ const sortOptions = ['Recent activity', 'Name', 'Most conflicts']
 function ProjectsSection() {
   return (
     <section>
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Your projects</h2>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Your projects</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Pick a project to open its workspace.
+          </p>
+        </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
+            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
               Recent activity
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
@@ -40,7 +45,7 @@ function ProjectsSection() {
         </div>
       </div>
 
-      <div className="mt-3 divide-y divide-border/60 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
         {projects.map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
