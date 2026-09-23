@@ -69,7 +69,7 @@ function FilterChip({ label, options, value, onChange }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'flex h-8 w-full min-w-0 items-center justify-between gap-1 rounded-full border pr-2 pl-3 text-[11px] font-medium whitespace-nowrap transition-colors',
+          'flex h-8 w-full min-w-0 items-center justify-between gap-0.5 rounded-full border pr-1.5 pl-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
           active
             ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-200'
             : 'border-white/10 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -115,13 +115,11 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
       type="button"
       onClick={() => onSelect(item.id)}
       className={cn(
-        'flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all',
-        // Selected state: a solid, brighter slate surface plus a soft accent
-        // ring — no heavy border, and none of the text dims against it (see
-        // the subtitle/meta spans below), so it stays sharp, not washed out.
+        'flex w-full flex-col gap-2.5 rounded-xl border p-3.5 text-left shadow-sm transition-colors',
+        // Same card + active treatment as the Block Deck's drift rows.
         active
-          ? 'border-white/10 bg-slate-700 ring-1 ring-inset ring-primary/25'
-          : 'border-white/10 bg-slate-800/70 hover:border-primary/40 hover:bg-slate-700/70'
+          ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30'
+          : 'border-white/10 bg-slate-800/70 hover:bg-white/5'
       )}
     >
       <div className="flex w-full items-center justify-between gap-2">
@@ -143,7 +141,7 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
 
       <span className={cn("text-xs leading-snug", active ? "text-foreground/90" : "text-muted-foreground")}>{item.subtitle}</span>
 
-      <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/60 pt-2.5">
+      <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-white/10 pt-2.5">
         <span className={cn("text-[11px]", active ? "text-muted-foreground" : "text-muted-foreground/70")}>{item.updatedLabel}</span>
         {item.conflictLevel && item.conflictLevel !== 'None' && (
           <span
@@ -191,7 +189,8 @@ function MergeItemCard({ item, active, onSelect, onConflict }) {
 function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
   if (!files.length) return <EmptyTab text="This merge item has no files." />
   return (
-    <div className="space-y-1 p-2">
+    <div className="space-y-1.5 p-4">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Files · {files.length}</p>
       {files.map((f) => {
         const meta = getFileIconMeta(f.name)
         const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
@@ -207,8 +206,8 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors',
-              active ? 'bg-indigo-500/15 ring-1 ring-inset ring-indigo-500/30' : 'hover:bg-white/5'
+              'flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left shadow-sm transition-colors',
+              active ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30' : 'border-white/10 bg-slate-800/70 hover:bg-white/5'
             )}
           >
             <meta.Icon className={cn('size-4 shrink-0', meta.colorClass)} />
@@ -284,13 +283,17 @@ function layerTree(layers) {
 function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
   if (!frame) return <EmptyTab text="This merge item has no design page." />
   const drifted = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const rows = layerTree(frame.layers)
   return (
-    <div className="p-2">
-      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-foreground">
+    <div className="space-y-1.5 p-4">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Layers · {rows.length}</p>
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-800/70 shadow-sm">
+      <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-foreground">
         <Frame className="size-3.5 text-indigo-400" />
         <span className="truncate">{frame.name}</span>
       </div>
-      {layerTree(frame.layers).map(({ layer, depth }) => {
+      <div className="space-y-0.5 p-1.5">
+      {rows.map(({ layer, depth }) => {
         const Icon = LAYER_ICONS[layer.type] ?? Square
         const active = selectedLayerId === layer.id
         return (
@@ -299,10 +302,10 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
             ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onSelect(layer.id)}
-            style={{ paddingLeft: 14 + depth * 14 }}
+            style={{ paddingLeft: 10 + depth * 14 }}
             className={cn(
               'flex h-7 w-full items-center gap-2 rounded-lg pr-2.5 text-left text-xs transition-colors',
-              active ? 'bg-indigo-500/20 text-foreground ring-1 ring-inset ring-indigo-500/30' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+              active ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/30' : 'text-muted-foreground hover:bg-slate-800/60 hover:text-foreground'
             )}
           >
             <Icon className={cn('size-3.5 shrink-0', active ? 'text-indigo-300' : 'text-muted-foreground/80')} />
@@ -312,12 +315,14 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
           </button>
         )
       })}
+      </div>
+      </div>
     </div>
   )
 }
 
 function EmptyTab({ text }) {
-  return <p className="p-6 text-center text-xs text-muted-foreground">{text}</p>
+  return <p className="m-4 rounded-xl border border-white/10 bg-slate-800/70 p-4 text-center text-xs text-muted-foreground">{text}</p>
 }
 
 const TABS = [
@@ -435,84 +440,81 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       )}
     >
       <div className="flex h-full min-w-72 flex-1 flex-col">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-white/10 px-4 pt-3.5 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm leading-tight font-semibold text-foreground">
-            Merge List
-            <span className="rounded-full bg-indigo-500/15 px-1.5 text-[10px] font-semibold text-indigo-300 tabular-nums">
-              {visible.length}
-            </span>
-          </p>
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="Hide Merge List"
-              onClick={() => setMergeListCollapsed(true)}
-              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-            >
-              <PanelLeftClose className="size-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Merges / Files / Layers */}
-        <div className="flex gap-1 rounded-full bg-black/25 p-1 ring-1 ring-white/5">
-          {TABS.map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color,box-shadow] duration-300',
-                tab === id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/30' : 'text-muted-foreground hover:text-foreground',
-                flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
-              )}
-            >
-              <Icon className="size-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'merges' && (
-        <div className="flex flex-col gap-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search merge items..."
-            className="h-9 w-full rounded-full border border-white/10 bg-black/25 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-1.5">
-          <FilterChip label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
-          <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={setConflictFilter} />
-          <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
-        </div>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <RotateCcw className="size-3" />
-            Reset filters
-          </button>
-        )}
-        </div>
-        )}
-        {tab !== 'merges' && item && (
-          <p className="truncate text-[11px] text-muted-foreground">
-            In <span className="font-medium text-foreground">{item.title}</span>
-          </p>
-        )}
+      {/* Same chrome as the Block Deck: 48px title bar, 48px tab bar, then a
+          one-line context strip — the two panels read as a matched pair. */}
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 px-4">
+        <GitMerge className="size-4 shrink-0 text-indigo-500" />
+        <span className="flex flex-1 items-center gap-1.5 text-sm font-semibold text-foreground">
+          Merge List
+          <span className="rounded-full bg-indigo-500/15 px-1.5 text-[10px] font-semibold text-indigo-300 tabular-nums">{visible.length}</span>
+        </span>
+        <button
+          type="button"
+          title="Hide Merge List"
+          onClick={() => setMergeListCollapsed(true)}
+          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <PanelLeftClose className="size-4" />
+        </button>
       </div>
+
+      <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
+        {TABS.map(([id, label, Icon]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-300',
+              tab === id ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground',
+              flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
+            )}
+          >
+            <Icon className="size-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="shrink-0 truncate border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
+        {tab === 'merges'
+          ? 'Pick a merge item to review.'
+          : item
+            ? <>In <span className="font-medium text-foreground">{item.title}</span></>
+            : 'No merge item open.'}
+      </p>
 
       <div className="min-h-0 flex-1 overflow-auto">
         {tab === 'merges' ? (
-          <div className="space-y-3 px-4 py-4">
+          <div className="space-y-4 p-4">
+            <div className="space-y-2 rounded-xl border border-white/10 bg-slate-800/70 p-2.5 shadow-sm">
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search merge items..."
+                  className="h-9 w-full rounded-full border border-white/10 bg-slate-900 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <FilterChip label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
+                <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={setConflictFilter} />
+                <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <RotateCcw className="size-3" />
+                  Reset filters
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Merge Items · {visible.length}</p>
             {visible.map((item) => (
               <MergeItemCard
                 key={item.id}
@@ -523,10 +525,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               />
             ))}
             {visible.length === 0 && (
-              <p className="p-3 text-center text-xs text-muted-foreground">
+              <p className="rounded-xl border border-white/10 bg-slate-800/70 p-3 text-center text-xs text-muted-foreground">
                 No merge items match these filters.
               </p>
             )}
+            </div>
           </div>
         ) : !item ? (
           <EmptyTab text="Open a merge item to browse its files and layers." />
