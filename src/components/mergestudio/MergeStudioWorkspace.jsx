@@ -12,6 +12,7 @@ import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeGuide from '@/components/mergestudio/MergeGuide'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
+import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
 import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine } from '@/components/mergestudio/copyFile'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
@@ -360,6 +361,43 @@ function MergeStudioWorkspace({ item }) {
     if (p) addRef.current(p.def, null, at)
   }, [])
   const cancelPlacing = useCallback(() => setPlacing(null), [])
+
+  // A selected layer that was added from the Library stays fully editable
+  // (LayerTransformHandles): moved / resized geometry is written back into
+  // the layer itself, and the Assemble size/offset overrides it supersedes
+  // are dropped so the precision inputs read the same numbers.
+  const editableLayer = addedLayers.find((l) => l.id === syncSelection?.layerId) ?? null
+  const editableAssembly = editableLayer ? assemblies[editableLayer.id] : null
+  const editableGeom = editableLayer && {
+    x: editableLayer.x + (editableAssembly?.dx ?? 0),
+    y: editableLayer.y + (editableAssembly?.dy ?? 0),
+    w: editableAssembly?.width ?? editableLayer.width,
+    h: editableAssembly?.height ?? editableLayer.height,
+  }
+  const editableId = editableLayer?.id
+  const changeAddedLayer = useCallback(
+    (g) => {
+      setAddedLayers((prev) => prev.map((l) => (l.id === editableId ? { ...l, x: g.x, y: g.y, width: g.w, height: g.h } : l)))
+      setAssemblies((prev) => {
+        const a = prev[editableId]
+        if (!a || (a.dx === undefined && a.dy === undefined && a.width === undefined && a.height === undefined)) return prev
+        // eslint-disable-next-line no-unused-vars
+        const { dx, dy, width, height, ...rest } = a
+        return { ...prev, [editableId]: rest }
+      })
+    },
+    [editableId]
+  )
+  const deleteAddedLayer = useCallback(() => {
+    if (!editableId) return
+    setAddedLayers((prev) => prev.filter((l) => l.id !== editableId))
+    setAssemblies((prev) => {
+      const next = { ...prev }
+      delete next[editableId]
+      return next
+    })
+    setSyncSelection(null)
+  }, [editableId])
   useEffect(() => setPlacing(null), [item?.id])
 
   function resolveDiff(layerId, diffId, side) {
@@ -605,6 +643,17 @@ function MergeStudioWorkspace({ item }) {
             setWizardStage('compare')
           }}
           onComplete={() => completeMerge(item.id)}
+        />
+      )}
+
+      {/* A selected Library-added layer: move / resize / delete handles. */}
+      {editableLayer && frame0 && !placing && !mergeModal && !mergePreviewOpen && (
+        <LayerTransformHandles
+          layerId={editableLayer.id}
+          geom={editableGeom}
+          frame={frame0}
+          onChange={changeAddedLayer}
+          onDelete={deleteAddedLayer}
         />
       )}
 

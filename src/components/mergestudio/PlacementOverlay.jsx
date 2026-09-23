@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MousePointerClick } from 'lucide-react'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride } from '@/components/mergestudio/mergeEffects'
+import { SNAP_PX, artboardRects, snapBox } from '@/components/mergestudio/snapGuides'
 
 // Interactive placement for a Design System component pulled from the
 // Block Deck's Library — instead of blindly appending it under the frame.
@@ -14,51 +15,17 @@ import { assemblyToOverride } from '@/components/mergestudio/mergeEffects'
 // (`mode: 'click'`, from the Add button) or by releasing the drag
 // (`mode: 'drag'`, from dragging a Library preview). Esc, or a click / drop
 // anywhere off the artboards, cancels.
-const SNAP_PX = 6 // screen pixels
-const STACK_GAP = 12
-
-function snapAxis(value, candidates, threshold) {
-  let best = null
-  for (const c of candidates) {
-    const d = Math.abs(c.value - value)
-    if (d <= threshold && (!best || d < best.d)) best = { ...c, d }
-  }
-  return best
-}
 
 // Where the cursor would drop the component, in frame units, or null when
 // it isn't over an artboard.
 function measure(clientX, clientY, frame, w, h) {
-  for (const box of document.querySelectorAll('[data-frame-box]')) {
-    const clip = box.getBoundingClientRect()
+  for (const { clip, inner, k } of artboardRects(frame)) {
     if (clientX < clip.left || clientX > clip.right || clientY < clip.top || clientY > clip.bottom) continue
-    const inner = box.firstElementChild?.getBoundingClientRect()
-    if (!inner?.width) continue
-    const k = inner.width / frame.width
-    const t = SNAP_PX / k
-    let x = (clientX - inner.left) / k - w / 2
-    let y = (clientY - inner.top) / k - h / 2
-
-    const others = frame.layers.filter((l) => l.width < frame.width * 0.98 || l.height < frame.height * 0.5)
-    const sx = snapAxis(x, [
-      { value: (frame.width - w) / 2, guide: frame.width / 2 },
-      ...others.flatMap((l) => [
-        { value: l.x, guide: l.x },
-        { value: l.x + l.width - w, guide: l.x + l.width },
-        { value: l.x + l.width / 2 - w / 2, guide: l.x + l.width / 2 },
-      ]),
-    ], t)
-    const sy = snapAxis(y, others.flatMap((l) => [
-      { value: l.y + l.height + STACK_GAP, guide: l.y + l.height + STACK_GAP / 2 },
-      { value: l.y - h - STACK_GAP, guide: l.y - STACK_GAP / 2 },
-      { value: l.y, guide: l.y },
-      { value: l.y + l.height - h, guide: l.y + l.height },
-    ]), t)
-    if (sx) x = sx.value
-    if (sy) y = sy.value
-    x = Math.round(Math.min(Math.max(0, x), frame.width - w))
-    y = Math.round(Math.max(0, y))
-    return { x, y, k, inner, clip, guideX: sx?.guide, guideY: sy?.guide }
+    const raw = { x: (clientX - inner.left) / k - w / 2, y: (clientY - inner.top) / k - h / 2 }
+    const s = snapBox(frame, raw.x, raw.y, w, h, SNAP_PX / k)
+    const x = Math.round(Math.min(Math.max(0, s.x), frame.width - w))
+    const y = Math.round(Math.max(0, s.y))
+    return { x, y, k, inner, clip, guideX: s.guideX, guideY: s.guideY }
   }
   return null
 }
