@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 // Inbox): slides in over the canvas, above the Block Deck.
 function MergeDrawer({ icon: Icon, title, aside, onClose, children }) {
   return (
-    <div className="absolute top-0 right-0 bottom-0 z-40 flex w-[380px] max-w-full flex-col border-l border-white/10 bg-card/75 shadow-2xl backdrop-blur-xl animate-in slide-in-from-right duration-200">
+    <div className="absolute top-0 right-0 bottom-0 z-40 flex w-[380px] max-w-full flex-col border-l border-white/10 bg-card/90 shadow-2xl shadow-black/40 backdrop-blur-xl animate-in slide-in-from-right duration-200">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 px-4">
         <Icon className="size-4 text-indigo-500" />
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>

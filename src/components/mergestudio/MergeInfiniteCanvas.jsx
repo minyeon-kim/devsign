@@ -1353,7 +1353,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
         <ListChecks className="size-4 text-indigo-500" />
         Changes log
         <span className="rounded-full bg-indigo-500/20 px-2 text-xs text-indigo-300">{total}</span>
-        <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform', !open && 'rotate-180')} />
+        <ChevronDown strokeWidth={2.5} className={cn('size-3 text-muted-foreground/60 transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
   )

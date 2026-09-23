@@ -17,7 +17,6 @@ import {
   SquareRoundCorner,
   Check,
   ChevronDown,
-  ChevronRight,
   Columns3,
   Library,
   Search,
@@ -785,14 +784,16 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
               onClick={() => toggle(d)}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
             >
-              <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
-              {/* No source pill — the label itself (`Nav Bar · 1 change` vs
-                  `File.tsx · line 12`) already says what kind of drift it
-                  is. The checkmark sits on the far right. */}
-              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
-              <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', SEVERITY_TAG_CLASS[severityOf(d)])}>
+              {/* No expand chevron — the whole row is the toggle, and the
+                  open row's ring/tint already shows which one is expanded.
+                  Severity first, in a fixed-width column so every row's pill
+                  lines up for top-to-bottom priority scanning; then the label
+                  (`Nav Bar · 1 change` / `File.tsx · line 12`), then the
+                  checkmark on the far right. */}
+              <span className={cn('w-[58px] shrink-0 rounded-full py-0.5 text-center text-[11px] font-medium', SEVERITY_TAG_CLASS[severityOf(d)])}>
                 {severityOf(d) === 'high' ? 'High' : severityOf(d) === 'medium' ? 'Medium' : 'Low'}
               </span>
+              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
               <span
                 className={cn(
                   'flex size-4 shrink-0 items-center justify-center rounded-full',
@@ -1373,7 +1374,7 @@ function BlockDeckPanel({
           title={collapsed ? 'Expand' : 'Collapse'}
           className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <ChevronDown className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
+          <ChevronDown strokeWidth={2.5} className={cn('size-3.5 transition-transform', collapsed && 'rotate-180')} />
         </button>
       </div>
 
