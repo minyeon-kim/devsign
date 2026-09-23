@@ -4,6 +4,28 @@ import { Input } from '@/components/ui/input'
 import Logo from '@/components/layout/Logo'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import UserPresence from '@/components/layout/UserPresence'
+import { panelDefinitions } from '@/data/mockData'
+
+const conflictPanelDef = panelDefinitions.find((def) => def.id === 'conflict')
+
+function openMergeStudio(dockApi) {
+  if (!dockApi || !conflictPanelDef) return
+
+  const existing = dockApi.getPanel(conflictPanelDef.id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+
+  const reference = dockApi.panels[0]
+  dockApi.addPanel({
+    id: conflictPanelDef.id,
+    component: conflictPanelDef.component,
+    title: conflictPanelDef.title,
+    params: { iconName: conflictPanelDef.iconName },
+    position: reference ? { direction: 'within', referencePanel: reference.id } : undefined,
+  })
+}
 
 function TopBar({ previewOpen, onTogglePreview, dockApi }) {
   return (
@@ -25,7 +47,7 @@ function TopBar({ previewOpen, onTogglePreview, dockApi }) {
       <div className="ml-auto flex shrink-0 items-center gap-3">
         <LayoutMenu dockApi={dockApi} />
         <UserPresence />
-        <Button size="sm" className="gap-1.5">
+        <Button size="sm" className="gap-1.5" onClick={() => openMergeStudio(dockApi)}>
           <Sparkles className="size-3.5" />
           Merge Studio
         </Button>
