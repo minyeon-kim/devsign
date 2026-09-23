@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowRight,
   Blocks,
   Check,
   ChevronDown,
@@ -29,16 +30,20 @@ import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-// One variant property: keep the Original Design value, take the Current
-// Implementation value, or type a different value inline — a custom value
-// previews on the artboard and merges like any other choice. Callers key it
-// by its resolution so the draft resets whenever the choice changes.
+// One variant property as a single compact row: `Label  [Original → Current]`
+// where clicking either side chooses it (hover previews it on the
+// artboard), plus an on-demand pencil for typing a custom value — shown
+// inline only while editing, and as a slim chip once set. Callers key it by
+// its resolution so the draft resets whenever the choice changes.
 function DiffRow({ diff, resolution, onResolve, onHover }) {
   const custom = isCustomResolution(resolution) ? resolution.custom : null
+  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(custom ?? '')
   const cancelRef = useRef(false)
+  const inputRef = useRef(null)
 
   function commit() {
+    setEditing(false)
     if (cancelRef.current) {
       cancelRef.current = false
       setDraft(custom ?? '')
@@ -52,58 +57,91 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
     else if (value !== custom) onResolve(diff.id, { custom: value })
   }
 
-  const option = (side, value, cls, label) => (
+  const option = (side, value, cls, title) => (
     <button
       type="button"
+      title={title}
       onClick={() => onResolve(diff.id, side)}
       onPointerEnter={() => onHover(diff.id, side)}
       onPointerLeave={() => onHover(null)}
       className={cn(
-        'flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors',
-        resolution === side
-          ? 'border-primary bg-primary/10 text-foreground'
-          : 'border-border text-muted-foreground hover:bg-muted'
+        'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
+        resolution === side ? 'bg-indigo-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
       )}
     >
-      {cls && <span className={cn('size-3 shrink-0 rounded-full', cls)} />}
-      <span className="shrink-0 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</span>
+      {cls && <span className={cn('size-2 shrink-0 rounded-full', cls)} />}
       <span className="truncate">{value}</span>
-      {resolution === side && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
     </button>
   )
 
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
-      <p className="mb-2 text-sm font-medium text-foreground">{diff.label}</p>
-      <div className="grid grid-cols-1 gap-2">
-        {option('A', diff.optionA, diff.optionAClass, 'Original')}
-        {option('B', diff.optionB, diff.optionBClass, 'Current')}
-        <label
+    <div className="rounded-lg bg-slate-800/60 px-2 py-1.5">
+      <div className="flex items-center gap-1.5">
+        <span className="w-[74px] shrink-0 truncate text-[11px] text-muted-foreground" title={diff.label}>
+          {diff.label}
+        </span>
+        <div className={cn('flex min-w-0 flex-1 items-center rounded-full bg-slate-950/60 p-0.5 ring-1', custom != null ? 'ring-white/5 opacity-60' : 'ring-white/10')}>
+          {option('A', diff.optionA, diff.optionAClass, 'Keep Original Design')}
+          <ArrowRight className="size-2.5 shrink-0 text-muted-foreground/60" />
+          {option('B', diff.optionB, diff.optionBClass, 'Take Current Implementation')}
+        </div>
+        <button
+          type="button"
+          title={custom != null ? 'Edit custom value' : 'Set a custom value'}
+          // While editing, the pencil closes the input without saving (and
+          // keeps focus until then so blur doesn't commit first).
+          onPointerDown={(e) => editing && e.preventDefault()}
+          onClick={() => {
+            if (editing) {
+              cancelRef.current = true
+              inputRef.current?.blur()
+            } else {
+              setDraft(custom ?? '')
+              setEditing(true)
+            }
+          }}
           className={cn(
-            'flex items-center gap-2 rounded-lg border p-1.5 pl-2.5 text-xs transition-colors focus-within:border-violet-500',
-            custom != null ? 'border-violet-500 bg-violet-500/10' : 'border-dashed border-border'
+            'flex size-5 shrink-0 items-center justify-center rounded-full transition-colors',
+            editing || custom != null ? 'bg-violet-500/20 text-violet-300' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
           )}
         >
-          <Pencil className={cn('size-3 shrink-0', custom != null ? 'text-violet-400' : 'text-muted-foreground')} />
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-              else if (e.key === 'Escape') {
-                cancelRef.current = true
-                e.currentTarget.blur()
-              }
-            }}
-            placeholder="Type a custom value…"
-            className="min-w-0 flex-1 bg-transparent py-1 text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {custom != null && (
-            <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300">Edited</span>
-          )}
-        </label>
+          <Pencil className="size-3" />
+        </button>
       </div>
+
+      {editing ? (
+        <input
+          ref={inputRef}
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            else if (e.key === 'Escape') {
+              cancelRef.current = true
+              e.currentTarget.blur()
+            }
+          }}
+          placeholder={`Custom ${diff.label.toLowerCase()}, e.g. ${diff.optionB}`}
+          className="mt-1.5 ml-[80px] h-7 w-[calc(100%-80px)] rounded-full border border-violet-500/60 bg-slate-950/60 px-3 text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      ) : (
+        custom != null && (
+          <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-violet-500/15 pr-1 pl-2.5 text-[11px] text-violet-200">
+            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-violet-300/80 uppercase">Custom</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{custom}</span>
+            <button
+              type="button"
+              title="Clear custom value"
+              onClick={() => onResolve(diff.id, null)}
+              className="flex size-4 shrink-0 items-center justify-center rounded-full text-violet-300 hover:bg-violet-500/25"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        )
+      )}
     </div>
   )
 }
@@ -475,7 +513,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
             </button>
 
             {open && (
-              <div className="space-y-2 border-t border-white/10 px-3 py-2.5">
+              <div className="space-y-1 border-t border-white/10 px-2 py-2">
                 {d.kind === 'design' ? (
                   d.diffs.map((diff) => (
                     <DiffRow
