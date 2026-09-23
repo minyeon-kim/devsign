@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
@@ -393,6 +394,9 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
     const layer = frame?.layers.find((l) => l.id === layerId)
     const o = layer && assemblyToOverride(a, layer)
     if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
+  for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, manualCode, getFileLines))) {
+    overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
   if (preset) overrides[preset.layerId] = mergeEffect(overrides[preset.layerId], { className: preset.previewClass })
 

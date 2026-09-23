@@ -1,5 +1,6 @@
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { codeOverrides } from '@/components/mergestudio/codeSync'
 
 // Turns the merge item + the user's resolutions + the canvas annotations
 // into the pre-flight summary shown at the top of the modal. `manualCode`
@@ -108,8 +109,9 @@ export function buildDrifts(item, frame) {
 
 // Staged/merged design output: the artboard frame (plus library layers) and a
 // per-layer override map with every variant choice, AI edit, Block Assemble
-// edit and applied preset baked in. Used by the responsive Preview.
-export function buildOverrides(item, resolutions = {}, annotations = [], preset = null, assemblies = {}, extraLayers = []) {
+// edit, hand-edited code and applied preset baked in. Used by the
+// responsive Preview.
+export function buildOverrides(item, resolutions = {}, annotations = [], preset = null, assemblies = {}, extraLayers = [], manualCode = {}, getFileLines = () => []) {
   const frame = item.hasDesign
     ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)
     : null
@@ -130,6 +132,9 @@ export function buildOverrides(item, resolutions = {}, annotations = [], preset 
     const layer = frame?.layers.find((l) => l.id === layerId)
     const o = layer && assemblyToOverride(a, layer)
     if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
+  for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, manualCode, getFileLines))) {
+    overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
   if (preset) overrides[preset.layerId] = mergeOverride(overrides[preset.layerId], { className: preset.previewClass })
   return { frame, overrides }

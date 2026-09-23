@@ -4,6 +4,7 @@ import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -24,7 +25,7 @@ const ARTBOARD_PREVIEW_WIDTH = 340
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, edited, dimmed }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, onLive, edited, dimmed }) {
   const tokens = tokenizeLine(text, language)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(text)
@@ -40,6 +41,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
     if (doneRef.current) return
     doneRef.current = true
     setEditing(false)
+    onLive?.(null)
     if (save && draft !== text) onEdit(draft)
   }
 
@@ -90,7 +92,12 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
           autoFocus
           value={draft}
           spellCheck={false}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            // Streams every keystroke to the canvas for live preview; only
+            // Enter / blur commits it as a manual edit.
+            onLive?.(e.target.value)
+          }}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation()
@@ -141,7 +148,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
 // editing a `+` row rewrites what gets merged; editing an unchanged row
 // turns it into a new `-`/`+` pair. Typing a line back to what it would be
 // anyway drops the manual edit.
-function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
+function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, onLiveLine, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
   const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
   function edit(lineNumber, original, text) {
@@ -163,6 +170,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
           const incoming = manualCode?.[key] ?? incomingEdits?.[key] ?? diffByLine.get(lineNumber)
           const changed = incoming !== undefined
           const onEdit = onEditLine ? (text) => edit(lineNumber, line, text) : undefined
+          const onLive = onLiveLine ? (text) => onLiveLine(file.id, lineNumber, text) : undefined
           const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
           const dimmed = highlightLine != null && !isHighlighted
           const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
@@ -185,6 +193,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
                 hovered={isHovered}
                 onHover={onHover}
                 onEdit={onEdit}
+                onLive={onLive}
                 dimmed={dimmed}
               />
             )
@@ -219,6 +228,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
                 hovered={isHovered}
                 onHover={onHover}
                 onEdit={onEdit}
+                onLive={onLive}
                 edited={edited}
                 dimmed={dimmed}
               />
@@ -259,7 +269,7 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, manualCode, onEditLine, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
   const rootRef = useRef(null)
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
@@ -329,6 +339,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, itemId, files, 
         incomingEdits={incomingEdits}
         manualCode={manualCode}
         onEditLine={onEditLine}
+        onLiveLine={onLiveLine}
         file={activeFile}
         lines={getFileLines(activeFile.id)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
@@ -401,7 +412,10 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   const type = override?.asType ?? layer.type
   const label = override?.asLabel ?? layer.label
   const canEdit = Boolean(onEditLabel) && LABEL_TYPES.has(type)
-  const radiusStyle = override?.radius !== undefined ? { borderRadius: override.radius } : undefined
+  const radiusStyle =
+    override?.radius !== undefined || override?.fillStyle
+      ? { ...(override.radius !== undefined && { borderRadius: override.radius }), ...override.fillStyle }
+      : undefined
   const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
   const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
   const extra = override?.extraClass
@@ -1090,7 +1104,9 @@ function MergeInfiniteCanvas({
   resolutions,
   extraLayers,
   manualCode,
+  syncedCode,
   onEditCode,
+  onLiveEditCode,
   onAssemble,
   onUndoChange,
   onAnnotationsChange,
@@ -1740,6 +1756,11 @@ function MergeInfiniteCanvas({
     const o = layer && assemblyToOverride(assembly, layer)
     if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
+  // Code -> canvas sync: hand-edited (and in-progress) code lines restyle
+  // their linked layers on the Current Implementation artboard.
+  for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, syncedCode ?? manualCode, getFileLines))) {
+    overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
   const selId = variantPreview?.layerId ?? syncSelection?.layerId
   if (selId && (variantPreview || appliedPreset)) {
     const base = overrides[selId]
@@ -1843,6 +1864,7 @@ function MergeInfiniteCanvas({
                   incomingEdits={codeEdits}
                   manualCode={manualCode}
                   onEditLine={onEditCode}
+                  onLiveLine={onLiveEditCode}
                   highlightRef={highlightRef}
                 />
               )}

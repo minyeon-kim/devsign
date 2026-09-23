@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -110,6 +110,11 @@ function MergeStudioWorkspace({ item }) {
   // Hand-typed code lines from the code window, keyed `fileId:line`. They
   // win over incoming and AI-edited text everywhere the merged code shows.
   const [manualCode, setManualCode] = useState({})
+  // The line being typed in the code window right now ({ key, text }), so
+  // the canvas re-renders from code on every keystroke — deferred so typing
+  // itself never waits on the canvas.
+  const [liveCode, setLiveCode] = useState(null)
+  const deferredLive = useDeferredValue(liveCode)
 
   useEffect(() => {
     if (!item) return
@@ -122,6 +127,7 @@ function MergeStudioWorkspace({ item }) {
     setAddedLayers([])
     setHoverDiff(null)
     setManualCode({})
+    setLiveCode(null)
     // Uniform initialization: every item starts with a default selected element.
     const defLayer = defaultLayerFor(item)
     if (defLayer) {
@@ -209,6 +215,10 @@ function MergeStudioWorkspace({ item }) {
       else next[key] = text
       return next
     })
+  }
+
+  function liveEditCodeLine(fileId, line, text) {
+    setLiveCode(text === null ? null : { key: `${fileId}:${line}`, text })
   }
 
   // Changes log → Undo (annotation undo is handled inside the canvas).
@@ -358,6 +368,9 @@ function MergeStudioWorkspace({ item }) {
   // two reserves more, since both dock to the same edge.
   const wizardReserve = mergeModal ? WIZARD_RESERVE : 0
   const reserve = Math.max(deckReserve, wizardReserve)
+  // Committed manual code plus the in-progress keystrokes: what the canvas,
+  // Preview and wizard render the Current Implementation from.
+  const syncedCode = deferredLive ? { ...manualCode, [deferredLive.key]: deferredLive.text } : manualCode
   const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
 
   return (
@@ -376,7 +389,9 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           extraLayers={addedLayers}
           manualCode={manualCode}
+          syncedCode={syncedCode}
           onEditCode={editCodeLine}
+          onLiveEditCode={liveEditCodeLine}
           onAssemble={assemble}
           onUndoChange={undoChange}
           onAnnotationsChange={setAnnotationsSnap}
@@ -462,6 +477,7 @@ function MergeStudioWorkspace({ item }) {
           }
           assemblies={assemblies}
           extraLayers={addedLayers}
+          manualCode={syncedCode}
           onClose={() => setMergePreviewOpen(false)}
         />
       )}

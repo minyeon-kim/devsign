@@ -3,6 +3,7 @@ import { Monitor, RotateCw, Smartphone, Tablet, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const DEVICES = [
   { id: 'mobile', label: 'Mobile', icon: Smartphone, w: 390, h: 844 },
@@ -34,7 +35,8 @@ function Pill({ active, onClick, children, className }) {
 // Responsive multi-screen preview of the staged output. The artboard is laid
 // out inside a device viewport (Mobile / Tablet / Desktop, rotatable) and
 // scaled to fit; layers can be hovered and clicked to inspect.
-function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblies, extraLayers, onClose }) {
+function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, onClose }) {
+  const { getFileLines } = useWorkspace()
   const [device, setDevice] = useState('mobile')
   const [source, setSource] = useState('merged')
   const [landscape, setLandscape] = useState(false)
@@ -48,7 +50,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  const { frame, overrides } = buildOverrides(item, resolutions, annotations, preset, assemblies, extraLayers)
+  const { frame, overrides } = buildOverrides(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, getFileLines)
   const dev = DEVICES.find((d) => d.id === device)
   const rotated = landscape && device !== 'desktop'
   const vw = rotated ? dev.h : dev.w

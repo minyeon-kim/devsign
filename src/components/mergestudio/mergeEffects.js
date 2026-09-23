@@ -96,6 +96,10 @@ export function mergeOverride(a = {}, b = {}) {
   return {
     ...a,
     ...(b.className && { className: b.className }),
+    // An inline fill (a literal color from code) beats fill classes; a later
+    // fill class replaces an earlier inline one.
+    ...(b.className && !b.fillStyle && { fillStyle: undefined }),
+    ...(b.fillStyle && { fillStyle: b.fillStyle }),
     ...(b.radius !== undefined && { radius: b.radius }),
     ...(b.extraClass && { extraClass: [a.extraClass, b.extraClass].filter(Boolean).join(' ') }),
     ...(b.align && { align: b.align }),
