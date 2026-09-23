@@ -10,8 +10,6 @@ import {
   Frame,
   Image,
   PanelBottom,
-  PanelLeftClose,
-  PanelLeftOpen,
   PanelTop,
   Pencil,
   RectangleHorizontal,
@@ -46,6 +44,7 @@ import {
   COUNT_BADGE,
   FLOATING_PANEL,
   FLOATING_PILL,
+  PANEL_SURFACE,
 } from '@/components/mergestudio/floatingStyles'
 
 // Merge List spacing grid — one set of numbers for the whole panel:
@@ -53,9 +52,8 @@ import {
 //   surfaces (px-3); 16px between groups (space-y-4); 8px from a group label
 //   to its surface (mb-2); controls 28px (h-7) or 32px (h-8).
 // Grouped surface: a subtle tonal lift + hairline ring, so sections and
-// lists read as containers without heavy boxes.
-const GROUP_SURFACE = 'overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07]'
-const GROUP_LABEL = 'mb-2 flex h-7 items-center gap-2 text-[11px] font-medium tracking-wider text-slate-500 uppercase'
+// lists read as containers without heavy boxes (shared with the Block Deck).
+const GROUP_SURFACE = PANEL_SURFACE
 
 // Merge List sections, in the order that needs attention first. Anything
 // with an unexpected status lands in "Other".
@@ -487,12 +485,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
           className={cn(
-            'flex h-10 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-medium transition-colors',
+            'flex h-10 items-center justify-center gap-2 rounded-full pr-3 pl-4 text-[13px] font-medium transition-colors',
             FLOATING_PILL,
             mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100 hover:bg-indigo-500/25'
           )}
         >
-          {mergeListCollapsed ? <PanelLeftOpen className="size-4 text-indigo-400" /> : <PanelLeftClose className="size-4 text-indigo-300" />}
           Merge List
           <span className={cn(COUNT_BADGE, 'bg-indigo-500 text-white')}>
             {mergeItems.length}

@@ -21,15 +21,19 @@ function ConflictTag({ level, className }) {
   )
 }
 
-// The compact severity pill — just the level word in a fixed-width tinted
+// The compact severity pill — just the level word in a fixed-width ghost
 // pill. The Block Deck's Detected Drifts rows and the Merge List cards both
-// use it, so a "High" reads identically in either panel. `level` is
-// case-insensitive: high / medium / low / none.
+// use it, so a "High" reads identically in either panel. No fill: a
+// transparent pill whose text and hairline outline carry a soft, low-chroma
+// semantic tint — muted rose for High, muted amber for Medium, muted
+// slate-blue for Low — enough to scan priorities at a glance without the
+// loud solid badges. (Low-chroma oklch values, softer than the stock
+// palette steps.) `level` is case-insensitive: high / medium / low / none.
 const SEVERITY_PILL_CLASS = {
-  high: 'bg-destructive/15 text-destructive',
-  medium: 'bg-amber-500/15 text-amber-500',
-  low: 'bg-sky-500/15 text-sky-500',
-  none: 'bg-emerald-500/15 text-emerald-400',
+  high: 'font-semibold text-[oklch(0.8_0.09_18)] ring-[oklch(0.7_0.1_18_/_0.5)]',
+  medium: 'text-[oklch(0.86_0.08_80)] ring-[oklch(0.78_0.09_80_/_0.42)]',
+  low: 'text-[oklch(0.8_0.05_245)] ring-[oklch(0.72_0.06_245_/_0.38)]',
+  none: 'text-slate-500 ring-white/10',
 }
 
 export function SeverityPill({ level, className, ...props }) {
@@ -37,7 +41,11 @@ export function SeverityPill({ level, className, ...props }) {
   return (
     <span
       {...props}
-      className={cn('flex h-5 w-[58px] shrink-0 items-center justify-center rounded-full text-[11px] font-medium', SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium, className)}
+      className={cn(
+        'flex h-5 w-[58px] shrink-0 items-center justify-center rounded-full bg-transparent text-[11px] font-medium ring-1 ring-inset',
+        SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium,
+        className
+      )}
     >
       {key.charAt(0).toUpperCase() + key.slice(1)}
     </span>

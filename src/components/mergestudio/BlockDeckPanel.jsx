@@ -17,7 +17,6 @@ import {
   SquareRoundCorner,
   Check,
   ChevronDown,
-  Columns3,
   Library,
   Search,
   MousePointerClick,
@@ -41,7 +40,16 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { FLOATING_PANEL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
+import {
+  CATEGORY_TAB,
+  CATEGORY_TAB_ACTIVE,
+  CATEGORY_TAB_IDLE,
+  FLOATING_PANEL,
+  GHOST_BUTTON,
+  PANEL_LABEL,
+  PANEL_ROWS,
+  PANEL_SURFACE,
+} from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 
 // One variant property as a single compact row: `Label  [Original → Current]`
@@ -71,7 +79,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
     else if (value !== custom) onResolve(diff.id, { custom: value })
   }
 
-  const option = (side, value, cls, title) => (
+  const option = (side, value, title) => (
     <button
       type="button"
       title={title}
@@ -79,29 +87,31 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
       onPointerEnter={() => onHover(diff.id, side)}
       onPointerLeave={() => onHover(null)}
       className={cn(
-        'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 h-6 text-[11px] font-medium whitespace-nowrap transition-colors',
-        // The chosen side: a solid light neutral gray (slate-300) with dark
-        // text — bright enough to catch the eye at once, a step short of pure
-        // white so it doesn't glare, and no saturated fill; the color
-        // swatch inside still shows the value.
-        resolution === side ? 'bg-slate-300 font-semibold text-slate-900 shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+        'flex h-6 min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 text-[11px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow]',
+        // Achromatic only: every value pill shares one quiet neutral
+        // surface, and the chosen side is simply lifted — a brighter neutral
+        // fill, a hairline ring and white text. No hue, no light/dark
+        // inversion, no swatch dots (the value is named in the pill, and
+        // hovering previews it on the canvas).
+        resolution === side
+          ? 'bg-white/[0.14] font-semibold text-white ring-1 ring-inset ring-white/25'
+          : 'bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-slate-200'
       )}
     >
-      {cls && <span className={cn('size-2 shrink-0 rounded-full', cls)} />}
       <span className="truncate">{value}</span>
     </button>
   )
 
   return (
-    <div className="rounded-lg bg-slate-800/60 px-2 py-1.5">
+    <div className="py-1">
       <div className="flex items-center gap-1.5">
         <span className="w-[74px] shrink-0 truncate text-[11px] text-muted-foreground" title={diff.label}>
           {diff.label}
         </span>
-        <div className={cn('flex min-w-0 flex-1 items-center rounded-full bg-slate-950/60 p-0.5 ring-1', custom != null ? 'ring-white/5 opacity-60' : 'ring-white/10')}>
-          {option('A', diff.optionA, diff.optionAClass, 'Keep Original Design')}
+        <div className={cn('flex min-w-0 flex-1 items-center gap-1', custom != null && 'opacity-60')}>
+          {option('A', diff.optionA, 'Keep Original Design')}
           <ArrowRight className="size-2.5 shrink-0 text-muted-foreground/60" />
-          {option('B', diff.optionB, diff.optionBClass, 'Take Current Implementation')}
+          {option('B', diff.optionB, 'Take Current Implementation')}
         </div>
         <button
           type="button"
@@ -120,7 +130,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
           }}
           className={cn(
             'flex size-5 shrink-0 items-center justify-center rounded-full transition-colors',
-            editing || custom != null ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+            editing || custom != null ? 'bg-white/[0.12] text-white' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
           )}
         >
           <Pencil className="size-3" />
@@ -142,12 +152,13 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
             }
           }}
           placeholder={`Custom ${diff.label.toLowerCase()}, e.g. ${diff.optionB}`}
-          className="mt-1.5 ml-[80px] h-7 w-[calc(100%-80px)] rounded-full border border-white/25 bg-slate-950/60 px-3 text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="mt-1.5 ml-[80px] h-7 w-[calc(100%-80px)] rounded-full bg-white/[0.05] px-3 text-[11px] text-foreground outline-none ring-1 ring-white/25 placeholder:text-muted-foreground"
         />
       ) : (
         custom != null && (
-          <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-white/[0.06] pr-1 pl-2.5 text-[11px] text-foreground ring-1 ring-inset ring-white/15">
-            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Custom</span>
+          // A custom value is the active choice: the same lifted neutral.
+          <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-white/[0.14] pr-1 pl-2.5 text-[11px] text-white ring-1 ring-inset ring-white/25">
+            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Custom</span>
             <span className="min-w-0 flex-1 truncate font-medium">{custom}</span>
             <button
               type="button"
@@ -183,10 +194,10 @@ function CodeDriftEditor({ original, incoming, manual, onEdit }) {
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
+    <div className="py-1">
       <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
         <span className="pt-1 text-muted-foreground">Original</span>
-        <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
+        <p className="rounded-md bg-white/[0.03] px-2 py-1 font-mono text-[11px] break-words text-slate-500 line-through decoration-slate-600">{original || ' '}</p>
         <span className="pt-1 text-muted-foreground">Current</span>
         <textarea
           value={draft}
@@ -204,17 +215,17 @@ function CodeDriftEditor({ original, incoming, manual, onEdit }) {
             }
           }}
           className={cn(
-            'resize-none rounded-md px-2 py-1 font-mono text-[11px] break-words outline-none focus:ring-1 focus:ring-violet-500',
-            manual != null ? 'bg-violet-500/10 text-violet-200' : 'bg-emerald-500/10 text-emerald-400'
+            'resize-none rounded-md bg-white/[0.07] px-2 py-1 font-mono text-[11px] break-words text-slate-100 outline-none focus:ring-1 focus:ring-white/30',
+            manual != null && 'ring-1 ring-white/25'
           )}
         />
       </div>
       <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Pencil className="size-3 text-violet-400" />
+        <Pencil className="size-3 text-slate-400" />
         {manual != null ? (
           <>
             Edited by hand ·{' '}
-            <button type="button" onClick={() => onEdit(null)} className="font-medium text-violet-300 hover:underline">
+            <button type="button" onClick={() => onEdit(null)} className="font-medium text-slate-200 hover:underline">
               Revert
             </button>
           </>
@@ -230,18 +241,13 @@ function CodeDriftEditor({ original, incoming, manual, onEdit }) {
 // fallback in Variant Compare) ---------------------------------------
 function Seg({ options, value, onChange }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1">
       {options.map(([id, label]) => (
         <button
           key={id}
           type="button"
           onClick={() => onChange(id)}
-          className={cn(
-            'inline-flex items-center justify-center rounded-full px-3.5 h-7 text-xs font-medium transition-colors',
-            value === id
-              ? 'bg-slate-700 text-white'
-              : 'bg-slate-800/70 text-muted-foreground hover:text-foreground'
-          )}
+          className={cn(CATEGORY_TAB, value === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
         >
           {label}
         </button>
@@ -276,9 +282,9 @@ const AUTO_LAYOUT_TYPES = new Set(['button', 'chip', 'input', 'card', 'iconbtn']
 
 function InspectorSection({ title, action, children }) {
   return (
-    <div className="space-y-2 border-t border-white/10 px-4 py-3">
+    <div className="space-y-2 px-5 py-2.5">
       <div className="flex h-5 items-center justify-between">
-        <p className="text-[11px] font-semibold text-foreground/90">{title}</p>
+        <p className="text-[11px] font-medium tracking-wider text-slate-500 uppercase">{title}</p>
         {action}
       </div>
       {children}
@@ -311,7 +317,7 @@ function NumInput({ label, value, placeholder, unit = 'px', min = -9999, max = 9
   return (
     <label
       title={title}
-      className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-slate-900/80 pr-2.5 pl-2 ring-1 ring-white/10 transition-shadow focus-within:ring-violet-500"
+      className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-white/[0.05] pr-2.5 pl-2 transition-shadow focus-within:bg-white/[0.08] focus-within:ring-1 focus-within:ring-white/30"
     >
       <span onPointerDown={scrub} className="w-3.5 shrink-0 cursor-ew-resize text-center text-[10px] font-medium text-muted-foreground select-none">
         {label}
@@ -376,8 +382,8 @@ function ColorField({ value, swatchHex, swatchClass, placeholder, onHex, onToken
   return (
     <div
       className={cn(
-        'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-full bg-slate-900/80 pr-2.5 pl-1 ring-1 transition-shadow focus-within:ring-violet-500',
-        invalid ? 'ring-destructive/60' : 'ring-white/10'
+        'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-full bg-white/[0.05] pr-2.5 pl-1 transition-shadow focus-within:bg-white/[0.08] focus-within:ring-1 focus-within:ring-white/30',
+        invalid && 'ring-1 ring-destructive/60'
       )}
     >
       <span className={cn('relative size-5 shrink-0 overflow-hidden rounded-full ring-1 ring-white/20', swatchClass)} style={swatchClass ? undefined : { background: swatchHex }}>
@@ -417,7 +423,7 @@ function IconToggle({ active, title, onClick, children }) {
       onClick={onClick}
       className={cn(
         'flex h-7 flex-1 items-center justify-center rounded-full transition-colors',
-        active ? 'bg-indigo-500 text-white' : 'bg-slate-900/80 text-muted-foreground ring-1 ring-white/10 hover:text-foreground'
+        active ? 'bg-white/[0.14] text-white ring-1 ring-inset ring-white/25' : 'bg-white/[0.05] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground'
       )}
     >
       {children}
@@ -429,7 +435,7 @@ function IconToggle({ active, title, onClick, children }) {
 function AlignGrid({ h, v, onChange }) {
   const axes = ['start', 'center', 'end']
   return (
-    <div className="grid size-[76px] shrink-0 grid-cols-3 gap-0.5 rounded-xl bg-slate-900/80 p-1.5 ring-1 ring-white/10">
+    <div className="grid size-[76px] shrink-0 grid-cols-3 gap-0.5 rounded-xl bg-white/[0.05] p-1.5">
       {axes.map((vv) =>
         axes.map((hh) => {
           const active = h === hh && v === vv
@@ -441,7 +447,7 @@ function AlignGrid({ h, v, onChange }) {
               onClick={() => onChange({ align: hh, valign: vv })}
               className="group flex items-center justify-center rounded-md hover:bg-white/5"
             >
-              <span className={cn('rounded-full transition-all', active ? 'h-2.5 w-1 bg-indigo-400' : 'size-1 bg-muted-foreground/40 group-hover:bg-muted-foreground')} />
+              <span className={cn('rounded-full transition-all', active ? 'h-2.5 w-1 bg-slate-100' : 'size-1 bg-muted-foreground/40 group-hover:bg-muted-foreground')} />
             </button>
           )
         })
@@ -490,7 +496,7 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
               type="button"
               title={lockRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
               onClick={() => setLockRatio((v) => !v)}
-              className={cn('flex size-7 shrink-0 items-center justify-center rounded-full transition-colors', lockRatio ? 'bg-indigo-500/20 text-indigo-300' : 'text-muted-foreground hover:bg-white/5')}
+              className={cn('flex size-7 shrink-0 items-center justify-center rounded-full transition-colors', lockRatio ? 'bg-white/[0.12] text-white' : 'text-muted-foreground hover:bg-white/5')}
             >
               {lockRatio ? <Link2 className="size-3.5" /> : <Link2Off className="size-3.5" />}
             </button>
@@ -648,11 +654,11 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
 // bundled into the merge.
 function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, onReset }) {
   return (
-    <div className="border-b border-white/10 pb-1">
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <Blocks className="size-4 text-indigo-500" />
+    <div className="pb-2">
+      <div className="flex h-7 items-center gap-2 px-5">
+        <Blocks className="size-4 text-slate-400" />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{layer.name}</span>
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-muted-foreground capitalize">{layer.type}</span>
+        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-muted-foreground capitalize">{layer.type}</span>
         <button
           type="button"
           onClick={onReset}
@@ -662,13 +668,13 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
           Reset
         </button>
       </div>
-      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      <div className="flex flex-wrap gap-1.5 px-5 pt-2 pb-2.5">
         {blockTemplates(layer, frameWidth).map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => onChange(t.patch)}
-            className="inline-flex items-center justify-center shrink-0 rounded-full border border-indigo-500/40 px-2.5 h-6 text-[11px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-indigo-500/15"
+            className={cn('inline-flex h-6 shrink-0 items-center justify-center rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap', GHOST_BUTTON)}
           >
             {t.label}
           </button>
@@ -685,28 +691,29 @@ function ManualFallback({ layer, assembly, onChange }) {
   const rec = recommendAssembly(layer)
   const a = assembly ?? {}
   return (
-    <div className="space-y-3 rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
-      <p className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">No design tokens found</p>
-      <div className="rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-3">
+    <section>
+      <p className={PANEL_LABEL}>No design tokens found</p>
+      <div className={cn(PANEL_SURFACE, 'p-3')}>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Sparkles className="size-3.5 text-violet-500" />
+          <Sparkles className="size-3.5 text-slate-400" />
           AI recommends
         </p>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{rec.rationale}</p>
         <button
           type="button"
           onClick={() => onChange(rec.patch)}
-          className="mt-2.5 flex items-center justify-center gap-1.5 rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3.5 h-7 text-xs font-semibold transition-colors"
+          className={cn('mt-2.5 flex h-7 items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-semibold', GHOST_BUTTON)}
         >
           <Wand2 className="size-3.5" />
           Apply recommendation
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">Or set it precisely:</p>
-      <div className="-mx-3.5 -mb-3.5">
+      <p className="mt-4 text-xs text-muted-foreground">Or set it precisely:</p>
+      {/* The inspector brings its own 20px inset; cancel the tab's. */}
+      <div className="-mx-5 mt-1">
         <PrecisionInspector layer={layer} assembly={a} onChange={onChange} sections={['layout', 'appearance', 'fill']} />
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -758,8 +765,12 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
   }
 
   return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Detected Drifts · {drifts.length}</p>
+    <section>
+      <p className={PANEL_LABEL}>
+        Detected drifts
+        <span className="font-medium text-slate-600 tabular-nums">{drifts.length}</span>
+      </p>
+      <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
       {drifts.map((d) => {
         const resolved = d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
         const open = expandedId === d.id
@@ -769,19 +780,18 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
           <div
             key={d.id}
             className={cn(
-              'overflow-hidden rounded-xl border transition-colors',
-              // The active/open row gets an unmissable primary ring on top
-              // of its own tinted surface — not just a border color change
-              // — so it's obvious at a glance which one you're reviewing.
-              // Closed rows stay on the same plain surface as before; the
-              // severity tag (not a row-wide tint) carries that signal now.
-              open ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30' : 'border-white/10 bg-slate-800/70'
+              'relative transition-colors',
+              // The open row: the same soft surface + left accent bar as the
+              // Merge List's active card, so it's obvious which one you're
+              // reviewing without boxing it in.
+              open && 'bg-white/[0.05]'
             )}
           >
+            {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
             <button
               type="button"
               onClick={() => toggle(d)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition-colors hover:bg-white/[0.03]"
             >
               {/* No expand chevron — the whole row is the toggle, and the
                   open row's ring/tint already shows which one is expanded.
@@ -805,7 +815,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
             </button>
 
             {open && (
-              <div className="space-y-1 border-t border-white/10 px-2 py-2">
+              <div className="space-y-0.5 px-3 pb-2.5">
                 {d.kind === 'design' ? (
                   d.diffs.map((diff) => (
                     <DiffRow
@@ -830,7 +840,8 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
           </div>
         )
       })}
-    </div>
+      </div>
+    </section>
   )
 }
 
@@ -874,8 +885,8 @@ function TextSlotField({ slot, onEditText }) {
           }
         }}
         className={cn(
-          'w-full resize-none rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-emerald-400',
-          slot.current !== slot.value ? 'border-violet-500/60' : 'border-white/10'
+          'w-full resize-none rounded-lg bg-white/[0.05] px-3 py-2 text-sm text-foreground outline-none transition-colors focus:bg-white/[0.08] focus:ring-1 focus:ring-white/30',
+          slot.current !== slot.value && 'ring-1 ring-white/25'
         )}
       />
     </label>
@@ -887,20 +898,19 @@ function TextSlotField({ slot, onEditText }) {
 function TextContentSection({ slots, onEditText }) {
   const edited = slots.some((s) => s.current !== s.value)
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
-      <div className="mb-2 flex items-center gap-2">
-        <Type className="size-3.5 text-indigo-400" />
-        <p className="flex-1 text-sm font-semibold text-foreground">Text</p>
+    <section>
+      <div className={PANEL_LABEL}>
+        <span className="flex-1">Text</span>
         {edited ? (
           <button
             type="button"
             onClick={() => slots.forEach((s) => s.current !== s.value && onEditText(s.layerId, s.slot, s.value))}
-            className="inline-flex items-center justify-center rounded-full px-2 h-5 text-[11px] font-medium text-violet-300 hover:bg-violet-500/15"
+            className="inline-flex h-5 items-center justify-center rounded-full px-2 text-[11px] font-medium tracking-normal text-slate-200 normal-case hover:bg-white/[0.08]"
           >
             Reset
           </button>
         ) : (
-          <span className="text-[11px] text-muted-foreground">Synced to copy.json</span>
+          <span className="text-[11px] tracking-normal text-slate-500 normal-case">Synced to copy.json</span>
         )}
       </div>
       <div className="space-y-2.5">
@@ -908,7 +918,7 @@ function TextContentSection({ slots, onEditText }) {
           <TextSlotField key={slot.key} slot={slot} onEditText={onEditText} />
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -935,11 +945,11 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p className="shrink-0 px-4 pt-3 text-xs text-muted-foreground">
+      <p className="shrink-0 px-5 text-xs text-muted-foreground">
         {selectedLayer && specificDiffs ? `${resolvedCount} of ${specificDiffs.length} resolved` : 'Nothing selected'}
       </p>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-auto px-5 pt-3 pb-5">
         <DriftHistoryAccordion
           item={item}
           frame={frame}
@@ -962,16 +972,14 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
         )}
 
         {selectedLayer && !specificDiffs && tokenSpec && (
-          <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
-            <p className="mb-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-              Token Binding
-            </p>
-            <div className="space-y-1.5 text-sm">
+          <section>
+            <p className={PANEL_LABEL}>Token binding</p>
+            <div className={cn(PANEL_SURFACE, 'space-y-1.5 px-3 py-2.5 text-sm')}>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Fill</span>
                 <span className="flex items-center gap-1.5 text-foreground">
                   <span
-                    className="size-3 rounded-sm border border-border"
+                    className="size-3 rounded-sm ring-1 ring-white/15"
                     style={{ background: tokenSpec.fill.color }}
                   />
                   {tokenSpec.fill.token}
@@ -990,7 +998,7 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
                 <span className="text-foreground">{tokenSpec.layout.mode}</span>
               </div>
             </div>
-          </div>
+          </section>
         )}
 
         {selectedLayer && !specificDiffs && (
@@ -1007,22 +1015,18 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
 // the rest of the list.
 function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
   return (
-    <div
-      className={cn(
-        'group relative rounded-xl border p-3.5 text-left transition-colors',
-        applied ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60'
-      )}
-    >
+    <div className={cn('group relative px-3 py-3.5 text-left transition-colors', applied ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
+      {applied && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
       <button type="button" onClick={() => onApply(preset)} className="flex w-full items-start gap-3 text-left">
         <span className={cn('size-9 shrink-0 rounded-full', preset.previewClass)} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">{preset.label}</span>
-            <span className="flex items-center gap-0.5 rounded-full bg-indigo-500/15 text-indigo-400 px-2 py-0.5 text-[10px] font-semibold">
+            <span className="flex items-center gap-0.5 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-slate-400">
               <Sparkles className="size-3" />
               AI
             </span>
-            {applied && <Check className="ml-auto size-4 shrink-0 text-primary" />}
+            {applied && <Check className="ml-auto size-4 shrink-0 text-slate-100" />}
           </span>
           <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
             {preset.rationale}
@@ -1070,17 +1074,21 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p className="shrink-0 px-4 pt-3 text-xs text-muted-foreground">
-        {selectedLayerName ? (
-          <>
-            Suggestions for <span className="font-medium text-foreground">{selectedLayerName}</span>
-          </>
-        ) : (
-          'Select a canvas element to preview suggestions on it'
-        )}
-      </p>
+      <div className="px-5 pt-2">
+        <p className={PANEL_LABEL}>AI suggestions</p>
+        <p className="-mt-1 mb-2 text-xs text-muted-foreground">
+          {selectedLayerName ? (
+            <>
+              For <span className="font-medium text-foreground">{selectedLayerName}</span>
+            </>
+          ) : (
+            'Select a canvas element to preview suggestions on it'
+          )}
+        </p>
+      </div>
 
-      <div className="space-y-3 p-4">
+      <div className="px-5">
+        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
         {visiblePresets.map((preset) => (
           <AiSuggestionCard
             key={preset.id}
@@ -1095,14 +1103,15 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
             All suggestions dismissed. Generate more below.
           </p>
         )}
+        </div>
       </div>
 
-      <div className="shrink-0 border-t border-white/10 p-4">
+      <div className="shrink-0 px-5 pt-3 pb-5">
         <button
           type="button"
           onClick={generateAlternatives}
           disabled={!hasMore}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/40 px-3 h-10 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className={cn('flex h-9 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40', GHOST_BUTTON)}
         >
           <Wand2 className="size-4" />
           {hasMore ? 'Generate alternatives' : 'No more alternatives'}
@@ -1120,7 +1129,7 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, on
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {textSlots?.length > 0 && (
-        <div className="border-b border-white/10 p-4">
+        <div className="px-5 pb-4">
           <TextContentSection slots={textSlots} onEditText={onEditText} />
         </div>
       )}
@@ -1134,7 +1143,7 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, on
           onReset={onAssembleReset}
         />
       ) : (
-        <p className="border-b border-white/10 p-5 text-center text-sm text-muted-foreground">
+        <p className="px-5 py-4 text-center text-sm text-muted-foreground">
           Select an element on the canvas to assemble its shape, size and layout.
         </p>
       )}
@@ -1181,12 +1190,12 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="space-y-3 border-b border-white/10 px-4 pt-3 pb-4">
+      <div className="space-y-3 px-5 pb-4">
         <div className="flex items-center gap-2 text-sm">
-          <Library className="size-4 text-indigo-500" />
+          <Library className="size-4 text-slate-400" />
           <span className="font-semibold text-foreground">{designSystemMeta.name}</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{designSystemMeta.version}</span>
-          <span className="ml-auto flex items-center gap-1 text-xs text-emerald-400">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-muted-foreground">{designSystemMeta.version}</span>
+          <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
             <span className="size-1.5 rounded-full bg-emerald-400" />
             {designSystemMeta.syncedLabel}
           </span>
@@ -1197,13 +1206,13 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search components…"
-            className="h-9 w-full rounded-full border border-white/10 bg-slate-800/70 pr-3 pl-8 text-sm outline-none focus:border-violet-500"
+            className="h-8 w-full rounded-full bg-white/[0.05] pr-3 pl-8 text-[13px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
           />
         </div>
         <Seg options={categories.map((c) => [c, c])} value={activeCategory} onChange={setCategory} />
 
         {selectedLayer ? (
-          <div className="flex items-start gap-2.5 rounded-xl bg-indigo-500/10 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+          <div className="flex items-start gap-2.5 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
             <span className="min-w-0 flex-1">
               {showAll ? 'Showing every component.' : `${pool.length} component${pool.length === 1 ? '' : 's'} fit`}{' '}
               <span className="font-medium text-foreground">{selectedLayer.name}</span>
@@ -1212,7 +1221,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="shrink-0 rounded-full border border-indigo-500/40 px-2.5 py-1 font-medium text-foreground hover:bg-indigo-500/15"
+              className={cn('shrink-0 rounded-full px-2.5 py-1 font-medium', GHOST_BUTTON)}
             >
               {showAll ? 'Only compatible' : 'Show all'}
             </button>
@@ -1222,11 +1231,16 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
         )}
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className="px-5 pb-5">
+        <p className={PANEL_LABEL}>
+          Components
+          <span className="font-medium text-slate-600 tabular-nums">{visible.length}</span>
+        </p>
+        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
         {visible.map((def) => {
           const mode = modeOf(def)
           return (
-            <div key={def.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-800/70 p-3">
+            <div key={def.id} className="flex items-center gap-3 p-3">
               {/* Drag the preview onto an artboard to place it exactly. */}
               <div
                 title="Drag onto the canvas to place"
@@ -1253,7 +1267,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
                     <button
                       type="button"
                       onClick={() => onApply(def)}
-                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-2 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Replace
                     </button>
@@ -1262,7 +1276,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
                     <button
                       type="button"
                       onClick={() => onInsert(def)}
-                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-2 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                     >
                       Insert
                     </button>
@@ -1271,9 +1285,9 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
                     type="button"
                     onClick={() => onAdd(def)}
                     className={cn(
-                      'w-full truncate rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap',
+                      'w-full truncate rounded-full px-2 py-1 text-xs font-semibold whitespace-nowrap',
                       !mode && 'col-span-2',
-                      mode ? 'border border-indigo-500/50 text-foreground hover:bg-indigo-500/15' : 'bg-slate-700 text-foreground hover:bg-slate-600'
+                      mode ? GHOST_BUTTON : 'bg-slate-700 text-foreground hover:bg-slate-600'
                     )}
                   >
                     Add
@@ -1284,6 +1298,7 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
           )
         })}
         {visible.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No components match.</p>}
+        </div>
       </div>
     </div>
   )
@@ -1387,9 +1402,9 @@ function BlockDeckPanel({
     >
       <div
         onPointerDown={handleDragStart}
-        className="flex h-12 shrink-0 cursor-grab items-center gap-2 border-b border-white/10 px-4 active:cursor-grabbing"
+        className="flex h-12 shrink-0 cursor-grab items-center gap-2 px-5 active:cursor-grabbing"
       >
-        <Blocks className="size-4 shrink-0 text-indigo-500" />
+        <Blocks className="size-4 shrink-0 text-slate-400" />
         <span className="flex-1 text-sm font-semibold text-foreground">Block Deck</span>
         {/* Fold-only now — no separate "X" close. The deck stays docked;
             collapsing is the one and only way to get it out of the way. */}
@@ -1406,46 +1421,25 @@ function BlockDeckPanel({
 
       {!collapsed && (
       <>
-      {/* Segmented pill switcher — the active tab is a ghost pill (faint
-          surface, hairline ring, bright text) rather than a solid color
-          block, matching the Merge List's tabs. */}
-      <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
-        <button
-          type="button"
-          onClick={() => switchTab('compare')}
-          className={cn(
-            SEGMENT_TAB,
-            'transition-colors',
-            tab === 'compare' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
-          )}
-        >
-          <Columns3 className="size-3.5" />
-          Compare
-        </button>
-        <button
-          type="button"
-          onClick={() => switchTab('assemble')}
-          className={cn(
-            SEGMENT_TAB,
-            'transition-colors',
-            tab === 'assemble' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
-          )}
-        >
-          <Sparkles className="size-3.5" />
-          Assemble
-        </button>
-        <button
-          type="button"
-          onClick={() => switchTab('library')}
-          className={cn(
-            SEGMENT_TAB,
-            'transition-colors',
-            tab === 'library' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
-          )}
-        >
-          <Library className="size-3.5" />
-          Library
-        </button>
+      {/* Tabs: the shared category-tab pills (same as the Merge List's
+          Files / Layers switch and the Inbox filters), straight under the
+          title — no rules above or below, just spacing. */}
+      <div className="flex shrink-0 items-center gap-1 px-5 pb-3">
+        {[
+          ['compare', 'Compare'],
+          ['assemble', 'Assemble'],
+          ['library', 'Library'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={tab === id}
+            onClick={() => switchTab(id)}
+            className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       {/* No per-tab description line — each tab's content starts right
           under the tab bar. */}

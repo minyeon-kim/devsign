@@ -7,16 +7,14 @@
 export const FLOATING_PANEL = 'border border-white/10 bg-card/90 shadow-2xl shadow-black/40 backdrop-blur-xl backdrop-saturate-150'
 export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-lg backdrop-blur-md'
 
-// Shared sizing so every segmented tab and count badge in the studio is
-// the same box, flex-centered (fixed height, not padding-derived).
-// Segmented tab: sits in the panels' 48px tab bars (Merge List, Block Deck).
-export const SEGMENT_TAB = 'flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium whitespace-nowrap'
+// Shared sizing so every count badge in the studio is the same box,
+// flex-centered (fixed height, not padding-derived).
 // Count badge inside a button or title (Merge Changes, Changes log, …);
 // callers add their own colors.
 export const COUNT_BADGE = 'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] leading-none font-semibold tabular-nums'
 
-// Category tabs — one style for the Inbox filters (All / Approvals / …) and
-// the Merge List's sub-navigation (Merges / Files / Layers): small
+// Category tabs — one style for the Inbox filters (All / Approvals / …), the
+// Merge List's Files / Layers switch and the Block Deck's tabs: small
 // left-aligned text pills; the active one is a soft fill (no outline).
 export const CATEGORY_TAB = 'inline-flex h-7 shrink-0 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors'
 export const CATEGORY_TAB_ACTIVE = 'bg-white/[0.08] text-[#FFFFFF]'
@@ -52,3 +50,14 @@ export const PRESENCE_STACK = [
   '[&_[data-slot=avatar-group]_[data-slot=avatar]]:ring-[1.5px]',
   '[&_[data-slot=avatar-group]_[data-slot=avatar]]:ring-[var(--card)]',
 ].join(' ')
+
+// Flat panel language shared by the Merge List and the Block Deck: content
+// sits on a 20px inset (px-5) with 16px between groups; a group is an
+// uppercase label (8px above its surface) and, where it's a list, one
+// grouped surface — a faint tonal lift + hairline ring — with rows split by
+// hairlines instead of separate bordered boxes.
+export const PANEL_SURFACE = 'overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07]'
+export const PANEL_LABEL = 'mb-2 flex h-7 items-center gap-2 text-[11px] font-medium tracking-wider text-slate-500 uppercase'
+export const PANEL_ROWS = 'divide-y divide-white/[0.06]'
+// Borderless ghost button fill (the Merge List search's tone).
+export const GHOST_BUTTON = 'bg-white/[0.05] text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white'
