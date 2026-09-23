@@ -1312,8 +1312,13 @@ function BlockDeckPanel({
   onApplyComponent,
   onAddComponent,
   onInsertComponent,
+  onTabSwitch,
 }) {
   const [tab, setTab] = useState('compare')
+  function switchTab(next) {
+    setTab(next)
+    onTabSwitch?.()
+  }
   const [pos, setPos] = useState(null)
   // Collapsed at rest (no selection yet) — but every fresh selection (a new
   // layer/frame/code diff clicked on the canvas) re-expands it automatically
@@ -1358,6 +1363,7 @@ function BlockDeckPanel({
   return (
     <div
       ref={rootRef}
+      data-guide="block-deck"
       style={{
         width: DECK_WIDTH,
         ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: DECK_TOP }),
@@ -1392,7 +1398,7 @@ function BlockDeckPanel({
       <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
         <button
           type="button"
-          onClick={() => setTab('compare')}
+          onClick={() => switchTab('compare')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
             tab === 'compare' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
@@ -1403,7 +1409,7 @@ function BlockDeckPanel({
         </button>
         <button
           type="button"
-          onClick={() => setTab('assemble')}
+          onClick={() => switchTab('assemble')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
             tab === 'assemble' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
@@ -1414,7 +1420,7 @@ function BlockDeckPanel({
         </button>
         <button
           type="button"
-          onClick={() => setTab('library')}
+          onClick={() => switchTab('library')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
             tab === 'library' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'

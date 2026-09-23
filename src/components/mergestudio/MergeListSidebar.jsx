@@ -338,7 +338,7 @@ const TABS = [
 // Merges / Files / Layers tabs. It collapses to a small pill; clicking the
 // canvas collapses it too. Filters in Merges are one row of dropdown chips
 // (Status / Conflict / Due), each a multi-select menu.
-function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set() }) {
+function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), onExplore }) {
   const {
     mergeItems,
     selectedMergeItemId,
@@ -410,6 +410,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         </button>
         <button
           type="button"
+          data-guide="merge-list-toggle"
           onClick={() => setMergeListCollapsed((v) => !v)}
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
@@ -431,6 +432,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       // Floating glass window that slides/fades over the canvas (transform
       // only), so toggling it never shifts the canvas or its centered
       // floating controls.
+      data-guide="merge-list"
       aria-hidden={mergeListCollapsed}
       inert={mergeListCollapsed}
       className={cn(
@@ -463,7 +465,10 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id)
+              onExplore?.()
+            }}
             className={cn(
               'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-300',
               tab === id ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground',
@@ -491,15 +496,18 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value)
+                    onExplore?.()
+                  }}
                   placeholder="Search merge items..."
                   className="h-9 w-full rounded-full border border-white/10 bg-slate-900 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div className="grid grid-cols-3 gap-1.5">
-                <FilterChip label="Status" options={mergeFilterTags} value={statusFilter} onChange={setStatusFilter} />
-                <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={setConflictFilter} />
-                <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={setDueFilter} />
+                <FilterChip label="Status" options={mergeFilterTags} value={statusFilter} onChange={(v) => { setStatusFilter(v); onExplore?.() }} />
+                <FilterChip label="Conflict" options={mergeConflictLevels} value={conflictFilter} onChange={(v) => { setConflictFilter(v); onExplore?.() }} />
+                <FilterChip label="Due" options={mergeDueFilters} value={dueFilter} onChange={(v) => { setDueFilter(v); onExplore?.() }} />
               </div>
               {hasActiveFilters && (
                 <button
@@ -513,7 +521,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div data-guide="merge-items" className="space-y-1.5">
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Merge Items · {visible.length}</p>
             {visible.map((item) => (
               <MergeItemCard
@@ -556,8 +564,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       <div className="shrink-0 border-t border-white/10 p-4">
         <button
           type="button"
+          data-guide="add-files"
           onClick={startMergeFromOpenFiles}
-          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-indigo-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-400"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-violet-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-400"
         >
           <FilePlus2 className="size-3.5" />
           Add Files to Merge

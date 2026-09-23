@@ -1420,6 +1420,7 @@ function MergeInfiniteCanvas({
   variantPreviews,
   reserve,
   headerReserve = 0,
+  onDriftNav,
   listCollapsed,
   focus,
   resolutionCount,
@@ -2457,10 +2458,13 @@ function MergeInfiniteCanvas({
         <div className="pointer-events-none absolute top-14 left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
-              <div className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
+              <div data-guide="drift-nav" className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
                 <button
                   type="button"
-                  onClick={() => goDrift(-1)}
+                  onClick={() => {
+                    goDrift(-1)
+                    onDriftNav?.()
+                  }}
                   title="Previous drift"
                   className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
@@ -2474,7 +2478,10 @@ function MergeInfiniteCanvas({
                 </span>
                 <button
                   type="button"
-                  onClick={() => goDrift(1)}
+                  onClick={() => {
+                    goDrift(1)
+                    onDriftNav?.()
+                  }}
                   title="Next drift"
                   className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
@@ -2485,6 +2492,7 @@ function MergeInfiniteCanvas({
 
             <button
               type="button"
+              data-guide="merge-cta"
               disabled={merged}
               onClick={() => onMerge(annotations)}
               className={cn(
