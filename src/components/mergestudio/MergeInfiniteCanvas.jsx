@@ -13,12 +13,12 @@ import UserPresence from '@/components/layout/UserPresence'
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
-const CODE_DIFF_WIDTH = 880
+const CODE_DIFF_WIDTH = 820
 // How far right content starts, so it clears the floating Merge List panel
 // (w-72 anchored left-4) docked over the same canvas surface instead of
 // pushing it in a fixed layout column.
 const CONTENT_START_X = 304
-const ARTBOARD_PREVIEW_WIDTH = 340
+const ARTBOARD_PREVIEW_WIDTH = 440
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
 // selected right now, unless an AI Block Deck suggestion is actively
@@ -650,17 +650,34 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
 // entirely in the empty space between two card edges.
 const CARD_GAP = 140
 
-// Sizes are in world units. Artboards leave w/h null until first resized
+// Sizes are in world units. Artboards leave h null until first resized
 // (they then derive their height from the frame's aspect ratio).
-// Compact unified layout: the code card (Code A | Code B columns) on top, with
-// the Option A artboard centered under the Code A column and Option B under
-// the Code B column — so each option reads as one column of code + design.
-const CODE_H = 460
-const COLUMN_W = CODE_DIFF_WIDTH / 2
-const DEFAULT_LAYOUT = {
-  code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_H },
-  a: { x: (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
-  b: { x: COLUMN_W + (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
+// Design-first layout: Original Design and Current Implementation side by
+// side across the top, with a compact, full-width code window underneath
+// acting as the inspector. Artboards are as wide as ARTBOARD_PREVIEW_WIDTH
+// allows while staying under ARTBOARD_MAX_H tall, so a tall mobile frame
+// doesn't push the code window off screen.
+const ARTBOARD_MAX_H = 460
+const RIGHT_TOOLBAR_CLEARANCE = 64
+const ARTBOARD_LABEL_H = 30
+const CODE_H = 250
+const CODE_ONLY_H = 440
+const CODE_GAP_Y = 48
+function defaultLayout(frame) {
+  if (!frame) {
+    const off = { x: 0, y: 0, w: ARTBOARD_PREVIEW_WIDTH, h: null }
+    return { code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_ONLY_H }, a: off, b: off }
+  }
+  const artW = Math.round(Math.min(ARTBOARD_PREVIEW_WIDTH, (ARTBOARD_MAX_H * frame.width) / frame.height))
+  const artH = (frame.height * artW) / frame.width
+  const rowW = artW * 2 + CARD_GAP
+  const codeW = Math.max(rowW, CODE_DIFF_WIDTH)
+  const artX = (codeW - rowW) / 2
+  return {
+    a: { x: artX, y: 0, w: artW, h: null },
+    b: { x: artX + artW + CARD_GAP, y: 0, w: artW, h: null },
+    code: { x: 0, y: ARTBOARD_LABEL_H + artH + CODE_GAP_Y, w: codeW, h: CODE_H },
+  }
 }
 // Vertical room reserved above the cards for the two-tier floating top
 // controls (Compare > Check stepper at `top-3`, drift pager / Merge CTA row
@@ -1120,7 +1137,9 @@ function MergeInfiniteCanvas({
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
-  const [layout, setLayout] = useState(DEFAULT_LAYOUT)
+  const [layout, setLayout] = useState(() =>
+    defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
+  )
   const [panning, setPanning] = useState(false)
   const [hover, setHover] = useState(null) // { layerId, fileId, line }
   const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
@@ -1161,14 +1180,18 @@ function MergeInfiniteCanvas({
     if (!c) return DEFAULT_VIEW
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
-    const right = frame ? Math.max(lay.code.x + lay.code.w, lay.a.x + artW('a'), lay.b.x + artW('b')) : lay.code.x + lay.code.w
-    const worldW = right - lay.code.x
-    const artBottom = (k) =>
-      lay[k].y + 30 + (lay[k].h ?? (frame.height * (lay[k].w ?? ARTBOARD_PREVIEW_WIDTH)) / frame.width)
-    const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
-    const worldH = bottom - lay.code.y
+    const cards = ['code', ...(frame ? ['a', 'b'] : [])]
+    const box = (k) =>
+      k === 'code'
+        ? { l: lay.code.x, t: lay.code.y, r: lay.code.x + lay.code.w, b: lay.code.y + lay.code.h }
+        : { l: lay[k].x, t: lay[k].y, r: lay[k].x + artW(k), b: lay[k].y + ARTBOARD_LABEL_H + (lay[k].h ?? (frame.height * artW(k)) / frame.width) }
+    const minX = Math.min(...cards.map((k) => box(k).l))
+    const minY = Math.min(...cards.map((k) => box(k).t))
+    const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
+    const worldH = Math.max(...cards.map((k) => box(k).b)) - minY
     const startX = contentStartX()
-    const visRight = rect.width - 16 - reserve
+    // Clear of the right-edge floating toolbar (comments/history/share).
+    const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - reserve
     const availW = visRight - startX
     const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
@@ -1191,16 +1214,17 @@ function MergeInfiniteCanvas({
         : Math.min(Math.max(axis - contentW / 2, startX), visRight - contentW)
     return {
       zoom,
-      x: left - lay.code.x * k,
+      x: left - minX * k,
       // Below the top controls, vertically centered in what's left when the
       // content is shorter than the available height.
-      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - lay.code.y * k,
+      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - minY * k,
     }
   }
 
   useEffect(() => {
-    setView(fitView(DEFAULT_LAYOUT))
-    setLayout(DEFAULT_LAYOUT)
+    const lay = defaultLayout(frame)
+    setView(fitView(lay))
+    setLayout(lay)
     setHover(null)
     setFrameSel(null)
     setAiStage(null)
@@ -1504,6 +1528,13 @@ function MergeInfiniteCanvas({
                 label: 'Code changes',
                 gap: toRight ? rA.left - code.right : code.left - rA.right,
               })
+            } else if (code.top >= rA.bottom) {
+              // Design-first layout: from the top of the code card up to the
+              // bottom of the Original Design artboard.
+              const x = Math.min(Math.max((rA.left + rA.right) / 2, code.left + 12), code.right - 12)
+              const from = { x, y: code.top }
+              const to = { x, y: rA.bottom }
+              paths.push({ ...linkGeometryV(from, to), label: 'Code changes', axis: 'v', gap: from.y - to.y })
             } else if (rA.top >= code.bottom) {
               // Stacked layout: from the bottom of the code card down to the
               // Option A artboard's label.
@@ -2174,8 +2205,9 @@ function MergeInfiniteCanvas({
             type="button"
             title="Reset view and layout"
             onClick={() => {
-              setView(fitView(DEFAULT_LAYOUT))
-              setLayout(DEFAULT_LAYOUT)
+              const lay = defaultLayout(frame)
+              setView(fitView(lay))
+              setLayout(lay)
             }}
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
