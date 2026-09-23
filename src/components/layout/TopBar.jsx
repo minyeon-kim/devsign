@@ -30,7 +30,7 @@ function openMergeStudio(dockApi) {
 
 function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
   return (
-    <header className="relative flex h-11 shrink-0 items-center gap-3 border-b bg-card px-3">
+    <header className="relative flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4 py-2.5">
       <div className="flex min-w-0 max-w-[280px] shrink-0 items-center gap-2">
         <Button
           variant="ghost"
@@ -51,7 +51,7 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
         <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search files, commands..."
-          className="h-7 w-full pl-8 text-xs"
+          className="h-8 w-full pl-8 text-xs"
         />
       </div>
 

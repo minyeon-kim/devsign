@@ -27,9 +27,9 @@ import CommentsPanel from '@/components/dockview/panels/CommentsPanel'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 
 const EDGE_MARGIN = 12
-// TopBar is h-11 (44px) — the toolbar's positioning container sits below it,
+// TopBar is h-14 (56px) — the toolbar's positioning container sits below it,
 // so vertical space math needs to subtract it from window.innerHeight.
-const TOPBAR_HEIGHT = 44
+const TOPBAR_HEIGHT = 56
 const COLLAPSED_WIDTH = 40
 // grip (28) + separator (1) + 4 icon buttons (32 each) + 5 gaps (4 each) + padding (8)
 const COLLAPSED_HEIGHT_GUESS = 28 + 1 + 4 * 32 + 5 * 4 + 8

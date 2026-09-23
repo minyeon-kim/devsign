@@ -21,14 +21,15 @@ function ExplorerPanel() {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      {/* No in-panel "Explorer" header here — the dockview tab above
-          already reads "Explorer", so repeating it would just be a
-          redundant label and an extra hard-edged divider. */}
+      {/* Matches Layers' own h-9 tab-row header (height, border, type
+          scale) instead of repeating "Explorer" (the dockview tab above
+          already says that) — the root folder name earns its place here
+          the way Layers/Assets tabs earn theirs. */}
+      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/60 px-3 text-xs font-medium text-foreground/70">
+        <Folder className="size-3.5" />
+        src
+      </div>
       <div className="flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5 px-2 py-1.5 text-foreground/70">
-          <Folder className="size-3.5" />
-          src
-        </div>
         {workspaceFiles.map((file) => {
           const name = getFileName(file.id)
           const { Icon, colorClass } = getFileIconMeta(name)

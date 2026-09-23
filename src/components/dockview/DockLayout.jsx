@@ -51,10 +51,14 @@ export function buildInitialLayout(api) {
   })
 
   // Left sidebar: Explorer (top) and Layers (bottom) split so both are
-  // visible at once, both pinned to the same width band.
+  // visible at once, both pinned to the same width band. Explorer gets a
+  // modest fixed starting height instead of splitting 50/50 with Layers —
+  // a handful of files doesn't need half the sidebar, and Layers' deeper
+  // tree benefits far more from the extra room.
   addDockPanel(api, panelById.explorer, {
     position: { direction: 'left', referencePanel: panelById.editor.id },
     initialWidth: 260,
+    initialHeight: 220,
     ...sidebarWidthConstraints,
   })
 
