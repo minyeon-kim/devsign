@@ -437,6 +437,7 @@ function MergeStudioWorkspace({ item }) {
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={reserve}
+          headerReserve={wizardReserve}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}

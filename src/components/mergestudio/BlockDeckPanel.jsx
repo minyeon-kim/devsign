@@ -1282,6 +1282,11 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onInsert }) {
 // anywhere within Merge Studio. "Variant Compare" is the design-merge
 // inspector; "Block Assemble" is the AI style-suggestion picker.
 export const DECK_WIDTH = 360
+// Docked below the top toolbar row (notifications/avatars, Preview, Apply
+// with AI at `top-3`, 36px tall) — same 60px top as the Merge List window
+// on the left — so the deck never covers those controls. Dragging keeps
+// this as the ceiling too.
+const DECK_TOP = 60
 
 function BlockDeckPanel({
   open,
@@ -1339,7 +1344,7 @@ function BlockDeckPanel({
     function onMove(m) {
       setPos({
         left: Math.min(Math.max(0, start.left + m.clientX - start.x), Math.max(0, bounds.width - rect.width)),
-        top: Math.min(Math.max(0, start.top + m.clientY - start.y), Math.max(0, bounds.height - 48)),
+        top: Math.min(Math.max(DECK_TOP, start.top + m.clientY - start.y), Math.max(DECK_TOP, bounds.height - 48)),
       })
     }
     function onUp() {
@@ -1355,9 +1360,10 @@ function BlockDeckPanel({
       ref={rootRef}
       style={{
         width: DECK_WIDTH,
-        ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: 16 }),
+        ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: DECK_TOP }),
+        maxHeight: `calc(100% - ${DECK_TOP + 16}px)`,
       }}
-      className={cn('absolute z-30 flex max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl', FLOATING_PANEL)}
+      className={cn('absolute z-30 flex flex-col overflow-hidden rounded-2xl', FLOATING_PANEL)}
     >
       <div
         onPointerDown={handleDragStart}
