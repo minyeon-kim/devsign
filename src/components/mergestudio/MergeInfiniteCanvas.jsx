@@ -24,7 +24,7 @@ const ARTBOARD_PREVIEW_WIDTH = 340
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, edited }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, edited, dimmed }) {
   const tokens = tokenizeLine(text, language)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(text)
@@ -54,16 +54,19 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
-        'group/line flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
+        'group/line flex cursor-pointer gap-2 border-l border-transparent px-3 transition-opacity duration-200 hover:bg-muted/40',
         // The diff tint (red/green background) stays on regardless of
-        // selection — only the left border changes to show the lime
+        // selection — only the left border changes to show the emerald
         // selection state on top of it. Dropping `accentClass` here used to
         // wash the row back to plain/untinted the moment it was selected,
         // hiding exactly the red/green diff it was selected to review.
         accentClass,
-        linked && 'border-lime-400/30',
-        hovered && !highlighted && 'border-lime-400/70',
-        highlighted && 'border-lime-400'
+        // Spotlight: while a block is selected every other row recedes, so
+        // the selection reads at full strength without any glow; hovering
+        // brings a row back.
+        dimmed && !hovered && 'opacity-45 hover:opacity-100',
+        hovered && !highlighted && 'border-emerald-400/60',
+        highlighted && 'border-emerald-400'
       )}
     >
       <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
@@ -161,6 +164,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
           const changed = incoming !== undefined
           const onEdit = onEditLine ? (text) => edit(lineNumber, line, text) : undefined
           const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
+          const dimmed = highlightLine != null && !isHighlighted
           const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
           const linked = linkedLines?.has(`${file.id}:${lineNumber}`)
           const onHover = (n) => onHoverLine?.(file.id, n)
@@ -181,6 +185,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
                 hovered={isHovered}
                 onHover={onHover}
                 onEdit={onEdit}
+                dimmed={dimmed}
               />
             )
           }
@@ -199,6 +204,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                dimmed={dimmed}
               />
               <CodeLine
                 lineNumber={lineNumber}
@@ -214,6 +220,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, d
                 onHover={onHover}
                 onEdit={onEdit}
                 edited={edited}
+                dimmed={dimmed}
               />
             </div>
           )
@@ -289,7 +296,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, itemId, files, 
     <div
       ref={rootRef}
       data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
+      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
@@ -313,9 +320,8 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, itemId, files, 
             </button>
           )
         })}
-        <span className="ml-auto flex shrink-0 items-center gap-1 px-2 pb-1 text-[10px] text-muted-foreground">
-          <Pencil className="size-2.5 text-violet-400" />
-          Double-click a line to edit
+        <span title="Double-click a line to edit it" className="ml-auto flex shrink-0 items-center px-2 pb-1 text-muted-foreground/60">
+          <Pencil className="size-3" />
         </span>
       </div>
 
@@ -383,7 +389,7 @@ function InlineLabelEditor({ value, onCommit, onCancel }) {
 // With `onEditLabel`, text-bearing layers can be renamed in place by
 // double-clicking. A non-static override renders a small badge so the
 // change reads as a live preview rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditLabel }) {
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditLabel, drift, dimmed }) {
   const [editing, setEditing] = useState(false)
   const style = {
     left: layer.x,
@@ -517,9 +523,14 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'absolute cursor-pointer',
-        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-lime-400/70',
-        // selection is drawn by the neon bounding-box overlay, so no second ring here
-        selected && ''
+        'transition-opacity duration-200',
+        // Spotlight: the selection stays at full strength inside a thin
+        // border (drawn by the canvas overlay) while every other element
+        // dims until hovered; drifted elements keep a faint outline so they
+        // stay findable.
+        drift && !selected && !hovered && 'rounded-sm outline outline-1 outline-offset-2 outline-solid outline-violet-400/40',
+        dimmed && !selected && !hovered && 'opacity-45',
+        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80'
       )}
       style={style}
     >
@@ -535,7 +546,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
           onCancel={() => setEditing(false)}
         />
       )}
-      {override && !override.static && (
+      {selected && override && !override.static && (
         <span
           title="Live preview"
           className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow"
@@ -552,7 +563,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabel, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabel, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -567,23 +578,19 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
       onClickCapture={onClickCapture}
     >
       <p
+        title={editable ? 'Double-click text on this artboard to edit it inline' : undefined}
         className={cn(
           'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
           editable ? 'bg-violet-500/20 text-violet-200' : 'bg-card/90 text-muted-foreground'
         )}
       >
-        <span className={cn('size-1.5 rounded-full', editable ? 'bg-violet-500' : 'bg-indigo-400')} />
         {label}
-        {editable && (
-          <span title="Double-click text on this artboard to edit it inline" className="flex items-center gap-0.5 font-medium text-violet-300/80">
-            · <Pencil className="size-2.5" /> editable
-          </span>
-        )}
+        {editable && <Pencil className="size-2.5 text-violet-300/80" />}
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
         data-frame-box
-        className="relative overflow-hidden rounded-md border border-border bg-card shadow-lg"
+        className="relative overflow-hidden rounded-md bg-card shadow-lg ring-1 ring-white/5"
         style={{ width: boxW, height: boxH }}
       >
         <div
@@ -610,6 +617,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
                 selected={selectedLayerId === layer.id}
                 linked={linkedLayerIds?.has(layer.id)}
                 hovered={hoverLayerId === layer.id}
+                drift={driftLayerIds?.has(layer.id)}
+                dimmed={Boolean(selectedLayerId)}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
                 onEditLabel={onEditLabel}
@@ -1103,7 +1112,7 @@ function MergeInfiniteCanvas({
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const [annotations, setAnnotations] = useState([])
   const [openNote, setOpenNote] = useState(null)
-  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
+  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
   const [zoomRowRight, setZoomRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
@@ -1289,6 +1298,7 @@ function MergeInfiniteCanvas({
     })
   }
 
+  const driftLayerIds = new Set(Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}))
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
   const spanEnd = (t) => t.line + (t.span ?? 1) - 1
@@ -1440,7 +1450,6 @@ function MergeInfiniteCanvas({
         const rel = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top })
         const find = (sel) => container.querySelector(sel)
         const paths = []
-        const tethers = []
         const codeEl = find('[data-card="code"]')
 
         if (hasSelection) {
@@ -1474,11 +1483,6 @@ function MergeInfiniteCanvas({
               const lineY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
               const from = { x: toRight ? code.right : code.left, y: clampY(lineY, code) }
               const to = { x: toRight ? rA.left : rA.right, y: yFor('a', rA) }
-              const mark = markOf('a')
-              if (mark) {
-                const mr = rel(mark.getBoundingClientRect())
-                tethers.push({ x1: to.x, y1: to.y, x2: toRight ? mr.left - 3 : mr.right + 3, y2: to.y })
-              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Code changes',
@@ -1502,16 +1506,6 @@ function MergeInfiniteCanvas({
             if (forward || backward) {
               const from = { x: forward ? rA.right : rA.left, y: yFor('a', rA) }
               const to = { x: forward ? rB.left : rB.right, y: yFor('b', rB) }
-              const markA = markOf('a')
-              const markB = markOf('b')
-              if (markA) {
-                const mr = rel(markA.getBoundingClientRect())
-                tethers.push({ x1: from.x, y1: from.y, x2: forward ? mr.right + 3 : mr.left - 3, y2: from.y })
-              }
-              if (markB) {
-                const mr = rel(markB.getBoundingClientRect())
-                tethers.push({ x1: to.x, y1: to.y, x2: forward ? mr.left - 3 : mr.right + 3, y2: to.y })
-              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Design changes',
@@ -1596,7 +1590,7 @@ function MergeInfiniteCanvas({
           merged.forEach((r, i) => push(r, r.strong, `code-${i}`))
         }
 
-        const next = { paths, anchor, pins, boxes, tethers }
+        const next = { paths, anchor, pins, boxes }
         setLinks((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
       }
       raf = requestAnimationFrame(measure)
@@ -1868,6 +1862,7 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('a')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
+                    driftLayerIds={driftLayerIds}
                     hoverLayerId={hover?.layerId}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
@@ -1890,6 +1885,7 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('b')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
+                    driftLayerIds={driftLayerIds}
                     hoverLayerId={hover?.layerId}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
@@ -1905,13 +1901,10 @@ function MergeInfiniteCanvas({
 
         <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
           <defs>
-            <linearGradient id="neon-link" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#bef264" />
-              <stop offset="100%" stopColor="#4ade80" />
+            <linearGradient id="accent-link" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#6ee7b7" />
             </linearGradient>
-            <filter id="neon-glow" x="-20%" y="-50%" width="140%" height="200%">
-              <feGaussianBlur stdDeviation="4" />
-            </filter>
           </defs>
           {links.boxes.map((b) => (
             <g key={b.key}>
@@ -1922,35 +1915,17 @@ function MergeInfiniteCanvas({
                 height={b.h}
                 rx={5}
                 fill="none"
-                stroke="#a3e635"
+                stroke="#34d399"
                 strokeWidth={b.strong ? 1.5 : 1}
-                strokeOpacity={b.strong ? 0.9 : 0.5}
-                style={{ filter: `drop-shadow(0 0 ${b.strong ? 4 : 2}px #a3e635)` }}
+                strokeOpacity={b.strong ? 1 : 0.5}
               />
             </g>
           ))}
-          {links.tethers.map((t, i) => (
-            <line
-              key={i}
-              x1={t.x1}
-              y1={t.y1}
-              x2={t.x2}
-              y2={t.y2}
-              stroke="#a3e635"
-              strokeWidth={2}
-              strokeLinecap="round"
-              style={{ filter: 'drop-shadow(0 0 4px #a3e635)' }}
-            />
-          ))}
           {links.paths.map((p, i) => (
             <g key={i}>
-              <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.32} strokeLinecap="round" filter="url(#neon-glow)" />
-              <path d={p.d} fill="none" stroke="url(#neon-link)" strokeWidth={2.5} strokeOpacity={0.85} strokeLinecap="round" />
+              <path d={p.d} fill="none" stroke="url(#accent-link)" strokeWidth={1.5} strokeOpacity={0.85} strokeLinecap="round" />
               {[p.from, p.to].map((pt, j) => (
-                <g key={j}>
-                  <circle cx={pt.x} cy={pt.y} r={9} fill="#a3e635" fillOpacity={0.14} filter="url(#neon-glow)" />
-                  <circle cx={pt.x} cy={pt.y} r={4} fill="#d9f99d" stroke="#a3e635" strokeWidth={1.5} />
-                </g>
+                <circle key={j} cx={pt.x} cy={pt.y} r={3} fill="#d1fae5" stroke="#34d399" strokeWidth={1} />
               ))}
             </g>
           ))}
@@ -1983,7 +1958,7 @@ function MergeInfiniteCanvas({
               <span
                 key={`dim-${b.key}`}
                 style={{ left: b.x + b.w, top: b.y + b.h + 6 }}
-                className="pointer-events-none absolute z-10 -translate-x-full rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                className="pointer-events-none absolute z-10 -translate-x-full rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-slate-950 shadow-md shadow-emerald-400/30"
               >
                 {Math.max(0, w)} × {Math.max(0, h)}
               </span>

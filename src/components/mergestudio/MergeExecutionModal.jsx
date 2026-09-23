@@ -466,7 +466,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
                 const text = manual ?? (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
                 const changed = manual !== undefined || incoming.has(n) || aiLines.has(n)
                 return (
-                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-lime-400' : 'border-transparent')}>
+                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-violet-400' : 'border-transparent')}>
                     <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{n}</span>
                     <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-foreground/90">{text || ' '}</span>
                   </div>

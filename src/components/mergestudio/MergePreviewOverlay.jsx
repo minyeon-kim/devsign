@@ -151,7 +151,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
               </span>
               {selected ? (
                 <span>
-                  Selected: <span className="text-lime-300">{selected.name}</span> · {selected.type} · {selected.width}×{selected.height}
+                  Selected: <span className="text-emerald-300">{selected.name}</span> · {selected.type} · {selected.width}×{selected.height}
                 </span>
               ) : (
                 <span>Hover or click an element to inspect it</span>

@@ -229,7 +229,7 @@ function ConflictResolutionModal({ item, onClose }) {
             <section
               key={b.id}
               id={`conflict-block-${i}`}
-              className={cn('rounded-2xl transition-shadow', active === i && blocks.length > 1 && 'ring-1 ring-lime-400/60 ring-offset-4 ring-offset-transparent')}
+              className={cn('rounded-2xl transition-shadow', active === i && blocks.length > 1 && 'ring-1 ring-emerald-400/70 ring-offset-4 ring-offset-transparent')}
             >
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
                 {b.kind === 'token' ? <Palette className="size-3.5 text-violet-500" /> : <Code2 className="size-3.5 text-violet-500" />}
@@ -241,7 +241,7 @@ function ConflictResolutionModal({ item, onClose }) {
                     locate(b)
                   }}
                   title="Show on canvas"
-                  className="flex items-center gap-1 rounded-full border border-lime-400/60 px-2 py-0.5 text-[10px] font-medium text-lime-300 transition-colors hover:bg-lime-400/10"
+                  className="flex items-center gap-1 rounded-full border border-emerald-400/60 px-2 py-0.5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/10"
                 >
                   <Crosshair className="size-3" />
                   Locate
