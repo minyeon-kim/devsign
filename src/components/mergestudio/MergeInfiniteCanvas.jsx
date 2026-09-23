@@ -1080,8 +1080,9 @@ function interpretAnnotation(text) {
   return { effect, summary: `Applied ${notes.join(', ')}` }
 }
 
-// One element, two states: a small sparkle circle *below* the clicked
-// element that widens (width + radius transition) into the "AI Edit"
+// One element, two states: a small solid sparkle circle at the clicked
+// element's bottom-right edge (beside it, so it never collides with the
+// size pill that hangs below the element) that widens into the "AI Edit"
 // prompt pill when clicked. Enter submits the prompt as an annotation.
 function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }) {
   const [text, setText] = useState('')
@@ -1110,7 +1111,7 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
         'absolute z-30 flex h-9 items-center overflow-hidden rounded-full border p-[3px] shadow-2xl backdrop-blur-md transition-[width,border-color,background-color] duration-300 ease-out',
         expanded
           ? 'border-indigo-500/50 bg-card/95 shadow-indigo-500/20 focus-within:border-violet-500'
-          : 'border-transparent bg-transparent shadow-indigo-500/40'
+          : 'border-slate-200 bg-white shadow-lg shadow-slate-900/25 hover:bg-slate-100'
       )}
     >
       <button
@@ -1122,14 +1123,9 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
           }
         }}
         title={expanded ? undefined : 'Edit with AI'}
-        // A clean, minimalist white icon — no filled circle behind it —
-        // marking the element as AI-editable; a drop shadow keeps it
-        // legible over whatever's underneath instead of needing a solid
-        // background chip.
-        className={cn(
-          'flex size-[28px] shrink-0 items-center justify-center text-white transition-opacity',
-          !expanded && 'drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] hover:opacity-80'
-        )}
+        // Collapsed: a violet sparkle on the solid white chip (see the form
+        // above), legible on any artboard. Expanded: white on the dark pill.
+        className={cn('flex size-[28px] shrink-0 items-center justify-center transition-colors', expanded ? 'text-white' : 'text-violet-600')}
       >
         <Sparkles className="size-3.5" />
       </button>
@@ -2339,8 +2335,12 @@ function MergeInfiniteCanvas({
 
         {hasSelection && links.anchor && aiStage && (
           <AiEditMorph
-            left={Math.min(Math.max(8, (links.anchor.l + links.anchor.r) / 2 - 18), Math.max(8, links.anchor.w - 336))}
-            top={Math.min(links.anchor.b + 10, Math.max(8, links.anchor.h - 56))}
+            // Just right of the element, bottom-aligned with it — clear of
+            // the size pill below its bottom-right corner. Pulled back
+            // inside the canvas when there's no room (the expanded prompt
+            // is 320px wide).
+            left={Math.max(8, Math.min(links.anchor.r + 8, links.anchor.w - (aiStage === 'prompt' ? 328 : 44)))}
+            top={Math.min(Math.max(8, links.anchor.b - 36), Math.max(8, links.anchor.h - 56))}
             expanded={aiStage === 'prompt'}
             label={selectionLabel}
             onExpand={() => setAiStage('prompt')}
