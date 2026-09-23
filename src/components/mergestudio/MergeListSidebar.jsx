@@ -473,7 +473,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
             }}
             className={cn(
               'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-300',
-              tab === id ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground',
+              tab === id ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
               flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
             )}
           >
@@ -499,7 +499,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               type="button"
               data-guide="add-files"
               onClick={startMergeFromOpenFiles}
-              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-violet-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-400"
+              className="flex w-full items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
             >
               <FilePlus2 className="size-3.5" />
               Add Files to Merge

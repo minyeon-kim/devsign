@@ -1392,16 +1392,16 @@ function BlockDeckPanel({
 
       {!collapsed && (
       <>
-      {/* Segmented pill switcher — each tab reads as its own clearly
-          bounded choice, distinctly colored per role, with generous
-          spacing rather than a cramped row of tiny labels. */}
+      {/* Segmented pill switcher — the active tab is a ghost pill (faint
+          surface, hairline ring, bright text) rather than a solid color
+          block, matching the Merge List's tabs. */}
       <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
         <button
           type="button"
           onClick={() => switchTab('compare')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-            tab === 'compare' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
+            tab === 'compare' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >
           <Columns3 className="size-3.5" />
@@ -1412,7 +1412,7 @@ function BlockDeckPanel({
           onClick={() => switchTab('assemble')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
-            tab === 'assemble' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
+            tab === 'assemble' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >
           <Sparkles className="size-3.5" />
@@ -1423,7 +1423,7 @@ function BlockDeckPanel({
           onClick={() => switchTab('library')}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
-            tab === 'library' ? 'bg-indigo-500 text-white' : 'text-muted-foreground hover:text-foreground'
+            tab === 'library' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >
           <Library className="size-3.5" />
