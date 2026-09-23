@@ -620,7 +620,7 @@ function TextContentSection({ slots, onEditText }) {
   )
 }
 
-function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, textSlots, onEditText, onResolve, onHoverDiff, assembly, onAssemble }) {
+function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = frameWithLayers(page?.frames[0])
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -648,8 +648,6 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
       </p>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
-        {textSlots?.length > 0 && <TextContentSection slots={textSlots} onEditText={onEditText} />}
-
         <DriftHistoryAccordion
           item={item}
           frame={frame}
@@ -824,9 +822,16 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
 
 // Block Assemble: structural builder for the selected element, then the AI
 // style suggestions below it.
-function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onAssembleReset, ...suggestionProps }) {
+// Assemble is where an element is composed: its content copy first (the
+// Text card, bound to copy.json), then its shape / size / style.
+function BlockAssembleTab({ selectedLayer, frameWidth, assembly, onAssemble, onAssembleReset, textSlots, onEditText, ...suggestionProps }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
+      {textSlots?.length > 0 && (
+        <div className="border-b border-white/10 p-4">
+          <TextContentSection slots={textSlots} onEditText={onEditText} />
+        </div>
+      )}
       {selectedLayer ? (
         <AssembleBuilder
           layer={selectedLayer}
@@ -1120,8 +1125,8 @@ function BlockDeckPanel({
         </button>
       </div>
       <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
-        {tab === 'compare' && 'Keep the Original Design, take the Current Implementation, or type your own value.'}
-        {tab === 'assemble' && 'Build a custom shape, size and style from scratch, or accept an AI suggestion.'}
+        {tab === 'compare' && 'Compare visual drifts and style tokens: keep the Original Design, take the Current Implementation, or set your own value.'}
+        {tab === 'assemble' && 'Edit the element’s copy and compose its shape, size and style — or accept an AI suggestion.'}
         {tab === 'library' && 'Pull ready-made components from the Design System.'}
       </p>
 
@@ -1133,8 +1138,6 @@ function BlockDeckPanel({
             resolutions={resolutions}
             manualCode={manualCode}
             onEditCode={onEditCode}
-            textSlots={textSlots}
-            onEditText={onEditText}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
             assembly={assembly}
@@ -1154,6 +1157,8 @@ function BlockDeckPanel({
           assembly={assembly}
           onAssemble={onAssemble}
           onAssembleReset={onAssembleReset}
+          textSlots={textSlots}
+          onEditText={onEditText}
           selectedLayerName={selectedLayerName}
           appliedPresetId={appliedPresetId}
           onApplyPreset={onApplyPreset}
