@@ -61,7 +61,9 @@ function InboxItem({ n, onJump }) {
   }
 
   return (
-    <div className={cn('rounded-2xl border p-3 transition-colors', n.unread ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-white/10 bg-slate-800/70')}>
+    // Solid neutral cards (no tint): unread is just a touch brighter, with a
+    // stronger edge and the violet dot; read items sit back slightly.
+    <div className={cn('rounded-2xl border p-4 transition-colors', n.unread ? 'border-white/15 bg-slate-800' : 'border-white/[0.07] bg-slate-800/60')}>
       <button
         type="button"
         onClick={() => {
@@ -75,36 +77,36 @@ function InboxItem({ n, onJump }) {
           {/* Header row: who (name + role) · when, with the unread dot. */}
           <span className="flex items-center gap-2">
             <Byline person={author} className="flex-1" />
-            <span className="shrink-0 text-[10px] text-muted-foreground">{n.timeLabel}</span>
+            <span className="shrink-0 text-[11px] text-slate-400">{n.timeLabel}</span>
             {n.unread && <span className="size-2 shrink-0 rounded-full bg-violet-500" />}
           </span>
           {/* What they said, on its own line below the byline. */}
-          <span className="mt-1 block text-xs leading-relaxed text-foreground/80">{n.text}</span>
-          <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-            <Icon className={cn('size-3', className)} />
-            <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground/80">{n.target.label}</span>
+          <span className="mt-1.5 block text-[13px] leading-relaxed text-white">{n.text}</span>
+          <span className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+            <Icon className={cn('size-3.5', className)} />
+            <span className="flex h-5 items-center rounded-full bg-white/[0.06] px-2 font-medium text-slate-300 ring-1 ring-inset ring-white/10">{n.target.label}</span>
           </span>
         </span>
       </button>
 
       {isThread && (
-        <div className="mt-2">
+        <div className="mt-3 border-t border-white/[0.06] pt-2.5">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center justify-center gap-1 rounded-full px-2 h-5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex items-center justify-center gap-1 rounded-full px-2 h-6 text-[11px] font-medium text-slate-400 hover:bg-white/5 hover:text-white"
           >
             <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
             {(n.replies?.length ?? 0) === 0 ? 'Reply' : `${n.replies.length} repl${n.replies.length === 1 ? 'y' : 'ies'}`}
           </button>
           {open && (
-            <div className="mt-2 space-y-2 border-l border-white/10 pl-3">
+            <div className="mt-2.5 space-y-3 border-l border-white/10 pl-3.5">
               {(n.replies ?? []).map((r) => (
                 <div key={r.id} className="flex items-start gap-2">
                   <Person id={r.authorId} className="mt-0.5 size-5" />
                   <div className="min-w-0 flex-1">
                     <Byline person={allPeople.find((p) => p.id === r.authorId)} />
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-foreground/80">{r.text}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/95">{r.text}</p>
                   </div>
                 </div>
               ))}
@@ -113,7 +115,7 @@ function InboxItem({ n, onJump }) {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Reply…"
-                  className="min-w-0 flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+                  className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
                 />
                 <button
                   type="submit"
@@ -173,7 +175,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
         {unread > 0 && <span className="ml-auto text-[10px] text-muted-foreground">{unread} unread</span>}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {visible.map((n) => (
           <InboxItem key={n.id} n={n} onJump={onJump} />
         ))}
