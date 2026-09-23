@@ -364,6 +364,7 @@ function mergeEffect(prev = {}, e) {
     ...prev,
     ...(e.className && { className: e.className }),
     ...(e.radius !== undefined && { radius: e.radius }),
+    ...(e.fontWeight !== undefined && { fontWeight: e.fontWeight }),
     dw: (prev.dw ?? 0) + (e.dw ?? 0),
     dh: (prev.dh ?? 0) + (e.dh ?? 0),
   }
@@ -380,10 +381,11 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
   const overrides = {}
-  for (const [key, side] of Object.entries(resolutions)) {
-    const [layerId, diffId] = key.split(':')
-    const diff = layerDiffs[layerId]?.find((d) => d.id === diffId)
-    if (diff) overrides[layerId] = mergeEffect(overrides[layerId], diffEffect(diff, side))
+  // Undecided options default to the Current Implementation's value.
+  for (const [layerId, diffs] of Object.entries(layerDiffs)) {
+    for (const diff of diffs) {
+      overrides[layerId] = mergeEffect(overrides[layerId], diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'))
+    }
   }
   for (const a of annotations) {
     if (!a.effect) continue

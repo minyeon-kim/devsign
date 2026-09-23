@@ -5,7 +5,9 @@ import { codeOverrides } from '@/components/mergestudio/codeSync'
 // Turns the merge item + the user's resolutions + the canvas annotations
 // into the pre-flight summary shown at the top of the modal. `manualCode`
 // holds hand-typed code lines keyed `fileId:line`.
-export function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {}) {
+// `extraFiles` are Merge Studio-only files (copy.json) to list alongside
+// the item's own.
+export function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {}, extraFiles = []) {
   const layers = frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
@@ -51,8 +53,7 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
     })
   }
 
-  const files = openFiles
-    .filter((f) => item.fileIds?.includes(f.id))
+  const files = [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...extraFiles]
     .map((f) => ({
       id: f.id,
       name: f.name,
@@ -118,11 +119,11 @@ export function buildOverrides(item, resolutions = {}, annotations = [], preset 
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
   const overrides = {}
 
-  for (const [key, side] of Object.entries(resolutions)) {
-    const split = key.indexOf(':')
-    const layerId = key.slice(0, split)
-    const diff = layerDiffs[layerId]?.find((d) => d.id === key.slice(split + 1))
-    if (diff) overrides[layerId] = mergeOverride(overrides[layerId], diffEffect(diff, side))
+  // Undecided options default to the Current Implementation's value.
+  for (const [layerId, diffs] of Object.entries(layerDiffs)) {
+    for (const diff of diffs) {
+      overrides[layerId] = mergeOverride(overrides[layerId], diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'))
+    }
   }
   for (const a of annotations) {
     if (!a.effect) continue

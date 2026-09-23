@@ -18,7 +18,7 @@ export function diffEffect(diff, side) {
   else if (/padding|spacing/.test(diff.id)) {
     effect.dw = delta * 2
     effect.dh = delta * 2
-  } else if (/weight/.test(diff.id)) effect.dh = delta / 50
+  } else if (/weight/.test(diff.id)) effect.fontWeight = value
   return effect
 }
 
@@ -101,11 +101,13 @@ export function mergeOverride(a = {}, b = {}) {
     ...(b.className && !b.fillStyle && { fillStyle: undefined }),
     ...(b.fillStyle && { fillStyle: b.fillStyle }),
     ...(b.radius !== undefined && { radius: b.radius }),
+    ...(b.fontWeight !== undefined && { fontWeight: b.fontWeight }),
     ...(b.extraClass && { extraClass: [a.extraClass, b.extraClass].filter(Boolean).join(' ') }),
     ...(b.align && { align: b.align }),
     ...(b.icon && { icon: b.icon }),
     ...(b.asType && { asType: b.asType }),
     ...(b.asLabel && { asLabel: b.asLabel }),
+    ...(b.copy && { copy: { ...a.copy, ...b.copy } }),
     dw: (a.dw ?? 0) + (b.dw ?? 0),
     dh: (a.dh ?? 0) + (b.dh ?? 0),
   }

@@ -10,6 +10,7 @@ import {
   MousePointerClick,
   Pencil,
   Sparkles,
+  Type,
   Wand2,
   X,
 } from 'lucide-react'
@@ -503,7 +504,85 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
   )
 }
 
-function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, assembly, onAssemble }) {
+// One editable text slot of the selected element. While focused it keeps
+// its own draft (streamed live to the canvas + copy.json on every
+// keystroke); otherwise it shows the slot's current value, so edits made on
+// the canvas or in the code window show up here too.
+function TextSlotField({ slot, onEditText }) {
+  const [draft, setDraft] = useState(null)
+  const cancelRef = useRef(false)
+  const multiline = slot.slot === 'body' || slot.slot === 'text'
+  const Field = multiline ? 'textarea' : 'input'
+  function commit() {
+    const value = draft
+    setDraft(null)
+    if (cancelRef.current) {
+      cancelRef.current = false
+      onEditText(slot.layerId, slot.slot, null, { live: true })
+    } else if (value !== null) onEditText(slot.layerId, slot.slot, value)
+  }
+  return (
+    <label className="block space-y-1">
+      <span className="text-[11px] font-medium text-muted-foreground capitalize">{slot.slot === 'label' ? 'Label' : slot.slot}</span>
+      <Field
+        value={draft ?? slot.current}
+        rows={multiline ? 2 : undefined}
+        onFocus={() => setDraft(slot.current)}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\n/g, ' ')
+          setDraft(v)
+          onEditText(slot.layerId, slot.slot, v, { live: true })
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.currentTarget.blur()
+          } else if (e.key === 'Escape') {
+            cancelRef.current = true
+            e.currentTarget.blur()
+          }
+        }}
+        className={cn(
+          'w-full resize-none rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-emerald-400',
+          slot.current !== slot.value ? 'border-violet-500/60' : 'border-white/10'
+        )}
+      />
+    </label>
+  )
+}
+
+// The selected element's text — headings, body copy, labels, placeholders,
+// card titles — edited here, on the canvas, or in copy.json alike.
+function TextContentSection({ slots, onEditText }) {
+  const edited = slots.some((s) => s.current !== s.value)
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
+      <div className="mb-2 flex items-center gap-2">
+        <Type className="size-3.5 text-indigo-400" />
+        <p className="flex-1 text-sm font-semibold text-foreground">Text</p>
+        {edited ? (
+          <button
+            type="button"
+            onClick={() => slots.forEach((s) => s.current !== s.value && onEditText(s.layerId, s.slot, s.value))}
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium text-violet-300 hover:bg-violet-500/15"
+          >
+            Reset
+          </button>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">Synced to copy.json</span>
+        )}
+      </div>
+      <div className="space-y-2.5">
+        {slots.map((slot) => (
+          <TextSlotField key={slot.key} slot={slot} onEditText={onEditText} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, textSlots, onEditText, onResolve, onHoverDiff, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -531,6 +610,8 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
       </p>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+        {textSlots?.length > 0 && <TextContentSection slots={textSlots} onEditText={onEditText} />}
+
         <DriftHistoryAccordion
           item={item}
           frame={frame}
@@ -875,6 +956,8 @@ function BlockDeckPanel({
   appliedPresetId,
   onApplyPreset,
   resolutions,
+  textSlots,
+  onEditText,
   manualCode,
   onEditCode,
   onResolve,
@@ -1012,6 +1095,8 @@ function BlockDeckPanel({
             resolutions={resolutions}
             manualCode={manualCode}
             onEditCode={onEditCode}
+            textSlots={textSlots}
+            onEditText={onEditText}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
             assembly={assembly}

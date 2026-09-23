@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, Maximize, Minus, PanelRight, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Undo2, Maximize, Menu, Minus, PanelRight, Pencil, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
+import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupContent'
+import { COPY_FILE_ID, copyEntries, parseCopyLine } from '@/components/mergestudio/copyFile'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -269,8 +271,10 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, reveal, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
+  // Merge Studio's virtual copy.json carries its own lines.
+  const linesOf = (file) => file.lines ?? getFileLines(file.id)
   const rootRef = useRef(null)
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
 
@@ -286,6 +290,19 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, ite
   }, [highlightFileId, highlightLine])
 
   const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
+
+  // A design-side text edit reveals the copy.json line it's writing to, so
+  // the code updating in step with the canvas is actually visible.
+  useEffect(() => {
+    if (!reveal) return
+    setActiveFileId(reveal.fileId)
+    const raf = requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector(`[data-code-line="${reveal.fileId}:${reveal.line}"]`)
+      const scroller = el?.closest('[data-code-scroll]')
+      if (el && scroller) scroller.scrollTo({ top: Math.max(0, el.offsetTop - scroller.clientHeight / 3), behavior: 'smooth' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [reveal])
 
   // Bring the selected block into view once the right file tab has actually
   // rendered (scrolling from the canvas ran before the tab switched).
@@ -341,7 +358,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, ite
         onEditLine={onEditLine}
         onLiveLine={onLiveLine}
         file={activeFile}
-        lines={getFileLines(activeFile.id)}
+        lines={linesOf(activeFile)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
         highlightLine={highlightFileId === activeFile.id ? highlightLine : undefined}
         highlightEnd={highlightEnd}
@@ -358,12 +375,14 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, ite
   )
 }
 
-// Layer types whose rendered content is their text label.
-const LABEL_TYPES = new Set(['button', 'chip', 'input', 'iconbtn'])
+// Text slots each layer type exposes for editing; the first is what a
+// double-click anywhere else on the layer edits.
+const TEXT_SLOTS = { text: ['text'], button: ['label'], chip: ['label'], input: ['label'], card: ['title', 'body'] }
 
-// Inline text editor laid over a layer while its label is being edited.
-// Enter / blur commits, Escape cancels.
-function InlineLabelEditor({ value, onCommit, onCancel }) {
+// In-place text editor for one slot: inherits the surrounding typography so
+// editing looks like typing into the design itself. Streams every keystroke
+// (`onLive`), commits on Enter / blur, cancels on Escape.
+function SlotEditor({ value, onLive, onCommit, onCancel, className, style }) {
   const [draft, setDraft] = useState(value)
   const doneRef = useRef(false)
   function finish(save) {
@@ -376,17 +395,23 @@ function InlineLabelEditor({ value, onCommit, onCancel }) {
     <input
       autoFocus
       value={draft}
-      onChange={(e) => setDraft(e.target.value)}
+      spellCheck={false}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        onLive(e.target.value)
+      }}
       onFocus={(e) => e.target.select()}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.key === 'Enter') finish(true)
         else if (e.key === 'Escape') finish(false)
       }}
       onBlur={() => finish(true)}
-      className="absolute inset-0 z-10 h-full w-full rounded-md bg-slate-900/95 px-2 text-center text-xs font-medium text-white outline-none ring-2 ring-violet-500"
+      style={{ font: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', ...style }}
+      className={cn('w-full min-w-0 rounded-sm bg-slate-950/80 px-0.5 text-inherit outline-none ring-1 ring-emerald-400', className)}
     />
   )
 }
@@ -397,11 +422,12 @@ function InlineLabelEditor({ value, onCommit, onCancel }) {
 // this is a comparison artboard, not a full editing canvas. Both Original
 // Design and Current Implementation are clickable — clicking either drives
 // Block Deck's Variant Compare tab and, for linked layers, the code sync.
-// With `onEditLabel`, text-bearing layers can be renamed in place by
-// double-clicking. A non-static override renders a small badge so the
-// change reads as a live preview rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditLabel, drift, dimmed }) {
-  const [editing, setEditing] = useState(false)
+// With `onEditText`, every piece of text (copy, labels, placeholders, card
+// titles/bodies) can be edited in place by double-clicking it. A non-static
+// override renders a small badge so the change reads as a live preview
+// rather than a permanent edit.
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed }) {
+  const [editingSlot, setEditingSlot] = useState(null)
   const style = {
     left: layer.x,
     top: layer.y,
@@ -410,8 +436,8 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   }
   const fill = override?.className
   const type = override?.asType ?? layer.type
-  const label = override?.asLabel ?? layer.label
-  const canEdit = Boolean(onEditLabel) && LABEL_TYPES.has(type)
+  const copy = override?.copy
+  const label = copy?.label ?? override?.asLabel ?? layer.label
   const radiusStyle =
     override?.radius !== undefined || override?.fillStyle
       ? { ...(override.radius !== undefined && { borderRadius: override.radius }), ...override.fillStyle }
@@ -421,94 +447,245 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   const extra = override?.extraClass
   const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
+  // Realistic product content for this layer (see mockupContent.js); a
+  // layer swapped to another component type falls back to type defaults.
+  const mock = override?.asType ? {} : (LAYER_MOCKUP[layer.id] ?? {})
+  const slots = override?.asType || (layer.type === 'card' && !mock.title) ? [] : (TEXT_SLOTS[layer.type] ?? [])
+  const canEdit = Boolean(onEditText) && slots.length > 0
+  // A text slot's content: plain text, or the in-place editor while that
+  // slot is being edited.
+  const slotText = (slot, value, props = {}) =>
+    editingSlot === slot ? (
+      <SlotEditor
+        value={value ?? ''}
+        onLive={(v) => onEditText(layer.id, slot, v, { live: true })}
+        onCommit={(v) => {
+          setEditingSlot(null)
+          onEditText(layer.id, slot, v)
+        }}
+        onCancel={() => {
+          setEditingSlot(null)
+          onEditText(layer.id, slot, null, { live: true })
+        }}
+        style={props.style}
+      />
+    ) : (
+      <span data-slot={canEdit ? slot : undefined} className={props.className} style={props.style}>
+        {props.children ?? value}
+      </span>
+    )
+  const h = style.height
+  const trailing = override?.icon === 'right' ? iconEl : mock.trailingArrow ? <ArrowRight className="size-3.5 shrink-0" /> : null
+
   let content = null
-  if (type === 'bar') {
+  if (type === 'bar' && mock.role === 'status') {
     content = (
-      <div
-        style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-between rounded-sm px-2', fill ?? 'bg-muted', extra)}
-      >
-        <span className="text-[9px] text-muted-foreground">9:41</span>
-        <div className="flex items-center gap-0.5">
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-        </div>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-between px-4 text-[10px] font-semibold text-foreground', fill, extra)}>
+        <span>9:41</span>
+        <span className="flex items-center gap-1 text-foreground/90">
+          <Signal className="size-2.5" />
+          <Wifi className="size-2.5" />
+          <BatteryFull className="size-3" />
+        </span>
       </div>
     )
-  } else if (type === 'card') {
+  } else if (type === 'bar') {
     content = (
       <div
         style={contentStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'border border-border bg-muted/40', extra)}
-      />
+        className={cn('flex h-full w-full items-center justify-center gap-4 border-b border-white/5 text-[9px] font-medium text-muted-foreground', fill ?? 'bg-slate-900/80', extra)}
+      >
+        {(mock.links ?? ['Overview', 'Activity', 'Settings']).map((l, i) => (
+          <span key={l} className={i === 0 ? 'text-foreground' : undefined}>{l}</span>
+        ))}
+      </div>
+    )
+  } else if (type === 'card' && mock.role === 'container') {
+    content = (
+      <div style={contentStyle} className={cn('h-full w-full rounded-xl border border-white/10 shadow-sm', fill ?? 'bg-slate-800/70', extra)} />
+    )
+  } else if (type === 'card') {
+    const Icon = { zap: Zap, shield: ShieldCheck, chart: ChartColumn }[mock.icon] ?? Blocks
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full flex-col gap-1 overflow-hidden rounded-xl border border-white/10 p-2.5', fill ?? 'bg-slate-800/70', extra)}
+      >
+        <span className="mb-0.5 flex size-5 items-center justify-center rounded-md bg-indigo-500/20 text-indigo-300">
+          <Icon className="size-3" />
+        </span>
+        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate text-[9px] font-semibold text-foreground', style: { fontSize: 9, fontWeight: 600 } })}
+        {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 text-[7.5px] leading-snug text-muted-foreground', style: { fontSize: 7.5 } })}
+      </div>
     )
   } else if (type === 'avatar') {
-    content = <div style={contentStyle} className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30', extra)} />
-  } else if (type === 'input') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-slate-800', extra)}
+        className={cn(
+          'flex h-full w-full items-center justify-center rounded-full font-semibold text-white ring-2 ring-card',
+          fill ?? cn('bg-gradient-to-br', mock.gradient ?? 'from-slate-400 to-slate-600'),
+          extra
+        )}
       >
-        {label ?? 'Input'}
+        {!mock.stacked && <span style={{ fontSize: Math.max(7, h * 0.36) }}>{mock.initials ?? layer.name.slice(0, 1)}</span>}
+      </div>
+    )
+  } else if (type === 'input') {
+    const Icon = mock.icon === 'search' ? Search : mock.icon === 'mail' ? Mail : null
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center gap-2 rounded-lg border border-white/10 px-3 text-muted-foreground shadow-inner', fill ?? 'bg-slate-950/60', extra)}
+      >
+        {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground/80" />}
+        {slotText('label', copy?.label ?? override?.asLabel ?? mock.placeholder ?? layer.label ?? 'Input', {
+          className: 'truncate',
+          style: { fontSize: Math.min(11, Math.max(8, h * 0.3)) },
+        })}
+      </div>
+    )
+  } else if (type === 'chip' && mock.role === 'logo') {
+    content = (
+      <div style={contentStyle} className={cn('flex h-full w-full items-center gap-1.5 text-[10px] font-bold tracking-tight text-foreground', fill, extra)}>
+        <span className="size-3.5 shrink-0 rounded-[4px] bg-gradient-to-br from-indigo-400 to-violet-600" />
+        {slotText('label', label ?? 'Logo')}
+      </div>
+    )
+  } else if (type === 'chip' && mock.role === 'ghost') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full border border-white/15 font-semibold text-foreground', fill ?? 'bg-white/5', extra)}
+      >
+        {slotText('label', label ?? 'Chip', { style: { fontSize: Math.max(8, h * 0.4) } })}
       </div>
     )
   } else if (type === 'chip') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
       >
         {override?.icon === 'left' && iconEl}
-        {label ?? 'Chip'}
+        {slotText('label', label ?? 'Chip', { style: { fontSize: Math.max(8, h * 0.42) } })}
         {override?.icon === 'right' && iconEl}
       </div>
     )
   } else if (type === 'toggle') {
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500', extra)}>
-        <span className="aspect-square h-full rounded-full bg-white shadow" />
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px] shadow-inner', fill ?? 'bg-indigo-500', extra)}>
+        <span className="aspect-square h-full rounded-full bg-white shadow-md" />
+      </div>
+    )
+  } else if (type === 'image' && mock.role === 'dashboard') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-white/10 p-2', fill ?? 'bg-gradient-to-br from-indigo-500/35 via-slate-800 to-violet-500/30', extra)}
+      >
+        <div>
+          <p className="text-[6.5px] font-medium tracking-wide text-muted-foreground uppercase">Balance</p>
+          <p className="text-[12px] font-bold text-foreground tabular-nums">$12,480.00</p>
+          <p className="flex items-center gap-0.5 text-[6.5px] font-semibold text-emerald-400">
+            <TrendingUp className="size-2" /> +8.2% this month
+          </p>
+        </div>
+        <div className="flex h-7 items-end gap-[3px]">
+          {[40, 65, 50, 80, 60, 95, 75].map((v, i) => (
+            <span key={i} className={cn('flex-1 rounded-sm', i === 5 ? 'bg-violet-400' : 'bg-indigo-400/50')} style={{ height: `${v}%` }} />
+          ))}
+        </div>
       </div>
     )
   } else if (type === 'image') {
     content = (
       <div
         style={contentStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70', extra)}
-      />
+        className={cn('relative h-full w-full overflow-hidden rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/40 to-violet-500/25', extra)}
+      >
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5 L100 40 L0 40 Z" fill="rgba(167,139,250,0.25)" />
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5" fill="none" stroke="#a78bfa" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span className="absolute top-1.5 left-2 text-[8px] font-semibold text-foreground">$84.2k</span>
+        <span className="absolute top-1.5 right-2 text-[7px] font-semibold text-emerald-400">+12%</span>
+      </div>
     )
   } else if (type === 'iconbtn') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted', extra)}
+        className={cn('flex h-full w-full items-center justify-center rounded-full border border-white/10 text-foreground', fill ?? 'bg-slate-800', extra)}
       >
-        {label ?? '•'}
+        {mock.icon === 'menu' ? <Menu className="size-3.5" /> : <span className="text-sm">{label ?? '•'}</span>}
       </div>
     )
   } else if (type === 'tabs') {
+    const icons = { home: House, search: Search, user: User }
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card', extra)}>
-        {['Home', 'Search', 'Profile'].map((t, i) => (
-          <span key={t} className={i === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-            {t}
-          </span>
-        ))}
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-white/10 px-2 text-[8px]', fill ?? 'bg-slate-900', extra)}>
+        {(mock.tabs ?? [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']]).map(([icon, t], i) => {
+          const Icon = icons[icon] ?? House
+          return (
+            <span key={t} className={cn('flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-300' : 'text-muted-foreground')}>
+              <Icon className="size-3" />
+              {t}
+            </span>
+          )
+        })}
+      </div>
+    )
+  } else if (type === 'button' && mock.role === 'secondary') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 font-semibold text-foreground', fill ?? 'bg-white/5', extra)}
+      >
+        {override?.icon === 'left' && iconEl}
+        {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
+        {trailing}
       </div>
     )
   } else if (type === 'button') {
     content = (
       <div
         style={contentStyle}
-        className={cn(
-          'flex h-full w-full items-center justify-center gap-1.5 rounded-md text-xs font-medium text-primary-foreground',
-          fill ?? 'bg-primary', extra
-        )}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg font-semibold text-white shadow-sm', fill ?? 'bg-primary', extra)}
       >
         {override?.icon === 'left' && iconEl}
-        {label ?? 'Button'}
-        {override?.icon === 'right' && iconEl}
+        {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
+        {trailing}
+      </div>
+    )
+  } else if (type === 'text') {
+    // Real copy, sized from the layer's (possibly drifted) height so a
+    // font-size or weight change reads as an actual typographic change.
+    const tone = { strong: 'text-foreground', muted: 'text-muted-foreground', subtle: 'text-muted-foreground/70' }[mock.tone ?? 'muted']
+    const text = copy?.text ?? mock.text ?? layer.name
+    content = (
+      <div
+        style={{ ...contentStyle, fontSize: Math.max(6, h * 0.85), lineHeight: `${h}px`, fontWeight: override?.fontWeight ?? mock.weight ?? 400 }}
+        // Strong copy (headings) may outgrow its box when a drift enlarges
+        // it — let it spill rather than truncate so the change reads fully.
+        className={cn(
+          'h-full w-full whitespace-nowrap',
+          mock.tone === 'strong' ? 'overflow-visible tracking-tight' : 'truncate',
+          tone,
+          fill && cn(fill, 'rounded-sm px-1 text-white'),
+          extra
+        )}
+      >
+        {slotText('text', text, {
+          children:
+            mock.strongPrefix && text.includes(mock.strongPrefix) ? (
+              <>
+                {text.slice(0, text.indexOf(mock.strongPrefix))}
+                <span className="font-semibold text-foreground">{mock.strongPrefix}</span>
+                {text.slice(text.indexOf(mock.strongPrefix) + mock.strongPrefix.length)}
+              </>
+            ) : undefined,
+        })}
       </div>
     )
   } else {
@@ -528,7 +705,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         canEdit
           ? (e) => {
               e.stopPropagation()
-              setEditing(true)
+              setEditingSlot(e.target.closest('[data-slot]')?.dataset.slot ?? slots[0])
             }
           : undefined
       }
@@ -549,17 +726,6 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       style={style}
     >
       {content}
-      {editing && (
-        <InlineLabelEditor
-          value={label ?? ''}
-          onCommit={(text) => {
-            setEditing(false)
-            const next = text.trim()
-            if (next && next !== label) onEditLabel(layer.id, next)
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      )}
       {selected && override && !override.static && (
         <span
           title="Live preview"
@@ -577,7 +743,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabel, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -592,7 +758,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
       onClickCapture={onClickCapture}
     >
       <p
-        title={editable ? 'Double-click text on this artboard to edit it inline' : undefined}
+        title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
           'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
           editable ? 'bg-violet-500/20 text-violet-200' : 'bg-card/90 text-muted-foreground'
@@ -618,9 +784,10 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
         >
           {frame.layers.map((layer) => {
             const o = overrides?.[layer.id]
+            const primary = layer.type === 'button' && !isSecondaryLayer(layer.id)
             const override = o
-              ? { ...o, className: o.className ?? (layer.type === 'button' ? accentClass : undefined) }
-              : layer.type === 'button' && accentClass
+              ? { ...o, className: o.className ?? (primary ? accentClass : undefined) }
+              : primary && accentClass
                 ? { className: accentClass, static: true }
                 : undefined
             return (
@@ -635,7 +802,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabe
                 dimmed={Boolean(selectedLayerId)}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
-                onEditLabel={onEditLabel}
+                onEditText={onEditText}
               />
             )
           })}
@@ -1111,7 +1278,7 @@ function MergeInfiniteCanvas({
   files,
   syncSelection,
   appliedPreset,
-  variantPreview,
+  variantPreviews,
   reserve,
   listCollapsed,
   focus,
@@ -1122,9 +1289,11 @@ function MergeInfiniteCanvas({
   extraLayers,
   manualCode,
   syncedCode,
+  codeWindowCode,
   onEditCode,
   onLiveEditCode,
-  onAssemble,
+  onEditText,
+  codeReveal,
   onUndoChange,
   onAnnotationsChange,
   stage = 'compare',
@@ -1455,7 +1624,7 @@ function MergeInfiniteCanvas({
       }
     }
     if (a.fileId && a.line) {
-      const original = getFileLines(a.fileId)[a.line - 1] ?? ''
+      const original = (files.find((f) => f.id === a.fileId)?.lines ?? getFileLines(a.fileId))[a.line - 1] ?? ''
       const incoming = codeMergeVariants[item.id]?.[a.fileId]?.find((d) => d.line === a.line)?.incoming ?? original
       codeEdits[`${a.fileId}:${a.line}`] = `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${a.summary}`
     }
@@ -1792,17 +1961,21 @@ function MergeInfiniteCanvas({
   for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, syncedCode ?? manualCode, getFileLines))) {
     overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
-  const selId = variantPreview?.layerId ?? syncSelection?.layerId
-  if (selId && (variantPreview || appliedPreset)) {
-    const base = overrides[selId]
-    overrides[selId] = {
+  // Variant drifts: every drifted layer renders its Current Implementation
+  // value (or the chosen / hovered one) underneath the edits above.
+  for (const [layerId, e] of Object.entries(variantPreviews ?? {})) {
+    const base = overrides[layerId]
+    overrides[layerId] = {
       ...base,
-      radius: variantPreview?.radius ?? base?.radius,
-      dw: (base?.dw ?? 0) + (variantPreview?.dw ?? 0),
-      dh: (base?.dh ?? 0) + (variantPreview?.dh ?? 0),
-      className: appliedPreset?.previewClass ?? variantPreview?.className ?? base?.className,
+      radius: e.radius ?? base?.radius,
+      fontWeight: e.fontWeight ?? base?.fontWeight,
+      dw: (base?.dw ?? 0) + (e.dw ?? 0),
+      dh: (base?.dh ?? 0) + (e.dh ?? 0),
+      className: base?.className ?? e.className,
     }
   }
+  const selId = syncSelection?.layerId
+  if (selId && appliedPreset) overrides[selId] = { ...overrides[selId], className: appliedPreset.previewClass }
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
@@ -1893,7 +2066,8 @@ function MergeInfiniteCanvas({
                   highlightEnd={syncSelection?.endLine}
                   onSelectLine={pickLine}
                   incomingEdits={codeEdits}
-                  manualCode={manualCode}
+                  manualCode={codeWindowCode ?? manualCode}
+                  reveal={codeReveal}
                   onEditLine={onEditCode}
                   onLiveLine={onLiveEditCode}
                   highlightRef={highlightRef}
@@ -1927,7 +2101,7 @@ function MergeInfiniteCanvas({
                     frame={frame}
                     label="Current Implementation"
                     editable
-                    onEditLabel={(layerId, text) => onAssemble?.(layerId, { asLabel: text })}
+                    onEditText={onEditText}
                     accentClass={OPTION_B_ACCENT}
                     x={layout.b.x}
                     y={layout.b.y}
@@ -2220,7 +2394,7 @@ function MergeInfiniteCanvas({
             appliedPreset && syncSelection?.layerId
               ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
               : null
-          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {})
+          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {}, files.filter((f) => f.id === COPY_FILE_ID))
           const entries = [
             ...summary.design.map((d) => {
               let kind = 'variant'
@@ -2235,6 +2409,10 @@ function MergeInfiniteCanvas({
               const fileId = key.slice(0, split)
               const line = Number(key.slice(split + 1))
               const name = files.find((f) => f.id === fileId)?.name ?? fileId
+              // copy.json lines read as the text they changed, not raw JSON.
+              const entry = fileId === COPY_FILE_ID ? copyEntries(frame)[line - 2] : null
+              const parsed = entry ? parseCopyLine(text) : null
+              if (entry && parsed) return { id: `code-${key}`, kind: 'code', layerId: entry.layerId, fileId, line, title: `${entry.name} · text`, detail: `“${parsed.value}”` }
               return { id: `code-${key}`, kind: 'code', fileId, line, title: `${name} · line ${line}`, detail: `Edited: ${text.trim() || '(empty line)'}` }
             }),
             ...annotations.map((a) => ({

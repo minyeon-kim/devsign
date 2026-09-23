@@ -1,5 +1,7 @@
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { ASSEMBLY_FILLS, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
+import { COPY_FILE_ID, copyEdits } from '@/components/mergestudio/copyFile'
 
 // Code -> canvas live sync. Hand-edited code lines (keyed `fileId:line`) are
 // read for the handful of properties a design layer can show — fill color,
@@ -87,7 +89,13 @@ export function codeOverrides(itemId, frame, code, getFileLines) {
   const result = {}
   if (!frame || !code) return result
   const spans = designMergeVariants[itemId]?.layerCodeMap ?? {}
+  // copy.json lines carry design text: each changed string becomes that
+  // layer's text slot.
+  for (const [layerId, copy] of Object.entries(copyEdits(frame, code))) {
+    result[layerId] = mergeOverride(result[layerId], { copy })
+  }
   const entries = Object.entries(code)
+    .filter(([key]) => !key.startsWith(`${COPY_FILE_ID}:`))
     .map(([key, text]) => {
       const split = key.lastIndexOf(':')
       return { fileId: key.slice(0, split), line: Number(key.slice(split + 1)), text }
@@ -100,7 +108,7 @@ export function codeOverrides(itemId, frame, code, getFileLines) {
     const o = lineOverride(base, text)
     if (!o) continue
     const targets = PRIMARY_TOKEN.test(text)
-      ? frame.layers.filter((l) => PRIMARY_TYPES.has(l.type)).map((l) => l.id)
+      ? frame.layers.filter((l) => PRIMARY_TYPES.has(l.type) && !isSecondaryLayer(l.id)).map((l) => l.id)
       : Object.keys(spans).filter((id) => {
           const s = spans[id]
           return s.fileId === fileId && line >= s.line && line <= s.line + (s.span ?? 1) - 1

@@ -11,6 +11,7 @@ import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/Me
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
+import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine } from '@/components/mergestudio/copyFile'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -23,25 +24,28 @@ import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 // .layerCodeMap`) plus the currently live-previewed AI Block Deck
 // suggestion, and hands both to its children, resetting them whenever a
 // different merge item or layer is selected.
-// The hovered option (if it belongs to this layer) beats the committed
-// choice for the same diff, so hovering previews without committing.
-function buildVariantPreview(itemId, layerId, resolutions, hoverDiff) {
-  const diffs = designMergeVariants[itemId]?.layerDiffs?.[layerId]
-  if (!layerId || !diffs) return null
-  const merged = {}
-  let active = false
-  for (const diff of diffs) {
-    const hovered = hoverDiff?.layerId === layerId && hoverDiff.diffId === diff.id ? hoverDiff.side : null
-    const side = hovered ?? resolutions[`${layerId}:${diff.id}`]
-    if (!side) continue
-    active = true
-    const e = diffEffect(diff, side)
-    if (e.className) merged.className = e.className
-    if (e.radius !== undefined) merged.radius = e.radius
-    merged.dw = (merged.dw ?? 0) + (e.dw ?? 0)
-    merged.dh = (merged.dh ?? 0) + (e.dh ?? 0)
+// The Current Implementation artboard's per-layer look for every drifted
+// layer: each property shows the Current Implementation's own value until a
+// choice is made, then the chosen value (Original / Current / custom). The
+// hovered option beats the committed choice for the same diff, so hovering
+// previews without committing.
+function buildVariantPreviews(itemId, resolutions, hoverDiff) {
+  const layerDiffs = designMergeVariants[itemId]?.layerDiffs ?? {}
+  const previews = {}
+  for (const [layerId, diffs] of Object.entries(layerDiffs)) {
+    const merged = {}
+    for (const diff of diffs) {
+      const hovered = hoverDiff?.layerId === layerId && hoverDiff.diffId === diff.id ? hoverDiff.side : null
+      const e = diffEffect(diff, hovered ?? resolutions[`${layerId}:${diff.id}`] ?? 'B')
+      if (e.className) merged.className = e.className
+      if (e.radius !== undefined) merged.radius = e.radius
+      if (e.fontWeight !== undefined) merged.fontWeight = e.fontWeight
+      merged.dw = (merged.dw ?? 0) + (e.dw ?? 0)
+      merged.dh = (merged.dh ?? 0) + (e.dh ?? 0)
+    }
+    previews[layerId] = merged
   }
-  return active ? { layerId, ...merged } : null
+  return previews
 }
 
 // A smart default target so the Block Deck never opens on "Nothing selected":
@@ -128,6 +132,7 @@ function MergeStudioWorkspace({ item }) {
     setHoverDiff(null)
     setManualCode({})
     setLiveCode(null)
+    setCodeReveal(null)
     // Uniform initialization: every item starts with a default selected element.
     const defLayer = defaultLayerFor(item)
     if (defLayer) {
@@ -146,9 +151,21 @@ function MergeStudioWorkspace({ item }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
 
-  function selectLayer(layerId, { openDeck = true } = {}) {
+  // A layer's code block: its `layerCodeMap` span, else (for text-bearing
+  // layers with no other code link) its lines in Merge Studio's copy.json.
+  function copyTargetFor(layerId) {
+    const lines = copyEntries(frame0)
+      .map((e, i) => (e.layerId === layerId ? i + 2 : null))
+      .filter(Boolean)
+    return lines.length ? { fileId: COPY_FILE_ID, line: lines[0], span: lines.length } : null
+  }
+  function codeTargetFor(layerId) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
-    const target = map[layerId]
+    return map[layerId] ?? copyTargetFor(layerId)
+  }
+
+  function selectLayer(layerId, { openDeck = true } = {}) {
+    const target = codeTargetFor(layerId)
     setSyncSelection({
       layerId,
       fileId: target?.fileId,
@@ -157,7 +174,8 @@ function MergeStudioWorkspace({ item }) {
     })
     setAppliedPreset(null)
     if (openDeck) setDeckOpen(true)
-    if (target?.fileId) setActiveFileId(target.fileId)
+    // copy.json is Merge Studio-only; never hand it to the main workspace.
+    if (target?.fileId && target.fileId !== COPY_FILE_ID) setActiveFileId(target.fileId)
   }
 
   function selectFrame() {
@@ -170,13 +188,18 @@ function MergeStudioWorkspace({ item }) {
     const map = designMergeVariants[item.id]?.layerCodeMap ?? {}
     // Any line inside a layer's code block resolves to that layer and
     // selects the whole block.
-    const layerId = Object.keys(map).find(
-      (id) => map[id].fileId === fileId && line >= map[id].line && line <= map[id].line + (map[id].span ?? 1) - 1
-    )
-    const t = layerId ? map[layerId] : null
+    const layerId =
+      fileId === COPY_FILE_ID
+        ? copyEntries(frame0)[line - 2]?.layerId
+        : Object.keys(map).find(
+            (id) => map[id].fileId === fileId && line >= map[id].line && line <= map[id].line + (map[id].span ?? 1) - 1
+          )
+    // Clicking in copy.json keeps the selection there (so the line can be
+    // edited in place) even when the layer also has a component code link.
+    const t = layerId ? (fileId === COPY_FILE_ID ? copyTargetFor(layerId) : codeTargetFor(layerId)) : null
     setSyncSelection(
       t
-        ? { layerId, fileId, line: t.line, endLine: t.line + (t.span ?? 1) - 1 }
+        ? { layerId, fileId: t.fileId, line: t.line, endLine: t.line + (t.span ?? 1) - 1 }
         : { layerId: undefined, fileId, line, endLine: line }
     )
     setAppliedPreset(null)
@@ -217,8 +240,29 @@ function MergeStudioWorkspace({ item }) {
     })
   }
 
-  function liveEditCodeLine(fileId, line, text) {
-    setLiveCode(text === null ? null : { key: `${fileId}:${line}`, text })
+  // `source` says where the typing is happening: the code window renders
+  // live text only from design-side edits, so a line being typed in the
+  // code window itself never re-renders out from under its own input.
+  function liveEditCodeLine(fileId, line, text, source = 'code') {
+    setLiveCode(text === null ? null : { key: `${fileId}:${line}`, text, source })
+  }
+
+  // Design-side text edits (on the canvas or in the Block Deck) are written
+  // to the layer's copy.json line — live while typing, as a manual edit on
+  // commit (dropped again when typed back to the original) — so the code
+  // window, Changes log, Preview and merge all pick them up. `value: null`
+  // cancels an in-progress live edit.
+  const [codeReveal, setCodeReveal] = useState(null)
+  function editText(layerId, slot, value, { live = false } = {}) {
+    const loc = copyLineFor(frame0, layerId, slot)
+    if (!loc) return
+    const text = value === null ? null : formatCopyLine(loc.entry.key, value, loc.last)
+    setCodeReveal((prev) => (prev?.line === loc.line ? prev : { fileId: COPY_FILE_ID, line: loc.line }))
+    if (live) liveEditCodeLine(COPY_FILE_ID, loc.line, text, 'design')
+    else {
+      setLiveCode(null)
+      editCodeLine(COPY_FILE_ID, loc.line, value === loc.entry.value ? null : text)
+    }
   }
 
   // Changes log → Undo (annotation undo is handled inside the canvas).
@@ -336,9 +380,10 @@ function MergeStudioWorkspace({ item }) {
     if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'In Progress' })
   }
 
-  const files = item ? openFiles.filter((f) => item.fileIds?.includes(f.id)) : []
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const frame0 = frameWithLayers(baseFrame, addedLayers)
+  const copy = copyFile(frame0)
+  const files = item ? [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
@@ -371,7 +416,14 @@ function MergeStudioWorkspace({ item }) {
   // Committed manual code plus the in-progress keystrokes: what the canvas,
   // Preview and wizard render the Current Implementation from.
   const syncedCode = deferredLive ? { ...manualCode, [deferredLive.key]: deferredLive.text } : manualCode
-  const variantPreview = item?.hasDesign ? buildVariantPreview(item.id, deckLayerId, resolutions, hoverDiff) : null
+  const codeWindowCode = deferredLive?.source === 'design' ? syncedCode : manualCode
+  // The selected layer's text slots with their current (edited) values, for
+  // the Block Deck's Text section.
+  const layerCopy = deckLayerId ? copyEdits(frame0, syncedCode)[deckLayerId] : null
+  const textSlots = copyEntries(frame0)
+    .filter((e) => e.layerId === deckLayerId)
+    .map((e) => ({ ...e, current: layerCopy?.[e.slot] ?? e.value }))
+  const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-background">
@@ -390,9 +442,11 @@ function MergeStudioWorkspace({ item }) {
           extraLayers={addedLayers}
           manualCode={manualCode}
           syncedCode={syncedCode}
+          codeWindowCode={codeWindowCode}
           onEditCode={editCodeLine}
           onLiveEditCode={liveEditCodeLine}
-          onAssemble={assemble}
+          onEditText={editText}
+          codeReveal={codeReveal}
           onUndoChange={undoChange}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
@@ -400,7 +454,7 @@ function MergeStudioWorkspace({ item }) {
           files={files}
           syncSelection={syncSelection}
           appliedPreset={appliedPreset}
-          variantPreview={variantPreview}
+          variantPreviews={variantPreviews}
           onSelectLayer={selectLayer}
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
@@ -422,6 +476,8 @@ function MergeStudioWorkspace({ item }) {
 
       {item && (
         <BlockDeckPanel
+          textSlots={textSlots}
+          onEditText={editText}
           open={deckOpen}
           onFloat={() => setDeckFloating(true)}
           item={item}
