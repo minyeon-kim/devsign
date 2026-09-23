@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
-import { FLOATING_PANEL, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
 
 const conflictBadgeClass = {
   None: 'bg-emerald-500/15 text-emerald-500',
@@ -69,7 +69,7 @@ function FilterChip({ label, options, value, onChange }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'flex h-8 w-full min-w-0 items-center justify-between gap-0.5 rounded-full border pr-1.5 pl-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
+          'flex h-8 w-full min-w-0 items-center justify-between gap-1 rounded-full border px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
           active
             ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-200'
             : 'border-white/10 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -403,7 +403,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         <button
           type="button"
           onClick={() => setConfirmExitOpen(true)}
-          className={cn('flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+          className={cn('flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
         >
           <ArrowLeft className="size-3.5" />
           Workspace
@@ -415,14 +415,14 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
           className={cn(
-            'flex h-9 items-center gap-2 rounded-full pr-2 pl-3 text-xs font-medium transition-colors',
+            'flex h-9 items-center justify-center gap-2 rounded-full px-2.5 text-xs font-medium transition-colors',
             FLOATING_PILL,
             mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100 hover:bg-indigo-500/25'
           )}
         >
           {mergeListCollapsed ? <PanelLeftOpen className="size-3.5 text-indigo-400" /> : <PanelLeftClose className="size-3.5 text-indigo-300" />}
           Merge List
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 text-[10px] font-semibold text-white tabular-nums">
+          <span className={cn(COUNT_BADGE, 'bg-indigo-500 text-white')}>
             {mergeItems.length}
           </span>
         </button>
@@ -450,7 +450,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         <GitMerge className="size-4 shrink-0 text-indigo-500" />
         <span className="flex flex-1 items-center gap-1.5 text-sm font-semibold text-foreground">
           Merge List
-          <span className="rounded-full bg-indigo-500/15 px-1.5 text-[10px] font-semibold text-indigo-300 tabular-nums">{visible.length}</span>
+          <span className={cn(COUNT_BADGE, 'bg-indigo-500/15 text-indigo-300')}>{visible.length}</span>
         </span>
         <button
           type="button"
@@ -472,7 +472,8 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               onExplore?.()
             }}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-300',
+              SEGMENT_TAB,
+              'transition-[background-color,color,box-shadow] duration-300',
               tab === id ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
               flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
             )}
@@ -499,7 +500,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               type="button"
               data-guide="add-files"
               onClick={startMergeFromOpenFiles}
-              className="flex w-full items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-4 text-xs font-semibold text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
             >
               <FilePlus2 className="size-3.5" />
               Add Files to Merge
@@ -526,7 +527,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex w-fit items-center justify-center gap-1 rounded-full px-2 h-5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <RotateCcw className="size-3" />
                   Reset filters
@@ -598,7 +599,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
             <button
               type="button"
               onClick={() => setConfirmExitOpen(false)}
-              className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex items-center justify-center rounded-full px-4 h-8 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               Cancel
             </button>
@@ -608,7 +609,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 setConfirmExitOpen(false)
                 exitMergeStudio()
               }}
-              className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 h-8 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110"
             >
               Back to Workspace
             </button>

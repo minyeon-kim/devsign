@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -297,7 +298,7 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
           onClick={() => markResolved(d)}
           disabled={resolved}
           className={cn(
-            'mt-3 flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition-colors',
+            'mt-3 flex w-full items-center justify-center gap-1.5 rounded-full px-3 h-9 text-sm font-semibold transition-colors',
             resolved ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-white hover:bg-slate-600'
           )}
         >
@@ -567,7 +568,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
                       onClick={() => toggleScope(person.id, scope)}
                       title={`${on ? 'Remove' : 'Add'} ${meta.label.toLowerCase()} review`}
                       className={cn(
-                        'flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors',
+                        'flex items-center justify-center gap-1 rounded-full px-2.5 h-5 text-[10px] font-semibold transition-colors',
                         on ? meta.className : cn('bg-transparent opacity-70 hover:opacity-100', meta.idle)
                       )}
                     >
@@ -842,7 +843,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                       type="button"
                       onClick={generateWithAi}
                       disabled={generating}
-                      className="flex items-center gap-1 rounded-full border border-indigo-500/50 px-2.5 py-1 text-[10px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-indigo-500/15 disabled:opacity-60"
+                      className="flex items-center justify-center gap-1 rounded-full border border-indigo-500/50 px-2.5 h-6 text-[10px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-indigo-500/15 disabled:opacity-60"
                     >
                       {generating ? <Loader2 className="size-3 animate-spin text-violet-500" /> : <Sparkles className="size-3 text-violet-500" />}
                       {generating ? 'Generating…' : 'Generate with AI'}
@@ -936,7 +937,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-5 h-10 text-sm font-semibold text-white"
             >
               Done
             </button>
@@ -951,7 +952,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-full px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex items-center justify-center rounded-full px-4 h-10 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Cancel
                 </button>
@@ -960,7 +961,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   type="button"
                   disabled={busy}
                   onClick={() => setStep((s) => s - 1)}
-                  className="flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                  className="flex items-center justify-center gap-1 rounded-full px-4 h-10 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                 >
                   <ChevronLeft className="size-4" />
                   Back
@@ -971,12 +972,12 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   type="button"
                   disabled={!canNext}
                   onClick={() => setStep((s) => s + 1)}
-                  className="flex items-center gap-1.5 rounded-full bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+                  className="flex items-center justify-center gap-1.5 rounded-full bg-slate-700 px-4 h-10 text-sm font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
                   Next: {WIZARD_STEPS[step + 1].label}
                   {/* Running total of what will actually be merged, so it's
                       visible at every step, not just buried in a summary. */}
-                  <span className="rounded-full bg-white/20 px-1.5 text-xs">
+                  <span className={cn(COUNT_BADGE, 'bg-white/20')}>
                     {summary.design.length + summary.applied.length}
                   </span>
                   <ArrowRight className="size-4" />
@@ -989,7 +990,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                     setProgress(0)
                     setRun('progress')
                   }}
-                  className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                  className="flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 h-10 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
                   <Rocket className="size-4" />
                   Merge &amp; Deploy

@@ -41,7 +41,7 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { FLOATING_PANEL } from '@/components/mergestudio/floatingStyles'
+import { FLOATING_PANEL, SEGMENT_TAB } from '@/components/mergestudio/floatingStyles'
 
 // One variant property as a single compact row: `Label  [Original → Current]`
 // where clicking either side chooses it (hover previews it on the
@@ -78,7 +78,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
       onPointerEnter={() => onHover(diff.id, side)}
       onPointerLeave={() => onHover(null)}
       className={cn(
-        'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
+        'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1.5 h-6 text-[11px] font-medium whitespace-nowrap transition-colors',
         resolution === side ? 'bg-indigo-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
       )}
     >
@@ -232,7 +232,7 @@ function Seg({ options, value, onChange }) {
           type="button"
           onClick={() => onChange(id)}
           className={cn(
-            'rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
+            'inline-flex items-center justify-center rounded-full px-3.5 h-7 text-xs font-medium transition-colors',
             value === id
               ? 'bg-slate-700 text-white'
               : 'bg-slate-800/70 text-muted-foreground hover:text-foreground'
@@ -652,7 +652,7 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
           type="button"
           onClick={onReset}
           disabled={!assembly}
-          className="rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+          className="inline-flex items-center justify-center rounded-full px-2.5 h-6 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
         >
           Reset
         </button>
@@ -663,7 +663,7 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
             key={t.id}
             type="button"
             onClick={() => onChange(t.patch)}
-            className="shrink-0 rounded-full border border-indigo-500/40 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-indigo-500/15"
+            className="inline-flex items-center justify-center shrink-0 rounded-full border border-indigo-500/40 px-2.5 h-6 text-[11px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-indigo-500/15"
           >
             {t.label}
           </button>
@@ -691,7 +691,7 @@ function ManualFallback({ layer, assembly, onChange }) {
         <button
           type="button"
           onClick={() => onChange(rec.patch)}
-          className="mt-2.5 flex items-center gap-1.5 rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3.5 py-1.5 text-xs font-semibold transition-colors"
+          className="mt-2.5 flex items-center justify-center gap-1.5 rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-3.5 h-7 text-xs font-semibold transition-colors"
         >
           <Wand2 className="size-3.5" />
           Apply recommendation
@@ -895,7 +895,7 @@ function TextContentSection({ slots, onEditText }) {
           <button
             type="button"
             onClick={() => slots.forEach((s) => s.current !== s.value && onEditText(s.layerId, s.slot, s.value))}
-            className="rounded-full px-2 py-0.5 text-[11px] font-medium text-violet-300 hover:bg-violet-500/15"
+            className="inline-flex items-center justify-center rounded-full px-2 h-5 text-[11px] font-medium text-violet-300 hover:bg-violet-500/15"
           >
             Reset
           </button>
@@ -1102,7 +1102,7 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
           type="button"
           onClick={generateAlternatives}
           disabled={!hasMore}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/40 px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-primary/40 px-3 h-10 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Wand2 className="size-4" />
           {hasMore ? 'Generate alternatives' : 'No more alternatives'}
@@ -1400,7 +1400,8 @@ function BlockDeckPanel({
           type="button"
           onClick={() => switchTab('compare')}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+            SEGMENT_TAB,
+            'transition-colors',
             tab === 'compare' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >
@@ -1411,7 +1412,8 @@ function BlockDeckPanel({
           type="button"
           onClick={() => switchTab('assemble')}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
+            SEGMENT_TAB,
+            'transition-colors',
             tab === 'assemble' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >
@@ -1422,7 +1424,8 @@ function BlockDeckPanel({
           type="button"
           onClick={() => switchTab('library')}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
+            SEGMENT_TAB,
+            'transition-colors',
             tab === 'library' ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
           )}
         >

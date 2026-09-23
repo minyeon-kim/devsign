@@ -11,7 +11,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
-import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
@@ -338,7 +338,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, rev
               type="button"
               onClick={() => setActiveFileId(file.id)}
               className={cn(
-                'flex shrink-0 items-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
+                'flex shrink-0 items-center justify-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
                 active ? 'bg-slate-900 text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -1241,7 +1241,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
         <button
           type="submit"
           disabled={!dirty}
-          className="shrink-0 rounded-full bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+          className="inline-flex items-center justify-center shrink-0 rounded-full bg-slate-700 px-2.5 h-6 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
         >
           Save
         </button>
@@ -1320,7 +1320,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
                   type="button"
                   onClick={() => onUndo(e)}
                   title="Undo this change"
-                  className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                  className="flex shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 h-6 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Undo2 className="size-3.5" />
                   Undo
@@ -1348,11 +1348,11 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
         // `h-11` explicitly, matching the adjacent zoom pill's own height —
         // relying on padding alone to happen to match was fragile (it
         // didn't: this button used to render visibly shorter).
-        className={cn('ml-auto flex h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+        className={cn('ml-auto flex h-11 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
       >
         <ListChecks className="size-4 text-indigo-500" />
         Changes log
-        <span className="rounded-full bg-indigo-500/20 px-2 text-xs text-indigo-300">{total}</span>
+        <span className={cn(COUNT_BADGE, 'bg-indigo-500/20 text-indigo-300')}>{total}</span>
         <ChevronDown strokeWidth={2.5} className={cn('size-3 text-muted-foreground/60 transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
@@ -1388,7 +1388,7 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
-                'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                'flex items-center justify-center gap-1 rounded-full px-2.5 h-6 text-[11px] font-semibold transition-colors',
                 active && 'bg-slate-700 text-white',
                 done && 'text-emerald-400',
                 !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
@@ -2418,7 +2418,8 @@ function MergeInfiniteCanvas({
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
+              // 30px: same height as the notifications/avatars pill beside it.
+              'flex h-[30px] items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors',
               FLOATING_PILL,
               mergePreviewOpen ? 'border-primary bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
             )}
@@ -2431,12 +2432,12 @@ function MergeInfiniteCanvas({
               type="button"
               onClick={applyAll}
               disabled={pendingCount === 0}
-              className="flex items-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-[30px] items-center justify-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles className="size-3.5 text-violet-500" />
               Apply with AI
               {pendingCount > 0 && (
-                <span className="rounded-full bg-indigo-500/20 px-1.5 text-[10px] text-indigo-300">
+                <span className={cn(COUNT_BADGE, 'bg-indigo-500/20 text-indigo-300')}>
                   {pendingCount}
                 </span>
               )}
@@ -2496,7 +2497,7 @@ function MergeInfiniteCanvas({
               disabled={merged}
               onClick={() => onMerge(annotations)}
               className={cn(
-                'flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
                   : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110 disabled:opacity-50'
@@ -2505,7 +2506,7 @@ function MergeInfiniteCanvas({
               {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
               {merged ? 'Merged' : 'Merge Changes'}
               {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
-                <span className="rounded-full bg-white/20 px-1.5 text-xs">
+                <span className={cn(COUNT_BADGE, 'bg-white/20')}>
                   {resolutionCount + annotations.filter((a) => a.status === 'done').length}
                 </span>
               )}

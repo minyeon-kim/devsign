@@ -96,7 +96,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                       type="button"
                       onClick={() => setPreviewId(previewing ? null : event.id)}
                       className={cn(
-                        'flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors',
+                        'flex items-center justify-center gap-1 rounded-full border px-2.5 h-6 text-[10px] font-medium transition-colors',
                         previewing ? 'border-indigo-500/60 bg-indigo-500/15 text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       )}
                     >
@@ -114,7 +114,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                               onRollback(event)
                               setConfirmId(null)
                             }}
-                            className="flex items-center gap-1 rounded-full bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600"
+                            className="flex items-center justify-center gap-1 rounded-full bg-slate-700 px-2.5 h-6 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600"
                           >
                             <RotateCcw className="size-3" />
                             Confirm rollback
@@ -122,7 +122,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                           <button
                             type="button"
                             onClick={() => setConfirmId(null)}
-                            className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+                            className="inline-flex items-center justify-center rounded-full px-2 h-6 text-[10px] text-muted-foreground hover:text-foreground"
                           >
                             Cancel
                           </button>
@@ -131,7 +131,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                         <button
                           type="button"
                           onClick={() => setConfirmId(event.id)}
-                          className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          className="flex items-center justify-center gap-1 rounded-full border px-2.5 h-6 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                           <RotateCcw className="size-3" />
                           Rollback

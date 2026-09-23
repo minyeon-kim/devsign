@@ -92,7 +92,7 @@ function InboxItem({ n, onJump }) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex items-center justify-center gap-1 rounded-full px-2 h-5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
             {(n.replies?.length ?? 0) === 0 ? 'Reply' : `${n.replies.length} repl${n.replies.length === 1 ? 'y' : 'ies'}`}
@@ -149,7 +149,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
           type="button"
           onClick={markAllNotificationsRead}
           disabled={unread === 0}
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+          className="flex items-center justify-center gap-1 rounded-full px-2 h-6 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
         >
           <CheckCheck className="size-3" />
           Mark all read
@@ -163,7 +163,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+              'inline-flex items-center justify-center rounded-full px-2.5 h-6 text-[11px] font-medium transition-colors',
               tab === id ? 'bg-slate-700 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >

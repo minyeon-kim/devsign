@@ -23,7 +23,7 @@ function Pill({ active, onClick, children, className }) {
       type="button"
       onClick={onClick}
       className={cn(
-        'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+        'flex items-center justify-center gap-1.5 rounded-full px-3 h-7 text-xs font-medium transition-colors',
         active ? 'bg-slate-700 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         className
       )}

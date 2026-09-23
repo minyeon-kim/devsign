@@ -161,7 +161,7 @@ function MergeGuide({ containerRef, step, onSkip }) {
           <span className="text-[11px] font-medium text-slate-500 tabular-nums">
             Step {step} of {GUIDE_STEPS.length}
           </span>
-          <button type="button" onClick={onSkip} className="rounded-full px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-800">
+          <button type="button" onClick={onSkip} className="inline-flex items-center justify-center rounded-full px-2 h-5 text-[11px] font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-800">
             Skip guide
           </button>
         </div>
