@@ -786,12 +786,9 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
             >
               <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
-              {/* Source badge on the left (was the right, past the label);
-                  the checkmark now sits on the right instead (was here on
-                  the left, right after the chevron). */}
-              <span className="shrink-0 rounded-full bg-slate-700 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {d.kind === 'design' ? 'Design' : 'Code'}
-              </span>
+              {/* No source pill — the label itself (`Nav Bar · 1 change` vs
+                  `File.tsx · line 12`) already says what kind of drift it
+                  is. The checkmark sits on the far right. */}
               <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
               <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', SEVERITY_TAG_CLASS[severityOf(d)])}>
                 {severityOf(d) === 'high' ? 'High' : severityOf(d) === 'medium' ? 'Medium' : 'Low'}
