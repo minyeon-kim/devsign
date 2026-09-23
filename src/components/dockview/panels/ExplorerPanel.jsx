@@ -1,11 +1,65 @@
 import { useState } from 'react'
-import { Folder } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, Folder } from 'lucide-react'
 import { cn } from 'cn'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { getFileIconMeta } from '@/lib/fileIcons'
+import { projects } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
+// Slack-style quick switcher — jump to another project's workspace
+// without going back through the /projects grid. Projects other than
+// the current one navigate straight to their workspace, which remounts
+// WorkspaceProvider (see WorkspacePage's `key={projectId}`) and swaps in
+// that project's file set immediately.
+function ProjectSwitcher({ currentProjectId }) {
+  const navigate = useNavigate()
+  const currentProject = projects.find((p) => p.id === currentProjectId)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex w-full items-center justify-between gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted">
+        <span className="truncate">{currentProject?.name ?? 'Select project'}</span>
+        <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Projects</DropdownMenuLabel>
+          {projects.map((project) => {
+            const isActive = project.id === currentProjectId
+            return (
+              <DropdownMenuItem
+                key={project.id}
+                onClick={() => navigate(`/projects/${project.id}/workspace`)}
+              >
+                <span
+                  className={cn(
+                    'mr-2 size-1.5 shrink-0 rounded-full',
+                    isActive ? 'bg-primary' : 'border border-muted-foreground/50'
+                  )}
+                />
+                <span className={cn('truncate', isActive && 'font-medium text-foreground')}>
+                  {project.name}
+                </span>
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function ExplorerPanel() {
-  const { workspaceFiles, activeFileId, setActiveFileId, getFileName, renameFile } = useWorkspace()
+  const { projectId, workspaceFiles, activeFileId, setActiveFileId, getFileName, renameFile } =
+    useWorkspace()
   const [renamingId, setRenamingId] = useState(null)
   const [draftName, setDraftName] = useState('')
 
@@ -25,6 +79,11 @@ function ExplorerPanel() {
         <Folder className="size-3.5 text-muted-foreground" />
         Explorer
       </div>
+      {projects.length > 1 && (
+        <div className="shrink-0 border-b px-2 py-2">
+          <ProjectSwitcher currentProjectId={projectId} />
+        </div>
+      )}
       <div className="flex-1 overflow-auto p-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5 px-2 py-1 text-foreground/70">
           <Folder className="size-3.5" />

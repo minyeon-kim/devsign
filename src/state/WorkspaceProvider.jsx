@@ -337,6 +337,7 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [])
 
   const value = {
+    projectId,
     workspaceFiles: files,
     activeFileId,
     setActiveFileId,
