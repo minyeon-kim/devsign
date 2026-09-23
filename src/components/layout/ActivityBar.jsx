@@ -1,16 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  AppWindow,
-  Bell,
-  FileCode,
-  Folder,
-  Layers,
-  Monitor,
-  Settings,
-  SquareTerminal,
-  TriangleAlert,
-} from 'lucide-react'
+import { Bell, Folder, Layers, Settings } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -28,12 +18,16 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const panelIcons = {
   Folder,
   Layers,
-  AppWindow,
-  FileCode,
-  Monitor,
-  SquareTerminal,
-  TriangleAlert,
 }
+
+// The bar only surfaces quick-access toggles for Explorer/Layers — the
+// other panels (canvas/editor/preview/terminal/conflict) are still fully
+// functional and still open by default (see DockLayout.buildInitialLayout)
+// and are still reachable via their own dockview tabs; they just don't
+// get a dedicated icon here. `panelDefinitions` itself is left untouched
+// since TopBar's Merge Studio button and the Preview toggle both look up
+// entries from it directly.
+const ACTIVITY_BAR_PANEL_IDS = ['explorer', 'layers']
 
 function openOrFocusPanel(dockApi, def) {
   if (!dockApi) return
@@ -130,23 +124,25 @@ function ActivityBar({ dockApi }) {
         </>
       )}
       <div className="flex flex-col items-center gap-1">
-        {panelDefinitions.map((def) => {
-          const Icon = panelIcons[def.iconName]
-          return (
-            <Tooltip key={def.id}>
-              <TooltipTrigger
-                onClick={() => openOrFocusPanel(dockApi, def)}
-                className={cn(
-                  'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                  activePanelId === def.id && 'bg-primary/10 text-primary'
-                )}
-              >
-                <Icon className="size-[18px]" />
-              </TooltipTrigger>
-              <TooltipContent side="right">{def.title}</TooltipContent>
-            </Tooltip>
-          )
-        })}
+        {panelDefinitions
+          .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
+          .map((def) => {
+            const Icon = panelIcons[def.iconName]
+            return (
+              <Tooltip key={def.id}>
+                <TooltipTrigger
+                  onClick={() => openOrFocusPanel(dockApi, def)}
+                  className={cn(
+                    'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    activePanelId === def.id && 'bg-primary/10 text-primary'
+                  )}
+                >
+                  <Icon className="size-[18px]" />
+                </TooltipTrigger>
+                <TooltipContent side="right">{def.title}</TooltipContent>
+              </Tooltip>
+            )
+          })}
       </div>
       <div className="mt-auto flex flex-col items-center gap-1">
         <Tooltip>
