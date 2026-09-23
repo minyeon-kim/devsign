@@ -348,6 +348,9 @@ function MergeStudioWorkspace({ item }) {
   }
 
   // Placement mode for a Library component: { def, mode: 'click' | 'drag' }.
+  // Selection guides (boxes, link lines, size readouts, drift / hover
+  // outlines, resize handles) — toggled from the canvas tools' eye button.
+  const [guidesVisible, setGuidesVisible] = useState(true)
   const [placing, setPlacing] = useState(null)
   const placingRef = useRef(null)
   placingRef.current = placing
@@ -553,6 +556,8 @@ function MergeStudioWorkspace({ item }) {
         <MergeInfiniteCanvas
           onDriftNav={() => advanceGuide(3)}
           reserve={reserve}
+          guidesVisible={guidesVisible}
+          onToggleGuides={() => setGuidesVisible((v) => !v)}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
@@ -670,7 +675,7 @@ function MergeStudioWorkspace({ item }) {
 
       {/* The selected canvas element: bounding box handles to move / resize
           (plus delete for Library-added layers, reset for edited ones). */}
-      {selLayer && frame0 && !placing && !mergeModal && !mergePreviewOpen && (
+      {selLayer && frame0 && guidesVisible && !placing && !mergeModal && !mergePreviewOpen && (
         <LayerTransformHandles
           layerId={selLayer.id}
           frame={frame0}

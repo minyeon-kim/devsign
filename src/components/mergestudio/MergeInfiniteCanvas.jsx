@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, Hand, History, House, ListChecks, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, GitMerge, Hand, History, House, ListChecks, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -1428,6 +1428,8 @@ function MergeInfiniteCanvas({
   variantPreviews,
   reserve,
   onDriftNav,
+  guidesVisible = true,
+  onToggleGuides,
   listCollapsed,
   focus,
   resolutionCount,
@@ -2236,6 +2238,26 @@ function MergeInfiniteCanvas({
               <Icon className="size-4" />
             </button>
           ))}
+          {/* Show / hide every selection box, link line, size readout and
+              drift / hover outline on the canvas. */}
+          {onToggleGuides && (
+            <>
+              <span className="my-0.5 h-px w-5 bg-white/10" />
+              <button
+                type="button"
+                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
+                aria-label="Selection guides"
+                aria-pressed={guidesVisible}
+                onClick={onToggleGuides}
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-full transition-colors',
+                  guidesVisible ? 'text-muted-foreground hover:bg-white/5 hover:text-foreground' : 'bg-white/10 text-foreground ring-1 ring-inset ring-white/15'
+                )}
+              >
+                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              </button>
+            </>
+          )}
         </div>
         <div
           ref={viewportRef}
@@ -2302,8 +2324,8 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('a')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
-                    driftLayerIds={driftLayerIds}
-                    hoverLayerId={hover?.layerId}
+                    driftLayerIds={guidesVisible ? driftLayerIds : undefined}
+                    hoverLayerId={guidesVisible ? hover?.layerId : undefined}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
                     onSelectLayer={pickLayer}
@@ -2325,8 +2347,8 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('b')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
-                    driftLayerIds={driftLayerIds}
-                    hoverLayerId={hover?.layerId}
+                    driftLayerIds={guidesVisible ? driftLayerIds : undefined}
+                    hoverLayerId={guidesVisible ? hover?.layerId : undefined}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
                     overrides={overrides}
@@ -2339,6 +2361,9 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
+        {/* Selection / link highlight boxes and connector lines — hidden
+            with the eye toggle on the canvas tools. */}
+        {guidesVisible && (
         <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
           <defs>
             <linearGradient id="accent-link" x1="0" y1="0" x2="1" y2="0">
@@ -2370,6 +2395,7 @@ function MergeInfiniteCanvas({
             </g>
           ))}
         </svg>
+        )}
 
         {/* Dimension overlay: a width × height readout for each "strong"
             (actually-selected, not just linked) box — divided back out of
@@ -2384,7 +2410,7 @@ function MergeInfiniteCanvas({
             spilling sideways into whatever neighboring element happens to
             sit directly to the right (a Subscribe button next to a form
             field, say), which centering *or* a rightward offset both did. */}
-        {links.boxes
+        {guidesVisible && links.boxes
           // Design boxes only — code-line selections (`code-*`) already
           // read clearly from their own row highlight, and a size readout
           // on them was just clutter.
