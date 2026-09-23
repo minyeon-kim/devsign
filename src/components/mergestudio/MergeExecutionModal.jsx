@@ -198,12 +198,9 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
     focusDrift(drifts[next])
   }
 
-  // Land on the first drift as soon as there's something to review, so the
-  // canvas is already pointing at it before the user touches < >.
-  useEffect(() => {
-    if (drifts.length) focusDrift(drifts[0])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id])
+  // No auto-focus on mount: opening the wizard (or reaching this step) must
+  // leave the canvas exactly where the user put it. The canvas only moves
+  // when they explicitly step through drifts with < >.
 
   function markResolved(d) {
     if (d.kind === 'design') {
