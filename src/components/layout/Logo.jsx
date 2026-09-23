@@ -1,11 +1,13 @@
+import { cn } from 'cn'
 import { brand } from '@/data/mockData'
 
 // Custom symbol mark — a rounded square carrying a stylized "D" plus a
 // small accent dot, in the muted indigo/slate-purple gradient defined in
-// mockData.brand so the color stays data-driven.
-function Logo() {
+// mockData.brand so the color stays data-driven. `iconOnly` drops the
+// wordmark for narrow icon-rail contexts (e.g. the dashboard sidebar).
+function Logo({ iconOnly = false }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 pr-1 select-none">
+    <div className={cn('flex shrink-0 items-center gap-2 select-none', !iconOnly && 'pr-1')}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <defs>
           <linearGradient id="devsign-logo-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
@@ -22,9 +24,11 @@ function Logo() {
         />
         <circle cx="16.25" cy="7.75" r="1.35" fill="white" fillOpacity="0.5" />
       </svg>
-      <span className="text-[13px] font-semibold tracking-tight text-foreground/90">
-        {brand.name}
-      </span>
+      {!iconOnly && (
+        <span className="text-[13px] font-semibold tracking-tight text-foreground/90">
+          {brand.name}
+        </span>
+      )}
     </div>
   )
 }

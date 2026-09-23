@@ -1,6 +1,8 @@
-import { PanelRight, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, PanelRight, Search, Sparkles } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import Logo from '@/components/layout/Logo'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import UserPresence from '@/components/layout/UserPresence'
@@ -27,11 +29,24 @@ function openMergeStudio(dockApi) {
   })
 }
 
-function TopBar({ previewOpen, onTogglePreview, dockApi }) {
+function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
   return (
     <header className="relative flex h-11 shrink-0 items-center gap-3 border-b bg-card px-3">
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex min-w-0 shrink-0 items-center gap-2">
         <Logo />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Back to projects"
+          nativeButton={false}
+          render={<Link to="/projects" />}
+        >
+          <ArrowLeft className="size-3.5" />
+        </Button>
+        <Separator orientation="vertical" className="h-4" />
+        <span className="truncate text-[13px] font-medium text-foreground/80">
+          {project?.name}
+        </span>
       </div>
 
       <div className="absolute top-1/2 left-1/2 w-72 max-w-[32vw] -translate-x-1/2 -translate-y-1/2">
