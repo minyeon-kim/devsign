@@ -39,6 +39,20 @@ export function addDockPanel(api, def, options) {
   })
 }
 
+// Explorer/Layers render inside a *headerless* dockview group — a plain
+// collapsible section (icon-only ActivityBar toggle, single in-panel
+// header), not a tabbed/closable dockview pane the way Editor/Terminal/
+// Preview are. Without `hideHeader: true` every group gets its own
+// `--dv-tabs-and-actions-container` tab strip, which duplicated the
+// section's own header (e.g. a "Layers" tab row sitting on top of the
+// panel's own Layers/Assets tabs). Used by both the initial layout below
+// and ActivityBar's reopen-after-close logic, so the two never drift.
+export function addSidebarPanel(api, def, groupOptions) {
+  const group = api.addGroup({ hideHeader: true, ...sidebarWidthConstraints, ...groupOptions })
+  addDockPanel(api, def, { position: { referenceGroup: group } })
+  return group
+}
+
 export function buildInitialLayout(api) {
   addDockPanel(api, panelById.terminal, { initialHeight: 220 })
 
@@ -55,16 +69,16 @@ export function buildInitialLayout(api) {
   // modest fixed starting height instead of splitting 50/50 with Layers —
   // a handful of files doesn't need half the sidebar, and Layers' deeper
   // tree benefits far more from the extra room.
-  addDockPanel(api, panelById.explorer, {
-    position: { direction: 'left', referencePanel: panelById.editor.id },
+  const explorerGroup = addSidebarPanel(api, panelById.explorer, {
+    direction: 'left',
+    referencePanel: panelById.editor.id,
     initialWidth: 260,
     initialHeight: 220,
-    ...sidebarWidthConstraints,
   })
 
-  addDockPanel(api, panelById.layers, {
-    position: { direction: 'below', referencePanel: panelById.explorer.id },
-    ...sidebarWidthConstraints,
+  addSidebarPanel(api, panelById.layers, {
+    direction: 'below',
+    referenceGroup: explorerGroup,
   })
 
   addDockPanel(api, panelById.preview, {

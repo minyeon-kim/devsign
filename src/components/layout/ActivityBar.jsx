@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { panelDefinitions, projects, sidebarWidthConstraints } from '@/data/mockData'
+import { addSidebarPanel } from '@/components/dockview/DockLayout'
+import { panelDefinitions, projects } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const panelIcons = {
@@ -30,12 +31,11 @@ const panelIcons = {
 const ACTIVITY_BAR_PANEL_IDS = ['explorer', 'layers']
 
 // A real open/close toggle (not just focus-or-open): clicking an already
-// -open panel's icon closes it entirely; clicking again re-adds it. Explorer
-// and Layers are independent stacked dockview groups (not tabs sharing one
-// group — both are visible side by side), so re-adding one tries to restore
-// it right back next to whichever sidebar sibling is still open, matching
-// DockLayout.buildInitialLayout's original stack instead of dropping it
-// into an unrelated group.
+// -open panel's icon closes it entirely; clicking again re-adds it. Closing
+// a solo-panel group removes the group itself, so reopening always mints a
+// fresh headerless group (via addSidebarPanel, the same helper the initial
+// layout uses) positioned back next to whichever sidebar sibling is still
+// open — or a brand new sidebar split if both were closed.
 function toggleSidebarPanel(dockApi, def) {
   if (!dockApi) return
 
@@ -49,24 +49,17 @@ function toggleSidebarPanel(dockApi, def) {
   const layersPanel = dockApi.getPanel('layers')
   const editorPanel = dockApi.getPanel('editor') ?? dockApi.panels[0]
 
-  let position
   if (def.id === 'explorer' && layersPanel) {
-    position = { direction: 'above', referencePanel: layersPanel.id }
+    addSidebarPanel(dockApi, def, { direction: 'above', referenceGroup: layersPanel.api.group })
   } else if (def.id === 'layers' && explorerPanel) {
-    position = { direction: 'below', referencePanel: explorerPanel.id }
+    addSidebarPanel(dockApi, def, { direction: 'below', referenceGroup: explorerPanel.api.group })
   } else if (editorPanel) {
-    position = { direction: 'left', referencePanel: editorPanel.id }
+    addSidebarPanel(dockApi, def, {
+      direction: 'left',
+      referencePanel: editorPanel.id,
+      ...(def.id === 'explorer' ? { initialWidth: 260, initialHeight: 220 } : {}),
+    })
   }
-
-  dockApi.addPanel({
-    id: def.id,
-    component: def.component,
-    title: def.title,
-    params: { iconName: def.iconName },
-    position,
-    ...(def.id === 'explorer' ? { initialWidth: 260, initialHeight: 220 } : {}),
-    ...sidebarWidthConstraints,
-  })
 }
 
 function initialsFor(name) {
