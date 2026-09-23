@@ -30,6 +30,21 @@ function Person({ id, className }) {
   )
 }
 
+// Name, then a quiet role pill (from the shared people data), on their own
+// line — so the author reads independently of what they wrote below.
+function Byline({ person, className }) {
+  return (
+    <span className={cn('flex min-w-0 items-center gap-1.5', className)}>
+      <span className="truncate text-[13px] font-semibold text-foreground">{person?.name}</span>
+      {person?.role && (
+        <span className="shrink-0 rounded-full bg-white/5 px-1.5 py-px text-[10px] font-medium text-muted-foreground ring-1 ring-inset ring-white/10">
+          {person.role}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function InboxItem({ n, onJump }) {
   const { markNotificationRead, replyToNotification } = useWorkspace()
   const [open, setOpen] = useState(false)
@@ -53,21 +68,23 @@ function InboxItem({ n, onJump }) {
           markNotificationRead(n.id)
           onJump(n)
         }}
-        className="flex w-full items-start gap-2.5 text-left"
+        className="flex w-full items-start gap-3 text-left"
       >
-        <Person id={n.authorId} />
+        <Person id={n.authorId} className="mt-0.5" />
         <span className="min-w-0 flex-1">
-          <span className="block text-xs leading-snug text-foreground">
-            <span className="font-semibold">{author?.name}</span>{' '}
-            <span className="text-foreground/85">{n.text}</span>
+          {/* Header row: who (name + role) · when, with the unread dot. */}
+          <span className="flex items-center gap-2">
+            <Byline person={author} className="flex-1" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">{n.timeLabel}</span>
+            {n.unread && <span className="size-2 shrink-0 rounded-full bg-violet-500" />}
           </span>
-          <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+          {/* What they said, on its own line below the byline. */}
+          <span className="mt-1 block text-xs leading-relaxed text-foreground/80">{n.text}</span>
+          <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
             <Icon className={cn('size-3', className)} />
-            {n.timeLabel}
             <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground/80">{n.target.label}</span>
           </span>
         </span>
-        {n.unread && <span className="mt-1 size-2 shrink-0 rounded-full bg-violet-500" />}
       </button>
 
       {isThread && (
@@ -83,11 +100,12 @@ function InboxItem({ n, onJump }) {
           {open && (
             <div className="mt-2 space-y-2 border-l border-white/10 pl-3">
               {(n.replies ?? []).map((r) => (
-                <div key={r.id} className="flex items-start gap-2 text-[11px]">
-                  <Person id={r.authorId} className="size-5" />
-                  <p className="text-foreground/90">
-                    <span className="font-semibold">{allPeople.find((p) => p.id === r.authorId)?.name}</span> {r.text}
-                  </p>
+                <div key={r.id} className="flex items-start gap-2">
+                  <Person id={r.authorId} className="mt-0.5 size-5" />
+                  <div className="min-w-0 flex-1">
+                    <Byline person={allPeople.find((p) => p.id === r.authorId)} />
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-foreground/80">{r.text}</p>
+                  </div>
                 </div>
               ))}
               <form onSubmit={send} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-800/70 py-1 pr-1 pl-3 focus-within:border-violet-500">
