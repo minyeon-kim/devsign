@@ -436,12 +436,14 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       aria-hidden={mergeListCollapsed}
       inert={mergeListCollapsed}
       className={cn(
-        'absolute top-[60px] bottom-4 left-4 z-30 flex w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        // Sized to its content, capped 16px above the bottom edge (then the
+        // body scrolls) — not stretched to the bottom regardless of content.
+        'absolute top-[60px] left-4 z-30 flex max-h-[calc(100%-76px)] w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
         FLOATING_PANEL,
         mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       )}
     >
-      <div className="flex h-full min-w-72 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-72 flex-1 flex-col">
       {/* Same chrome as the Block Deck: 48px title bar, 48px tab bar, then a
           one-line context strip — the two panels read as a matched pair. */}
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 px-4">
@@ -491,6 +493,17 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       <div className="min-h-0 flex-1 overflow-auto">
         {tab === 'merges' ? (
           <div className="space-y-4 p-4">
+            {/* Primary action first (Figma / Linear pattern): always in reach
+                at the top of the tab, above search and filters. */}
+            <button
+              type="button"
+              data-guide="add-files"
+              onClick={startMergeFromOpenFiles}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-violet-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-400"
+            >
+              <FilePlus2 className="size-3.5" />
+              Add Files to Merge
+            </button>
             <div className="space-y-2 rounded-xl border border-white/10 bg-slate-800/70 p-2.5 shadow-sm">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -560,19 +573,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         )}
       </div>
 
-      {tab === 'merges' && (
-      <div className="shrink-0 border-t border-white/10 p-4">
-        <button
-          type="button"
-          data-guide="add-files"
-          onClick={startMergeFromOpenFiles}
-          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-violet-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-400"
-        >
-          <FilePlus2 className="size-3.5" />
-          Add Files to Merge
-        </button>
-      </div>
-      )}
       </div>
     </div>
       {conflictItem && (
