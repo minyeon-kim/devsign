@@ -496,13 +496,12 @@ function MergeStudioWorkspace({ item }) {
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
-  // The wizard docks right too (same side as the Block Deck), and reserves
-  // space there whenever it's open (any step, not just Check) so a target
-  // being reviewed is never hidden behind the floating wizard window.
-  // Dragging the wizard elsewhere is the user taking over positioning
-  // themselves; the reserve still holds so it doesn't snap back to
-  // fighting for that space if they drag it back. Takes whichever of the
-  // two reserves more, since both dock to the same edge.
+  // The wizard docks right too (same side as the Block Deck) but floats as
+  // an independent inspector: it doesn't refit the canvas or move the
+  // canvas tools (those follow `deckReserve` only). Its width only counts
+  // when centering a jump-to target, so a target being reviewed is never
+  // hidden behind it. Takes whichever of the two reserves more, since both
+  // dock to the same edge.
   const wizardReserve = mergeModal ? WIZARD_RESERVE : 0
   const reserve = Math.max(deckReserve, wizardReserve)
   // Committed manual code plus the in-progress keystrokes: what the canvas,
@@ -556,6 +555,7 @@ function MergeStudioWorkspace({ item }) {
         <MergeInfiniteCanvas
           onDriftNav={() => advanceGuide(3)}
           reserve={reserve}
+          layoutReserve={deckReserve}
           guidesVisible={guidesVisible}
           onToggleGuides={() => setGuidesVisible((v) => !v)}
           listCollapsed={mergeListCollapsed}

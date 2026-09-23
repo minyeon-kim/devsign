@@ -1427,6 +1427,11 @@ function MergeInfiniteCanvas({
   appliedPreset,
   variantPreviews,
   reserve,
+  // Right-edge space the *layout* keeps clear: the docked Block Deck only.
+  // The merge wizard floats over the canvas as an independent inspector, so
+  // opening it never refits the canvas or moves the tools; `reserve` (deck
+  // or wizard) is only used to center jump-to targets in the visible area.
+  layoutReserve = reserve,
   onDriftNav,
   guidesVisible = true,
   onToggleGuides,
@@ -1541,8 +1546,8 @@ function MergeInfiniteCanvas({
     const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
     const worldH = Math.max(...cards.map((k) => box(k).b)) - minY
     const startX = contentStartX()
-    // Clear of the right-edge floating toolbar (comments/history/share).
-    const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - reserve
+    // Clear of the right-edge canvas tools and the docked Block Deck.
+    const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - layoutReserve
     const availW = visRight - startX
     const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
@@ -1593,9 +1598,9 @@ function MergeInfiniteCanvas({
     const width = c.getBoundingClientRect().width
     const bw = layout.b.w ?? ARTBOARD_PREVIEW_WIDTH
     const right = viewRef.current.x + (layout.b.x + bw) * (viewRef.current.zoom / 100)
-    if (frame && right > width - reserve - 24) setView(fitView(layout))
+    if (frame && right > width - layoutReserve - 24) setView(fitView(layout))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reserve])
+  }, [layoutReserve])
 
   // Inbox jump: after the target is selected (and the code tab has had a
   // moment to switch), ease the view so the element sits at the center of
@@ -2212,10 +2217,13 @@ function MergeInfiniteCanvas({
           />
         )}
         {/* Canvas tools — the only thing on the right-hand edge: select and
-            pan. Sits clear of the docked Block Deck via `reserve`. */}
+            pan. Sits clear of the docked Block Deck (`layoutReserve`) and is
+            never pushed by the merge wizard; like the other compare-stage
+            controls, it steps away while the wizard is open. */}
+        {stage === 'compare' && (
         <div
           className={cn('absolute top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full p-1', FLOATING_PILL)}
-          style={{ right: 12 + reserve }}
+          style={{ right: 12 + layoutReserve }}
         >
           {[
             ['select', MousePointer2, 'Select', 'V'],
@@ -2259,6 +2267,7 @@ function MergeInfiniteCanvas({
             </>
           )}
         </div>
+        )}
         <div
           ref={viewportRef}
           onPointerDown={startPan}
