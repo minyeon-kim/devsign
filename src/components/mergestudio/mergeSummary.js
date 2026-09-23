@@ -1,9 +1,10 @@
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
-import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
 // Turns the merge item + the user's resolutions + the canvas annotations
-// into the pre-flight summary shown at the top of the modal.
-export function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = []) {
+// into the pre-flight summary shown at the top of the modal. `manualCode`
+// holds hand-typed code lines keyed `fileId:line`.
+export function buildSummary(item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {}) {
   const layers = frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers)?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
@@ -16,19 +17,22 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
     return {
       key,
       text: `${layer?.name ?? layerId} · ${diff?.label ?? 'Design decision'}`,
-      choice: diff
-        ? side === 'A' ? `Kept ${diff.optionA}` : `Accepted ${diff.optionB}`
-        : side === 'A' ? 'Kept current design' : 'Accepted incoming design',
+      choice: isCustomResolution(side)
+        ? `Edited to ${side.custom}`
+        : diff
+          ? side === 'A' ? `Kept ${diff.optionA}` : `Accepted ${diff.optionB}`
+          : side === 'A' ? 'Kept original design' : 'Accepted current implementation',
     }
   })
   for (const l of extraLayers) {
-    design.push({ key: `added-${l.id}`, text: `Design System · ${l.name}`, choice: 'Added to Option A and Option B' })
+    design.push({ key: `added-${l.id}`, text: `Design System · ${l.name}`, choice: 'Added to Original Design and Current Implementation' })
   }
   for (const [layerId, a] of Object.entries(assemblies)) {
     const layer = layers.find((l) => l.id === layerId)
     if (!layer || extraLayers.some((l) => l.id === layerId)) continue
     const parts = [
       a.asName && `replaced with ${a.asName}`,
+      a.asLabel && !a.asName && `text “${a.asLabel}”`,
       a.shape && `${a.shape} shape`,
       (a.width || a.height) && `${Math.round(a.width ?? layer.width)}×${Math.round(a.height ?? layer.height)}`,
       a.fill && `${ASSEMBLY_FILLS.find((f) => f.id === a.fill)?.label ?? a.fill} fill`,
@@ -53,6 +57,7 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
       name: f.name,
       changed: codeMergeVariants[item.id]?.[f.id]?.length ?? 0,
       aiLines: annotations.filter((a) => a.status === 'done' && a.fileId === f.id).length,
+      manualLines: Object.keys(manualCode).filter((k) => k.startsWith(`${f.id}:`)).length,
     }))
 
   return {
@@ -63,7 +68,7 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
   }
 }
 
-// Every drift between Option A/Current and Option B/Incoming for an item —
+// Every drift between Original Design and Current Implementation for an item —
 // design property diffs (grouped per layer) plus raw code-line diffs, with
 // a code line dropped when it's already covered by a design layer's own
 // code-span (see `layerCodeMap`): that's the *same* underlying change, so

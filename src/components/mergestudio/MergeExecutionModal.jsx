@@ -27,7 +27,7 @@ import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFil
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { assemblyToOverride, diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride } from '@/components/mergestudio/mergeEffects'
 
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
@@ -87,6 +87,7 @@ function SummarySection({ summary }) {
                   <span className="block text-muted-foreground">
                     {f.changed} incoming line{f.changed === 1 ? '' : 's'}
                     {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
+                    {f.manualLines > 0 && ` · ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`}
                   </span>
                 </li>
               ))}
@@ -261,15 +262,20 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
                     onClick={() => onResolveDiff(d.layerId, diff.id, 'A')}
                     className={cn('shrink-0 truncate rounded-full px-2.5 py-1 text-xs', side === 'A' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
                   >
-                    A · {diff.optionA}
+                    Original · {diff.optionA}
                   </button>
                   <button
                     type="button"
                     onClick={() => onResolveDiff(d.layerId, diff.id, 'B')}
                     className={cn('shrink-0 truncate rounded-full px-2.5 py-1 text-xs', side === 'B' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
                   >
-                    B · {diff.optionB}
+                    Current · {diff.optionB}
                   </button>
+                  {isCustomResolution(side) && (
+                    <span className="shrink-0 truncate rounded-full bg-violet-500/20 px-2.5 py-1 text-xs text-violet-200">
+                      Edited · {side.custom}
+                    </span>
+                  )}
                 </div>
               )
             })}
@@ -306,7 +312,7 @@ function CheckStep({ item, resolutions, summary, onResolveDiff }) {
       : { id: 'conflict', ok: false, title: `${item.conflictLevel} conflict flagged`, note: 'Resolve it from the Merge List badge, or continue and review the result in Preview.' },
     totalDiffs === 0 || resolved >= totalDiffs
       ? { id: 'options', ok: true, title: totalDiffs === 0 ? 'No variant differences' : 'All variant options decided', note: `${resolved} of ${totalDiffs} design decisions made.` }
-      : { id: 'options', ok: false, title: `${totalDiffs - resolved} design option${totalDiffs - resolved === 1 ? '' : 's'} undecided`, note: 'Undecided options default to Incoming (B).' },
+      : { id: 'options', ok: false, title: `${totalDiffs - resolved} design option${totalDiffs - resolved === 1 ? '' : 's'} undecided`, note: 'Undecided options default to the Current Implementation.' },
     summary.pending === 0
       ? { id: 'ai', ok: true, title: 'AI annotations applied', note: `${summary.applied.length} applied.` }
       : { id: 'ai', ok: false, title: `${summary.pending} annotation${summary.pending === 1 ? '' : 's'} not applied`, note: 'Use “Apply with AI” on the canvas to include them.' },
@@ -362,10 +368,10 @@ function mergeEffect(prev = {}, e) {
   }
 }
 
-// Staging view of the combined result: Option B with every resolved option
-// and applied AI edit baked in, next to the merged code (incoming lines +
-// AI edits).
-function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [] }) {
+// Staging view of the combined result: the Current Implementation with every
+// resolved option and applied AI edit baked in, next to the merged code
+// (incoming lines + AI edits, with hand-edited lines taking precedence).
+function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {} }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
@@ -456,8 +462,9 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
             <div className="max-h-64 overflow-auto py-2 font-mono text-[11px] leading-relaxed">
               {lines.map((line, i) => {
                 const n = i + 1
-                const text = (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
-                const changed = incoming.has(n) || aiLines.has(n)
+                const manual = manualCode[`${activeFile.id}:${n}`]
+                const text = manual ?? (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
+                const changed = manual !== undefined || incoming.has(n) || aiLines.has(n)
                 return (
                   <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-lime-400' : 'border-transparent')}>
                     <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{n}</span>
@@ -665,8 +672,8 @@ function WizardStepper({ step, run }) {
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, onResolveDiff, initialStep = 0, onStepChange, onClose, onComplete }) {
-  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers), [item, resolutions, annotations, preset, assemblies, extraLayers])
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, manualCode = {}, onResolveDiff, initialStep = 0, onStepChange, onClose, onComplete }) {
+  const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
@@ -751,11 +758,11 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
       setPrBody(
         [
           '## Summary',
-          `Reconciles Option A (current) and Option B (incoming) for **${item.title}**.`,
+          `Reconciles the Original Design and the Current Implementation for **${item.title}**.`,
           '',
           '## Changes',
           ...summary.design.map((x) => `- Design: ${x.text} → ${x.choice}`),
-          ...summary.files.map((f) => `- Code: ${f.name} (${f.changed} incoming line${f.changed === 1 ? '' : 's'})`),
+          ...summary.files.map((f) => `- Code: ${f.name} (${f.changed} incoming line${f.changed === 1 ? '' : 's'}${f.manualLines ? `, ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}` : ''})`),
           ...summary.applied.map((x) => `- AI: ${x.summary} (“${x.text}”)`),
           '',
           '## Review',
@@ -807,7 +814,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} />}
 
           {step === 2 && (
             <div className="space-y-5">

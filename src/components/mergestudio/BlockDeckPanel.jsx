@@ -8,6 +8,7 @@ import {
   Library,
   Search,
   MousePointerClick,
+  Pencil,
   Sparkles,
   Wand2,
   X,
@@ -24,47 +25,146 @@ import {
 } from '@/data/mockData'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
-import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
+// One variant property: keep the Original Design value, take the Current
+// Implementation value, or type a different value inline — a custom value
+// previews on the artboard and merges like any other choice. Callers key it
+// by its resolution so the draft resets whenever the choice changes.
 function DiffRow({ diff, resolution, onResolve, onHover }) {
+  const custom = isCustomResolution(resolution) ? resolution.custom : null
+  const [draft, setDraft] = useState(custom ?? '')
+  const cancelRef = useRef(false)
+
+  function commit() {
+    if (cancelRef.current) {
+      cancelRef.current = false
+      setDraft(custom ?? '')
+      return
+    }
+    const value = draft.trim()
+    if (!value) {
+      if (custom != null) onResolve(diff.id, null)
+    } else if (value === diff.optionA) onResolve(diff.id, 'A')
+    else if (value === diff.optionB) onResolve(diff.id, 'B')
+    else if (value !== custom) onResolve(diff.id, { custom: value })
+  }
+
+  const option = (side, value, cls, label) => (
+    <button
+      type="button"
+      onClick={() => onResolve(diff.id, side)}
+      onPointerEnter={() => onHover(diff.id, side)}
+      onPointerLeave={() => onHover(null)}
+      className={cn(
+        'flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors',
+        resolution === side
+          ? 'border-primary bg-primary/10 text-foreground'
+          : 'border-border text-muted-foreground hover:bg-muted'
+      )}
+    >
+      {cls && <span className={cn('size-3 shrink-0 rounded-full', cls)} />}
+      <span className="shrink-0 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</span>
+      <span className="truncate">{value}</span>
+      {resolution === side && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
+    </button>
+  )
+
   return (
     <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
       <p className="mb-2 text-sm font-medium text-foreground">{diff.label}</p>
       <div className="grid grid-cols-1 gap-2">
-        <button
-          type="button"
-          onClick={() => onResolve(diff.id, 'A')}
-          onPointerEnter={() => onHover(diff.id, 'A')}
-          onPointerLeave={() => onHover(null)}
+        {option('A', diff.optionA, diff.optionAClass, 'Original')}
+        {option('B', diff.optionB, diff.optionBClass, 'Current')}
+        <label
           className={cn(
-            'flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors',
-            resolution === 'A'
-              ? 'border-primary bg-primary/10 text-foreground'
-              : 'border-border text-muted-foreground hover:bg-muted'
+            'flex items-center gap-2 rounded-lg border p-1.5 pl-2.5 text-xs transition-colors focus-within:border-violet-500',
+            custom != null ? 'border-violet-500 bg-violet-500/10' : 'border-dashed border-border'
           )}
         >
-          {diff.optionAClass && <span className={cn('size-3 shrink-0 rounded-full', diff.optionAClass)} />}
-          <span className="truncate">A · {diff.optionA}</span>
-          {resolution === 'A' && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => onResolve(diff.id, 'B')}
-          onPointerEnter={() => onHover(diff.id, 'B')}
-          onPointerLeave={() => onHover(null)}
-          className={cn(
-            'flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors',
-            resolution === 'B'
-              ? 'border-primary bg-primary/10 text-foreground'
-              : 'border-border text-muted-foreground hover:bg-muted'
+          <Pencil className={cn('size-3 shrink-0', custom != null ? 'text-violet-400' : 'text-muted-foreground')} />
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              else if (e.key === 'Escape') {
+                cancelRef.current = true
+                e.currentTarget.blur()
+              }
+            }}
+            placeholder="Type a custom value…"
+            className="min-w-0 flex-1 bg-transparent py-1 text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          {custom != null && (
+            <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300">Edited</span>
           )}
-        >
-          {diff.optionBClass && <span className={cn('size-3 shrink-0 rounded-full', diff.optionBClass)} />}
-          <span className="truncate">B · {diff.optionB}</span>
-          {resolution === 'B' && <Check className="ml-auto size-3.5 shrink-0 text-primary" />}
-        </button>
+        </label>
       </div>
+    </div>
+  )
+}
+
+// Inline editor for a code drift's merged line — synced with the code
+// window, so an edit in either place shows up in both immediately (callers
+// key it by the manual text so an edit made elsewhere resets the draft).
+function CodeDriftEditor({ original, incoming, manual, onEdit }) {
+  const value = manual ?? incoming ?? original
+  const [draft, setDraft] = useState(value)
+  const cancelRef = useRef(false)
+
+  function commit() {
+    if (cancelRef.current) {
+      cancelRef.current = false
+      setDraft(value)
+      return
+    }
+    if (draft === value) return
+    onEdit(draft === (incoming ?? original) ? null : draft)
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
+      <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
+        <span className="pt-1 text-muted-foreground">Original</span>
+        <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
+        <span className="pt-1 text-muted-foreground">Current</span>
+        <textarea
+          value={draft}
+          rows={Math.min(4, Math.max(1, Math.ceil(draft.length / 34)))}
+          spellCheck={false}
+          onChange={(e) => setDraft(e.target.value.replace(/\n/g, ' '))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            } else if (e.key === 'Escape') {
+              cancelRef.current = true
+              e.currentTarget.blur()
+            }
+          }}
+          className={cn(
+            'resize-none rounded-md px-2 py-1 font-mono text-[11px] break-words outline-none focus:ring-1 focus:ring-violet-500',
+            manual != null ? 'bg-violet-500/10 text-violet-200' : 'bg-emerald-500/10 text-emerald-400'
+          )}
+        />
+      </div>
+      <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Pencil className="size-3 text-violet-400" />
+        {manual != null ? (
+          <>
+            Edited by hand ·{' '}
+            <button type="button" onClick={() => onEdit(null)} className="font-medium text-violet-300 hover:underline">
+              Revert
+            </button>
+          </>
+        ) : (
+          'Edit the current line directly — it syncs to the code window.'
+        )}
+      </p>
     </div>
   )
 }
@@ -182,7 +282,7 @@ function FillControl({ assembly, onChange }) {
 
 // The modular builder: block templates, then shape / size / fill /
 // border & shadow / content controls. Everything writes into the layer's
-// "assembly", which previews live on Option B and is bundled into the merge.
+// "assembly", which previews live on the Current Implementation and is bundled into the merge.
 // Each property lives in its own card (see `Field`) with generous padding
 // between groups, instead of one dense, flat stack of controls.
 function AssembleBuilder({ layer, frameWidth, assembly, onChange, onReset }) {
@@ -308,7 +408,7 @@ const SEVERITY_TAG_CLASS = {
   low: 'bg-sky-500/15 text-sky-500',
 }
 
-function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDiff, expandedId, onExpand }) {
+function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, expandedId, onExpand }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
   const drifts = buildDrifts(item, frame)
   if (!drifts.length) return null
@@ -378,7 +478,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
                 {d.kind === 'design' ? (
                   d.diffs.map((diff) => (
                     <DiffRow
-                      key={diff.id}
+                      key={`${diff.id}:${JSON.stringify(resolutions[`${d.layerId}:${diff.id}`] ?? null)}`}
                       diff={diff}
                       resolution={resolutions[`${d.layerId}:${diff.id}`]}
                       onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
@@ -386,17 +486,13 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
                     />
                   ))
                 ) : (
-                  // Same card treatment as a design drift's DiffRow (rounded,
-                  // bordered, tinted surface) — embedded directly in the
-                  // flow here, not a separate floating popover.
-                  <div className="rounded-xl border border-white/10 bg-slate-800/70 p-3.5">
-                    <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
-                      <span className="pt-1 text-muted-foreground">Current</span>
-                      <p className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[11px] break-words text-destructive/90">{original || ' '}</p>
-                      <span className="pt-1 text-muted-foreground">Incoming</span>
-                      <p className="rounded-md bg-emerald-500/10 px-2 py-1 font-mono text-[11px] break-words text-emerald-400">{incoming}</p>
-                    </div>
-                  </div>
+                  <CodeDriftEditor
+                    key={manualCode?.[`${d.fileId}:${d.line}`] ?? ''}
+                    original={original}
+                    incoming={incoming}
+                    manual={manualCode?.[`${d.fileId}:${d.line}`]}
+                    onEdit={(text) => onEditCode?.(d.fileId, d.line, text)}
+                  />
                 )}
               </div>
             )}
@@ -407,7 +503,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, onResolve, onHoverDif
   )
 }
 
-function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff, assembly, onAssemble }) {
+function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, assembly, onAssemble }) {
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = page?.frames[0]
   const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
@@ -439,6 +535,8 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
           item={item}
           frame={frame}
           resolutions={resolutions}
+          manualCode={manualCode}
+          onEditCode={onEditCode}
           onResolve={onResolve}
           onHoverDiff={onHoverDiff}
           expandedId={expandedId}
@@ -537,7 +635,7 @@ function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
 // The AI-driven "Block Assemble" tab — a short list of mock AI style
 // suggestions (badged, with rationale) for whichever canvas layer is
 // currently selected. Picking one calls `onApplyPreset` so the parent can
-// live-preview it on the Option B artboard; dismissing one just removes it
+// live-preview it on the Current Implementation artboard; dismissing one just removes it
 // from view; "Generate alternatives" pulls more from the shared preset pool
 // until it's exhausted.
 function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPreset }) {
@@ -777,6 +875,8 @@ function BlockDeckPanel({
   appliedPresetId,
   onApplyPreset,
   resolutions,
+  manualCode,
+  onEditCode,
   onResolve,
   onHoverDiff,
   selectedLayer,
@@ -899,7 +999,7 @@ function BlockDeckPanel({
         </button>
       </div>
       <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
-        {tab === 'compare' && 'Choose current (A) or incoming (B) for each variant property.'}
+        {tab === 'compare' && 'Keep the Original Design, take the Current Implementation, or type your own value.'}
         {tab === 'assemble' && 'Build a custom shape, size and style from scratch, or accept an AI suggestion.'}
         {tab === 'library' && 'Pull ready-made components from the Design System.'}
       </p>
@@ -910,6 +1010,8 @@ function BlockDeckPanel({
             item={item}
             selectedLayerId={selectedLayerId}
             resolutions={resolutions}
+            manualCode={manualCode}
+            onEditCode={onEditCode}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
             assembly={assembly}

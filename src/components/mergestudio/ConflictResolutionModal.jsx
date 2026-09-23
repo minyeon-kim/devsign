@@ -248,12 +248,12 @@ function ConflictResolutionModal({ item, onClose }) {
                 </button>
                 <span className="ml-auto flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                   <Sparkles className="size-2.5 text-violet-500" />
-                  AI: {b.recommended === 'B' ? 'Incoming' : 'Current'} — {b.reason}
+                  AI: {b.recommended === 'B' ? 'Current Implementation' : 'Original Design'} — {b.reason}
                 </span>
               </div>
               <div className="flex gap-2">
-                <Side label="Current (A)" lines={b.current} tone="current" selected={choices[b.id] === 'A'} onSelect={() => choose(b.id, 'A')} />
-                <Side label="Incoming (B)" lines={b.incoming} tone="incoming" selected={choices[b.id] === 'B'} onSelect={() => choose(b.id, 'B')} />
+                <Side label="Original Design" lines={b.current} tone="current" selected={choices[b.id] === 'A'} onSelect={() => choose(b.id, 'A')} />
+                <Side label="Current Implementation" lines={b.incoming} tone="incoming" selected={choices[b.id] === 'B'} onSelect={() => choose(b.id, 'B')} />
               </div>
             </section>
           ))}

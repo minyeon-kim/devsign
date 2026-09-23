@@ -107,6 +107,9 @@ function MergeStudioWorkspace({ item }) {
   // merely hovering — an option can live-preview on the Option B artboard.
   const [resolutions, setResolutions] = useState({})
   const [hoverDiff, setHoverDiff] = useState(null) // { layerId, diffId, side }
+  // Hand-typed code lines from the code window, keyed `fileId:line`. They
+  // win over incoming and AI-edited text everywhere the merged code shows.
+  const [manualCode, setManualCode] = useState({})
 
   useEffect(() => {
     if (!item) return
@@ -118,6 +121,7 @@ function MergeStudioWorkspace({ item }) {
     setAssemblies({})
     setAddedLayers([])
     setHoverDiff(null)
+    setManualCode({})
     // Uniform initialization: every item starts with a default selected element.
     const defLayer = defaultLayerFor(item)
     if (defLayer) {
@@ -196,9 +200,22 @@ function MergeStudioWorkspace({ item }) {
     })
   }
 
+  // Code window inline edit: `text === null` drops the manual edit.
+  function editCodeLine(fileId, line, text) {
+    setManualCode((prev) => {
+      const next = { ...prev }
+      const key = `${fileId}:${line}`
+      if (text === null) delete next[key]
+      else next[key] = text
+      return next
+    })
+  }
+
   // Changes log → Undo (annotation undo is handled inside the canvas).
   function undoChange(entry) {
-    if (entry.kind === 'variant') {
+    if (entry.kind === 'code') {
+      editCodeLine(entry.fileId, entry.line, null)
+    } else if (entry.kind === 'variant') {
       setResolutions((prev) => {
         const next = { ...prev }
         delete next[entry.key]
@@ -304,6 +321,7 @@ function MergeStudioWorkspace({ item }) {
     setHistoryEvents((prev) => [entry, ...prev])
     setCurrentHistoryId(entry.id)
     setResolutions({})
+    setManualCode({})
     setAppliedPreset(null)
     if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'In Progress' })
   }
@@ -320,7 +338,7 @@ function MergeStudioWorkspace({ item }) {
   const openWizardRef = useRef(null)
   openWizardRef.current = () => openWizard()
   const mergedNow = item?.tag === 'Merged'
-  const ctaCount = Object.keys(resolutions).length + annotationsSnap.filter((a) => a.status === 'done').length
+  const ctaCount = Object.keys(resolutions).length + Object.keys(manualCode).length + annotationsSnap.filter((a) => a.status === 'done').length
   useEffect(() => {
     if (!item) {
       setMergeCta(null)
@@ -351,12 +369,15 @@ function MergeStudioWorkspace({ item }) {
           reserve={reserve}
           listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
-          resolutionCount={Object.keys(resolutions).length}
+          resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           merged={item.tag === 'Merged'}
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}
+          manualCode={manualCode}
+          onEditCode={editCodeLine}
+          onAssemble={assemble}
           onUndoChange={undoChange}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
@@ -393,6 +414,8 @@ function MergeStudioWorkspace({ item }) {
           selectedLayerName={selectedLayer?.name}
           appliedPresetId={appliedPreset?.id}
           resolutions={resolutions}
+          manualCode={manualCode}
+          onEditCode={editCodeLine}
           onResolve={resolveDiff}
           onHoverDiff={setHoverDiff}
           selectedLayer={selectedLayer}
@@ -415,6 +438,7 @@ function MergeStudioWorkspace({ item }) {
           preset={mergeModal.preset}
           assemblies={assemblies}
           extraLayers={addedLayers}
+          manualCode={manualCode}
           onResolveDiff={resolveDiff}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}

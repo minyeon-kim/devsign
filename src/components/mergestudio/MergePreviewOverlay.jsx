@@ -11,8 +11,8 @@ const DEVICES = [
 ]
 const SOURCES = [
   ['merged', 'Merged (staged)'],
-  ['b', 'Option B'],
-  ['a', 'Option A'],
+  ['b', 'Current Implementation'],
+  ['a', 'Original Design'],
 ]
 
 function Pill({ active, onClick, children, className }) {

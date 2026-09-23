@@ -12,31 +12,49 @@ import UserPresence from '@/components/layout/UserPresence'
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
-const CODE_DIFF_WIDTH = 720
+const CODE_DIFF_WIDTH = 880
 // How far right content starts, so it clears the floating Merge List panel
 // (w-72 anchored left-4) docked over the same canvas surface instead of
 // pushing it in a fixed layout column.
 const CONTENT_START_X = 304
-const ARTBOARD_PREVIEW_WIDTH = 260
+const ARTBOARD_PREVIEW_WIDTH = 340
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
 // selected right now, unless an AI Block Deck suggestion is actively
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, edited }) {
   const tokens = tokenizeLine(text, language)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(text)
+  const doneRef = useRef(false)
+
+  function startEdit(e) {
+    e.stopPropagation()
+    doneRef.current = false
+    setDraft(text)
+    setEditing(true)
+  }
+  function finish(save) {
+    if (doneRef.current) return
+    doneRef.current = true
+    setEditing(false)
+    if (save && draft !== text) onEdit(draft)
+  }
+
   return (
     <div
       ref={lineRef}
       data-code-line={lineKey}
       data-changed={accentClass ? 'true' : undefined}
       data-selected={highlighted ? 'true' : undefined}
-      onClick={onClick}
+      onClick={editing ? undefined : onClick}
+      onDoubleClick={onEdit && !editing ? startEdit : undefined}
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
-        'flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
+        'group/line flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
         // The diff tint (red/green background) stays on regardless of
         // selection — only the left border changes to show the lime
         // selection state on top of it. Dropping `accentClass` here used to
@@ -64,17 +82,49 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       {/* min-w-0 lets this span actually shrink below its content's
           intrinsic width so pre-wrap can kick in, instead of the row
           growing past the card and needing horizontal scroll. */}
-      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {text.length === 0 ? (
-          ' '
-        ) : (
-          tokens.map((token, j) => (
-            <span key={j} className={tokenClassName(token.type)}>
-              {token.text}
-            </span>
-          ))
-        )}
-      </span>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          spellCheck={false}
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') finish(true)
+            else if (e.key === 'Escape') finish(false)
+          }}
+          onBlur={() => finish(true)}
+          className="min-w-0 flex-1 rounded-sm bg-slate-950 px-1 font-mono text-[11px] text-foreground outline-none ring-1 ring-violet-500"
+        />
+      ) : (
+        <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+          {text.length === 0 ? (
+            ' '
+          ) : (
+            tokens.map((token, j) => (
+              <span key={j} className={tokenClassName(token.type)}>
+                {token.text}
+              </span>
+            ))
+          )}
+        </span>
+      )}
+      {edited && !editing && (
+        <span title="Edited by hand" className="mt-0.5 flex h-4 shrink-0 items-center gap-0.5 self-start rounded-full bg-violet-500/20 px-1.5 text-[9px] font-semibold text-violet-300 select-none">
+          <Pencil className="size-2" /> edited
+        </span>
+      )}
+      {onEdit && !editing && (
+        <button
+          type="button"
+          title="Edit this line"
+          onClick={startEdit}
+          className="mt-0.5 flex size-4 shrink-0 items-center justify-center self-start rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-violet-500/20 hover:text-violet-300"
+        >
+          <Pencil className="size-2.5" />
+        </button>
+      )}
     </div>
   )
 }
@@ -84,9 +134,18 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
 // An unchanged line renders once, plain. A changed line renders as a
 // removed row (`-`, red) directly above the added row (`+`, green) it was
 // replaced by, so the whole file reads top-to-bottom in one pass.
-function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
+// Every line is editable in place (double-click, or the pencil on hover):
+// editing a `+` row rewrites what gets merged; editing an unchanged row
+// turns it into a new `-`/`+` pair. Typing a line back to what it would be
+// anyway drops the manual edit.
+function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
   const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
+  function edit(lineNumber, original, text) {
+    const key = `${file.id}:${lineNumber}`
+    const fallback = incomingEdits?.[key] ?? diffByLine.get(lineNumber) ?? original
+    onEditLine?.(file.id, lineNumber, text === fallback ? null : text)
+  }
 
   return (
     <div
@@ -96,8 +155,11 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
       <div className="py-2">
         {lines.map((line, i) => {
           const lineNumber = i + 1
-          const incoming = incomingEdits?.[`${file.id}:${lineNumber}`] ?? diffByLine.get(lineNumber)
+          const key = `${file.id}:${lineNumber}`
+          const edited = manualCode?.[key] !== undefined
+          const incoming = manualCode?.[key] ?? incomingEdits?.[key] ?? diffByLine.get(lineNumber)
           const changed = incoming !== undefined
+          const onEdit = onEditLine ? (text) => edit(lineNumber, line, text) : undefined
           const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
           const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
           const linked = linkedLines?.has(`${file.id}:${lineNumber}`)
@@ -118,6 +180,7 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                onEdit={onEdit}
               />
             )
           }
@@ -143,12 +206,14 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
                 lineKey={`${file.id}:${lineNumber}:incoming`}
                 language={file.language}
                 highlighted={isHighlighted}
-                accentClass="border-emerald-500/60 bg-emerald-500/10"
+                accentClass={edited ? 'border-violet-500/60 bg-violet-500/10' : 'border-emerald-500/60 bg-emerald-500/10'}
                 diffMark="+"
                 onClick={onClick}
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                onEdit={onEdit}
+                edited={edited}
               />
             </div>
           )
@@ -187,7 +252,7 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, manualCode, onEditLine, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
   const rootRef = useRef(null)
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
@@ -248,10 +313,16 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
             </button>
           )
         })}
+        <span className="ml-auto flex shrink-0 items-center gap-1 px-2 pb-1 text-[10px] text-muted-foreground">
+          <Pencil className="size-2.5 text-violet-400" />
+          Double-click a line to edit
+        </span>
       </div>
 
       <UnifiedDiffView
         incomingEdits={incomingEdits}
+        manualCode={manualCode}
+        onEditLine={onEditLine}
         file={activeFile}
         lines={getFileLines(activeFile.id)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
@@ -270,16 +341,50 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
   )
 }
 
-// A read-only re-rendering of a frame's layers — separate from CanvasPanel's
+// Layer types whose rendered content is their text label.
+const LABEL_TYPES = new Set(['button', 'chip', 'input', 'iconbtn'])
+
+// Inline text editor laid over a layer while its label is being edited.
+// Enter / blur commits, Escape cancels.
+function InlineLabelEditor({ value, onCommit, onCancel }) {
+  const [draft, setDraft] = useState(value)
+  const doneRef = useRef(false)
+  function finish(save) {
+    if (doneRef.current) return
+    doneRef.current = true
+    if (save) onCommit(draft)
+    else onCancel()
+  }
+  return (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+      }}
+      onBlur={() => finish(true)}
+      className="absolute inset-0 z-10 h-full w-full rounded-md bg-slate-900/95 px-2 text-center text-xs font-medium text-white outline-none ring-2 ring-violet-500"
+    />
+  )
+}
+
+// A re-rendering of a frame's layers — separate from CanvasPanel's
 // interactive CanvasFrame/CanvasLayer (no zoom/tools of its own, since it
 // lives inside the shared infinite canvas which already has those) since
-// this is a comparison artboard, not an editable canvas. Both Option A and
-// Option B are clickable — clicking either drives Block Deck's Variant
-// Compare tab and, for linked layers, the code sync. `aiPreview` marks a
-// button layer as currently showing a live-previewed AI Block Deck
-// suggestion, rendering a small badge so the change reads as suggested
-// rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover }) {
+// this is a comparison artboard, not a full editing canvas. Both Original
+// Design and Current Implementation are clickable — clicking either drives
+// Block Deck's Variant Compare tab and, for linked layers, the code sync.
+// With `onEditLabel`, text-bearing layers can be renamed in place by
+// double-clicking. A non-static override renders a small badge so the
+// change reads as a live preview rather than a permanent edit.
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditLabel }) {
+  const [editing, setEditing] = useState(false)
   const style = {
     left: layer.x,
     top: layer.y,
@@ -289,6 +394,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
   const fill = override?.className
   const type = override?.asType ?? layer.type
   const label = override?.asLabel ?? layer.label
+  const canEdit = Boolean(onEditLabel) && LABEL_TYPES.has(type)
   const radiusStyle = override?.radius !== undefined ? { borderRadius: override.radius } : undefined
   const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
   const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
@@ -398,6 +504,15 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         e.stopPropagation()
         onSelect(e.currentTarget)
       }}
+      onDoubleClick={
+        canEdit
+          ? (e) => {
+              e.stopPropagation()
+              setEditing(true)
+            }
+          : undefined
+      }
+      title={canEdit ? 'Double-click to edit text' : undefined}
       onPointerEnter={linked ? () => onHover?.(layer.id) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
@@ -409,6 +524,17 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
       style={style}
     >
       {content}
+      {editing && (
+        <InlineLabelEditor
+          value={label ?? ''}
+          onCommit={(text) => {
+            setEditing(false)
+            const next = text.trim()
+            if (next && next !== label) onEditLabel(layer.id, next)
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
       {override && !override.static && (
         <span
           title="Live preview"
@@ -426,7 +552,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditLabel, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -440,8 +566,19 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <p className="mb-1.5 flex w-fit items-center rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+      <p
+        className={cn(
+          'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+          editable ? 'bg-violet-500/20 text-violet-200' : 'bg-card/90 text-muted-foreground'
+        )}
+      >
+        <span className={cn('size-1.5 rounded-full', editable ? 'bg-violet-500' : 'bg-indigo-400')} />
         {label}
+        {editable && (
+          <span title="Double-click text on this artboard to edit it inline" className="flex items-center gap-0.5 font-medium text-violet-300/80">
+            · <Pencil className="size-2.5" /> editable
+          </span>
+        )}
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
@@ -475,6 +612,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
                 hovered={hoverLayerId === layer.id}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
+                onEditLabel={onEditLabel}
               />
             )
           })}
@@ -494,7 +632,7 @@ const CARD_GAP = 140
 // Compact unified layout: the code card (Code A | Code B columns) on top, with
 // the Option A artboard centered under the Code A column and Option B under
 // the Code B column — so each option reads as one column of code + design.
-const CODE_H = 380
+const CODE_H = 460
 const COLUMN_W = CODE_DIFF_WIDTH / 2
 const DEFAULT_LAYOUT = {
   code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_H },
@@ -506,8 +644,13 @@ const DEFAULT_LAYOUT = {
 // at `top-14`, ~100px to its bottom edge) plus breathing room, so a freshly
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
-// Room kept free below the cards for the bottom zoom controls / Changes Log.
-const BOTTOM_CONTROLS_CLEARANCE = 80
+// Room kept free below the cards for the bottom AI bar (~135px tall at
+// `bottom-5`), zoom controls and Changes Log, so fitted artboards never sit
+// underneath them.
+const BOTTOM_CONTROLS_CLEARANCE = 150
+// Fitting may zoom past 100% so the comparison fills the available canvas
+// on large screens instead of sitting small in the middle of it.
+const MAX_FIT_ZOOM = 1.35
 const DEFAULT_VIEW = { x: CONTENT_START_X, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
 
 function clampZoom(z) {
@@ -811,7 +954,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
       {open && (
         <div className="absolute right-0 bottom-full mb-2 max-h-80 w-80 max-w-[calc(100vw-1.5rem)] space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
           {total === 0 && codeRows.length === 0 && (
-            <p className="py-3 text-center text-muted-foreground">No changes yet — pick variants, assemble blocks, or annotate.</p>
+            <p className="py-3 text-center text-muted-foreground">No changes yet — pick or edit values, edit code, assemble blocks, or annotate.</p>
           )}
           {entries.map((e) => {
             const canJump = Boolean(e.layerId || e.fileId)
@@ -825,7 +968,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
                   className="min-w-0 flex-1 text-left leading-snug disabled:cursor-default"
                 >
                   <span className="block truncate text-foreground">{e.title}</span>
-                  <span className={cn('block truncate', e.kind === 'annotation' ? 'text-violet-400' : 'text-muted-foreground')}>{e.detail}</span>
+                  <span className={cn('block truncate', e.kind === 'annotation' || e.kind === 'code' ? 'text-violet-400' : 'text-muted-foreground')}>{e.detail}</span>
                 </button>
                 <button
                   type="button"
@@ -846,6 +989,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
                 <p key={f.id} className="px-1 py-1 text-sm text-muted-foreground">
                   <span className="text-foreground">{f.name}</span> · {f.changed} incoming line{f.changed === 1 ? '' : 's'}
                   {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
+                  {f.manualLines > 0 && ` · ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`}
                 </p>
               ))}
             </div>
@@ -936,6 +1080,9 @@ function MergeInfiniteCanvas({
   assemblies,
   resolutions,
   extraLayers,
+  manualCode,
+  onEditCode,
+  onAssemble,
   onUndoChange,
   onAnnotationsChange,
   stage = 'compare',
@@ -996,10 +1143,10 @@ function MergeInfiniteCanvas({
     const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
     const worldH = bottom - lay.code.y
     const startX = contentStartX()
-    const visRight = rect.width - 32 - reserve
+    const visRight = rect.width - 16 - reserve
     const availW = visRight - startX
     const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
-    const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
+    const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
     // Horizontal axis to center on: the bottom AI chat bar's own center
@@ -1274,8 +1421,8 @@ function MergeInfiniteCanvas({
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
     ? frameSel === 'a'
-      ? 'Option A'
-      : 'Option B'
+      ? 'Original Design'
+      : 'Current Implementation'
     : (frame?.layers.find((l) => l.id === syncSelection?.layerId)?.name ??
       (syncSelection?.line ? `line ${syncSelection.line}` : 'selection'))
 
@@ -1700,6 +1847,8 @@ function MergeInfiniteCanvas({
                   highlightEnd={syncSelection?.endLine}
                   onSelectLine={pickLine}
                   incomingEdits={codeEdits}
+                  manualCode={manualCode}
+                  onEditLine={onEditCode}
                   highlightRef={highlightRef}
                 />
               )}
@@ -1709,7 +1858,7 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="a"
                     frame={frame}
-                    label="Option A · Current"
+                    label="Original Design"
                     x={layout.a.x}
                     y={layout.a.y}
                     w={layout.a.w}
@@ -1728,7 +1877,9 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="b"
                     frame={frame}
-                    label="Option B · Incoming"
+                    label="Current Implementation"
+                    editable
+                    onEditLabel={(layerId, text) => onAssemble?.(layerId, { asLabel: text })}
                     accentClass={OPTION_B_ACCENT}
                     x={layout.b.x}
                     y={layout.b.y}
@@ -2040,7 +2191,7 @@ function MergeInfiniteCanvas({
             appliedPreset && syncSelection?.layerId
               ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
               : null
-          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [])
+          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {})
           const entries = [
             ...summary.design.map((d) => {
               let kind = 'variant'
@@ -2049,6 +2200,13 @@ function MergeInfiniteCanvas({
               else if (d.key.startsWith('added-')) [kind, layerId] = ['component', d.key.slice(6)]
               else if (d.key === 'preset') [kind, layerId] = ['preset', presetObj?.layerId]
               return { id: d.key, key: d.key, kind, layerId, title: d.text, detail: d.choice }
+            }),
+            ...Object.entries(manualCode ?? {}).map(([key, text]) => {
+              const split = key.lastIndexOf(':')
+              const fileId = key.slice(0, split)
+              const line = Number(key.slice(split + 1))
+              const name = files.find((f) => f.id === fileId)?.name ?? fileId
+              return { id: `code-${key}`, kind: 'code', fileId, line, title: `${name} · line ${line}`, detail: `Edited: ${text.trim() || '(empty line)'}` }
             }),
             ...annotations.map((a) => ({
               id: a.id,
@@ -2063,7 +2221,7 @@ function MergeInfiniteCanvas({
           return (
             <ChangesLog
               entries={entries}
-              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0)}
+              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0)}
               open={summaryOpen}
               onToggle={() => setSummaryOpen((v) => !v)}
               onJump={(e) =>
