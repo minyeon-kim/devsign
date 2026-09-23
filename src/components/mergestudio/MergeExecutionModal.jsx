@@ -26,7 +26,6 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
-import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
 import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
@@ -57,7 +56,7 @@ function SectionTitle({ icon: Icon, children, aside }) {
 function SummarySection({ summary }) {
   return (
     <section>
-      <SectionTitle icon={Sparkles}>Pre-flight summary</SectionTitle>
+      <SectionTitle icon={Sparkles}>What will be merged</SectionTitle>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="rounded-2xl border bg-slate-800/70 p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
@@ -311,69 +310,115 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
   )
 }
 
-function CheckStep({ item, resolutions, summary, onResolveDiff }) {
+// Step 1 is only about readiness: can this be merged, and what must be
+// fixed first. It leads with one status headline and a compact row of the
+// key numbers; a merge conflict (the one thing worth stopping for) gets a
+// distinct "Action required" card with the primary action; everything else
+// is a quiet list of notes. The drift-by-drift review lives in Preview and
+// the full "what will be merged" breakdown in Review.
+function CheckStep({ item, resolutions, summary }) {
   // Conflict resolution opens from here — the pre-merge check is where a
-  // flagged conflict matters (the Merge List cards no longer carry a
-  // conflict badge).
+  // flagged conflict matters (the Merge List cards show it as a tag only).
   const [conflictOpen, setConflictOpen] = useState(false)
+  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const drifts = buildDrifts(item, frame)
   const totalDiffs = Object.values(designMergeVariants[item.id]?.layerDiffs ?? {}).reduce((n, d) => n + d.length, 0)
-  const resolved = Object.keys(resolutions).length
-  const checks = [
-    item.conflictLevel === 'None'
-      ? { id: 'conflict', ok: true, title: 'No merge conflicts', note: 'Current and Incoming can be combined cleanly.' }
-      : { id: 'conflict', ok: false, title: `${item.conflictLevel} conflict flagged`, note: 'Resolve it now, or continue and review the result in Preview.', action: { label: 'Resolve conflicts', run: () => setConflictOpen(true) } },
-    totalDiffs === 0 || resolved >= totalDiffs
-      ? { id: 'options', ok: true, title: totalDiffs === 0 ? 'No variant differences' : 'All variant options decided', note: `${resolved} of ${totalDiffs} design decisions made.` }
-      : { id: 'options', ok: false, title: `${totalDiffs - resolved} design option${totalDiffs - resolved === 1 ? '' : 's'} undecided`, note: 'Undecided options default to the Current Implementation.' },
+  const decided = Math.min(Object.keys(resolutions).length, totalDiffs)
+  const undecided = totalDiffs - decided
+  const hasConflict = item.conflictLevel && item.conflictLevel !== 'None'
+  const conflictTone = item.conflictLevel === 'High' ? 'border-destructive/40 bg-destructive/10' : 'border-amber-500/40 bg-amber-500/10'
+
+  const notes = [
+    !hasConflict && { id: 'conflict', ok: true, text: 'No merge conflicts' },
+    totalDiffs > 0 &&
+      (undecided === 0
+        ? { id: 'options', ok: true, text: `All ${totalDiffs} design options decided` }
+        : { id: 'options', ok: false, text: `${undecided} design option${undecided === 1 ? '' : 's'} undecided`, hint: 'They’ll use the Current Implementation — review them in Preview.' }),
     summary.pending === 0
-      ? { id: 'ai', ok: true, title: 'AI annotations applied', note: `${summary.applied.length} applied.` }
-      : { id: 'ai', ok: false, title: `${summary.pending} annotation${summary.pending === 1 ? '' : 's'} not applied`, note: 'Use “Apply with AI” on the canvas to include them.' },
+      ? { id: 'ai', ok: true, text: summary.applied.length ? `${summary.applied.length} AI edit${summary.applied.length === 1 ? '' : 's'} applied` : 'No pending AI notes' }
+      : { id: 'ai', ok: false, text: `${summary.pending} AI note${summary.pending === 1 ? '' : 's'} not applied`, hint: 'Use “Apply with AI” on the canvas to include them.' },
+  ].filter(Boolean)
+  const openNotes = notes.filter((n) => !n.ok).length
+
+  const metrics = [
+    [`${summary.files.length}`, summary.files.length === 1 ? 'file' : 'files'],
+    [`${drifts.length}`, drifts.length === 1 ? 'drift' : 'drifts'],
+    [`${decided}/${totalDiffs}`, 'decided'],
+    [`${summary.applied.length}`, summary.applied.length === 1 ? 'AI edit' : 'AI edits'],
   ]
-  const warnings = checks.filter((c) => !c.ok).length
 
   return (
-    <div className="space-y-5">
-      <section>
-        <SectionTitle icon={CheckCircle2}>Readiness</SectionTitle>
-        <div
-          className={cn(
-            'mb-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',
-            warnings ? 'bg-amber-500/15 text-amber-500' : 'bg-emerald-500/15 text-emerald-400'
-          )}
-        >
-          {warnings ? <TriangleAlert className="size-4" /> : <Check className="size-4" />}
-          {warnings ? `${warnings} warning${warnings === 1 ? '' : 's'} — you can still continue` : 'Ready to merge'}
+    <div className="space-y-4">
+      {/* Status headline + key numbers. */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              'flex size-8 shrink-0 items-center justify-center rounded-full',
+              hasConflict ? 'bg-amber-500/15 text-amber-500' : 'bg-emerald-500/15 text-emerald-400'
+            )}
+          >
+            {hasConflict ? <TriangleAlert className="size-4" /> : <Check className="size-4" />}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              {hasConflict ? 'Resolve the conflict first' : openNotes ? 'Ready to merge — a few notes' : 'Ready to merge'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {hasConflict ? 'You can still continue, but the merge may not combine cleanly.' : 'Nothing blocks this merge. Review the result in the next step.'}
+            </p>
+          </div>
         </div>
-        <ul className="space-y-1.5">
-          {checks.map((c) => (
-            <li key={c.id} className="flex items-start gap-2.5 rounded-2xl border bg-slate-800/70 px-3 py-2">
-              <span
-                className={cn(
-                  'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full',
-                  c.ok ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-500'
-                )}
-              >
-                {c.ok ? <Check className="size-3" /> : <TriangleAlert className="size-2.5" />}
-              </span>
-              <span className="min-w-0 flex-1 text-sm">
-                <span className="font-medium text-foreground">{c.title}</span>
-                <span className="block text-xs text-muted-foreground">{c.note}</span>
-              </span>
-              {c.action && (
-                <button
-                  type="button"
-                  onClick={c.action.run}
-                  className="flex h-7 shrink-0 items-center justify-center self-center rounded-full border border-white/15 px-3 text-xs font-medium text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
-                >
-                  {c.action.label}
-                </button>
-              )}
-            </li>
+        <div className="grid grid-cols-4 gap-1.5">
+          {metrics.map(([value, label]) => (
+            <div key={label} className="rounded-xl bg-white/[0.03] px-2.5 py-2 ring-1 ring-inset ring-white/10">
+              <p className="text-sm font-semibold text-foreground tabular-nums">{value}</p>
+              <p className="text-[11px] text-muted-foreground">{label}</p>
+            </div>
           ))}
-        </ul>
-      </section>
-      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
-      <SummarySection summary={summary} />
+        </div>
+      </div>
+
+      {/* The one thing to act on, when there is one. */}
+      {hasConflict && (
+        <section className={cn('rounded-2xl border p-3.5', conflictTone)}>
+          <p className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Action required</p>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">{item.conflictLevel} merge conflict</p>
+              <p className="text-xs text-muted-foreground">Choose Current or Incoming for each conflicting block, or let AI resolve them.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConflictOpen(true)}
+              className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-slate-200"
+            >
+              Resolve conflicts
+              <ArrowRight className="size-4" />
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Everything else: short, quiet notes. */}
+      <ul className="space-y-1">
+        {notes.map((n) => (
+          <li key={n.id} className="flex items-start gap-2.5 rounded-xl px-1 py-1.5 text-sm">
+            <span
+              className={cn(
+                'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full',
+                n.ok ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-500'
+              )}
+            >
+              {n.ok ? <Check className="size-3" /> : <TriangleAlert className="size-2.5" />}
+            </span>
+            <span className="min-w-0">
+              <span className={n.ok ? 'text-muted-foreground' : 'text-foreground'}>{n.text}</span>
+              {n.hint && <span className="block text-xs text-muted-foreground">{n.hint}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
       {conflictOpen && <ConflictResolutionModal item={item} onClose={() => setConflictOpen(false)} />}
     </div>
   )
@@ -394,7 +439,7 @@ function mergeEffect(prev = {}, e) {
 // Staging view of the combined result: the Current Implementation with every
 // resolved option and applied AI edit baked in, next to the merged code
 // (incoming lines + AI edits, with hand-edited lines taking precedence).
-function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {} }) {
+function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {}, onResolveDiff }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
@@ -435,6 +480,8 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
 
   return (
     <div className="space-y-3">
+      {/* Drift-by-drift review sits with the preview it changes. */}
+      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
       <div className="flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1.5 text-sm font-medium text-foreground">
         <MonitorPlay className="size-4 text-indigo-500" />
         Staging preview — the combined result that will be merged
@@ -843,11 +890,13 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} />}
+          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
+          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} onResolveDiff={onResolveDiff} />}
 
           {step === 2 && (
             <div className="space-y-5">
+              {/* What will actually be merged, before assigning reviewers. */}
+              <SummarySection summary={summary} />
               <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
 
               <section>
@@ -958,9 +1007,13 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             </button>
           ) : (
             <>
-              {step === 2 && !reviewValid && (
+              {step === 2 && !reviewValid ? (
                 <span className="mr-auto text-xs text-amber-500">
                   {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
+                </span>
+              ) : (
+                <span className="mr-auto text-xs text-muted-foreground tabular-nums">
+                  Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
                 </span>
               )}
               {step === 0 ? (
@@ -989,12 +1042,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   onClick={() => setStep((s) => s + 1)}
                   className="flex items-center justify-center gap-1.5 rounded-full bg-slate-700 px-4 h-10 text-sm font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
-                  Next: {WIZARD_STEPS[step + 1].label}
-                  {/* Running total of what will actually be merged, so it's
-                      visible at every step, not just buried in a summary. */}
-                  <span className={cn(COUNT_BADGE, 'bg-white/20')}>
-                    {summary.design.length + summary.applied.length}
-                  </span>
+                  Continue to {WIZARD_STEPS[step + 1].label}
                   <ArrowRight className="size-4" />
                 </button>
               ) : (
