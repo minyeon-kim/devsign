@@ -9,6 +9,7 @@ import {
   initialChatMessages,
   initialHistoryEntries,
   openFiles,
+  projectFileSets,
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
 } from '@/data/mockData'
@@ -35,9 +36,15 @@ function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-export function WorkspaceProvider({ children }) {
-  const [activeFileId, setActiveFileIdState] = useState(openFiles[0]?.id ?? null)
+export function WorkspaceProvider({ children, projectId }) {
+  // Every project's file set shares the same file *ids* as the default
+  // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
+  // so this only needs to swap which file objects those ids resolve to,
+  // nothing else in this provider needs to change per project.
+  const files = projectFileSets[projectId] ?? openFiles
+  const [activeFileId, setActiveFileIdState] = useState(files[0]?.id ?? null)
   const [fileOverrides, setFileOverrides] = useState({})
+  const [fileNameOverrides, setFileNameOverrides] = useState({})
   const [selectedLayerId, setSelectedLayerId] = useState(null)
   const [terminalEntries, setTerminalEntries] = useState(() =>
     seedTerminalLogLines.map((text) => ({ id: nextId('t'), text }))
@@ -111,12 +118,12 @@ export function WorkspaceProvider({ children }) {
     (layerId, { conflict } = {}) => {
       setSelectedLayerId(layerId)
       if (!layerId) return
-      setActiveFileIdState(openFiles[0].id)
-      appendTerminalLines([`[HMR] DesignCanvas.jsx updated (layer: ${layerId})`])
+      setActiveFileIdState(files[0].id)
+      appendTerminalLines([`[HMR] ${files[0]?.name ?? 'file'} updated (layer: ${layerId})`])
       setPreviewVersion((v) => v + 1)
       if (conflict) addConflict(conflict)
     },
-    [appendTerminalLines, addConflict]
+    [appendTerminalLines, addConflict, files]
   )
 
   const startFollowMe = useCallback(() => {
@@ -261,10 +268,41 @@ export function WorkspaceProvider({ children }) {
 
   const getFileLines = useCallback(
     (fileId) => {
-      const file = openFiles.find((f) => f.id === fileId)
+      const file = files.find((f) => f.id === fileId)
       return fileOverrides[fileId] ?? file?.lines ?? []
     },
-    [fileOverrides]
+    [fileOverrides, files]
+  )
+
+  const getFileName = useCallback(
+    (fileId) => {
+      const file = files.find((f) => f.id === fileId)
+      return fileNameOverrides[fileId] ?? file?.name ?? fileId
+    },
+    [fileNameOverrides, files]
+  )
+
+  const renameFile = useCallback(
+    (fileId, newName) => {
+      const trimmed = newName.trim()
+      if (!trimmed || trimmed === getFileName(fileId)) return
+      setFileNameOverrides((prev) => ({ ...prev, [fileId]: trimmed }))
+      appendTerminalLines([`$ mv "${getFileName(fileId)}" "${trimmed}"`])
+    },
+    [appendTerminalLines, getFileName]
+  )
+
+  // Committed from the editor's edit mode (see EditorPanel) — a plain
+  // content overwrite, same storage as the AI-driven edits already use
+  // (`fileOverrides`), so rollback/history keep working on hand-edited
+  // content exactly like they do on AI-generated content.
+  const updateFileContent = useCallback(
+    (fileId, lines) => {
+      setFileOverrides((prev) => ({ ...prev, [fileId]: lines }))
+      setPreviewVersion((v) => v + 1)
+      appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
+    },
+    [appendTerminalLines, getFileName]
   )
 
   const setCommentStatus = useCallback((commentId, status) => {
@@ -299,9 +337,13 @@ export function WorkspaceProvider({ children }) {
   }, [])
 
   const value = {
+    workspaceFiles: files,
     activeFileId,
     setActiveFileId,
     getFileLines,
+    getFileName,
+    renameFile,
+    updateFileContent,
     selectedLayerId,
     selectCanvasLayer,
     terminalEntries,
