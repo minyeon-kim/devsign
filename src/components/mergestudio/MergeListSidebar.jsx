@@ -145,13 +145,12 @@ function MergeItemCard({ item, active, onSelect }) {
       aria-current={active ? 'true' : undefined}
       onClick={() => onSelect(item.id)}
       className={cn(
-        'relative flex w-full flex-col gap-3.5 overflow-hidden rounded-xl border px-3.5 py-3.5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none',
-        // The item loaded in the center comparison: accent border + tinted
-        // surface (same treatment as the Block Deck's open drift row), plus
-        // a left accent bar so it's unmistakable even at a glance.
-        active
-          ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30'
-          : 'border-white/10 bg-slate-800/70 hover:border-white/20 hover:bg-white/5'
+        // Flat feed row (same language as the Inbox): no box, border or
+        // shadow — rows are separated by the list's hairline dividers.
+        'relative flex w-full flex-col gap-3 px-5 py-4 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
+        // The item loaded in the center comparison: a soft surface plus the
+        // left accent bar, so it's unmistakable at a glance.
+        active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
       )}
     >
       {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
@@ -159,14 +158,14 @@ function MergeItemCard({ item, active, onSelect }) {
           (right), so the title below gets the card's full width. */}
       <div className="-mb-1 flex w-full items-center justify-between gap-2">
         <StatusPill status={item.tag} />
-        <span className={cn('shrink-0 text-xs', active ? 'text-muted-foreground' : 'text-muted-foreground/70')}>{item.updatedLabel}</span>
+        <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">{item.updatedLabel}</span>
       </div>
 
       <div className="flex w-full items-start gap-2.5">
         <ItemTypeBadge item={item} />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="truncate text-sm leading-5 font-semibold text-foreground">{item.title}</p>
-          <p className={cn('truncate text-[13px] leading-4', active ? 'text-foreground/90' : 'text-muted-foreground')}>{item.subtitle}</p>
+          <p className="truncate text-sm leading-5 font-semibold text-[#FFFFFF]">{item.title}</p>
+          <p className="truncate text-xs leading-4 text-slate-400">{item.subtitle}</p>
         </div>
       </div>
 
@@ -175,7 +174,7 @@ function MergeItemCard({ item, active, onSelect }) {
         <span
           className={cn(
             'min-w-0 flex-1 truncate text-xs',
-            item.dueBucket === 'overdue' ? 'font-medium text-destructive' : active ? 'text-muted-foreground' : 'text-muted-foreground/70'
+            item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-slate-400'
           )}
         >
           {hasDue ? item.dueLabel : null}
@@ -192,8 +191,9 @@ function MergeItemCard({ item, active, onSelect }) {
 function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
   if (!files.length) return <EmptyTab text="This merge item has no files." />
   return (
-    <div className="space-y-1.5 p-4">
-      <p className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">Files · {files.length}</p>
+    <div className="px-5 py-4">
+      <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Files · {files.length}</p>
+      <div className="-mx-5 divide-y divide-white/[0.06]">
       {files.map((f) => {
         const meta = getFileIconMeta(f.name)
         const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
@@ -209,29 +209,32 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left shadow-sm transition-colors',
-              active ? 'border-primary/50 bg-primary/10 ring-1 ring-inset ring-primary/30' : 'border-white/10 bg-slate-800/70 hover:bg-white/5'
+              'relative flex w-full items-center gap-3 px-5 py-3 text-left transition-colors',
+              active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
             )}
           >
+            {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
             <meta.Icon className={cn('size-4 shrink-0', meta.colorClass)} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-foreground">{f.name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">{f.path}</span>
+              <span className="block truncate text-[13px] font-medium text-[#FFFFFF]">{f.name}</span>
+              <span className="block truncate text-[11px] text-slate-500">{f.path}</span>
             </span>
+            {/* Counts as plain colored figures — no pills. */}
             {incoming.length > 0 && (
-              <span title="Incoming changes" className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 text-[11px] font-semibold text-emerald-400 tabular-nums">
+              <span title="Incoming changes" className="shrink-0 text-xs font-semibold text-emerald-400 tabular-nums">
                 +{incoming.length}
               </span>
             )}
             {edits.length > 0 && (
-              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 text-[11px] font-semibold text-violet-300 tabular-nums">
-                <Pencil className="size-2.5" />
+              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-violet-300 tabular-nums">
+                <Pencil className="size-3" />
                 {edits.length}
               </span>
             )}
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -288,14 +291,14 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
   const drifted = designMergeVariants[item.id]?.layerDiffs ?? {}
   const rows = layerTree(frame.layers)
   return (
-    <div className="space-y-1.5 p-4">
-      <p className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">Layers · {rows.length}</p>
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-800/70 shadow-sm">
-      <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900/60 px-3 py-2 text-[13px] font-semibold text-foreground">
-        <Frame className="size-3.5 text-indigo-400" />
+    <div className="px-5 py-4">
+      <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Layers · {rows.length}</p>
+      {/* Flat tree: the frame as a plain header row, layers beneath — no box. */}
+      <div className="flex h-9 items-center gap-2 border-b border-white/[0.06] text-[13px] font-semibold text-[#FFFFFF]">
+        <Frame className="size-3.5 shrink-0 text-indigo-400" />
         <span className="truncate">{frame.name}</span>
       </div>
-      <div className="space-y-0.5 p-1.5">
+      <div className="-mx-2 space-y-px pt-1.5">
       {rows.map(({ layer, depth }) => {
         const Icon = LAYER_ICONS[layer.type] ?? Square
         const active = selectedLayerId === layer.id
@@ -305,13 +308,13 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
             ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onSelect(layer.id)}
-            style={{ paddingLeft: 10 + depth * 14 }}
+            style={{ paddingLeft: 8 + depth * 14 }}
             className={cn(
               'flex h-8 w-full items-center gap-2 rounded-lg pr-2.5 text-left text-[13px] font-medium transition-colors',
-              active ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/30' : 'text-muted-foreground hover:bg-slate-800/60 hover:text-foreground'
+              active ? 'bg-white/[0.08] text-[#FFFFFF]' : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
             )}
           >
-            <Icon className={cn('size-3.5 shrink-0', active ? 'text-indigo-300' : 'text-muted-foreground/80')} />
+            <Icon className={cn('size-3.5 shrink-0', active ? 'text-indigo-300' : 'text-slate-500')} />
             <span className="min-w-0 flex-1 truncate">{layer.name}</span>
             {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-violet-300" />}
             {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-violet-400" />}
@@ -319,13 +322,12 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
         )
       })}
       </div>
-      </div>
     </div>
   )
 }
 
 function EmptyTab({ text }) {
-  return <p className="m-4 rounded-xl border border-white/10 bg-slate-800/70 p-4 text-center text-[13px] text-muted-foreground">{text}</p>
+  return <p className="px-5 py-8 text-center text-[13px] text-slate-400">{text}</p>
 }
 
 const TABS = [
@@ -437,9 +439,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       )}
     >
       <div className="flex min-h-0 min-w-72 flex-1 flex-col">
-      {/* Same chrome as the Block Deck: 48px title bar, 48px tab bar, then a
-          one-line context strip — the two panels read as a matched pair. */}
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 px-4">
+      {/* Flat header, same language as the Inbox: title row, tab row and
+          context line separated by hairlines only — no boxes or fills. */}
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/[0.06] px-5">
         <GitMerge className="size-4 shrink-0 text-indigo-500" />
         <span className="flex flex-1 items-center gap-1.5 text-[15px] font-semibold text-foreground">
           Merge List
@@ -447,7 +449,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         </span>
       </div>
 
-      <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-white/10 px-2.5">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
         {TABS.map(([id, label, Icon]) => (
           <button
             key={id}
@@ -459,7 +461,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
             className={cn(
               SEGMENT_TAB,
               'transition-[background-color,color,box-shadow] duration-300',
-              tab === id ? 'bg-white/[0.07] text-foreground ring-1 ring-inset ring-white/15' : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
+              // Flat: no outline — the active tab is white text on a soft
+              // surface, the rest quiet gray.
+              tab === id ? 'bg-white/[0.07] font-semibold text-[#FFFFFF]' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200',
               flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
             )}
           >
@@ -471,32 +475,21 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       {/* Context line only where it tells you something: which item the
           Files / Layers tabs are showing (Merges needs no helper text). */}
       {tab !== 'merges' && (
-        <p className="shrink-0 truncate border-b border-white/10 bg-slate-800/60 px-4 py-2 text-[13px] leading-snug text-muted-foreground">
-          {item ? <>In <span className="font-medium text-foreground">{item.title}</span></> : 'No merge item open.'}
+        <p className="shrink-0 truncate border-b border-white/[0.06] px-5 py-2.5 text-xs leading-snug text-slate-500">
+          {item ? <>In <span className="font-medium text-slate-200">{item.title}</span></> : 'No merge item open.'}
         </p>
       )}
 
       <div className="min-h-0 flex-1 overflow-auto">
         {tab === 'merges' ? (
-          <div className="space-y-4 p-4">
-            {/* Primary action first (Figma / Linear pattern): always in reach
-                at the top of the tab, above search and filters. */}
-            <button
-              type="button"
-              data-guide="add-files"
-              onClick={startMergeFromOpenFiles}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-4 text-[13px] font-semibold text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.07]"
-            >
-              <FilePlus2 className="size-3.5" />
-              Add Files to Merge
-            </button>
+          <div className="space-y-4 px-5 pt-4 pb-2">
             {/* Search and a single Filter button on one row, straight in the
                 panel's flow (no box around them); what's filtered shows as
                 removable chips below, only when set. */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
                 <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500" />
                   <input
                     value={query}
                     onChange={(event) => {
@@ -504,7 +497,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                       onExplore?.()
                     }}
                     placeholder="Search merges…"
-                    className="h-9 w-full rounded-full border border-white/10 bg-slate-900 pr-3 pl-9 text-sm outline-none focus:ring-1 focus:ring-primary"
+                    className="h-9 w-full rounded-full bg-white/[0.05] pr-3 pl-9 text-sm text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
                   />
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
@@ -519,8 +512,22 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               />
             </div>
 
-            <div data-guide="merge-items" className="space-y-2">
-            <p className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">Merge Items · {visible.length}</p>
+            {/* Add Files sits under the search tools, right above the list it
+                adds to — a quiet flat action, not the first thing you see. */}
+            <button
+              type="button"
+              data-guide="add-files"
+              onClick={startMergeFromOpenFiles}
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-white/[0.05] px-4 text-[13px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
+            >
+              <FilePlus2 className="size-3.5" />
+              Add Files to Merge
+            </button>
+
+            <div data-guide="merge-items">
+            <p className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Merge Items · {visible.length}</p>
+            {/* Full-bleed rows split by hairlines, like the Inbox feed. */}
+            <div className="-mx-5 divide-y divide-white/[0.06]">
             {visible.map((item) => (
               <MergeItemCard
                 key={item.id}
@@ -530,10 +537,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               />
             ))}
             {visible.length === 0 && (
-              <p className="rounded-xl border border-white/10 bg-slate-800/70 p-3 text-center text-[13px] text-muted-foreground">
+              <p className="px-5 py-6 text-center text-[13px] text-slate-400">
                 No merge items match these filters.
               </p>
             )}
+            </div>
             </div>
           </div>
         ) : !item ? (

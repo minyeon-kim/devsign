@@ -20,7 +20,7 @@ export const GUIDE_STEPS = [
   },
   {
     title: 'Open a merge item',
-    body: 'Click an item to open its comparison canvas — or use Add Files to Merge at the top to start one from your open files.',
+    body: 'Click an item to open its comparison canvas — or use Add Files to Merge (under the search bar) to start one from your open files.',
     targets: [
       { id: 'merge-items', side: 'right', round: 'rounded-xl' },
       // On the Files / Layers tab the item list isn't mounted.
