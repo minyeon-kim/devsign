@@ -156,9 +156,33 @@ export function WorkspaceProvider({ children }) {
 
   const recordHistory = useCallback((entry) => {
     const id = nextId('h')
-    setHistoryEntries((prev) => [...prev, { id, ...entry }])
+    setHistoryEntries((prev) => [...prev, { archived: false, id, ...entry }])
     setActiveHistoryId(id)
     return id
+  }, [])
+
+  // Archiving is a soft-delete: the entry drops out of the active rollback
+  // timeline but its snapshot is kept, so `restoreHistoryEntry` can always
+  // bring it back — nothing here is ever destructive. The entry currently
+  // representing the live workspace can't be archived, since that would
+  // hide the one entry that's actually in effect right now.
+  const archiveHistoryEntry = useCallback(
+    (entryId) => {
+      if (entryId === activeHistoryId) {
+        toast("Can't archive the entry you're currently on — roll back to a different one first.")
+        return
+      }
+      setHistoryEntries((prev) =>
+        prev.map((entry) => (entry.id === entryId ? { ...entry, archived: true } : entry))
+      )
+    },
+    [activeHistoryId]
+  )
+
+  const restoreHistoryEntry = useCallback((entryId) => {
+    setHistoryEntries((prev) =>
+      prev.map((entry) => (entry.id === entryId ? { ...entry, archived: false } : entry))
+    )
   }, [])
 
   const rollbackTo = useCallback(
@@ -296,6 +320,8 @@ export function WorkspaceProvider({ children }) {
     historyEntries,
     activeHistoryId,
     rollbackTo,
+    archiveHistoryEntry,
+    restoreHistoryEntry,
     inspectorOpen,
     setInspectorOpen,
     followingMe,

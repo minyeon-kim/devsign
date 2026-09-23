@@ -618,6 +618,7 @@ export const initialHistoryEntries = [
     label: 'Generated initial DesignCanvas scaffold',
     prompt: 'Scaffold a design canvas component',
     timestamp: 'Yesterday, 4:12 PM',
+    archived: false,
     snapshot: {
       activeFileId: 'app',
       fileId: 'app',
@@ -642,6 +643,7 @@ export const initialHistoryEntries = [
     label: 'Added frame mapping and Deselect button',
     prompt: 'Render each frame and add a deselect button',
     timestamp: 'Yesterday, 4:40 PM',
+    archived: false,
     snapshot: {
       activeFileId: 'app',
       fileId: 'app',
