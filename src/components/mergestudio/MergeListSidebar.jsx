@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ChartLine,
@@ -203,6 +203,7 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
         return (
           <button
             key={f.id}
+            ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             className={cn(
@@ -231,6 +232,11 @@ function FilesTab({ item, files, manualCode, activeFileId, onOpen }) {
       })}
     </div>
   )
+}
+
+// Keeps the active Files/Layers row in view as the selection changes.
+function revealRow(el) {
+  el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 const LAYER_ICONS = {
@@ -290,6 +296,7 @@ function LayersTab({ item, frame, selectedLayerId, editedLayerIds, onSelect }) {
         return (
           <button
             key={layer.id}
+            ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onSelect(layer.id)}
             style={{ paddingLeft: 14 + depth * 14 }}
@@ -326,7 +333,7 @@ const TABS = [
 // Merges / Files / Layers tabs. It collapses to a small pill; clicking the
 // canvas collapses it too. Filters in Merges are one row of dropdown chips
 // (Status / Conflict / Due), each a multi-select menu.
-function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, editedLayerIds = new Set() }) {
+function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set() }) {
   const {
     mergeItems,
     selectedMergeItemId,
@@ -339,6 +346,22 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
   } = useWorkspace()
   const [confirmExitOpen, setConfirmExitOpen] = useState(false)
   const [tab, setTab] = useState('merges')
+  // Context-aware tab: clicking a design element shows Layers, a code line
+  // shows Files. Only switches when the tab actually changes, and marks the
+  // newly shown tab with a brief highlight so the change is noticed rather
+  // than jarring.
+  const [flashTab, setFlashTab] = useState(null)
+  const lastFocus = useRef(null)
+  useEffect(() => {
+    if (!focusTab || !item || lastFocus.current === focusTab.nonce) return
+    lastFocus.current = focusTab.nonce
+    if (tab === focusTab.tab) return
+    setTab(focusTab.tab)
+    setFlashTab(focusTab.tab)
+    const t = setTimeout(() => setFlashTab(null), 900)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTab?.nonce])
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState([])
   const [conflictFilter, setConflictFilter] = useState([])
@@ -440,8 +463,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               type="button"
               onClick={() => setTab(id)}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-colors',
-                tab === id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/30' : 'text-muted-foreground hover:text-foreground'
+                'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color,box-shadow] duration-300',
+                tab === id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/30' : 'text-muted-foreground hover:text-foreground',
+                flashTab === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
               )}
             >
               <Icon className="size-3.5" />

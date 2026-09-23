@@ -118,6 +118,11 @@ function MergeStudioWorkspace({ item }) {
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
   const [liveCode, setLiveCode] = useState(null)
+  // Which Merge List tab the user's last direct click points at — a design
+  // element -> Layers, a code line -> Files. A nonce so repeat clicks of the
+  // same kind still register; only direct canvas/code clicks set it, never
+  // programmatic selection (defaults, drift pager, inbox jumps).
+  const [listFocus, setListFocus] = useState(null)
   const deferredLive = useDeferredValue(liveCode)
 
   useEffect(() => {
@@ -458,6 +463,7 @@ function MergeStudioWorkspace({ item }) {
           onSelectLayer={selectLayer}
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
+          onFocusSource={(source) => setListFocus({ tab: source === 'code' ? 'files' : 'layers', nonce: Date.now() })}
         />
         </div>
       ) : (
@@ -479,6 +485,7 @@ function MergeStudioWorkspace({ item }) {
         selectedLayerId={syncSelection?.layerId}
         selectedFileId={syncSelection?.fileId}
         manualCode={manualCode}
+        focusTab={listFocus}
         editedLayerIds={new Set([...Object.keys(assemblies), ...Object.keys(copyEdits(frame0, manualCode))])}
       />
 

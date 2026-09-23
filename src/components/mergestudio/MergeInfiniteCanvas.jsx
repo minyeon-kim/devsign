@@ -1440,6 +1440,7 @@ function MergeInfiniteCanvas({
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
+  onFocusSource,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1678,6 +1679,7 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLayer(layerId)
+    onFocusSource?.('design')
   }
   function pickLine(fileId, line, el) {
     anchorElRef.current = el
@@ -1685,6 +1687,7 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLine(fileId, line)
+    onFocusSource?.('code')
   }
   function pickFrame(key, el) {
     anchorElRef.current = el
@@ -1692,6 +1695,7 @@ function MergeInfiniteCanvas({
     setFrameSel(key)
     setAiStage('badge')
     onSelectFrame()
+    onFocusSource?.('design')
   }
 
   // Click-to-annotate: the note becomes a pin on the element; the (mock)
