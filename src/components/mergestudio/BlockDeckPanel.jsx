@@ -1149,7 +1149,9 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, on
 function ComponentPreview({ def }) {
   const box = { w: 124, h: 58 }
   const k = Math.min(1, box.w / def.width, box.h / def.height)
-  const layer = { id: def.id, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
+  // `name` matters: some layer types (avatars) render from it — without it
+  // an avatar preview crashed the whole Library tab.
+  const layer = { id: def.id, name: def.name, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
   const override = { ...assemblyToOverride(def.assembly, layer), static: true }
   return (
     <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-slate-200" style={{ width: box.w + 12, height: box.h + 12 }}>
@@ -1433,15 +1435,8 @@ function BlockDeckPanel({
           Library
         </button>
       </div>
-      {/* Library needs no intro line — its Design System header and search
-          sit directly under the tabs. */}
-      {tab !== 'library' && (
-        <p className="shrink-0 border-b border-white/10 bg-slate-800/60 px-4 py-2 text-xs leading-snug text-muted-foreground">
-          {tab === 'compare' && 'Compare visual drifts and style tokens: keep the Original Design, take the Current Implementation, or set your own value.'}
-          {tab === 'assemble' && 'Edit the element’s copy and compose its shape, size and style — or accept an AI suggestion.'}
-        </p>
-      )}
-
+      {/* No per-tab description line — each tab's content starts right
+          under the tab bar. */}
       {tab === 'compare' ? (
         item.hasDesign ? (
           <VariantCompareTab

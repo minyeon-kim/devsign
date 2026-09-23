@@ -663,7 +663,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
           extra
         )}
       >
-        {!mock.stacked && <span style={{ fontSize: Math.max(7, h * 0.36) }}>{mock.initials ?? layer.name.slice(0, 1)}</span>}
+        {!mock.stacked && <span style={{ fontSize: Math.max(7, h * 0.36) }}>{mock.initials ?? (layer.name ?? layer.label ?? '').slice(0, 1)}</span>}
       </div>
     )
   } else if (type === 'input') {
