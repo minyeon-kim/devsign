@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, House, ListChecks, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, Hand, History, House, ListChecks, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -12,6 +12,7 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
 import { COUNT_BADGE, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
@@ -1279,7 +1280,7 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
 // selections, Block Assemble / Design System edits, presets, AI notes — as
 // rows you can Undo individually, or click to pan the canvas to the element
 // (or code line) they touch.
-function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
+function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenHistory }) {
   const total = entries.length
   return (
     // `relative`, sized to just the button — the expanded panel is
@@ -1290,6 +1291,22 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
     <div className="relative">
       {open && (
         <div className="absolute right-0 bottom-full mb-2 max-h-80 w-80 max-w-[calc(100vw-1.5rem)] space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
+          {/* Version history lives here now (it used to be on the app's
+              right-hand toolbar): saved versions sit right next to the
+              unsaved changes. */}
+          <div className="flex h-7 items-center justify-between px-1">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Changes · {total}</span>
+            {onOpenHistory && (
+              <button
+                type="button"
+                onClick={onOpenHistory}
+                className="flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+              >
+                <History className="size-3.5" />
+                Version history
+              </button>
+            )}
+          </div>
           {total === 0 && codeRows.length === 0 && (
             <p className="py-3 text-center text-muted-foreground">No changes yet — pick or edit values, edit code, assemble blocks, or annotate.</p>
           )}
@@ -1443,6 +1460,36 @@ function MergeInfiniteCanvas({
     defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
   )
   const [panning, setPanning] = useState(false)
+  // Canvas tool (the right-hand vertical toolbar): 'select' is the normal
+  // click-to-select canvas; 'hand' turns the whole canvas into a pan
+  // surface. Holding Space is a temporary hand, like in Figma.
+  const [tool, setTool] = useState('select')
+  const [spaceHand, setSpaceHand] = useState(false)
+  const handActive = tool === 'hand' || spaceHand
+  useEffect(() => {
+    const typing = () => {
+      const el = document.activeElement
+      return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    function down(e) {
+      if (typing() || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'v' || e.key === 'V') setTool('select')
+      else if (e.key === 'h' || e.key === 'H') setTool('hand')
+      else if (e.code === 'Space') {
+        e.preventDefault()
+        setSpaceHand(true)
+      }
+    }
+    function up(e) {
+      if (e.code === 'Space') setSpaceHand(false)
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [])
   const [hover, setHover] = useState(null) // { layerId, fileId, line }
   const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
@@ -1988,6 +2035,12 @@ function MergeInfiniteCanvas({
 
   function startPan(e) {
     if (e.target !== e.currentTarget || e.button !== 0) return
+    beginPan(e)
+  }
+  // Pan from anywhere (Hand tool) — no empty-canvas check.
+  function beginPan(e) {
+    if (e.button !== 0) return
+    e.preventDefault()
     const start = { px: e.clientX, py: e.clientY, vx: view.x, vy: view.y }
     setPanning(true)
     setAiStage(null)
@@ -2148,6 +2201,42 @@ function MergeInfiniteCanvas({
     // so the whole app's other dark surfaces are untouched.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-800">
       <div ref={containerRef} className="relative min-h-0 flex-1">
+        {/* Hand tool: a pan surface over the whole canvas (floating
+            controls sit above it at z-20 and stay clickable). */}
+        {handActive && (
+          <div
+            onPointerDown={beginPan}
+            className={cn('absolute inset-0 z-[15]', panning ? 'cursor-grabbing' : 'cursor-grab')}
+          />
+        )}
+        {/* Canvas tools — the only thing on the right-hand edge: select and
+            pan. Sits clear of the docked Block Deck via `reserve`. */}
+        <div
+          className={cn('absolute top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full p-1', FLOATING_PILL)}
+          style={{ right: 12 + reserve }}
+        >
+          {[
+            ['select', MousePointer2, 'Select', 'V'],
+            ['hand', Hand, 'Hand — pan the canvas', 'H'],
+          ].map(([id, Icon, label, key]) => (
+            <button
+              key={id}
+              type="button"
+              title={`${label} (${key})`}
+              aria-label={label}
+              aria-pressed={tool === id}
+              onClick={() => setTool(id)}
+              className={cn(
+                'flex size-9 items-center justify-center rounded-full transition-colors',
+                (id === 'hand' ? handActive : tool === id && !spaceHand)
+                  ? 'bg-white/10 text-foreground ring-1 ring-inset ring-white/15'
+                  : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+              )}
+            >
+              <Icon className="size-4" />
+            </button>
+          ))}
+        </div>
         <div
           ref={viewportRef}
           onPointerDown={startPan}
@@ -2409,6 +2498,7 @@ function MergeInfiniteCanvas({
             <span className="h-4 w-px bg-white/10" />
             <UserPresence />
           </div>
+          <MergeShareButton item={item} />
           <button
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
@@ -2597,6 +2687,10 @@ function MergeInfiniteCanvas({
               codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0)}
               open={summaryOpen}
               onToggle={() => setSummaryOpen((v) => !v)}
+              onOpenHistory={() => {
+                setSummaryOpen(false)
+                setMergeDrawer('history')
+              }}
               onJump={(e) =>
                 requestMergeFocus({
                   itemId: item.id,

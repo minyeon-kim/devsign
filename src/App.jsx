@@ -79,7 +79,9 @@ function WorkspaceShell() {
           </div>
         )}
 
-        <RightFloatingBar />
+        {/* Merge Studio has its own canvas tools (select / hand) and moves
+            comments, share and history into its header and Changes log. */}
+        {!inMergeStudio && <RightFloatingBar />}
         <InspectorSidebar />
         {!inMergeStudio && <ChatMorphWidget />}
       </div>
