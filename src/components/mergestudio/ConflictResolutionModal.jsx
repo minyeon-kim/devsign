@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Code2, Crosshair, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import ConflictTag from '@/components/mergestudio/ConflictTag'
 
 // Derives the conflicting blocks for a merge item from its real mock data:
 // design token diffs (`designMergeVariants.layerDiffs`) and incoming code
@@ -74,53 +72,65 @@ function buildBlocks(item, getFileLines) {
   return blocks
 }
 
-function Side({ label, lines, tone, selected, onSelect }) {
+// One side of a conflict, as a radio row in the block's option list: the
+// choice indicator, which version it is (+ "Recommended" for the AI pick),
+// and the value itself in mono.
+function OptionRow({ label, lines, selected, recommended, strong, onSelect }) {
   return (
     <button
       type="button"
+      role="radio"
+      aria-checked={selected}
       onClick={onSelect}
-      className={cn(
-        'flex min-w-0 flex-1 flex-col rounded-2xl border p-2.5 text-left transition-colors',
-        selected ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-slate-800/70 hover:bg-muted/50'
-      )}
+      className={cn('flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors', selected ? 'bg-white/[0.05]' : 'hover:bg-white/[0.03]')}
     >
-      <span className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-slate-300">
-        {label}
-        {selected && <Check className="ml-auto size-3 text-emerald-400" />}
-      </span>
       <span
         className={cn(
-          'block rounded-lg px-2 py-1.5 font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap',
-          tone === 'current' ? 'bg-destructive/10 text-destructive/90' : 'bg-emerald-500/10 text-emerald-400'
+          'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset transition-colors',
+          selected ? 'bg-emerald-400 ring-emerald-400' : 'ring-white/25'
         )}
       >
-        {lines.map((l, i) => (
-          <span key={i} className="block">
-            {l === '' ? ' ' : l}
-          </span>
-        ))}
+        {selected && <Check strokeWidth={3.5} className="size-2.5 text-slate-950" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 text-xs text-slate-400">
+          {label}
+          {recommended && <span className="text-[11px] font-medium text-emerald-300">Recommended</span>}
+        </span>
+        <span className={cn('mt-1 block font-mono text-[12px] leading-relaxed break-words whitespace-pre-wrap', strong ? 'text-white' : 'text-slate-300')}>
+          {lines.map((l, i) => (
+            <span key={i} className="block">
+              {l === '' ? ' ' : l}
+            </span>
+          ))}
+        </span>
       </span>
     </button>
   )
 }
 
-// Conflict Resolution view for a flagged merge item: conflicting token /
-// code blocks side by side (Current vs Incoming), an AI one-click
-// "auto-resolve" recommendation, and per-block manual choice. Applying the
-// resolution clears the item's conflict badge.
-function ConflictResolutionModal({ item, onClose }) {
+// Conflict resolution, inline in the Merge Changes modal's Check step (no
+// separate dialog): one conflict at a time in a single grouped list —
+// Original Design vs Current Implementation as radio rows, the AI pick
+// marked "Recommended" — with a segmented progress bar (click a segment to
+// jump), Previous / Next, and "Resolve all with AI". Picking a side moves
+// on to the next open conflict; each conflict is also selected on the
+// canvas. Applying the resolution clears the item's conflict.
+function ConflictResolver({ item, onBack, onResolved }) {
   const { getFileLines, updateMergeItem, requestMergeFocus } = useWorkspace()
   const blocks = useMemo(() => buildBlocks(item, getFileLines), [item, getFileLines])
   const [choices, setChoices] = useState({})
   const [aiApplied, setAiApplied] = useState(false)
   const [active, setActive] = useState(0)
   const resolved = blocks.filter((b) => choices[b.id]).length
+  const allDone = resolved === blocks.length
+  const b = blocks[active]
 
   // Targeting a conflict = selecting its element on the canvas (which draws
   // the neon outline and pans there). Blocks without a target do nothing.
-  function locate(b) {
-    if (b.layerId) requestMergeFocus({ itemId: item.id, layerId: b.layerId, label: b.title })
-    else if (b.fileId) requestMergeFocus({ itemId: item.id, fileId: b.fileId, line: b.line, label: b.title })
+  function locate(block) {
+    if (block.layerId) requestMergeFocus({ itemId: item.id, layerId: block.layerId, label: block.title })
+    else if (block.fileId) requestMergeFocus({ itemId: item.id, fileId: block.fileId, line: block.line, label: block.title })
   }
 
   useEffect(() => {
@@ -128,154 +138,136 @@ function ConflictResolutionModal({ item, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // < > pager across the conflict blocks: jump the canvas and scroll the
-  // block list to the target.
-  function go(dir) {
-    const next = (active + dir + blocks.length) % blocks.length
-    setActive(next)
-    locate(blocks[next])
-    document.getElementById(`conflict-block-${next}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  function goTo(index) {
+    setActive(index)
+    locate(blocks[index])
+  }
+
+  function choose(side) {
+    const next = { ...choices, [b.id]: side }
+    setAiApplied(false)
+    setChoices(next)
+    // Step on to the next conflict that still needs a decision.
+    const after = [...blocks.slice(active + 1), ...blocks.slice(0, active)].find((x) => !next[x.id])
+    if (after) setTimeout(() => goTo(blocks.indexOf(after)), 180)
   }
 
   function autoResolve() {
-    setChoices(Object.fromEntries(blocks.map((b) => [b.id, b.recommended])))
+    setChoices(Object.fromEntries(blocks.map((x) => [x.id, x.recommended])))
     setAiApplied(true)
   }
 
-  function choose(id, side) {
-    setAiApplied(false)
-    setChoices((prev) => ({ ...prev, [id]: side }))
+  function apply() {
+    updateMergeItem(item.id, { conflictLevel: 'None', updatedLabel: 'Just now' })
+    onResolved?.()
   }
 
   return (
-    <Dialog open modal={false} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        overlay={false}
-        className="top-6 right-6 left-auto flex max-h-[calc(100vh-3rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl"
-      >
-        <DialogHeader className="shrink-0 border-b px-5 py-4">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            {item.title}
-            <ConflictTag level={item.conflictLevel} />
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            Choose Current or Incoming for each conflicting block, or let AI resolve them all.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-200">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onBack} className="-ml-2 flex h-7 items-center gap-1 rounded-full pr-2.5 pl-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+          <ChevronLeft className="size-4" />
+          Checks
+        </button>
+        <span className="ml-auto text-xs text-slate-400 tabular-nums">
+          <span className="font-semibold text-white">{resolved}</span> of {blocks.length} resolved
+        </span>
+      </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-3.5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
-                <Sparkles className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-foreground">AI recommendation</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Auto-resolve using latest Design System tokens · {blocks.length} block{blocks.length === 1 ? '' : 's'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={autoResolve}
-                className={cn(
-                  'flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 h-7 text-xs font-semibold transition-all',
-                  aiApplied
-                    ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                    : 'bg-slate-700 text-white hover:bg-slate-600'
-                )}
-              >
-                {aiApplied ? <Check className="size-3.5" /> : <Wand2 className="size-3.5" />}
-                {aiApplied ? 'Applied' : 'Apply'}
-              </button>
-            </div>
-          </div>
-
-          {blocks.length > 1 && (
-            <div className="flex items-center justify-center gap-1">
-              <button
-                type="button"
-                onClick={() => go(-1)}
-                title="Previous conflict"
-                className="flex size-7 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="min-w-28 text-center text-xs font-medium text-foreground tabular-nums">
-                Conflict {active + 1} / {blocks.length}
-              </span>
-              <button
-                type="button"
-                onClick={() => go(1)}
-                title="Next conflict"
-                className="flex size-7 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-          )}
-
-          {blocks.map((b, i) => (
-            <section
-              key={b.id}
-              id={`conflict-block-${i}`}
-              className={cn('rounded-2xl transition-shadow', active === i && blocks.length > 1 && 'ring-1 ring-emerald-400/70 ring-offset-4 ring-offset-transparent')}
-            >
-              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
-                {b.kind === 'token' ? <Palette className="size-3.5 text-emerald-400" /> : <Code2 className="size-3.5 text-emerald-400" />}
-                {b.title}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActive(blocks.indexOf(b))
-                    locate(b)
-                  }}
-                  title="Show on canvas"
-                  className="flex items-center justify-center gap-1 rounded-full border border-emerald-400/60 px-2 h-5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/10"
-                >
-                  <Crosshair className="size-3" />
-                  Locate
-                </button>
-                <span className="ml-auto flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <Sparkles className="size-2.5 text-emerald-400" />
-                  AI: {b.recommended === 'B' ? 'Current Implementation' : 'Original Design'} — {b.reason}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Side label="Original Design" lines={b.current} tone="current" selected={choices[b.id] === 'A'} onSelect={() => choose(b.id, 'A')} />
-                <Side label="Current Implementation" lines={b.incoming} tone="incoming" selected={choices[b.id] === 'B'} onSelect={() => choose(b.id, 'B')} />
-              </div>
-            </section>
+      <div>
+        <p className="text-base font-semibold text-white">Resolve the {item.conflictLevel.toLowerCase()} conflict</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-400">Pick a version for each conflicting value — or let AI resolve them all.</p>
+        {/* Segmented progress: one segment per conflict; click to jump. */}
+        <div className="mt-4 flex gap-1" role="tablist" aria-label="Conflicts">
+          {blocks.map((x, i) => (
+            <button
+              key={x.id}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              title={x.title}
+              onClick={() => goTo(i)}
+              className={cn(
+                'h-1.5 min-w-0 flex-1 rounded-full transition-colors',
+                choices[x.id] ? 'bg-emerald-400' : i === active ? 'bg-white/50' : 'bg-white/[0.1] hover:bg-white/25'
+              )}
+            />
           ))}
         </div>
+      </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t px-5 py-3">
-          <span className="mr-auto text-[11px] text-muted-foreground">
-            {resolved} of {blocks.length} resolved
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center justify-center rounded-full px-4 h-8 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={resolved < blocks.length}
-            onClick={() => {
-              updateMergeItem(item.id, { conflictLevel: 'None', updatedLabel: 'Just now' })
-              onClose()
-            }}
-            className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-4 h-8 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
-          >
+      {/* AI shortcut: one quiet row, not a card. */}
+      <div className="flex items-center gap-3">
+        <Sparkles className="size-4 shrink-0 text-slate-400" />
+        <p className="min-w-0 flex-1 text-[13px] text-slate-300">
+          Resolve all {blocks.length} with AI
+          <span className="block text-xs text-slate-500">Uses the latest Design System tokens</span>
+        </p>
+        {aiApplied ? (
+          <span className="flex h-8 items-center gap-1.5 px-2 text-xs font-medium text-emerald-300">
             <Check className="size-3.5" />
+            Applied
+          </span>
+        ) : (
+          <button type="button" onClick={autoResolve} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/[0.12]">
+            <Wand2 className="size-3.5" />
+            Resolve all
+          </button>
+        )}
+      </div>
+
+      {/* The current conflict. */}
+      <section key={b.id} className="animate-in fade-in duration-200">
+        <div className="mb-2.5 flex items-center gap-2">
+          {b.kind === 'token' ? <Palette className="size-4 shrink-0 text-slate-400" /> : <Code2 className="size-4 shrink-0 text-slate-400" />}
+          <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-white" title={b.title}>
+            <span className="mr-1.5 text-slate-500 tabular-nums">{active + 1}.</span>
+            {b.title}
+          </p>
+          {(b.layerId || b.fileId) && (
+            <button type="button" onClick={() => locate(b)} title="Show on canvas" className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+              <Crosshair className="size-3.5" />
+              Locate
+            </button>
+          )}
+        </div>
+        <div role="radiogroup" aria-label={b.title} className="overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07] divide-y divide-white/[0.06]">
+          <OptionRow label="Original Design" lines={b.current} selected={choices[b.id] === 'A'} recommended={b.recommended === 'A'} onSelect={() => choose('A')} />
+          <OptionRow label="Current Implementation" lines={b.incoming} strong selected={choices[b.id] === 'B'} recommended={b.recommended === 'B'} onSelect={() => choose('B')} />
+        </div>
+        <p className="mt-2 text-xs text-slate-500">AI: {b.reason}.</p>
+      </section>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={blocks.length < 2}
+          onClick={() => goTo((active - 1 + blocks.length) % blocks.length)}
+          className="flex h-9 items-center gap-1 rounded-full pr-3.5 pl-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"
+        >
+          <ChevronLeft className="size-4" />
+          Previous
+        </button>
+        <span className="flex-1" />
+        {allDone ? (
+          <button type="button" onClick={apply} className="flex h-9 items-center gap-1.5 rounded-full bg-emerald-400 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition-colors hover:bg-emerald-300">
+            <Check className="size-4" />
             Apply resolution
           </button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        ) : (
+          <button
+            type="button"
+            disabled={blocks.length < 2}
+            onClick={() => goTo((active + 1) % blocks.length)}
+            className="flex h-9 items-center gap-1 rounded-full bg-white/[0.07] pr-2.5 pl-3.5 text-sm font-medium text-slate-100 transition-colors hover:bg-white/[0.12] disabled:opacity-40"
+          >
+            Next
+            <ChevronRight className="size-4" />
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
-export default ConflictResolutionModal
+export default ConflictResolver

@@ -26,7 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
-import ConflictResolutionModal from '@/components/mergestudio/ConflictResolutionModal'
+import ConflictResolver from '@/components/mergestudio/ConflictResolutionModal'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -313,110 +313,243 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
 // distinct "Action required" card with the primary action; everything else
 // is a quiet list of notes. The drift-by-drift review lives in Preview and
 // the full "what will be merged" breakdown in Review.
-function CheckStep({ item, resolutions, summary }) {
-  // Conflict resolution opens from here — the pre-merge check is where a
-  // flagged conflict matters (the Merge List cards show it as a tag only).
-  const [conflictOpen, setConflictOpen] = useState(false)
-  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
-  const drifts = buildDrifts(item, frame)
-  const totalDiffs = Object.values(designMergeVariants[item.id]?.layerDiffs ?? {}).reduce((n, d) => n + d.length, 0)
-  const decided = Math.min(Object.keys(resolutions).length, totalDiffs)
-  const undecided = totalDiffs - decided
-  const hasConflict = item.conflictLevel && item.conflictLevel !== 'None'
-  const conflictTone = item.conflictLevel === 'High' ? 'border-destructive/40 bg-destructive/10' : 'border-amber-500/40 bg-amber-500/10'
+// ----- Merge impact & health assessment (the Check step) --------------
+// Everything is derived from the item's own data and the current choices,
+// so the numbers move as options are decided.
+//
+// A property value is "on the token scale" when it matches the design
+// system: 4px spacing grid, the radius scale, the type / weight scales, or
+// a named color / surface token.
+const RADIUS_SCALE = new Set([0, 2, 4, 6, 8, 12, 16, 20, 24, 999])
+const TYPE_SCALE = new Set([12, 14, 16, 18, 20, 24, 28, 32, 40, 48])
+const WEIGHT_SCALE = new Set([400, 500, 600, 700])
+const LAYOUT_PROPS = /padding|spacing|font size|width|height|gap/i
+const ACCENT_HEX = { 'Indigo 500': '#6366f1', 'Violet 500': '#8b5cf6' }
+// Sections of the page, from layer ids (nav-…, hero-…): the screens a
+// merge touches.
+const SECTION_NAMES = { nav: 'Navigation', hero: 'Hero', signup: 'Sign-up', social: 'Social proof', avatar: 'Social proof', feature: 'Features', dash: 'Dashboard', cashflow: 'Dashboard', txn: 'Dashboard' }
 
-  const notes = [
-    !hasConflict && { id: 'conflict', ok: true, text: 'No merge conflicts' },
-    totalDiffs > 0 &&
-      (undecided === 0
-        ? { id: 'options', ok: true, text: `All ${totalDiffs} design options decided` }
-        : { id: 'options', ok: false, text: `${undecided} design option${undecided === 1 ? '' : 's'} undecided`, hint: 'They’ll use the Current Implementation — review them in Preview.' }),
-    summary.pending === 0
-      ? { id: 'ai', ok: true, text: summary.applied.length ? `${summary.applied.length} AI edit${summary.applied.length === 1 ? '' : 's'} applied` : 'No pending AI notes' }
-      : { id: 'ai', ok: false, text: `${summary.pending} AI note${summary.pending === 1 ? '' : 's'} not applied`, hint: 'Use “Apply with AI” on the canvas to include them.' },
+function onTokenScale(label, value) {
+  // A named color / surface token ("Violet 500", "Card Surface").
+  if (/^[A-Z][a-z]+( [A-Z]?[a-z]+)*( \d{2,3})?$/.test(String(value).trim())) return true
+  const nums = String(value).match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+  if (!nums.length) return false
+  if (/radius/i.test(label)) return nums.every((n) => RADIUS_SCALE.has(n))
+  if (/font size/i.test(label)) return nums.every((n) => TYPE_SCALE.has(n))
+  if (/weight/i.test(label)) return nums.every((n) => WEIGHT_SCALE.has(n))
+  return nums.every((n) => n % 4 === 0)
+}
+
+function relLuminance(hex) {
+  const c = hex.replace('#', '').match(/../g).map((h) => parseInt(h, 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+}
+const contrastOnWhite = (hex) => 1.05 / (relLuminance(hex) + 0.05)
+
+function assessMerge(item, resolutions, summary) {
+  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const layers = frame?.layers ?? []
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const drifts = buildDrifts(item, frame)
+
+  // Every property decision, with the value that will actually ship
+  // (undecided = the Current Implementation's value).
+  const props = Object.entries(layerDiffs).flatMap(([layerId, diffs]) =>
+    diffs.map((diff) => {
+      const r = resolutions[`${layerId}:${diff.id}`]
+      const value = isCustomResolution(r) ? r.custom : r === 'A' ? diff.optionA : diff.optionB
+      return { layerId, diff, value, decided: Boolean(r), changed: value !== diff.optionA }
+    })
+  )
+  const offScale = props.filter((p) => !onTokenScale(p.diff.label, p.value))
+  const consistency = props.length ? Math.round(((props.length - offScale.length) / props.length) * 100) : 100
+  const breaking = props.filter((p) => p.changed && LAYOUT_PROPS.test(p.diff.label))
+  const risk = breaking.length === 0 ? 'Low' : breaking.length <= 2 ? 'Medium' : 'High'
+  const undecided = props.filter((p) => !p.decided).length
+
+  // Screens (page sections) touched, with element / property counts.
+  const bySection = new Map()
+  for (const [layerId, diffs] of Object.entries(layerDiffs)) {
+    const name = SECTION_NAMES[layerId.split('-')[0]] ?? 'Other'
+    const entry = bySection.get(name) ?? { name, elements: 0, props: 0 }
+    entry.elements += 1
+    entry.props += diffs.length
+    bySection.set(name, entry)
+  }
+  const screens = [...bySection.values()]
+
+  // Automated checks.
+  const interactive = layers.filter((l) => ['button', 'input', 'iconbtn', 'chip', 'toggle'].includes(l.type))
+  const smallTargets = interactive.filter((l) => Math.min(l.width, l.height) < 24)
+  const accents = [...new Set(props.filter((p) => /accent/i.test(p.diff.label) && ACCENT_HEX[p.value]).map((p) => p.value))]
+  const worstAccent = accents.map((a) => ({ a, ratio: contrastOnWhite(ACCENT_HEX[a]) })).sort((x, y) => x.ratio - y.ratio)[0]
+  const fontSizes = props.filter((p) => /font size/i.test(p.diff.label)).map((p) => parseFloat(p.value))
+  const hasConflict = item.conflictLevel && item.conflictLevel !== 'None'
+
+  const checks = [
+    {
+      id: 'conflict',
+      group: 'Merge',
+      ok: !hasConflict,
+      title: hasConflict ? `${item.conflictLevel} merge conflict` : 'No merge conflicts',
+      hint: hasConflict ? 'Conflicting blocks need a version before this merges cleanly.' : null,
+      action: hasConflict ? 'resolve' : null,
+    },
+    {
+      id: 'decided',
+      group: 'Merge',
+      ok: undecided === 0,
+      title: undecided === 0 ? `All ${props.length} design options decided` : `${undecided} design option${undecided === 1 ? '' : 's'} undecided`,
+      hint: undecided ? 'They’ll ship the Current Implementation’s value — review them in Preview.' : null,
+    },
+    {
+      id: 'tokens',
+      group: 'Design system',
+      ok: offScale.length === 0,
+      title: offScale.length === 0 ? 'All values on the token scale' : `${offScale.length} value${offScale.length === 1 ? '' : 's'} off the token scale`,
+      hint: offScale.length ? offScale.map((p) => `${layers.find((l) => l.id === p.layerId)?.name ?? p.layerId} ${p.diff.label.toLowerCase()} ${p.value}`).join(' · ') : null,
+    },
+    worstAccent && {
+      id: 'contrast',
+      group: 'Accessibility',
+      ok: worstAccent.ratio >= 4.5,
+      title: `Button text contrast ${worstAccent.ratio.toFixed(1)}:1`,
+      hint: worstAccent.ratio >= 4.5 ? null : `${worstAccent.a} with white text is below WCAG AA (4.5:1).`,
+    },
+    {
+      id: 'targets',
+      group: 'Accessibility',
+      ok: smallTargets.length === 0,
+      title: smallTargets.length === 0 ? `Target size ≥ 24px on all ${interactive.length} controls` : `${smallTargets.length} control${smallTargets.length === 1 ? '' : 's'} under 24px`,
+      hint: smallTargets.length ? 'WCAG 2.2 AA (2.5.8) target size.' : null,
+    },
+    fontSizes.length > 0 && {
+      id: 'text',
+      group: 'Accessibility',
+      ok: fontSizes.every((n) => n >= 12),
+      title: fontSizes.every((n) => n >= 12) ? 'Text sizes ≥ 12px' : 'Text below 12px',
+      hint: null,
+    },
+    {
+      id: 'ai',
+      group: 'Merge',
+      ok: summary.pending === 0,
+      title: summary.pending === 0 ? (summary.applied.length ? `${summary.applied.length} AI edit${summary.applied.length === 1 ? '' : 's'} applied` : 'No pending AI notes') : `${summary.pending} AI note${summary.pending === 1 ? '' : 's'} not applied`,
+      hint: summary.pending ? 'Use “Apply with AI” on the canvas to include them.' : null,
+    },
   ].filter(Boolean)
-  const openNotes = notes.filter((n) => !n.ok).length
+
+  return { drifts, props, consistency, breaking, risk, screens, checks, codeFiles: summary.files.length }
+}
+
+const RISK_TONE = { Low: 'text-emerald-300', Medium: 'text-amber-300', High: 'text-rose-300' }
+
+// Check: the merge's impact and the design system's health, before
+// previewing — four headline numbers, which screens it touches, then the
+// automated checks. Conflict resolution is one of the checks (its Resolve
+// action swaps this step's content for the inline resolver).
+function CheckStep({ item, resolutions, summary }) {
+  const [conflictOpen, setConflictOpen] = useState(false)
+  const a = assessMerge(item, resolutions, summary)
+  const passed = a.checks.filter((c) => c.ok).length
+  const attention = a.checks.length - passed
+
+  if (conflictOpen) {
+    return <ConflictResolver item={item} onBack={() => setConflictOpen(false)} onResolved={() => setConflictOpen(false)} />
+  }
 
   const metrics = [
-    [`${summary.files.length}`, summary.files.length === 1 ? 'file' : 'files'],
-    [`${drifts.length}`, drifts.length === 1 ? 'drift' : 'drifts'],
-    [`${decided}/${totalDiffs}`, 'decided'],
-    [`${summary.applied.length}`, summary.applied.length === 1 ? 'AI edit' : 'AI edits'],
+    { id: 'consistency', value: `${a.consistency}`, unit: '%', label: 'Token consistency' },
+    { id: 'screens', value: a.screens.length, label: a.screens.length === 1 ? 'Screen impacted' : 'Screens impacted' },
+    { id: 'breaking', value: a.breaking.length, label: a.breaking.length === 1 ? 'Breaking change' : 'Breaking changes', tag: `${a.risk} risk`, tone: RISK_TONE[a.risk] },
+    { id: 'checks', value: passed, of: a.checks.length, label: 'Checks passed' },
   ]
+  const groups = [...new Set(a.checks.map((c) => c.group))]
 
   return (
-    <div className="space-y-5">
-      {/* Status headline + key numbers. */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={cn(
-              'flex size-8 shrink-0 items-center justify-center rounded-full',
-              hasConflict ? 'bg-amber-500/15 text-amber-500' : 'bg-emerald-500/15 text-emerald-400'
-            )}
-          >
-            {hasConflict ? <TriangleAlert className="size-4" /> : <Check className="size-4" />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">
-              {hasConflict ? 'Resolve the conflict first' : openNotes ? 'Ready to merge — a few notes' : 'Ready to merge'}
-            </p>
-            <p className="text-[13px] text-muted-foreground">
-              {hasConflict ? 'You can still continue, but the merge may not combine cleanly.' : 'Nothing blocks this merge. Review the result in the next step.'}
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-1.5">
-          {metrics.map(([value, label]) => (
-            <div key={label} className="rounded-xl bg-white/[0.03] px-2.5 py-2 ring-1 ring-inset ring-white/10">
-              <p className="text-sm font-semibold text-foreground tabular-nums">{value}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </div>
-          ))}
-        </div>
+    <div className="space-y-8">
+      <div>
+        <p className="text-base font-semibold text-white">Merge impact</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-400">
+          <span className={cn('font-medium', RISK_TONE[a.risk])}>{a.risk} risk</span>
+          {' · '}
+          {attention ? `${attention} of ${a.checks.length} checks need attention` : 'All automated checks pass'}
+          {' · '}
+          {a.drifts.length} drift{a.drifts.length === 1 ? '' : 's'} across {a.codeFiles} file{a.codeFiles === 1 ? '' : 's'}
+        </p>
       </div>
 
-      {/* The one thing to act on, when there is one. */}
-      {hasConflict && (
-        <section className={cn('rounded-2xl border p-3.5', conflictTone)}>
-          <p className="mb-1 text-xs font-semibold text-slate-200">Action required</p>
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">{item.conflictLevel} merge conflict</p>
-              <p className="text-[13px] text-muted-foreground">Choose Current or Incoming for each conflicting block, or let AI resolve them.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setConflictOpen(true)}
-              className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-slate-200"
-            >
-              Resolve conflicts
-              <ArrowRight className="size-4" />
-            </button>
+      {/* Headline numbers: primary figures, secondary labels, hairline
+          dividers — no per-metric boxes. */}
+      <dl className="grid grid-cols-4 divide-x divide-white/[0.08]">
+        {metrics.map((m) => (
+          <div key={m.id} className="min-w-0 px-4 first:pl-0">
+            <dd className="flex items-baseline gap-0.5 text-2xl leading-none font-semibold text-white tabular-nums">
+              {m.value}
+              {m.unit && <span className="text-base font-medium text-slate-400">{m.unit}</span>}
+              {m.of != null && <span className="text-sm font-medium text-slate-500">/{m.of}</span>}
+            </dd>
+            <dt className="mt-1.5 text-xs leading-snug text-slate-400">{m.label}</dt>
+            {m.tag && <p className={cn('mt-0.5 text-xs font-medium', m.tone)}>{m.tag}</p>}
           </div>
-        </section>
-      )}
-
-      {/* Everything else: short, quiet notes. */}
-      <ul className="space-y-1">
-        {notes.map((n) => (
-          <li key={n.id} className="flex items-start gap-2.5 rounded-xl px-1 py-1.5 text-sm">
-            <span
-              className={cn(
-                'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full',
-                n.ok ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-500'
-              )}
-            >
-              {n.ok ? <Check className="size-3" /> : <TriangleAlert className="size-2.5" />}
-            </span>
-            <span className="min-w-0">
-              <span className={n.ok ? 'text-muted-foreground' : 'text-foreground'}>{n.text}</span>
-              {n.hint && <span className="block text-[13px] text-muted-foreground">{n.hint}</span>}
-            </span>
-          </li>
         ))}
-      </ul>
-      {conflictOpen && <ConflictResolutionModal item={item} onClose={() => setConflictOpen(false)} />}
+      </dl>
+
+      {/* Screen impact. */}
+      <section>
+        <p className="mb-2 text-xs font-medium text-slate-300">Impact</p>
+        <ul className="divide-y divide-white/[0.06]">
+          {a.screens.map((sc) => (
+            <li key={sc.name} className="flex items-center gap-3 py-2.5">
+              <Palette className="size-4 shrink-0 text-slate-500" />
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{sc.name}</span>
+              <span className="shrink-0 text-xs text-slate-400 tabular-nums">
+                {sc.elements} element{sc.elements === 1 ? '' : 's'} · {sc.props} propert{sc.props === 1 ? 'y' : 'ies'}
+              </span>
+            </li>
+          ))}
+          {a.codeFiles > 0 && (
+            <li className="flex items-center gap-3 py-2.5">
+              <Code2 className="size-4 shrink-0 text-slate-500" />
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-100">Code</span>
+              <span className="shrink-0 text-xs text-slate-400 tabular-nums">
+                {a.codeFiles} file{a.codeFiles === 1 ? '' : 's'}
+              </span>
+            </li>
+          )}
+        </ul>
+      </section>
+
+      {/* Automated checks, grouped; what needs attention reads brighter
+          and carries its hint. */}
+      {groups.map((g) => (
+        <section key={g}>
+          <p className="mb-3 text-xs font-medium text-slate-300">{g}</p>
+          <ul className="space-y-3">
+            {a.checks
+              .filter((c) => c.group === g)
+              .map((c) => (
+                <li key={c.id} className="flex items-start gap-3">
+                  {c.ok ? <CheckCircle2 className="mt-px size-[18px] shrink-0 text-emerald-400" /> : <TriangleAlert className="mt-px size-[18px] shrink-0 text-amber-300" />}
+                  <span className="min-w-0 flex-1">
+                    <span className={cn('block text-sm', c.ok ? 'text-slate-300' : 'font-medium text-white')}>{c.title}</span>
+                    {c.hint && <span className="mt-0.5 block text-[13px] leading-relaxed text-slate-400">{c.hint}</span>}
+                  </span>
+                  {c.action === 'resolve' && (
+                    <button
+                      type="button"
+                      onClick={() => setConflictOpen(true)}
+                      className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-emerald-400 pr-2.5 pl-3.5 text-xs font-semibold text-slate-950 shadow-md shadow-emerald-500/25 transition-colors hover:bg-emerald-300"
+                    >
+                      Resolve
+                      <ArrowRight className="size-3.5" />
+                    </button>
+                  )}
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))}
     </div>
   )
 }
@@ -714,46 +847,12 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
   )
 }
 
-// The same 5-step flow as the canvas header's stepper: Compare (always done
-// by the time this opens — clicking it returns there) then the wizard's own
-// Check → Preview → Review → Deploy.
+// The full 5-step flow (Compare, then the wizard's Check → Preview →
+// Review → Deploy) — shown only on the canvas's top stepper; the modal's
+// footer uses it for "Step N of 5". The modal header has no stepper of its
+// own.
 const DISPLAY_STEPS = [{ id: 'compare', label: 'Compare' }, ...WIZARD_STEPS]
 
-function WizardStepper({ step, run, onCompare }) {
-  return (
-    <ol className="flex flex-wrap items-center gap-1.5">
-      {DISPLAY_STEPS.map((s, i) => {
-        const wizardIndex = i - 1
-        const done = i === 0 || wizardIndex < step || (wizardIndex === step && run === 'success')
-        const active = wizardIndex === step && run !== 'success'
-        const chip = (
-          <>
-            {done ? <Check className="size-3.5" /> : <span className="text-[11px] opacity-80">{i + 1}</span>}
-            {s.label}
-          </>
-        )
-        const chipClass = cn(
-          'flex h-7 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors',
-          active && 'bg-slate-700 text-white',
-          done && 'bg-emerald-500/15 text-emerald-400',
-          !active && !done && 'bg-muted text-muted-foreground'
-        )
-        return (
-          <li key={s.id} className="flex items-center gap-1.5">
-            {i === 0 && onCompare && run !== 'progress' ? (
-              <button type="button" title="Back to Compare" onClick={onCompare} className={cn(chipClass, 'hover:bg-emerald-500/25')}>
-                {chip}
-              </button>
-            ) : (
-              <span className={chipClass}>{chip}</span>
-            )}
-            {i < DISPLAY_STEPS.length - 1 && <ArrowRight className="size-3 text-muted-foreground/50" />}
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
 
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
@@ -885,7 +984,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
       >
         <DialogHeader
           onPointerDown={handleHeaderPointerDown}
-          className="shrink-0 cursor-grab gap-3.5 border-b px-6 py-5 active:cursor-grabbing"
+          className="shrink-0 cursor-grab gap-1.5 border-b px-6 py-5 active:cursor-grabbing"
         >
           <DialogTitle className="flex items-center gap-2 text-base">
             <span className="flex size-7 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
@@ -897,7 +996,6 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <GitBranch className="size-3.5" />
             {branch} → main
           </DialogDescription>
-          <WizardStepper step={step} run={run} onCompare={busy ? undefined : onClose} />
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
