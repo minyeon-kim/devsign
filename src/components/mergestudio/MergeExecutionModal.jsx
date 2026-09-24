@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   Check,
@@ -8,7 +8,6 @@ import {
   Code2,
   GitBranch,
   GitPullRequest,
-  ListChecks,
   Loader2,
   MessageSquare,
   Palette,
@@ -16,7 +15,6 @@ import {
   Send,
   Sparkles,
   TriangleAlert,
-  MonitorPlay,
 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -172,11 +170,16 @@ function ScopeBadge({ scope }) {
 // attention is on this modal) and highlights it there in real time.
 // "Mark Resolved" accepts Incoming for any undecided property and advances
 // to the next un-resolved drift automatically.
-function DriftReviewSection({ item, resolutions, onResolveDiff }) {
+function DriftReviewSection({ item, resolutions, onResolveDiff, onActiveChange }) {
   const { requestMergeFocus } = useWorkspace()
   const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const drifts = useMemo(() => buildDrifts(item, frame), [item, frame])
   const [index, setIndex] = useState(0)
+  // The drift being reviewed drives the staging preview's spotlight.
+  useEffect(() => {
+    onActiveChange?.(drifts[index] ?? null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, drifts])
   const [resolvedIds, setResolvedIds] = useState(() => new Set())
 
   const isDriftResolved = (d) =>
@@ -220,99 +223,98 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
 
   return (
     <section>
-      <SectionTitle
-        icon={ListChecks}
-        aside={
-          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', resolvedCount === drifts.length ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-muted-foreground')}>
-            {resolvedCount}/{drifts.length} resolved
-          </span>
-        }
-      >
-        Review Drifts
-      </SectionTitle>
+      {/* Flat: a label row, the drift's title with its pager, then one
+          hairline-divided row per property — no card, no inner boxes. */}
+      <div className="mb-3 flex items-center gap-2">
+        <p className="text-xs font-medium text-slate-300">Review drifts</p>
+        <span className={cn('ml-auto text-xs tabular-nums', resolvedCount === drifts.length ? 'font-medium text-emerald-300' : 'text-slate-400')}>
+          {resolvedCount}/{drifts.length} resolved
+        </span>
+      </div>
 
-      <div className="rounded-2xl border bg-slate-800/70 p-4">
-        <div className="mb-3 flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-white">{d.label}</p>
+        <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+          {index + 1} of {drifts.length}
+        </span>
+        <div className="flex shrink-0 items-center">
           <button
             type="button"
+            title="Previous drift"
             onClick={() => goTo(index - 1)}
             disabled={index === 0}
-            className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
           >
             <ChevronLeft className="size-4" />
           </button>
-          <span className="min-w-0 flex-1 truncate text-center text-sm font-medium text-foreground">
-            Drift {index + 1}/{drifts.length} · {d.label}
-          </span>
           <button
             type="button"
+            title="Next drift"
             onClick={() => goTo(index + 1)}
             disabled={index === drifts.length - 1}
-            className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
           >
             <ChevronRight className="size-4" />
           </button>
         </div>
+      </div>
 
-        {d.kind === 'design' ? (
-          <div className="space-y-2">
-            {d.diffs.map((diff) => {
-              const side = resolutions[`${d.layerId}:${diff.id}`]
-              return (
-                <div key={diff.id} className="flex items-center gap-2 rounded-xl bg-background/40 p-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{diff.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => onResolveDiff(d.layerId, diff.id, 'A')}
-                    className={cn('shrink-0 truncate rounded-full px-2.5 py-1 text-[13px]', side === 'A' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
-                  >
-                    Original · {diff.optionA}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onResolveDiff(d.layerId, diff.id, 'B')}
-                    className={cn('shrink-0 truncate rounded-full px-2.5 py-1 text-[13px]', side === 'B' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-muted-foreground hover:text-foreground')}
-                  >
-                    Current · {diff.optionB}
-                  </button>
-                  {isCustomResolution(side) && (
-                    <span className="shrink-0 truncate rounded-full bg-emerald-400/20 px-2.5 py-1 text-[13px] text-emerald-200">
-                      Edited · {side.custom}
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+      {d.kind === 'design' ? (
+        <ul className="mt-2 divide-y divide-white/[0.06]">
+          {d.diffs.map((diff) => {
+            const side = resolutions[`${d.layerId}:${diff.id}`]
+            const choice = (id, text) => (
+              <button
+                type="button"
+                aria-pressed={side === id}
+                onClick={() => onResolveDiff(d.layerId, diff.id, id)}
+                className={cn(
+                  'h-7 min-w-0 truncate rounded-full px-3 text-[13px] transition-colors',
+                  side === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                )}
+              >
+                {text}
+              </button>
+            )
+            return (
+              <li key={diff.id} className="flex items-center gap-2 py-2">
+                <span className="w-28 shrink-0 truncate text-[13px] text-slate-400">{diff.label}</span>
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  {choice('A', `Original · ${diff.optionA}`)}
+                  {choice('B', `Current · ${diff.optionB}`)}
+                </span>
+                {isCustomResolution(side) && <span className="shrink-0 truncate text-[13px] font-medium text-emerald-300">Edited · {side.custom}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="mt-2 text-[13px] text-slate-400">
+          {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — reviewed in the code output below.
+        </p>
+      )}
+
+      <div className="mt-3 flex justify-end">
+        {resolved ? (
+          <span className="flex h-8 items-center gap-1.5 text-[13px] font-medium text-emerald-300">
+            <Check className="size-4" />
+            Resolved
+          </span>
         ) : (
-          <p className="rounded-xl bg-background/40 p-2 text-sm text-muted-foreground">
-            {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — reviewed in the unified diff view.
-          </p>
+          <button
+            type="button"
+            onClick={() => markResolved(d)}
+            className="flex h-8 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-[13px] font-medium text-slate-100 transition-colors hover:bg-white/[0.12]"
+          >
+            <Check className="size-4" />
+            Mark resolved
+          </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => markResolved(d)}
-          disabled={resolved}
-          className={cn(
-            'mt-3 flex w-full items-center justify-center gap-1.5 rounded-full px-3 h-9 text-sm font-semibold transition-colors',
-            resolved ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-white hover:bg-slate-600'
-          )}
-        >
-          <Check className="size-4" />
-          {resolved ? 'Resolved' : 'Mark Resolved'}
-        </button>
       </div>
     </section>
   )
 }
 
-// Step 1 is only about readiness: can this be merged, and what must be
-// fixed first. It leads with one status headline and a compact row of the
-// key numbers; a merge conflict (the one thing worth stopping for) gets a
-// distinct "Action required" card with the primary action; everything else
-// is a quiet list of notes. The drift-by-drift review lives in Preview and
-// the full "what will be merged" breakdown in Review.
 // ----- Merge impact & health assessment (the Check step) --------------
 // Everything is derived from the item's own data and the current choices,
 // so the numbers move as options are decided.
@@ -566,6 +568,60 @@ function mergeEffect(prev = {}, e) {
   }
 }
 
+// Component macro zoom: renders the frame at full resolution, then crops
+// and scales it onto one element (with a little surrounding context), so
+// its exact padding / radius / spacing can be inspected. The crop is
+// measured from where the element actually renders (offsets are in frame
+// units, unaffected by the zoom transform), so size changes are framed
+// correctly. Glides between elements as the drift changes.
+const ZOOM_H = 176
+const ZOOM_PAD = 20
+const ZOOM_MAX = 4
+
+function MacroZoom({ frame, layerId, overrideFor, label, emphasized, height = ZOOM_H }) {
+  const viewRef = useRef(null)
+  const frameRef = useRef(null)
+  const [view, setView] = useState(null)
+  useLayoutEffect(() => {
+    const vp = viewRef.current
+    const el = frameRef.current?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`)
+    if (!vp || !el) return
+    const box = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }
+    const W = vp.clientWidth
+    const k = Math.min(W / (box.w + ZOOM_PAD * 2), height / (box.h + ZOOM_PAD * 2), ZOOM_MAX)
+    const next = { k, tx: W / 2 - (box.x + box.w / 2) * k, ty: height / 2 - (box.y + box.h / 2) * k, box }
+    if (!view || ['k', 'tx', 'ty'].some((key) => Math.abs(view[key] - next[key]) > 0.01) || ['w', 'h'].some((key) => view.box[key] !== next.box[key])) setView(next)
+  })
+
+  return (
+    <figure className="min-w-0">
+      <figcaption className="mb-2 flex items-center gap-2 text-xs">
+        <span className={cn('font-medium', emphasized ? 'text-white' : 'text-slate-400')}>{label}</span>
+        {view && <span className="ml-auto text-[11px] text-slate-500 tabular-nums">{view.k.toFixed(1)}×</span>}
+      </figcaption>
+      <div ref={viewRef} className="relative overflow-hidden rounded-lg bg-white" style={{ height }}>
+        <div
+          ref={frameRef}
+          className="absolute top-0 left-0 transition-transform duration-300 ease-out"
+          style={{ width: frame.width, height: frame.height, transform: view ? `translate(${view.tx}px, ${view.ty}px) scale(${view.k})` : undefined, transformOrigin: '0 0', opacity: view ? 1 : 0 }}
+        >
+          {frame.layers.map((layer) => (
+            <StaticLayer key={layer.id} layer={layer} override={overrideFor(layer)} onSelect={() => {}} />
+          ))}
+        </div>
+        {/* The element's exact bounds, as a thin mint outline. */}
+        {view && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute rounded-[2px] ring-1 ring-emerald-500/80 transition-all duration-300 ease-out"
+            style={{ left: view.tx + view.box.x * view.k - 2, top: view.ty + view.box.y * view.k - 2, width: view.box.w * view.k + 4, height: view.box.h * view.k + 4 }}
+          />
+        )}
+      </div>
+    </figure>
+  )
+}
+
 // Staging view of the combined result: the Current Implementation with every
 // resolved option and applied AI edit baked in, next to the merged code
 // (incoming lines + AI edits, with hand-edited lines taking precedence).
@@ -573,6 +629,25 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
+
+  // Context-aware spotlight: the drift picked in the pager above is
+  // highlighted in both outputs — its element in the design preview, and
+  // its code lines (via the item's element → code map) in the code output.
+  const [spot, setSpot] = useState(null)
+  const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+  const spotLayerId =
+    spot?.kind === 'design'
+      ? spot.layerId
+      : spot?.kind === 'code'
+        ? Object.keys(codeMap).find((id) => codeMap[id].fileId === spot.fileId && spot.line >= codeMap[id].line && spot.line < codeMap[id].line + (codeMap[id].span ?? 1))
+        : null
+  const codeTarget = spot?.kind === 'code' ? { fileId: spot.fileId, line: spot.line, span: 1 } : spotLayerId ? codeMap[spotLayerId] : null
+  useEffect(() => {
+    if (codeTarget?.fileId && files.some((f) => f.id === codeTarget.fileId)) setFileId(codeTarget.fileId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot?.id])
+
+  const codeRef = useRef(null)
   const frame = item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
@@ -605,82 +680,120 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
     annotations.filter((a) => a.status === 'done' && a.fileId === activeFile?.id && a.line).map((a) => [a.line, a.summary])
   )
 
-  const previewW = 240
-  const scale = frame ? previewW / frame.width : 1
+  // Overrides for the zoom panels: the merged result as staged, and the
+  // Original Design for the focused element (its drifts at option A).
+  const primaryOf = (layer) => layer.type === 'button' && !isSecondaryLayer(layer.id)
+  const mergedOverride = (layer) => {
+    const o = overrides[layer.id]
+    const primary = primaryOf(layer)
+    return o ? { ...o, className: o.className ?? (primary ? 'bg-violet-500' : undefined), static: true } : primary ? { className: 'bg-violet-500', static: true } : undefined
+  }
+  const originalOverride = (layer) => {
+    if (layer.id !== spotLayerId) return mergedOverride(layer)
+    let o
+    for (const diff of layerDiffs[layer.id] ?? []) o = mergeEffect(o, diffEffect(diff, 'A'))
+    const primary = primaryOf(layer)
+    return o ? { ...o, className: o.className ?? (primary ? 'bg-indigo-500' : undefined), static: true } : primary ? { className: 'bg-indigo-500', static: true } : undefined
+  }
+  const spotLayer = frame?.layers.find((l) => l.id === spotLayerId)
+  const wideSpot = Boolean(spotLayer && spotLayer.width > 200)
+  const spotLines = codeTarget && codeTarget.fileId === activeFile?.id ? new Set(Array.from({ length: codeTarget.span ?? 1 }, (_, k) => codeTarget.line + k)) : null
+  // Bring the spotlighted lines into view inside the code output only
+  // (never scrolls the modal / page).
+  useEffect(() => {
+    const box = codeRef.current
+    const first = spotLines && box?.querySelector(`[data-line="${codeTarget.line}"]`)
+    if (first) box.scrollTo({ top: Math.max(0, first.offsetTop - 28), behavior: document.hidden ? 'auto' : 'smooth' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot?.id, activeFile?.id])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-7">
       {/* Drift-by-drift review sits with the preview it changes. */}
-      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
-      <div className="flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-sm font-medium text-foreground">
-        <MonitorPlay className="size-4 text-emerald-400" />
-        Staging preview — the combined result that will be merged
-        <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[13px] text-emerald-400">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-          Live
-        </span>
-      </div>
+      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} onActiveChange={setSpot} />
 
-      <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
-        {frame && (
-          <div>
-            <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-              <Palette className="size-4 text-emerald-400" /> Design output
+      {/* Staging preview: a plain heading (no banner), then the two outputs
+          side by side, captioned lightly — no competing borders. */}
+      <section className="border-t border-white/[0.06] pt-6">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold text-white">Staging preview</p>
+            <p className="mt-0.5 text-[13px] text-slate-400">The combined result that will be merged.</p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs font-medium text-emerald-300">
+            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+            Live
+          </span>
+        </div>
+
+        {/* Component macro zoom: the drift's element, cropped and scaled
+            up, Original Design next to the merged result. */}
+        {frame && spotLayer ? (
+          <div className="mb-6">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-slate-300">
+              <Palette className="size-3.5 text-slate-500" />
+              {spotLayer.name}
             </p>
-            <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg" style={{ width: previewW, height: frame.height * scale }}>
-              <div className="relative" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                {frame.layers.map((layer) => {
-                  const o = overrides[layer.id]
-                  const primary = layer.type === 'button' && !isSecondaryLayer(layer.id)
-                  const override = o
-                    ? { ...o, className: o.className ?? (primary ? 'bg-violet-500' : undefined), static: true }
-                    : primary
-                      ? { className: 'bg-violet-500', static: true }
-                      : undefined
-                  return <StaticLayer key={layer.id} layer={layer} override={override} onSelect={() => {}} />
-                })}
-              </div>
+            {/* Wide elements (bars, headings) stack the two panels so each
+                gets the full width instead of shrinking below 1×. */}
+            <div className={cn('grid gap-3', wideSpot ? 'grid-cols-1' : 'grid-cols-2')}>
+              <MacroZoom frame={frame} layerId={spotLayer.id} overrideFor={originalOverride} label="Original Design" height={wideSpot ? 112 : ZOOM_H} />
+              <MacroZoom frame={frame} layerId={spotLayer.id} overrideFor={mergedOverride} label="Merged result" emphasized height={wideSpot ? 112 : ZOOM_H} />
             </div>
           </div>
+        ) : (
+          frame && <p className="mb-6 text-[13px] text-slate-400">This drift has no design element — its change is in the code below.</p>
         )}
 
-        <div className="min-w-0">
-          <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-            <Code2 className="size-4 text-emerald-400" /> Code output
-          </p>
-          <div className="overflow-hidden rounded-2xl border bg-slate-800/70">
-            <div className="flex gap-0.5 overflow-x-auto border-b bg-muted/30 px-1.5 pt-1.5">
-              {files.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFileId(f.id)}
-                  className={cn(
-                    'shrink-0 rounded-t-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    f.id === activeFile?.id ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {f.name}
-                </button>
-              ))}
+        <div>
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-1.5">
+              <Code2 className="size-3.5 shrink-0 text-slate-500" />
+              <div className="flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Output files">
+                {files.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={f.id === activeFile?.id}
+                    onClick={() => setFileId(f.id)}
+                    className={cn(
+                      'h-6 shrink-0 rounded-full px-2.5 text-xs font-medium transition-colors',
+                      f.id === activeFile?.id ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:text-slate-200'
+                    )}
+                  >
+                    {f.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="max-h-64 overflow-auto py-2 font-mono text-xs leading-relaxed">
+            {/* One faint tint for readability — no border, no header strip;
+                changed lines keep the mint edge marker. */}
+            <div ref={codeRef} className="relative max-h-64 overflow-auto rounded-lg bg-white/[0.025] py-2 font-mono text-xs leading-relaxed">
               {lines.map((line, i) => {
                 const n = i + 1
                 const manual = manualCode[`${activeFile.id}:${n}`]
                 const text = manual ?? (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
                 const changed = manual !== undefined || incoming.has(n) || aiLines.has(n)
+                const spotlit = spotLines?.has(n)
                 return (
-                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-emerald-400' : 'border-transparent')}>
-                    <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{n}</span>
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-foreground/90">{text || ' '}</span>
+                  <div
+                    key={i}
+                    data-line={n}
+                    className={cn(
+                      'flex gap-3 border-l-2 px-3 transition-colors duration-300',
+                      spotlit ? 'border-emerald-300 bg-emerald-400/[0.16]' : changed ? 'border-emerald-400 bg-emerald-400/[0.05]' : 'border-transparent'
+                    )}
+                  >
+                    <span className={cn('w-5 shrink-0 text-right select-none', spotlit ? 'text-emerald-300' : 'text-slate-600')}>{n}</span>
+                    <span className={cn('min-w-0 flex-1 break-words whitespace-pre-wrap', spotlit || changed ? 'text-white' : 'text-slate-300')}>{text || ' '}</span>
                   </div>
                 )
               })}
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
