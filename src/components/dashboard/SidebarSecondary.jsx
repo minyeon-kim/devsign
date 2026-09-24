@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { navItems } from '@/components/dashboard/Sidebar'
-import { currentUser, projects } from '@/data/mockData'
+import { brand, projects } from '@/data/mockData'
 
 const rowClass =
   'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
@@ -23,7 +23,7 @@ function SidebarSecondary() {
         type="button"
         className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
       >
-        <span className="truncate text-sm font-semibold text-foreground">{currentUser.team}</span>
+        <span className="truncate text-sm font-semibold text-foreground">{brand.name}</span>
         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
       </button>
 
