@@ -139,8 +139,11 @@ function PeopleStack({ item }) {
   )
 }
 
-// One merge item, laid out on the exact grid of an Inbox feed row (the
-// studio's reference): a 32px lead slot (type icon) + 12px gap, then
+// One merge item. Sidebar icon grid, shared by both navigation levels
+// (list cards, the item summary, Files rows, the Layers frame row): the
+// leading 16px icon sits 12px inside the group surface, text starts 12px
+// after it — so icons and titles line up exactly from level to level
+// (layer rows step in by 12px per depth). Then
 //   tier 1 — title (status is the section; last update in the tooltip);
 //   tier 2 — file line, then the due date on its own line (red once
 //            overdue) when there is one;
@@ -151,7 +154,7 @@ function MergeItemBody({ item, trailing }) {
   const hasDue = item.dueBucket !== 'none' && item.dueLabel
   return (
     <>
-      <span className="flex h-6 w-8 shrink-0 items-center justify-center">
+      <span className="flex h-6 w-4 shrink-0 items-center justify-center">
         <ItemTypeBadge item={item} />
       </span>
       <span className="min-w-0 flex-1">
@@ -187,8 +190,8 @@ function MergeItemCard({ item, active, onSelect }) {
       aria-current={active ? 'true' : undefined}
       onClick={() => onSelect(item.id)}
       className={cn(
-        // Inside its group surface: 12px sides (the panel grid), a 32px lead
-        // slot + 12px gap, then a stacked text column.
+        // Inside its group surface: 12px sides (the panel grid), the 16px
+        // icon column + 12px gap, then a stacked text column.
         'group/card relative flex w-full items-start gap-3 px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
@@ -227,7 +230,7 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors',
+              'flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors',
               active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
             )}
           >
@@ -308,8 +311,8 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
   const rows = layerTree(frame.layers)
   return (
     <div className="p-1">
-      <div className="flex h-8 items-center gap-2 px-2 text-xs font-medium text-slate-300">
-        <Frame className="size-3.5 shrink-0 text-emerald-400" />
+      <div className="flex h-8 items-center gap-3 px-2 text-xs font-medium text-slate-300">
+        <Frame className="size-4 shrink-0 text-emerald-400" />
         <span className="truncate">{frame.name}</span>
       </div>
       <div className="space-y-px">
@@ -324,11 +327,11 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
             onClick={() => onSelect(layer.id)}
             style={{ paddingLeft: 8 + (depth + 1) * 12 }}
             className={cn(
-              'flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-[13px] transition-colors',
+              'flex h-8 w-full items-center gap-3 rounded-lg pr-2 text-left text-[13px] transition-colors',
               active ? 'bg-white/[0.08] text-[#FFFFFF]' : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
             )}
           >
-            <Icon className={cn('size-3.5 shrink-0', active ? 'text-emerald-300' : 'text-slate-500')} />
+            <Icon className={cn('size-4 shrink-0', active ? 'text-emerald-300' : 'text-slate-500')} />
             <span className="min-w-0 flex-1 truncate">{layer.name}</span>
             {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-emerald-200" />}
             {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-emerald-400" />}
