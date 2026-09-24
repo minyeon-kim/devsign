@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, FolderKanban, Settings, Users } from 'lucide-react'
+import { Activity, FolderKanban, LayoutDashboard, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -12,6 +12,7 @@ import { currentUser } from '@/data/mockData'
 // size-9/rounded-full, Settings pinned to the bottom) so the dashboard and
 // workspace chrome read as one product.
 const navItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' },
   { id: 'activity', label: 'Activity', icon: Activity, path: '/activity' },
   { id: 'team', label: 'Team', icon: Users, path: null },

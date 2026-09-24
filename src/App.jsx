@@ -1,7 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
-import ProjectsPage from '@/pages/ProjectsPage'
+import DashboardPage from '@/pages/DashboardPage'
+import ProjectsListPage from '@/pages/ProjectsListPage'
 import ActivityPage from '@/pages/ActivityPage'
 import WorkspacePage from '@/pages/WorkspacePage'
 
@@ -10,11 +11,12 @@ function App() {
     <TooltipProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/projects" element={<ProjectsListPage />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/projects/:projectId/workspace" element={<WorkspacePage />} />
-          <Route path="*" element={<Navigate to="/projects" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="bottom-right" />

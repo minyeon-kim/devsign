@@ -3,10 +3,9 @@ import ProjectProgressCards from '@/components/dashboard/ProjectProgressCards'
 import ConflictChecklist from '@/components/dashboard/ConflictChecklist'
 import TeamMembers from '@/components/dashboard/TeamMembers'
 import ConflictActivityChart from '@/components/dashboard/ConflictActivityChart'
-import ProjectsSection from '@/components/dashboard/ProjectsSection'
 import MergeSchedule from '@/components/dashboard/MergeSchedule'
 
-function ProjectsPage() {
+function DashboardPage() {
   return (
     <DashboardLayout rightColumn={<MergeSchedule />}>
       <ProjectProgressCards />
@@ -18,10 +17,8 @@ function ProjectsPage() {
           <ConflictActivityChart />
         </div>
       </div>
-
-      <ProjectsSection />
     </DashboardLayout>
   )
 }
 
-export default ProjectsPage
+export default DashboardPage
