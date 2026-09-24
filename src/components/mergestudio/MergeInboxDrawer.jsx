@@ -72,7 +72,7 @@ function splitSource(text) {
 //   feedback — AI / CI notes: a small source label and the note as
 //              secondary text, paths condensed.
 // No pills in the header: role and target are plain inline text. Unread is
-// carried by a bolder name and the violet dot. Clicking the item jumps the
+// carried by a bolder name and the mint dot. Clicking the item jumps the
 // canvas to the target (with the pulse).
 function InboxItem({ n, onJump }) {
   const { markNotificationRead, replyToNotification } = useWorkspace()
@@ -108,7 +108,7 @@ function InboxItem({ n, onJump }) {
   const meta = (
     <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
       <span className="text-[11px] text-slate-500 tabular-nums">{n.timeLabel}</span>
-      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('size-1.5 rounded-full', n.unread ? 'bg-violet-500' : 'bg-transparent')} />
+      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('size-1.5 rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
     </span>
   )
 

@@ -46,7 +46,7 @@ function slugify(text) {
 function SectionTitle({ icon: Icon, children, aside }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <Icon className="size-4 text-indigo-500" />
+      <Icon className="size-4 text-emerald-400" />
       <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{children}</h3>
       {aside && <span className="ml-auto">{aside}</span>}
     </div>
@@ -60,7 +60,7 @@ function SummarySection({ summary }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border bg-slate-800/70 p-4">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Palette className="size-4 text-violet-500" />
+            <Palette className="size-4 text-emerald-400" />
             Design
           </p>
           {summary.design.length ? (
@@ -79,7 +79,7 @@ function SummarySection({ summary }) {
 
         <div className="rounded-2xl border bg-slate-800/70 p-4">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Code2 className="size-4 text-violet-500" />
+            <Code2 className="size-4 text-emerald-400" />
             Code
           </p>
           {summary.files.length ? (
@@ -102,7 +102,7 @@ function SummarySection({ summary }) {
 
         <div className="rounded-2xl border bg-slate-800/70 p-4">
           <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <MessageSquare className="size-4 text-violet-500" />
+            <MessageSquare className="size-4 text-emerald-400" />
             AI annotations
           </p>
           {summary.applied.length ? (
@@ -149,8 +149,8 @@ export const WIZARD_STEPS = [
 ]
 
 const scopeMeta = {
-  code: { label: 'Code', icon: Code2, className: 'bg-indigo-500 text-white', idle: 'text-indigo-400 ring-1 ring-indigo-500/40' },
-  design: { label: 'Design', icon: Palette, className: 'bg-violet-500 text-white', idle: 'text-violet-400 ring-1 ring-violet-500/40' },
+  code: { label: 'Code', icon: Code2, className: 'bg-emerald-400 text-slate-950', idle: 'text-emerald-300 ring-1 ring-emerald-400/40' },
+  design: { label: 'Design', icon: Palette, className: 'bg-emerald-400 text-slate-950', idle: 'text-emerald-300 ring-1 ring-emerald-400/40' },
 }
 
 function ScopeBadge({ scope }) {
@@ -276,7 +276,7 @@ function DriftReviewSection({ item, resolutions, onResolveDiff }) {
                     Current · {diff.optionB}
                   </button>
                   {isCustomResolution(side) && (
-                    <span className="shrink-0 truncate rounded-full bg-violet-500/20 px-2.5 py-1 text-[13px] text-violet-200">
+                    <span className="shrink-0 truncate rounded-full bg-emerald-400/20 px-2.5 py-1 text-[13px] text-emerald-200">
                       Edited · {side.custom}
                     </span>
                   )}
@@ -479,8 +479,8 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
     <div className="space-y-4">
       {/* Drift-by-drift review sits with the preview it changes. */}
       <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} />
-      <div className="flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1.5 text-sm font-medium text-foreground">
-        <MonitorPlay className="size-4 text-indigo-500" />
+      <div className="flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-sm font-medium text-foreground">
+        <MonitorPlay className="size-4 text-emerald-400" />
         Staging preview — the combined result that will be merged
         <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[13px] text-emerald-400">
           <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -492,7 +492,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
         {frame && (
           <div>
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-              <Palette className="size-4 text-violet-500" /> Design output
+              <Palette className="size-4 text-emerald-400" /> Design output
             </p>
             <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg" style={{ width: previewW, height: frame.height * scale }}>
               <div className="relative" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
@@ -513,7 +513,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
 
         <div className="min-w-0">
           <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-            <Code2 className="size-4 text-violet-500" /> Code output
+            <Code2 className="size-4 text-emerald-400" /> Code output
           </p>
           <div className="overflow-hidden rounded-2xl border bg-slate-800/70">
             <div className="flex gap-0.5 overflow-x-auto border-b bg-muted/30 px-1.5 pt-1.5">
@@ -538,7 +538,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
                 const text = manual ?? (incoming.get(n) ?? line) + (aiLines.has(n) ? `  // AI: ${aiLines.get(n)}` : '')
                 const changed = manual !== undefined || incoming.has(n) || aiLines.has(n)
                 return (
-                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-violet-400' : 'border-transparent')}>
+                  <div key={i} className={cn('flex gap-3 border-l-2 px-3', changed ? 'border-emerald-400' : 'border-transparent')}>
                     <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{n}</span>
                     <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-foreground/90">{text || ' '}</span>
                   </div>
@@ -605,7 +605,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
               key={person.id}
               className={cn(
                 'flex items-center gap-2.5 rounded-full border py-1.5 pr-2 pl-1.5 transition-colors',
-                selected ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-border'
+                selected ? 'border-emerald-400/60 bg-emerald-400/10' : 'border-border'
               )}
             >
               <button type="button" onClick={() => togglePerson(person.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
@@ -614,7 +614,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
                 </Avatar>
                 <span className="text-sm font-medium text-foreground">{person.name}</span>
                 <span className="text-[13px] text-muted-foreground">{person.role}</span>
-                {selected && <Check className="ml-auto size-3.5 shrink-0 text-indigo-500" />}
+                {selected && <Check className="ml-auto size-3.5 shrink-0 text-emerald-400" />}
               </button>
               {selected &&
                 ['code', 'design'].map((scope) => {
@@ -647,7 +647,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
 function ProgressView({ step }) {
   return (
     <div className="flex flex-col items-center gap-5 py-6">
-      <span className="flex size-12 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
+      <span className="flex size-12 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
         <Loader2 className="size-5 animate-spin" />
       </span>
       <div className="w-full max-w-sm space-y-2">
@@ -660,14 +660,14 @@ function ProgressView({ step }) {
               className={cn(
                 'flex items-center gap-2.5 rounded-full border px-3 py-2 text-sm transition-all duration-300',
                 done && 'border-emerald-500/40 bg-emerald-500/10 text-foreground',
-                active && 'border-indigo-500/60 bg-indigo-500/10 text-foreground',
+                active && 'border-emerald-400/60 bg-emerald-400/10 text-foreground',
                 !done && !active && 'border-border text-muted-foreground opacity-60'
               )}
             >
               {done ? (
                 <Check className="size-3.5 text-emerald-400" />
               ) : active ? (
-                <Loader2 className="size-3.5 animate-spin text-indigo-500" />
+                <Loader2 className="size-3.5 animate-spin text-emerald-400" />
               ) : (
                 <s.icon className="size-3.5" />
               )}
@@ -694,11 +694,11 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
       </div>
       <div className="w-full max-w-sm space-y-2 text-left text-sm">
         <p className="flex items-center gap-2 rounded-full border px-3 py-2">
-          <Send className="size-3.5 shrink-0 text-indigo-500" />
+          <Send className="size-3.5 shrink-0 text-emerald-400" />
           <span className="text-foreground">Requested review from {reviewerNames.join(', ')}</span>
         </p>
         <p className="flex items-center gap-2 rounded-full border px-3 py-2">
-          <Rocket className="size-3.5 shrink-0 text-violet-500" />
+          <Rocket className="size-3.5 shrink-0 text-emerald-400" />
           <span className="text-foreground">
             {deploy ? 'GitHub Actions deployment started' : 'GitHub Actions deployment skipped'}
           </span>
@@ -888,7 +888,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
           className="shrink-0 cursor-grab gap-3.5 border-b px-6 py-5 active:cursor-grabbing"
         >
           <DialogTitle className="flex items-center gap-2 text-base">
-            <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
+            <span className="flex size-7 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
               <GitPullRequest className="size-3.5" />
             </span>
             {run === 'success' ? 'Merge in progress' : 'Merge changes'}
@@ -918,9 +918,9 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                       type="button"
                       onClick={generateWithAi}
                       disabled={generating}
-                      className="flex items-center justify-center gap-1 rounded-full border border-indigo-500/50 px-2.5 h-6 text-[11px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-indigo-500/15 disabled:opacity-60"
+                      className="flex items-center justify-center gap-1 rounded-full border border-emerald-400/50 px-2.5 h-6 text-[11px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-emerald-400/15 disabled:opacity-60"
                     >
-                      {generating ? <Loader2 className="size-3 animate-spin text-violet-500" /> : <Sparkles className="size-3 text-violet-500" />}
+                      {generating ? <Loader2 className="size-3 animate-spin text-emerald-400" /> : <Sparkles className="size-3 text-emerald-400" />}
                       {generating ? 'Generating…' : 'Generate with AI'}
                     </button>
                   }
@@ -943,11 +943,11 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                       onChange={(e) => setPrBody(e.target.value)}
                       rows={5}
                       placeholder="Describe this merge, or use Generate with AI…"
-                      className="w-full resize-none rounded-2xl border bg-slate-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-violet-500"
+                      className="w-full resize-none rounded-2xl border bg-slate-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400"
                     />
                   </label>
                   <label className="flex items-center gap-2 rounded-full border px-3 py-2 text-sm">
-                    <Rocket className="size-4 text-violet-500" />
+                    <Rocket className="size-4 text-emerald-400" />
                     <span className="flex-1 text-foreground">Trigger GitHub Actions deployment after merge</span>
                     <Switch checked={deploy} onCheckedChange={setDeploy} />
                   </label>
@@ -975,25 +975,25 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   </span>
                 </li>
                 <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <GitBranch className="size-4 shrink-0 text-indigo-500" />
+                  <GitBranch className="size-4 shrink-0 text-emerald-400" />
                   <span className="text-foreground">{branch} → main</span>
                 </li>
                 <li className="flex items-start gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <GitPullRequest className="mt-0.5 size-4 shrink-0 text-indigo-500" />
+                  <GitPullRequest className="mt-0.5 size-4 shrink-0 text-emerald-400" />
                   <span className="min-w-0">
                     <span className="block text-foreground">{prTitle}</span>
                     <span className="block truncate font-mono text-[13px] text-muted-foreground">{commit}</span>
                   </span>
                 </li>
                 <li className="flex flex-wrap items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <Send className="size-3.5 shrink-0 text-indigo-500" />
+                  <Send className="size-3.5 shrink-0 text-emerald-400" />
                   <ScopeBadge scope="code" />
                   <span className="text-foreground">{scopeNames('code').join(', ') || '—'}</span>
                   <ScopeBadge scope="design" />
                   <span className="text-foreground">{scopeNames('design').join(', ') || '—'}</span>
                 </li>
                 <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <Rocket className="size-3.5 shrink-0 text-violet-500" />
+                  <Rocket className="size-3.5 shrink-0 text-emerald-400" />
                   <span className="text-foreground">
                     {deploy ? 'GitHub Actions deployment will start after the PR is opened' : 'Deployment is turned off'}
                   </span>
@@ -1012,7 +1012,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-5 h-10 text-sm font-semibold text-white"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-400 px-5 h-10 text-sm font-semibold text-slate-950"
             >
               Done
             </button>
@@ -1065,7 +1065,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                     setProgress(0)
                     setRun('progress')
                   }}
-                  className="flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 h-10 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                  className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-4 h-10 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
                   <Rocket className="size-4" />
                   Merge &amp; Deploy

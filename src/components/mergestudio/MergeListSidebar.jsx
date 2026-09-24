@@ -58,10 +58,10 @@ const GROUP_SURFACE = PANEL_SURFACE
 // Merge List sections, in the order that needs attention first. Anything
 // with an unexpected status lands in "Other".
 const WORKFLOW_GROUPS = [
-  { id: 'review', label: 'Needs review', tags: ['Needs Review'], dot: 'bg-violet-400' },
-  { id: 'progress', label: 'In progress', tags: ['In Progress'], dot: 'bg-indigo-400' },
+  { id: 'review', label: 'Needs review', tags: ['Needs Review'], dot: 'bg-emerald-300' },
+  { id: 'progress', label: 'In progress', tags: ['In Progress'], dot: 'bg-emerald-500/60' },
   { id: 'draft', label: 'Draft', tags: ['Draft'], dot: 'bg-slate-400' },
-  { id: 'merged', label: 'Merged', tags: ['Merged'], dot: 'bg-emerald-400' },
+  { id: 'merged', label: 'Merged', tags: ['Merged'], dot: 'bg-slate-600' },
   { id: 'other', label: 'Other', tags: null, dot: 'bg-slate-600' },
 ]
 const KNOWN_TAGS = new Set(WORKFLOW_GROUPS.flatMap((g) => g.tags ?? []))
@@ -196,7 +196,7 @@ function MergeItemCard({ item, active, onSelect }) {
         active ? cn('bg-white/[0.06]', AVATAR_RING_ON_ACTIVE) : cn('hover:bg-white/[0.03]', AVATAR_RING_ON_HOVER)
       )}
     >
-      {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+      {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
       <MergeItemBody
         item={item}
         // Drill-down cue: the card opens its own view (files & layers).
@@ -232,7 +232,7 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
               active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
             )}
           >
-            <meta.Icon className={cn('size-4 shrink-0', meta.colorClass)} />
+            <meta.Icon className="size-4 shrink-0 text-slate-400" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] text-slate-100">{f.name}</span>
               <span title={f.path} className="block truncate text-[11px] text-slate-500">{f.path}</span>
@@ -244,7 +244,7 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
               </span>
             )}
             {edits.length > 0 && (
-              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-violet-300 tabular-nums">
+              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-emerald-200 tabular-nums">
                 <Pencil className="size-3" />
                 {edits.length}
               </span>
@@ -310,7 +310,7 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
   return (
     <div className="p-1">
       <div className="flex h-8 items-center gap-2 px-2 text-xs font-medium text-slate-300">
-        <Frame className="size-3.5 shrink-0 text-indigo-400" />
+        <Frame className="size-3.5 shrink-0 text-emerald-400" />
         <span className="truncate">{frame.name}</span>
       </div>
       <div className="space-y-px">
@@ -329,10 +329,10 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
               active ? 'bg-white/[0.08] text-[#FFFFFF]' : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
             )}
           >
-            <Icon className={cn('size-3.5 shrink-0', active ? 'text-indigo-300' : 'text-slate-500')} />
+            <Icon className={cn('size-3.5 shrink-0', active ? 'text-emerald-300' : 'text-slate-500')} />
             <span className="min-w-0 flex-1 truncate">{layer.name}</span>
-            {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-violet-300" />}
-            {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-violet-400" />}
+            {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-emerald-200" />}
+            {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-emerald-400" />}
           </button>
         )
       })}
@@ -373,7 +373,7 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
                 CATEGORY_TAB,
                 'gap-1.5 transition-[background-color,color,box-shadow] duration-300',
                 view === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE,
-                flashView === id && 'shadow-[0_0_0_3px_rgba(165,180,252,0.35)]'
+                flashView === id && 'shadow-[0_0_0_3px_rgba(52,211,153,0.35)]'
               )}
             >
               {label}
@@ -395,7 +395,7 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
 
 // Merge Studio's left-side chrome, floating over the full-width canvas:
 // a standalone `← Workspace` pill pinned top-left, and below it the Merge
-// List as a glass window (backdrop blur, translucent surface, soft indigo
+// List as a glass window (backdrop blur, translucent surface, soft
 // edge glow — the same family as the Block Deck and Changes log). It is a
 // two-level navigation stack: the list (search, filters, status sections)
 // and, pushed in when an item is opened, that item's Files / Layers with a
@@ -487,11 +487,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           className={cn(
             'flex h-10 items-center justify-center gap-2 rounded-full pr-3 pl-4 text-[13px] font-medium transition-colors',
             FLOATING_PILL,
-            mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100 hover:bg-indigo-500/25'
+            mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-emerald-400/40 bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/25'
           )}
         >
           Merge List
-          <span className={cn(COUNT_BADGE, 'bg-indigo-500 text-white')}>
+          <span className={cn(COUNT_BADGE, 'bg-emerald-400 text-slate-950')}>
             {mergeItems.length}
           </span>
         </button>
@@ -524,10 +524,10 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         )}
       >
       <div className="flex h-12 shrink-0 items-center gap-2 px-5">
-        <GitMerge className="size-4 shrink-0 text-indigo-500" />
+        <GitMerge className="size-4 shrink-0 text-emerald-400" />
         <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
           Merge List
-          <span className={cn(COUNT_BADGE, 'bg-indigo-500/15 text-indigo-300')}>{visible.length}</span>
+          <span className={cn(COUNT_BADGE, 'bg-emerald-400/15 text-emerald-300')}>{visible.length}</span>
         </span>
       </div>
 
@@ -675,7 +675,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           showCloseButton={false}
           className="rounded-2xl border border-white/10 bg-card/90 p-5 shadow-2xl backdrop-blur-xl"
         >
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className="flex size-10 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-400">
             <ArrowLeft className="size-4.5" strokeWidth={2.5} />
           </div>
           <DialogTitle className="text-base font-semibold">Back to Workspace?</DialogTitle>
@@ -696,7 +696,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 setConfirmExitOpen(false)
                 exitMergeStudio()
               }}
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 h-8 text-[13px] font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-400 px-4 h-8 text-[13px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110"
             >
               Back to Workspace
             </button>

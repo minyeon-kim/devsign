@@ -6,11 +6,11 @@ import { allPeople } from '@/data/mockData'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 
 const kindMeta = {
-  merge: { icon: GitMerge, label: 'Merge', className: 'bg-violet-500/15 text-violet-400' },
-  branch: { icon: GitBranch, label: 'Branch', className: 'bg-indigo-500/15 text-indigo-400' },
+  merge: { icon: GitMerge, label: 'Merge', className: 'bg-emerald-400/15 text-emerald-400' },
+  branch: { icon: GitBranch, label: 'Branch', className: 'bg-emerald-400/15 text-emerald-400' },
   commit: { icon: GitCommitHorizontal, label: 'Commit', className: 'bg-muted text-muted-foreground' },
   review: { icon: MessageSquareMore, label: 'Review', className: 'bg-emerald-500/15 text-emerald-400' },
-  ai: { icon: Bot, label: 'AI', className: 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-violet-400' },
+  ai: { icon: Bot, label: 'AI', className: 'bg-emerald-400/20 text-emerald-400' },
   rollback: { icon: Undo2, label: 'Rollback', className: 'bg-amber-500/15 text-amber-500' },
 }
 
@@ -49,13 +49,13 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                 <div
                   className={cn(
                     'rounded-2xl border p-3 transition-colors',
-                    current ? 'border-primary bg-primary/10' : 'border-white/10 bg-slate-800/70'
+                    current ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-slate-800/70'
                   )}
                 >
                   <div className="flex items-start gap-2">
                     <p className="min-w-0 flex-1 text-xs leading-snug font-semibold text-foreground">{event.title}</p>
                     {current && (
-                      <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-primary px-2 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                      <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-400 px-2 py-0.5 text-[9px] font-semibold text-slate-950">
                         <Check className="size-2.5" />
                         Current
                       </span>
@@ -97,7 +97,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
                       onClick={() => setPreviewId(previewing ? null : event.id)}
                       className={cn(
                         'flex items-center justify-center gap-1 rounded-full border px-2.5 h-6 text-[10px] font-medium transition-colors',
-                        previewing ? 'border-indigo-500/60 bg-indigo-500/15 text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        previewing ? 'border-emerald-400/60 bg-emerald-400/15 text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       )}
                     >
                       <Eye className="size-3" />

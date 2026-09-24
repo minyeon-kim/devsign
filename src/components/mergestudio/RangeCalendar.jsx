@@ -98,7 +98,7 @@ export function RangeCalendar({ range, onChange, markedDays }) {
               >
                 {day.getDate()}
               </span>
-              {marked && !(isFrom || isTo) && <span className="absolute bottom-0.5 size-1 rounded-full bg-violet-400" />}
+              {marked && !(isFrom || isTo) && <span className="absolute bottom-0.5 size-1 rounded-full bg-emerald-400" />}
             </button>
           )
         })}

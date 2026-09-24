@@ -80,7 +80,7 @@ function AssigneePicker({ items, value, onChange }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Find people…"
-            className="h-7 w-full rounded-full border border-white/10 bg-slate-900 pr-2.5 pl-7 text-[11px] outline-none focus:ring-1 focus:ring-primary"
+            className="h-7 w-full rounded-full border border-white/10 bg-slate-900 pr-2.5 pl-7 text-[11px] outline-none focus:ring-1 focus:ring-emerald-400"
           />
         </div>
       )}

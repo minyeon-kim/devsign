@@ -61,3 +61,17 @@ export const PANEL_LABEL = 'mb-2 flex h-7 items-center gap-2 text-[11px] font-me
 export const PANEL_ROWS = 'divide-y divide-white/[0.06]'
 // Borderless ghost button fill (the Merge List search's tone).
 export const GHOST_BUTTON = 'bg-white/[0.05] text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white'
+
+// ---- Brand accent: one mint family for the whole studio ----------------
+// Every interactive accent — primary actions, active / selected states,
+// indicators, count badges, focus rings — comes from this single mint
+// scale (the same mint as the resolved checkmarks and canvas selection),
+// never a mix of indigo / violet / blue. Semantic status colors (priority
+// tints, warnings, destructive) and design content on the artboards are
+// separate and unaffected.
+// Primary action (solid mint, dark text for contrast).
+export const ACCENT_CTA = 'bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300'
+// Soft tint for active pills / count badges / tags.
+export const ACCENT_SOFT = 'bg-emerald-400/15 text-emerald-300'
+// Solid count badge on a highlighted control.
+export const ACCENT_BADGE = 'bg-emerald-400 text-slate-950'

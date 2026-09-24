@@ -81,12 +81,12 @@ function Side({ label, lines, tone, selected, onSelect }) {
       onClick={onSelect}
       className={cn(
         'flex min-w-0 flex-1 flex-col rounded-2xl border p-2.5 text-left transition-colors',
-        selected ? 'border-primary bg-primary/10' : 'border-white/10 bg-slate-800/70 hover:bg-muted/50'
+        selected ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-slate-800/70 hover:bg-muted/50'
       )}
     >
       <span className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         {label}
-        {selected && <Check className="ml-auto size-3 text-primary" />}
+        {selected && <Check className="ml-auto size-3 text-emerald-400" />}
       </span>
       <span
         className={cn(
@@ -164,9 +164,9 @@ function ConflictResolutionModal({ item, onClose }) {
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div className="rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-3.5">
+          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-3.5">
             <div className="flex items-center gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
                 <Sparkles className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
@@ -222,7 +222,7 @@ function ConflictResolutionModal({ item, onClose }) {
               className={cn('rounded-2xl transition-shadow', active === i && blocks.length > 1 && 'ring-1 ring-emerald-400/70 ring-offset-4 ring-offset-transparent')}
             >
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
-                {b.kind === 'token' ? <Palette className="size-3.5 text-violet-500" /> : <Code2 className="size-3.5 text-violet-500" />}
+                {b.kind === 'token' ? <Palette className="size-3.5 text-emerald-400" /> : <Code2 className="size-3.5 text-emerald-400" />}
                 {b.title}
                 <button
                   type="button"
@@ -237,7 +237,7 @@ function ConflictResolutionModal({ item, onClose }) {
                   Locate
                 </button>
                 <span className="ml-auto flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <Sparkles className="size-2.5 text-violet-500" />
+                  <Sparkles className="size-2.5 text-emerald-400" />
                   AI: {b.recommended === 'B' ? 'Current Implementation' : 'Original Design'} — {b.reason}
                 </span>
               </div>
@@ -267,7 +267,7 @@ function ConflictResolutionModal({ item, onClose }) {
               updateMergeItem(item.id, { conflictLevel: 'None', updatedLabel: 'Just now' })
               onClose()
             }}
-            className="flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 h-8 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+            className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-4 h-8 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
           >
             <Check className="size-3.5" />
             Apply resolution

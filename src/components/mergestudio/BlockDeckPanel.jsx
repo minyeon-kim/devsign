@@ -787,7 +787,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
               open && 'bg-white/[0.05]'
             )}
           >
-            {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+            {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
             <button
               type="button"
               onClick={() => toggle(d)}
@@ -1016,7 +1016,7 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onE
 function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
   return (
     <div className={cn('group relative px-3 py-3.5 text-left transition-colors', applied ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
-      {applied && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+      {applied && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
       <button type="button" onClick={() => onApply(preset)} className="flex w-full items-start gap-3 text-left">
         <span className={cn('size-9 shrink-0 rounded-full', preset.previewClass)} />
         <span className="min-w-0 flex-1">

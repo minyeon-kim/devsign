@@ -108,7 +108,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
             else if (e.key === 'Escape') finish(false)
           }}
           onBlur={() => finish(true)}
-          className="min-w-0 flex-1 rounded-sm bg-slate-950 px-1 font-mono text-[11px] text-foreground outline-none ring-1 ring-violet-500"
+          className="min-w-0 flex-1 rounded-sm bg-slate-950 px-1 font-mono text-[11px] text-foreground outline-none ring-1 ring-emerald-400"
         />
       ) : (
         <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
@@ -124,7 +124,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
         </span>
       )}
       {edited && !editing && (
-        <span title="Edited by hand" className="mt-0.5 flex h-4 shrink-0 items-center gap-0.5 self-start rounded-full bg-violet-500/20 px-1.5 text-[9px] font-semibold text-violet-300 select-none">
+        <span title="Edited by hand" className="mt-0.5 flex h-4 shrink-0 items-center gap-0.5 self-start rounded-full bg-emerald-400/20 px-1.5 text-[9px] font-semibold text-emerald-300 select-none">
           <Pencil className="size-2" /> edited
         </span>
       )}
@@ -133,7 +133,7 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
           type="button"
           title="Edit this line"
           onClick={startEdit}
-          className="mt-0.5 flex size-4 shrink-0 items-center justify-center self-start rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-violet-500/20 hover:text-violet-300"
+          className="mt-0.5 flex size-4 shrink-0 items-center justify-center self-start rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-emerald-400/20 hover:text-emerald-300"
         >
           <Pencil className="size-2.5" />
         </button>
@@ -224,7 +224,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, onLiveLine, fi
                 lineKey={`${file.id}:${lineNumber}:incoming`}
                 language={file.language}
                 highlighted={isHighlighted}
-                accentClass={edited ? 'border-violet-500/60 bg-violet-500/10' : 'border-emerald-500/60 bg-emerald-500/10'}
+                accentClass={edited ? 'border-emerald-200/70 bg-emerald-200/[0.06]' : 'border-emerald-500/60 bg-emerald-500/10'}
                 diffMark="+"
                 onClick={onClick}
                 linked={linked}
@@ -262,7 +262,7 @@ function ResizeHandles({ onResizeStart }) {
         title="Resize"
         className="absolute right-0 bottom-0 z-20 flex size-4 cursor-nwse-resize items-end justify-end p-0.5"
       >
-        <span className="size-2 rounded-br-sm border-r-2 border-b-2 border-violet-500/70" />
+        <span className="size-2 rounded-br-sm border-r-2 border-b-2 border-emerald-400/70" />
       </div>
     </>
   )
@@ -343,7 +343,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, rev
                 active ? 'bg-slate-900 text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <meta.Icon className={cn('size-3 shrink-0', meta.colorClass)} />
+              <meta.Icon className="size-3 shrink-0 text-slate-400" />
               <span className="max-w-[120px] truncate">{file.name}</span>
             </button>
           )
@@ -858,7 +858,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         // border (drawn by the canvas overlay) while every other element
         // dims until hovered; drifted elements keep a faint outline so they
         // stay findable.
-        drift && !selected && !hovered && 'rounded-sm outline outline-1 outline-offset-2 outline-solid outline-violet-400/40',
+        drift && !selected && !hovered && 'rounded-sm outline outline-1 outline-offset-2 outline-solid outline-emerald-400/40',
         dimmed && !selected && !hovered && 'opacity-45',
         hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80'
       )}
@@ -895,11 +895,11 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
           'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
-          editable ? 'bg-violet-500/20 text-violet-200' : 'bg-card/90 text-muted-foreground'
+          editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
         )}
       >
         {label}
-        {editable && <Pencil className="size-2.5 text-violet-300/80" />}
+        {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
@@ -1106,7 +1106,7 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
       className={cn(
         'absolute z-30 flex h-9 items-center overflow-hidden rounded-full border p-[3px] shadow-2xl backdrop-blur-md transition-[width,border-color,background-color] duration-300 ease-out',
         expanded
-          ? 'border-indigo-500/50 bg-card/95 shadow-indigo-500/20 focus-within:border-violet-500'
+          ? 'border-emerald-400/50 bg-card/95 shadow-emerald-500/20 focus-within:border-emerald-400'
           : 'border-slate-200 bg-white shadow-lg shadow-slate-900/25 hover:bg-slate-100'
       )}
     >
@@ -1119,9 +1119,9 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
           }
         }}
         title={expanded ? undefined : 'Edit with AI'}
-        // Collapsed: a violet sparkle on the solid white chip (see the form
+        // Collapsed: a mint sparkle on the solid white chip (see the form
         // above), legible on any artboard. Expanded: white on the dark pill.
-        className={cn('flex size-[28px] shrink-0 items-center justify-center transition-colors', expanded ? 'text-white' : 'text-violet-600')}
+        className={cn('flex size-[28px] shrink-0 items-center justify-center transition-colors', expanded ? 'text-white' : 'text-emerald-600')}
       >
         <Sparkles className="size-3.5" />
       </button>
@@ -1190,7 +1190,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
       onSubmit={submit}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      className="w-60 rounded-2xl border border-indigo-500/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
+      className="w-60 rounded-2xl border border-emerald-400/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
     >
       <div className="flex items-center gap-1.5">
         <Pencil className="size-3 shrink-0 text-muted-foreground" />
@@ -1198,7 +1198,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="min-w-0 flex-1 rounded-full bg-muted/60 px-2.5 py-1 text-foreground outline-none focus:ring-1 focus:ring-violet-500"
+          className="min-w-0 flex-1 rounded-full bg-muted/60 px-2.5 py-1 text-foreground outline-none focus:ring-1 focus:ring-emerald-400"
         />
         <button
           type="button"
@@ -1222,7 +1222,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
         <p
           className={cn(
             'flex min-w-0 flex-1 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium',
-            thinking || pending ? 'text-muted-foreground' : 'text-violet-500'
+            thinking || pending ? 'text-muted-foreground' : 'text-emerald-400'
           )}
         >
           <Sparkles className={cn('size-3 shrink-0', thinking && 'animate-pulse')} />
@@ -1255,8 +1255,8 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
         className={cn(
           'absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10px] font-bold text-white shadow-lg ring-2 ring-card',
           annotation.status === 'pending'
-            ? 'bg-slate-700 ring-violet-500'
-            : 'bg-slate-600 ring-indigo-500'
+            ? 'bg-slate-700 ring-emerald-400'
+            : 'bg-slate-600 ring-emerald-400/40'
         )}
       >
         {pin.n}
@@ -1322,7 +1322,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
                   className="min-w-0 flex-1 text-left leading-snug disabled:cursor-default"
                 >
                   <span className="block truncate text-foreground">{e.title}</span>
-                  <span className={cn('block truncate', e.kind === 'annotation' || e.kind === 'code' ? 'text-violet-400' : 'text-muted-foreground')}>{e.detail}</span>
+                  <span className={cn('block truncate', e.kind === 'annotation' || e.kind === 'code' ? 'text-emerald-400' : 'text-muted-foreground')}>{e.detail}</span>
                 </button>
                 <button
                   type="button"
@@ -1358,9 +1358,9 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
         // didn't: this button used to render visibly shorter).
         className={cn('ml-auto flex h-11 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
       >
-        <ListChecks className="size-4 text-indigo-500" />
+        <ListChecks className="size-4 text-emerald-400" />
         Changes log
-        <span className={cn(COUNT_BADGE, 'bg-indigo-500/20 text-indigo-300')}>{total}</span>
+        <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>{total}</span>
         <ChevronDown strokeWidth={2.5} className={cn('size-3 text-muted-foreground/60 transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
@@ -2544,12 +2544,12 @@ function MergeInfiniteCanvas({
               onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
               className={cn(
                 'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-                mergeDrawer === 'inbox' && 'bg-indigo-500/20 text-indigo-300'
+                mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
               )}
             >
               <Bell className="size-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] leading-[14px] font-semibold text-white ring-2 ring-card">
+                <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
                   {unreadCount}
                 </span>
               )}
@@ -2574,7 +2574,7 @@ function MergeInfiniteCanvas({
               // pill beside it.
               'flex size-10 items-center justify-center rounded-full transition-colors',
               FLOATING_PILL,
-              mergePreviewOpen ? 'border-primary bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
+              mergePreviewOpen ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-muted'
             )}
           >
             {/* Outline play triangle, nudged 1px right to sit optically centered. */}
@@ -2585,12 +2585,12 @@ function MergeInfiniteCanvas({
               type="button"
               onClick={applyAll}
               disabled={pendingCount === 0}
-              className="flex h-10 items-center justify-center gap-2 rounded-full border border-indigo-500/50 bg-card/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-400/50 bg-card/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Sparkles className="size-4 text-violet-500" />
+              <Sparkles className="size-4 text-emerald-400" />
               Apply with AI
               {pendingCount > 0 && (
-                <span className={cn(COUNT_BADGE, 'bg-indigo-500/20 text-indigo-300')}>
+                <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>
                   {pendingCount}
                 </span>
               )}
@@ -2653,7 +2653,7 @@ function MergeInfiniteCanvas({
                 'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                  : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110 disabled:opacity-50'
+                  : 'bg-emerald-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
               )}
             >
               {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
