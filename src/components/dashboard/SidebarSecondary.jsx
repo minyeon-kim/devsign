@@ -1,8 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { navItems } from '@/components/dashboard/Sidebar'
-import { brand, projects } from '@/data/mockData'
+import { projects } from '@/data/mockData'
 
 const rowClass =
   'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
@@ -19,15 +18,7 @@ function SidebarSecondary() {
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card px-3 py-3">
-      <button
-        type="button"
-        className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
-      >
-        <span className="truncate text-sm font-semibold text-foreground">{brand.name}</span>
-        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-      </button>
-
-      <nav className="mt-2 flex flex-col gap-0.5">
+      <nav className="flex flex-col gap-0.5">
         {navItems.map(({ id, label, path }) => {
           const isActive = path && pathname.startsWith(path)
           return (
