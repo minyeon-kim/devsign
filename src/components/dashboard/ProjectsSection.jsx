@@ -91,7 +91,7 @@ function ProjectsSection() {
 
       <div
         className={cn(
-          'mt-4 grid gap-4',
+          'mt-6 grid gap-6',
           view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 gap-2'
         )}
       >
