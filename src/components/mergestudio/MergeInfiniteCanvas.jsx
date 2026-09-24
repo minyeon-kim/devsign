@@ -2707,13 +2707,17 @@ function MergeInfiniteCanvas({
                 'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                  : 'bg-emerald-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
+                  : // The studio's signature CTA: a mint gradient (the brand
+                    // accent's own family — emerald into teal), dark text.
+                    'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
               )}
             >
               {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
               {merged ? 'Merged' : 'Merge Changes'}
               {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
-                <span className={cn(COUNT_BADGE, 'bg-white/20')}>
+                // Solid white circular count badge (grows into a pill only
+                // for 2-digit counts).
+                <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] leading-none font-bold text-emerald-700 tabular-nums shadow-sm">
                   {resolutionCount + annotations.filter((a) => a.status === 'done').length}
                 </span>
               )}

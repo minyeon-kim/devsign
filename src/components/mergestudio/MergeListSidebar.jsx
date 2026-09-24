@@ -484,9 +484,13 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
           className={cn(
-            'flex h-10 items-center justify-center gap-2 rounded-full pr-3 pl-4 text-[13px] font-medium transition-colors',
-            FLOATING_PILL,
-            mergeListCollapsed ? 'text-foreground hover:bg-muted' : 'border-emerald-400/40 bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/25'
+            // Solid surface — no glass / backdrop blur: an opaque neutral
+            // dark pill with a hairline edge. Open = a slightly lifted
+            // neutral tone (the mint count badge carries the accent).
+            'flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 pr-3 pl-4 text-[13px] font-medium shadow-lg shadow-black/30 transition-colors',
+            mergeListCollapsed
+              ? 'bg-[#1b1b1f] text-slate-200 hover:bg-[#232328] hover:text-white'
+              : 'border-white/15 bg-[#2a2a30] text-white hover:bg-[#303036]'
           )}
         >
           Merge List
