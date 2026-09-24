@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronDown, GitBranch } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { navItems } from '@/components/dashboard/Sidebar'
 import { currentUser, projects } from '@/data/mockData'
@@ -28,7 +28,7 @@ function SidebarSecondary() {
       </button>
 
       <nav className="mt-2 flex flex-col gap-0.5">
-        {navItems.map(({ id, label, icon: Icon, path }) => {
+        {navItems.map(({ id, label, path }) => {
           const isActive = path && pathname.startsWith(path)
           return (
             <Link
@@ -37,7 +37,6 @@ function SidebarSecondary() {
               aria-disabled={!path}
               className={cn(rowClass, isActive && activeRowClass, !path && 'pointer-events-none opacity-50')}
             >
-              <Icon className="size-4 shrink-0" />
               {label}
             </Link>
           )
@@ -64,7 +63,6 @@ function SidebarSecondary() {
 
       <div className="mt-auto border-t pt-3">
         <div className={cn(rowClass, 'cursor-default hover:bg-transparent hover:text-muted-foreground')}>
-          <GitBranch className="size-4 shrink-0" />
           <span className="truncate text-foreground/80">
             {projects.reduce((sum, p) => sum + p.conflicts, 0)} open conflicts
           </span>
