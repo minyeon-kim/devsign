@@ -13,7 +13,7 @@ const MAX_VISIBLE_AVATARS = 3
 // lives on the Dashboard's "Needs attention" list, not duplicated here.
 function ProjectCard({ project, index = 0, view = 'grid' }) {
   const navigate = useNavigate()
-  const tone = ICON_TONES[index % ICON_TONES.length]
+  const tone = project.accentTone ?? ICON_TONES[index % ICON_TONES.length]
   const members = project.memberIds
     .map((id) => allPeople.find((p) => p.id === id))
     .filter(Boolean)
