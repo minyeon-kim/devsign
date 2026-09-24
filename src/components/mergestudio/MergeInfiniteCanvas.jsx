@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, GitMerge, Hand, History, House, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -1556,6 +1556,8 @@ function MergeInfiniteCanvas({
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const [annotations, setAnnotations] = useState([])
+  // Resolved drifts + applied AI notes: the Merge Changes button's count.
+  const mergeCount = resolutionCount + annotations.filter((a) => a.status === 'done').length
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
   const [zoomRowRight, setZoomRowRight] = useState(12)
@@ -2704,7 +2706,11 @@ function MergeInfiniteCanvas({
               disabled={merged}
               onClick={() => onMerge(annotations)}
               className={cn(
-                'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                // Text-only pill: even 20px sides; with the count badge, the
+                // right side tightens to 12px — the same gap the 20px badge
+                // leaves above and below it in the 44px pill.
+                merged || !mergeCount ? 'px-5' : 'pr-3 pl-5',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
                   : // The studio's signature CTA: a mint gradient (the brand
@@ -2712,13 +2718,13 @@ function MergeInfiniteCanvas({
                     'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
               )}
             >
-              {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
+              {merged && <Check className="size-4" />}
               {merged ? 'Merged' : 'Merge Changes'}
-              {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
+              {!merged && mergeCount > 0 && (
                 // Solid white circular count badge (grows into a pill only
                 // for 2-digit counts).
                 <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] leading-none font-bold text-emerald-700 tabular-nums shadow-sm">
-                  {resolutionCount + annotations.filter((a) => a.status === 'done').length}
+                  {mergeCount}
                 </span>
               )}
             </button>
