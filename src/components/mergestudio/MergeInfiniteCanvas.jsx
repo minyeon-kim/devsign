@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, GitMerge, Hand, History, House, ListChecks, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, GitMerge, Hand, History, House, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -11,7 +11,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
-import { COUNT_BADGE, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
@@ -1279,89 +1279,143 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
 // Compare-stage "Changes log": every modification so far — variant
 // selections, Block Assemble / Design System edits, presets, AI notes — as
 // rows you can Undo individually, or click to pan the canvas to the element
-// (or code line) they touch.
+// (or code line) they touch; then the code files with pending changes.
+//
+// Laid out like the studio's other panels: a header (title + count, and
+// the Version history link), then labeled groups on grouped surfaces with
+// hairline rows — one bright line per row (what changed) over one quiet
+// line (the detail), and quiet ghost actions.
 function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenHistory }) {
   const total = entries.length
   return (
     // `relative`, sized to just the button — the expanded panel is
     // `absolute` (popped up above it via `bottom-full`), so opening it
-    // never changes this wrapper's own layout box. It used to grow to
-    // `w-80` in normal flow instead, which pushed whatever sits to its
-    // left (the zoom pill) further out the moment it opened.
+    // never changes this wrapper's own layout box (the zoom pill to its
+    // left never moves).
     <div className="relative">
       {open && (
-        <div className="absolute right-0 bottom-full mb-2 max-h-80 w-80 max-w-[calc(100vw-1.5rem)] space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
-          {/* Version history lives here now (it used to be on the app's
+        <div
+          className={cn(
+            'absolute right-0 bottom-full mb-2 flex max-h-[min(440px,calc(100vh-160px))] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl',
+            FLOATING_PANEL
+          )}
+        >
+          {/* Header. Version history lives here (it used to be on the app's
               right-hand toolbar): saved versions sit right next to the
               unsaved changes. */}
-          <div className="flex h-7 items-center justify-between px-1">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Changes · {total}</span>
+          <div className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
+            <span className="text-sm font-semibold text-foreground">Changes</span>
+            <span className="text-xs font-medium text-slate-500 tabular-nums">{total}</span>
             {onOpenHistory && (
               <button
                 type="button"
                 onClick={onOpenHistory}
-                className="flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+                className="ml-auto flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 <History className="size-3.5" />
                 Version history
+                <ChevronRight className="size-3 text-slate-500" />
               </button>
             )}
           </div>
-          {total === 0 && codeRows.length === 0 && (
-            <p className="py-3 text-center text-muted-foreground">No changes yet — pick or edit values, edit code, assemble blocks, or annotate.</p>
-          )}
-          {entries.map((e) => {
-            const canJump = Boolean(e.layerId || e.fileId)
-            return (
-              <div key={e.id} className="flex items-center gap-2 rounded-xl bg-slate-800/70 px-3 py-2">
-                <button
-                  type="button"
-                  disabled={!canJump}
-                  onClick={() => onJump(e)}
-                  title={canJump ? 'Jump to element' : undefined}
-                  className="min-w-0 flex-1 text-left leading-snug disabled:cursor-default"
-                >
-                  <span className="block truncate text-foreground">{e.title}</span>
-                  <span className={cn('block truncate', e.kind === 'annotation' || e.kind === 'code' ? 'text-emerald-400' : 'text-muted-foreground')}>{e.detail}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onUndo(e)}
-                  title="Undo this change"
-                  className="flex shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 h-6 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Undo2 className="size-3.5" />
-                  Undo
-                </button>
-              </div>
-            )
-          })}
-          {codeRows.length > 0 && (
-            <div className="border-t border-border/60 pt-1.5">
-              <p className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Code</p>
-              {codeRows.map((f) => (
-                <p key={f.id} className="px-1 py-1 text-sm text-muted-foreground">
-                  <span className="text-foreground">{f.name}</span> · {f.changed} incoming line{f.changed === 1 ? '' : 's'}
-                  {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
-                  {f.manualLines > 0 && ` · ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`}
+
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+            {total === 0 && codeRows.length === 0 && (
+              <p className={cn(PANEL_SURFACE, 'px-4 py-5 text-center text-xs leading-relaxed text-slate-400')}>
+                No changes yet — pick or edit values, edit code, assemble blocks, or annotate.
+              </p>
+            )}
+
+            {total > 0 && (
+              <section>
+                <p className={PANEL_LABEL}>
+                  Edits
+                  <span className="text-slate-600 tabular-nums">{total}</span>
                 </p>
-              ))}
-            </div>
-          )}
+                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+                  {entries.map((e) => {
+                    const canJump = Boolean(e.layerId || e.fileId)
+                    return (
+                      <li key={e.id} className="group/row flex items-center gap-2 pr-1.5 transition-colors hover:bg-white/[0.03]">
+                        <button
+                          type="button"
+                          disabled={!canJump}
+                          onClick={() => onJump(e)}
+                          title={canJump ? 'Jump to element' : undefined}
+                          className="min-w-0 flex-1 py-2.5 pl-3 text-left disabled:cursor-default"
+                        >
+                          <span className="block truncate text-[13px] font-medium text-slate-100">{e.title}</span>
+                          <span className={cn('mt-0.5 block truncate text-xs', e.kind === 'annotation' || e.kind === 'code' ? 'text-emerald-300/90' : 'text-slate-400')}>{e.detail}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUndo(e)}
+                          title="Undo this change"
+                          aria-label={`Undo: ${e.title}`}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors group-hover/row:text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                        >
+                          <Undo2 className="size-3.5" />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {codeRows.length > 0 && (
+              <section>
+                <p className={PANEL_LABEL}>
+                  Code files
+                  <span className="text-slate-600 tabular-nums">{codeRows.length}</span>
+                </p>
+                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+                  {codeRows.map((f) => {
+                    const meta = getFileIconMeta(f.name)
+                    const parts = [
+                      f.aiLines > 0 && `${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`,
+                      f.manualLines > 0 && `${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`,
+                    ].filter(Boolean)
+                    return (
+                      <li key={f.id} className="flex items-center gap-2.5 px-3 py-2.5">
+                        <meta.Icon className="size-4 shrink-0 text-slate-400" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-slate-100">{f.name}</span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-400">
+                            {f.changed} incoming line{f.changed === 1 ? '' : 's'}
+                            {parts.length > 0 && ` · ${parts.join(' · ')}`}
+                          </span>
+                        </span>
+                        {/* The headline figure, as a plain colored number
+                            (same as the Merge List's file rows). */}
+                        {f.changed > 0 && (
+                          <span title="Incoming lines" className="shrink-0 text-xs font-semibold text-emerald-400 tabular-nums">
+                            +{f.changed}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+          </div>
         </div>
       )}
       <button
         type="button"
         onClick={onToggle}
-        // `h-11` explicitly, matching the adjacent zoom pill's own height —
-        // relying on padding alone to happen to match was fragile (it
-        // didn't: this button used to render visibly shorter).
-        className={cn('ml-auto flex h-11 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+        aria-expanded={open}
+        // `h-11` explicitly, matching the adjacent zoom pill's own height.
+        // Text + count only; the open state is a soft fill, not an icon.
+        className={cn(
+          'ml-auto flex h-11 items-center justify-center gap-2 rounded-full pr-3.5 pl-4.5 text-sm font-semibold text-foreground transition-colors',
+          FLOATING_PILL,
+          open ? 'bg-white/[0.1]' : 'hover:bg-muted'
+        )}
       >
-        <ListChecks className="size-4 text-emerald-400" />
         Changes log
         <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>{total}</span>
-        <ChevronDown strokeWidth={2.5} className={cn('size-3 text-muted-foreground/60 transition-transform', !open && 'rotate-180')} />
       </button>
     </div>
   )
