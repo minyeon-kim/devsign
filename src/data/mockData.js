@@ -18,6 +18,7 @@ export const currentUser = {
   initials: 'JA',
   colorClass: 'bg-indigo-500',
   cursorColor: '#6366f1',
+  email: 'jane@devsign.app',
 }
 
 // `viewportSequence` is the mock "what am I looking at" timeline used by the
@@ -32,6 +33,7 @@ export const teamMembers = [
     initials: 'JD',
     colorClass: 'bg-sky-500',
     cursorColor: '#0ea5e9',
+    email: 'james@devsign.app',
     online: true,
     viewportSequence: [
       { fileId: 'app', layerId: 'primary-button', label: 'Reviewing the Continue button spacing' },
@@ -46,6 +48,7 @@ export const teamMembers = [
     initials: 'MI',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
+    email: 'min@devsign.app',
     online: true,
     viewportSequence: [
       { fileId: 'tokens', layerId: null, label: 'Checking the design tokens' },

@@ -4,8 +4,6 @@ import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Logo from '@/components/layout/Logo'
 
-// `path: null` items (Team) have no page yet, so they're inert (per the
-// dashboard brief: "navigation links do not need backend functionality").
 // Mirrors the workspace's ActivityBar (narrow icon rail, Tooltip-labeled,
 // size-9/rounded-full, Settings pinned to the bottom) so the dashboard and
 // workspace chrome read as one product. Shared with SidebarSecondary so
@@ -14,7 +12,7 @@ export const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' },
   { id: 'activity', label: 'Activity', icon: Activity, path: '/activity' },
-  { id: 'team', label: 'Team', icon: Users, path: null },
+  { id: 'team', label: 'Team', icon: Users, path: '/team' },
 ]
 
 const iconButtonClass =
