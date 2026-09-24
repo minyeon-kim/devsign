@@ -36,13 +36,13 @@ function ProjectCard({ project, index = 0, view = 'grid' }) {
     >
       <ProjectThumbnail type={project.thumbnailType} className="h-36 w-full rounded-none border-0 border-b border-border" />
 
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <span className={cn('flex size-5 shrink-0 items-center justify-center rounded', tone)}>
-          <FolderKanban className="size-3 text-white" />
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', tone)}>
+          <FolderKanban className="size-4 text-white" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-foreground">{project.name}</p>
-          <p className="text-[11px] text-muted-foreground">Edited {project.updatedAtLabel}</p>
+          <p className="truncate text-[13px] font-semibold text-foreground">{project.name}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Edited {project.updatedAtLabel}</p>
         </div>
       </div>
     </button>
