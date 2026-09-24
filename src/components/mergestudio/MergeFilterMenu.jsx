@@ -35,7 +35,7 @@ function Section({ title, aside, children }) {
   return (
     <section className="space-y-1.5">
       <div className="flex h-5 items-center justify-between">
-        <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{title}</span>
+        <span className="text-xs font-medium text-slate-300">{title}</span>
         {aside}
       </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
@@ -183,7 +183,7 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
             </Section>
             <section className="space-y-1.5">
               <div className="flex h-5 items-center">
-                <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Assignee</span>
+                <span className="text-xs font-medium text-slate-300">Assignee</span>
               </div>
               <AssigneePicker items={items} value={value.assignee} onChange={(v) => set('assignee', v)} />
             </section>

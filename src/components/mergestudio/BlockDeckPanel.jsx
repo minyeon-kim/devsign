@@ -20,6 +20,7 @@ import {
   Library,
   Search,
   MousePointerClick,
+  SlidersHorizontal,
   Pencil,
   Sparkles,
   Type,
@@ -40,6 +41,7 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
   CATEGORY_TAB,
   CATEGORY_TAB_ACTIVE,
@@ -158,7 +160,7 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
         custom != null && (
           // A custom value is the active choice: the same lifted neutral.
           <div className="mt-1.5 ml-[80px] flex h-6 items-center gap-1.5 rounded-full bg-white/[0.14] pr-1 pl-2.5 text-[11px] text-white ring-1 ring-inset ring-white/25">
-            <span className="shrink-0 text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Custom</span>
+            <span className="shrink-0 text-[11px] font-medium text-slate-400">Custom</span>
             <span className="min-w-0 flex-1 truncate font-medium">{custom}</span>
             <button
               type="button"
@@ -233,25 +235,6 @@ function CodeDriftEditor({ original, incoming, manual, onEdit }) {
           'Edit the current line directly — it syncs to the code window.'
         )}
       </p>
-    </div>
-  )
-}
-
-// ---- Modular builder controls (shared by Block Assemble and the manual
-// fallback in Variant Compare) ---------------------------------------
-function Seg({ options, value, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-1">
-      {options.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          className={cn(CATEGORY_TAB, value === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
-        >
-          {label}
-        </button>
-      ))}
     </div>
   )
 }
@@ -331,7 +314,7 @@ function InspectorSection({ title, action, children }) {
   return (
     <div className="space-y-2 px-5 py-2.5">
       <div className="flex h-5 items-center justify-between">
-        <p className="text-[11px] font-medium tracking-wider text-slate-500 uppercase">{title}</p>
+        <p className="text-xs font-medium text-slate-200">{title}</p>
         {action}
       </div>
       {children}
@@ -835,7 +818,7 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
     <section>
       <p className={PANEL_LABEL}>
         Detected drifts
-        <span className="font-medium text-slate-600 tabular-nums">{drifts.length}</span>
+        <span className="text-slate-500 tabular-nums">{drifts.length}</span>
       </p>
       <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
       {drifts.map((d) => {
@@ -1220,17 +1203,19 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, on
 }
 
 // Design System library: browse the integrated component library, then
-// either restyle the selected element with a component ("Apply") or pull
-// a fresh instance onto both artboards ("Add").
+// either restyle the selected element with a component ("Replace" /
+// "Insert") or pull a fresh instance onto both artboards ("Add").
+// Preview tile: the live component on a white (light-mode canvas) tile,
+// scaled to fit — 92×56, sized so a row keeps room for its text + actions.
 function ComponentPreview({ def }) {
-  const box = { w: 124, h: 58 }
+  const box = { w: 80, h: 44 }
   const k = Math.min(1, box.w / def.width, box.h / def.height)
   // `name` matters: some layer types (avatars) render from it — without it
   // an avatar preview crashed the whole Library tab.
   const layer = { id: def.id, name: def.name, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
   const override = { ...assemblyToOverride(def.assembly, layer), static: true }
   return (
-    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-slate-200" style={{ width: box.w + 12, height: box.h + 12 }}>
+    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-white ring-1 ring-white/10" style={{ width: box.w + 12, height: box.h + 12 }}>
       <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
         <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
           <StaticLayer layer={layer} override={override} onSelect={() => {}} />
@@ -1240,133 +1225,198 @@ function ComponentPreview({ def }) {
   )
 }
 
+// Library row actions: same 28px / 6px spec as the inspector controls,
+// medium weight. The contextual action (Replace / Insert) is a soft fill;
+// Add is a quiet outline.
+const LIB_ACTION = 'flex h-7 min-w-0 items-center justify-center gap-1 rounded-[6px] px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors'
+const LIB_PRIMARY = 'bg-white/[0.08] text-slate-100 hover:bg-white/[0.12] hover:text-white'
+const LIB_SECONDARY = 'text-slate-300 ring-1 ring-inset ring-white/10 hover:bg-white/[0.05] hover:text-white'
+
+// One library component row: preview tile (drag it onto an artboard to
+// place it) · name + what the action does · actions.
+function LibraryRow({ def, mode, target, onApply, onInsert, onAdd, onDrag }) {
+  return (
+    <div className="flex items-center gap-3 p-3">
+      <div
+        title="Drag onto the canvas to place"
+        className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
+        onPointerDown={(e) => {
+          if (e.button !== 0 || !onDrag) return
+          e.preventDefault()
+          onDrag(def)
+        }}
+      >
+        <ComponentPreview def={def} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-slate-100">{def.name}</p>
+        <p className="mt-0.5 truncate text-xs text-slate-400">
+          {mode === 'replace' ? `Replaces ${target}` : mode === 'insert' ? `Inserts into ${target}` : def.tokens.join(' · ')}
+        </p>
+        {/* Equal-width cells, so labels never squeeze; Add alone (no
+            contextual action) spans both. */}
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          {mode === 'replace' && (
+            <button type="button" onClick={() => onApply(def)} className={cn(LIB_ACTION, LIB_PRIMARY)}>
+              Replace
+            </button>
+          )}
+          {mode === 'insert' && (
+            <button type="button" onClick={() => onInsert(def)} className={cn(LIB_ACTION, LIB_PRIMARY)}>
+              Insert
+            </button>
+          )}
+          <button type="button" onClick={() => onAdd(def)} className={cn(LIB_ACTION, mode ? LIB_SECONDARY : cn(LIB_PRIMARY, 'col-span-2'))}>
+            <Plus className="size-3" />
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Compact category picker (replaces the old sideways-scrolling chip row):
+// a 32px control beside the search, opening a menu with per-category
+// counts.
+function CategoryMenu({ categories, counts, value, onChange }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        title="Filter by category"
+        className={cn(
+          'flex h-8 shrink-0 items-center gap-1.5 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors',
+          value === 'All' ? 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.08]' : 'bg-white/[0.1] text-white hover:bg-white/[0.13]'
+        )}
+      >
+        <SlidersHorizontal className="size-3.5 text-slate-400" />
+        <span className="max-w-[88px] truncate">{value === 'All' ? 'All types' : value}</span>
+        <ChevronDown className="size-3 text-slate-500" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44 rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl">
+        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+          {categories.map((c) => (
+            <DropdownMenuRadioItem key={c} value={c} className="text-xs">
+              <span className="flex-1">{c === 'All' ? 'All types' : c}</span>
+              <span className="ml-3 text-[11px] text-slate-500 tabular-nums">{counts[c] ?? 0}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// The Library tab — driven by the canvas selection:
+//   • nothing selected: the whole design system, one list;
+//   • an element selected: a "Selected" card naming it, and only what fits
+//     it, split by what the component would do — "Replace <name>" (same
+//     role) and "Insert into <name>" (children it can hold). A Compatible /
+//     All switch widens to every component (rows still say whether they'd
+//     replace / insert). Selecting another element re-filters and resets
+//     the view; if nothing fits, the tab says so and shows everything.
+// Search + a compact category menu narrow any of these.
 function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [showAll, setShowAll] = useState(false)
-  // Contextual: with an element selected, only components that can replace
-  // it or be inserted into it are listed (unless "Show all" is on).
+  // A new selection is a new context: back to its compatible set.
+  useEffect(() => {
+    setShowAll(false)
+    setCategory('All')
+  }, [selectedLayer?.id])
+
   const compat = selectedLayer ? libraryCompat(selectedLayer) : null
   const modeOf = (def) => (!compat ? null : compat.replace.has(def.type) ? 'replace' : compat.insert.has(def.type) ? 'insert' : null)
-  const pool = designSystemComponents.filter((c) => showAll || !compat || modeOf(c))
+  const fitting = compat ? designSystemComponents.filter((c) => modeOf(c)) : []
+  const nothingFits = Boolean(compat) && fitting.length === 0
+  const contextual = Boolean(compat) && !showAll && !nothingFits
+  const pool = contextual ? fitting : designSystemComponents
+
+  const q = query.trim().toLowerCase()
+  const matchesQuery = (c) => c.name.toLowerCase().includes(q)
+  const counts = { All: pool.filter(matchesQuery).length }
+  pool.filter(matchesQuery).forEach((c) => (counts[c.category] = (counts[c.category] ?? 0) + 1))
   const categories = ['All', ...new Set(pool.map((c) => c.category))]
-  const visible = pool.filter(
-    (c) => (category === 'All' || c.category === category) && c.name.toLowerCase().includes(query.trim().toLowerCase())
-  )
   const activeCategory = categories.includes(category) ? category : 'All'
+  const visible = pool.filter((c) => (activeCategory === 'All' || c.category === activeCategory) && matchesQuery(c))
+
+  const rowProps = { target: selectedLayer?.name, onApply, onInsert, onAdd, onDrag }
+  const groups = contextual
+    ? [
+        { id: 'replace', title: `Replace ${selectedLayer.name}`, items: visible.filter((d) => modeOf(d) === 'replace') },
+        { id: 'insert', title: `Insert into ${selectedLayer.name}`, items: visible.filter((d) => modeOf(d) === 'insert') },
+      ].filter((g) => g.items.length)
+    : [{ id: 'all', title: 'Components', items: visible }]
 
   return (
-    <DeckScroll>
-      <div className="space-y-3 px-5 pb-4">
-        <div className="flex items-center gap-2 text-sm">
-          <Library className="size-4 text-slate-400" />
-          <span className="font-semibold text-foreground">{designSystemMeta.name}</span>
-          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-muted-foreground">{designSystemMeta.version}</span>
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
+    <DeckScroll innerClassName="space-y-4 px-5 pb-5">
+      <div className="space-y-3">
+        <div className="flex h-5 items-center gap-2 text-xs">
+          <span className="font-medium text-slate-200">{designSystemMeta.name}</span>
+          <span className="rounded-[4px] bg-white/[0.06] px-1.5 py-px text-[10px] text-slate-400 tabular-nums">{designSystemMeta.version}</span>
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500">
             <span className="size-1.5 rounded-full bg-emerald-400" />
             {designSystemMeta.syncedLabel}
           </span>
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search components…"
-            className="h-8 w-full rounded-full bg-white/[0.05] pr-3 pl-8 text-[13px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
-          />
-        </div>
-        <Seg options={categories.map((c) => [c, c])} value={activeCategory} onChange={setCategory} />
-
-        {selectedLayer ? (
-          <div className="flex items-start gap-2.5 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-            <span className="min-w-0 flex-1">
-              {showAll ? 'Showing every component.' : `${pool.length} component${pool.length === 1 ? '' : 's'} fit`}{' '}
-              <span className="font-medium text-foreground">{selectedLayer.name}</span>
-              {showAll ? '' : ' — replace it or insert into it.'}
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className={cn('shrink-0 rounded-full px-2.5 py-1 font-medium', GHOST_BUTTON)}
-            >
-              {showAll ? 'Only compatible' : 'Show all'}
-            </button>
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search components…"
+              className="h-8 w-full rounded-[6px] bg-white/[0.05] pr-3 pl-8 text-[12px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
+            />
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">Select an element to see only the components that fit it — or Add / drag one onto the canvas and place it.</p>
-        )}
-      </div>
-
-      <div className="px-5 pb-5">
-        <p className={PANEL_LABEL}>
-          Components
-          <span className="font-medium text-slate-600 tabular-nums">{visible.length}</span>
-        </p>
-        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-        {visible.map((def) => {
-          const mode = modeOf(def)
-          return (
-            <div key={def.id} className="flex items-center gap-3 p-3">
-              {/* Drag the preview onto an artboard to place it exactly. */}
-              <div
-                title="Drag onto the canvas to place"
-                className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
-                onPointerDown={(e) => {
-                  if (e.button !== 0 || !onDrag) return
-                  e.preventDefault()
-                  onDrag(def)
-                }}
-              >
-                <ComponentPreview def={def} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{def.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {mode === 'replace' ? `Replaces ${selectedLayer.name}` : mode === 'insert' ? `Inserts into ${selectedLayer.name}` : def.tokens.join(' · ')}
-                </p>
-                {/* Fixed 2-col grid instead of a flex row — "Replace"/"Insert"
-                    and "Add" each get a stable half-width cell, so the
-                    longer label never wraps or gets squeezed. Alone (no
-                    mode), "Add" spans both columns. */}
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {mode === 'replace' && (
-                    <button
-                      type="button"
-                      onClick={() => onApply(def)}
-                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-2 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-                    >
-                      Replace
-                    </button>
-                  )}
-                  {mode === 'insert' && (
-                    <button
-                      type="button"
-                      onClick={() => onInsert(def)}
-                      className="w-full truncate rounded-full bg-slate-700 text-foreground hover:bg-slate-600 px-2 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-                    >
-                      Insert
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onAdd(def)}
-                    className={cn(
-                      'w-full truncate rounded-full px-2 py-1 text-xs font-semibold whitespace-nowrap',
-                      !mode && 'col-span-2',
-                      mode ? GHOST_BUTTON : 'bg-slate-700 text-foreground hover:bg-slate-600'
-                    )}
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-        {visible.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No components match.</p>}
+          <CategoryMenu categories={categories} counts={counts} value={activeCategory} onChange={setCategory} />
         </div>
       </div>
+
+      {/* The selection this list is filtered for. */}
+      {selectedLayer ? (
+        <div className={cn(PANEL_SURFACE, 'flex items-center gap-3 px-3 py-2.5')}>
+          <MousePointerClick className="size-4 shrink-0 text-slate-400" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium text-slate-100">{selectedLayer.name}</p>
+            <p className="truncate text-xs text-slate-400">
+              {nothingFits ? 'No component fits this element — showing all' : `${fitting.length} compatible · ${selectedLayer.type}`}
+            </p>
+          </div>
+          {!nothingFits && (
+            <Segmented
+              className="w-[140px] shrink-0"
+              value={showAll ? 'all' : 'fit'}
+              onChange={(v) => setShowAll(v === 'all')}
+              options={[
+                { id: 'fit', label: 'Compatible', title: `Only components that fit ${selectedLayer.name}` },
+                { id: 'all', label: 'All', title: 'Every component' },
+              ]}
+            />
+          )}
+        </div>
+      ) : (
+        <p className="text-xs leading-relaxed text-slate-500">Select an element on the canvas to see only the components that fit it — or drag one onto the canvas.</p>
+      )}
+
+      {groups.map((g) => (
+        <section key={g.id}>
+          <div className={PANEL_LABEL}>
+            <span className="min-w-0 truncate">{g.title}</span>
+            <span className="text-slate-500 tabular-nums">{g.items.length}</span>
+          </div>
+          <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+            {g.items.map((def) => (
+              <LibraryRow key={def.id} def={def} mode={modeOf(def)} {...rowProps} />
+            ))}
+            {g.items.length === 0 && <p className="p-4 text-center text-xs text-slate-500">No components match.</p>}
+          </div>
+        </section>
+      ))}
+      {contextual && groups.length === 0 && (
+        <p className={cn(PANEL_SURFACE, 'p-4 text-center text-xs text-slate-500')}>No compatible components match this search.</p>
+      )}
     </DeckScroll>
   )
 }

@@ -84,7 +84,7 @@ function Side({ label, lines, tone, selected, onSelect }) {
         selected ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-slate-800/70 hover:bg-muted/50'
       )}
     >
-      <span className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+      <span className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-slate-300">
         {label}
         {selected && <Check className="ml-auto size-3 text-emerald-400" />}
       </span>

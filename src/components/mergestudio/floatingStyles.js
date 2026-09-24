@@ -53,11 +53,11 @@ export const PRESENCE_STACK = [
 
 // Flat panel language shared by the Merge List and the Block Deck: content
 // sits on a 20px inset (px-5) with 16px between groups; a group is an
-// uppercase label (8px above its surface) and, where it's a list, one
+// sentence-case label (8px above its surface) and, where it's a list, one
 // grouped surface — a faint tonal lift + hairline ring — with rows split by
 // hairlines instead of separate bordered boxes.
 export const PANEL_SURFACE = 'overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07]'
-export const PANEL_LABEL = 'mb-2 flex h-7 items-center gap-2 text-[11px] font-medium tracking-wider text-slate-500 uppercase'
+export const PANEL_LABEL = 'mb-2 flex h-7 items-center gap-2 text-xs font-medium text-slate-300'
 export const PANEL_ROWS = 'divide-y divide-white/[0.06]'
 // Borderless ghost button fill (the Merge List search's tone).
 export const GHOST_BUTTON = 'bg-white/[0.05] text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white'

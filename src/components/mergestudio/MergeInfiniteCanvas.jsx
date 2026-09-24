@@ -1330,7 +1330,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
               <section>
                 <p className={PANEL_LABEL}>
                   Edits
-                  <span className="text-slate-600 tabular-nums">{total}</span>
+                  <span className="text-slate-500 tabular-nums">{total}</span>
                 </p>
                 <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
                   {entries.map((e) => {
@@ -1367,7 +1367,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
               <section>
                 <p className={PANEL_LABEL}>
                   Code files
-                  <span className="text-slate-600 tabular-nums">{codeRows.length}</span>
+                  <span className="text-slate-500 tabular-nums">{codeRows.length}</span>
                 </p>
                 <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
                   {codeRows.map((f) => {

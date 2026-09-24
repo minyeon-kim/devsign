@@ -47,7 +47,7 @@ function SectionTitle({ icon: Icon, children, aside }) {
   return (
     <div className="mb-3 flex items-center gap-2">
       <Icon className="size-4 text-emerald-400" />
-      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{children}</h3>
+      <h3 className="text-[13px] font-semibold text-slate-200">{children}</h3>
       {aside && <span className="ml-auto">{aside}</span>}
     </div>
   )
@@ -379,7 +379,7 @@ function CheckStep({ item, resolutions, summary }) {
       {/* The one thing to act on, when there is one. */}
       {hasConflict && (
         <section className={cn('rounded-2xl border p-3.5', conflictTone)}>
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Action required</p>
+          <p className="mb-1 text-xs font-semibold text-slate-200">Action required</p>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground">{item.conflictLevel} merge conflict</p>

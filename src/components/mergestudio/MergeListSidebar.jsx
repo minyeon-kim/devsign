@@ -597,7 +597,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                     }
                     // Structural guidepost: stronger than row metadata —
                     // semibold, light, a clear dot — with a quiet count.
-                    className="group/section mb-2 flex h-7 w-full items-center gap-2 text-xs font-semibold tracking-wide text-slate-200 uppercase transition-colors hover:text-white"
+                    className="group/section mb-2 flex h-7 w-full items-center gap-2 text-[13px] font-semibold text-slate-200 transition-colors hover:text-white"
                   >
                     <ChevronRight className={cn('size-3.5 text-slate-500 transition-transform', open && 'rotate-90')} />
                     <span className={cn('size-2 rounded-full', g.dot)} />
