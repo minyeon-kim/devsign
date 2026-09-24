@@ -22,7 +22,6 @@ import {
   Type,
   CalendarDays,
   ChevronRight,
-  GitMerge,
 } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
@@ -512,7 +511,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       )}
     >
-      <div className="flex min-h-0 min-w-72 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* View 1 — the list. Kept mounted (just hidden) while an item's view
           is pushed in, so search, filters, folded sections and scroll
           position are all still there on the way back. */}
@@ -523,16 +522,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           navDir === 'back' && 'animate-in fade-in slide-in-from-left-4 duration-200'
         )}
       >
-      <div className="flex h-12 shrink-0 items-center gap-2 px-5">
-        <GitMerge className="size-4 shrink-0 text-emerald-400" />
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          Merge List
-          <span className={cn(COUNT_BADGE, 'bg-emerald-400/15 text-emerald-300')}>{visible.length}</span>
-        </span>
-      </div>
-
+      {/* No title row: the top "Merge List" pill (with its count) already
+          names this panel, so it opens straight onto search and filters —
+          20px in from the top, the same as the sides. */}
       <div className="min-h-0 flex-1 overflow-auto">
-          <div className="space-y-4 px-5 pt-1 pb-5">
+          <div className="space-y-4 px-5 pt-5 pb-5">
             {/* Search and a single Filter button on one row, straight in the
                 panel's flow (no box around them); what's filtered shows as
                 removable chips below, only when set. */}
