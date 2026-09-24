@@ -8,8 +8,9 @@ import Logo from '@/components/layout/Logo'
 // dashboard brief: "navigation links do not need backend functionality").
 // Mirrors the workspace's ActivityBar (narrow icon rail, Tooltip-labeled,
 // size-9/rounded-full, Settings pinned to the bottom) so the dashboard and
-// workspace chrome read as one product.
-const navItems = [
+// workspace chrome read as one product. Shared with SidebarSecondary so
+// the icon rail and the labeled panel next to it never drift apart.
+export const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' },
   { id: 'activity', label: 'Activity', icon: Activity, path: '/activity' },
