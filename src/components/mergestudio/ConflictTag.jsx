@@ -27,12 +27,14 @@ function ConflictTag({ level, className }) {
 // transparent pill whose text and hairline outline carry a soft, low-chroma
 // semantic tint — muted rose for High, muted amber for Medium, muted
 // slate-blue for Low — enough to scan priorities at a glance without the
-// loud solid badges. (Low-chroma oklch values, softer than the stock
-// palette steps.) `level` is case-insensitive: high / medium / low / none.
+// loud solid badges. (oklch values a notch more saturated than a pure
+// pastel, so each level pops on the dark surface, but still softer than
+// the stock palette steps.) `level` is case-insensitive: high / medium /
+// low / none.
 const SEVERITY_PILL_CLASS = {
-  high: 'font-semibold text-[oklch(0.8_0.09_18)] ring-[oklch(0.7_0.1_18_/_0.5)]',
-  medium: 'text-[oklch(0.86_0.08_80)] ring-[oklch(0.78_0.09_80_/_0.42)]',
-  low: 'text-[oklch(0.8_0.05_245)] ring-[oklch(0.72_0.06_245_/_0.38)]',
+  high: 'font-semibold text-[oklch(0.8_0.13_18)] ring-[oklch(0.7_0.15_18_/_0.65)]',
+  medium: 'text-[oklch(0.86_0.12_80)] ring-[oklch(0.8_0.13_80_/_0.55)]',
+  low: 'text-[oklch(0.8_0.08_245)] ring-[oklch(0.72_0.1_245_/_0.5)]',
   none: 'text-slate-500 ring-white/10',
 }
 

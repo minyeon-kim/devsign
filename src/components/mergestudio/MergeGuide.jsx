@@ -38,7 +38,7 @@ export const GUIDE_STEPS = [
   },
   {
     title: 'Edit & bind in the Block Deck',
-    body: 'Inspect the drift here: keep Original or take Current for a property, or switch to Assemble to edit styles and bind design tokens.',
+    body: 'Open a drift in Compare to see its properties right there — keep Original or take Current for each — or switch to Assemble to fine-tune styles and tokens.',
     // Anchored down in the drift list, so the card clears the pager /
     // Merge Changes row that runs across the top of the canvas.
     targets: [{ id: 'block-deck', side: 'left', round: 'rounded-2xl', anchor: 170 }],

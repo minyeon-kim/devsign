@@ -177,68 +177,6 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
   )
 }
 
-// Inline editor for a code drift's merged line — synced with the code
-// window, so an edit in either place shows up in both immediately (callers
-// key it by the manual text so an edit made elsewhere resets the draft).
-function CodeDriftEditor({ original, incoming, manual, onEdit }) {
-  const value = manual ?? incoming ?? original
-  const [draft, setDraft] = useState(value)
-  const cancelRef = useRef(false)
-
-  function commit() {
-    if (cancelRef.current) {
-      cancelRef.current = false
-      setDraft(value)
-      return
-    }
-    if (draft === value) return
-    onEdit(draft === (incoming ?? original) ? null : draft)
-  }
-
-  return (
-    <div className="py-1">
-      <div className="grid grid-cols-[5.5rem_1fr] items-start gap-x-2 gap-y-1.5 text-xs">
-        <span className="pt-1 text-muted-foreground">Original</span>
-        <p className="rounded-md bg-white/[0.03] px-2 py-1 font-mono text-[11px] break-words text-slate-500 line-through decoration-slate-600">{original || ' '}</p>
-        <span className="pt-1 text-muted-foreground">Current</span>
-        <textarea
-          value={draft}
-          rows={Math.min(4, Math.max(1, Math.ceil(draft.length / 34)))}
-          spellCheck={false}
-          onChange={(e) => setDraft(e.target.value.replace(/\n/g, ' '))}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              e.currentTarget.blur()
-            } else if (e.key === 'Escape') {
-              cancelRef.current = true
-              e.currentTarget.blur()
-            }
-          }}
-          className={cn(
-            'resize-none rounded-md bg-white/[0.07] px-2 py-1 font-mono text-[11px] break-words text-slate-100 outline-none focus:ring-1 focus:ring-white/30',
-            manual != null && 'ring-1 ring-white/25'
-          )}
-        />
-      </div>
-      <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Pencil className="size-3 text-slate-400" />
-        {manual != null ? (
-          <>
-            Edited by hand ·{' '}
-            <button type="button" onClick={() => onEdit(null)} className="font-medium text-slate-200 hover:underline">
-              Revert
-            </button>
-          </>
-        ) : (
-          'Edit the current line directly — it syncs to the code window.'
-        )}
-      </p>
-    </div>
-  )
-}
-
 // ---- Figma-style precision inspector ---------------------------------
 // Compact sections of exact controls: numeric fields with units (type,
 // ↑/↓ to nudge, Shift for ×10, or drag the field's label to scrub), color
@@ -735,52 +673,39 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
   )
 }
 
-// For elements with no parseable design-system options: an AI
-// recommendation (one-click apply) beside plain manual controls.
-function ManualFallback({ layer, assembly, onChange }) {
+// For elements with no parseable design-system options (Assemble): an AI
+// recommendation with one-click apply; the precision inspector below it
+// covers setting values by hand.
+function AiRecommendation({ layer, onChange }) {
   const rec = recommendAssembly(layer)
-  const a = assembly ?? {}
   return (
     <section>
       <p className={PANEL_LABEL}>No design tokens found</p>
       <div className={cn(PANEL_SURFACE, 'p-3')}>
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-slate-100">
           <Sparkles className="size-3.5 text-slate-400" />
           AI recommends
         </p>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{rec.rationale}</p>
-        <button
-          type="button"
-          onClick={() => onChange(rec.patch)}
-          className={cn('mt-2.5 flex h-7 items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-semibold', GHOST_BUTTON)}
-        >
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{rec.rationale}</p>
+        <button type="button" onClick={() => onChange(rec.patch)} className={cn('mt-2.5 flex h-7 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[11px] font-medium', GHOST_BUTTON)}>
           <Wand2 className="size-3.5" />
           Apply recommendation
         </button>
-      </div>
-      <p className="mt-4 text-xs text-muted-foreground">Or set it precisely:</p>
-      {/* The inspector brings its own 20px inset; cancel the tab's. */}
-      <div className="-mx-5 mt-1">
-        <PrecisionInspector layer={layer} assembly={a} onChange={onChange} sections={['layout', 'appearance', 'fill']} />
       </div>
     </section>
   )
 }
 
-// What used to be MergeCanvasCompare's own docked "Variant Inspector"
-// column — now a tab inside the floating Block Deck instead of a fixed
-// sidebar next to the artboards, so it can float freely like the rest of
-// the deck. Still entirely selection-driven: reacts to whichever layer was
-// last clicked on either artboard on the infinite canvas.
-// Every drift for this item (design + code, via the same `buildDrifts` the
-// canvas's own < > pager and the merge wizard's Check step use), as an
-// accordion: one row open at a time, its detail (A/B pills for a design
-// drift, current/incoming for a code drift) expanding in place while every
-// other row collapses back to its summary line — so reviewing one drift
-// never leaves a wall of everyone else's detail on screen too. Opening a
-// row also jumps/selects it on the canvas, exactly like the canvas's own
-// drift navigator. Consolidated here so the Compare tab is the one place
-// to both see drift history and review each one's detail.
+// The Compare tab: the high-level conflict summary only — how much is
+// resolved, then every drift for this item (design + code, via the same
+// `buildDrifts` as the canvas's < > pager and the merge wizard's Check
+// step) as an accordion: each row is severity · what drifted · status, and
+// clicking one expands it in place — right beneath it, never a screen or
+// tab switch — to its property diffs (keep Original / take Current / set a
+// custom value per property; for a code drift, the original → incoming
+// line, edited in the code window). One row open at a time; opening a row
+// also selects it on the canvas, and selecting a drifting element on the
+// canvas opens its row.
 // No per-drift severity exists in the mock data (only a per-*item*
 // conflictLevel, which would paint every row in the list the same color) —
 // so this derives a reasonable per-row signal from how many properties are
@@ -793,17 +718,27 @@ function severityOf(d) {
   return 'low'
 }
 
-// Each row's severity is the shared SeverityPill (ConflictTag.jsx) — the
-// same pill the Merge List cards use for their conflict level.
-
-function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, expandedId, onExpand }) {
+function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
+  const page = canvasPages.find((p) => p.id === item.designPageId)
+  const frame = frameWithLayers(page?.frames[0])
   const drifts = buildDrifts(item, frame)
-  if (!drifts.length) return null
+  const resolvedOf = (d) => d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
+  const resolved = drifts.filter(resolvedOf).length
+  const design = drifts.filter((d) => d.kind === 'design').length
+
+  // The open row. Follows the canvas: selecting a drifting element opens
+  // its row (context-aware), without closing a row the user opened by hand
+  // for something else unless the selection points at a drift.
+  const [openId, setOpenId] = useState(selectedLayerId ? `d:${selectedLayerId}` : null)
+  useEffect(() => {
+    if (selectedLayerId && designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) setOpenId(`d:${selectedLayerId}`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLayerId])
 
   function toggle(d) {
-    const opening = expandedId !== d.id
-    onExpand(opening ? d.id : null)
+    const opening = openId !== d.id
+    setOpenId(opening ? d.id : null)
     if (opening) {
       requestMergeFocus({
         itemId: item.id,
@@ -814,84 +749,111 @@ function DriftHistoryAccordion({ item, frame, resolutions, manualCode, onEditCod
     }
   }
 
-  return (
-    <section>
-      <p className={PANEL_LABEL}>
-        Detected drifts
-        <span className="text-slate-500 tabular-nums">{drifts.length}</span>
-      </p>
-      <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-      {drifts.map((d) => {
-        const resolved = d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
-        const open = expandedId === d.id
-        const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
-        const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
-        return (
-          <div
-            key={d.id}
-            className={cn(
-              'relative transition-colors',
-              // The open row: the same soft surface + left accent bar as the
-              // Merge List's active card, so it's obvious which one you're
-              // reviewing without boxing it in.
-              open && 'bg-white/[0.05]'
-            )}
-          >
-            {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
-            <button
-              type="button"
-              onClick={() => toggle(d)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition-colors hover:bg-white/[0.03]"
-            >
-              {/* No expand chevron — the whole row is the toggle, and the
-                  open row's ring/tint already shows which one is expanded.
-                  Severity first, in a fixed-width column so every row's pill
-                  lines up for top-to-bottom priority scanning; then the label
-                  (`Nav Bar · 1 change` / `File.tsx · line 12`), then the
-                  checkmark on the far right. */}
-              <SeverityPill level={severityOf(d)} />
-              <span className={cn('min-w-0 flex-1 truncate', open ? 'font-semibold text-foreground' : 'text-foreground')}>{d.label}</span>
-              {/* Resolved: a solid mint circle with a dark check and a soft
-                  mint glow — unmissable at a glance. Pending: plain gray. */}
-              <span
-                title={resolved ? 'Resolved' : 'Not resolved yet'}
-                className={cn(
-                  'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
-                  resolved ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
-                )}
-              >
-                {resolved && <Check strokeWidth={3.5} className="size-2.5" />}
-              </span>
-            </button>
+  if (!drifts.length) {
+    return (
+      <DeckScroll innerClassName="px-5 pb-5">
+        <p className={cn(PANEL_SURFACE, 'px-4 py-6 text-center text-xs text-slate-400')}>No drifts — this item matches the Original Design.</p>
+      </DeckScroll>
+    )
+  }
 
-            {open && (
-              <div className="space-y-0.5 px-3 pb-2.5">
-                {d.kind === 'design' ? (
-                  d.diffs.map((diff) => (
-                    <DiffRow
-                      key={`${diff.id}:${JSON.stringify(resolutions[`${d.layerId}:${diff.id}`] ?? null)}`}
-                      diff={diff}
-                      resolution={resolutions[`${d.layerId}:${diff.id}`]}
-                      onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
-                      onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
-                    />
-                  ))
-                ) : (
-                  <CodeDriftEditor
-                    key={manualCode?.[`${d.fileId}:${d.line}`] ?? ''}
-                    original={original}
-                    incoming={incoming}
-                    manual={manualCode?.[`${d.fileId}:${d.line}`]}
-                    onEdit={(text) => onEditCode?.(d.fileId, d.line, text)}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
+  return (
+    <DeckScroll innerClassName="space-y-4 px-5 pb-5">
+      {/* Resolution summary. */}
+      <div className={cn(PANEL_SURFACE, 'px-3 py-3')}>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[13px] font-semibold text-slate-100 tabular-nums">
+            {resolved} of {drifts.length}
+          </span>
+          <span className="text-xs text-slate-400">drifts resolved</span>
+          <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
+            {design} design · {drifts.length - design} code
+          </span>
+        </div>
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-300" style={{ width: `${(resolved / drifts.length) * 100}%` }} />
+        </div>
       </div>
-    </section>
+
+      <section>
+        <p className={PANEL_LABEL}>
+          Detected drifts
+          <span className="text-slate-500 tabular-nums">{drifts.length}</span>
+        </p>
+        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+          {drifts.map((d) => {
+            const done = resolvedOf(d)
+            const open = openId === d.id
+            const left = d.kind === 'design' ? d.diffs.filter((diff) => !resolutions[`${d.layerId}:${diff.id}`]).length : null
+            const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
+            const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
+            return (
+              <div key={d.id} className={cn('relative transition-colors', open && 'bg-white/[0.04]')}>
+                {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
+                <button
+                  type="button"
+                  onClick={() => toggle(d)}
+                  aria-expanded={open}
+                  className={cn('flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors', !open && 'hover:bg-white/[0.03]')}
+                >
+                  <SeverityPill level={severityOf(d)} />
+                  <span className="min-w-0 flex-1">
+                    <span className={cn('block truncate text-xs', open ? 'font-semibold text-white' : 'text-slate-100')}>{d.label}</span>
+                    <span className="block truncate text-[11px] text-slate-500">
+                      {d.kind === 'code' ? `Code · line ${d.line}` : done ? 'All properties resolved' : `${left} of ${d.diffs.length} to resolve`}
+                    </span>
+                  </span>
+                  {/* Resolved: a solid mint circle with a dark check and a soft
+                      mint glow — unmissable at a glance. Pending: plain gray. */}
+                  <span
+                    title={done ? 'Resolved' : 'Not resolved yet'}
+                    className={cn(
+                      'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
+                      done ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
+                    )}
+                  >
+                    {done && <Check strokeWidth={3.5} className="size-2.5" />}
+                  </span>
+                  <ChevronDown className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-200', open && 'rotate-180 text-slate-300')} />
+                </button>
+
+                {/* Inline accordion body, directly beneath its row: animates
+                    its height open / closed (grid-rows 0fr ↔ 1fr). */}
+                <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')} inert={!open} aria-hidden={!open}>
+                  <div className="overflow-hidden">
+                    <div className="px-3 pb-3">
+                      {d.kind === 'design' ? (
+                        <div>
+                          {d.diffs.map((diff) => (
+                            <DiffRow
+                              key={`${diff.id}:${JSON.stringify(resolutions[`${d.layerId}:${diff.id}`] ?? null)}`}
+                              diff={diff}
+                              resolution={resolutions[`${d.layerId}:${diff.id}`]}
+                              onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
+                              onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 py-1 text-[11px]">
+                          <span className="pt-0.5 text-slate-500">Original</span>
+                          <p className="font-mono break-words text-slate-500 line-through decoration-slate-600">{original || ' '}</p>
+                          <span className="pt-0.5 text-slate-500">Incoming</span>
+                          <p className="font-mono break-words text-slate-100">{incoming ?? '—'}</p>
+                          <span />
+                          <p className="text-slate-500">Edit this line directly in the code window.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">Open a drift to compare and resolve its properties right here.</p>
+      </section>
+    </DeckScroll>
   )
 }
 
@@ -972,92 +934,6 @@ function TextContentSection({ slots, onEditText }) {
   )
 }
 
-function VariantCompareTab({ item, selectedLayerId, resolutions, manualCode, onEditCode, onResolve, onHoverDiff, assembly, onAssemble }) {
-  const page = canvasPages.find((p) => p.id === item.designPageId)
-  const frame = frameWithLayers(page?.frames[0])
-  const selectedLayer = frame?.layers.find((l) => l.id === selectedLayerId)
-  const specificDiffs = designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]
-  const tokenSpec = selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null
-
-  // Which drift row the accordion has open — defaults to whichever design
-  // drift matches the canvas's current selection, so clicking a layer on
-  // the canvas still opens its detail here automatically; the user can
-  // then expand any other row instead, same as clicking one directly.
-  const [expandedId, setExpandedId] = useState(selectedLayerId ? `d:${selectedLayerId}` : null)
-  useEffect(() => {
-    if (selectedLayerId && designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) {
-      setExpandedId(`d:${selectedLayerId}`)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLayerId])
-
-  const resolvedCount = specificDiffs?.filter((d) => resolutions[`${selectedLayerId}:${d.id}`]).length ?? 0
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <p className="shrink-0 px-5 text-xs text-muted-foreground">
-        {selectedLayer && specificDiffs ? `${resolvedCount} of ${specificDiffs.length} resolved` : 'Nothing selected'}
-      </p>
-
-      <DeckScroll innerClassName="space-y-4 px-5 pt-3 pb-5">
-        <DriftHistoryAccordion
-          item={item}
-          frame={frame}
-          resolutions={resolutions}
-          manualCode={manualCode}
-          onEditCode={onEditCode}
-          onResolve={onResolve}
-          onHoverDiff={onHoverDiff}
-          expandedId={expandedId}
-          onExpand={setExpandedId}
-        />
-
-        {!selectedLayer && (
-          <div className="flex flex-col items-center gap-2 p-3 text-center">
-            <MousePointerClick className="size-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Select an element, frame, or component on the canvas — or a drift above — to inspect it.
-            </p>
-          </div>
-        )}
-
-        {selectedLayer && !specificDiffs && tokenSpec && (
-          <section>
-            <p className={PANEL_LABEL}>Token binding</p>
-            <div className={cn(PANEL_SURFACE, 'space-y-1.5 px-3 py-2.5 text-sm')}>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Fill</span>
-                <span className="flex items-center gap-1.5 text-foreground">
-                  <span
-                    className="size-3 rounded-sm ring-1 ring-white/15"
-                    style={{ background: tokenSpec.fill.color }}
-                  />
-                  {tokenSpec.fill.token}
-                </span>
-              </div>
-              {tokenSpec.typography && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="text-foreground">
-                    {tokenSpec.typography.font} {tokenSpec.typography.size}/{tokenSpec.typography.weight}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Layout</span>
-                <span className="text-foreground">{tokenSpec.layout.mode}</span>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {selectedLayer && !specificDiffs && (
-          <ManualFallback layer={selectedLayer} assembly={assembly} onChange={onAssemble} />
-        )}
-      </DeckScroll>
-    </div>
-  )
-}
 
 // A single AI-generated style suggestion — badge, preview swatch, rationale
 // copy explaining why the (mock) model picked it, and its own dismiss
@@ -1171,13 +1047,73 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
   )
 }
 
-// Block Assemble: structural builder for the selected element, then the AI
-// style suggestions below it.
-// Assemble is where an element is composed: its content copy first (the
-// Text card, bound to copy.json), then its shape / size / style.
-function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, ...suggestionProps }) {
+// The selected element's drift, resolved here in Assemble (Compare only
+// summarizes): one row per differing property — keep the Original Design
+// value, take the Current Implementation's, or set a custom one.
+function DriftResolveSection({ layerId, diffs, resolutions, onResolve, onHoverDiff }) {
+  const done = diffs.filter((d) => resolutions[`${layerId}:${d.id}`]).length
+  return (
+    <section>
+      <div className={PANEL_LABEL}>
+        <span className="flex-1">Drift</span>
+        <span className={cn('text-[11px]', done === diffs.length ? 'text-emerald-300' : 'text-slate-500')}>
+          {done} of {diffs.length} resolved
+        </span>
+      </div>
+      <div className={cn(PANEL_SURFACE, 'px-3 py-1.5')}>
+        {diffs.map((diff) => (
+          <DiffRow
+            key={`${diff.id}:${JSON.stringify(resolutions[`${layerId}:${diff.id}`] ?? null)}`}
+            diff={diff}
+            resolution={resolutions[`${layerId}:${diff.id}`]}
+            onResolve={(diffId, side) => onResolve(layerId, diffId, side)}
+            onHover={(diffId, side) => onHoverDiff(diffId ? { layerId, diffId, side } : null)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// Which design tokens the selected element is bound to (read-only).
+function TokenBindingSection({ spec }) {
+  const rows = [
+    ['Fill', <span key="f" className="flex items-center gap-1.5"><span className="size-3 rounded-[3px] ring-1 ring-white/15" style={{ background: spec.fill.color }} />{spec.fill.token}</span>],
+    spec.typography && ['Type', `${spec.typography.font} ${spec.typography.size}/${spec.typography.weight}`],
+    ['Layout', spec.layout.mode],
+  ].filter(Boolean)
+  return (
+    <section>
+      <p className={PANEL_LABEL}>Token binding</p>
+      <div className={cn(PANEL_SURFACE, 'space-y-1.5 px-3 py-2.5 text-xs')}>
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-3">
+            <span className="text-slate-500">{label}</span>
+            <span className="truncate text-slate-100">{value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// Block Assemble: everything about the selected element, in detail — its
+// drift, resolved property by property (or, without drift, its token
+// binding / an AI recommendation), then its content copy (the Text card,
+// bound to copy.json), its shape / size / style, and AI style suggestions.
+function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, resolutions, onResolve, onHoverDiff, ...suggestionProps }) {
   return (
     <DeckScroll>
+      {selectedLayer && diffs?.length > 0 && (
+        <div className="px-5 pb-4">
+          <DriftResolveSection layerId={selectedLayer.id} diffs={diffs} resolutions={resolutions} onResolve={onResolve} onHoverDiff={onHoverDiff} />
+        </div>
+      )}
+      {selectedLayer && !diffs?.length && (
+        <div className="px-5 pb-4">
+          {tokenSpec ? <TokenBindingSection spec={tokenSpec} /> : <AiRecommendation layer={selectedLayer} onChange={onAssemble} />}
+        </div>
+      )}
       {textSlots?.length > 0 && (
         <div className="px-5 pb-4">
           <TextContentSection slots={textSlots} onEditText={onEditText} />
@@ -1445,8 +1381,6 @@ function BlockDeckPanel({
   driftEffect,
   textSlots,
   onEditText,
-  manualCode,
-  onEditCode,
   onResolve,
   onHoverDiff,
   selectedLayer,
@@ -1566,12 +1500,8 @@ function BlockDeckPanel({
             item={item}
             selectedLayerId={selectedLayerId}
             resolutions={resolutions}
-            manualCode={manualCode}
-            onEditCode={onEditCode}
             onResolve={onResolve}
             onHoverDiff={onHoverDiff}
-            assembly={assembly}
-            onAssemble={onAssemble}
           />
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
@@ -1590,6 +1520,11 @@ function BlockDeckPanel({
           driftEffect={driftEffect}
           textSlots={textSlots}
           onEditText={onEditText}
+          diffs={designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]}
+          tokenSpec={selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null}
+          resolutions={resolutions}
+          onResolve={onResolve}
+          onHoverDiff={onHoverDiff}
           selectedLayerName={selectedLayerName}
           appliedPresetId={appliedPresetId}
           onApplyPreset={onApplyPreset}
