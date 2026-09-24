@@ -7,8 +7,11 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, CATEGORY_TAB_ROW } from '@/components/mergestudio/floatingStyles'
 
+// Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
+// count as a badge.
 const tabs = [
   ['all', 'All'],
+  ['unread', 'Unread'],
   ['approval', 'Approvals'],
   ['comment', 'Comments'],
   ['feedback', 'Feedback'],
@@ -232,8 +235,23 @@ function InboxItem({ n, onJump }) {
 function MergeInboxDrawer({ onJump, onClose }) {
   const { notifications, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('all')
+  // The Unread tab holds on to the items that were unread when it was
+  // opened, so reading one (or Mark all read) doesn't yank it out from
+  // under the cursor — they just turn read; the list refreshes the next
+  // time the tab is picked.
+  const [unreadIds, setUnreadIds] = useState(null)
   const unread = notifications.filter((n) => n.unread).length
-  const visible = notifications.filter((n) => tab === 'all' || n.kind === tab)
+
+  function pick(id) {
+    setTab(id)
+    setUnreadIds(id === 'unread' ? new Set(notifications.filter((n) => n.unread).map((n) => n.id)) : null)
+  }
+
+  const visible = notifications.filter((n) => {
+    if (tab === 'all') return true
+    if (tab === 'unread') return unreadIds?.has(n.id)
+    return n.kind === tab
+  })
 
   return (
     <MergeDrawer
@@ -245,33 +263,42 @@ function MergeInboxDrawer({ onJump, onClose }) {
           type="button"
           onClick={markAllNotificationsRead}
           disabled={unread === 0}
-          className="flex h-7 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
+          className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           <CheckCheck className="size-3.5" />
           Mark all read
         </button>
       }
     >
-      <div className={CATEGORY_TAB_ROW}>
+      <div className={cn(CATEGORY_TAB_ROW, 'gap-0.5')} role="tablist" aria-label="Filter notifications">
         {tabs.map(([id, label]) => (
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
-            // Shared category-tab style (same as the Merge List's Files / Layers switch).
-            className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => pick(id)}
+            // Shared category-tab style (same as the Merge List's Files /
+            // Layers switch), with 8px sides so all five fit on one line.
+            className={cn(CATEGORY_TAB, 'gap-1 px-2', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             {label}
+            {id === 'unread' && unread > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">
+                {unread}
+              </span>
+            )}
           </button>
         ))}
-        {unread > 0 && <span className="ml-auto text-[11px] text-slate-400">{unread} unread</span>}
       </div>
 
       <div className="min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-5 pb-2">
         {visible.map((n) => (
           <InboxItem key={n.id} n={n} onJump={onJump} />
         ))}
-        {visible.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Nothing here yet.</p>}
+        {visible.length === 0 && (
+          <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>
+        )}
       </div>
     </MergeDrawer>
   )
