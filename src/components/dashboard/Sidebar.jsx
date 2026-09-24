@@ -1,10 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Activity, FolderKanban, LayoutDashboard, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Logo from '@/components/layout/Logo'
-import { currentUser } from '@/data/mockData'
 
 // `path: null` items (Team) have no page yet, so they're inert (per the
 // dashboard brief: "navigation links do not need backend functionality").
@@ -57,19 +55,6 @@ function Sidebar() {
             <Settings className="size-[18px]" />
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger className="mt-1 rounded-full">
-            <Avatar size="sm">
-              <AvatarFallback className={cn('text-[10px] font-medium text-white', currentUser.colorClass)}>
-                {currentUser.initials}
-              </AvatarFallback>
-            </Avatar>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {currentUser.name} · {currentUser.team}
-          </TooltipContent>
         </Tooltip>
       </div>
     </aside>
