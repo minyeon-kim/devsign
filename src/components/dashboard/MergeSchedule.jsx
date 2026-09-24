@@ -1,10 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
-import { projects } from '@/data/mockData'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-const BADGE_COLORS = ['bg-amber-500 text-black/80', 'bg-rose-500 text-white', 'bg-emerald-500 text-black/80', 'bg-violet-500 text-white']
 
 function getMonthCells(date) {
   const year = date.getFullYear()
@@ -15,14 +12,11 @@ function getMonthCells(date) {
 }
 
 // The calendar month is decorative furniture (DevSign has no real
-// scheduling feature) — the useful part is the timeline underneath it,
-// which lists every project with a merge waiting on it.
+// scheduling feature).
 function MergeSchedule() {
-  const navigate = useNavigate()
   const today = new Date()
   const cells = getMonthCells(today)
   const monthLabel = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const pending = projects.filter((p) => p.pendingMerges > 0)
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -57,35 +51,6 @@ function MergeSchedule() {
             </span>
           )
         })}
-      </div>
-
-      <div className="mt-4 border-t border-border/60 pt-3">
-        <p className="text-xs font-semibold text-foreground/80">Pending merges</p>
-        {pending.length === 0 ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">Nothing waiting to merge.</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-2">
-            {pending.map((project, index) => (
-              <li key={project.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/projects/${project.id}/workspace`)}
-                  className="flex w-full items-center gap-2.5 text-left"
-                >
-                  <span
-                    className={cn(
-                      'shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold',
-                      BADGE_COLORS[index % BADGE_COLORS.length]
-                    )}
-                  >
-                    {project.pendingMerges} PR
-                  </span>
-                  <span className="truncate text-[11.5px] text-foreground/80">{project.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
     </div>
   )
