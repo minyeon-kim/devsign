@@ -85,7 +85,6 @@ function MergeStudioWorkspace({ item }) {
   const {
     setActiveFileId,
     setActivePageId,
-    completeMerge,
     updateMergeItem,
     mergeDrawer,
     setMergeDrawer,
@@ -562,6 +561,7 @@ function MergeStudioWorkspace({ item }) {
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           merged={item.tag === 'Merged'}
+          inReview={item.tag === 'In Review'}
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
           resolutions={resolutions}
@@ -669,7 +669,10 @@ function MergeStudioWorkspace({ item }) {
             setMergeModal(null)
             setWizardStage('compare')
           }}
-          onComplete={() => completeMerge(item.id)}
+          // Opening the PR hands the item to its reviewers: it reads
+          // "In Review" in the Merge List until it's approved (merging and
+          // deploying happen after approval, outside this flow).
+          onComplete={() => updateMergeItem(item.id, { tag: 'In Review', updatedLabel: 'Just now' })}
         />
       )}
 

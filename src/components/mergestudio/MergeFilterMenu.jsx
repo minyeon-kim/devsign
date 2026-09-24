@@ -7,7 +7,8 @@ import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
 import { RangeCalendar, dueSummary } from '@/components/mergestudio/RangeCalendar'
 import { DUE_PRESETS, EMPTY_DUE, EMPTY_FILTERS, activeFilterCount, isDueActive } from '@/components/mergestudio/mergeFilters'
 
-const STATUS_OPTIONS = mergeFilterTags.filter((t) => t !== 'All')
+// Plus "In Review" — the status an item gets once its PR is opened.
+const STATUS_OPTIONS = [...new Set([...mergeFilterTags.filter((t) => t !== 'All'), 'In Review'])]
 const CONFLICT_OPTIONS = mergeConflictLevels.filter((c) => c !== 'Any')
 
 function toggle(list, v) {

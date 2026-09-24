@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Code2,
@@ -19,7 +20,6 @@ import {
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -30,96 +30,120 @@ import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
 
+// Submitting ends at the review request — merging (and any deploy) only
+// happens after the PR is approved, outside this flow.
 const PROGRESS_STEPS = [
   { label: 'Committing changes', icon: GitBranch },
   { label: 'Opening pull request', icon: GitPullRequest },
   { label: 'Requesting team reviews', icon: Send },
-  { label: 'Starting GitHub Actions deployment', icon: Rocket },
 ]
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+// Section heading used across the wizard's steps: a quiet label (small
+// muted icon + text) rather than a colored icon + bold title, matching the
+// Check and Preview steps' labels.
 function SectionTitle({ icon: Icon, children, aside }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <Icon className="size-4 text-emerald-400" />
-      <h3 className="text-[13px] font-semibold text-slate-200">{children}</h3>
+      {Icon && <Icon className="size-3.5 text-slate-500" />}
+      <h3 className="text-xs font-medium text-slate-300">{children}</h3>
       {aside && <span className="ml-auto">{aside}</span>}
     </div>
   )
 }
 
+// Linear-style form field: transparent, a single 1px border, 8px corners.
+const FIELD = 'w-full rounded-lg border border-white/[0.1] bg-transparent px-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/[0.16] focus:border-white/30'
+const FIELD_LABEL = 'mb-1 block text-xs text-slate-400'
+
+// What will be merged: a single row of compact summary chips — Design,
+// Code, AI edits with their counts — collapsed by default so the step
+// stays short. A chip opens its list right beneath the row (one at a
+// time, capped height, scrolls), as one-line rows.
 function SummarySection({ summary }) {
+  const [open, setOpen] = useState(null)
+  const groups = [
+    {
+      id: 'design',
+      icon: Palette,
+      label: 'Design',
+      items: summary.design.map((d) => ({ key: d.key, primary: d.text, secondary: d.choice })),
+      empty: 'No variant options resolved.',
+    },
+    {
+      id: 'code',
+      icon: Code2,
+      label: 'Code',
+      items: summary.files.map((f) => ({
+        key: f.id,
+        primary: f.name,
+        secondary: `${f.changed} incoming line${f.changed === 1 ? '' : 's'}${f.aiLines > 0 ? ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}` : ''}${f.manualLines > 0 ? ` · ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}` : ''}`,
+      })),
+      empty: 'No code files.',
+    },
+    {
+      id: 'ai',
+      icon: MessageSquare,
+      label: 'AI edits',
+      items: summary.applied.map((a) => ({ key: a.id, primary: `“${a.text}”`, secondary: a.summary })),
+      empty: 'No AI edits applied.',
+    },
+  ]
+  const current = groups.find((g) => g.id === open)
+
   return (
     <section>
-      <SectionTitle icon={Sparkles}>What will be merged</SectionTitle>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border bg-slate-800/70 p-4">
-          <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Palette className="size-4 text-emerald-400" />
-            Design
-          </p>
-          {summary.design.length ? (
-            <ul className="space-y-2">
-              {summary.design.map((d) => (
-                <li key={d.key} className="text-[13px] leading-snug">
-                  <span className="text-foreground">{d.text}</span>
-                  <span className="block text-muted-foreground">{d.choice}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">No variant options resolved.</p>
-          )}
-        </div>
+      <SectionTitle>What will be merged</SectionTitle>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {groups.map((g) => {
+          const isOpen = open === g.id
+          return (
+            <button
+              key={g.id}
+              type="button"
+              aria-expanded={isOpen}
+              onClick={() => setOpen(isOpen ? null : g.id)}
+              className={cn(
+                'flex h-8 items-center gap-1.5 rounded-full pr-2 pl-3 text-[13px] transition-colors',
+                isOpen ? 'bg-white/[0.1] text-white' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.07] hover:text-white'
+              )}
+            >
+              <g.icon className="size-3.5 text-slate-500" />
+              {g.label}
+              <span className={cn('tabular-nums', g.items.length ? 'font-semibold text-white' : 'text-slate-500')}>{g.items.length}</span>
+              <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-200', isOpen && 'rotate-180')} />
+            </button>
+          )
+        })}
+        {summary.pending > 0 && (
+          <span className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-amber-300">
+            <TriangleAlert className="size-3.5 shrink-0" />
+            {summary.pending} note{summary.pending === 1 ? '' : 's'} not applied
+          </span>
+        )}
+      </div>
 
-        <div className="rounded-2xl border bg-slate-800/70 p-4">
-          <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Code2 className="size-4 text-emerald-400" />
-            Code
-          </p>
-          {summary.files.length ? (
-            <ul className="space-y-2">
-              {summary.files.map((f) => (
-                <li key={f.id} className="text-[13px] leading-snug">
-                  <span className="text-foreground">{f.name}</span>
-                  <span className="block text-muted-foreground">
-                    {f.changed} incoming line{f.changed === 1 ? '' : 's'}
-                    {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
-                    {f.manualLines > 0 && ` · ${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">No code files.</p>
-          )}
-        </div>
-
-        <div className="rounded-2xl border bg-slate-800/70 p-4">
-          <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <MessageSquare className="size-4 text-emerald-400" />
-            AI annotations
-          </p>
-          {summary.applied.length ? (
-            <ul className="space-y-2">
-              {summary.applied.map((a) => (
-                <li key={a.id} className="text-[13px] leading-snug">
-                  <span className="text-foreground">“{a.text}”</span>
-                  <span className="block text-muted-foreground">{a.summary}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">No AI edits applied.</p>
-          )}
-          {summary.pending > 0 && (
-            <p className="mt-2 flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-1 text-[13px] font-medium text-amber-500">
-              <TriangleAlert className="size-3 shrink-0" />
-              {summary.pending} note{summary.pending === 1 ? '' : 's'} not applied
-            </p>
+      {/* The opened group, directly under the chips. */}
+      <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', current ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+        <div className="overflow-hidden">
+          {current && (
+            <div className="pt-3">
+              {current.items.length ? (
+                <ul className="max-h-48 divide-y divide-white/[0.06] overflow-y-auto border-y border-white/[0.06]">
+                  {current.items.map((it) => (
+                    <li key={it.key} className="flex items-baseline gap-3 py-2 text-[13px]" title={`${it.primary} — ${it.secondary}`}>
+                      <span className="min-w-0 flex-1 truncate text-white">{it.primary}</span>
+                      <span className="max-w-[55%] shrink-0 truncate text-slate-400">{it.secondary}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[13px] text-slate-500">{current.empty}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -143,22 +167,11 @@ export const WIZARD_STEPS = [
   { id: 'check', label: 'Check' },
   { id: 'preview', label: 'Preview' },
   { id: 'review', label: 'Review' },
-  { id: 'deploy', label: 'Deploy' },
 ]
 
 const scopeMeta = {
   code: { label: 'Code', icon: Code2, className: 'bg-emerald-400 text-slate-950', idle: 'text-emerald-300 ring-1 ring-emerald-400/40' },
   design: { label: 'Design', icon: Palette, className: 'bg-emerald-400 text-slate-950', idle: 'text-emerald-300 ring-1 ring-emerald-400/40' },
-}
-
-function ScopeBadge({ scope }) {
-  const meta = scopeMeta[scope]
-  return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', meta.className)}>
-      <meta.icon className="size-3" />
-      {meta.label} review
-    </span>
-  )
 }
 
 // ----- Step 1: Check ---------------------------------------------------
@@ -826,41 +839,45 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
 
   return (
     <section>
-      <SectionTitle icon={Send}>Reviewers</SectionTitle>
+      <SectionTitle>Reviewers</SectionTitle>
 
-      <div className="mb-2 grid grid-cols-2 gap-2">
+      {/* Who reviews what — two plain lines, no boxes. */}
+      <dl className="mb-3 grid grid-cols-2 gap-5">
         {[
-          ['code', codeNames, needCode],
-          ['design', designNames, needDesign],
-        ].map(([scope, names, needed]) => (
-          <div key={scope} className="rounded-2xl border bg-slate-800/70 p-2.5">
-            <ScopeBadge scope={scope} />
-            <p className={cn('mt-1.5 text-[13px]', names.length ? 'text-foreground' : needed ? 'text-amber-500' : 'text-muted-foreground')}>
+          ['code', 'Code review', codeNames, needCode],
+          ['design', 'Design review', designNames, needDesign],
+        ].map(([scope, label, names, needed]) => (
+          <div key={scope} className="min-w-0">
+            <dt className="text-xs text-slate-500">{label}</dt>
+            <dd className={cn('mt-0.5 truncate text-[13px]', names.length ? 'text-white' : needed ? 'text-amber-300' : 'text-slate-500')}>
               {names.length ? names.join(', ') : needed ? 'Needs at least one reviewer' : 'Not required'}
-            </p>
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <div className="flex flex-col gap-1.5">
+      {/* People: hairline-divided rows; selecting one reveals its review
+          scopes. */}
+      <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
         {allPeople.map((person) => {
           const scopes = reviewers[person.id]
           const selected = Boolean(scopes)
           return (
-            <div
-              key={person.id}
-              className={cn(
-                'flex items-center gap-2.5 rounded-full border py-1.5 pr-2 pl-1.5 transition-colors',
-                selected ? 'border-emerald-400/60 bg-emerald-400/10' : 'border-border'
-              )}
-            >
-              <button type="button" onClick={() => togglePerson(person.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+            <li key={person.id} className="flex h-12 items-center gap-3">
+              <button type="button" onClick={() => togglePerson(person.id)} aria-pressed={selected} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                <span
+                  className={cn(
+                    'flex size-4 shrink-0 items-center justify-center rounded-[4px] ring-1 ring-inset transition-colors',
+                    selected ? 'bg-emerald-400 ring-emerald-400' : 'ring-white/25'
+                  )}
+                >
+                  {selected && <Check strokeWidth={3.5} className="size-2.5 text-slate-950" />}
+                </span>
                 <Avatar size="sm">
                   <AvatarFallback className={cn('text-[9px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-foreground">{person.name}</span>
-                <span className="text-[13px] text-muted-foreground">{person.role}</span>
-                {selected && <Check className="ml-auto size-3.5 shrink-0 text-emerald-400" />}
+                <span className={cn('text-sm', selected ? 'font-medium text-white' : 'text-slate-200')}>{person.name}</span>
+                <span className="truncate text-[13px] text-slate-500">{person.role}</span>
               </button>
               {selected &&
                 ['code', 'design'].map((scope) => {
@@ -871,10 +888,11 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
                       key={scope}
                       type="button"
                       onClick={() => toggleScope(person.id, scope)}
+                      aria-pressed={on}
                       title={`${on ? 'Remove' : 'Add'} ${meta.label.toLowerCase()} review`}
                       className={cn(
-                        'flex items-center justify-center gap-1 rounded-full px-2.5 h-5 text-[11px] font-semibold transition-colors',
-                        on ? meta.className : cn('bg-transparent opacity-70 hover:opacity-100', meta.idle)
+                        'flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-medium transition-colors',
+                        on ? 'bg-emerald-400/15 text-emerald-300' : 'text-slate-500 hover:bg-white/[0.05] hover:text-slate-300'
                       )}
                     >
                       <meta.icon className="size-3" />
@@ -882,88 +900,75 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
                     </button>
                   )
                 })}
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </section>
   )
 }
 
 function ProgressView({ step }) {
   return (
-    <div className="flex flex-col items-center gap-5 py-6">
-      <span className="flex size-12 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
-        <Loader2 className="size-5 animate-spin" />
-      </span>
-      <div className="w-full max-w-sm space-y-2">
+    <div className="flex flex-col items-center gap-6 py-8">
+      <Loader2 className="size-7 animate-spin text-emerald-400" />
+      <ul className="w-full max-w-xs space-y-3">
         {PROGRESS_STEPS.map((s, i) => {
           const done = i < step
           const active = i === step
           return (
-            <div
-              key={s.label}
-              className={cn(
-                'flex items-center gap-2.5 rounded-full border px-3 py-2 text-sm transition-all duration-300',
-                done && 'border-emerald-500/40 bg-emerald-500/10 text-foreground',
-                active && 'border-emerald-400/60 bg-emerald-400/10 text-foreground',
-                !done && !active && 'border-border text-muted-foreground opacity-60'
-              )}
-            >
+            <li key={s.label} className={cn('flex items-center gap-3 text-sm transition-colors duration-300', done ? 'text-slate-300' : active ? 'font-medium text-white' : 'text-slate-500')}>
               {done ? (
-                <Check className="size-3.5 text-emerald-400" />
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
               ) : active ? (
-                <Loader2 className="size-3.5 animate-spin text-emerald-400" />
+                <Loader2 className="size-4 shrink-0 animate-spin text-emerald-400" />
               ) : (
-                <s.icon className="size-3.5" />
+                <s.icon className="size-4 shrink-0" />
               )}
               {s.label}
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </div>
   )
 }
 
+// After "Open PR & Request Review": the PR is open and waiting — the item
+// now reads "In review" in the Merge List until reviewers approve.
 function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
+  const rows = [
+    { icon: Send, text: `Review requested from ${reviewerNames.join(', ')}` },
+    { icon: GitPullRequest, text: 'Shown as “In review” in the Merge List' },
+    { icon: Rocket, text: deploy ? 'Deploys automatically once approved and merged' : 'Auto-deploy is off — deploy manually after merge' },
+  ]
   return (
-    <div className="flex flex-col items-center gap-4 py-6 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 ring-8 ring-emerald-500/10">
+    <div className="flex flex-col items-center gap-6 py-6 text-center animate-in fade-in zoom-in-95 duration-300">
+      <span className="flex size-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300 ring-8 ring-emerald-400/[0.06]">
         <CheckCircle2 className="size-7" />
       </span>
       <div>
-        <p className="text-base font-semibold text-foreground">Review request sent</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          PR #{prNumber} “{prTitle}” is open.
+        <p className="text-base font-semibold text-white">Review requested</p>
+        <p className="mt-1 text-[13px] text-slate-400">
+          PR #{prNumber} “{prTitle}” is open and waiting for approval.
         </p>
       </div>
-      <div className="w-full max-w-sm space-y-2 text-left text-sm">
-        <p className="flex items-center gap-2 rounded-full border px-3 py-2">
-          <Send className="size-3.5 shrink-0 text-emerald-400" />
-          <span className="text-foreground">Requested review from {reviewerNames.join(', ')}</span>
-        </p>
-        <p className="flex items-center gap-2 rounded-full border px-3 py-2">
-          <Rocket className="size-3.5 shrink-0 text-emerald-400" />
-          <span className="text-foreground">
-            {deploy ? 'GitHub Actions deployment started' : 'GitHub Actions deployment skipped'}
-          </span>
-          {deploy && (
-            <span className="ml-auto flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-500">
-              <Loader2 className="size-2.5 animate-spin" />
-              Running
-            </span>
-          )}
-        </p>
-      </div>
+      <ul className="w-full max-w-sm space-y-3 text-left">
+        {rows.map((r) => (
+          <li key={r.text} className="flex items-start gap-3 text-[13px] text-slate-200">
+            <r.icon className="mt-px size-4 shrink-0 text-slate-500" />
+            {r.text}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
 
-// The full 5-step flow (Compare, then the wizard's Check → Preview →
-// Review → Deploy) — shown only on the canvas's top stepper; the modal's
-// footer uses it for "Step N of 5". The modal header has no stepper of its
-// own.
+// The full flow (Compare, then the wizard's Check → Preview → Review) —
+// shown only on the canvas's top stepper; the modal's footer uses it for
+// "Step N of 4". The flow ends at Review with a PR + review request; there
+// is no deploy step (deploying unapproved changes isn't possible here).
 const DISPLAY_STEPS = [{ id: 'compare', label: 'Compare' }, ...WIZARD_STEPS]
 
 
@@ -1103,7 +1108,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <span className="flex size-7 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
               <GitPullRequest className="size-3.5" />
             </span>
-            {run === 'success' ? 'Merge in progress' : 'Merge changes'}
+            {run === 'success' ? 'Review requested' : 'Merge changes'}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1.5 text-sm">
             <GitBranch className="size-3.5" />
@@ -1112,10 +1117,10 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
-          {step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} onResolveDiff={onResolveDiff} />}
+          {run === 'idle' && step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
+          {run === 'idle' && step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} onResolveDiff={onResolveDiff} />}
 
-          {step === 2 && (
+          {run === 'idle' && step === 2 && (
             <div className="space-y-7">
               {/* What will actually be merged, before assigning reviewers. */}
               <SummarySection summary={summary} />
@@ -1123,43 +1128,44 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
 
               <section>
                 <SectionTitle
-                  icon={GitPullRequest}
                   aside={
                     <button
                       type="button"
                       onClick={generateWithAi}
                       disabled={generating}
-                      className="flex items-center justify-center gap-1 rounded-full border border-emerald-400/50 px-2.5 h-6 text-[11px] font-semibold tracking-normal text-foreground normal-case transition-colors hover:bg-emerald-400/15 disabled:opacity-60"
+                      className="flex h-7 items-center justify-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
                     >
-                      {generating ? <Loader2 className="size-3 animate-spin text-emerald-400" /> : <Sparkles className="size-3 text-emerald-400" />}
+                      {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
                       {generating ? 'Generating…' : 'Generate with AI'}
                     </button>
                   }
                 >
                   Commit &amp; PR
                 </SectionTitle>
-                <div className="space-y-2">
+                {/* Compact form: 32px single-line fields; the description
+                    starts at 3 lines and grows with its content (capped). */}
+                <div className="space-y-3">
                   <label className="block">
-                    <span className="mb-1 block text-[13px] text-muted-foreground">Commit message</span>
-                    <Input value={commit} onChange={(e) => setCommit(e.target.value)} className="rounded-full bg-slate-800 text-sm dark:bg-slate-800" />
+                    <span className={FIELD_LABEL}>Commit message</span>
+                    <input value={commit} onChange={(e) => setCommit(e.target.value)} className={cn(FIELD, 'h-8 font-mono text-[12px]')} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[13px] text-muted-foreground">PR title</span>
-                    <Input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className="rounded-full bg-slate-800 text-sm dark:bg-slate-800" />
+                    <span className={FIELD_LABEL}>PR title</span>
+                    <input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className={cn(FIELD, 'h-8 text-[13px]')} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[13px] text-muted-foreground">PR description</span>
+                    <span className={FIELD_LABEL}>PR description</span>
                     <textarea
                       value={prBody}
                       onChange={(e) => setPrBody(e.target.value)}
-                      rows={5}
+                      rows={3}
                       placeholder="Describe this merge, or use Generate with AI…"
-                      className="w-full resize-none rounded-2xl border bg-slate-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400"
+                      className={cn(FIELD, 'max-h-40 min-h-[4.5rem] resize-none py-1.5 text-[13px] leading-relaxed [field-sizing:content]')}
                     />
                   </label>
-                  <label className="flex items-center gap-2 rounded-full border px-3 py-2 text-sm">
-                    <Rocket className="size-4 text-emerald-400" />
-                    <span className="flex-1 text-foreground">Trigger GitHub Actions deployment after merge</span>
+                  <label className="flex items-center gap-3 border-t border-white/[0.06] pt-3 text-[13px]">
+                    <Rocket className="size-4 shrink-0 text-slate-500" />
+                    <span className="flex-1 text-slate-200">Deploy automatically once approved and merged</span>
                     <Switch checked={deploy} onCheckedChange={setDeploy} />
                   </label>
                 </div>
@@ -1167,53 +1173,8 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             </div>
           )}
 
-          {step === 3 && run === 'idle' && (
-            <div className="space-y-4">
-              <SectionTitle icon={Rocket}>Ready to merge &amp; deploy</SectionTitle>
-              <ul className="space-y-2 text-sm">
-                {/* The conflict check itself is surfaced early too (Check
-                    step's Readiness section) so it can be acted on, but a
-                    final go/no-go read of it belongs here as well — the
-                    last checkpoint before the merge actually happens. */}
-                <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  {item.conflictLevel === 'None' ? (
-                    <Check className="size-4 shrink-0 text-emerald-400" />
-                  ) : (
-                    <TriangleAlert className="size-4 shrink-0 text-amber-500" />
-                  )}
-                  <span className="text-foreground">
-                    {item.conflictLevel === 'None' ? 'No merge conflicts' : `${item.conflictLevel} conflict level — reviewed`}
-                  </span>
-                </li>
-                <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <GitBranch className="size-4 shrink-0 text-emerald-400" />
-                  <span className="text-foreground">{branch} → main</span>
-                </li>
-                <li className="flex items-start gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <GitPullRequest className="mt-0.5 size-4 shrink-0 text-emerald-400" />
-                  <span className="min-w-0">
-                    <span className="block text-foreground">{prTitle}</span>
-                    <span className="block truncate font-mono text-[13px] text-muted-foreground">{commit}</span>
-                  </span>
-                </li>
-                <li className="flex flex-wrap items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <Send className="size-3.5 shrink-0 text-emerald-400" />
-                  <ScopeBadge scope="code" />
-                  <span className="text-foreground">{scopeNames('code').join(', ') || '—'}</span>
-                  <ScopeBadge scope="design" />
-                  <span className="text-foreground">{scopeNames('design').join(', ') || '—'}</span>
-                </li>
-                <li className="flex items-center gap-2 rounded-2xl border bg-slate-800/70 px-4 py-3">
-                  <Rocket className="size-3.5 shrink-0 text-emerald-400" />
-                  <span className="text-foreground">
-                    {deploy ? 'GitHub Actions deployment will start after the PR is opened' : 'Deployment is turned off'}
-                  </span>
-                </li>
-              </ul>
-            </div>
-          )}
-          {step === 3 && run === 'progress' && <ProgressView step={Math.min(progress, PROGRESS_STEPS.length - 1)} />}
-          {step === 3 && run === 'success' && (
+          {run === 'progress' && <ProgressView step={Math.min(progress, PROGRESS_STEPS.length - 1)} />}
+          {run === 'success' && (
             <SuccessView prTitle={prTitle} reviewerNames={reviewerNames} deploy={deploy} prNumber={prNumber} />
           )}
         </div>
@@ -1271,15 +1232,15 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
               ) : (
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !reviewValid}
                   onClick={() => {
                     setProgress(0)
                     setRun('progress')
                   }}
                   className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-4 h-10 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
-                  <Rocket className="size-4" />
-                  Merge &amp; Deploy
+                  <GitPullRequest className="size-4" />
+                  Open PR &amp; Request Review
                 </button>
               )}
             </>

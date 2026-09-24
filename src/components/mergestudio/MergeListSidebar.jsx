@@ -58,6 +58,8 @@ const GROUP_SURFACE = PANEL_SURFACE
 // with an unexpected status lands in "Other".
 const WORKFLOW_GROUPS = [
   { id: 'review', label: 'Needs review', tags: ['Needs Review'], dot: 'bg-emerald-300' },
+  // PR opened from Merge Changes, waiting on its reviewers' approval.
+  { id: 'inreview', label: 'In review', tags: ['In Review'], dot: 'bg-emerald-200/60' },
   { id: 'progress', label: 'In progress', tags: ['In Progress'], dot: 'bg-emerald-500/60' },
   { id: 'draft', label: 'Draft', tags: ['Draft'], dot: 'bg-slate-400' },
   { id: 'merged', label: 'Merged', tags: ['Merged'], dot: 'bg-slate-600' },

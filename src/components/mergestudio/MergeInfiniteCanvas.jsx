@@ -1426,10 +1426,10 @@ const MACRO_STEPS = [
   { id: 'check', label: 'Check' },
   { id: 'preview', label: 'Preview' },
   { id: 'review', label: 'Review' },
-  { id: 'deploy', label: 'Deploy' },
 ]
 
-// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review ➔ Deploy. The
+// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review (the flow ends
+// with a PR + review request — no deploy step). The
 // current stage is filled with the accent gradient (Compare while working
 // on the canvas; the wizard's step while Merge Changes is open). Clicking a
 // later step opens the merge wizard at that step.
@@ -1446,7 +1446,7 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               type="button"
               // Strict progression: revisiting an already-passed step is
               // fine, but you can only ever advance one step at a time —
-              // no jumping straight to e.g. Deploy from Compare/Check.
+              // no jumping straight to e.g. Review from Compare.
               disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
@@ -1493,6 +1493,7 @@ function MergeInfiniteCanvas({
   focus,
   resolutionCount,
   merged,
+  inReview,
   assemblies,
   resolutions,
   extraLayers,
@@ -2564,7 +2565,7 @@ function MergeInfiniteCanvas({
             (absolute left-1/2), independent of the right-docked Block Deck
             / wizard reserve, so opening or closing them never moves it. */}
         <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-10 -translate-x-1/2 items-center">
-          <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
+          <MacroStepper stage={stage} disabled={merged || inReview} onOpenStep={(step) => onMerge(annotations, step)} />
         </div>
 
         {/* Right-hand header cluster (notifications + avatars, Preview,
@@ -2703,24 +2704,28 @@ function MergeInfiniteCanvas({
             <button
               type="button"
               data-guide="merge-cta"
-              disabled={merged}
+              disabled={merged || inReview}
               onClick={() => onMerge(annotations)}
               className={cn(
                 'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
                 // Text-only pill: even 20px sides; with the count badge, the
                 // right side tightens to 12px — the same gap the 20px badge
                 // leaves above and below it in the 44px pill.
-                merged || !mergeCount ? 'px-5' : 'pr-3 pl-5',
+                merged || inReview || !mergeCount ? 'px-5' : 'pr-3 pl-5',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+                  : inReview
+                    ? // Waiting on reviewers: a quiet neutral state, not the CTA.
+                      'border border-white/15 bg-card/90 text-slate-200 backdrop-blur-md'
                   : // The studio's signature CTA: a mint gradient (the brand
                     // accent's own family — emerald into teal), dark text.
                     'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
               )}
             >
               {merged && <Check className="size-4" />}
-              {merged ? 'Merged' : 'Merge Changes'}
-              {!merged && mergeCount > 0 && (
+              {inReview && !merged && <Eye className="size-4 text-slate-400" />}
+              {merged ? 'Merged' : inReview ? 'In review' : 'Merge Changes'}
+              {!merged && !inReview && mergeCount > 0 && (
                 // Solid white circular count badge (grows into a pill only
                 // for 2-digit counts).
                 <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] leading-none font-bold text-emerald-700 tabular-nums shadow-sm">
