@@ -9,16 +9,26 @@ import { currentUser } from '@/data/mockData'
 // visual-only, per the dashboard brief.
 function DashboardTopBar() {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-card/60 px-6">
-      <div className="relative w-full max-w-[520px]">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card/60 px-6">
+      <div className="flex-1" />
+
+      {/* Splitting the flanking space 50/50 puts the search box at the
+          header's exact geometric center, but the right cluster's own
+          content (bell + avatar + name + chevron, ~177px) hugs the far
+          edge rather than filling its whole flex-1 share — so the empty
+          space immediately next to the search box reads as bigger on the
+          left than the right. `mr` nudges the box left by half that
+          content width so the *visible* gap on each side matches, not
+          just the flex math. */}
+      <div className="relative mr-[201px] w-full max-w-[420px] shrink-0">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search projects, files, or members..."
-          className="h-9 w-full pl-8 text-xs"
+          className="h-8 w-full pl-8 text-xs"
         />
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-4">
+      <div className="flex flex-1 items-center justify-end gap-4">
         <button
           type="button"
           title="Notifications"
