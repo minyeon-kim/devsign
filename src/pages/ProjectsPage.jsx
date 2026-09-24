@@ -1,22 +1,32 @@
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
-import HeroSection from '@/components/dashboard/HeroSection'
-import StatsGrid from '@/components/dashboard/StatsGrid'
+import ProjectProgressCards from '@/components/dashboard/ProjectProgressCards'
+import ConflictChecklist from '@/components/dashboard/ConflictChecklist'
+import TeamMembers from '@/components/dashboard/TeamMembers'
+import ConflictActivityChart from '@/components/dashboard/ConflictActivityChart'
 import ProjectsSection from '@/components/dashboard/ProjectsSection'
-import AIInsights from '@/components/dashboard/AIInsights'
-import GettingStarted from '@/components/dashboard/GettingStarted'
+import ProfileCard from '@/components/dashboard/ProfileCard'
+import MergeSchedule from '@/components/dashboard/MergeSchedule'
 
 function ProjectsPage() {
   return (
     <DashboardLayout
       rightColumn={
         <>
-          <AIInsights />
-          <GettingStarted />
+          <ProfileCard />
+          <MergeSchedule />
         </>
       }
     >
-      <HeroSection />
-      <StatsGrid />
+      <ProjectProgressCards />
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <ConflictChecklist />
+        <div className="flex flex-col gap-4">
+          <TeamMembers />
+          <ConflictActivityChart />
+        </div>
+      </div>
+
       <ProjectsSection />
     </DashboardLayout>
   )

@@ -77,6 +77,7 @@ export const projects = [
     filesCount: 3,
     thumbnailType: 'checkout',
     activityCount: 12,
+    syncProgress: 72,
   },
   {
     id: 'design-system-v2',
@@ -90,6 +91,7 @@ export const projects = [
     filesCount: 12,
     thumbnailType: 'design-system',
     activityCount: 9,
+    syncProgress: 61,
   },
   {
     id: 'onboarding-flow',
@@ -103,6 +105,7 @@ export const projects = [
     filesCount: 5,
     thumbnailType: 'onboarding',
     activityCount: 8,
+    syncProgress: 88,
   },
   {
     id: 'mobile-nav-revamp',
@@ -116,6 +119,7 @@ export const projects = [
     filesCount: 4,
     thumbnailType: 'mobile-nav',
     activityCount: 6,
+    syncProgress: 84,
   },
   {
     id: 'marketing-site-refresh',
@@ -129,6 +133,7 @@ export const projects = [
     filesCount: 6,
     thumbnailType: 'marketing',
     activityCount: 4,
+    syncProgress: 100,
   },
 ]
 
@@ -136,11 +141,78 @@ export const projects = [
 // (WorkspaceProvider, dockview panels, etc.), only by the project
 // dashboard screen and its cards.
 
-// "Team members" on the dashboard's stat card is intentionally a flat
-// display number rather than `allPeople.length` — the roster used
-// elsewhere (Follow Me, assignees) is deliberately small for that demo,
-// but the dashboard is meant to read like a real team's project hub.
-export const dashboardTeamMemberCount = 8
+// Drives the dashboard's "Active conflicts" checklist — every open
+// design/code conflict across projects, in one place, each with a
+// resolved/unresolved state (the checklist's checkmark).
+export const conflictChecklist = [
+  {
+    id: 'cc-1',
+    token: 'Button / Height',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: '2h ago',
+    resolved: false,
+  },
+  {
+    id: 'cc-2',
+    token: 'Merge conflict · DesignCanvas.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '4h ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-3',
+    token: 'Card / Radius',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: 'Yesterday',
+    resolved: false,
+  },
+  {
+    id: 'cc-4',
+    token: 'Nav Icon / Size',
+    projectId: 'mobile-nav-revamp',
+    projectName: 'Mobile Nav Revamp',
+    timestamp: 'Yesterday',
+    resolved: false,
+  },
+  {
+    id: 'cc-5',
+    token: 'Color token drift',
+    projectId: 'onboarding-flow',
+    projectName: 'Onboarding Flow',
+    timestamp: '2 days ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-6',
+    token: 'Input / Padding',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: '3 days ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-7',
+    token: 'Spacing scale mismatch',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '4 days ago',
+    resolved: true,
+  },
+]
+
+// A week of conflict-resolution throughput (stacked Resolved / In review /
+// Pending counts per day) — feeds the dashboard's activity bar chart.
+export const conflictActivitySeries = [
+  { label: 'Mon', resolved: 3, inReview: 1, pending: 0 },
+  { label: 'Tue', resolved: 4, inReview: 1, pending: 0 },
+  { label: 'Wed', resolved: 2, inReview: 1, pending: 1 },
+  { label: 'Thu', resolved: 1, inReview: 0, pending: 0 },
+  { label: 'Fri', resolved: 5, inReview: 2, pending: 1, peak: true },
+  { label: 'Sat', resolved: 2, inReview: 1, pending: 0 },
+]
 
 // `type` drives the semantic color/icon on the full Activity page (see
 // src/pages/ActivityPage.jsx) — one of 'changes' | 'conflict' | 'merge' |
@@ -284,27 +356,6 @@ export const activityOverviewStats = [
   { id: 'conflicts', label: 'Conflicts', value: 6, tone: 'bg-destructive' },
   { id: 'merges', label: 'Merges', value: 5, tone: 'bg-violet-400' },
   { id: 'comments', label: 'Comments', value: 6, tone: 'bg-muted-foreground' },
-]
-
-export const aiInsights = [
-  {
-    id: 'insight-similar-conflicts',
-    kind: 'pattern',
-    title: '3 similar conflicts found',
-    items: ['Button / height', 'Input / padding', 'Card / radius'],
-  },
-  {
-    id: 'insight-drift',
-    kind: 'drift',
-    title: 'Design and code drift increased',
-    detail: 'in Mobile Nav Revamp',
-  },
-]
-
-export const onboardingChecklist = [
-  { id: 'create-project', label: 'Create your first project', done: true },
-  { id: 'open-workspace', label: 'Open a workspace', done: false },
-  { id: 'resolve-conflict', label: 'Resolve a conflict with Merge Studio', done: false },
 ]
 
 // Extension -> icon mapping for the Explorer tree and the code editor's
