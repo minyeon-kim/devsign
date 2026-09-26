@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Activity as ActivityIcon } from 'lucide-react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import ActivityFilterBar from '@/components/activity/ActivityFilterBar'
 import ActivityRow from '@/components/activity/ActivityRow'
@@ -32,14 +33,9 @@ function ActivityPage() {
         </>
       }
     >
-      <div>
-        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-          Activity
-        </p>
-        <h1 className="mt-1 text-[32px] font-semibold tracking-tight text-foreground">Activity</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Stay updated on your team&apos;s work across all projects.
-        </p>
+      <div className="flex items-center gap-2">
+        <ActivityIcon className="size-5 text-muted-foreground" />
+        <h1 className="text-lg font-semibold text-foreground">All activities</h1>
       </div>
 
       <ActivityFilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
