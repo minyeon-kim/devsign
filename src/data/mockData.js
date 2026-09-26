@@ -62,6 +62,16 @@ export const teamMembers = [
 // regardless of whether they're "you" or a teammate.
 export const allPeople = [currentUser, ...teamMembers]
 
+// Backs the Team page's "Teams" column — which team(s) each person belongs
+// to, distinct from the project membership below. `memberIds` resolve
+// against `allPeople`.
+export const teams = [
+  { id: 'design', name: 'Design Team', memberIds: ['jane', 'james', 'min'] },
+  { id: 'engineering', name: 'Engineering', memberIds: ['james'] },
+  { id: 'product', name: 'Product', memberIds: ['min'] },
+  { id: 'marketing', name: 'Marketing', memberIds: ['jane'] },
+]
+
 // The project picker's seed data. Every project shares the same mock
 // workspace content (files, history, conflicts, etc. — see
 // WorkspaceProvider) since this is a demo of the IDE shell, not a

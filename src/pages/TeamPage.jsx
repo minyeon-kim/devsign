@@ -6,10 +6,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import CreateTeamModal from '@/components/modals/CreateTeamModal'
-import { allPeople, currentUser, projects } from '@/data/mockData'
+import { allPeople, currentUser, teams } from '@/data/mockData'
 
-function projectTagsFor(personId) {
-  return projects.filter((project) => project.memberIds.includes(personId)).map((project) => project.name)
+function teamTagsFor(personId) {
+  return teams.filter((team) => team.memberIds.includes(personId)).map((team) => team.name)
 }
 
 function TeamPage() {
@@ -69,7 +69,7 @@ function TeamPage() {
         <div className="flex flex-col divide-y divide-border/60">
           {allPeople.map((person) => {
             const isOnline = person.id === currentUser.id ? true : Boolean(person.online)
-            const tags = projectTagsFor(person.id)
+            const tags = teamTagsFor(person.id)
             return (
               <div key={person.id} className="flex items-center gap-3 px-4 py-3">
                 <input
