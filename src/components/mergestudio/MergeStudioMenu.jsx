@@ -19,7 +19,7 @@ function MergeStudioMenu() {
         Merge Studio
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={10} className="w-72 gap-1 rounded-2xl p-2">
-        <p className="px-1 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        <p className="px-1 pb-1 text-xs font-medium text-slate-400">
           Merge Studio
         </p>
         <PopoverClose

@@ -44,7 +44,7 @@ function MergeAiBar() {
     <form
       onSubmit={submit}
       data-ai-bar
-      className="fixed bottom-5 left-1/2 z-40 w-[min(680px,calc(100vw-4rem))] -translate-x-1/2 rounded-3xl border border-indigo-500/40 bg-card/95 p-3 shadow-2xl shadow-indigo-500/10 backdrop-blur-md focus-within:border-violet-500"
+      className="fixed bottom-5 left-1/2 z-40 w-[min(680px,calc(100vw-4rem))] -translate-x-1/2 rounded-3xl border border-emerald-400/40 bg-card/95 p-3 shadow-2xl shadow-emerald-500/10 backdrop-blur-md focus-within:border-emerald-400"
     >
       {images.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
@@ -68,7 +68,7 @@ function MergeAiBar() {
       )}
 
       <div className="flex items-start gap-3">
-        <Sparkles className="mt-2.5 size-5 shrink-0 text-violet-500" />
+        <Sparkles className="mt-2.5 size-5 shrink-0 text-emerald-400" />
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}

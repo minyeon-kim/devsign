@@ -1,51 +1,77 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, GitMerge, ListChecks, Undo2, Maximize, Minus, PanelRight, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { codeOverrides } from '@/components/mergestudio/codeSync'
+import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupContent'
+import { COPY_FILE_ID, copyEntries, parseCopyLine } from '@/components/mergestudio/copyFile'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
+import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
-const CODE_DIFF_WIDTH = 720
-// How far right content starts, so it clears the floating Merge List panel
-// (w-72 anchored left-4) docked over the same canvas surface instead of
-// pushing it in a fixed layout column.
-const CONTENT_START_X = 304
-const ARTBOARD_PREVIEW_WIDTH = 260
+const CODE_DIFF_WIDTH = 820
+// How far right content starts, so it clears the floating Merge List window
+// (w-72 at left-4, plus breathing room) over the same canvas surface.
+const CONTENT_START_X = 320
+const ARTBOARD_PREVIEW_WIDTH = 600
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
 // selected right now, unless an AI Block Deck suggestion is actively
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover }) {
+function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, onLive, edited, dimmed }) {
   const tokens = tokenizeLine(text, language)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(text)
+  const doneRef = useRef(false)
+
+  function startEdit(e) {
+    e.stopPropagation()
+    doneRef.current = false
+    setDraft(text)
+    setEditing(true)
+  }
+  function finish(save) {
+    if (doneRef.current) return
+    doneRef.current = true
+    setEditing(false)
+    onLive?.(null)
+    if (save && draft !== text) onEdit(draft)
+  }
+
   return (
     <div
       ref={lineRef}
       data-code-line={lineKey}
       data-changed={accentClass ? 'true' : undefined}
       data-selected={highlighted ? 'true' : undefined}
-      onClick={onClick}
+      onClick={editing ? undefined : onClick}
+      onDoubleClick={onEdit && !editing ? startEdit : undefined}
       onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
-        'flex cursor-pointer gap-2 border-l border-transparent px-3 hover:bg-muted/40',
+        'group/line flex cursor-pointer gap-2 border-l border-transparent px-3 transition-opacity duration-200 hover:bg-muted/40',
         // The diff tint (red/green background) stays on regardless of
-        // selection — only the left border changes to show the lime
+        // selection — only the left border changes to show the emerald
         // selection state on top of it. Dropping `accentClass` here used to
         // wash the row back to plain/untinted the moment it was selected,
         // hiding exactly the red/green diff it was selected to review.
         accentClass,
-        linked && 'border-lime-400/30',
-        hovered && !highlighted && 'border-lime-400/70',
-        highlighted && 'border-lime-400'
+        // Spotlight: while a block is selected every other row recedes, so
+        // the selection reads at full strength without any glow; hovering
+        // brings a row back.
+        dimmed && !hovered && 'opacity-45 hover:opacity-100',
+        hovered && !highlighted && 'border-emerald-400/60',
+        highlighted && 'border-emerald-400'
       )}
     >
       <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
@@ -64,17 +90,54 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
       {/* min-w-0 lets this span actually shrink below its content's
           intrinsic width so pre-wrap can kick in, instead of the row
           growing past the card and needing horizontal scroll. */}
-      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {text.length === 0 ? (
-          ' '
-        ) : (
-          tokens.map((token, j) => (
-            <span key={j} className={tokenClassName(token.type)}>
-              {token.text}
-            </span>
-          ))
-        )}
-      </span>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          spellCheck={false}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            // Streams every keystroke to the canvas for live preview; only
+            // Enter / blur commits it as a manual edit.
+            onLive?.(e.target.value)
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') finish(true)
+            else if (e.key === 'Escape') finish(false)
+          }}
+          onBlur={() => finish(true)}
+          className="min-w-0 flex-1 rounded-sm bg-slate-950 px-1 font-mono text-[11px] text-foreground outline-none ring-1 ring-emerald-400"
+        />
+      ) : (
+        <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+          {text.length === 0 ? (
+            ' '
+          ) : (
+            tokens.map((token, j) => (
+              <span key={j} className={tokenClassName(token.type)}>
+                {token.text}
+              </span>
+            ))
+          )}
+        </span>
+      )}
+      {edited && !editing && (
+        <span title="Edited by hand" className="mt-0.5 flex h-4 shrink-0 items-center gap-0.5 self-start rounded-full bg-emerald-400/20 px-1.5 text-[9px] font-semibold text-emerald-300 select-none">
+          <Pencil className="size-2" /> edited
+        </span>
+      )}
+      {onEdit && !editing && (
+        <button
+          type="button"
+          title="Edit this line"
+          onClick={startEdit}
+          className="mt-0.5 flex size-4 shrink-0 items-center justify-center self-start rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-emerald-400/20 hover:text-emerald-300"
+        >
+          <Pencil className="size-2.5" />
+        </button>
+      )}
     </div>
   )
 }
@@ -84,9 +147,18 @@ function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClas
 // An unchanged line renders once, plain. A changed line renders as a
 // removed row (`-`, red) directly above the added row (`+`, green) it was
 // replaced by, so the whole file reads top-to-bottom in one pass.
-function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
+// Every line is editable in place (double-click, or the pencil on hover):
+// editing a `+` row rewrites what gets merged; editing an unchanged row
+// turns it into a new `-`/`+` pair. Typing a line back to what it would be
+// anyway drops the manual edit.
+function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, onLiveLine, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
   const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
   const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
+  function edit(lineNumber, original, text) {
+    const key = `${file.id}:${lineNumber}`
+    const fallback = incomingEdits?.[key] ?? diffByLine.get(lineNumber) ?? original
+    onEditLine?.(file.id, lineNumber, text === fallback ? null : text)
+  }
 
   return (
     <div
@@ -96,9 +168,14 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
       <div className="py-2">
         {lines.map((line, i) => {
           const lineNumber = i + 1
-          const incoming = incomingEdits?.[`${file.id}:${lineNumber}`] ?? diffByLine.get(lineNumber)
+          const key = `${file.id}:${lineNumber}`
+          const edited = manualCode?.[key] !== undefined
+          const incoming = manualCode?.[key] ?? incomingEdits?.[key] ?? diffByLine.get(lineNumber)
           const changed = incoming !== undefined
+          const onEdit = onEditLine ? (text) => edit(lineNumber, line, text) : undefined
+          const onLive = onLiveLine ? (text) => onLiveLine(file.id, lineNumber, text) : undefined
           const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
+          const dimmed = highlightLine != null && !isHighlighted
           const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
           const linked = linkedLines?.has(`${file.id}:${lineNumber}`)
           const onHover = (n) => onHoverLine?.(file.id, n)
@@ -118,6 +195,9 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                onEdit={onEdit}
+                onLive={onLive}
+                dimmed={dimmed}
               />
             )
           }
@@ -136,6 +216,7 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                dimmed={dimmed}
               />
               <CodeLine
                 lineNumber={lineNumber}
@@ -143,12 +224,16 @@ function UnifiedDiffView({ incomingEdits, file, lines, diffs, highlightLine, hig
                 lineKey={`${file.id}:${lineNumber}:incoming`}
                 language={file.language}
                 highlighted={isHighlighted}
-                accentClass="border-emerald-500/60 bg-emerald-500/10"
+                accentClass={edited ? 'border-emerald-200/70 bg-emerald-200/[0.06]' : 'border-emerald-500/60 bg-emerald-500/10'}
                 diffMark="+"
                 onClick={onClick}
                 linked={linked}
                 hovered={isHovered}
                 onHover={onHover}
+                onEdit={onEdit}
+                onLive={onLive}
+                edited={edited}
+                dimmed={dimmed}
               />
             </div>
           )
@@ -177,7 +262,7 @@ function ResizeHandles({ onResizeStart }) {
         title="Resize"
         className="absolute right-0 bottom-0 z-20 flex size-4 cursor-nwse-resize items-end justify-end p-0.5"
       >
-        <span className="size-2 rounded-br-sm border-r-2 border-b-2 border-violet-500/70" />
+        <span className="size-2 rounded-br-sm border-r-2 border-b-2 border-emerald-400/70" />
       </div>
     </>
   )
@@ -187,8 +272,10 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
+function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, reveal, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
   const { getFileLines } = useWorkspace()
+  // Merge Studio's virtual copy.json carries its own lines.
+  const linesOf = (file) => file.lines ?? getFileLines(file.id)
   const rootRef = useRef(null)
   const [activeFileId, setActiveFileId] = useState(files[0]?.id)
 
@@ -204,6 +291,19 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
   }, [highlightFileId, highlightLine])
 
   const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
+
+  // A design-side text edit reveals the copy.json line it's writing to, so
+  // the code updating in step with the canvas is actually visible.
+  useEffect(() => {
+    if (!reveal) return
+    setActiveFileId(reveal.fileId)
+    const raf = requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector(`[data-code-line="${reveal.fileId}:${reveal.line}"]`)
+      const scroller = el?.closest('[data-code-scroll]')
+      if (el && scroller) scroller.scrollTo({ top: Math.max(0, el.offsetTop - scroller.clientHeight / 3), behavior: 'smooth' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [reveal])
 
   // Bring the selected block into view once the right file tab has actually
   // rendered (scrolling from the canvas ran before the tab switched).
@@ -224,7 +324,7 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
     <div
       ref={rootRef}
       data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
+      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
@@ -239,21 +339,27 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
               type="button"
               onClick={() => setActiveFileId(file.id)}
               className={cn(
-                'flex shrink-0 items-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
+                'flex shrink-0 items-center justify-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
                 active ? 'bg-slate-900 text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <meta.Icon className={cn('size-3 shrink-0', meta.colorClass)} />
+              <meta.Icon className="size-3 shrink-0 text-slate-400" />
               <span className="max-w-[120px] truncate">{file.name}</span>
             </button>
           )
         })}
+        <span title="Double-click a line to edit it" className="ml-auto flex shrink-0 items-center px-2 pb-1 text-muted-foreground/60">
+          <Pencil className="size-3" />
+        </span>
       </div>
 
       <UnifiedDiffView
         incomingEdits={incomingEdits}
+        manualCode={manualCode}
+        onEditLine={onEditLine}
+        onLiveLine={onLiveLine}
         file={activeFile}
-        lines={getFileLines(activeFile.id)}
+        lines={linesOf(activeFile)}
         diffs={codeMergeVariants[itemId]?.[activeFile.id]}
         highlightLine={highlightFileId === activeFile.id ? highlightLine : undefined}
         highlightEnd={highlightEnd}
@@ -270,124 +376,460 @@ function CodeWindowCard({ incomingEdits, itemId, files, x, y, w, h, z, onDragSta
   )
 }
 
-// A read-only re-rendering of a frame's layers — separate from CanvasPanel's
+// Text slots each layer type exposes for editing; the first is what a
+// double-click anywhere else on the layer edits.
+const TEXT_SLOTS = { text: ['text'], button: ['label'], chip: ['label'], input: ['label'], card: ['title', 'body'] }
+
+// In-place text editor for one slot: inherits the surrounding typography so
+// editing looks like typing into the design itself. Streams every keystroke
+// (`onLive`), commits on Enter / blur, cancels on Escape.
+function SlotEditor({ value, onLive, onCommit, onCancel, className, style }) {
+  const [draft, setDraft] = useState(value)
+  const doneRef = useRef(false)
+  function finish(save) {
+    if (doneRef.current) return
+    doneRef.current = true
+    if (save) onCommit(draft)
+    else onCancel()
+  }
+  return (
+    <input
+      autoFocus
+      value={draft}
+      spellCheck={false}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        onLive(e.target.value)
+      }}
+      onFocus={(e) => e.target.select()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+      }}
+      onBlur={() => finish(true)}
+      style={{ font: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', ...style }}
+      className={cn('w-full min-w-0 rounded-sm bg-white px-0.5 text-inherit outline-none ring-2 ring-emerald-500', className)}
+    />
+  )
+}
+
+// Fill / border classes from drift data and Block Assemble can use the app's
+// theme tokens, which resolve dark in the studio; inside the light product
+// mockup they map to their light-palette equivalents.
+const LIGHT_TOKEN_CLASSES = {
+  'bg-card': 'bg-slate-50',
+  'bg-muted': 'bg-slate-100',
+  'bg-primary': 'bg-indigo-500',
+  'bg-background': 'bg-white',
+  'border-border': 'border-slate-200',
+  'text-foreground': 'text-slate-900',
+  'text-muted-foreground': 'text-slate-500',
+  'border-white/30': 'border-slate-300',
+  'border-white/60': 'border-slate-400',
+}
+function lightClasses(cls) {
+  return cls?.split(/\s+/).map((c) => LIGHT_TOKEN_CLASSES[c] ?? c).join(' ')
+}
+
+// Mockup-only product widgets for the dashboard band (see
+// MOCKUP_EXTENSIONS): a 30-day cash-flow area chart and a transaction
+// history table, drawn at artboard scale in the light product palette.
+const CASH_FLOW = [42, 48, 45, 53, 51, 58, 55, 62, 60, 67, 64, 71, 76, 73, 81]
+function CashFlowChart({ style, className }) {
+  const w = 100
+  const hgt = 44
+  const max = 90
+  const pts = CASH_FLOW.map((v, i) => [(i / (CASH_FLOW.length - 1)) * w, hgt - (v / max) * hgt])
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+  const [lx, ly] = pts[pts.length - 1]
+  return (
+    <div style={style} className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm', className)}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[8px] font-semibold text-slate-900">Cash flow</p>
+          <p className="text-[6px] text-slate-400">Last 30 days · All accounts</p>
+        </div>
+        <div className="flex rounded-full bg-slate-100 p-[1.5px] text-[5.5px] font-semibold text-slate-500">
+          {['1W', '1M', '3M', '1Y'].map((t) => (
+            <span key={t} className={cn('rounded-full px-1 py-[1px]', t === '1M' && 'bg-white text-slate-900 shadow-sm')}>{t}</span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-1.5">
+        <span className="text-[13px] font-bold tracking-tight text-slate-900 tabular-nums">$248,930.12</span>
+        <span className="rounded-full bg-emerald-50 px-1 text-[6px] font-semibold text-emerald-600">+12.4%</span>
+      </div>
+      <div className="relative mt-1 min-h-0 flex-1">
+        <svg viewBox={`0 0 ${w} ${hgt}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+          <defs>
+            <linearGradient id="ms-cashflow-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line key={f} x1="0" x2={w} y1={hgt * f} y2={hgt * f} stroke="#e2e8f0" strokeWidth="0.6" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d={`${line} L${w} ${hgt} L0 ${hgt} Z`} fill="url(#ms-cashflow-fill)" />
+          <path d={line} fill="none" stroke="#6366f1" strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <circle cx={lx} cy={ly} r="1.6" fill="#fff" stroke="#6366f1" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
+      <div className="mt-1 flex justify-between text-[5.5px] text-slate-400 tabular-nums">
+        {['Jun 1', 'Jun 8', 'Jun 15', 'Jun 22', 'Jun 30'].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const TRANSACTIONS = [
+  { name: 'Stripe payout', meta: 'Jun 30 · Revenue', amount: '+$12,400.00', status: 'Settled', tone: 'emerald', mark: 'S', markClass: 'bg-indigo-500' },
+  { name: 'Amazon Web Services', meta: 'Jun 29 · Infrastructure', amount: '−$2,318.40', status: 'Pending', tone: 'amber', mark: 'A', markClass: 'bg-amber-500' },
+  { name: 'Figma', meta: 'Jun 28 · Software', amount: '−$144.00', status: 'Settled', tone: 'emerald', mark: 'F', markClass: 'bg-rose-500' },
+  { name: 'Gusto payroll', meta: 'Jun 27 · Payroll', amount: '−$48,210.00', status: 'Scheduled', tone: 'slate', mark: 'G', markClass: 'bg-emerald-500' },
+]
+const STATUS_TONE = {
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber: 'bg-amber-50 text-amber-700 ring-amber-200',
+  slate: 'bg-slate-100 text-slate-600 ring-slate-200',
+}
+function TransactionsTable({ style, className }) {
+  return (
+    <div style={style} className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm', className)}>
+      <div className="flex items-center justify-between px-2.5 pt-2.5 pb-1.5">
+        <p className="text-[8px] font-semibold text-slate-900">Recent transactions</p>
+        <span className="text-[6.5px] font-semibold text-indigo-600">View all</span>
+      </div>
+      <div className="flex justify-between border-y border-slate-100 bg-slate-50 px-2.5 py-[3px] text-[5.5px] font-semibold tracking-wide text-slate-400 uppercase">
+        <span>Merchant</span>
+        <span>Amount</span>
+      </div>
+      <div className="flex-1 divide-y divide-slate-100">
+        {TRANSACTIONS.map((t) => (
+          <div key={t.name} className="flex items-center gap-1.5 px-2.5 py-[5px]">
+            <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-md text-[6.5px] font-bold text-white', t.markClass)}>{t.mark}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[7px] font-semibold text-slate-900">{t.name}</span>
+              <span className="block truncate text-[5.5px] text-slate-400">{t.meta}</span>
+            </span>
+            <span className="flex shrink-0 flex-col items-end gap-[2px]">
+              <span className={cn('text-[7px] font-semibold tabular-nums', t.amount.startsWith('+') ? 'text-emerald-600' : 'text-slate-900')}>{t.amount}</span>
+              <span className={cn('rounded-full px-1 text-[5px] font-semibold ring-1', STATUS_TONE[t.tone])}>{t.status}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// A re-rendering of a frame's layers — separate from CanvasPanel's
 // interactive CanvasFrame/CanvasLayer (no zoom/tools of its own, since it
 // lives inside the shared infinite canvas which already has those) since
-// this is a comparison artboard, not an editable canvas. Both Option A and
-// Option B are clickable — clicking either drives Block Deck's Variant
-// Compare tab and, for linked layers, the code sync. `aiPreview` marks a
-// button layer as currently showing a live-previewed AI Block Deck
-// suggestion, rendering a small badge so the change reads as suggested
+// this is a comparison artboard, not a full editing canvas. Both Original
+// Design and Current Implementation are clickable — clicking either drives
+// Block Deck's Variant Compare tab and, for linked layers, the code sync.
+// With `onEditText`, every piece of text (copy, labels, placeholders, card
+// titles/bodies) can be edited in place by double-clicking it. A non-static
+// override renders a small badge so the change reads as a live preview
 // rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover }) {
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed }) {
+  const [editingSlot, setEditingSlot] = useState(null)
   const style = {
-    left: layer.x,
-    top: layer.y,
+    left: layer.x + (override?.dx ?? 0),
+    top: layer.y + (override?.dy ?? 0),
     width: layer.width + (override?.dw ?? 0),
     height: layer.height + (override?.dh ?? 0),
   }
-  const fill = override?.className
+  const fill = lightClasses(override?.className)
   const type = override?.asType ?? layer.type
-  const label = override?.asLabel ?? layer.label
-  const radiusStyle = override?.radius !== undefined ? { borderRadius: override.radius } : undefined
-  const justify = { start: 'flex-start', center: 'center', end: 'flex-end' }[override?.align]
-  const contentStyle = justify ? { ...radiusStyle, justifyContent: justify } : radiusStyle
-  const extra = override?.extraClass
+  const copy = override?.copy
+  const label = copy?.label ?? override?.asLabel ?? layer.label
+  const radiusStyle =
+    override?.radius !== undefined || override?.fillStyle
+      ? { ...(override.radius !== undefined && { borderRadius: override.radius }), ...override.fillStyle }
+      : undefined
+  // Auto-layout values from the Assemble inspector: direction, gap, padding
+  // and the 3×3 alignment (horizontal/vertical mapped onto the main/cross
+  // axis for the chosen direction), plus exact stroke and opacity.
+  const FLEX = { start: 'flex-start', center: 'center', end: 'flex-end' }
+  const column = override?.direction === 'column'
+  const hAlign = FLEX[override?.align]
+  const vAlign = FLEX[override?.valign]
+  const layoutStyle = {
+    ...(override?.direction && { flexDirection: override.direction }),
+    ...((column ? vAlign : hAlign) && { justifyContent: column ? vAlign : hAlign }),
+    ...((column ? hAlign : vAlign) && { alignItems: column ? hAlign : vAlign }),
+    ...(override?.gap !== undefined && { gap: override.gap }),
+    ...(override?.padding?.x !== undefined && { paddingLeft: override.padding.x, paddingRight: override.padding.x }),
+    ...(override?.padding?.y !== undefined && { paddingTop: override.padding.y, paddingBottom: override.padding.y }),
+    ...override?.strokeStyle,
+    ...(override?.opacity !== undefined && { opacity: override.opacity / 100 }),
+  }
+  const contentStyle = Object.keys(layoutStyle).length ? { ...radiusStyle, ...layoutStyle } : radiusStyle
+  const extra = lightClasses(override?.extraClass)
   const iconEl = override?.icon ? <Sparkles className="size-3 shrink-0" /> : null
 
+  // Realistic product content for this layer (see mockupContent.js); a
+  // layer swapped to another component type falls back to type defaults.
+  const mock = override?.asType ? {} : (LAYER_MOCKUP[layer.id] ?? {})
+  const slots = override?.asType || (layer.type === 'card' && !mock.title) ? [] : (TEXT_SLOTS[layer.type] ?? [])
+  const canEdit = Boolean(onEditText) && slots.length > 0
+  // A text slot's content: plain text, or the in-place editor while that
+  // slot is being edited.
+  const slotText = (slot, value, props = {}) =>
+    editingSlot === slot ? (
+      <SlotEditor
+        value={value ?? ''}
+        onLive={(v) => onEditText(layer.id, slot, v, { live: true })}
+        onCommit={(v) => {
+          setEditingSlot(null)
+          onEditText(layer.id, slot, v)
+        }}
+        onCancel={() => {
+          setEditingSlot(null)
+          onEditText(layer.id, slot, null, { live: true })
+        }}
+        style={props.style}
+      />
+    ) : (
+      <span data-slot={canEdit ? slot : undefined} className={props.className} style={props.style}>
+        {props.children ?? value}
+      </span>
+    )
+  const h = style.height
+  const trailing = override?.icon === 'right' ? iconEl : mock.trailingArrow ? <ArrowRight className="size-3.5 shrink-0" /> : null
+
+  // Light-mode product UI: the artboards render as a real, light SaaS screen
+  // inside the dark studio, so every class here is an explicit light-palette
+  // value rather than an app theme token (those resolve dark in the studio).
   let content = null
-  if (type === 'bar') {
+  if (type === 'bar' && mock.role === 'status') {
     content = (
-      <div
-        style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-between rounded-sm px-2', fill ?? 'bg-muted', extra)}
-      >
-        <span className="text-[9px] text-muted-foreground">9:41</span>
-        <div className="flex items-center gap-0.5">
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-        </div>
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-between px-4 text-[10px] font-semibold text-slate-900', fill, extra)}>
+        <span>9:41</span>
+        <span className="flex items-center gap-1">
+          <Signal className="size-2.5" />
+          <Wifi className="size-2.5" />
+          <BatteryFull className="size-3" />
+        </span>
       </div>
     )
-  } else if (type === 'card') {
+  } else if (type === 'bar') {
     content = (
       <div
         style={contentStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'border border-border bg-muted/40', extra)}
-      />
-    )
-  } else if (type === 'avatar') {
-    content = <div style={contentStyle} className={cn('h-full w-full rounded-full ring-2 ring-card', fill ?? 'bg-muted-foreground/30', extra)} />
-  } else if (type === 'input') {
-    content = (
-      <div
-        style={contentStyle}
-        className={cn('flex h-full w-full items-center rounded-md border border-border px-3 text-[11px] text-muted-foreground', fill ?? 'bg-slate-800', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-4 border-b border-slate-200 text-[9px] font-medium text-slate-500', fill ?? 'bg-white/95', extra)}
       >
-        {label ?? 'Input'}
+        {(mock.links ?? ['Overview', 'Activity', 'Settings']).map((l, i) => (
+          <span key={l} className={i === 0 ? 'text-slate-900' : undefined}>{l}</span>
+        ))}
+      </div>
+    )
+  } else if (type === 'card' && mock.role === 'container') {
+    content = (
+      <div style={contentStyle} className={cn('h-full w-full rounded-xl border border-slate-200 shadow-sm', fill ?? 'bg-white', extra)} />
+    )
+  } else if (type === 'card') {
+    const Icon = { zap: Zap, shield: ShieldCheck, chart: ChartColumn }[mock.icon] ?? Blocks
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full flex-col gap-1 overflow-hidden rounded-xl border border-slate-200 p-2.5 shadow-sm', fill ?? 'bg-white', extra)}
+      >
+        <span className="mb-0.5 flex size-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
+          <Icon className="size-3" />
+        </span>
+        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate font-semibold text-slate-900', style: { fontSize: 9, fontWeight: 600 } })}
+        {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 leading-snug text-slate-500', style: { fontSize: 7.5 } })}
+      </div>
+    )
+  } else if (type === 'chart') {
+    content = <CashFlowChart style={contentStyle} className={cn(fill, extra)} />
+  } else if (type === 'table') {
+    content = <TransactionsTable style={contentStyle} className={cn(fill, extra)} />
+  } else if (type === 'avatar') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn(
+          'flex h-full w-full items-center justify-center rounded-full font-semibold text-white ring-2 ring-white',
+          fill ?? cn('bg-gradient-to-br', mock.gradient ?? 'from-slate-400 to-slate-600'),
+          extra
+        )}
+      >
+        {!mock.stacked && <span style={{ fontSize: Math.max(7, h * 0.36) }}>{mock.initials ?? (layer.name ?? layer.label ?? '').slice(0, 1)}</span>}
+      </div>
+    )
+  } else if (type === 'input') {
+    const Icon = mock.icon === 'search' ? Search : mock.icon === 'mail' ? Mail : null
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center gap-2 rounded-lg border border-slate-300 px-3 text-slate-400 shadow-sm', fill ?? 'bg-white', extra)}
+      >
+        {Icon && <Icon className="size-3.5 shrink-0 text-slate-400" />}
+        {slotText('label', copy?.label ?? override?.asLabel ?? mock.placeholder ?? layer.label ?? 'Input', {
+          className: 'truncate',
+          style: { fontSize: Math.min(11, Math.max(8, h * 0.3)) },
+        })}
+      </div>
+    )
+  } else if (type === 'chip' && mock.role === 'logo') {
+    content = (
+      <div style={contentStyle} className={cn('flex h-full w-full items-center gap-1.5 text-[10px] font-bold tracking-tight text-slate-900', fill, extra)}>
+        <span className="size-3.5 shrink-0 rounded-[4px] bg-gradient-to-br from-indigo-500 to-violet-600" />
+        {slotText('label', label ?? 'Logo')}
+      </div>
+    )
+  } else if (type === 'chip' && mock.role === 'ghost') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full border border-slate-300 font-semibold text-slate-700 shadow-sm', fill ?? 'bg-white', extra)}
+      >
+        {slotText('label', label ?? 'Chip', { style: { fontSize: Math.max(8, h * 0.4) } })}
       </div>
     )
   } else if (type === 'chip') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full text-[10px] font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
+        className={cn('flex h-full w-full items-center justify-center gap-1 rounded-full font-semibold text-white', fill ?? 'bg-indigo-500', extra)}
       >
         {override?.icon === 'left' && iconEl}
-        {label ?? 'Chip'}
+        {slotText('label', label ?? 'Chip', { style: { fontSize: Math.max(8, h * 0.42) } })}
         {override?.icon === 'right' && iconEl}
       </div>
     )
   } else if (type === 'toggle') {
     content = (
       <div style={contentStyle} className={cn('flex h-full w-full items-center justify-end rounded-full p-[3px]', fill ?? 'bg-indigo-500', extra)}>
-        <span className="aspect-square h-full rounded-full bg-white shadow" />
+        <span className="aspect-square h-full rounded-full bg-white shadow-md" />
+      </div>
+    )
+  } else if (type === 'image' && mock.role === 'dashboard') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-slate-200 p-2 shadow-md', fill ?? 'bg-white', extra)}
+      >
+        <div>
+          <p className="text-[6.5px] font-semibold tracking-wide text-slate-400 uppercase">Total balance</p>
+          <p className="text-[12px] font-bold text-slate-900 tabular-nums">$12,480.00</p>
+          <p className="mt-0.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1 text-[6.5px] font-semibold text-emerald-600">
+            <TrendingUp className="size-2" /> 8.2%
+          </p>
+        </div>
+        <div className="flex h-7 items-end gap-[3px]">
+          {[40, 65, 50, 80, 60, 95, 75].map((v, i) => (
+            <span key={i} className={cn('flex-1 rounded-sm', i === 5 ? 'bg-indigo-500' : 'bg-indigo-100')} style={{ height: `${v}%` }} />
+          ))}
+        </div>
       </div>
     )
   } else if (type === 'image') {
     content = (
       <div
         style={contentStyle}
-        className={cn('h-full w-full rounded-lg', fill ?? 'bg-gradient-to-br from-indigo-500/70 to-violet-500/70', extra)}
-      />
+        className={cn('relative h-full w-full overflow-hidden rounded-lg border border-slate-200', fill ?? 'bg-gradient-to-b from-indigo-50 to-white', extra)}
+      >
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          {[10, 20, 30].map((y) => (
+            <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="#e2e8f0" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5 L100 40 L0 40 Z" fill="rgba(99,102,241,0.14)" />
+          <path d="M0 32 L14 26 L28 29 L42 18 L56 21 L70 11 L84 14 L100 5" fill="none" stroke="#6366f1" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span className="absolute top-1.5 left-2 text-[8px] font-bold text-slate-900 tabular-nums">$84.2k</span>
+        <span className="absolute top-1.5 right-2 rounded-full bg-emerald-50 px-1 text-[7px] font-semibold text-emerald-600">+12%</span>
+      </div>
     )
   } else if (type === 'iconbtn') {
     content = (
       <div
         style={contentStyle}
-        className={cn('flex h-full w-full items-center justify-center rounded-full border border-border text-sm text-foreground', fill ?? 'bg-muted', extra)}
+        className={cn('flex h-full w-full items-center justify-center rounded-full border border-slate-200 text-slate-700 shadow-sm', fill ?? 'bg-white', extra)}
       >
-        {label ?? '•'}
+        {mock.icon === 'menu' ? <Menu className="size-3.5" /> : <span className="text-sm">{label ?? '•'}</span>}
       </div>
     )
   } else if (type === 'tabs') {
+    const icons = { home: House, search: Search, user: User }
     content = (
-      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-border px-2 text-[9px]', fill ?? 'bg-card', extra)}>
-        {['Home', 'Search', 'Profile'].map((t, i) => (
-          <span key={t} className={i === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-            {t}
-          </span>
-        ))}
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-slate-200 px-2 text-[8px]', fill ?? 'bg-white', extra)}>
+        {(mock.tabs ?? [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']]).map(([icon, t], i) => {
+          const Icon = icons[icon] ?? House
+          return (
+            <span key={t} className={cn('flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
+              <Icon className="size-3" />
+              {t}
+            </span>
+          )
+        })}
+      </div>
+    )
+  } else if (type === 'button' && mock.role === 'secondary') {
+    content = (
+      <div
+        style={contentStyle}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 font-semibold text-slate-800 shadow-sm', fill ?? 'bg-white', extra)}
+      >
+        {override?.icon === 'left' && iconEl}
+        {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
+        {trailing}
       </div>
     )
   } else if (type === 'button') {
     content = (
       <div
         style={contentStyle}
-        className={cn(
-          'flex h-full w-full items-center justify-center gap-1.5 rounded-md text-xs font-medium text-primary-foreground',
-          fill ?? 'bg-primary', extra
-        )}
+        className={cn('flex h-full w-full items-center justify-center gap-1.5 rounded-lg font-semibold text-white shadow-sm shadow-indigo-500/30', fill ?? 'bg-indigo-500', extra)}
       >
         {override?.icon === 'left' && iconEl}
-        {label ?? 'Button'}
-        {override?.icon === 'right' && iconEl}
+        {slotText('label', label ?? 'Button', { style: { fontSize: Math.min(13, Math.max(9, h * 0.32)) } })}
+        {trailing}
+      </div>
+    )
+  } else if (type === 'text') {
+    // Real copy, sized from the layer's (possibly drifted) height so a
+    // font-size or weight change reads as an actual typographic change.
+    const tone = { strong: 'text-slate-900', muted: 'text-slate-500', subtle: 'text-slate-400' }[mock.tone ?? 'muted']
+    const text = copy?.text ?? mock.text ?? layer.name
+    content = (
+      <div
+        style={{ ...contentStyle, fontSize: Math.max(6, h * 0.85), lineHeight: `${h}px`, fontWeight: override?.fontWeight ?? mock.weight ?? 400 }}
+        // Strong copy (headings) may outgrow its box when a drift enlarges
+        // it — let it spill rather than truncate so the change reads fully.
+        className={cn(
+          'h-full w-full whitespace-nowrap',
+          mock.tone === 'strong' ? 'overflow-visible tracking-tight' : 'truncate',
+          tone,
+          fill && cn(fill, 'rounded-sm px-1 text-white'),
+          extra
+        )}
+      >
+        {slotText('text', text, {
+          children:
+            mock.strongPrefix && text.includes(mock.strongPrefix) ? (
+              <>
+                {text.slice(0, text.indexOf(mock.strongPrefix))}
+                <span className="font-semibold text-slate-900">{mock.strongPrefix}</span>
+                {text.slice(text.indexOf(mock.strongPrefix) + mock.strongPrefix.length)}
+              </>
+            ) : undefined,
+        })}
       </div>
     )
   } else {
     content = (
-      <div style={contentStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-muted-foreground/25', extra)} />
+      <div style={contentStyle} className={cn('h-full w-full rounded-sm', fill ?? 'bg-slate-200', extra)} />
     )
   }
 
@@ -398,25 +840,34 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         e.stopPropagation()
         onSelect(e.currentTarget)
       }}
+      onDoubleClick={
+        canEdit
+          ? (e) => {
+              e.stopPropagation()
+              setEditingSlot(e.target.closest('[data-slot]')?.dataset.slot ?? slots[0])
+            }
+          : undefined
+      }
+      title={canEdit ? 'Double-click to edit text' : undefined}
       onPointerEnter={linked ? () => onHover?.(layer.id) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
         'absolute cursor-pointer',
-        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-lime-400/70',
-        // selection is drawn by the neon bounding-box overlay, so no second ring here
-        selected && ''
+        'transition-opacity duration-200',
+        // Spotlight: the selection stays at full strength inside a thin
+        // border (drawn by the canvas overlay) while every other element
+        // dims until hovered; drifted elements keep a faint outline so they
+        // stay findable.
+        drift && !selected && !hovered && 'rounded-sm outline outline-1 outline-offset-2 outline-solid outline-emerald-400/40',
+        dimmed && !selected && !hovered && 'opacity-45',
+        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80'
       )}
       style={style}
+      data-layer-id={layer.id}
     >
+      {/* No corner badge on the selection — the only AI affordance on a
+          selected element is the AI Edit chip at its bottom-right edge. */}
       {content}
-      {override && !override.static && (
-        <span
-          title="Live preview"
-          className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow"
-        >
-          <Sparkles className="size-2 text-white" />
-        </span>
-      )}
     </div>
   )
 }
@@ -426,7 +877,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -440,13 +891,21 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <p className="mb-1.5 flex w-fit items-center rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+      <p
+        title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
+        className={cn(
+          'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+          editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
+        )}
+      >
         {label}
+        {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
         data-frame-box
-        className="relative overflow-hidden rounded-md border border-border bg-card shadow-lg"
+        // Pristine light product surface inside the dark studio.
+        className="relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40 ring-1 ring-slate-200/80"
         style={{ width: boxW, height: boxH }}
       >
         <div
@@ -460,9 +919,10 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
         >
           {frame.layers.map((layer) => {
             const o = overrides?.[layer.id]
+            const primary = layer.type === 'button' && !isSecondaryLayer(layer.id)
             const override = o
-              ? { ...o, className: o.className ?? (layer.type === 'button' ? accentClass : undefined) }
-              : layer.type === 'button' && accentClass
+              ? { ...o, className: o.className ?? (primary ? accentClass : undefined) }
+              : primary && accentClass
                 ? { className: accentClass, static: true }
                 : undefined
             return (
@@ -473,8 +933,11 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
                 selected={selectedLayerId === layer.id}
                 linked={linkedLayerIds?.has(layer.id)}
                 hovered={hoverLayerId === layer.id}
+                drift={driftLayerIds?.has(layer.id)}
+                dimmed={Boolean(selectedLayerId)}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
+                onEditText={onEditText}
               />
             )
           })}
@@ -487,27 +950,49 @@ function StaticFrame({ frameKey, frame, label, accentClass, x, y, w, h, z, onDra
 
 // Gap between cards — wide enough that a connector's label pill fits
 // entirely in the empty space between two card edges.
-const CARD_GAP = 140
+const CARD_GAP = 96
 
-// Sizes are in world units. Artboards leave w/h null until first resized
+// Sizes are in world units. Artboards leave h null until first resized
 // (they then derive their height from the frame's aspect ratio).
-// Compact unified layout: the code card (Code A | Code B columns) on top, with
-// the Option A artboard centered under the Code A column and Option B under
-// the Code B column — so each option reads as one column of code + design.
-const CODE_H = 380
-const COLUMN_W = CODE_DIFF_WIDTH / 2
-const DEFAULT_LAYOUT = {
-  code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_H },
-  a: { x: (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
-  b: { x: COLUMN_W + (COLUMN_W - ARTBOARD_PREVIEW_WIDTH) / 2, y: CODE_H + 72, w: null, h: null },
+// Design-first layout: Original Design and Current Implementation side by
+// side across the top, with a compact, full-width code window underneath
+// acting as the inspector. Artboards are as wide as ARTBOARD_PREVIEW_WIDTH
+// allows while staying under ARTBOARD_MAX_H tall, so a tall mobile frame
+// doesn't push the code window off screen.
+const ARTBOARD_MAX_H = 760
+const RIGHT_TOOLBAR_CLEARANCE = 64
+const ARTBOARD_LABEL_H = 30
+const CODE_H = 210
+const CODE_ONLY_H = 440
+const CODE_GAP_Y = 36
+function defaultLayout(frame) {
+  if (!frame) {
+    const off = { x: 0, y: 0, w: ARTBOARD_PREVIEW_WIDTH, h: null }
+    return { code: { x: 0, y: 0, w: CODE_DIFF_WIDTH, h: CODE_ONLY_H }, a: off, b: off }
+  }
+  const artW = Math.round(Math.min(ARTBOARD_PREVIEW_WIDTH, (ARTBOARD_MAX_H * frame.width) / frame.height))
+  const artH = (frame.height * artW) / frame.width
+  const rowW = artW * 2 + CARD_GAP
+  const codeW = Math.max(rowW, CODE_DIFF_WIDTH)
+  const artX = (codeW - rowW) / 2
+  return {
+    a: { x: artX, y: 0, w: artW, h: null },
+    b: { x: artX + artW + CARD_GAP, y: 0, w: artW, h: null },
+    code: { x: 0, y: ARTBOARD_LABEL_H + artH + CODE_GAP_Y, w: codeW, h: CODE_H },
+  }
 }
 // Vertical room reserved above the cards for the two-tier floating top
 // controls (Compare > Check stepper at `top-3`, drift pager / Merge CTA row
-// at `top-14`, ~100px to its bottom edge) plus breathing room, so a freshly
+// at `top-[60px]`, ~104px to its bottom edge) plus breathing room, so a freshly
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
-// Room kept free below the cards for the bottom zoom controls / Changes Log.
-const BOTTOM_CONTROLS_CLEARANCE = 80
+// Room kept free below the cards for the bottom AI bar (~135px tall at
+// `bottom-5`), zoom controls and Changes Log, so fitted artboards never sit
+// underneath them.
+const BOTTOM_CONTROLS_CLEARANCE = 150
+// Fitting may zoom past 100% so the comparison fills the available canvas
+// on large screens instead of sitting small in the middle of it.
+const MAX_FIT_ZOOM = 1.8
 const DEFAULT_VIEW = { x: CONTENT_START_X, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
 
 function clampZoom(z) {
@@ -591,8 +1076,9 @@ function interpretAnnotation(text) {
   return { effect, summary: `Applied ${notes.join(', ')}` }
 }
 
-// One element, two states: a small sparkle circle *below* the clicked
-// element that widens (width + radius transition) into the "AI Edit"
+// One element, two states: a small solid sparkle circle at the clicked
+// element's bottom-right edge (beside it, so it never collides with the
+// size pill that hangs below the element) that widens into the "AI Edit"
 // prompt pill when clicked. Enter submits the prompt as an annotation.
 function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }) {
   const [text, setText] = useState('')
@@ -620,8 +1106,8 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
       className={cn(
         'absolute z-30 flex h-9 items-center overflow-hidden rounded-full border p-[3px] shadow-2xl backdrop-blur-md transition-[width,border-color,background-color] duration-300 ease-out',
         expanded
-          ? 'border-indigo-500/50 bg-card/95 shadow-indigo-500/20 focus-within:border-violet-500'
-          : 'border-transparent bg-transparent shadow-indigo-500/40'
+          ? 'border-emerald-400/50 bg-card/95 shadow-emerald-500/20 focus-within:border-emerald-400'
+          : 'border-slate-200 bg-white shadow-lg shadow-slate-900/25 hover:bg-slate-100'
       )}
     >
       <button
@@ -633,14 +1119,9 @@ function AiEditMorph({ left, top, expanded, label, onExpand, onSubmit, onClose }
           }
         }}
         title={expanded ? undefined : 'Edit with AI'}
-        // A clean, minimalist white icon — no filled circle behind it —
-        // marking the element as AI-editable; a drop shadow keeps it
-        // legible over whatever's underneath instead of needing a solid
-        // background chip.
-        className={cn(
-          'flex size-[28px] shrink-0 items-center justify-center text-white transition-opacity',
-          !expanded && 'drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] hover:opacity-80'
-        )}
+        // Collapsed: a mint sparkle on the solid white chip (see the form
+        // above), legible on any artboard. Expanded: white on the dark pill.
+        className={cn('flex size-[28px] shrink-0 items-center justify-center transition-colors', expanded ? 'text-white' : 'text-emerald-600')}
       >
         <Sparkles className="size-3.5" />
       </button>
@@ -709,7 +1190,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
       onSubmit={submit}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      className="w-60 rounded-2xl border border-indigo-500/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
+      className="w-60 rounded-2xl border border-emerald-400/40 bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md"
     >
       <div className="flex items-center gap-1.5">
         <Pencil className="size-3 shrink-0 text-muted-foreground" />
@@ -717,7 +1198,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="min-w-0 flex-1 rounded-full bg-muted/60 px-2.5 py-1 text-foreground outline-none focus:ring-1 focus:ring-violet-500"
+          className="min-w-0 flex-1 rounded-full bg-muted/60 px-2.5 py-1 text-foreground outline-none focus:ring-1 focus:ring-emerald-400"
         />
         <button
           type="button"
@@ -741,7 +1222,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
         <p
           className={cn(
             'flex min-w-0 flex-1 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium',
-            thinking || pending ? 'text-muted-foreground' : 'text-violet-500'
+            thinking || pending ? 'text-muted-foreground' : 'text-emerald-400'
           )}
         >
           <Sparkles className={cn('size-3 shrink-0', thinking && 'animate-pulse')} />
@@ -752,7 +1233,7 @@ function NotePopover({ annotation, onSave, onDelete, onClose }) {
         <button
           type="submit"
           disabled={!dirty}
-          className="shrink-0 rounded-full bg-slate-700 px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+          className="inline-flex items-center justify-center shrink-0 rounded-full bg-slate-700 px-2.5 h-6 text-[10px] font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
         >
           Save
         </button>
@@ -774,8 +1255,8 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
         className={cn(
           'absolute z-30 flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10px] font-bold text-white shadow-lg ring-2 ring-card',
           annotation.status === 'pending'
-            ? 'bg-slate-700 ring-violet-500'
-            : 'bg-slate-600 ring-indigo-500'
+            ? 'bg-slate-700 ring-emerald-400'
+            : 'bg-slate-600 ring-emerald-400/40'
         )}
       >
         {pin.n}
@@ -798,72 +1279,143 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
 // Compare-stage "Changes log": every modification so far — variant
 // selections, Block Assemble / Design System edits, presets, AI notes — as
 // rows you can Undo individually, or click to pan the canvas to the element
-// (or code line) they touch.
-function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo }) {
+// (or code line) they touch; then the code files with pending changes.
+//
+// Laid out like the studio's other panels: a header (title + count, and
+// the Version history link), then labeled groups on grouped surfaces with
+// hairline rows — one bright line per row (what changed) over one quiet
+// line (the detail), and quiet ghost actions.
+function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenHistory }) {
   const total = entries.length
   return (
     // `relative`, sized to just the button — the expanded panel is
     // `absolute` (popped up above it via `bottom-full`), so opening it
-    // never changes this wrapper's own layout box. It used to grow to
-    // `w-80` in normal flow instead, which pushed whatever sits to its
-    // left (the zoom pill) further out the moment it opened.
+    // never changes this wrapper's own layout box (the zoom pill to its
+    // left never moves).
     <div className="relative">
       {open && (
-        <div className="absolute right-0 bottom-full mb-2 max-h-80 w-80 max-w-[calc(100vw-1.5rem)] space-y-1.5 overflow-y-auto rounded-2xl border bg-card/95 p-2.5 text-[11px] shadow-2xl backdrop-blur-md">
-          {total === 0 && codeRows.length === 0 && (
-            <p className="py-3 text-center text-muted-foreground">No changes yet — pick variants, assemble blocks, or annotate.</p>
+        <div
+          className={cn(
+            'absolute right-0 bottom-full mb-2 flex max-h-[min(440px,calc(100vh-160px))] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden',
+            PANEL_RADIUS,
+            FLOATING_PANEL
           )}
-          {entries.map((e) => {
-            const canJump = Boolean(e.layerId || e.fileId)
-            return (
-              <div key={e.id} className="flex items-center gap-2 rounded-xl bg-slate-800/70 px-3 py-2">
-                <button
-                  type="button"
-                  disabled={!canJump}
-                  onClick={() => onJump(e)}
-                  title={canJump ? 'Jump to element' : undefined}
-                  className="min-w-0 flex-1 text-left leading-snug disabled:cursor-default"
-                >
-                  <span className="block truncate text-foreground">{e.title}</span>
-                  <span className={cn('block truncate', e.kind === 'annotation' ? 'text-violet-400' : 'text-muted-foreground')}>{e.detail}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onUndo(e)}
-                  title="Undo this change"
-                  className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Undo2 className="size-3.5" />
-                  Undo
-                </button>
-              </div>
-            )
-          })}
-          {codeRows.length > 0 && (
-            <div className="border-t border-border/60 pt-1.5">
-              <p className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Code</p>
-              {codeRows.map((f) => (
-                <p key={f.id} className="px-1 py-1 text-sm text-muted-foreground">
-                  <span className="text-foreground">{f.name}</span> · {f.changed} incoming line{f.changed === 1 ? '' : 's'}
-                  {f.aiLines > 0 && ` · ${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`}
+        >
+          {/* Header. Version history lives here (it used to be on the app's
+              right-hand toolbar): saved versions sit right next to the
+              unsaved changes. */}
+          <div className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
+            <span className="text-sm font-semibold text-foreground">Changes</span>
+            <span className="text-xs font-medium text-slate-500 tabular-nums">{total}</span>
+            {onOpenHistory && (
+              <button
+                type="button"
+                onClick={onOpenHistory}
+                className="ml-auto flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                <History className="size-3.5" />
+                Version history
+                <ChevronRight className="size-3 text-slate-500" />
+              </button>
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+            {total === 0 && codeRows.length === 0 && (
+              <p className={cn(PANEL_SURFACE, 'px-4 py-5 text-center text-xs leading-relaxed text-slate-400')}>
+                No changes yet — pick or edit values, edit code, assemble blocks, or annotate.
+              </p>
+            )}
+
+            {total > 0 && (
+              <section>
+                <p className={PANEL_LABEL}>
+                  Edits
+                  <span className="text-slate-500 tabular-nums">{total}</span>
                 </p>
-              ))}
-            </div>
-          )}
+                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+                  {entries.map((e) => {
+                    const canJump = Boolean(e.layerId || e.fileId)
+                    return (
+                      <li key={e.id} className="group/row flex items-center gap-2 pr-1.5 transition-colors hover:bg-white/[0.03]">
+                        <button
+                          type="button"
+                          disabled={!canJump}
+                          onClick={() => onJump(e)}
+                          title={canJump ? 'Jump to element' : undefined}
+                          className="min-w-0 flex-1 py-2.5 pl-3 text-left disabled:cursor-default"
+                        >
+                          <span className="block truncate text-[13px] font-medium text-slate-100">{e.title}</span>
+                          <span className={cn('mt-0.5 block truncate text-xs', e.kind === 'annotation' || e.kind === 'code' ? 'text-emerald-300/90' : 'text-slate-400')}>{e.detail}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUndo(e)}
+                          title="Undo this change"
+                          aria-label={`Undo: ${e.title}`}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors group-hover/row:text-slate-300 hover:bg-white/[0.08] hover:text-white"
+                        >
+                          <Undo2 className="size-3.5" />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {codeRows.length > 0 && (
+              <section>
+                <p className={PANEL_LABEL}>
+                  Code files
+                  <span className="text-slate-500 tabular-nums">{codeRows.length}</span>
+                </p>
+                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+                  {codeRows.map((f) => {
+                    const meta = getFileIconMeta(f.name)
+                    const parts = [
+                      f.aiLines > 0 && `${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`,
+                      f.manualLines > 0 && `${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`,
+                    ].filter(Boolean)
+                    return (
+                      <li key={f.id} className="flex items-center gap-2.5 px-3 py-2.5">
+                        <meta.Icon className="size-4 shrink-0 text-slate-400" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-slate-100">{f.name}</span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-400">
+                            {parts.length > 0 ? parts.join(' · ') : 'Incoming from the Current Implementation'}
+                          </span>
+                        </span>
+                        {/* The headline count, spelled out ("2 changes") —
+                            same wording as the Merge List's file rows. */}
+                        {f.changed > 0 && (
+                          <span title="Incoming changed lines" className="shrink-0 text-xs font-semibold whitespace-nowrap text-emerald-400 tabular-nums">
+                            {f.changed} change{f.changed === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+          </div>
         </div>
       )}
       <button
         type="button"
         onClick={onToggle}
-        // `h-11` explicitly, matching the adjacent zoom pill's own height —
-        // relying on padding alone to happen to match was fragile (it
-        // didn't: this button used to render visibly shorter).
-        className="ml-auto flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-4 text-sm font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted"
+        aria-expanded={open}
+        // `h-11` explicitly, matching the adjacent zoom pill's own height.
+        // Text + count only; the open state is a soft fill, not an icon.
+        className={cn(
+          'ml-auto flex h-11 items-center justify-center gap-2 rounded-full pr-3.5 pl-4.5 text-sm font-semibold text-foreground transition-colors',
+          FLOATING_PILL,
+          open ? 'bg-white/[0.1]' : 'hover:bg-muted'
+        )}
       >
-        <ListChecks className="size-4 text-indigo-500" />
         Changes log
-        <span className="rounded-full bg-indigo-500/20 px-2 text-xs text-indigo-300">{total}</span>
-        <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform', !open && 'rotate-180')} />
+        <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>{total}</span>
       </button>
     </div>
   )
@@ -874,17 +1426,17 @@ const MACRO_STEPS = [
   { id: 'check', label: 'Check' },
   { id: 'preview', label: 'Preview' },
   { id: 'review', label: 'Review' },
-  { id: 'deploy', label: 'Deploy' },
 ]
 
-// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review ➔ Deploy. The
+// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review (the flow ends
+// with a PR + review request — no deploy step). The
 // current stage is filled with the accent gradient (Compare while working
 // on the canvas; the wizard's step while Merge Changes is open). Clicking a
 // later step opens the merge wizard at that step.
 function MacroStepper({ stage, disabled, onOpenStep }) {
   const current = Math.max(0, MACRO_STEPS.findIndex((s) => s.id === stage))
   return (
-    <ol className="flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 shadow-lg backdrop-blur-md">
+    <ol className={cn('flex h-10 items-center gap-1 rounded-full px-1.5', FLOATING_PILL)}>
       {MACRO_STEPS.map((s, i) => {
         const active = i === current
         const done = i < current
@@ -894,11 +1446,11 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               type="button"
               // Strict progression: revisiting an already-passed step is
               // fine, but you can only ever advance one step at a time —
-              // no jumping straight to e.g. Deploy from Compare/Check.
+              // no jumping straight to e.g. Review from Compare.
               disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
-                'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                'flex h-7 items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors',
                 active && 'bg-slate-700 text-white',
                 done && 'text-emerald-400',
                 !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
@@ -927,15 +1479,32 @@ function MergeInfiniteCanvas({
   files,
   syncSelection,
   appliedPreset,
-  variantPreview,
+  variantPreviews,
   reserve,
+  // Right-edge space the *layout* keeps clear: the docked Block Deck only.
+  // The merge wizard floats over the canvas as an independent inspector, so
+  // opening it never refits the canvas or moves the tools; `reserve` (deck
+  // or wizard) is only used to center jump-to targets in the visible area.
+  layoutReserve = reserve,
+  onDriftNav,
+  guidesVisible = true,
+  onToggleGuides,
   listCollapsed,
   focus,
   resolutionCount,
   merged,
+  inReview,
+  headerAction,
   assemblies,
   resolutions,
   extraLayers,
+  manualCode,
+  syncedCode,
+  codeWindowCode,
+  onEditCode,
+  onLiveEditCode,
+  onEditText,
+  codeReveal,
   onUndoChange,
   onAnnotationsChange,
   stage = 'compare',
@@ -943,20 +1512,57 @@ function MergeInfiniteCanvas({
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
+  onFocusSource,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, setMergeListCollapsed } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
-  const [layout, setLayout] = useState(DEFAULT_LAYOUT)
+  const [layout, setLayout] = useState(() =>
+    defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
+  )
   const [panning, setPanning] = useState(false)
+  // Canvas tool (keyboard only — there's no on-canvas toolbar): 'select'
+  // (V) is the normal click-to-select canvas; 'hand' (H) turns the whole
+  // canvas into a pan surface. Holding Space is a temporary hand, like in
+  // Figma; dragging empty canvas always pans.
+  const [tool, setTool] = useState('select')
+  const [spaceHand, setSpaceHand] = useState(false)
+  const handActive = tool === 'hand' || spaceHand
+  useEffect(() => {
+    const typing = () => {
+      const el = document.activeElement
+      return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    function down(e) {
+      if (typing() || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'v' || e.key === 'V') setTool('select')
+      else if (e.key === 'h' || e.key === 'H') setTool('hand')
+      else if (e.code === 'Space') {
+        e.preventDefault()
+        setSpaceHand(true)
+      }
+    }
+    function up(e) {
+      if (e.code === 'Space') setSpaceHand(false)
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [])
   const [hover, setHover] = useState(null) // { layerId, fileId, line }
   const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const [annotations, setAnnotations] = useState([])
+  // Resolved drifts + applied AI notes: the Merge Changes button's count.
+  const mergeCount = resolutionCount + annotations.filter((a) => a.status === 'done').length
   const [openNote, setOpenNote] = useState(null)
-  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [], tethers: [] })
+  const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
   const [zoomRowRight, setZoomRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
@@ -989,17 +1595,21 @@ function MergeInfiniteCanvas({
     if (!c) return DEFAULT_VIEW
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
-    const right = frame ? Math.max(lay.code.x + lay.code.w, lay.a.x + artW('a'), lay.b.x + artW('b')) : lay.code.x + lay.code.w
-    const worldW = right - lay.code.x
-    const artBottom = (k) =>
-      lay[k].y + 30 + (lay[k].h ?? (frame.height * (lay[k].w ?? ARTBOARD_PREVIEW_WIDTH)) / frame.width)
-    const bottom = frame ? Math.max(lay.code.y + lay.code.h, artBottom('a'), artBottom('b')) : lay.code.y + lay.code.h
-    const worldH = bottom - lay.code.y
+    const cards = ['code', ...(frame ? ['a', 'b'] : [])]
+    const box = (k) =>
+      k === 'code'
+        ? { l: lay.code.x, t: lay.code.y, r: lay.code.x + lay.code.w, b: lay.code.y + lay.code.h }
+        : { l: lay[k].x, t: lay[k].y, r: lay[k].x + artW(k), b: lay[k].y + ARTBOARD_LABEL_H + (lay[k].h ?? (frame.height * artW(k)) / frame.width) }
+    const minX = Math.min(...cards.map((k) => box(k).l))
+    const minY = Math.min(...cards.map((k) => box(k).t))
+    const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
+    const worldH = Math.max(...cards.map((k) => box(k).b)) - minY
     const startX = contentStartX()
-    const visRight = rect.width - 32 - reserve
+    // Clear of the right-edge canvas tools and the docked Block Deck.
+    const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - layoutReserve
     const availW = visRight - startX
     const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
-    const zoom = clampZoom(Math.floor(Math.min(1, availW / worldW, availH / worldH) * 100))
+    const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
     // Horizontal axis to center on: the bottom AI chat bar's own center
@@ -1019,16 +1629,17 @@ function MergeInfiniteCanvas({
         : Math.min(Math.max(axis - contentW / 2, startX), visRight - contentW)
     return {
       zoom,
-      x: left - lay.code.x * k,
+      x: left - minX * k,
       // Below the top controls, vertically centered in what's left when the
       // content is shorter than the available height.
-      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - lay.code.y * k,
+      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - minY * k,
     }
   }
 
   useEffect(() => {
-    setView(fitView(DEFAULT_LAYOUT))
-    setLayout(DEFAULT_LAYOUT)
+    const lay = defaultLayout(frame)
+    setView(fitView(lay))
+    setLayout(lay)
     setHover(null)
     setFrameSel(null)
     setAiStage(null)
@@ -1046,9 +1657,9 @@ function MergeInfiniteCanvas({
     const width = c.getBoundingClientRect().width
     const bw = layout.b.w ?? ARTBOARD_PREVIEW_WIDTH
     const right = viewRef.current.x + (layout.b.x + bw) * (viewRef.current.zoom / 100)
-    if (frame && right > width - reserve - 24) setView(fitView(layout))
+    if (frame && right > width - layoutReserve - 24) setView(fitView(layout))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reserve])
+  }, [layoutReserve])
 
   // Inbox jump: after the target is selected (and the code tab has had a
   // moment to switch), ease the view so the element sits at the center of
@@ -1095,9 +1706,33 @@ function MergeInfiniteCanvas({
           y: from.y + (to.y - from.y) * e,
         })
         if (t < 1) raf = requestAnimationFrame(tick)
+        else if (focus.target.pulse) pulseTarget()
       }
       raf = requestAnimationFrame(tick)
     }, 260)
+    // Inbox jumps: once the pan lands, pulse a green ring on the target (on
+    // every artboard showing it) so it's obvious what the comment is about.
+    function pulseTarget() {
+      const c = containerRef.current
+      if (!c) return
+      const { layerId, fileId, line, card } = focus.target
+      const els = layerId
+        ? [...c.querySelectorAll(`[data-layer-id="${layerId}"]`)]
+        : fileId && line
+          ? [...c.querySelectorAll(`[data-code-line="${fileId}:${line}"]`)]
+          : card === 'code' || fileId
+            ? [...c.querySelectorAll('[data-card="code"]')]
+            : [...c.querySelectorAll(`[data-frame-key="${card}"]`)]
+      for (const el of els) {
+        el.animate?.(
+          [
+            { boxShadow: '0 0 0 0 rgba(52, 211, 153, 0.95)' },
+            { boxShadow: '0 0 0 12px rgba(52, 211, 153, 0)' },
+          ],
+          { duration: 750, iterations: 2, easing: 'ease-out' }
+        )
+      }
+    }
     return () => {
       clearTimeout(timer)
       cancelAnimationFrame(raf)
@@ -1142,6 +1777,7 @@ function MergeInfiniteCanvas({
     })
   }
 
+  const driftLayerIds = new Set(Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}))
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
   const spanEnd = (t) => t.line + (t.span ?? 1) - 1
@@ -1172,6 +1808,7 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLayer(layerId)
+    onFocusSource?.('design')
   }
   function pickLine(fileId, line, el) {
     anchorElRef.current = el
@@ -1179,6 +1816,7 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLine(fileId, line)
+    onFocusSource?.('code')
   }
   function pickFrame(key, el) {
     anchorElRef.current = el
@@ -1186,6 +1824,7 @@ function MergeInfiniteCanvas({
     setFrameSel(key)
     setAiStage('badge')
     onSelectFrame()
+    onFocusSource?.('design')
   }
 
   // Click-to-annotate: the note becomes a pin on the element; the (mock)
@@ -1258,7 +1897,7 @@ function MergeInfiniteCanvas({
       }
     }
     if (a.fileId && a.line) {
-      const original = getFileLines(a.fileId)[a.line - 1] ?? ''
+      const original = (files.find((f) => f.id === a.fileId)?.lines ?? getFileLines(a.fileId))[a.line - 1] ?? ''
       const incoming = codeMergeVariants[item.id]?.[a.fileId]?.find((d) => d.line === a.line)?.incoming ?? original
       codeEdits[`${a.fileId}:${a.line}`] = `${incoming.replace(/\s*\/\/ AI:.*$/, '')}  // AI: ${a.summary}`
     }
@@ -1274,8 +1913,8 @@ function MergeInfiniteCanvas({
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
     ? frameSel === 'a'
-      ? 'Option A'
-      : 'Option B'
+      ? 'Original Design'
+      : 'Current Implementation'
     : (frame?.layers.find((l) => l.id === syncSelection?.layerId)?.name ??
       (syncSelection?.line ? `line ${syncSelection.line}` : 'selection'))
 
@@ -1293,7 +1932,6 @@ function MergeInfiniteCanvas({
         const rel = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top })
         const find = (sel) => container.querySelector(sel)
         const paths = []
-        const tethers = []
         const codeEl = find('[data-card="code"]')
 
         if (hasSelection) {
@@ -1327,16 +1965,18 @@ function MergeInfiniteCanvas({
               const lineY = lineRect ? (lineRect.top + lineRect.bottom) / 2 : (code.top + code.bottom) / 2
               const from = { x: toRight ? code.right : code.left, y: clampY(lineY, code) }
               const to = { x: toRight ? rA.left : rA.right, y: yFor('a', rA) }
-              const mark = markOf('a')
-              if (mark) {
-                const mr = rel(mark.getBoundingClientRect())
-                tethers.push({ x1: to.x, y1: to.y, x2: toRight ? mr.left - 3 : mr.right + 3, y2: to.y })
-              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Code changes',
                 gap: toRight ? rA.left - code.right : code.left - rA.right,
               })
+            } else if (code.top >= rA.bottom) {
+              // Design-first layout: from the top of the code card up to the
+              // bottom of the Original Design artboard.
+              const x = Math.min(Math.max((rA.left + rA.right) / 2, code.left + 12), code.right - 12)
+              const from = { x, y: code.top }
+              const to = { x, y: rA.bottom }
+              paths.push({ ...linkGeometryV(from, to), label: 'Code changes', axis: 'v', gap: from.y - to.y })
             } else if (rA.top >= code.bottom) {
               // Stacked layout: from the bottom of the code card down to the
               // Option A artboard's label.
@@ -1355,16 +1995,6 @@ function MergeInfiniteCanvas({
             if (forward || backward) {
               const from = { x: forward ? rA.right : rA.left, y: yFor('a', rA) }
               const to = { x: forward ? rB.left : rB.right, y: yFor('b', rB) }
-              const markA = markOf('a')
-              const markB = markOf('b')
-              if (markA) {
-                const mr = rel(markA.getBoundingClientRect())
-                tethers.push({ x1: from.x, y1: from.y, x2: forward ? mr.right + 3 : mr.left - 3, y2: from.y })
-              }
-              if (markB) {
-                const mr = rel(markB.getBoundingClientRect())
-                tethers.push({ x1: to.x, y1: to.y, x2: forward ? mr.left - 3 : mr.right + 3, y2: to.y })
-              }
               paths.push({
                 ...linkGeometry(from, to, Math.abs(from.y - to.y) < 20 ? 24 : 0),
                 label: 'Design changes',
@@ -1409,8 +2039,10 @@ function MergeInfiniteCanvas({
           const bottom = Math.min(r.bottom, c.bottom)
           return right - left > 2 && bottom - top > 2 ? { left, right, top, bottom } : null
         }
-        const push = (r, strong, key) =>
-          boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong })
+        // `size` (optional): the element's real design size — its unscaled
+        // layout box, unaffected by canvas zoom or artboard scaling.
+        const push = (r, strong, key, size) =>
+          boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong, size })
 
         for (const fk of ['a', 'b']) {
           const frameBox = find(`[data-frame-key="${fk}"] [data-frame-box]`)
@@ -1424,7 +2056,7 @@ function MergeInfiniteCanvas({
             const strong = id === syncSelection?.layerId
             if (!strong) return
             const r = clip(rel(el.getBoundingClientRect()), fr)
-            if (r) push(r, strong, `layer-${fk}-${id}`)
+            if (r) push(r, strong, `layer-${fk}-${id}`, { w: el.offsetWidth, h: el.offsetHeight })
           })
         }
 
@@ -1449,7 +2081,7 @@ function MergeInfiniteCanvas({
           merged.forEach((r, i) => push(r, r.strong, `code-${i}`))
         }
 
-        const next = { paths, anchor, pins, boxes, tethers }
+        const next = { paths, anchor, pins, boxes }
         setLinks((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
       }
       raf = requestAnimationFrame(measure)
@@ -1490,24 +2122,15 @@ function MergeInfiniteCanvas({
     zoomAt(viewRef.current.zoom + delta, rect.width / 2, rect.height / 2)
   }
 
-  // Click-away dismissal for the Merge List overlay drawer: a plain click
-  // (not a pan/drag — same 4px threshold as card drags) anywhere on the
-  // canvas viewport collapses it. Listened for in the *capture* phase and
-  // never stops propagation, so it sees clicks on cards, code lines and
-  // layers too without swallowing or altering them; the floating controls
-  // outside the viewport (stepper, zoom row, etc.) aren't affected.
-  const dismissDownRef = useRef(null)
-  function onViewportPointerDownCapture(e) {
-    dismissDownRef.current = e.button === 0 && !listCollapsed ? { x: e.clientX, y: e.clientY } : null
-  }
-  function onViewportPointerUpCapture(e) {
-    const down = dismissDownRef.current
-    dismissDownRef.current = null
-    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 4) setMergeListCollapsed(true)
-  }
 
   function startPan(e) {
     if (e.target !== e.currentTarget || e.button !== 0) return
+    beginPan(e)
+  }
+  // Pan from anywhere (Hand tool) — no empty-canvas check.
+  function beginPan(e) {
+    if (e.button !== 0) return
+    e.preventDefault()
     const start = { px: e.clientX, py: e.clientY, vx: view.x, vy: view.y }
     setPanning(true)
     setAiStage(null)
@@ -1599,17 +2222,29 @@ function MergeInfiniteCanvas({
     const o = layer && assemblyToOverride(assembly, layer)
     if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
   }
-  const selId = variantPreview?.layerId ?? syncSelection?.layerId
-  if (selId && (variantPreview || appliedPreset)) {
-    const base = overrides[selId]
-    overrides[selId] = {
+  // Code -> canvas sync: hand-edited (and in-progress) code lines restyle
+  // their linked layers on the Current Implementation artboard.
+  for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, syncedCode ?? manualCode, getFileLines))) {
+    overrides[layerId] = mergeOverride(overrides[layerId], o)
+  }
+  // Variant drifts: every drifted layer renders its Current Implementation
+  // value (or the chosen / hovered one) underneath the edits above.
+  // Exact values set in the Assemble inspector (radius, W/H) win over the
+  // drift's default, so what's typed is exactly what renders.
+  for (const [layerId, e] of Object.entries(variantPreviews ?? {})) {
+    const base = overrides[layerId]
+    const exact = assemblies?.[layerId] ?? {}
+    overrides[layerId] = {
       ...base,
-      radius: variantPreview?.radius ?? base?.radius,
-      dw: (base?.dw ?? 0) + (variantPreview?.dw ?? 0),
-      dh: (base?.dh ?? 0) + (variantPreview?.dh ?? 0),
-      className: appliedPreset?.previewClass ?? variantPreview?.className ?? base?.className,
+      radius: exact.radius !== undefined || exact.shape ? base?.radius : (e.radius ?? base?.radius),
+      fontWeight: e.fontWeight ?? base?.fontWeight,
+      dw: (base?.dw ?? 0) + (exact.width !== undefined ? 0 : (e.dw ?? 0)),
+      dh: (base?.dh ?? 0) + (exact.height !== undefined ? 0 : (e.dh ?? 0)),
+      className: base?.className ?? e.className,
     }
   }
+  const selId = syncSelection?.layerId
+  if (selId && appliedPreset) overrides[selId] = { ...overrides[selId], className: appliedPreset.previewClass }
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
@@ -1656,11 +2291,17 @@ function MergeInfiniteCanvas({
     // so the whole app's other dark surfaces are untouched.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-800">
       <div ref={containerRef} className="relative min-h-0 flex-1">
+        {/* Hand tool: a pan surface over the whole canvas (floating
+            controls sit above it at z-20 and stay clickable). */}
+        {handActive && (
+          <div
+            onPointerDown={beginPan}
+            className={cn('absolute inset-0 z-[15]', panning ? 'cursor-grabbing' : 'cursor-grab')}
+          />
+        )}
         <div
           ref={viewportRef}
           onPointerDown={startPan}
-          onPointerDownCapture={onViewportPointerDownCapture}
-          onPointerUpCapture={onViewportPointerUpCapture}
           className={cn('absolute inset-0 overflow-hidden', panning ? 'cursor-grabbing' : 'cursor-grab')}
           style={{
             touchAction: 'none',
@@ -1700,6 +2341,10 @@ function MergeInfiniteCanvas({
                   highlightEnd={syncSelection?.endLine}
                   onSelectLine={pickLine}
                   incomingEdits={codeEdits}
+                  manualCode={codeWindowCode ?? manualCode}
+                  reveal={codeReveal}
+                  onEditLine={onEditCode}
+                  onLiveLine={onLiveEditCode}
                   highlightRef={highlightRef}
                 />
               )}
@@ -1709,7 +2354,7 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="a"
                     frame={frame}
-                    label="Option A · Current"
+                    label="Original Design"
                     x={layout.a.x}
                     y={layout.a.y}
                     w={layout.a.w}
@@ -1719,7 +2364,8 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('a')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
-                    hoverLayerId={hover?.layerId}
+                    driftLayerIds={guidesVisible ? driftLayerIds : undefined}
+                    hoverLayerId={guidesVisible ? hover?.layerId : undefined}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
                     onSelectLayer={pickLayer}
@@ -1728,7 +2374,9 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="b"
                     frame={frame}
-                    label="Option B · Incoming"
+                    label="Current Implementation"
+                    editable
+                    onEditText={onEditText}
                     accentClass={OPTION_B_ACCENT}
                     x={layout.b.x}
                     y={layout.b.y}
@@ -1739,7 +2387,8 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag('b')}
                     onClickCapture={swallowDragClick}
                     linkedLayerIds={linkedLayerIds}
-                    hoverLayerId={hover?.layerId}
+                    driftLayerIds={guidesVisible ? driftLayerIds : undefined}
+                    hoverLayerId={guidesVisible ? hover?.layerId : undefined}
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
                     overrides={overrides}
@@ -1752,15 +2401,15 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
+        {/* Selection / link highlight boxes and connector lines — hidden
+            with the eye toggle on the canvas tools. */}
+        {guidesVisible && (
         <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
           <defs>
-            <linearGradient id="neon-link" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#bef264" />
-              <stop offset="100%" stopColor="#4ade80" />
+            <linearGradient id="accent-link" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#6ee7b7" />
             </linearGradient>
-            <filter id="neon-glow" x="-20%" y="-50%" width="140%" height="200%">
-              <feGaussianBlur stdDeviation="4" />
-            </filter>
           </defs>
           {links.boxes.map((b) => (
             <g key={b.key}>
@@ -1771,39 +2420,22 @@ function MergeInfiniteCanvas({
                 height={b.h}
                 rx={5}
                 fill="none"
-                stroke="#a3e635"
+                stroke="#34d399"
                 strokeWidth={b.strong ? 1.5 : 1}
-                strokeOpacity={b.strong ? 0.9 : 0.5}
-                style={{ filter: `drop-shadow(0 0 ${b.strong ? 4 : 2}px #a3e635)` }}
+                strokeOpacity={b.strong ? 1 : 0.5}
               />
             </g>
           ))}
-          {links.tethers.map((t, i) => (
-            <line
-              key={i}
-              x1={t.x1}
-              y1={t.y1}
-              x2={t.x2}
-              y2={t.y2}
-              stroke="#a3e635"
-              strokeWidth={2}
-              strokeLinecap="round"
-              style={{ filter: 'drop-shadow(0 0 4px #a3e635)' }}
-            />
-          ))}
           {links.paths.map((p, i) => (
             <g key={i}>
-              <path d={p.d} fill="none" stroke="#a3e635" strokeWidth={7} strokeOpacity={0.32} strokeLinecap="round" filter="url(#neon-glow)" />
-              <path d={p.d} fill="none" stroke="url(#neon-link)" strokeWidth={2.5} strokeOpacity={0.85} strokeLinecap="round" />
+              <path d={p.d} fill="none" stroke="url(#accent-link)" strokeWidth={1.5} strokeOpacity={0.85} strokeLinecap="round" />
               {[p.from, p.to].map((pt, j) => (
-                <g key={j}>
-                  <circle cx={pt.x} cy={pt.y} r={9} fill="#a3e635" fillOpacity={0.14} filter="url(#neon-glow)" />
-                  <circle cx={pt.x} cy={pt.y} r={4} fill="#d9f99d" stroke="#a3e635" strokeWidth={1.5} />
-                </g>
+                <circle key={j} cx={pt.x} cy={pt.y} r={3} fill="#d1fae5" stroke="#34d399" strokeWidth={1} />
               ))}
             </g>
           ))}
         </svg>
+        )}
 
         {/* Dimension overlay: a width × height readout for each "strong"
             (actually-selected, not just linked) box — divided back out of
@@ -1818,21 +2450,21 @@ function MergeInfiniteCanvas({
             spilling sideways into whatever neighboring element happens to
             sit directly to the right (a Subscribe button next to a form
             field, say), which centering *or* a rightward offset both did. */}
-        {links.boxes
+        {guidesVisible && links.boxes
           // Design boxes only — code-line selections (`code-*`) already
           // read clearly from their own row highlight, and a size readout
           // on them was just clutter.
           .filter((b) => b.strong && !b.key.startsWith('code-'))
           .map((b) => {
             const zoomFactor = view.zoom > 0 ? view.zoom / 100 : 1
-            const w = Math.round((b.w - 6) / zoomFactor)
-            const h = Math.round((b.h - 6) / zoomFactor)
+            const w = b.size ? b.size.w : Math.round((b.w - 6) / zoomFactor)
+            const h = b.size ? b.size.h : Math.round((b.h - 6) / zoomFactor)
             if (!Number.isFinite(w) || !Number.isFinite(h)) return null
             return (
               <span
                 key={`dim-${b.key}`}
                 style={{ left: b.x + b.w, top: b.y + b.h + 6 }}
-                className="pointer-events-none absolute z-10 -translate-x-full rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                className="pointer-events-none absolute z-10 -translate-x-full rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-slate-950 shadow-md shadow-emerald-400/30"
               >
                 {Math.max(0, w)} × {Math.max(0, h)}
               </span>
@@ -1853,8 +2485,12 @@ function MergeInfiniteCanvas({
 
         {hasSelection && links.anchor && aiStage && (
           <AiEditMorph
-            left={Math.min(Math.max(8, (links.anchor.l + links.anchor.r) / 2 - 18), Math.max(8, links.anchor.w - 336))}
-            top={Math.min(links.anchor.b + 10, Math.max(8, links.anchor.h - 56))}
+            // Just right of the element, bottom-aligned with it — clear of
+            // the size pill below its bottom-right corner. Pulled back
+            // inside the canvas when there's no room (the expanded prompt
+            // is 320px wide).
+            left={Math.max(8, Math.min(links.anchor.r + 8, links.anchor.w - (aiStage === 'prompt' ? 328 : 44)))}
+            top={Math.min(Math.max(8, links.anchor.b - 36), Math.max(8, links.anchor.h - 56))}
             expanded={aiStage === 'prompt'}
             label={selectionLabel}
             onExpand={() => setAiStage('prompt')}
@@ -1875,9 +2511,20 @@ function MergeInfiniteCanvas({
             the right broke that. This way it's always dead-center of the
             [leftInset, right: 12+reserve] box, matching the workspace
             canvas regardless of sidebar/deck state. */}
+        {/* Top-center stepper: centered on the whole studio canvas
+            (absolute left-1/2), independent of the right-docked Block Deck
+            / wizard reserve, so opening or closing them never moves it. */}
+        <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-10 -translate-x-1/2 items-center">
+          <MacroStepper stage={stage} disabled={merged || inReview} onOpenStep={(step) => onMerge(annotations, step)} />
+        </div>
+
+        {/* Right-hand header cluster (notifications + avatars, Preview,
+            Apply with AI): pinned top-right. The docked Block Deck and the
+            merge wizard both open below this row (60px), so neither pushes
+            it aside. */}
         <div
-          className="pointer-events-none absolute top-3 z-20 flex h-9 items-center"
-          style={{ left: leftInset, right: 12 + reserve }}
+          className="pointer-events-none absolute top-3 z-20 flex h-10 items-center"
+          style={{ left: leftInset, right: 12 }}
         >
           {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
               cluster that used to live here moved up to
@@ -1890,41 +2537,70 @@ function MergeInfiniteCanvas({
               sits at this same `left: leftInset` starting edge, silently
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
-          <div className="pointer-events-auto absolute left-1/2 -translate-x-1/2">
-            <MacroStepper stage={stage} disabled={merged} onOpenStep={(step) => onMerge(annotations, step)} />
-          </div>
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
           {/* Same presence cluster as the main Workspace TopBar (teammate
               avatars that follow-on-click + your own profile menu) — that
               bar is hidden in Merge Studio, so it lives here instead, in a
               glass pill matched to the Preview button's 30px height. */}
-          <div className="flex h-[30px] items-center rounded-full border bg-card/90 pr-1.5 pl-1 shadow-lg backdrop-blur-md">
-            <UserPresence />
+          <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
+            {/* Notifications (the merge inbox) live with the people who
+                send them: right beside the avatars. */}
+            <button
+              type="button"
+              title="Notifications"
+              onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
+              className={cn(
+                'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+                mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
+              )}
+            >
+              <Bell className="size-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <span className="h-4 w-px bg-white/10" />
+            {/* Studio-scoped styling for the shared presence stack (the
+                component itself is untouched): left-on-top order and the
+                soft surface-colored ring. */}
+            <span className={PRESENCE_STACK}>
+              <UserPresence />
+            </span>
           </div>
+          {/* The collapsed Block Deck lives here, in the header, as a
+              toggle pill next to Share (see MergeStudioWorkspace). */}
+          {headerAction}
+          <MergeShareButton item={item} />
           <button
             type="button"
             onClick={() => setMergePreviewOpen((v) => !v)}
+            title={mergePreviewOpen ? 'Close preview' : 'Preview'}
+            aria-label="Preview"
+            aria-pressed={mergePreviewOpen}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-lg backdrop-blur-md transition-colors',
-              mergePreviewOpen
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card/90 text-foreground hover:bg-muted'
+              // Icon-only, same 40px height as the notifications/avatars
+              // pill beside it.
+              'flex size-10 items-center justify-center rounded-full transition-colors',
+              FLOATING_PILL,
+              mergePreviewOpen ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-muted'
             )}
           >
-            <PanelRight className="size-3.5" />
-            Preview
+            {/* Outline play triangle, nudged 1px right to sit optically centered. */}
+            <Play className="size-4 translate-x-px" />
           </button>
           {annotations.length > 0 && (
             <button
               type="button"
               onClick={applyAll}
               disabled={pendingCount === 0}
-              className="flex items-center gap-1.5 rounded-full border border-indigo-500/50 bg-card/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-400/50 bg-card/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Sparkles className="size-3.5 text-violet-500" />
+              <Sparkles className="size-4 text-emerald-400" />
               Apply with AI
               {pendingCount > 0 && (
-                <span className="rounded-full bg-indigo-500/20 px-1.5 text-[10px] text-indigo-300">
+                <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>
                   {pendingCount}
                 </span>
               )}
@@ -1943,13 +2619,16 @@ function MergeInfiniteCanvas({
             lives in the Block Deck), so leaving this up too would just be
             redundant, clashing UI. */}
         {stage === 'compare' && (
-        <div className="pointer-events-none absolute top-14 z-20 flex justify-center " style={{ left: leftInset, right: 12 + reserve }}>
+        <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
-              <div className="relative flex items-center gap-1 rounded-full border bg-card/90 p-1.5 text-sm shadow-lg backdrop-blur-md">
+              <div data-guide="drift-nav" className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
                 <button
                   type="button"
-                  onClick={() => goDrift(-1)}
+                  onClick={() => {
+                    goDrift(-1)
+                    onDriftNav?.()
+                  }}
                   title="Previous drift"
                   className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
@@ -1963,7 +2642,10 @@ function MergeInfiniteCanvas({
                 </span>
                 <button
                   type="button"
-                  onClick={() => goDrift(1)}
+                  onClick={() => {
+                    goDrift(1)
+                    onDriftNav?.()
+                  }}
                   title="Next drift"
                   className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
@@ -1974,20 +2656,33 @@ function MergeInfiniteCanvas({
 
             <button
               type="button"
-              disabled={merged}
+              data-guide="merge-cta"
+              disabled={merged || inReview}
               onClick={() => onMerge(annotations)}
               className={cn(
-                'flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
+                // Text-only pill: even 20px sides; with the count badge, the
+                // right side tightens to 12px — the same gap the 20px badge
+                // leaves above and below it in the 44px pill.
+                merged || inReview || !mergeCount ? 'px-5' : 'pr-3 pl-5',
                 merged
                   ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                  : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-indigo-500/30 hover:brightness-110 disabled:opacity-50'
+                  : inReview
+                    ? // Waiting on reviewers: a quiet neutral state, not the CTA.
+                      'border border-white/15 bg-card/90 text-slate-200 backdrop-blur-md'
+                  : // The studio's signature CTA: a mint gradient (the brand
+                    // accent's own family — emerald into teal), dark text.
+                    'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
               )}
             >
-              {merged ? <Check className="size-4" /> : <GitMerge className="size-4" />}
-              {merged ? 'Merged' : 'Merge Changes'}
-              {!merged && resolutionCount + annotations.filter((a) => a.status === 'done').length > 0 && (
-                <span className="rounded-full bg-white/20 px-1.5 text-xs">
-                  {resolutionCount + annotations.filter((a) => a.status === 'done').length}
+              {merged && <Check className="size-4" />}
+              {inReview && !merged && <Eye className="size-4 text-slate-400" />}
+              {merged ? 'Merged' : inReview ? 'In review' : 'Merge Changes'}
+              {!merged && !inReview && mergeCount > 0 && (
+                // Solid white circular count badge (grows into a pill only
+                // for 2-digit counts).
+                <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] leading-none font-bold text-emerald-700 tabular-nums shadow-sm">
+                  {mergeCount}
                 </span>
               )}
             </button>
@@ -2006,7 +2701,7 @@ function MergeInfiniteCanvas({
           same baseline as the AI chat bar (`fixed bottom-5` in
           MergeAiBar.jsx), instead of 8px higher. */}
       <div ref={zoomRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
-        <div className="flex h-11 items-center gap-1.5 rounded-full border bg-card/90 px-2 text-sm shadow-lg backdrop-blur-sm">
+        <div className={cn('flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}>
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
@@ -2026,13 +2721,35 @@ function MergeInfiniteCanvas({
             type="button"
             title="Reset view and layout"
             onClick={() => {
-              setView(fitView(DEFAULT_LAYOUT))
-              setLayout(DEFAULT_LAYOUT)
+              const lay = defaultLayout(frame)
+              setView(fitView(lay))
+              setLayout(lay)
             }}
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Maximize className="size-4" />
           </button>
+          {/* Show / hide every selection box, link line, size readout and
+              drift / hover outline on the canvas (moved here from the old
+              right-edge toolbar). */}
+          {onToggleGuides && (
+            <>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button
+                type="button"
+                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
+                aria-label="Selection guides"
+                aria-pressed={guidesVisible}
+                onClick={onToggleGuides}
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-full transition-colors',
+                  guidesVisible ? 'text-muted-foreground hover:bg-muted hover:text-foreground' : 'bg-white/10 text-foreground'
+                )}
+              >
+                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              </button>
+            </>
+          )}
         </div>
 
         {stage === 'compare' && (() => {
@@ -2040,7 +2757,7 @@ function MergeInfiniteCanvas({
             appliedPreset && syncSelection?.layerId
               ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
               : null
-          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [])
+          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {}, files.filter((f) => f.id === COPY_FILE_ID))
           const entries = [
             ...summary.design.map((d) => {
               let kind = 'variant'
@@ -2049,6 +2766,17 @@ function MergeInfiniteCanvas({
               else if (d.key.startsWith('added-')) [kind, layerId] = ['component', d.key.slice(6)]
               else if (d.key === 'preset') [kind, layerId] = ['preset', presetObj?.layerId]
               return { id: d.key, key: d.key, kind, layerId, title: d.text, detail: d.choice }
+            }),
+            ...Object.entries(manualCode ?? {}).map(([key, text]) => {
+              const split = key.lastIndexOf(':')
+              const fileId = key.slice(0, split)
+              const line = Number(key.slice(split + 1))
+              const name = files.find((f) => f.id === fileId)?.name ?? fileId
+              // copy.json lines read as the text they changed, not raw JSON.
+              const entry = fileId === COPY_FILE_ID ? copyEntries(frame)[line - 2] : null
+              const parsed = entry ? parseCopyLine(text) : null
+              if (entry && parsed) return { id: `code-${key}`, kind: 'code', layerId: entry.layerId, fileId, line, title: `${entry.name} · text`, detail: `“${parsed.value}”` }
+              return { id: `code-${key}`, kind: 'code', fileId, line, title: `${name} · line ${line}`, detail: `Edited: ${text.trim() || '(empty line)'}` }
             }),
             ...annotations.map((a) => ({
               id: a.id,
@@ -2063,9 +2791,13 @@ function MergeInfiniteCanvas({
           return (
             <ChangesLog
               entries={entries}
-              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0)}
+              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0)}
               open={summaryOpen}
               onToggle={() => setSummaryOpen((v) => !v)}
+              onOpenHistory={() => {
+                setSummaryOpen(false)
+                setMergeDrawer('history')
+              }}
               onJump={(e) =>
                 requestMergeFocus({
                   itemId: item.id,
