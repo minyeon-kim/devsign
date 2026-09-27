@@ -41,12 +41,9 @@ function ProgressRing({ percent }) {
 // the ring is the % of the project's design tokens that are actually in
 // sync with code, so "progress" here means the same thing Detect ->
 // Review -> Merge does everywhere else in the app.
-function ProjectProgressCards({ selectedProjectIds }) {
+function ProjectProgressCards() {
   const navigate = useNavigate()
-  const pool = selectedProjectIds ? projects.filter((p) => selectedProjectIds.includes(p.id)) : projects
-  const highlighted = selectedProjectIds
-    ? [...pool].sort((a, b) => b.conflicts - a.conflicts)
-    : [...pool].sort((a, b) => b.conflicts - a.conflicts).slice(0, 3)
+  const highlighted = [...projects].sort((a, b) => b.conflicts - a.conflicts).slice(0, 3)
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">

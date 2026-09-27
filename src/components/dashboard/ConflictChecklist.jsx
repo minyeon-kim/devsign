@@ -14,12 +14,11 @@ function toConflictState(c) {
 // actual unit of work (a conflict, not a to-do). Status here is local,
 // session-only state (mock data + React state, no shared store) — the
 // full /conflicts page holds its own independent copy.
-function ConflictChecklist({ limit = 'All' }) {
+function ConflictChecklist() {
   const navigate = useNavigate()
   const [conflicts, setConflicts] = useState(() => conflictChecklist.map(toConflictState))
   const [activeConflictId, setActiveConflictId] = useState(null)
 
-  const visibleConflicts = limit === 'All' ? conflicts : conflicts.slice(0, limit)
   const activeConflict = conflicts.find((c) => c.id === activeConflictId) ?? null
   const firstOpen = conflicts.find((c) => c.status !== 'Resolved')
 
@@ -46,7 +45,7 @@ function ConflictChecklist({ limit = 'All' }) {
       </div>
 
       <ul className="mt-2 flex flex-col">
-        {visibleConflicts.map((conflict) => (
+        {conflicts.map((conflict) => (
           <li key={conflict.id} className="border-b border-border/60 last:border-b-0">
             <button
               type="button"

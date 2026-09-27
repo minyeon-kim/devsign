@@ -227,24 +227,6 @@ export const conflictActivitySeries = [
   { label: 'Sat', resolved: 2, inReview: 1, pending: 0 },
 ]
 
-// Alternate periods for the dashboard's "Conflict activity" widget period
-// switcher — same shape as conflictActivitySeries (the "This week" data).
-export const conflictActivitySeriesLastWeek = [
-  { label: 'Mon', resolved: 2, inReview: 0, pending: 1 },
-  { label: 'Tue', resolved: 3, inReview: 1, pending: 0 },
-  { label: 'Wed', resolved: 1, inReview: 1, pending: 1 },
-  { label: 'Thu', resolved: 4, inReview: 0, pending: 0, peak: true },
-  { label: 'Fri', resolved: 2, inReview: 1, pending: 0 },
-  { label: 'Sat', resolved: 1, inReview: 0, pending: 0 },
-]
-
-export const conflictActivitySeriesThisMonth = [
-  { label: 'Wk 1', resolved: 9, inReview: 2, pending: 1 },
-  { label: 'Wk 2', resolved: 11, inReview: 3, pending: 1, peak: true },
-  { label: 'Wk 3', resolved: 6, inReview: 2, pending: 2 },
-  { label: 'Wk 4', resolved: 8, inReview: 1, pending: 0 },
-]
-
 // Backs the dashboard's Merge schedule calendar. Dates are offsets from
 // "today" (computed at module load) rather than fixed calendar dates, so
 // the mock schedule always has something to show near the current month
