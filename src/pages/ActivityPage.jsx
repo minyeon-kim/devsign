@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Activity as ActivityIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowLeft, Activity as ActivityIcon } from 'lucide-react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
+import { Button } from '@/components/ui/button'
 import ActivityFilterBar from '@/components/activity/ActivityFilterBar'
 import ActivityRow from '@/components/activity/ActivityRow'
 import ActivityOverview from '@/components/activity/ActivityOverview'
@@ -34,6 +36,9 @@ function ActivityPage() {
       }
     >
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon-sm" title="Back to dashboard" nativeButton={false} render={<Link to="/dashboard" />}>
+          <ArrowLeft className="size-3.5" />
+        </Button>
         <ActivityIcon className="size-5 text-muted-foreground" />
         <h1 className="text-lg font-semibold text-foreground">All activities</h1>
       </div>

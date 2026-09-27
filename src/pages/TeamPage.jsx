@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Archive, ArrowDown, ArrowUp, ArrowUpDown, Download, Lock, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
+import { Archive, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Download, Lock, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { cn } from 'cn'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -147,9 +148,14 @@ function TeamPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Team members</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">People with access to your projects.</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon-sm" title="Back to dashboard" nativeButton={false} render={<Link to="/dashboard" />}>
+            <ArrowLeft className="size-3.5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Team members</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">People with access to your projects.</p>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

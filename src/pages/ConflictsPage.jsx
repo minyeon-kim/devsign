@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { GitMerge } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
+import { Button } from '@/components/ui/button'
 import ConflictStatusModal, { CONFLICT_STATUSES, STATUS_DOT_CLASS } from '@/components/modals/ConflictStatusModal'
 import { conflictChecklist } from '@/data/mockData'
 
@@ -37,6 +38,9 @@ function ConflictsPage() {
   return (
     <DashboardLayout>
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon-sm" title="Back to dashboard" nativeButton={false} render={<Link to="/dashboard" />}>
+          <ArrowLeft className="size-3.5" />
+        </Button>
         <GitMerge className="size-5 text-muted-foreground" />
         <h1 className="text-lg font-semibold text-foreground">All conflicts</h1>
       </div>
