@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Hand, Frame as FrameIcon, MessageSquarePlus, Square, Type } from 'lucide-react'
 import { cn } from 'cn'
 import { currentUser } from '@/data/mockData'
-import { useWorkspace } from '@/state/WorkspaceProvider'
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // Non-default Canvas tools get their own cursor glyph while hovering the
 // canvas surface (`[data-cursor-zone="canvas"]`, set on CanvasPanel's
@@ -29,7 +29,11 @@ const toolCursorIcons = {
 function LocalCursor({ containerRef }) {
   const [pos, setPos] = useState(null)
   const [overCanvas, setOverCanvas] = useState(false)
-  const { canvasTool } = useWorkspace()
+  // Optional: this cursor is also mounted globally (outside any project's
+  // workspace) so it can stand in for the hidden OS cursor on the
+  // dashboard/projects/team pages too — those have no WorkspaceProvider and
+  // simply get the plain arrow, since there's no Canvas tool to reflect.
+  const canvasTool = useWorkspaceOptional()?.canvasTool
 
   useEffect(() => {
     const el = containerRef?.current ?? window

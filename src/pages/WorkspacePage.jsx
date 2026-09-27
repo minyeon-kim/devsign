@@ -8,7 +8,6 @@ import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import DockLayout, { openOrFocusPanel } from '@/components/dockview/DockLayout'
-import LocalCursor from '@/components/collab/LocalCursor'
 import { WorkspaceProvider, useWorkspace } from '@/state/WorkspaceProvider'
 import { panelDefinitions, projects } from '@/data/mockData'
 
@@ -102,14 +101,6 @@ function WorkspaceShell({ project }) {
   return (
     <WorkspaceProvider projectId={project.id}>
       <WorkspaceContent project={project} />
-
-      {/* Single global cursor overlay — tracks the whole window and sits
-          above everything (modals included; it wins on z-index, not DOM
-          order) so the OS cursor, hidden site-wide via index.css, is never
-          left with nothing standing in for it. Mounted inside the provider
-          so it can read the active Canvas tool from workspace context and
-          swap its glyph while hovering the canvas surface. */}
-      <LocalCursor />
     </WorkspaceProvider>
   )
 }

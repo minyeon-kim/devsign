@@ -584,3 +584,10 @@ export function useWorkspace() {
   }
   return ctx
 }
+
+// For components mounted outside any project's workspace (e.g. the global
+// cursor overlay, which also needs to render on the dashboard/projects/team
+// pages) — returns null instead of throwing when there's no provider.
+export function useWorkspaceOptional() {
+  return useContext(WorkspaceContext)
+}

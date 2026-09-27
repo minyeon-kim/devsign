@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import LocalCursor from '@/components/collab/LocalCursor'
 import DashboardPage from '@/pages/DashboardPage'
 import ProjectsListPage from '@/pages/ProjectsListPage'
 import ActivityPage from '@/pages/ActivityPage'
@@ -24,6 +25,12 @@ function App() {
         </Routes>
       </BrowserRouter>
       <Toaster position="bottom-right" />
+
+      {/* Single global cursor overlay — mounted here (not inside the
+          workspace) so it stands in for the OS cursor, hidden site-wide via
+          index.css, on every page (dashboard/projects/team/...), not just
+          inside a project's workspace. */}
+      <LocalCursor />
     </TooltipProvider>
   )
 }
