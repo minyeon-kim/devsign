@@ -1382,15 +1382,14 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-medium text-slate-100">{f.name}</span>
                           <span className="mt-0.5 block truncate text-xs text-slate-400">
-                            {f.changed} incoming line{f.changed === 1 ? '' : 's'}
-                            {parts.length > 0 && ` · ${parts.join(' · ')}`}
+                            {parts.length > 0 ? parts.join(' · ') : 'Incoming from the Current Implementation'}
                           </span>
                         </span>
-                        {/* The headline figure, as a plain colored number
-                            (same as the Merge List's file rows). */}
+                        {/* The headline count, spelled out ("2 changes") —
+                            same wording as the Merge List's file rows. */}
                         {f.changed > 0 && (
-                          <span title="Incoming lines" className="shrink-0 text-xs font-semibold text-emerald-400 tabular-nums">
-                            +{f.changed}
+                          <span title="Incoming changed lines" className="shrink-0 text-xs font-semibold whitespace-nowrap text-emerald-400 tabular-nums">
+                            {f.changed} change{f.changed === 1 ? '' : 's'}
                           </span>
                         )}
                       </li>

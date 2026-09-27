@@ -241,16 +241,21 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
               <span className="block truncate text-[13px] text-slate-100">{f.name}</span>
               <span title={f.path} className="block truncate text-[11px] text-slate-500">{f.path}</span>
             </span>
-            {/* Counts as plain colored figures — no pills. */}
-            {incoming.length > 0 && (
-              <span title="Incoming changes" className="shrink-0 text-xs font-medium text-emerald-400 tabular-nums">
-                +{incoming.length}
-              </span>
-            )}
-            {edits.length > 0 && (
-              <span title="Hand edits" className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-emerald-200 tabular-nums">
-                <Pencil className="size-3" />
-                {edits.length}
+            {/* Counts spelled out ("2 changes", "1 edit") as plain colored
+                text — no pills, no ambiguous "+N". */}
+            {(incoming.length > 0 || edits.length > 0) && (
+              <span className="flex shrink-0 flex-col items-end gap-0.5 text-[11px] leading-tight font-medium whitespace-nowrap tabular-nums">
+                {incoming.length > 0 && (
+                  <span title="Incoming changes from the Current Implementation" className="text-emerald-400">
+                    {incoming.length} change{incoming.length === 1 ? '' : 's'}
+                  </span>
+                )}
+                {edits.length > 0 && (
+                  <span title="Lines edited by hand" className="flex items-center gap-1 text-emerald-200">
+                    <Pencil className="size-2.5" />
+                    {edits.length} edit{edits.length === 1 ? '' : 's'}
+                  </span>
+                )}
               </span>
             )}
           </button>
