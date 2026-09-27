@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
-import TopBar from '@/components/layout/TopBar'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
+import TopBar, { openMergeStudio } from '@/components/layout/TopBar'
 import ActivityBar from '@/components/layout/ActivityBar'
 import RightFloatingBar from '@/components/layout/RightFloatingBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
@@ -13,6 +13,7 @@ import { panelDefinitions, projects } from '@/data/mockData'
 const previewDef = panelDefinitions.find((def) => def.id === 'preview')
 
 function WorkspaceShell({ project }) {
+  const location = useLocation()
   const [dockApi, setDockApi] = useState(null)
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -25,6 +26,14 @@ function WorkspaceShell({ project }) {
     const disposable = dockApi.onDidLayoutChange(syncPreviewOpen)
     return () => disposable.dispose()
   }, [dockApi])
+
+  // Arriving here from the dashboard's "Open Merge Studio" (on a specific
+  // conflict) carries that intent via router state — jump straight into
+  // the Conflict Point panel instead of leaving the user to find it.
+  useEffect(() => {
+    if (!dockApi || !location.state?.openMergeStudio) return
+    openMergeStudio(dockApi)
+  }, [dockApi, location.state])
 
   function togglePreview() {
     if (!dockApi) return

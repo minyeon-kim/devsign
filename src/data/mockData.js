@@ -227,6 +227,24 @@ export const conflictActivitySeries = [
   { label: 'Sat', resolved: 2, inReview: 1, pending: 0 },
 ]
 
+// Backs the dashboard's Merge schedule calendar. Dates are offsets from
+// "today" (computed at module load) rather than fixed calendar dates, so
+// the mock schedule always has something to show near the current month
+// regardless of when the app happens to be opened.
+function isoDateOffset(days) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export const mergeSchedule = [
+  { id: 'ms-1', projectId: 'checkout-redesign', projectName: 'Checkout Redesign', dateISO: isoDateOffset(1), title: 'Merge payment method updates', time: '10:00 AM' },
+  { id: 'ms-2', projectId: 'design-system-v2', projectName: 'Design System v2', dateISO: isoDateOffset(4), title: 'Merge new button variants', time: '2:00 PM' },
+  { id: 'ms-3', projectId: 'onboarding-flow', projectName: 'Onboarding Flow', dateISO: isoDateOffset(4), title: 'Merge welcome screen copy', time: '4:30 PM' },
+  { id: 'ms-4', projectId: 'mobile-nav-revamp', projectName: 'Mobile Nav Revamp', dateISO: isoDateOffset(9), title: 'Merge gesture nav prototype', time: '11:00 AM' },
+  { id: 'ms-5', projectId: 'marketing-site-refresh', projectName: 'Marketing Site Refresh', dateISO: isoDateOffset(-2), title: 'Merge landing page hero', time: '9:00 AM' },
+]
+
 // `type` drives the semantic color/icon on the full Activity page (see
 // src/pages/ActivityPage.jsx) — one of 'changes' | 'conflict' | 'merge' |
 // 'comment' | 'file' | 'mention'. `dateGroup` buckets rows into the

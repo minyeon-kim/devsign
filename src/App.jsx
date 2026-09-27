@@ -5,6 +5,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import ProjectsListPage from '@/pages/ProjectsListPage'
 import ActivityPage from '@/pages/ActivityPage'
 import TeamPage from '@/pages/TeamPage'
+import ConflictsPage from '@/pages/ConflictsPage'
 import WorkspacePage from '@/pages/WorkspacePage'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/projects" element={<ProjectsListPage />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/team" element={<TeamPage />} />
+          <Route path="/conflicts" element={<ConflictsPage />} />
           <Route path="/projects/:projectId/workspace" element={<WorkspacePage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

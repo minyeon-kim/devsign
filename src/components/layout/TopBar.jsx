@@ -9,7 +9,7 @@ import { panelDefinitions } from '@/data/mockData'
 
 const conflictPanelDef = panelDefinitions.find((def) => def.id === 'conflict')
 
-function openMergeStudio(dockApi) {
+export function openMergeStudio(dockApi) {
   if (!dockApi || !conflictPanelDef) return
 
   const existing = dockApi.getPanel(conflictPanelDef.id)
