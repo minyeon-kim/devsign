@@ -33,7 +33,9 @@ function LocalCursor({ containerRef }) {
   // workspace) so it can stand in for the hidden OS cursor on the
   // dashboard/projects/team pages too — those have no WorkspaceProvider and
   // simply get the plain arrow, since there's no Canvas tool to reflect.
-  const canvasTool = useWorkspaceOptional()?.canvasTool
+  const workspace = useWorkspaceOptional()
+  const inWorkspace = Boolean(workspace)
+  const canvasTool = workspace?.canvasTool
 
   useEffect(() => {
     const el = containerRef?.current ?? window
@@ -98,13 +100,18 @@ function LocalCursor({ containerRef }) {
       )}
       {/* Name tag tucked against the arrow's bottom-right tail (Figma-style
           multiplayer cursor). Absolutely positioned so it doesn't shift the
-          arrow's own hotspot. */}
-      <span
-        className="absolute top-3.5 left-3.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] leading-none font-medium whitespace-nowrap text-white shadow-md"
-        style={{ backgroundColor: currentUser.cursorColor }}
-      >
-        {currentUser.name}
-      </span>
+          arrow's own hotspot. Only shown inside a project's workspace,
+          where there's actually a shared session/other people to identify
+          yourself to — the dashboard/projects/team pages are solo, so it's
+          just the plain arrow there. */}
+      {inWorkspace && (
+        <span
+          className="absolute top-3.5 left-3.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] leading-none font-medium whitespace-nowrap text-white shadow-md"
+          style={{ backgroundColor: currentUser.cursorColor }}
+        >
+          {currentUser.name}
+        </span>
+      )}
     </div>
   )
 }
