@@ -5,8 +5,6 @@ import {
   CircleDot,
   CircleUser,
   FilePlus2,
-  Braces,
-  CodeXml,
   Frame,
   Image,
   PanelBottom,
@@ -20,30 +18,32 @@ import {
   TextCursorInput,
   ToggleRight,
   Type,
-  CalendarDays,
   ChevronRight,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { allPeople, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
-import { getFileIconMeta } from '@/lib/fileIcons'
+import { allPeople, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
-import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
+import { itemSeverity } from '@/components/mergestudio/mergeSummary'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   AVATAR_RING,
   AVATAR_RING_ON_ACTIVE,
   AVATAR_RING_ON_HOVER,
-  AVATAR_RING_ON_SURFACE,
   CATEGORY_TAB,
   CATEGORY_TAB_ACTIVE,
   CATEGORY_TAB_IDLE,
   COUNT_BADGE,
   FLOATING_PANEL,
   FLOATING_PILL,
+  PANEL_RADIUS,
+  PANEL_ROWS,
   PANEL_SURFACE,
+  SEVERITY_BADGE,
+  SEVERITY_COL,
 } from '@/components/mergestudio/floatingStyles'
 
 // Merge List spacing grid — one set of numbers for the whole panel:
@@ -67,66 +67,73 @@ const WORKFLOW_GROUPS = [
 ]
 const KNOWN_TAGS = new Set(WORKFLOW_GROUPS.flatMap((g) => g.tags ?? []))
 
-// Left-hand type icon — bare, no tile: a monochrome glyph for what the merge item mainly
-// is (the icon shape carries the type, not color), readable at a glance (a scaled-down screen preview was too small to
-// tell apart). A code-file title (AuthModal.tsx) is code; otherwise an item
-// with a design page is a design; otherwise, only token/JSON files, tokens.
-const CODE_EXT = /\.(tsx|jsx|ts|js|css|py)$/i
-const ITEM_TYPE = {
-  code: { icon: CodeXml, label: 'Code component' },
-  design: { icon: Frame, label: 'Design frame' },
-  tokens: { icon: Braces, label: 'Design tokens' },
+
+
+// One merge item. Sidebar icon grid, shared by both navigation levels
+// (list cards, the item summary, Files rows, the Layers frame row): the
+// leading 16px icon sits 12px inside the group surface, text starts 12px
+// after it — so icons and titles line up exactly from level to level
+// (layer rows step in by 12px per depth). A card is two lines — title,
+// then change status; the open item gets a soft surface and the left
+// accent bar.
+//
+// The item's direct change status, in one phrase: how many design
+// elements drift and how many code lines change ("5 drifts · 1 code
+// change" — "drifts" as in the Compare tab), or "No changes yet".
+function changeStatus(item) {
+  const design = Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}).length
+  const code = Object.values(codeMergeVariants[item.id] ?? {}).reduce((n, lines) => n + lines.length, 0)
+  const parts = [
+    design > 0 && `${design} drift${design === 1 ? '' : 's'}`,
+    code > 0 && `${code} code change${code === 1 ? '' : 's'}`,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'No changes yet'
 }
 
-function itemTypeOf(item) {
-  if (CODE_EXT.test(item.title)) return ITEM_TYPE.code
-  if (item.hasDesign) return ITEM_TYPE.design
-  const names = (item.fileIds ?? []).map((id) => openFiles.find((f) => f.id === id)?.name ?? '')
-  if (names.length && names.every((n) => n.endsWith('.json'))) return ITEM_TYPE.tokens
-  return ITEM_TYPE.code
+// Everything else about the item — files, due date, conflict level,
+// people — lives in the tooltip (and still drives the filters), so the
+// card itself reads as just title + change status.
+function itemTooltip(item) {
+  const people = peopleOnItem(item)
+    .map((p) => allPeople.find((x) => x.id === p.id)?.name)
+    .filter(Boolean)
+  return [
+    item.title,
+    item.subtitle,
+    item.dueBucket !== 'none' && item.dueLabel,
+    itemSeverity(item) && `Conflict (highest drift): ${itemSeverity(item).level}`,
+    people.length && `People: ${people.join(', ')}`,
+    `Updated ${item.updatedLabel}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
-function ItemTypeBadge({ item }) {
-  const type = itemTypeOf(item)
-  const Icon = type.icon
-  return (
-    <span title={type.label} className="mt-0.5 flex shrink-0 text-muted-foreground">
-      <Icon className="size-4" />
-    </span>
-  )
-}
+// Reviewers, compact: up to two 16px avatars (left-most on top, soft
+// surface-colored rings) and a "+N" for the rest; the tooltip names
+// everyone with their role.
+const MINI_AVATAR = cn('relative flex size-4 shrink-0 items-center justify-center rounded-full text-[7px] font-semibold', AVATAR_RING)
 
-// Everyone on the item — assignee, then reviewers — as a Figma-style
-// avatar group: at most two overlapping avatars, and anyone beyond that
-// collapsed into one "+N" circle of the same size (so 3 people read
-// "A B +1", never a pile of circles). The left-most avatar sits on top and
-// each next one tucks underneath it; a soft ring in the card's own tone
-// (not a dark outline) separates them. Hovering the group lists every name
-// and role.
-const MAX_AVATARS = 2
-const AVATAR = cn('relative flex h-5 shrink-0 items-center justify-center rounded-full text-[8px] font-semibold', AVATAR_RING)
-
-function PeopleStack({ item }) {
+function MiniPeople({ item }) {
   const people = peopleOnItem(item)
     .map((p) => ({ ...p, person: allPeople.find((x) => x.id === p.id) }))
     .filter((p) => p.person)
   if (!people.length) return null
-  const shown = people.slice(0, MAX_AVATARS)
+  const shown = people.slice(0, 2)
   const extra = people.length - shown.length
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={<span />}
-        aria-label={people.map((p) => `${p.person.name} (${p.role})`).join(', ')}
-        className="ml-auto flex shrink-0 items-center -space-x-1"
-      >
+      <TooltipTrigger render={<span />} aria-label={people.map((p) => `${p.person.name} (${p.role})`).join(', ')} className="flex shrink-0 items-center -space-x-1">
         {shown.map(({ id, person }, i) => (
-          <span key={id} style={{ zIndex: shown.length + 1 - i }} className={cn(AVATAR, 'w-5 text-white', person.colorClass)}>
+          <span key={id} style={{ zIndex: shown.length + 1 - i }} className={cn(MINI_AVATAR, 'text-white', person.colorClass)}>
             {person.initials}
           </span>
         ))}
-        {/* Overflow: a quiet neutral circle, wider only for 2-digit counts. */}
-        {extra > 0 && <span style={{ zIndex: 1 }} className={cn(AVATAR, 'min-w-5 bg-[#3b3b42] px-1 font-medium text-slate-200 tabular-nums')}>+{extra}</span>}
+        {extra > 0 && (
+          <span style={{ zIndex: 1 }} className={cn(MINI_AVATAR, 'w-auto min-w-4 bg-[#3b3b42] px-0.5 font-medium text-slate-200 tabular-nums')}>
+            +{extra}
+          </span>
+        )}
       </TooltipTrigger>
       <TooltipContent side="top" className="flex-col items-stretch gap-1 px-2.5 py-2">
         {people.map(({ id, person, role }) => (
@@ -141,46 +148,33 @@ function PeopleStack({ item }) {
   )
 }
 
-// One merge item. Sidebar icon grid, shared by both navigation levels
-// (list cards, the item summary, Files rows, the Layers frame row): the
-// leading 16px icon sits 12px inside the group surface, text starts 12px
-// after it — so icons and titles line up exactly from level to level
-// (layer rows step in by 12px per depth). Then
-//   tier 1 — title (status is the section; last update in the tooltip);
-//   tier 2 — file line, then the due date on its own line (red once
-//            overdue) when there is one;
-//   tier 3 — conflict level (the shared SeverityPill, same as the Block
-//            Deck's drift rows) ··· stacked reviewer avatars.
-// Flat row; the open item gets a soft surface and the left accent bar.
-function MergeItemBody({ item, trailing }) {
-  const hasDue = item.dueBucket !== 'none' && item.dueLabel
+// A merge item as a small grid — the type icon centered against both
+// lines, the text column, a right-aligned signal column, then the drill
+// cue:
+//   [icon]  title ·························· reviewers   [›]
+//           N drifts · N code changes ······ severity
+// The severity badge is the item's HIGHEST drift severity (see
+// itemSeverity), i.e. its overall merge risk; its tooltip says which drift
+// sets it.
+function MergeItemBody({ item, trailing, titleClassName }) {
+  const status = changeStatus(item)
+  const severity = itemSeverity(item)
   return (
-    <>
-      <span className="flex h-6 w-4 shrink-0 items-center justify-center">
-        <ItemTypeBadge item={item} />
-      </span>
-      <span className="min-w-0 flex-1">
-        {/* Tier 1 — the title (status is the section it sits in; the last
-            update is in the row's tooltip). */}
-        <span className="flex h-6 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#FFFFFF]">{item.title}</span>
-          {trailing}
-        </span>
-        {/* Tier 2 — the file line, then (only when set) the due date. */}
-        <span className="block truncate text-xs text-slate-400">{item.subtitle}</span>
-        {hasDue && (
-          <span className={cn('mt-0.5 flex items-center gap-1 text-xs', item.dueBucket === 'overdue' ? 'font-medium text-destructive' : 'text-slate-500')}>
-            <CalendarDays className="size-3 shrink-0" />
-            {item.dueLabel}
-          </span>
+    // [severity] title (full width)            [›]
+    //            N drifts · N code changes ·· reviewers
+    <span className="grid min-w-0 flex-1 grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5">
+      <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
+        {severity && (
+          <SeverityPill level={severity.level} title={`Highest drift severity: ${severity.level} — set by ${severity.source}`} className={SEVERITY_BADGE} />
         )}
-        {/* Tier 3 — only what's unique to the item: conflict level ··· people. */}
-        <span className="mt-3 flex items-center gap-1.5">
-          <SeverityPill level={item.conflictLevel} title={`Conflict: ${item.conflictLevel}`} />
-          <PeopleStack item={item} />
-        </span>
       </span>
-    </>
+      <span className={cn('min-w-0 truncate text-[13px] leading-5 font-medium text-[#FFFFFF]', titleClassName)}>{item.title}</span>
+      <span className="row-span-2 flex items-center">{trailing}</span>
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="min-w-0 flex-1 truncate text-[11px] leading-4 text-slate-400">{status}</span>
+        <MiniPeople item={item} />
+      </span>
+    </span>
   )
 }
 
@@ -188,19 +182,17 @@ function MergeItemCard({ item, active, onSelect }) {
   return (
     <button
       type="button"
-      title={`${item.title} · updated ${item.updatedLabel}`}
+      title={itemTooltip(item)}
       aria-current={active ? 'true' : undefined}
       onClick={() => onSelect(item.id)}
       className={cn(
-        // Inside its group surface: 12px sides (the panel grid), the 16px
-        // icon column + 12px gap, then a stacked text column.
-        'group/card relative flex w-full items-start gap-3 px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
+        // 12px sides (the panel grid); the body lays itself out as a grid.
+        'group/card relative flex w-full items-center px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
         active ? cn('bg-white/[0.06]', AVATAR_RING_ON_ACTIVE) : cn('hover:bg-white/[0.03]', AVATAR_RING_ON_HOVER)
       )}
     >
-      {active && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
       <MergeItemBody
         item={item}
         // Drill-down cue: the card opens its own view (files & layers).
@@ -218,7 +210,6 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
   return (
     <div className="space-y-px p-1">
       {files.map((f) => {
-        const meta = getFileIconMeta(f.name)
         const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
         const edits = Object.keys(manualCode ?? {})
           .filter((k) => k.startsWith(`${f.id}:`))
@@ -231,20 +222,19 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
             ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
+            // One concise line: icon · file name · change count. The path
+            // is in the tooltip.
+            title={f.path}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors',
+              'flex h-9 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors',
               active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
             )}
           >
-            <meta.Icon className="size-4 shrink-0 text-slate-400" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] text-slate-100">{f.name}</span>
-              <span title={f.path} className="block truncate text-[11px] text-slate-500">{f.path}</span>
-            </span>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-slate-100">{f.name}</span>
             {/* Counts spelled out ("2 changes", "1 edit") as plain colored
                 text — no pills, no ambiguous "+N". */}
             {(incoming.length > 0 || edits.length > 0) && (
-              <span className="flex shrink-0 flex-col items-end gap-0.5 text-[11px] leading-tight font-medium whitespace-nowrap tabular-nums">
+              <span className="flex shrink-0 items-center gap-2 text-[11px] font-medium whitespace-nowrap tabular-nums">
                 {incoming.length > 0 && (
                   <span title="Incoming changes from the Current Implementation" className="text-emerald-400">
                     {incoming.length} change{incoming.length === 1 ? '' : 's'}
@@ -332,6 +322,7 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
             ref={active ? revealRow : undefined}
             type="button"
             onClick={() => onSelect(layer.id)}
+            title={drifted[layer.id] ? `${layer.name} — drifts from the Original Design` : layer.name}
             style={{ paddingLeft: 8 + (depth + 1) * 12 }}
             className={cn(
               'flex h-8 w-full items-center gap-3 rounded-lg pr-2 text-left text-[13px] transition-colors',
@@ -341,7 +332,6 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
             <Icon className={cn('size-4 shrink-0', active ? 'text-emerald-300' : 'text-slate-500')} />
             <span className="min-w-0 flex-1 truncate">{layer.name}</span>
             {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-emerald-200" />}
-            {drifted[layer.id] && <span title="Drifts from Original Design" className="size-1.5 shrink-0 rounded-full bg-emerald-400" />}
           </button>
         )
       })}
@@ -367,8 +357,9 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
   const counts = { files: files.length, layers: frame ? layerTree(frame.layers).length : 0 }
   return (
     <div className="space-y-4 px-5 pt-1 pb-5">
-      <div title={`${item.title} · updated ${item.updatedLabel}`} className={cn(GROUP_SURFACE, AVATAR_RING_ON_SURFACE, 'flex items-start gap-3 px-3 py-3.5')}>
-        <MergeItemBody item={item} />
+      {/* The drill-down's heading: title + change status, like the card. */}
+      <div title={itemTooltip(item)} className="flex pt-1">
+        <MergeItemBody item={item} titleClassName="text-sm font-semibold" />
       </div>
       <section>
         <div className="mb-2 flex h-7 items-center gap-1">
@@ -520,7 +511,8 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       className={cn(
         // Sized to its content, capped 16px above the bottom edge (then the
         // body scrolls) — not stretched to the bottom regardless of content.
-        'absolute top-[60px] left-4 z-30 flex max-h-[calc(100%-76px)] w-72 flex-col overflow-hidden rounded-2xl transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        'absolute top-[60px] left-4 z-30 flex max-h-[calc(100%-76px)] w-[304px] flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        PANEL_RADIUS,
         FLOATING_PANEL,
         mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       )}
@@ -610,13 +602,12 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                     className="group/section mb-2 flex h-7 w-full items-center gap-2 text-[13px] font-semibold text-slate-200 transition-colors hover:text-white"
                   >
                     <ChevronRight className={cn('size-3.5 text-slate-500 transition-transform', open && 'rotate-90')} />
-                    <span className={cn('size-2 rounded-full', g.dot)} />
                     {g.label}
                     <span className="font-medium text-slate-500 tabular-nums">{groupItems.length}</span>
                   </button>
                   {open && (
                     // The section's items on one grouped surface, split by hairlines.
-                    <div className={cn(GROUP_SURFACE, AVATAR_RING_ON_SURFACE, 'divide-y divide-white/[0.06]')}>
+                    <div className={cn(GROUP_SURFACE, PANEL_ROWS)}>
                       {groupItems.map((it) => (
                             <MergeItemCard
                               key={it.id}
@@ -642,15 +633,16 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       {/* View 2 — the open item's Files / Layers, pushed in from the right. */}
       {inDetail && (
         <div className={cn('flex min-h-0 flex-1 flex-col', navDir === 'forward' && 'animate-in fade-in slide-in-from-right-4 duration-200')}>
-          <div className="flex h-12 shrink-0 items-center px-5">
+          <div className="flex h-11 shrink-0 items-end px-5 pb-1">
             <button
               type="button"
               onClick={pop}
-              // Ghost pill; the negative margin keeps the arrow on the 20px
-              // inset line with the list view's title icon.
-              className="-ml-2 flex h-8 items-center gap-2 rounded-full pr-3 pl-2 text-sm font-semibold text-foreground transition-colors hover:bg-white/[0.06]"
+              // A quiet breadcrumb, not a heading: small muted text that only
+              // brightens on hover, so the item's own title below leads.
+              // The negative margin keeps the arrow on the 20px inset line.
+              className="group/back -ml-1.5 flex h-7 items-center gap-1.5 rounded-full pr-2.5 pl-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-white/[0.04] hover:text-slate-200"
             >
-              <ArrowLeft className="size-4 shrink-0 text-slate-400" />
+              <ArrowLeft className="size-3.5 shrink-0 transition-transform group-hover/back:-translate-x-0.5" />
               Back to Merge List
             </button>
           </div>

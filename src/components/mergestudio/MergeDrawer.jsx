@@ -1,10 +1,20 @@
 import { X } from 'lucide-react'
+import { cn } from 'cn'
+import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 
-// Shared shell for Merge Studio's right-hand glass drawers (Version History,
-// Inbox): slides in over the canvas, above the Block Deck.
+// Shared shell for Merge Studio's right-hand drawers (Version History,
+// Inbox): a floating card (same style as the Merge List and Block Deck),
+// inset from the edges and below the top toolbar row, sliding in over the
+// canvas above the Block Deck.
 function MergeDrawer({ icon: Icon, title, aside, onClose, children }) {
   return (
-    <div className="absolute top-0 right-0 bottom-0 z-40 flex w-[380px] max-w-full flex-col border-l border-white/10 bg-card/90 shadow-2xl shadow-black/40 backdrop-blur-xl animate-in slide-in-from-right duration-200">
+    <div
+      className={cn(
+        'absolute top-[60px] right-4 bottom-4 z-40 flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        PANEL_RADIUS,
+        FLOATING_PANEL
+      )}
+    >
       <div className="flex h-12 shrink-0 items-center gap-2 px-5">
         <Icon className="size-4 text-emerald-400" />
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>

@@ -39,7 +39,7 @@ import {
   inspectorSpecsByType,
 } from '@/data/mockData'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { buildDrifts } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, driftSeverity } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -48,10 +48,13 @@ import {
   CATEGORY_TAB_ACTIVE,
   CATEGORY_TAB_IDLE,
   FLOATING_PANEL,
+  PANEL_RADIUS,
   GHOST_BUTTON,
   PANEL_LABEL,
   PANEL_ROWS,
   PANEL_SURFACE,
+  SEVERITY_BADGE,
+  SEVERITY_COL,
 } from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 
@@ -709,17 +712,9 @@ function AiRecommendation({ layer, onChange }) {
 // line, edited in the code window). One row open at a time; opening a row
 // also selects it on the canvas, and selecting a drifting element on the
 // canvas opens its row.
-// No per-drift severity exists in the mock data (only a per-*item*
-// conflictLevel, which would paint every row in the list the same color) —
-// so this derives a reasonable per-row signal from how many properties are
-// actually in conflict: more properties touched reads as a bigger conflict.
-// A code drift is always a single line, so it reads as the mildest case.
-function severityOf(d) {
-  if (d.kind !== 'design') return 'low'
-  if (d.diffs.length >= 3) return 'high'
-  if (d.diffs.length === 2) return 'medium'
-  return 'low'
-}
+// Each row's severity: the shared rule (mergeSummary's driftSeverity) —
+// the Merge List's per-item badge is the highest of these.
+const severityOf = driftSeverity
 
 function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
@@ -762,8 +757,8 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
 
   return (
     <DeckScroll innerClassName="space-y-4 px-5 pb-5">
-      {/* Resolution summary. */}
-      <div className={cn(PANEL_SURFACE, 'px-3 py-3')}>
+      {/* Resolution summary — plain text over the progress bar, no box. */}
+      <div className="pt-1">
         <div className="flex items-baseline gap-1.5">
           <span className="text-[13px] font-semibold text-slate-100 tabular-nums">
             {resolved} of {drifts.length}
@@ -783,6 +778,8 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
           Detected drifts
           <span className="text-slate-500 tabular-nums">{drifts.length}</span>
         </p>
+        {/* Borderless list: rows split by thin hairlines; severity sits in
+            its own fixed-width column so every row lines up. */}
         <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
           {drifts.map((d) => {
             const done = resolvedOf(d)
@@ -791,33 +788,39 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
             const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
             const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
             return (
-              <div key={d.id} className={cn('relative transition-colors', open && 'bg-white/[0.04]')}>
-                {open && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
+              // Same row language as the Merge List cards: the severity badge
+              // in a fixed column at the front, two lines (13px label · 11px
+              // status) with the resolved check at the end of the first. The
+              // whole row is the toggle — no chevron; open is a pure
+              // background tint.
+              <div key={d.id} className={cn('transition-colors', open ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
                 <button
                   type="button"
                   onClick={() => toggle(d)}
                   aria-expanded={open}
-                  className={cn('flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors', !open && 'hover:bg-white/[0.03]')}
+                  title={open ? 'Collapse' : 'Show property diffs'}
+                  className="grid w-full cursor-pointer grid-cols-[46px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-3 py-3.5 text-left"
                 >
-                  <SeverityPill level={severityOf(d)} />
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-xs', open ? 'font-semibold text-white' : 'text-slate-100')}>{d.label}</span>
-                    <span className="block truncate text-[11px] text-slate-500">
-                      {d.kind === 'code' ? `Code · line ${d.line}` : done ? 'All properties resolved' : `${left} of ${d.diffs.length} to resolve`}
+                  <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
+                    <SeverityPill level={severityOf(d)} className={SEVERITY_BADGE} />
+                  </span>
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-white">{d.label}</span>
+                    {/* Resolved: a solid mint circle with a dark check and a
+                        soft mint glow. Pending: plain gray. */}
+                    <span
+                      title={done ? 'Resolved' : 'Not resolved yet'}
+                      className={cn(
+                        'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
+                        done ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
+                      )}
+                    >
+                      {done && <Check strokeWidth={3.5} className="size-2.5" />}
                     </span>
                   </span>
-                  {/* Resolved: a solid mint circle with a dark check and a soft
-                      mint glow — unmissable at a glance. Pending: plain gray. */}
-                  <span
-                    title={done ? 'Resolved' : 'Not resolved yet'}
-                    className={cn(
-                      'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
-                      done ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
-                    )}
-                  >
-                    {done && <Check strokeWidth={3.5} className="size-2.5" />}
+                  <span className="min-w-0 truncate text-[11px] leading-4 text-slate-400">
+                    {d.kind === 'code' ? `Code · line ${d.line}` : done ? 'All properties resolved' : `${left} of ${d.diffs.length} to resolve`}
                   </span>
-                  <ChevronDown className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-200', open && 'rotate-180 text-slate-300')} />
                 </button>
 
                 {/* Inline accordion body, directly beneath its row: animates
@@ -945,7 +948,6 @@ function TextContentSection({ slots, onEditText }) {
 function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
   return (
     <div className={cn('group relative flex items-center gap-2.5 py-2 pr-2 pl-3 transition-colors', applied ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
-      {applied && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
       <button type="button" onClick={() => onApply(preset)} title={preset.rationale} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
         <span className={cn('size-5 shrink-0 rounded-[6px] ring-1 ring-white/10', preset.previewClass)} />
         <span className="min-w-0 flex-1">
@@ -1106,17 +1108,16 @@ function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, on
 // Design System library: browse the integrated component library, then
 // either restyle the selected element with a component ("Replace" /
 // "Insert") or pull a fresh instance onto both artboards ("Add").
-// Preview tile: the live component on a white (light-mode canvas) tile,
-// scaled to fit — 92×56, sized so a row keeps room for its text + actions.
-function ComponentPreview({ def }) {
-  const box = { w: 80, h: 44 }
+// Thumbnail: the live component on a small white (light-mode canvas)
+// tile, scaled to fit — 56×36, so a row stays one slim line.
+function ComponentPreview({ def, box = { w: 48, h: 28 } }) {
   const k = Math.min(1, box.w / def.width, box.h / def.height)
   // `name` matters: some layer types (avatars) render from it — without it
   // an avatar preview crashed the whole Library tab.
   const layer = { id: def.id, name: def.name, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
   const override = { ...assemblyToOverride(def.assembly, layer), static: true }
   return (
-    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-white ring-1 ring-white/10" style={{ width: box.w + 12, height: box.h + 12 }}>
+    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-white" style={{ width: box.w + 8, height: box.h + 8 }}>
       <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
         <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
           <StaticLayer layer={layer} override={override} onSelect={() => {}} />
@@ -1129,15 +1130,20 @@ function ComponentPreview({ def }) {
 // Library row actions: same 28px / 6px spec as the inspector controls,
 // medium weight. The contextual action (Replace / Insert) is a soft fill;
 // Add is a quiet outline.
-const LIB_ACTION = 'flex h-7 min-w-0 items-center justify-center gap-1 rounded-[6px] px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors'
-const LIB_PRIMARY = 'bg-white/[0.08] text-slate-100 hover:bg-white/[0.12] hover:text-white'
-const LIB_SECONDARY = 'text-slate-300 ring-1 ring-inset ring-white/10 hover:bg-white/[0.05] hover:text-white'
+// Library row actions: lightweight — plain text / icon buttons that only
+// take a soft fill on hover (no filled or outlined buttons).
+const LIB_ACTION = 'flex h-7 shrink-0 items-center justify-center gap-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors'
+const LIB_TEXT = 'px-2.5 text-slate-200 hover:bg-white/[0.08] hover:text-white'
+const LIB_ICON = 'w-7 text-slate-500 hover:bg-white/[0.08] hover:text-white'
 
-// One library component row: preview tile (drag it onto an artboard to
-// place it) · name + what the action does · actions.
+// One slim library row: a small live thumbnail (drag it onto an artboard to
+// place it) · name + what the action does · one fixed action column on the
+// right, identical on every row — a 72px slot for the contextual Replace /
+// Insert (empty when there's none) and the "+" Add icon — so the buttons
+// line up down the whole list.
 function LibraryRow({ def, mode, target, onApply, onInsert, onAdd, onDrag }) {
   return (
-    <div className="flex items-center gap-3 p-3">
+    <div className="group/lib flex items-center gap-3 px-3 py-2 transition-colors hover:bg-white/[0.03]">
       <div
         title="Drag onto the canvas to place"
         className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
@@ -1151,27 +1157,26 @@ function LibraryRow({ def, mode, target, onApply, onInsert, onAdd, onDrag }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-slate-100">{def.name}</p>
-        <p className="mt-0.5 truncate text-xs text-slate-400">
+        <p className="truncate text-[11px] text-slate-500">
           {mode === 'replace' ? `Replaces ${target}` : mode === 'insert' ? `Inserts into ${target}` : def.tokens.join(' · ')}
         </p>
-        {/* Equal-width cells, so labels never squeeze; Add alone (no
-            contextual action) spans both. */}
-        <div className="mt-2 grid grid-cols-2 gap-1.5">
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <span className="flex w-[72px] justify-end">
           {mode === 'replace' && (
-            <button type="button" onClick={() => onApply(def)} className={cn(LIB_ACTION, LIB_PRIMARY)}>
+            <button type="button" onClick={() => onApply(def)} className={cn(LIB_ACTION, LIB_TEXT)}>
               Replace
             </button>
           )}
           {mode === 'insert' && (
-            <button type="button" onClick={() => onInsert(def)} className={cn(LIB_ACTION, LIB_PRIMARY)}>
+            <button type="button" onClick={() => onInsert(def)} className={cn(LIB_ACTION, LIB_TEXT)}>
               Insert
             </button>
           )}
-          <button type="button" onClick={() => onAdd(def)} className={cn(LIB_ACTION, mode ? LIB_SECONDARY : cn(LIB_PRIMARY, 'col-span-2'))}>
-            <Plus className="size-3" />
-            Add
-          </button>
-        </div>
+        </span>
+        <button type="button" onClick={() => onAdd(def)} title="Add to canvas" aria-label={`Add ${def.name} to canvas`} className={cn(LIB_ACTION, LIB_ICON)}>
+          <Plus className="size-4" />
+        </button>
       </div>
     </div>
   )
@@ -1243,12 +1248,17 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
   const visible = pool.filter((c) => (activeCategory === 'All' || c.category === activeCategory) && matchesQuery(c))
 
   const rowProps = { target: selectedLayer?.name, onApply, onInsert, onAdd, onDrag }
-  const groups = contextual
-    ? [
-        { id: 'replace', title: `Replace ${selectedLayer.name}`, items: visible.filter((d) => modeOf(d) === 'replace') },
-        { id: 'insert', title: `Insert into ${selectedLayer.name}`, items: visible.filter((d) => modeOf(d) === 'insert') },
-      ].filter((g) => g.items.length)
-    : [{ id: 'all', title: 'Components', items: visible }]
+  // One unified list — no Replace / Insert section headers. What each
+  // component would do is on its own row (the action button + "Replaces …"
+  // / "Inserts into …"); replacements come first.
+  const order = { replace: 0, insert: 1 }
+  const groups = [
+    {
+      id: 'all',
+      title: 'Components',
+      items: contextual ? [...visible].sort((a, b) => (order[modeOf(a)] ?? 2) - (order[modeOf(b)] ?? 2)) : visible,
+    },
+  ]
 
   return (
     <DeckScroll innerClassName="space-y-4 px-5 pb-5">
@@ -1422,7 +1432,7 @@ function BlockDeckPanel({
         ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: DECK_TOP }),
         maxHeight: `calc(100% - ${DECK_TOP + 16}px)`,
       }}
-      className={cn('absolute z-30 flex flex-col overflow-hidden rounded-2xl', FLOATING_PANEL)}
+      className={cn('absolute z-30 flex flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}
     >
       <div
         onPointerDown={handleDragStart}

@@ -148,3 +148,37 @@ export function buildOverrides(item, resolutions = {}, annotations = [], preset 
   if (preset) overrides[preset.layerId] = mergeOverride(overrides[preset.layerId], { className: preset.previewClass })
   return { frame, overrides }
 }
+
+// ---- Drift severity --------------------------------------------------
+// A drift's severity comes from how many of its properties conflict: 3+ is
+// High, 2 is Medium, 1 is Low; a code drift (one line) is Low. The Compare
+// list uses this per row.
+const SEVERITY_RANK = { low: 1, medium: 2, high: 3 }
+export function driftSeverity(d) {
+  if (d.kind !== 'design') return 'low'
+  if (d.diffs.length >= 3) return 'high'
+  if (d.diffs.length === 2) return 'medium'
+  return 'low'
+}
+
+// An item's (file-level) conflict severity = the HIGHEST severity among
+// all its component drifts, plus which drift sets it — so a badge on the
+// item reads as its overall merge risk. null when it has no drifts or its
+// conflict has been resolved.
+export function itemSeverity(item) {
+  if (item.conflictLevel === 'None') return null
+  const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
+  const candidates = [
+    ...Object.entries(designMergeVariants[item.id]?.layerDiffs ?? {}).map(([layerId, diffs]) => ({
+      level: driftSeverity({ kind: 'design', diffs }),
+      source: `${layers.find((l) => l.id === layerId)?.name ?? layerId} · ${diffs.length} change${diffs.length === 1 ? '' : 's'}`,
+    })),
+    ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, lines]) =>
+      lines.map((d) => ({ level: 'low', source: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}` }))
+    ),
+  ]
+  if (!candidates.length) return null
+  const top = candidates.reduce((a, b) => (SEVERITY_RANK[b.level] > SEVERITY_RANK[a.level] ? b : a))
+  const label = top.level.charAt(0).toUpperCase() + top.level.slice(1)
+  return { level: label, source: top.source, count: candidates.length }
+}

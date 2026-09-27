@@ -74,8 +74,9 @@ function HistoryEntry({ event, current, previewing, confirming, isFirst, isLast,
       className="group relative cursor-pointer py-5 outline-none"
     >
       {/* Full-bleed card surface (the content stays on the 20px inset): a
-          soft lift on hover / keyboard focus, a touch more while open, and
-          the accent bar on the live version. */}
+          soft lift on hover / keyboard focus, a touch more while open or on
+          the live version (which also carries the "Current" tag) — a pure
+          tint, no accent bar. */}
       <span
         aria-hidden
         className={cn(
@@ -83,7 +84,6 @@ function HistoryEntry({ event, current, previewing, confirming, isFirst, isLast,
           current || previewing ? 'bg-white/[0.035]' : 'group-hover:bg-white/[0.025] group-focus-visible:bg-white/[0.025]'
         )}
       />
-      {current && <span aria-hidden className="absolute inset-y-0 -left-5 w-[3px] bg-emerald-400" />}
       {/* Timeline track: this entry's segment of one continuous line through
           the avatar nodes — from the first node down to the last. */}
       {!(isFirst && isLast) && (
@@ -168,7 +168,7 @@ function HistoryEntry({ event, current, previewing, confirming, isFirst, isLast,
 // Version history as a comment-stream timeline (same rhythm as the Inbox):
 // newest first, the entries' avatars strung on one vertical track (like a
 // commit graph) instead of hairline dividers, the live version marked with
-// the accent bar. Preview expands what changed at that point; Rollback
+// a soft tint and its "Current" tag. Preview expands what changed at that point; Rollback
 // (confirmed inline) restores that state and logs a rollback entry.
 function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
   const [previewId, setPreviewId] = useState(null)

@@ -14,7 +14,7 @@ export const GUIDE_STEPS = [
     title: 'Explore the Merge List',
     body: 'Items are grouped by status — open one to see its files and layers, or narrow the list with the Status, Conflict and Due filters.',
     targets: [
-      { id: 'merge-list', side: 'right', round: 'rounded-2xl' },
+      { id: 'merge-list', side: 'right', round: 'rounded-[20px]' },
       { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List to browse merge items by status and filter by Status, Conflict or Due.' },
     ],
   },
@@ -24,7 +24,7 @@ export const GUIDE_STEPS = [
     targets: [
       { id: 'merge-items', side: 'right', round: 'rounded-xl' },
       // While an item's Files / Layers view is pushed in, the list is hidden.
-      { id: 'merge-list', side: 'right', round: 'rounded-2xl', body: 'Use Back to Merge List, then click an item — or add your open files as a new one.' },
+      { id: 'merge-list', side: 'right', round: 'rounded-[20px]', body: 'Use Back to Merge List, then click an item — or add your open files as a new one.' },
       { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List and click an item — or add your open files as a new one.' },
     ],
   },
@@ -41,7 +41,7 @@ export const GUIDE_STEPS = [
     body: 'Open a drift in Compare to see its properties right there — keep Original or take Current for each — or switch to Assemble to fine-tune styles and tokens.',
     // Anchored down in the drift list, so the card clears the pager /
     // Merge Changes row that runs across the top of the canvas.
-    targets: [{ id: 'block-deck', side: 'left', round: 'rounded-2xl', anchor: 170 }],
+    targets: [{ id: 'block-deck', side: 'left', round: 'rounded-[20px]', anchor: 170 }],
     fallback: 'Click any element on the canvas to open the Block Deck, then review its properties and tokens there.',
   },
   {

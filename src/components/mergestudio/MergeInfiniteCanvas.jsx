@@ -11,7 +11,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
-import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
@@ -1296,7 +1296,8 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
       {open && (
         <div
           className={cn(
-            'absolute right-0 bottom-full mb-2 flex max-h-[min(440px,calc(100vh-160px))] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl',
+            'absolute right-0 bottom-full mb-2 flex max-h-[min(440px,calc(100vh-160px))] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden',
+            PANEL_RADIUS,
             FLOATING_PANEL
           )}
         >

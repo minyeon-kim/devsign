@@ -1,3 +1,4 @@
+import { itemSeverity } from '@/components/mergestudio/mergeSummary'
 // Merge List filter model: the extra per-item fields the filters need that
 // the shared merge-item data doesn't carry yet, derived here so none of it
 // leaks outside Merge Studio.
@@ -73,7 +74,8 @@ export function activeFilterCount(f) {
 export function matchesFilters(item, f) {
   if (f.status.length && !f.status.includes(item.tag)) return false
   if (f.assignee.length && !f.assignee.includes(item.assigneeId)) return false
-  if (f.conflict.length && !f.conflict.includes(item.conflictLevel)) return false
+  // Same value the Merge List badge shows: the item's highest drift severity.
+  if (f.conflict.length && !f.conflict.includes(itemSeverity(item)?.level ?? 'None')) return false
   return matchesDue(item, f.due)
 }
 

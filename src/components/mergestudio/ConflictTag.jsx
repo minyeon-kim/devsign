@@ -21,21 +21,17 @@ function ConflictTag({ level, className }) {
   )
 }
 
-// The compact severity pill — just the level word in a fixed-width ghost
-// pill. The Block Deck's Detected Drifts rows and the Merge List cards both
-// use it, so a "High" reads identically in either panel. No fill: a
-// transparent pill whose text and hairline outline carry a soft, low-chroma
-// semantic tint — muted rose for High, muted amber for Medium, muted
-// slate-blue for Low — enough to scan priorities at a glance without the
-// loud solid badges. (oklch values a notch more saturated than a pure
-// pastel, so each level pops on the dark surface, but still softer than
-// the stock palette steps.) `level` is case-insensitive: high / medium /
-// low / none.
+// The compact severity badge — just the level word in a fixed-width pill.
+// The Block Deck's drift rows and the Merge List cards both use it, so a
+// "High" reads identically in either panel. Soft-tinted and borderless
+// (Linear / Vercel style): a faint fill of the level's color with matching
+// text — muted rose for High, muted amber for Medium, muted slate-blue for
+// Low — no outline. `level` is case-insensitive: high / medium / low / none.
 const SEVERITY_PILL_CLASS = {
-  high: 'font-semibold text-[oklch(0.8_0.13_18)] ring-[oklch(0.7_0.15_18_/_0.65)]',
-  medium: 'text-[oklch(0.86_0.12_80)] ring-[oklch(0.8_0.13_80_/_0.55)]',
-  low: 'text-[oklch(0.8_0.08_245)] ring-[oklch(0.72_0.1_245_/_0.5)]',
-  none: 'text-slate-500 ring-white/10',
+  high: 'bg-[oklch(0.7_0.15_18_/_0.18)] font-semibold text-[oklch(0.82_0.12_18)]',
+  medium: 'bg-[oklch(0.8_0.13_80_/_0.15)] text-[oklch(0.87_0.11_80)]',
+  low: 'bg-[oklch(0.72_0.1_245_/_0.18)] text-[oklch(0.82_0.07_245)]',
+  none: 'bg-white/[0.05] text-slate-500',
 }
 
 export function SeverityPill({ level, className, ...props }) {
@@ -44,7 +40,7 @@ export function SeverityPill({ level, className, ...props }) {
     <span
       {...props}
       className={cn(
-        'flex h-5 w-[58px] shrink-0 items-center justify-center rounded-full bg-transparent text-[11px] font-medium ring-1 ring-inset',
+        'flex h-5 w-[58px] shrink-0 items-center justify-center rounded-full text-[11px] font-medium',
         SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium,
         className
       )}

@@ -4,7 +4,12 @@
 // Preview, zoom, Changes log). Panels use the same 90% glass as the pills
 // and the AI prompt bar — light enough to feel like glass, dense enough
 // that text stays readable over the white artboards underneath.
-export const FLOATING_PANEL = 'border border-white/10 bg-card/90 shadow-2xl shadow-black/40 backdrop-blur-xl backdrop-saturate-150'
+// Stitch-style floating card: a hairline edge, a faint inner top highlight
+// (light catching the glass), a layered soft shadow for elevation, and a
+// strong blur. Pair with PANEL_RADIUS.
+export const FLOATING_PANEL =
+  'border border-white/[0.08] bg-card/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_24px_64px_-16px_rgba(0,0,0,0.65),0_8px_20px_-8px_rgba(0,0,0,0.45)] backdrop-blur-2xl backdrop-saturate-150'
+export const PANEL_RADIUS = 'rounded-[20px]'
 export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-lg backdrop-blur-md'
 
 // Shared sizing so every count badge in the studio is the same box,
@@ -28,12 +33,12 @@ export const CATEGORY_TAB_ROW = 'flex shrink-0 items-center gap-1 px-5 pb-3'
 // the one it overlaps. Surfaces set `--avatar-ring` to their own tone
 // (AVATAR_RING_ON_* below); it falls back to the panel color.
 export const AVATAR_RING = 'ring-[1.5px] ring-[var(--avatar-ring,var(--card))]'
-// Merge List group surface (white 2.5% over the panel), and a card's
-// hover / active fills stacked on top of it. Written out in full so
-// Tailwind picks the classes up.
-export const AVATAR_RING_ON_SURFACE = '[--avatar-ring:color-mix(in_oklab,var(--card),white_2.5%)]'
-export const AVATAR_RING_ON_HOVER = 'hover:[--avatar-ring:color-mix(in_oklab,var(--card),white_5.5%)]'
-export const AVATAR_RING_ON_ACTIVE = '[--avatar-ring:color-mix(in_oklab,var(--card),white_8.5%)]'
+// Merge List rows sit straight on the panel (borderless lists), plus a
+// card's hover / active fills. Written out in full so Tailwind picks the
+// classes up.
+export const AVATAR_RING_ON_SURFACE = '[--avatar-ring:var(--card)]'
+export const AVATAR_RING_ON_HOVER = 'hover:[--avatar-ring:color-mix(in_oklab,var(--card),white_3%)]'
+export const AVATAR_RING_ON_ACTIVE = '[--avatar-ring:color-mix(in_oklab,var(--card),white_6%)]'
 
 // The teammate presence stack in the studio's top pill (the shared
 // UserPresence component, styled from its Merge Studio wrapper only): the
@@ -52,13 +57,16 @@ export const PRESENCE_STACK = [
 ].join(' ')
 
 // Flat panel language shared by the Merge List and the Block Deck: content
-// sits on a 20px inset (px-5) with 16px between groups; a group is an
-// sentence-case label (8px above its surface) and, where it's a list, one
-// grouped surface — a faint tonal lift + hairline ring — with rows split by
-// hairlines instead of separate bordered boxes.
-export const PANEL_SURFACE = 'overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07]'
+// sits on a 20px inset (px-5) with 16px between groups; a group is a
+// sentence-case label (8px above its list) and, where it's a list, a run of
+// rows with no lines at all — no card, no borders, no dividers. Rows are
+// told apart by whitespace (4px apart) and a soft, rounded background shift
+// on hover / selection. The list extends 12px into the gutter on each side
+// and its rows pad 12px back in, so row text stays on the 20px inset.
+export const PANEL_SURFACE = '-mx-3'
 export const PANEL_LABEL = 'mb-2 flex h-7 items-center gap-2 text-xs font-medium text-slate-300'
-export const PANEL_ROWS = 'divide-y divide-white/[0.06]'
+// Rows: spaced, rounded (so hover / selected fills read as soft pills).
+export const PANEL_ROWS = 'space-y-1 [&>*]:overflow-hidden [&>*]:rounded-lg'
 // Borderless ghost button fill (the Merge List search's tone).
 export const GHOST_BUTTON = 'bg-white/[0.05] text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white'
 
@@ -75,3 +83,9 @@ export const ACCENT_CTA = 'bg-emerald-400 text-slate-950 shadow-lg shadow-emeral
 export const ACCENT_SOFT = 'bg-emerald-400/15 text-emerald-300'
 // Solid count badge on a highlighted control.
 export const ACCENT_BADGE = 'bg-emerald-400 text-slate-950'
+
+// Severity badge at the front of a two-line row (Merge List cards, Compare
+// drift rows): a fixed-width column, the badge filling it, so badges and
+// the text after them form clean vertical lines down the list.
+export const SEVERITY_COL = 'w-[46px]'
+export const SEVERITY_BADGE = 'h-5 w-[46px] px-0 text-[10px]'
