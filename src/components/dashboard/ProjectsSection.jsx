@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { ChevronDown, Folder, LayoutGrid, List, Plus } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import ProjectCard from '@/components/projects/ProjectCard'
-import { projects } from '@/data/mockData'
+import CreateProjectModal from '@/components/modals/CreateProjectModal'
+import { projects as seedProjects } from '@/data/mockData'
 
 // Sort/filter dropdowns are visual-only — they don't actually reorder or
 // filter `projects` (per the dashboard brief: "interactions only need to
@@ -20,6 +22,17 @@ const sortOptions = ['Last modified', 'Name', 'Most conflicts']
 
 function ProjectsSection() {
   const [view, setView] = useState('grid')
+  const [projectList, setProjectList] = useState(() => [...seedProjects])
+  const [createOpen, setCreateOpen] = useState(false)
+
+  function handleCreate(project) {
+    // Keep the shared mockData array in sync too, so navigating straight
+    // into the new project's workspace (which reads `projects` on its own)
+    // still resolves it.
+    seedProjects.push(project)
+    setProjectList((prev) => [...prev, project])
+    toast('Project created', { description: project.name })
+  }
 
   return (
     <section>
@@ -82,7 +95,7 @@ function ProjectsSection() {
             </button>
           </div>
 
-          <Button size="sm" className="gap-1">
+          <Button size="sm" className="gap-1" onClick={() => setCreateOpen(true)}>
             <Plus className="size-3.5" />
             New project
           </Button>
@@ -95,10 +108,17 @@ function ProjectsSection() {
           view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 gap-2'
         )}
       >
-        {projects.map((project, index) => (
+        {projectList.map((project, index) => (
           <ProjectCard key={project.id} project={project} index={index} view={view} />
         ))}
       </div>
+
+      <CreateProjectModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreate={handleCreate}
+        existingNames={projectList.map((p) => p.name)}
+      />
     </section>
   )
 }

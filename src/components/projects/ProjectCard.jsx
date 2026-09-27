@@ -50,7 +50,9 @@ function ProjectCard({ project, index = 0, view = 'grid' }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-foreground">{project.name}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Edited {project.updatedAtLabel}</p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {project.type ? `${project.type} · Edited ${project.updatedAtLabel}` : `Edited ${project.updatedAtLabel}`}
+          </p>
         </div>
 
         <AvatarGroup className="shrink-0">
