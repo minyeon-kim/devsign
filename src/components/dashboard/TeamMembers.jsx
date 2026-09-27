@@ -13,8 +13,9 @@ function currentProjectFor(memberId) {
   return projects.find((p) => p.memberIds.includes(memberId))
 }
 
-function TeamMembers() {
+function TeamMembers({ limit = 'All' }) {
   const navigate = useNavigate()
+  const visibleMembers = limit === 'All' ? teamMembers : teamMembers.slice(0, limit)
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -30,7 +31,7 @@ function TeamMembers() {
       </div>
 
       <ul className="mt-2 flex flex-col">
-        {teamMembers.map((member) => {
+        {visibleMembers.map((member) => {
           const project = currentProjectFor(member.id)
           return (
             <li key={member.id} className="border-b border-border/60 last:border-b-0">

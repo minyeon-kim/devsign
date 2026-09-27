@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
-import { conflictActivitySeries } from '@/data/mockData'
+import {
+  conflictActivitySeries,
+  conflictActivitySeriesLastWeek,
+  conflictActivitySeriesThisMonth,
+} from '@/data/mockData'
 
 const BAR_PX_PER_UNIT = 12
 
@@ -11,10 +15,23 @@ const SERIES = [
   { key: 'pending', label: 'Pending', dotClass: 'bg-muted-foreground/40', barClass: 'bg-muted-foreground/30' },
 ]
 
-function ConflictActivityChart() {
+const PERIOD_DATA = {
+  thisWeek: conflictActivitySeries,
+  lastWeek: conflictActivitySeriesLastWeek,
+  thisMonth: conflictActivitySeriesThisMonth,
+}
+
+const PERIOD_CAPTION = {
+  thisWeek: 'this week',
+  lastWeek: 'last week',
+  thisMonth: 'this month',
+}
+
+function ConflictActivityChart({ period = 'thisWeek' }) {
   const navigate = useNavigate()
   const [visible, setVisible] = useState(() => new Set(SERIES.map((s) => s.key)))
-  const peakDay = conflictActivitySeries.find((day) => day.peak)
+  const data = PERIOD_DATA[period] ?? conflictActivitySeries
+  const peakDay = data.find((day) => day.peak)
 
   function toggleSeries(key) {
     setVisible((prev) => {
@@ -61,7 +78,7 @@ function ConflictActivityChart() {
       </div>
 
       <div className="mt-4 flex h-[130px] items-end justify-around gap-3">
-        {conflictActivitySeries.map((day) => (
+        {data.map((day) => (
           <div key={day.label} className="flex flex-col items-center gap-1.5">
             <div className="relative">
               {day.peak && (
@@ -85,7 +102,7 @@ function ConflictActivityChart() {
       </div>
       {peakDay && (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          {peakDay.label} resolved the most conflicts this week.
+          {peakDay.label} resolved the most conflicts {PERIOD_CAPTION[period] ?? 'this week'}.
         </p>
       )}
     </div>
