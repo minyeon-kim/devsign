@@ -11,6 +11,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
+import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
@@ -2690,6 +2691,17 @@ function MergeInfiniteCanvas({
         </div>
         )}
       </div>
+
+      {/* Same "someone else is here" simulation the normal workspace's
+          Editor/Canvas panels use (see WorkspaceProvider's getViewersForFile
+          /getViewersForCanvasPage) — unscoped here (defaults to every
+          teammate) since Merge Studio's presence stack already treats the
+          whole session as one shared room rather than a per-file/page
+          viewport. Sits as a sibling overlay (not inside the
+          pan/zoom-transformed content) so cursors track real screen
+          position regardless of canvas pan/zoom, matching how the
+          workspace panels position it. */}
+      <MultiplayerCursors />
 
       {/* Bottom-right row: zoom pill sits directly beside the Changes Log
           toggle (both `items-end`-aligned so the zoom pill's bottom edge
