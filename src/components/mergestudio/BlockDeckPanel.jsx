@@ -935,35 +935,28 @@ function TextContentSection({ slots, onEditText }) {
 }
 
 
-// A single AI-generated style suggestion — badge, preview swatch, rationale
-// copy explaining why the (mock) model picked it, and its own dismiss
-// button so an unsatisfactory suggestion can be cleared without affecting
-// the rest of the list.
+// One slim AI suggestion row: a small swatch, the name, a one-line
+// rationale (full text on hover), a check when applied, and a dismiss
+// button on hover. Clicking applies it (live preview on the Current
+// Implementation).
 function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
   return (
-    <div className={cn('group relative px-3 py-3.5 text-left transition-colors', applied ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
+    <div className={cn('group relative flex items-center gap-2.5 py-2 pr-2 pl-3 transition-colors', applied ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
       {applied && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-400" />}
-      <button type="button" onClick={() => onApply(preset)} className="flex w-full items-start gap-3 text-left">
-        <span className={cn('size-9 shrink-0 rounded-full', preset.previewClass)} />
+      <button type="button" onClick={() => onApply(preset)} title={preset.rationale} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <span className={cn('size-5 shrink-0 rounded-[6px] ring-1 ring-white/10', preset.previewClass)} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">{preset.label}</span>
-            <span className="flex items-center gap-0.5 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-slate-400">
-              <Sparkles className="size-3" />
-              AI
-            </span>
-            {applied && <Check className="ml-auto size-4 shrink-0 text-slate-100" />}
-          </span>
-          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-            {preset.rationale}
-          </span>
+          <span className="block truncate text-[13px] font-medium text-slate-100">{preset.label}</span>
+          <span className="block truncate text-[11px] text-slate-500">{preset.rationale}</span>
         </span>
+        {applied && <Check className="size-3.5 shrink-0 text-emerald-300" />}
       </button>
       <button
         type="button"
         onClick={() => onDelete(preset.id)}
         title="Dismiss suggestion"
-        className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+        aria-label={`Dismiss ${preset.label}`}
+        className="flex size-6 shrink-0 items-center justify-center rounded-full text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-white/[0.08] hover:text-white"
       >
         <X className="size-3.5" />
       </button>
@@ -971,21 +964,20 @@ function AiSuggestionCard({ preset, applied, onApply, onDelete }) {
   )
 }
 
-// The AI-driven "Block Assemble" tab — a short list of mock AI style
-// suggestions (badged, with rationale) for whichever canvas layer is
-// currently selected. Picking one calls `onApplyPreset` so the parent can
-// live-preview it on the Current Implementation artboard; dismissing one just removes it
-// from view; "Generate alternatives" pulls more from the shared preset pool
-// until it's exhausted.
+// AI suggestions (Assemble): a collapsible section, closed by default so it
+// doesn't push the panel into a long scroll — the header ("✨ AI
+// suggestions 3 ▾") shows the count, and the applied suggestion's name
+// when one is applied. Open, it lists slim suggestion rows plus "Generate
+// alternatives", which pulls presets never shown before (dismissed ones
+// stay dismissed).
 function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPreset }) {
+  const [open, setOpen] = useState(false)
   const [visibleIds, setVisibleIds] = useState(() => blockDeckPresets.slice(0, 3).map((p) => p.id))
-  // Dismissed suggestions stay dismissed — "Generate alternatives" only ever
-  // pulls presets that have never been shown yet, so clearing a bad
-  // suggestion never brings that exact one back.
   const [seenIds, setSeenIds] = useState(() => new Set(visibleIds))
 
   const visiblePresets = blockDeckPresets.filter((p) => visibleIds.includes(p.id))
   const hasMore = seenIds.size < blockDeckPresets.length
+  const applied = blockDeckPresets.find((p) => p.id === appliedPresetId)
 
   function generateAlternatives() {
     const next = blockDeckPresets.find((p) => !seenIds.has(p.id))
@@ -999,51 +991,54 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-5 pt-2">
-        <p className={PANEL_LABEL}>AI suggestions</p>
-        <p className="-mt-1 mb-2 text-xs text-muted-foreground">
-          {selectedLayerName ? (
-            <>
-              For <span className="font-medium text-foreground">{selectedLayerName}</span>
-            </>
-          ) : (
-            'Select a canvas element to preview suggestions on it'
-          )}
-        </p>
-      </div>
-
-      <div className="px-5">
-        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-        {visiblePresets.map((preset) => (
-          <AiSuggestionCard
-            key={preset.id}
-            preset={preset}
-            applied={appliedPresetId === preset.id}
-            onApply={onApplyPreset}
-            onDelete={deleteSuggestion}
-          />
-        ))}
-        {visiblePresets.length === 0 && (
-          <p className="p-3 text-center text-sm text-muted-foreground">
-            All suggestions dismissed. Generate more below.
-          </p>
+    <section className="px-5 pt-2 pb-5">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="-mx-2 flex h-9 w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 text-left transition-colors hover:bg-white/[0.04]"
+      >
+        <Sparkles className="size-3.5 shrink-0 text-slate-400" />
+        <span className="text-xs font-medium text-slate-300">AI suggestions</span>
+        <span className="text-xs text-slate-500 tabular-nums">{visiblePresets.length}</span>
+        {applied && !open && (
+          <span className="ml-1 flex min-w-0 items-center gap-1 truncate rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+            <Check className="size-3 shrink-0" />
+            <span className="truncate">{applied.label}</span>
+          </span>
         )}
+        <ChevronDown className={cn('ml-auto size-3.5 shrink-0 text-slate-500 transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+
+      <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')} inert={!open}>
+        <div className="overflow-hidden">
+          <p className="pt-1 pb-2 text-[11px] text-slate-500">
+            {selectedLayerName ? (
+              <>
+                For <span className="font-medium text-slate-300">{selectedLayerName}</span> — click one to preview it live
+              </>
+            ) : (
+              'Select a canvas element to preview suggestions on it'
+            )}
+          </p>
+          <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
+            {visiblePresets.map((preset) => (
+              <AiSuggestionCard key={preset.id} preset={preset} applied={appliedPresetId === preset.id} onApply={onApplyPreset} onDelete={deleteSuggestion} />
+            ))}
+            {visiblePresets.length === 0 && <p className="px-3 py-3 text-center text-xs text-slate-500">All suggestions dismissed.</p>}
+          </div>
+          <button
+            type="button"
+            onClick={generateAlternatives}
+            disabled={!hasMore}
+            className={cn('mt-2 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40', GHOST_BUTTON)}
+          >
+            <Wand2 className="size-3.5" />
+            {hasMore ? 'Generate alternatives' : 'No more alternatives'}
+          </button>
         </div>
       </div>
-
-      <div className="shrink-0 px-5 pt-3 pb-5">
-        <button
-          type="button"
-          onClick={generateAlternatives}
-          disabled={!hasMore}
-          className={cn('flex h-9 w-full items-center justify-center gap-2 rounded-full px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40', GHOST_BUTTON)}
-        >
-          <Wand2 className="size-4" />
-          {hasMore ? 'Generate alternatives' : 'No more alternatives'}
-        </button>
-      </div>
-    </div>
+    </section>
   )
 }
 
