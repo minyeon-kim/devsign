@@ -251,9 +251,9 @@ function DeckScroll({ innerClassName, children }) {
 function InspectorSection({ title, action, children }) {
   return (
     <div className="space-y-2 px-5 py-2.5">
-      <div className="flex h-5 items-center justify-between">
+      <div className="flex h-5 items-center gap-2">
         <p className="text-xs font-medium text-slate-200">{title}</p>
-        {action}
+        {action && <span className="ml-auto">{action}</span>}
       </div>
       {children}
     </div>
@@ -533,6 +533,7 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
       {has('fill') && (
         <InspectorSection
           title="Fill"
+         
           action={
             (a.fill || a.fillColor) && (
               <button type="button" title="Remove fill override" onClick={() => onChange({ fill: undefined, fillColor: undefined })} className="flex size-5 items-center justify-center rounded-[4px] text-muted-foreground hover:bg-white/5 hover:text-foreground">
@@ -1042,34 +1043,6 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
   )
 }
 
-// The selected element's drift, resolved here in Assemble (Compare only
-// summarizes): one row per differing property — keep the Original Design
-// value, take the Current Implementation's, or set a custom one.
-function DriftResolveSection({ layerId, diffs, resolutions, onResolve, onHoverDiff }) {
-  const done = diffs.filter((d) => resolutions[`${layerId}:${d.id}`]).length
-  return (
-    <section>
-      <div className={PANEL_LABEL}>
-        <span className="flex-1">Drift</span>
-        <span className={cn('text-[11px]', done === diffs.length ? 'text-emerald-300' : 'text-slate-500')}>
-          {done} of {diffs.length} resolved
-        </span>
-      </div>
-      <div className={cn(PANEL_SURFACE, 'px-3 py-1.5')}>
-        {diffs.map((diff) => (
-          <DiffRow
-            key={`${diff.id}:${JSON.stringify(resolutions[`${layerId}:${diff.id}`] ?? null)}`}
-            diff={diff}
-            resolution={resolutions[`${layerId}:${diff.id}`]}
-            onResolve={(diffId, side) => onResolve(layerId, diffId, side)}
-            onHover={(diffId, side) => onHoverDiff(diffId ? { layerId, diffId, side } : null)}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
 // Which design tokens the selected element is bound to (read-only).
 function TokenBindingSection({ spec }) {
   const rows = [
@@ -1092,18 +1065,13 @@ function TokenBindingSection({ spec }) {
   )
 }
 
-// Block Assemble: everything about the selected element, in detail — its
-// drift, resolved property by property (or, without drift, its token
-// binding / an AI recommendation), then its content copy (the Text card,
-// bound to copy.json), its shape / size / style, and AI style suggestions.
-function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, resolutions, onResolve, onHoverDiff, ...suggestionProps }) {
+// Block Assemble: direct inspection and editing of the selected element —
+// its token binding / an AI recommendation (when it has no drift), its
+// content copy (the Text card, bound to copy.json), its shape / size /
+// style, and AI style suggestions. Drift is resolved in Compare.
+function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, ...suggestionProps }) {
   return (
     <DeckScroll>
-      {selectedLayer && diffs?.length > 0 && (
-        <div className="px-5 pb-4">
-          <DriftResolveSection layerId={selectedLayer.id} diffs={diffs} resolutions={resolutions} onResolve={onResolve} onHoverDiff={onHoverDiff} />
-        </div>
-      )}
       {selectedLayer && !diffs?.length && (
         <div className="px-5 pb-4">
           {tokenSpec ? <TokenBindingSection spec={tokenSpec} /> : <AiRecommendation layer={selectedLayer} onChange={onAssemble} />}
@@ -1517,9 +1485,6 @@ function BlockDeckPanel({
           onEditText={onEditText}
           diffs={designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]}
           tokenSpec={selectedLayer ? inspectorSpecsByType[selectedLayer.type] : null}
-          resolutions={resolutions}
-          onResolve={onResolve}
-          onHoverDiff={onHoverDiff}
           selectedLayerName={selectedLayerName}
           appliedPresetId={appliedPresetId}
           onApplyPreset={onApplyPreset}
