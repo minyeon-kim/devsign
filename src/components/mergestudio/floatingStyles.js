@@ -4,11 +4,14 @@
 // Preview, zoom, Changes log). Panels use the same 90% glass as the pills
 // and the AI prompt bar — light enough to feel like glass, dense enough
 // that text stays readable over the white artboards underneath.
-// Stitch-style floating card: a hairline edge, a faint inner top highlight
-// (light catching the glass), a layered soft shadow for elevation, and a
-// strong blur. Pair with PANEL_RADIUS.
+// Floating panel surface (Merge List, Block Deck, drawers, Changes log): a
+// solid, fully opaque dark charcoal (the theme's card color — no backdrop
+// blur, no transparency, so the canvas never shows through and dense text
+// stays crisp), a 10% white hairline border, a faint inner top highlight,
+// and a layered soft shadow that lifts it off the canvas. Pair with
+// PANEL_RADIUS.
 export const FLOATING_PANEL =
-  'border border-white/[0.08] bg-card/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_24px_64px_-16px_rgba(0,0,0,0.65),0_8px_20px_-8px_rgba(0,0,0,0.45)] backdrop-blur-2xl backdrop-saturate-150'
+  'border border-white/10 bg-card shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_24px_64px_-16px_rgba(0,0,0,0.7),0_8px_20px_-8px_rgba(0,0,0,0.5)]'
 export const PANEL_RADIUS = 'rounded-[20px]'
 export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-lg backdrop-blur-md'
 

@@ -1199,7 +1199,7 @@ function CategoryMenu({ categories, counts, value, onChange }) {
         <span className="max-w-[88px] truncate">{value === 'All' ? 'All types' : value}</span>
         <ChevronDown className="size-3 text-slate-500" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44 rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl">
+      <DropdownMenuContent align="end" className="min-w-44 rounded-xl border border-white/10 bg-card">
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {categories.map((c) => (
             <DropdownMenuRadioItem key={c} value={c} className="text-xs">

@@ -673,7 +673,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       <Dialog open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
         <DialogContent
           showCloseButton={false}
-          className="rounded-2xl border border-white/10 bg-card/90 p-5 shadow-2xl backdrop-blur-xl"
+          className="rounded-2xl border border-white/10 bg-card p-5 shadow-2xl"
         >
           <div className="flex size-10 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-400">
             <ArrowLeft className="size-4.5" strokeWidth={2.5} />
