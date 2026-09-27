@@ -4,28 +4,21 @@ import {
   ArrowRight,
   BetweenHorizontalStart,
   Blend,
-  Blocks,
-  Circle,
   Link2,
   Link2Off,
   Minus,
   MoveHorizontal,
   MoveVertical,
   Plus,
-  RectangleHorizontal,
   Square,
   SquareRoundCorner,
   Check,
   ChevronDown,
   Library,
   Search,
-  MousePointerClick,
-  LayoutGrid,
-  SlidersHorizontal,
+  PanelRightClose,
   Pencil,
-  Sparkles,
   Type,
-  Wand2,
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
@@ -526,9 +519,9 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
               value={a.radius ?? shapeRadius}
               onChange={(r) => onChange({ radius: r })}
               options={[
-                { id: 0, label: 'Square', icon: Square, title: 'Square corners (0px)' },
-                { id: 12, label: 'Rounded', icon: RectangleHorizontal, title: 'Rounded corners (12px)' },
-                { id: 999, label: 'Pill', icon: Circle, title: 'Pill corners (999px)' },
+                { id: 0, label: 'Square', title: 'Square corners (0px)' },
+                { id: 12, label: 'Rounded', title: 'Rounded corners (12px)' },
+                { id: 999, label: 'Pill', title: 'Pill corners (999px)' },
               ]}
             />
           </div>
@@ -650,7 +643,6 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
   return (
     <div className="pb-2">
       <div className="flex h-7 items-center gap-2 px-5">
-        <Blocks className="size-4 text-slate-400" />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{layer.name}</span>
         <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-muted-foreground capitalize">{layer.type}</span>
         <button
@@ -688,13 +680,9 @@ function AiRecommendation({ layer, onChange }) {
     <section>
       <p className={PANEL_LABEL}>No design tokens found</p>
       <div className={cn(PANEL_SURFACE, 'p-3')}>
-        <p className="flex items-center gap-1.5 text-[13px] font-medium text-slate-100">
-          <Sparkles className="size-3.5 text-slate-400" />
-          AI recommends
-        </p>
+        <p className="text-[13px] font-medium text-slate-100">AI recommends</p>
         <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{rec.rationale}</p>
         <button type="button" onClick={() => onChange(rec.patch)} className={cn('mt-2.5 flex h-7 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[11px] font-medium', GHOST_BUTTON)}>
-          <Wand2 className="size-3.5" />
           Apply recommendation
         </button>
       </div>
@@ -1003,7 +991,6 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
         onClick={() => setOpen((v) => !v)}
         className="-mx-2 flex h-9 w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 text-left transition-colors hover:bg-white/[0.04]"
       >
-        <Sparkles className="size-3.5 shrink-0 text-slate-400" />
         <span className="text-xs font-medium text-slate-300">AI suggestions</span>
         <span className="text-xs text-slate-500 tabular-nums">{visiblePresets.length}</span>
         {applied && !open && (
@@ -1038,7 +1025,6 @@ function AiSuggestionsSection({ selectedLayerName, appliedPresetId, onApplyPrese
             disabled={!hasMore}
             className={cn('mt-2 flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40', GHOST_BUTTON)}
           >
-            <Wand2 className="size-3.5" />
             {hasMore ? 'Generate alternatives' : 'No more alternatives'}
           </button>
         </div>
@@ -1195,7 +1181,6 @@ function CategoryMenu({ categories, counts, value, onChange }) {
           value === 'All' ? 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.08]' : 'bg-white/[0.1] text-white hover:bg-white/[0.13]'
         )}
       >
-        <SlidersHorizontal className="size-3.5 text-slate-400" />
         <span className="max-w-[88px] truncate">{value === 'All' ? 'All types' : value}</span>
         <ChevronDown className="size-3 text-slate-500" />
       </DropdownMenuTrigger>
@@ -1273,12 +1258,11 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search components…"
-              className="h-8 w-full rounded-[6px] bg-white/[0.05] pr-3 pl-8 text-[12px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
+              className="h-8 w-full rounded-[6px] bg-white/[0.05] px-3 text-[12px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
             />
           </div>
           <CategoryMenu categories={categories} counts={counts} value={activeCategory} onChange={setCategory} />
@@ -1296,8 +1280,8 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
               value={showAll ? 'all' : 'fit'}
               onChange={(v) => setShowAll(v === 'all')}
               options={[
-                { id: 'fit', label: 'Compatible', icon: MousePointerClick, count: fitting.length, title: `Only components that fit ${selectedLayer.name}` },
-                { id: 'all', label: 'All', icon: LayoutGrid, count: designSystemComponents.length, title: 'Every component' },
+                { id: 'fit', label: 'Compatible', count: fitting.length, title: `Only components that fit ${selectedLayer.name}` },
+                { id: 'all', label: 'All', count: designSystemComponents.length, title: 'Every component' },
               ]}
             />
           )}
@@ -1376,6 +1360,8 @@ function BlockDeckPanel({
   onDragComponent,
   onInsertComponent,
   onTabSwitch,
+  collapsed = false,
+  onCollapse,
 }) {
   const [tab, setTab] = useState('compare')
   function switchTab(next) {
@@ -1383,16 +1369,10 @@ function BlockDeckPanel({
     onTabSwitch?.()
   }
   const [pos, setPos] = useState(null)
-  // Collapsed at rest (no selection yet) — but every fresh selection (a new
-  // layer/frame/code diff clicked on the canvas) re-expands it automatically
-  // so the right, context-aware tab content is immediately visible instead
-  // of hiding behind a chevron the user has to remember to click.
-  const [collapsed, setCollapsed] = useState(true)
+  // Collapsing is controlled by MergeStudioWorkspace: collapsed, the deck
+  // hides here and shows as a toggle pill in the canvas header instead
+  // (and any fresh selection re-expands it there).
   const rootRef = useRef(null)
-
-  useEffect(() => {
-    setCollapsed(false)
-  }, [selectedLayerId])
 
   if (!open) return null
 
@@ -1423,37 +1403,47 @@ function BlockDeckPanel({
     window.addEventListener('pointerup', onUp)
   }
 
+  const anchor = pos ? { left: pos.left, top: pos.top } : { right: 16, top: DECK_TOP }
+
+  // Collapsing slides the deck out to the right (and back in) instead of
+  // popping it in / out: it stays mounted, and while hidden it's inert and
+  // unclickable — the header's Block Deck pill brings it back.
   return (
     <div
       ref={rootRef}
       data-guide="block-deck"
+      aria-hidden={collapsed}
+      inert={collapsed}
       style={{
         width: DECK_WIDTH,
-        ...(pos ? { left: pos.left, top: pos.top } : { right: 16, top: DECK_TOP }),
+        ...anchor,
         maxHeight: `calc(100% - ${DECK_TOP + 16}px)`,
       }}
-      className={cn('absolute z-30 flex flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}
+      className={cn(
+        'absolute z-30 flex flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        PANEL_RADIUS,
+        FLOATING_PANEL,
+        collapsed ? 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0' : 'translate-x-0 opacity-100'
+      )}
     >
       <div
         onPointerDown={handleDragStart}
-        className="flex h-12 shrink-0 cursor-grab items-center gap-2 px-5 active:cursor-grabbing"
+        className="flex h-12 shrink-0 cursor-grab items-center justify-between gap-2 pr-3 pl-5 active:cursor-grabbing"
       >
-        <Blocks className="size-4 shrink-0 text-slate-400" />
-        <span className="flex-1 text-sm font-semibold text-foreground">Block Deck</span>
-        {/* Fold-only now — no separate "X" close. The deck stays docked;
-            collapsing is the one and only way to get it out of the way. */}
+        {/* Title and its one control on a single baseline — no icon. */}
+        <h2 className="text-sm leading-none font-semibold text-foreground">Block Deck</h2>
         <button
           type="button"
-          onClick={() => setCollapsed((v) => !v)}
+          onClick={() => onCollapse?.()}
           onPointerDown={(e) => e.stopPropagation()}
-          title={collapsed ? 'Expand' : 'Collapse'}
-          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          title="Collapse to the header"
+          aria-label="Collapse Block Deck"
+          className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
         >
-          <ChevronDown strokeWidth={2.5} className={cn('size-3.5 transition-transform', collapsed && 'rotate-180')} />
+          <PanelRightClose className="size-4" />
         </button>
       </div>
 
-      {!collapsed && (
       <>
       {/* Tabs: the shared category-tab pills (same as the Merge List's
           Files / Layers switch and the Inbox filters), straight under the
@@ -1511,7 +1501,6 @@ function BlockDeckPanel({
         />
       )}
       </>
-      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, MousePointer2, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -1494,6 +1494,7 @@ function MergeInfiniteCanvas({
   resolutionCount,
   merged,
   inReview,
+  headerAction,
   assemblies,
   resolutions,
   extraLayers,
@@ -1522,9 +1523,10 @@ function MergeInfiniteCanvas({
     defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
   )
   const [panning, setPanning] = useState(false)
-  // Canvas tool (the right-hand vertical toolbar): 'select' is the normal
-  // click-to-select canvas; 'hand' turns the whole canvas into a pan
-  // surface. Holding Space is a temporary hand, like in Figma.
+  // Canvas tool (keyboard only — there's no on-canvas toolbar): 'select'
+  // (V) is the normal click-to-select canvas; 'hand' (H) turns the whole
+  // canvas into a pan surface. Holding Space is a temporary hand, like in
+  // Figma; dragging empty canvas always pans.
   const [tool, setTool] = useState('select')
   const [spaceHand, setSpaceHand] = useState(false)
   const handActive = tool === 'hand' || spaceHand
@@ -2297,58 +2299,6 @@ function MergeInfiniteCanvas({
             className={cn('absolute inset-0 z-[15]', panning ? 'cursor-grabbing' : 'cursor-grab')}
           />
         )}
-        {/* Canvas tools — the only thing on the right-hand edge: select and
-            pan. Sits clear of the docked Block Deck (`layoutReserve`) and is
-            never pushed by the merge wizard; like the other compare-stage
-            controls, it steps away while the wizard is open. */}
-        {stage === 'compare' && (
-        <div
-          className={cn('absolute top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full p-1', FLOATING_PILL)}
-          style={{ right: 12 + layoutReserve }}
-        >
-          {[
-            ['select', MousePointer2, 'Select', 'V'],
-            ['hand', Hand, 'Hand — pan the canvas', 'H'],
-          ].map(([id, Icon, label, key]) => (
-            <button
-              key={id}
-              type="button"
-              title={`${label} (${key})`}
-              aria-label={label}
-              aria-pressed={tool === id}
-              onClick={() => setTool(id)}
-              className={cn(
-                'flex size-9 items-center justify-center rounded-full transition-colors',
-                (id === 'hand' ? handActive : tool === id && !spaceHand)
-                  ? 'bg-white/10 text-foreground ring-1 ring-inset ring-white/15'
-                  : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-              )}
-            >
-              <Icon className="size-4" />
-            </button>
-          ))}
-          {/* Show / hide every selection box, link line, size readout and
-              drift / hover outline on the canvas. */}
-          {onToggleGuides && (
-            <>
-              <span className="my-0.5 h-px w-5 bg-white/10" />
-              <button
-                type="button"
-                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
-                aria-label="Selection guides"
-                aria-pressed={guidesVisible}
-                onClick={onToggleGuides}
-                className={cn(
-                  'flex size-9 items-center justify-center rounded-full transition-colors',
-                  guidesVisible ? 'text-muted-foreground hover:bg-white/5 hover:text-foreground' : 'bg-white/10 text-foreground ring-1 ring-inset ring-white/15'
-                )}
-              >
-                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-              </button>
-            </>
-          )}
-        </div>
-        )}
         <div
           ref={viewportRef}
           onPointerDown={startPan}
@@ -2619,6 +2569,9 @@ function MergeInfiniteCanvas({
               <UserPresence />
             </span>
           </div>
+          {/* The collapsed Block Deck lives here, in the header, as a
+              toggle pill next to Share (see MergeStudioWorkspace). */}
+          {headerAction}
           <MergeShareButton item={item} />
           <button
             type="button"
@@ -2776,6 +2729,27 @@ function MergeInfiniteCanvas({
           >
             <Maximize className="size-4" />
           </button>
+          {/* Show / hide every selection box, link line, size readout and
+              drift / hover outline on the canvas (moved here from the old
+              right-edge toolbar). */}
+          {onToggleGuides && (
+            <>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button
+                type="button"
+                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
+                aria-label="Selection guides"
+                aria-pressed={guidesVisible}
+                onClick={onToggleGuides}
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-full transition-colors',
+                  guidesVisible ? 'text-muted-foreground hover:bg-muted hover:text-foreground' : 'bg-white/10 text-foreground'
+                )}
+              >
+                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              </button>
+            </>
+          )}
         </div>
 
         {stage === 'compare' && (() => {

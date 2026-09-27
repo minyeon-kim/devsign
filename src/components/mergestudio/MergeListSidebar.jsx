@@ -160,16 +160,16 @@ function MergeItemBody({ item, trailing, titleClassName }) {
   const status = changeStatus(item)
   const severity = itemSeverity(item)
   return (
-    // [severity] title (full width)            [›]
+    // [severity] title (full width)
     //            N drifts · N code changes ·· reviewers
-    <span className="grid min-w-0 flex-1 grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5">
+    <span className={cn('grid min-w-0 flex-1 items-center gap-x-3 gap-y-1.5', trailing ? 'grid-cols-[46px_minmax(0,1fr)_auto]' : 'grid-cols-[46px_minmax(0,1fr)]')}>
       <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
         {severity && (
           <SeverityPill level={severity.level} title={`Highest drift severity: ${severity.level} — set by ${severity.source}`} className={SEVERITY_BADGE} />
         )}
       </span>
       <span className={cn('min-w-0 truncate text-[13px] leading-5 font-medium text-[#FFFFFF]', titleClassName)}>{item.title}</span>
-      <span className="row-span-2 flex items-center">{trailing}</span>
+      {trailing && <span className="row-span-2 flex items-center">{trailing}</span>}
       <span className="flex min-w-0 items-center gap-2.5">
         <span className="min-w-0 flex-1 truncate text-[11px] leading-4 text-slate-400">{status}</span>
         <MiniPeople item={item} />
@@ -193,11 +193,8 @@ function MergeItemCard({ item, active, onSelect }) {
         active ? cn('bg-white/[0.06]', AVATAR_RING_ON_ACTIVE) : cn('hover:bg-white/[0.03]', AVATAR_RING_ON_HOVER)
       )}
     >
-      <MergeItemBody
-        item={item}
-        // Drill-down cue: the card opens its own view (files & layers).
-        trailing={<ChevronRight className="size-3.5 shrink-0 text-slate-500 transition-[translate,color] group-hover/card:translate-x-0.5 group-hover/card:text-slate-300" />}
-      />
+      {/* The whole card opens the item (files & layers) — no chevron. */}
+      <MergeItemBody item={item} />
     </button>
   )
 }

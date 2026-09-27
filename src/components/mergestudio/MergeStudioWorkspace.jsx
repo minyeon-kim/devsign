@@ -1,4 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { Blocks } from 'lucide-react'
+import { cn } from 'cn'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
@@ -100,6 +103,9 @@ function MergeStudioWorkspace({ item }) {
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(null)
   const [deckOpen, setDeckOpen] = useState(false)
+  // The Block Deck collapses into a toggle pill in the canvas header (next
+  // to Share); any fresh selection re-expands it.
+  const [deckCollapsed, setDeckCollapsed] = useState(false)
   const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
   const [annotationsSnap, setAnnotationsSnap] = useState([])
   // Block Assemble: per-layer structural edits (shape, size, fill, border,
@@ -478,6 +484,9 @@ function MergeStudioWorkspace({ item }) {
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
+  // A fresh selection re-expands a collapsed Block Deck, so its
+  // context-aware content is visible right away.
+  useEffect(() => setDeckCollapsed(false), [deckLayerId])
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
 
   // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
@@ -494,7 +503,7 @@ function MergeStudioWorkspace({ item }) {
     return () => setMergeCta(null)
   }, [item?.id, mergedNow, ctaCount, setMergeCta])
 
-  const deckReserve = deckOpen && !deckFloating ? DECK_RESERVE : 0
+  const deckReserve = deckOpen && !deckCollapsed && !deckFloating ? DECK_RESERVE : 0
   // The wizard docks right too (same side as the Block Deck) but floats as
   // an independent inspector: it doesn't refit the canvas or move the
   // canvas tools (those follow `deckReserve` only). Its width only counts
@@ -562,6 +571,23 @@ function MergeStudioWorkspace({ item }) {
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           merged={item.tag === 'Merged'}
           inReview={item.tag === 'In Review'}
+          headerAction={
+            deckOpen && deckCollapsed ? (
+              <button
+                type="button"
+                data-guide="block-deck"
+                onClick={() => setDeckCollapsed(false)}
+                title="Show Block Deck"
+                className={cn(
+                  'flex h-10 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted animate-in fade-in zoom-in-95 duration-200',
+                  FLOATING_PILL
+                )}
+              >
+                <Blocks className="size-4 text-slate-400" />
+                Block Deck
+              </button>
+            ) : null
+          }
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
           resolutions={resolutions}
@@ -623,6 +649,8 @@ function MergeStudioWorkspace({ item }) {
           open={deckOpen}
           onFloat={() => setDeckFloating(true)}
           onTabSwitch={() => advanceGuide(4)}
+          collapsed={deckCollapsed}
+          onCollapse={() => setDeckCollapsed(true)}
           item={item}
           selectedLayerId={deckLayerId}
           selectedLayerName={selectedLayer?.name}
