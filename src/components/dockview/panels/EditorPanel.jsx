@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, MessageSquarePlus, Send, X } from 'lucide-react'
+import { Check, Copy, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
 import { cn } from 'cn'
-import { allPeople, openFiles } from '@/data/mockData'
+import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
+import LocalCursor from '@/components/collab/LocalCursor'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -135,21 +136,36 @@ function LineCommentThread({ lineComments, value, onChange, onSubmit, onClose })
 }
 
 function EditorPanel() {
-  const { activeFileId, setActiveFileId, getFileLines, comments, addComment, getViewersForFile } =
-    useWorkspace()
+  const {
+    workspaceFiles,
+    activeFileId,
+    setActiveFileId,
+    getFileLines,
+    getFileName,
+    updateFileContent,
+    comments,
+    addComment,
+    getViewersForFile,
+  } = useWorkspace()
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftText, setDraftText] = useState('')
   const [openLine, setOpenLine] = useState(null)
   const [lineDraft, setLineDraft] = useState('')
   const codeAreaRef = useRef(null)
   const cursorAreaRef = useRef(null) // still needed as the relative anchor for MultiplayerCursors
 
-  const activeFile = openFiles.find((file) => file.id === activeFileId) ?? openFiles[0]
+  const activeFile = workspaceFiles.find((file) => file.id === activeFileId) ?? workspaceFiles[0]
   const activeLines = getFileLines(activeFile.id)
 
+  // Switching files while mid-edit or mid-comment would leave state pointed
+  // at the wrong file, so just drop out of both — same as closing a file
+  // with unsaved changes in a real editor without a save prompt.
   useEffect(() => {
     setCursor({ line: 1, col: 1 })
+    setIsEditing(false)
     setOpenLine(null)
     setLineDraft('')
   }, [activeFileId])
@@ -197,100 +213,161 @@ function EditorPanel() {
     window.setTimeout(() => setCopied(false), 1500)
   }
 
+  function startEditing() {
+    setDraftText(activeLines.join('\n'))
+    setIsEditing(true)
+  }
+
+  function saveEditing() {
+    updateFileContent(activeFile.id, draftText.split('\n'))
+    setIsEditing(false)
+  }
+
+  function cancelEditing() {
+    setIsEditing(false)
+  }
+
   return (
     <div className="flex h-full min-w-0 flex-col bg-background font-mono">
-      {/* Chrome-style: one tab row. Each file's full path is a title-attr
-          tooltip instead of a separate path sub-header, the "Saved" state is
-          a small dot on the active tab, and Copy sits at the row's trailing
-          edge — no second bar duplicating what the tabs already show. */}
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2 font-sans">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-          {openFiles.map((file) => {
-            const { Icon, colorClass } = getFileIconMeta(file.name)
-            const active = activeFileId === file.id
-            return (
-              <button
-                key={file.id}
-                type="button"
-                title={file.path}
-                onClick={() => setActiveFileId(file.id)}
-                className={cn(
-                  'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
-                  active
-                    ? 'bg-muted text-foreground ring-1 ring-border'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                )}
-              >
-                <Icon className={cn('size-3.5 shrink-0', colorClass)} />
-                {file.name}
-                {active && (
-                  <span
-                    title="Saved"
-                    className="size-1.5 shrink-0 rounded-full bg-emerald-400"
-                  />
-                )}
-              </button>
-            )
-          })}
-        </div>
-        <button
-          type="button"
-          onClick={copyCode}
-          title="Copy file contents"
-          className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-          {copied ? 'Copied' : 'Copy'}
-        </button>
+      <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
+        {workspaceFiles.map((file) => {
+          const name = getFileName(file.id)
+          const { Icon, colorClass } = getFileIconMeta(name)
+          const active = activeFileId === file.id
+          return (
+            <button
+              key={file.id}
+              type="button"
+              onClick={() => setActiveFileId(file.id)}
+              className={cn(
+                'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
+                active
+                  ? 'bg-muted text-foreground ring-1 ring-border'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              )}
+            >
+              <Icon className={cn('size-3.5 shrink-0', colorClass)} />
+              {name}
+            </button>
+          )
+        })}
       </div>
 
-      <div ref={cursorAreaRef} className="relative flex min-h-0 flex-1">
-        <div
-          ref={codeAreaRef}
-          onScroll={updateViewport}
-          className="flex-1 overflow-auto py-2 text-xs leading-relaxed"
-        >
-          {activeLines.map((line, i) => {
-            const lineNumber = i + 1
-            const lineComments = comments.filter(
-              (c) =>
-                c.target?.type === 'editor' &&
-                c.target.fileId === activeFile.id &&
-                c.target.line === lineNumber
-            )
-            return (
-              <div key={i}>
-                <CodeLine
-                  line={line}
-                  language={activeFile.language}
-                  lineNumber={lineNumber}
-                  isActive={cursor.line === lineNumber}
-                  onSelect={selectCursor}
-                  pinCount={lineComments.length}
-                  isPinOpen={openLine === lineNumber}
-                  onTogglePin={toggleLinePin}
-                />
-                {openLine === lineNumber && (
-                  <LineCommentThread
-                    lineComments={lineComments}
-                    value={lineDraft}
-                    onChange={setLineDraft}
-                    onSubmit={() => submitLineComment(lineNumber)}
-                    onClose={() => setOpenLine(null)}
-                  />
-                )}
-              </div>
-            )
-          })}
+      <div className="flex h-7 shrink-0 items-center justify-between border-b bg-card/60 px-3 font-sans text-[11px] text-muted-foreground">
+        <span className="truncate">{activeFile?.path}</span>
+        <div className="flex shrink-0 items-center gap-3">
+          {isEditing ? (
+            <>
+              <span className="flex items-center gap-1 text-primary">
+                <span className="size-1.5 rounded-full bg-primary" />
+                Editing
+              </span>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="flex items-center gap-1 rounded hover:text-foreground"
+              >
+                <X className="size-3" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEditing}
+                className="flex items-center gap-1 rounded text-primary hover:text-primary/80"
+              >
+                <Save className="size-3" />
+                Done
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-400" />
+                Saved
+              </span>
+              <button
+                type="button"
+                onClick={startEditing}
+                className="flex items-center gap-1 rounded hover:text-foreground"
+              >
+                <Pencil className="size-3" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={copyCode}
+                className="flex items-center gap-1 rounded hover:text-foreground"
+              >
+                {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </>
+          )}
         </div>
-        <EditorMinimap
-          lines={activeLines}
-          language={activeFile.language}
-          viewport={viewport}
-          onJump={jumpToRatio}
-        />
-        <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
       </div>
+
+      {isEditing ? (
+        <textarea
+          autoFocus
+          value={draftText}
+          onChange={(e) => setDraftText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') cancelEditing()
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
+          }}
+          spellCheck={false}
+          className="min-h-0 flex-1 resize-none bg-background px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
+        />
+      ) : (
+        <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1">
+          <div
+            ref={codeAreaRef}
+            onScroll={updateViewport}
+            className="flex-1 overflow-auto py-2 text-xs leading-relaxed"
+          >
+            {activeLines.map((line, i) => {
+              const lineNumber = i + 1
+              const lineComments = comments.filter(
+                (c) =>
+                  c.target?.type === 'editor' &&
+                  c.target.fileId === activeFile.id &&
+                  c.target.line === lineNumber
+              )
+              return (
+                <div key={i}>
+                  <CodeLine
+                    line={line}
+                    language={activeFile.language}
+                    lineNumber={lineNumber}
+                    isActive={cursor.line === lineNumber}
+                    onSelect={selectCursor}
+                    pinCount={lineComments.length}
+                    isPinOpen={openLine === lineNumber}
+                    onTogglePin={toggleLinePin}
+                  />
+                  {openLine === lineNumber && (
+                    <LineCommentThread
+                      lineComments={lineComments}
+                      value={lineDraft}
+                      onChange={setLineDraft}
+                      onSubmit={() => submitLineComment(lineNumber)}
+                      onClose={() => setOpenLine(null)}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <EditorMinimap
+            lines={activeLines}
+            language={activeFile.language}
+            viewport={viewport}
+            onJump={jumpToRatio}
+          />
+          <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
+          <LocalCursor containerRef={cursorAreaRef} />
+        </div>
+      )}
 
       <div className="flex h-6 shrink-0 items-center justify-between border-t bg-card px-3 font-sans text-[11px] text-muted-foreground">
         <span>

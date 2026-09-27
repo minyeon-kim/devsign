@@ -47,6 +47,20 @@ export function addDockPanel(api, def, options) {
   })
 }
 
+// Explorer/Layers render inside a *headerless* dockview group — a plain
+// collapsible section (icon-only ActivityBar toggle, single in-panel
+// header), not a tabbed/closable dockview pane the way Editor/Terminal/
+// Preview are. Without `hideHeader: true` every group gets its own
+// `--dv-tabs-and-actions-container` tab strip, which duplicated the
+// section's own header (e.g. a "Layers" tab row sitting on top of the
+// panel's own Layers/Assets tabs). Used by both the initial layout below
+// and ActivityBar's reopen-after-close logic, so the two never drift.
+export function addSidebarPanel(api, def, groupOptions) {
+  const group = api.addGroup({ hideHeader: true, ...sidebarWidthConstraints, ...groupOptions })
+  addDockPanel(api, def, { position: { referenceGroup: group } })
+  return group
+}
+
 // Re-opens a panel definition (from the ActivityBar, or the Preview
 // toggle) next to whatever else from its own "family" is still open —
 // sidebar panels next to the sidebar, main-area panels next to the editor,
@@ -97,16 +111,20 @@ export function buildInitialLayout(api) {
   })
 
   // Left sidebar: Explorer (top) and Layers (bottom) split so both are
-  // visible at once, both pinned to the same width band.
-  addDockPanel(api, panelById.explorer, {
-    position: { direction: 'left', referencePanel: panelById.editor.id },
+  // visible at once, both pinned to the same width band. Explorer gets a
+  // modest fixed starting height instead of splitting 50/50 with Layers —
+  // a handful of files doesn't need half the sidebar, and Layers' deeper
+  // tree benefits far more from the extra room.
+  const explorerGroup = addSidebarPanel(api, panelById.explorer, {
+    direction: 'left',
+    referencePanel: panelById.editor.id,
     initialWidth: 260,
-    ...sidebarWidthConstraints,
+    initialHeight: 220,
   })
 
-  addDockPanel(api, panelById.layers, {
-    position: { direction: 'below', referencePanel: panelById.explorer.id },
-    ...sidebarWidthConstraints,
+  addSidebarPanel(api, panelById.layers, {
+    direction: 'below',
+    referenceGroup: explorerGroup,
   })
 
   // Docked as a sibling tab of Layers (Chrome-style: one tab row, click to

@@ -1,5 +1,4 @@
 import { cn } from 'cn'
-import { openFiles } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const buttonColorClasses = {
@@ -8,8 +7,8 @@ const buttonColorClasses = {
 }
 
 function PreviewPanelContent() {
-  const { activeFileId, previewProps, previewVersion } = useWorkspace()
-  const activeFile = openFiles.find((file) => file.id === activeFileId) ?? openFiles[0]
+  const { workspaceFiles, activeFileId, previewProps, previewVersion } = useWorkspace()
+  const activeFile = workspaceFiles.find((file) => file.id === activeFileId) ?? workspaceFiles[0]
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-card p-4">

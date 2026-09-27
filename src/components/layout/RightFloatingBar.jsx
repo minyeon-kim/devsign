@@ -26,14 +26,11 @@ import CommentsPanel from '@/components/dockview/panels/CommentsPanel'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 
 const EDGE_MARGIN = 12
-// TopBar is h-11 (44px) — the toolbar's positioning container sits below it,
+// TopBar is h-14 (56px) — the toolbar's positioning container sits below it,
 // so vertical space math needs to subtract it from window.innerHeight.
-const TOPBAR_HEIGHT = 44
-// Thickened to match the bottom-right Changes Log widget's own weight
-// (that pill is `h-11`/44px tall) instead of reading as a thin sliver next
-// to it.
-const COLLAPSED_WIDTH = 48
+const TOPBAR_HEIGHT = 56
 // 4 icon buttons (36 each) + 3 gaps (6 each) + padding (12)
+const COLLAPSED_WIDTH = 48
 const COLLAPSED_HEIGHT_GUESS = 4 * 36 + 3 * 6 + 12
 // Pointer travel (px) before a press on the toolbar counts as a drag rather
 // than a click — the whole toolbar is the drag surface now, so this is what

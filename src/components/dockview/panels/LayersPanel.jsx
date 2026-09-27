@@ -1,6 +1,7 @@
-import { Circle, Component, File, Frame, Group, Type } from 'lucide-react'
+import { Circle, Component, File, Frame, Group, Layers as LayersIcon, Type } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages } from '@/data/mockData'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { assets, canvasFrames, canvasPages } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const kindIcons = {
@@ -20,7 +21,7 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
       onClick={() => onSelect(id)}
       style={{ paddingLeft: 8 + depth * 16 }}
       className={cn(
-        'flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-muted hover:text-foreground',
+        'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-xs transition-colors hover:bg-muted hover:text-foreground',
         selected ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
       )}
     >
@@ -30,46 +31,73 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
   )
 }
 
-// The dockview tab strip above this panel ("Layers" / "Assets", see
-// AssetsPanel) is the *only* tab row for this section now — no internal
-// Tabs component duplicating it underneath.
 function LayersPanel() {
-  const { selectCanvasLayer, selectedLayerId, activePageId } = useWorkspace()
-  // Reflects whichever page/file is open in the Canvas panel's own file
-  // tabs — switching pages there updates the frame tree shown here too.
-  const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
+  const { selectCanvasLayer, selectedLayerId } = useWorkspace()
+  const page = canvasPages[0]
 
   return (
-    <div className="h-full overflow-auto bg-card p-2">
-      <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-foreground/70">
-        <File className="size-3.5" />
-        {page?.name}
+    <Tabs defaultValue="layers" className="flex h-full flex-col gap-0 bg-card">
+      {/* Same h-9 height, border, and px-3 as Explorer's header — only
+          difference is Layers actually needs two switchable views, so
+          this stays a real tab list instead of a static label. */}
+      <div className="flex h-9 shrink-0 items-center border-b border-border/60 px-3">
+        <TabsList variant="line">
+          <TabsTrigger value="layers" className="gap-1.5 text-xs font-medium">
+            <LayersIcon className="size-3.5" />
+            Layers
+          </TabsTrigger>
+          <TabsTrigger value="assets" className="gap-1.5 text-xs font-medium">
+            <Component className="size-3.5" />
+            Assets
+          </TabsTrigger>
+        </TabsList>
       </div>
 
-      {page?.frames.map((frame) => (
-        <div key={frame.id}>
-          <LayerRow
-            id={frame.id}
-            name={frame.name}
-            kind={frame.kind}
-            depth={1}
-            selected={selectedLayerId === frame.id}
-            onSelect={selectCanvasLayer}
-          />
-          {frame.layers.map((layer) => (
+      <TabsContent value="layers" className="flex-1 overflow-auto p-2">
+        <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-foreground/70">
+          <File className="size-3.5" />
+          {page?.name}
+        </div>
+
+        {canvasFrames.map((frame) => (
+          <div key={frame.id}>
             <LayerRow
-              key={layer.id}
-              id={layer.id}
-              name={layer.name}
-              kind={layer.kind}
-              depth={2}
-              selected={selectedLayerId === layer.id}
+              id={frame.id}
+              name={frame.name}
+              kind={frame.kind}
+              depth={1}
+              selected={selectedLayerId === frame.id}
               onSelect={selectCanvasLayer}
             />
-          ))}
-        </div>
-      ))}
-    </div>
+            {frame.layers.map((layer) => (
+              <LayerRow
+                key={layer.id}
+                id={layer.id}
+                name={layer.name}
+                kind={layer.kind}
+                depth={2}
+                selected={selectedLayerId === layer.id}
+                onSelect={selectCanvasLayer}
+              />
+            ))}
+          </div>
+        ))}
+      </TabsContent>
+
+      <TabsContent
+        value="assets"
+        className="flex-1 overflow-auto p-2 text-xs text-muted-foreground"
+      >
+        {assets.map((asset) => (
+          <div
+            key={asset.id}
+            className="cursor-default rounded-lg px-2 py-1.5 transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {asset.name}
+          </div>
+        ))}
+      </TabsContent>
+    </Tabs>
   )
 }
 

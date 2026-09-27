@@ -14,9 +14,11 @@ export const currentUser = {
   id: 'jane',
   name: 'Jane',
   role: 'You',
+  team: 'Design Team',
   initials: 'JA',
   colorClass: 'bg-indigo-500',
   cursorColor: '#6366f1',
+  email: 'jane@devsign.app',
 }
 
 // `viewportSequence` is the mock "what am I looking at" timeline used by the
@@ -31,6 +33,7 @@ export const teamMembers = [
     initials: 'JD',
     colorClass: 'bg-sky-500',
     cursorColor: '#0ea5e9',
+    email: 'james@devsign.app',
     online: true,
     viewportSequence: [
       { fileId: 'app', layerId: 'primary-button', label: 'Reviewing the Continue button spacing' },
@@ -45,6 +48,7 @@ export const teamMembers = [
     initials: 'MI',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
+    email: 'min@devsign.app',
     online: true,
     viewportSequence: [
       { fileId: 'tokens', layerId: null, label: 'Checking the design tokens' },
@@ -57,6 +61,333 @@ export const teamMembers = [
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
 export const allPeople = [currentUser, ...teamMembers]
+
+// Backs the Team page's "Teams" column — which team(s) each person belongs
+// to, distinct from the project membership below. `memberIds` resolve
+// against `allPeople`.
+export const teams = [
+  { id: 'design', name: 'Design Team', memberIds: ['jane', 'james', 'min'] },
+  { id: 'engineering', name: 'Engineering', memberIds: ['james'] },
+  { id: 'product', name: 'Product', memberIds: ['min'] },
+  { id: 'marketing', name: 'Marketing', memberIds: ['jane'] },
+]
+
+// The project picker's seed data. Every project shares the same mock
+// workspace content (files, history, conflicts, etc. — see
+// WorkspaceProvider) since this is a demo of the IDE shell, not a
+// multi-tenant data model; only the displayed name/metadata differ per
+// project. `memberIds` resolve against `allPeople`.
+export const projects = [
+  {
+    id: 'checkout-redesign',
+    name: 'Checkout Redesign',
+    description: 'New multi-step checkout flow with saved payment methods.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'james', 'min'],
+    updatedAtLabel: '2h ago',
+    conflicts: 2,
+    pendingMerges: 1,
+    filesCount: 3,
+    thumbnailType: 'checkout',
+    activityCount: 12,
+    syncProgress: 72,
+  },
+  {
+    id: 'design-system-v2',
+    name: 'Design System v2',
+    description: 'Migrating core components to the pill-radius indigo/violet theme.',
+    ownerId: 'james',
+    memberIds: ['james', currentUser.id],
+    updatedAtLabel: 'Yesterday',
+    conflicts: 3,
+    pendingMerges: 1,
+    filesCount: 12,
+    thumbnailType: 'design-system',
+    activityCount: 9,
+    syncProgress: 61,
+  },
+  {
+    id: 'onboarding-flow',
+    name: 'Onboarding Flow',
+    description: 'First-run experience for new workspace members.',
+    ownerId: 'min',
+    memberIds: ['min', currentUser.id, 'james'],
+    updatedAtLabel: '3 days ago',
+    conflicts: 1,
+    pendingMerges: 0,
+    filesCount: 5,
+    thumbnailType: 'onboarding',
+    activityCount: 8,
+    syncProgress: 88,
+  },
+  {
+    id: 'mobile-nav-revamp',
+    name: 'Mobile Nav Revamp',
+    description: 'Bottom tab bar and gesture navigation for the mobile app.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'min'],
+    updatedAtLabel: '1 week ago',
+    conflicts: 1,
+    pendingMerges: 1,
+    filesCount: 4,
+    thumbnailType: 'mobile-nav',
+    activityCount: 6,
+    syncProgress: 84,
+  },
+  {
+    id: 'marketing-site-refresh',
+    name: 'Marketing Site Refresh',
+    description: 'Landing page redesign ahead of the Q4 launch.',
+    ownerId: 'james',
+    memberIds: ['james'],
+    updatedAtLabel: '2 weeks ago',
+    conflicts: 0,
+    pendingMerges: 0,
+    filesCount: 6,
+    thumbnailType: 'marketing',
+    activityCount: 4,
+    syncProgress: 100,
+  },
+]
+
+// Dashboard-only mock data below — none of it is read by the workspace
+// (WorkspaceProvider, dockview panels, etc.), only by the project
+// dashboard screen and its cards.
+
+// Drives the dashboard's "Active conflicts" checklist — every open
+// design/code conflict across projects, in one place, each with a
+// resolved/unresolved state (the checklist's checkmark).
+export const conflictChecklist = [
+  {
+    id: 'cc-1',
+    token: 'Button / Height',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: '2h ago',
+    resolved: false,
+  },
+  {
+    id: 'cc-2',
+    token: 'Merge conflict · DesignCanvas.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '4h ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-3',
+    token: 'Card / Radius',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: 'Yesterday',
+    resolved: false,
+  },
+  {
+    id: 'cc-4',
+    token: 'Nav Icon / Size',
+    projectId: 'mobile-nav-revamp',
+    projectName: 'Mobile Nav Revamp',
+    timestamp: 'Yesterday',
+    resolved: false,
+  },
+  {
+    id: 'cc-5',
+    token: 'Color token drift',
+    projectId: 'onboarding-flow',
+    projectName: 'Onboarding Flow',
+    timestamp: '2 days ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-6',
+    token: 'Input / Padding',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
+    timestamp: '3 days ago',
+    resolved: true,
+  },
+  {
+    id: 'cc-7',
+    token: 'Spacing scale mismatch',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '4 days ago',
+    resolved: true,
+  },
+]
+
+// A week of conflict-resolution throughput (stacked Resolved / In review /
+// Pending counts per day) — feeds the dashboard's activity bar chart.
+export const conflictActivitySeries = [
+  { label: 'Mon', resolved: 3, inReview: 1, pending: 0 },
+  { label: 'Tue', resolved: 4, inReview: 1, pending: 0 },
+  { label: 'Wed', resolved: 2, inReview: 1, pending: 1 },
+  { label: 'Thu', resolved: 1, inReview: 0, pending: 0 },
+  { label: 'Fri', resolved: 5, inReview: 2, pending: 1, peak: true },
+  { label: 'Sat', resolved: 2, inReview: 1, pending: 0 },
+]
+
+// Backs the dashboard's Merge schedule calendar. Dates are offsets from
+// "today" (computed at module load) rather than fixed calendar dates, so
+// the mock schedule always has something to show near the current month
+// regardless of when the app happens to be opened.
+function isoDateOffset(days) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export const mergeSchedule = [
+  { id: 'ms-1', projectId: 'checkout-redesign', projectName: 'Checkout Redesign', dateISO: isoDateOffset(1), title: 'Merge payment method updates', time: '10:00 AM' },
+  { id: 'ms-2', projectId: 'design-system-v2', projectName: 'Design System v2', dateISO: isoDateOffset(4), title: 'Merge new button variants', time: '2:00 PM' },
+  { id: 'ms-3', projectId: 'onboarding-flow', projectName: 'Onboarding Flow', dateISO: isoDateOffset(4), title: 'Merge welcome screen copy', time: '4:30 PM' },
+  { id: 'ms-4', projectId: 'mobile-nav-revamp', projectName: 'Mobile Nav Revamp', dateISO: isoDateOffset(9), title: 'Merge gesture nav prototype', time: '11:00 AM' },
+  { id: 'ms-5', projectId: 'marketing-site-refresh', projectName: 'Marketing Site Refresh', dateISO: isoDateOffset(-2), title: 'Merge landing page hero', time: '9:00 AM' },
+]
+
+// `type` drives the semantic color/icon on the full Activity page (see
+// src/pages/ActivityPage.jsx) — one of 'changes' | 'conflict' | 'merge' |
+// 'comment' | 'file' | 'mention'. `dateGroup` buckets rows into the
+// page's "Today / Yesterday / <date>" sections.
+export const activities = [
+  {
+    id: 'activity-1',
+    type: 'changes',
+    actorId: currentUser.id,
+    actorName: 'Jisoo',
+    actorInitials: 'JI',
+    actorColorClass: 'bg-rose-500',
+    action: 'pushed new changes',
+    target: 'Checkout / Payment',
+    projectId: 'checkout-redesign',
+    timestamp: '2h ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-2',
+    type: 'conflict',
+    actorName: 'Alex',
+    actorInitials: 'AL',
+    actorColorClass: 'bg-amber-500',
+    action: 'resolved a conflict',
+    target: 'Mobile Nav',
+    projectId: 'mobile-nav-revamp',
+    timestamp: '4h ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['mobile-nav'],
+  },
+  {
+    id: 'activity-5',
+    type: 'file',
+    actorName: 'Minji',
+    actorInitials: 'MJ',
+    actorColorClass: 'bg-emerald-500',
+    action: 'added a new file',
+    target: 'Onboarding Flow',
+    projectId: 'onboarding-flow',
+    timestamp: '6h ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['onboarding'],
+  },
+  {
+    id: 'activity-3',
+    type: 'merge',
+    actorName: 'Devsign',
+    actorInitials: 'DV',
+    actorColorClass: 'bg-violet-500',
+    action: 'Merge completed',
+    target: 'Design System v2',
+    projectId: 'design-system-v2',
+    timestamp: '8h ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['design-system'],
+  },
+  {
+    id: 'activity-6',
+    type: 'comment',
+    actorName: 'James',
+    actorInitials: 'JD',
+    actorColorClass: 'bg-sky-500',
+    action: 'commented on a conflict',
+    target: 'Checkout / Payment',
+    projectId: 'checkout-redesign',
+    timestamp: 'Yesterday, 4:10 PM',
+    dateGroup: 'yesterday',
+    thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-7',
+    type: 'changes',
+    actorId: currentUser.id,
+    actorName: 'Jane',
+    actorInitials: 'JA',
+    actorColorClass: 'bg-indigo-500',
+    action: 'pushed new changes',
+    target: 'Design System v2',
+    projectId: 'design-system-v2',
+    timestamp: 'Yesterday, 11:02 AM',
+    dateGroup: 'yesterday',
+    thumbnailTypes: ['design-system', 'checkout'],
+  },
+  {
+    id: 'activity-8',
+    type: 'mention',
+    actorName: 'Min',
+    actorInitials: 'MI',
+    actorColorClass: 'bg-emerald-500',
+    action: 'mentioned you in a comment',
+    target: 'Marketing Site Refresh',
+    projectId: 'marketing-site-refresh',
+    timestamp: '3 days ago',
+    dateGroup: 'older',
+    thumbnailTypes: ['marketing'],
+  },
+  {
+    id: 'activity-9',
+    type: 'conflict',
+    actorName: 'Alex',
+    actorInitials: 'AL',
+    actorColorClass: 'bg-amber-500',
+    action: 'flagged a new conflict',
+    target: 'Design System v2',
+    projectId: 'design-system-v2',
+    timestamp: '3 days ago',
+    dateGroup: 'older',
+    thumbnailTypes: ['design-system'],
+  },
+  {
+    id: 'activity-4',
+    type: 'file',
+    actorName: 'Minji',
+    actorInitials: 'MJ',
+    actorColorClass: 'bg-emerald-500',
+    action: 'added a new file',
+    target: 'Marketing Site Refresh',
+    projectId: 'marketing-site-refresh',
+    timestamp: '1 week ago',
+    dateGroup: 'older',
+    thumbnailTypes: ['marketing'],
+  },
+]
+
+// "Today / Yesterday / older" section headers for the Activity page,
+// keyed the same way as `activities[].dateGroup`.
+export const activityDateGroups = [
+  { id: 'today', label: 'Today', dateLabel: null },
+  { id: 'yesterday', label: 'Yesterday', dateLabel: null },
+  { id: 'older', label: 'Earlier', dateLabel: null },
+]
+
+// Static "this week" totals for the Activity page's overview widget —
+// intentionally not derived from `activities` above (that array is a
+// sample feed, not the full week's history).
+export const activityOverviewStats = [
+  { id: 'changes', label: 'Changes', value: 12, tone: 'bg-sky-400' },
+  { id: 'conflicts', label: 'Conflicts', value: 6, tone: 'bg-destructive' },
+  { id: 'merges', label: 'Merges', value: 5, tone: 'bg-violet-400' },
+  { id: 'comments', label: 'Comments', value: 6, tone: 'bg-muted-foreground' },
+]
 
 // Extension -> icon mapping for the Explorer tree and the code editor's
 // multi-tab bar (src/lib/fileIcons.js resolves `iconName` to a lucide
@@ -491,6 +822,297 @@ export const openFiles = [
     ],
   },
 ]
+
+// Per-project file sets shown in the workspace's Explorer/Editor (see
+// WorkspaceProvider's `files` derivation). Every project reuses the same 4
+// file *ids* as `openFiles` above (app/theme/tokens/sync-script) — that's
+// load-bearing, not incidental: `aiEditScenarios`, `initialHistoryEntries`
+// snapshots, and Follow Me's `viewportSequence` all reference those exact
+// ids, so keeping them stable across projects means those features keep
+// working no matter which project's workspace you're in. Only the
+// name/path/lines differ per project, giving each one its own files to
+// switch between instead of every project showing an identical file list.
+export const projectFileSets = {
+  'checkout-redesign': openFiles,
+  'design-system-v2': [
+    {
+      ...openFiles[0],
+      name: 'Button.jsx',
+      path: 'src/components/ui/Button.jsx',
+      lines: [
+        "import { cva } from 'class-variance-authority'",
+        '',
+        "export const buttonVariants = cva('inline-flex items-center rounded-full', {",
+        '  variants: {',
+        "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent' },",
+        "    size: { sm: 'h-7 px-3', md: 'h-8 px-4' },",
+        '  },',
+        "  defaultVariants: { variant: 'primary', size: 'md' },",
+        '})',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'tokens.css',
+      path: 'src/styles/tokens.css',
+      lines: [
+        '/* Design System v2 — pill radius + indigo/violet accent migration */',
+        ':root {',
+        '  --radius-full: 9999px;',
+        '  --accent-indigo: oklch(0.55 0.22 270);',
+        '  --accent-violet: oklch(0.6 0.24 300);',
+        '}',
+        '',
+        '.pill {',
+        '  border-radius: var(--radius-full);',
+        '  padding: 6px 14px;',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'components.json',
+      path: 'src/design/components.json',
+      lines: [
+        '{',
+        '  "components": [',
+        '    { "name": "Button", "status": "migrated", "usageCount": 42 },',
+        '    { "name": "Badge", "status": "migrated", "usageCount": 18 },',
+        '    { "name": "Card", "status": "in_progress", "usageCount": 9 }',
+        '  ],',
+        '  "version": "2.0.0-beta"',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'audit_tokens.py',
+      path: 'scripts/audit_tokens.py',
+      lines: [
+        '# Scans component source for hardcoded colors/radii that should',
+        '# reference the v2 design tokens instead.',
+        'import re',
+        '',
+        'HARDCODED_COLOR = re.compile(r"#[0-9a-fA-F]{3,6}")',
+        '',
+        'def audit(source: str) -> list[str]:',
+        '    return HARDCODED_COLOR.findall(source)',
+        '',
+        'if __name__ == "__main__":',
+        "    print(audit('background: #6d70ad;'))",
+      ],
+    },
+  ],
+  'onboarding-flow': [
+    {
+      ...openFiles[0],
+      name: 'OnboardingScreen.jsx',
+      path: 'src/screens/OnboardingScreen.jsx',
+      lines: [
+        "import { useState } from 'react'",
+        '',
+        'const STEPS = ["Welcome", "Invite your team", "Connect a project"]',
+        '',
+        'export function OnboardingScreen() {',
+        '  const [step, setStep] = useState(0)',
+        '',
+        '  return (',
+        '    <div className="onboarding-card">',
+        '      <h2>{STEPS[step]}</h2>',
+        '      <button onClick={() => setStep((s) => Math.min(s + 1, STEPS.length - 1))}>',
+        '        Next',
+        '      </button>',
+        '    </div>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'onboarding.css',
+      path: 'src/styles/onboarding.css',
+      lines: [
+        '.onboarding-card {',
+        '  max-width: 320px;',
+        '  border-radius: 16px;',
+        '  padding: 24px;',
+        '  background: var(--card);',
+        '}',
+        '',
+        '.onboarding-card h2 {',
+        '  font-size: 18px;',
+        '  margin-bottom: 12px;',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'steps.json',
+      path: 'src/data/steps.json',
+      lines: [
+        '{',
+        '  "steps": [',
+        '    { "id": "welcome", "title": "Welcome", "completed": true },',
+        '    { "id": "invite", "title": "Invite your team", "completed": false },',
+        '    { "id": "connect", "title": "Connect a project", "completed": false }',
+        '  ]',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'track_progress.py',
+      path: 'scripts/track_progress.py',
+      lines: [
+        '# Emits an analytics event each time a workspace member finishes',
+        '# a step in the first-run onboarding flow.',
+        '',
+        'def track(step_id: str, user_id: str) -> dict:',
+        '    return {"event": "onboarding_step_completed", "step": step_id, "user": user_id}',
+        '',
+        'if __name__ == "__main__":',
+        '    print(track("welcome", "jane"))',
+      ],
+    },
+  ],
+  'mobile-nav-revamp': [
+    {
+      ...openFiles[0],
+      name: 'BottomNav.jsx',
+      path: 'src/components/BottomNav.jsx',
+      lines: [
+        "import { Home, Search, Bell, User } from 'lucide-react'",
+        '',
+        'const TABS = [Home, Search, Bell, User]',
+        '',
+        'export function BottomNav({ active, onChange }) {',
+        '  return (',
+        '    <nav className="bottom-nav">',
+        '      {TABS.map((Icon, i) => (',
+        '        <button key={i} onClick={() => onChange(i)} data-active={active === i}>',
+        '          <Icon size={20} />',
+        '        </button>',
+        '      ))}',
+        '    </nav>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'nav.css',
+      path: 'src/styles/nav.css',
+      lines: [
+        '.bottom-nav {',
+        '  display: flex;',
+        '  justify-content: space-around;',
+        '  padding: 12px 0;',
+        '  border-top: 1px solid var(--border);',
+        '}',
+        '',
+        '.bottom-nav button[data-active="true"] {',
+        '  color: var(--primary);',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'nav_config.json',
+      path: 'src/design/nav_config.json',
+      lines: [
+        '{',
+        '  "tabs": ["home", "search", "notifications", "profile"],',
+        '  "gestureSwipeEnabled": true,',
+        '  "hapticFeedback": true',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'gesture_sync.py',
+      path: 'scripts/gesture_sync.py',
+      lines: [
+        "# Reconciles the Figma prototype's swipe-gesture spec with the",
+        '# native gesture handler config shipped in the app.',
+        '',
+        'def reconcile(figma_spec: dict, native_config: dict) -> bool:',
+        '    return figma_spec.get("swipeThreshold") == native_config.get("swipeThreshold")',
+        '',
+        'if __name__ == "__main__":',
+        '    print(reconcile({"swipeThreshold": 40}, {"swipeThreshold": 40}))',
+      ],
+    },
+  ],
+  'marketing-site-refresh': [
+    {
+      ...openFiles[0],
+      name: 'Hero.jsx',
+      path: 'src/components/Hero.jsx',
+      lines: [
+        'export function Hero() {',
+        '  return (',
+        '    <section className="hero">',
+        '      <h1>Ship products your team is proud of.</h1>',
+        '      <p>Design and code, finally in sync.</p>',
+        '      <a className="cta" href="#get-started">Get started</a>',
+        '    </section>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'landing.css',
+      path: 'src/styles/landing.css',
+      lines: [
+        '.hero {',
+        '  padding: 96px 24px;',
+        '  text-align: center;',
+        '}',
+        '',
+        '.hero .cta {',
+        '  display: inline-block;',
+        '  margin-top: 24px;',
+        '  padding: 10px 20px;',
+        '  border-radius: 9999px;',
+        '  background: var(--primary);',
+        '  color: white;',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'copy.json',
+      path: 'src/content/copy.json',
+      lines: [
+        '{',
+        '  "hero": {',
+        '    "headline": "Ship products your team is proud of.",',
+        '    "subhead": "Design and code, finally in sync."',
+        '  },',
+        '  "cta": "Get started"',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'seo_check.py',
+      path: 'scripts/seo_check.py',
+      lines: [
+        '# Validates that every marketing page ships the required meta tags',
+        '# before the Q4 launch.',
+        '',
+        'REQUIRED_TAGS = ["title", "description", "og:image"]',
+        '',
+        'def missing_tags(present: list[str]) -> list[str]:',
+        '    return [tag for tag in REQUIRED_TAGS if tag not in present]',
+        '',
+        'if __name__ == "__main__":',
+        '    print(missing_tags(["title", "description"]))',
+      ],
+    },
+  ],
+}
 
 export const terminalLogLines = [
   '$ npm run dev',
@@ -1039,6 +1661,7 @@ export const initialHistoryEntries = [
     label: 'Generated initial DesignCanvas scaffold',
     prompt: 'Scaffold a design canvas component',
     timestamp: 'Yesterday, 4:12 PM',
+    archived: false,
     snapshot: {
       activeFileId: 'app',
       fileId: 'app',
@@ -1063,6 +1686,7 @@ export const initialHistoryEntries = [
     label: 'Added frame mapping and Deselect button',
     prompt: 'Render each frame and add a deselect button',
     timestamp: 'Yesterday, 4:40 PM',
+    archived: false,
     snapshot: {
       activeFileId: 'app',
       fileId: 'app',

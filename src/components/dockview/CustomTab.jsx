@@ -37,6 +37,11 @@ const icons = {
   ScanEye,
 }
 
+// Explorer/Layers no longer mount this at all — their groups are created
+// with `hideHeader: true` (see DockLayout.addSidebarPanel), so there's no
+// tab strip to render a CustomTab into in the first place. Every panel
+// that still has a header (Editor, Terminal, Preview, Conflict, ...) gets
+// the full maximize/close treatment below.
 function CustomTab({ api, containerApi, params }) {
   const [isMaximized, setIsMaximized] = useState(api.isMaximized())
 

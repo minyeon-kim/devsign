@@ -163,7 +163,10 @@
   --dv-spacing-padding: 0px;
   --dv-tab-close-icon-size: inherit;
 
-  --dv-sash-color: transparent;
+  /* Visible at rest (not just on hover/drag) — with Explorer/Layers now
+     headerless, this sash is the only thing marking the boundary between
+     them, so it needs to read as a real divider instead of disappearing. */
+  --dv-sash-color: color-mix(in oklch, var(--border) 60%, transparent);
   --dv-active-sash-color: var(--primary);
   --dv-active-sash-transition-duration: 0.1s;
   --dv-active-sash-transition-delay: 0s;
@@ -193,13 +196,15 @@
   --dv-activegroup-hiddenpanel-tab-background-color: var(--card);
   --dv-inactivegroup-visiblepanel-tab-background-color: var(--card);
   --dv-inactivegroup-hiddenpanel-tab-background-color: var(--card);
-  --dv-tab-divider-color: var(--border);
+  /* Softer than the default --border token — Slack-style low-contrast
+     dividers between tabs/panels instead of a hard 1px line. */
+  --dv-tab-divider-color: color-mix(in oklch, var(--border) 60%, transparent);
   --dv-activegroup-visiblepanel-tab-color: var(--foreground);
   --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground);
   --dv-inactivegroup-visiblepanel-tab-color: var(--muted-foreground);
   --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
-  --dv-separator-border: var(--border);
-  --dv-paneview-header-border-color: var(--border);
+  --dv-separator-border: color-mix(in oklch, var(--border) 60%, transparent);
+  --dv-paneview-header-border-color: color-mix(in oklch, var(--border) 60%, transparent);
   --dv-paneview-active-outline-color: var(--primary);
 }
 
