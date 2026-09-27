@@ -67,7 +67,19 @@ function WorkspaceContent({ project }) {
     // it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
     <div className="relative h-screen overflow-hidden bg-background text-foreground">
-      {inMergeStudio ? <MergeStudioView /> : <WorkspaceFloatingCanvas />}
+      {inMergeStudio ? (
+        // MergeStudioView/MergeStudioWorkspace size themselves with
+        // flex-1 + min-h-0, expecting a flex-column ancestor with a
+        // definite height to cascade from (the old layout nested it
+        // several flex levels deep under h-screen) — this root is
+        // `relative`, not `flex`, so it needs its own properly-sized flex
+        // wrapper here instead of relying on the root itself.
+        <div className="absolute inset-0 flex flex-col">
+          <MergeStudioView />
+        </div>
+      ) : (
+        <WorkspaceFloatingCanvas />
+      )}
 
       {!inMergeStudio && <ActivityBar dockApi={dockApi} />}
 
