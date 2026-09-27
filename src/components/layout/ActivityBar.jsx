@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { addSidebarPanel } from '@/components/dockview/DockLayout'
 import { panelDefinitions, projects } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -140,11 +141,16 @@ function ActivityBar({ dockApi }) {
   }, [dockApi])
 
   return (
-    <nav className="flex w-12 shrink-0 flex-col items-center gap-1.5 border-r border-border/60 bg-card py-2.5">
+    <nav
+      className={cn(
+        'absolute top-20 left-4 z-30 flex w-12 shrink-0 flex-col items-center gap-1.5 rounded-full py-2.5',
+        FLOATING_PILL
+      )}
+    >
       {projects.length > 1 && (
         <>
           <WorkspaceSwitcher currentProjectId={projectId} />
-          <Separator className="my-1 bg-border/60" />
+          <Separator className="my-1 bg-white/10" />
         </>
       )}
       <div className="flex flex-col items-center gap-1.5">

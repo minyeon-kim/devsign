@@ -7,7 +7,8 @@ import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
-import DockLayout, { openOrFocusPanel } from '@/components/dockview/DockLayout'
+import { openOrFocusPanel } from '@/components/dockview/DockLayout'
+import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
 import { WorkspaceProvider, useWorkspace } from '@/state/WorkspaceProvider'
 import { panelDefinitions, projects } from '@/data/mockData'
 
@@ -59,40 +60,30 @@ function WorkspaceContent({ project }) {
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      {/* Full-height, spanning both the top bar and the content below it
-          — a single unbroken border separates it from everything else,
-          Slack-sidebar style, instead of the top bar cutting across it.
-          Merge Studio is a full-bleed canvas with its own floating chrome
-          (Workspace pill, Merge List window with Files/Layers tabs), so
-          the activity bar is skipped there only. */}
+    // A single full-bleed surface, Merge-Studio style: the canvas (or
+    // Merge Studio itself) fills the whole viewport and every other piece
+    // of chrome — top bar, activity rail, follow-me banner, right floating
+    // bar, inspector, chat — is an absolutely positioned overlay on top of
+    // it, instead of a flex row/column that carves the viewport into fixed
+    // bands. Nothing here pushes the canvas around anymore.
+    <div className="relative h-screen overflow-hidden bg-background text-foreground">
+      {inMergeStudio ? <MergeStudioView /> : <WorkspaceFloatingCanvas />}
+
       {!inMergeStudio && <ActivityBar dockApi={dockApi} />}
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar
-          project={project}
-          previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
-          onTogglePreview={togglePreview}
-          dockApi={dockApi}
-        />
-        {!inMergeStudio && <FollowMeBanner />}
+      <TopBar
+        project={project}
+        previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
+        onTogglePreview={togglePreview}
+        dockApi={dockApi}
+      />
+      {!inMergeStudio && <FollowMeBanner />}
 
-        <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-          {inMergeStudio ? (
-            <MergeStudioView />
-          ) : (
-            <div className="min-w-0 flex-1">
-              <DockLayout />
-            </div>
-          )}
-
-          {/* Merge Studio has its own canvas tools (select / hand) and moves
-              comments, share and history into its header and Changes log. */}
-          {!inMergeStudio && <RightFloatingBar />}
-          <InspectorSidebar />
-          {!inMergeStudio && <ChatMorphWidget />}
-        </div>
-      </div>
+      {/* Merge Studio has its own canvas tools (select / hand) and moves
+          comments, share and history into its header and Changes log. */}
+      {!inMergeStudio && <RightFloatingBar />}
+      <InspectorSidebar />
+      {!inMergeStudio && <ChatMorphWidget />}
     </div>
   )
 }
