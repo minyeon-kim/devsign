@@ -20,6 +20,7 @@ import {
   Library,
   Search,
   MousePointerClick,
+  LayoutGrid,
   SlidersHorizontal,
   Pencil,
   Sparkles,
@@ -383,7 +384,7 @@ function ColorField({ value, swatchHex, swatchClass, placeholder, onHex, onToken
 function Segmented({ options, value, onChange, className }) {
   return (
     <div className={cn('flex h-7 items-center gap-0.5 rounded-[6px] bg-white/[0.05] p-0.5', className)}>
-      {options.map(({ id, label, icon: Icon, title }) => (
+      {options.map(({ id, label, icon: Icon, title, count }) => (
         <button
           key={id}
           type="button"
@@ -397,6 +398,7 @@ function Segmented({ options, value, onChange, className }) {
         >
           {Icon && <Icon className="size-3 shrink-0" />}
           {label && <span className="truncate">{label}</span>}
+          {count != null && <span className={cn('tabular-nums', value === id ? 'text-slate-300' : 'text-slate-500')}>{count}</span>}
         </button>
       ))}
     </div>
@@ -1273,30 +1275,38 @@ function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
         </div>
       </div>
 
-      {/* The selection this list is filtered for. */}
+      {/* Scope: a full-width segmented control (icon · label · count, so
+          nothing clips) and one quiet caption naming the selection — no
+          boxed card. */}
       {selectedLayer ? (
-        <div className={cn(PANEL_SURFACE, 'flex items-center gap-3 px-3 py-2.5')}>
-          <MousePointerClick className="size-4 shrink-0 text-slate-400" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium text-slate-100">{selectedLayer.name}</p>
-            <p className="truncate text-xs text-slate-400">
-              {nothingFits ? 'No component fits this element — showing all' : `${fitting.length} compatible · ${selectedLayer.type}`}
-            </p>
-          </div>
+        <div className="space-y-2">
           {!nothingFits && (
             <Segmented
-              className="w-[140px] shrink-0"
+              className="w-full"
               value={showAll ? 'all' : 'fit'}
               onChange={(v) => setShowAll(v === 'all')}
               options={[
-                { id: 'fit', label: 'Compatible', title: `Only components that fit ${selectedLayer.name}` },
-                { id: 'all', label: 'All', title: 'Every component' },
+                { id: 'fit', label: 'Compatible', icon: MousePointerClick, count: fitting.length, title: `Only components that fit ${selectedLayer.name}` },
+                { id: 'all', label: 'All', icon: LayoutGrid, count: designSystemComponents.length, title: 'Every component' },
               ]}
             />
           )}
+          <p className="truncate text-[11px] text-slate-500" title={selectedLayer.name}>
+            {nothingFits ? (
+              <>
+                Nothing fits <span className="text-slate-300">{selectedLayer.name}</span> — showing all
+              </>
+            ) : (
+              <>
+                {showAll ? 'All components · ' : 'Fits '}
+                <span className="text-slate-300">{selectedLayer.name}</span>
+                <span className="text-slate-600"> · {selectedLayer.type}</span>
+              </>
+            )}
+          </p>
         </div>
       ) : (
-        <p className="text-xs leading-relaxed text-slate-500">Select an element on the canvas to see only the components that fit it — or drag one onto the canvas.</p>
+        <p className="text-[11px] leading-relaxed text-slate-500">Select an element on the canvas to see only the components that fit it — or drag one onto the canvas.</p>
       )}
 
       {groups.map((g) => (
