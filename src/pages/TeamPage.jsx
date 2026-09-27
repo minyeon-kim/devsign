@@ -31,6 +31,7 @@ function toMember(person) {
     initials: person.initials,
     colorClass: person.colorClass,
     status: person.id === currentUser.id || person.online ? 'Active' : 'Offline',
+    role: person.role,
     teams: teamNamesFor(person.id),
   }
 }
@@ -95,8 +96,8 @@ function TeamPage() {
   }
 
   function handleExportCsv() {
-    const header = ['Name', 'Handle', 'Status', 'Email address', 'Teams']
-    const rows = visibleMembers.map((m) => [m.name, `@${m.handle}`, m.status, m.email, m.teams.join('; ')])
+    const header = ['Name', 'Handle', 'Status', 'Role', 'Email address', 'Teams']
+    const rows = visibleMembers.map((m) => [m.name, `@${m.handle}`, m.status, m.role, m.email, m.teams.join('; ')])
     const csv = [header, ...rows].map((row) => row.map(csvField).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -202,6 +203,7 @@ function TeamPage() {
             Status
             <StatusSortIcon className="size-3" />
           </button>
+          <span className="w-24 shrink-0">Role</span>
           <span className="flex-1">Email address</span>
           <span className="w-56 shrink-0">Teams</span>
           <span className="w-16 shrink-0" />
@@ -245,6 +247,8 @@ function TeamPage() {
                       {member.status}
                     </span>
                   </div>
+
+                  <span className="w-24 shrink-0 truncate text-xs text-foreground/80">{member.role}</span>
 
                   <span className="flex-1 truncate text-xs text-muted-foreground">{member.email}</span>
 

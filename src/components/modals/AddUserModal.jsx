@@ -34,7 +34,7 @@ function slugFor(name) {
     .replace(/(^-|-$)/g, '')
 }
 
-const emptyForm = { name: '', email: '', status: 'Active', teamNames: [] }
+const emptyForm = { name: '', email: '', role: '', status: 'Active', teamNames: [] }
 
 // Shared by both "Add user" and the row-level pencil edit — `initialValues`
 // (a member object) switches it into edit mode and pre-fills the form;
@@ -45,7 +45,13 @@ const emptyForm = { name: '', email: '', status: 'Active', teamNames: [] }
 function AddUserModal({ open, onOpenChange, onSubmit, initialValues }) {
   const [form, setForm] = useState(() =>
     initialValues
-      ? { name: initialValues.name, email: initialValues.email, status: initialValues.status, teamNames: initialValues.teams }
+      ? {
+          name: initialValues.name,
+          email: initialValues.email,
+          role: initialValues.role ?? '',
+          status: initialValues.status,
+          teamNames: initialValues.teams,
+        }
       : emptyForm
   )
   const [touched, setTouched] = useState(false)
@@ -75,6 +81,7 @@ function AddUserModal({ open, onOpenChange, onSubmit, initialValues }) {
       colorClass: isEditing ? initialValues.colorClass : colorFor(name),
       name,
       email,
+      role: form.role.trim(),
       status: form.status,
       teams: form.teamNames,
     })
@@ -124,6 +131,19 @@ function AddUserModal({ open, onOpenChange, onSubmit, initialValues }) {
                 className="rounded-lg"
               />
               {emailError && <p className="text-[11px] text-destructive">A valid email is required.</p>}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="user-role" className="text-xs font-medium text-foreground">
+                Role <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <Input
+                id="user-role"
+                value={form.role}
+                onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
+                placeholder="e.g. Developer, PM, Designer"
+                className="rounded-lg"
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
