@@ -3,7 +3,6 @@ import { ChevronDown, Heart, Paperclip, Reply, Send } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,12 +86,9 @@ function CommentItem({ comment }) {
 
 function CommentsPanel() {
   const { comments, addComment } = useWorkspace()
-  const [tab, setTab] = useState('all')
   const [draft, setDraft] = useState('')
 
   const openCount = comments.filter((c) => c.status === 'open').length
-  const resolvedCount = comments.filter((c) => c.status === 'resolved').length
-  const visible = comments.filter((c) => tab === 'all' || c.status === tab)
 
   function handleSend() {
     if (!draft.trim()) return
@@ -106,38 +102,29 @@ function CommentsPanel() {
     // (the right-floating-toolbar's expanded panel), where percentage
     // heights on a flex item don't reliably resolve without an explicit
     // flex-grow.
+    //
+    // No internal All/Open/Resolved tab row here — when this panel is shown
+    // inside the right floating toolbar's flyout, that row would stack
+    // directly under the flyout's own Comment/History/Share switcher,
+    // exactly the double-tab-row layout the Chrome-style pass eliminated
+    // elsewhere. A single count line replaces it; each comment's own status
+    // badge still shows (and can change) its open/resolved state.
     <div className="flex h-full min-h-0 flex-1 flex-col bg-card">
-      <Tabs
-        value={tab}
-        onValueChange={setTab}
-        className="flex h-full min-h-0 flex-1 flex-col gap-0"
-      >
-        <div className="flex h-9 shrink-0 items-center border-b px-2">
-          <TabsList variant="line">
-            <TabsTrigger value="all" className="gap-1">
-              All
-              <span className="text-muted-foreground">{comments.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="open" className="gap-1">
-              Open
-              <span className="text-muted-foreground">{openCount}</span>
-            </TabsTrigger>
-            <TabsTrigger value="resolved" className="gap-1">
-              Resolved
-              <span className="text-muted-foreground">{resolvedCount}</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-xs">
+        <span className="font-medium text-foreground">Comments</span>
+        <span className="text-muted-foreground">
+          {comments.length} total · {openCount} open
+        </span>
+      </div>
 
-        <TabsContent value={tab} className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
-          {visible.length === 0 && (
-            <p className="p-2 text-xs text-muted-foreground">No comments here.</p>
-          )}
-          {visible.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
-          ))}
-        </TabsContent>
-      </Tabs>
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
+        {comments.length === 0 && (
+          <p className="p-2 text-xs text-muted-foreground">No comments yet.</p>
+        )}
+        {comments.map((comment) => (
+          <CommentItem key={comment.id} comment={comment} />
+        ))}
+      </div>
 
       <div className="flex shrink-0 items-center gap-2 border-t p-2">
         <Button type="button" variant="ghost" size="icon" className="shrink-0">

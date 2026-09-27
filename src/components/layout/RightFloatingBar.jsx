@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   Copy,
-  GripVertical,
   History,
   MessageSquare,
   ScanEye,
@@ -30,18 +29,22 @@ const EDGE_MARGIN = 12
 // TopBar is h-14 (56px) — the toolbar's positioning container sits below it,
 // so vertical space math needs to subtract it from window.innerHeight.
 const TOPBAR_HEIGHT = 56
-const COLLAPSED_WIDTH = 40
-// grip (28) + separator (1) + 4 icon buttons (32 each) + 5 gaps (4 each) + padding (8)
-const COLLAPSED_HEIGHT_GUESS = 28 + 1 + 4 * 32 + 5 * 4 + 8
+// 4 icon buttons (36 each) + 3 gaps (6 each) + padding (12)
+const COLLAPSED_WIDTH = 48
+const COLLAPSED_HEIGHT_GUESS = 4 * 36 + 3 * 6 + 12
+// Pointer travel (px) before a press on the toolbar counts as a drag rather
+// than a click — the whole toolbar is the drag surface now, so this is what
+// keeps ordinary icon clicks working.
+const DRAG_THRESHOLD = 4
 const EXPANDED_WIDTH = 380
 // How much room to reserve below the toolbar when a panel first opens.
 const EXPANDED_PREFERRED_HEIGHT = 420
-const HEADER_HEIGHT = 44
+const HEADER_HEIGHT = 48
 const COLLAPSED_RADIUS = COLLAPSED_WIDTH / 2
 const EXPANDED_RADIUS = 26
 
 const flyoutTriggerClass =
-  'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+  'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
 const panelSwitcher = [
   { id: 'comments', Icon: MessageSquare, label: 'Comment' },
@@ -123,8 +126,9 @@ function ShareSettingsContent() {
 }
 
 function RightFloatingBar() {
-  const { inspectorOpen, setInspectorOpen } = useWorkspace()
+  const { inspectorOpen, setInspectorOpen, activeView, mergeDrawer, setMergeDrawer } = useWorkspace()
   const dragRef = useRef(null)
+  const suppressClickRef = useRef(false)
   const boxRef = useRef(null)
   // Default position: pinned to the right edge, vertically centered — window
   // dimensions are known synchronously on the client, so this is correct
@@ -205,22 +209,40 @@ function RightFloatingBar() {
   // input/button row pinned) once content exceeds this cap.
   const expandedMaxHeight = containerHeight - clampedTop - EDGE_MARGIN
 
+  // Press-and-move anywhere on the toolbar to reposition it. The drag only
+  // arms once the pointer travels past DRAG_THRESHOLD, so a plain press on
+  // an icon button still reaches its onClick; after a real drag, the click
+  // that follows pointerup is swallowed (see onClickCapture below) so
+  // dropping the toolbar doesn't also toggle whatever icon was grabbed.
   function handleDragStart(event) {
-    event.preventDefault()
-    setUserMoved(true)
+    if (event.button !== 0) return
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
       startLeft: clampedLeft,
       startTop: clampedTop,
+      dragging: false,
     }
 
     function onMove(moveEvent) {
-      const { startX, startY, startLeft, startTop } = dragRef.current
-      setLeft(startLeft + (moveEvent.clientX - startX))
-      setTop(startTop + (moveEvent.clientY - startY))
+      const drag = dragRef.current
+      if (!drag) return
+      const dx = moveEvent.clientX - drag.startX
+      const dy = moveEvent.clientY - drag.startY
+      if (!drag.dragging) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
+        drag.dragging = true
+        setUserMoved(true)
+        document.body.style.cursor = 'grabbing'
+      }
+      moveEvent.preventDefault()
+      setLeft(drag.startLeft + dx)
+      setTop(drag.startTop + dy)
     }
     function onUp() {
+      suppressClickRef.current = Boolean(dragRef.current?.dragging)
+      dragRef.current = null
+      document.body.style.cursor = ''
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
@@ -229,6 +251,13 @@ function RightFloatingBar() {
   }
 
   function togglePanel(id) {
+    // In Merge Studio, Comment and History open the Inbox / Version History
+    // drawers instead of the workspace's own flyout panels.
+    if (activeView === 'mergeStudio' && (id === 'comments' || id === 'history')) {
+      const drawer = id === 'comments' ? 'inbox' : 'history'
+      setMergeDrawer(mergeDrawer === drawer ? null : drawer)
+      return
+    }
     setExpandedPanel((current) => {
       const next = current === id ? null : id
       // Opening from fully collapsed: if the toolbar is currently anchored
@@ -245,17 +274,12 @@ function RightFloatingBar() {
     })
   }
 
-  const dragHandle = (
-    <button
-      type="button"
-      onPointerDown={handleDragStart}
-      title="Drag to reposition"
-      className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
-      style={{ cursor: 'grab' }}
-    >
-      <GripVertical className="size-3.5" />
-    </button>
-  )
+  function handleClickCapture(event) {
+    if (!suppressClickRef.current) return
+    suppressClickRef.current = false
+    event.stopPropagation()
+    event.preventDefault()
+  }
 
   return (
     <div
@@ -277,16 +301,17 @@ function RightFloatingBar() {
           maxHeight: expandedPanel ? expandedMaxHeight : undefined,
           borderRadius: boxRadius,
         }}
-        className="pointer-events-auto flex flex-col overflow-hidden border bg-card/95 shadow-lg backdrop-blur-sm transition-[width,border-radius] duration-300 ease-in-out"
+        className="pointer-events-auto flex flex-col overflow-hidden border bg-card/90 shadow-lg backdrop-blur-md transition-[width,border-radius] duration-300 ease-in-out"
       >
         {expandedPanel ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div
-              className="flex shrink-0 items-center gap-1 border-b px-2"
+              onPointerDown={handleDragStart}
+              onClickCapture={handleClickCapture}
+              title="Drag to reposition"
+              className="flex shrink-0 cursor-grab items-center gap-1.5 border-b px-2.5"
               style={{ height: HEADER_HEIGHT }}
             >
-              {dragHandle}
-              <Separator orientation="vertical" className="h-4" />
               {panelSwitcher.map(({ id, Icon, label }) => (
                 <button
                   key={id}
@@ -294,11 +319,11 @@ function RightFloatingBar() {
                   title={label}
                   onClick={() => togglePanel(id)}
                   className={cn(
-                    'flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
                     expandedPanel === id && 'bg-primary/10 text-primary'
                   )}
                 >
-                  <Icon className="size-3.5" />
+                  <Icon className="size-4" />
                 </button>
               ))}
               <div className="flex-1" />
@@ -306,9 +331,9 @@ function RightFloatingBar() {
                 type="button"
                 title="Collapse"
                 onClick={() => setExpandedPanel(null)}
-                className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
               </button>
             </div>
 
@@ -332,14 +357,15 @@ function RightFloatingBar() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-1 p-1 animate-in fade-in-0 duration-200">
-            {dragHandle}
-            <Separator />
-
+          <div
+            onPointerDown={handleDragStart}
+            onClickCapture={handleClickCapture}
+            className="flex cursor-grab flex-col gap-1.5 p-1.5 animate-in fade-in-0 duration-200"
+          >
             {panelSwitcher.map(({ id, Icon, label }) => (
               <Tooltip key={id}>
                 <TooltipTrigger onClick={() => togglePanel(id)} className={flyoutTriggerClass}>
-                  <Icon className="size-4" />
+                  <Icon className="size-4.5" />
                 </TooltipTrigger>
                 <TooltipContent side="left">{label}</TooltipContent>
               </Tooltip>
@@ -350,7 +376,7 @@ function RightFloatingBar() {
                 onClick={() => setInspectorOpen((v) => !v)}
                 className={cn(flyoutTriggerClass, inspectorOpen && 'bg-primary/10 text-primary')}
               >
-                <ScanEye className="size-4" />
+                <ScanEye className="size-4.5" />
               </TooltipTrigger>
               <TooltipContent side="left">Inspect</TooltipContent>
             </Tooltip>

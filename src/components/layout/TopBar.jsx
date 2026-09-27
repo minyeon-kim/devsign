@@ -1,34 +1,21 @@
-import { ArrowLeft, PanelRight, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, PanelRight, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import LayoutMenu from '@/components/layout/LayoutMenu'
+import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import UserPresence from '@/components/layout/UserPresence'
-import { panelDefinitions } from '@/data/mockData'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const conflictPanelDef = panelDefinitions.find((def) => def.id === 'conflict')
-
-export function openMergeStudio(dockApi) {
-  if (!dockApi || !conflictPanelDef) return
-
-  const existing = dockApi.getPanel(conflictPanelDef.id)
-  if (existing) {
-    existing.api.setActive()
-    return
-  }
-
-  const reference = dockApi.panels[0]
-  dockApi.addPanel({
-    id: conflictPanelDef.id,
-    component: conflictPanelDef.component,
-    title: conflictPanelDef.title,
-    params: { iconName: conflictPanelDef.iconName },
-    position: reference ? { direction: 'within', referencePanel: reference.id } : undefined,
-  })
-}
-
+// The normal workspace's fixed header. Merge Studio (see MergeStudioView)
+// is a full-bleed canvas with its own floating chrome, so this bar hides
+// itself entirely while activeView is 'mergeStudio' rather than trying to
+// host both sets of controls at once.
 function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
+  const { activeView } = useWorkspace()
+  if (activeView === 'mergeStudio') return null
+
   return (
     <header className="relative flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4 py-2.5">
       <div className="flex min-w-0 max-w-[280px] shrink-0 items-center gap-2">
@@ -60,10 +47,7 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
       <div className="ml-auto flex shrink-0 items-center gap-3">
         <LayoutMenu dockApi={dockApi} />
         <UserPresence />
-        <Button size="sm" className="gap-1.5" onClick={() => openMergeStudio(dockApi)}>
-          <Sparkles className="size-3.5" />
-          Merge Studio
-        </Button>
+        <MergeStudioMenu />
         <Button
           variant={previewOpen ? 'default' : 'outline'}
           size="sm"

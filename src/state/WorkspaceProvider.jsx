@@ -1,13 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   aiEditScenarios,
+  canvasPages,
   comments as seedComments,
   conflictPoints as seedConflicts,
   consoleLogLines as seedConsoleLogLines,
   currentUser,
+  findCanvasTarget,
   initialChatMessages,
   initialHistoryEntries,
+  mergeListItems as seedMergeListItems,
+  registerMergeVariants,
+  seedMergeNotifications,
+  liveMergeNotification,
   openFiles,
   projectFileSets,
   teamMembers,
@@ -63,6 +68,39 @@ export function WorkspaceProvider({ children, projectId }) {
     initialHistoryEntries[initialHistoryEntries.length - 1]?.id ?? null
   )
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Which design "page"/file the Canvas file-tab bar has open — shared here
+  // (not local to CanvasPanel) so the Layers panel's frame tree stays in
+  // sync with whichever page is active.
+  const [activePageId, setActivePageId] = useState(canvasPages[0]?.id ?? null)
+  // The dockview API, handed up once DockLayout's onReady fires — stored
+  // here (rather than only as App-local state) so any panel deep in the
+  // tree (Canvas, Editor) can open/focus dockview panels itself, e.g. to
+  // open a layer's inspection tab, without prop-drilling dockApi through
+  // every intermediate component.
+  const [dockApi, setDockApi] = useState(null)
+  // Active Canvas toolbar tool (move/hand/frame/text/shape/comment) — kept
+  // here rather than local to CanvasPanel so the global cursor overlay can
+  // read it and swap its glyph while hovering the canvas surface.
+  const [canvasTool, setCanvasTool] = useState('move')
+
+  // --- View routing (workspace vs. Merge Studio) ----------------------
+  // Switches the whole app body below TopBar, rather than living inside
+  // dockview — Merge Studio's "Merge List" sidebar + workspace is its own
+  // screen, not another dockable panel.
+  const [activeView, setActiveView] = useState('workspace')
+  const [mergeItems, setMergeItems] = useState(seedMergeListItems)
+  const [selectedMergeItemId, setSelectedMergeItemId] = useState(null)
+  // Merge Studio collaboration: which right-hand drawer is open, the inbox,
+  // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
+  const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
+  const [notifications, setNotifications] = useState(seedMergeNotifications)
+  const [mergeFocus, setMergeFocus] = useState(null)
+  const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
+  // The header's "Merge Changes" CTA: registered by the Merge Studio
+  // workspace ({ merged, count, open }) so the top bar can render it.
+  const [mergeCta, setMergeCta] = useState(null)
+  // Left Merge List sidebar collapse, toggled from the ActivityBar.
+  const [mergeListCollapsed, setMergeListCollapsed] = useState(false)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -89,6 +127,130 @@ export function WorkspaceProvider({ children, projectId }) {
     }, REMOTE_VIEWPORT_INTERVAL)
     return () => window.clearInterval(interval)
   }, [])
+
+  // Each teammate's mock "current viewport" — same rotating entry that
+  // drives Follow Me — is what file-scoped multiplayer cursors are checked
+  // against: a teammate's cursor only ever renders inside the Editor tab or
+  // Canvas page it says they're looking at, never floating across an
+  // unrelated file/page. `layerId` doubles as "which canvas layer" — its
+  // page is looked up live via `findCanvasTarget` rather than storing a
+  // separate pageId, since layer ids are already unique across pages.
+  // A live notification lands shortly after entering Merge Studio.
+  useEffect(() => {
+    if (activeView !== 'mergeStudio') return
+    const timer = setTimeout(() => {
+      setNotifications((prev) => (prev.some((n) => n.id === liveMergeNotification.id) ? prev : [liveMergeNotification, ...prev]))
+    }, 9000)
+    return () => clearTimeout(timer)
+  }, [activeView])
+
+  const memberViewports = useMemo(
+    () =>
+      teamMembers.map((member) => ({
+        member,
+        viewport: member.viewportSequence?.[remoteViewportIndex[member.id] ?? 0] ?? null,
+      })),
+    [remoteViewportIndex]
+  )
+
+  const getViewersForFile = useCallback(
+    (fileId) =>
+      memberViewports
+        .filter(({ viewport }) => viewport?.fileId === fileId)
+        .map(({ member }) => member),
+    [memberViewports]
+  )
+
+  const getViewersForCanvasPage = useCallback(
+    (pageId) =>
+      memberViewports
+        .filter(({ viewport }) => {
+          if (!viewport?.layerId) return false
+          return findCanvasTarget(viewport.layerId)?.page.id === pageId
+        })
+        .map(({ member }) => member),
+    [memberViewports]
+  )
+
+  const openMergeStudio = useCallback(() => {
+    setActiveView('mergeStudio')
+  }, [])
+
+  const exitMergeStudio = useCallback(() => {
+    setActiveView('workspace')
+  }, [])
+
+  const updateMergeItem = useCallback((id, patch) => {
+    setMergeItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+  }, [])
+
+  const requestMergeFocus = useCallback((target) => {
+    setSelectedMergeItemId(target.itemId)
+    // A monotonic counter, not Date.now() — two focus requests inside the
+    // same millisecond (e.g. rapid drift-nav clicks) would otherwise get an
+    // identical nonce, so the second one's "already handled" guard in
+    // MergeStudioWorkspace would silently swallow it.
+    setMergeFocus({ target, nonce: nextId('focus') })
+  }, [])
+
+  const markNotificationRead = useCallback((id, unread = false) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)))
+  }, [])
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
+  }, [])
+
+  const replyToNotification = useCallback(
+    (id, text) => {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, replies: [...(n.replies ?? []), { id: `r-${Date.now()}`, authorId: currentUser.id, text }] }
+            : n
+        )
+      )
+    },
+    []
+  )
+
+  // Finalizes a merge item: marks it Merged and clears its conflict level.
+  const completeMerge = useCallback((id) => {
+    setMergeItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' } : item
+      )
+    )
+  }, [])
+
+  // "Start New with Current Work" — snapshots whatever's open in the editor
+  // right now into a fresh Merge List entry, selects it, and enters Merge
+  // Studio already looking at it.
+  const startMergeFromOpenFiles = useCallback(() => {
+    const id = nextId('merge')
+    registerMergeVariants(id, activePageId)
+    const fileNames = openFiles.map((f) => f.name)
+    setMergeItems((prev) => [
+      {
+        id,
+        title: 'New Merge — Current Work',
+        subtitle: `${fileNames.length} file${fileNames.length === 1 ? '' : 's'} · ${fileNames.join(', ')}`,
+        tag: 'Draft',
+        updatedLabel: 'Just now',
+        fileIds: openFiles.map((f) => f.id),
+        hasDesign: true,
+        designPageId: activePageId,
+        category: 'Workspace',
+        conflictLevel: 'None',
+        dueLabel: 'No due date',
+        dueBucket: 'none',
+        assigneeId: currentUser.id,
+      },
+      ...prev,
+    ])
+    setSelectedMergeItemId(id)
+    setActiveView('mergeStudio')
+  }, [activePageId])
 
   const appendTerminalLines = useCallback((lines, stagger = 140) => {
     lines.forEach((text, i) => {
@@ -129,7 +291,6 @@ export function WorkspaceProvider({ children, projectId }) {
   const startFollowMe = useCallback(() => {
     setFollowedMemberId(null)
     setFollowingMe(true)
-    toast('Follow me is on — teammates can now follow your view.')
   }, [])
 
   const cancelFollowMe = useCallback(() => {
@@ -146,7 +307,9 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [])
 
   // Mirror the followed teammate's mock viewport onto my own workspace
-  // whenever it changes — this is the "follow" in Follow Me.
+  // whenever it changes — this is the "follow" in Follow Me. (The
+  // FollowMeBanner already surfaces "Following X — label" persistently at
+  // the top of the screen, so this doesn't also need a transient toast.)
   useEffect(() => {
     if (!followedMemberId) return
     const member = teamMembers.find((m) => m.id === followedMemberId)
@@ -158,7 +321,6 @@ export function WorkspaceProvider({ children, projectId }) {
 
     setActiveFileIdState(target.fileId)
     setSelectedLayerId(target.layerId ?? null)
-    toast(`Following ${member.name} — ${target.label}`)
   }, [followedMemberId, remoteViewportIndex])
 
   const recordHistory = useCallback((entry) => {
@@ -319,7 +481,11 @@ export function WorkspaceProvider({ children, projectId }) {
     )
   }, [])
 
-  const addComment = useCallback((text) => {
+  // `target` is optional and identifies a *pinned* comment's anchor —
+  // `{ type: 'canvas', pageId, x, y }` or `{ type: 'editor', fileId, line }`.
+  // Plain comments (from the Comments panel composer) omit it entirely and
+  // just show up in the flat comment list as before.
+  const addComment = useCallback((text, target) => {
     const trimmed = text.trim()
     if (!trimmed) return
     setComments((prev) => [
@@ -332,6 +498,7 @@ export function WorkspaceProvider({ children, projectId }) {
         status: 'open',
         likes: 0,
         replies: 0,
+        ...(target ? { target } : {}),
       },
     ])
   }, [])
@@ -367,6 +534,37 @@ export function WorkspaceProvider({ children, projectId }) {
     restoreHistoryEntry,
     inspectorOpen,
     setInspectorOpen,
+    activePageId,
+    setActivePageId,
+    dockApi,
+    setDockApi,
+    canvasTool,
+    setCanvasTool,
+    getViewersForFile,
+    getViewersForCanvasPage,
+    activeView,
+    mergeItems,
+    selectedMergeItemId,
+    setSelectedMergeItemId,
+    openMergeStudio,
+    exitMergeStudio,
+    startMergeFromOpenFiles,
+    completeMerge,
+    updateMergeItem,
+    mergeDrawer,
+    setMergeDrawer,
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    replyToNotification,
+    mergeFocus,
+    requestMergeFocus,
+    mergePreviewOpen,
+    setMergePreviewOpen,
+    mergeCta,
+    setMergeCta,
+    mergeListCollapsed,
+    setMergeListCollapsed,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

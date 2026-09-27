@@ -1,7 +1,7 @@
 import { Circle, Component, File, Frame, Group, Layers as LayersIcon, Type } from 'lucide-react'
 import { cn } from 'cn'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { assets, canvasFrames, layerPages } from '@/data/mockData'
+import { assets, canvasFrames, canvasPages } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const kindIcons = {
@@ -33,7 +33,7 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
 
 function LayersPanel() {
   const { selectCanvasLayer, selectedLayerId } = useWorkspace()
-  const page = layerPages[0]
+  const page = canvasPages[0]
 
   return (
     <Tabs defaultValue="layers" className="flex h-full flex-col gap-0 bg-card">

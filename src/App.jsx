@@ -11,7 +11,7 @@ import WorkspacePage from '@/pages/WorkspacePage'
 function App() {
   return (
     <TooltipProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />

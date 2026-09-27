@@ -6,6 +6,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Neutral slate: the app's dark surfaces use the `slate-*` classes, but
+   Tailwind's stock slate has a blue cast. Point it at the neutral (zero
+   chroma) ramp so bg-slate-900 / bg-slate-800 read as clean grays. */
+@theme {
+    --color-slate-50: oklch(0.985 0 0);
+    --color-slate-100: oklch(0.97 0 0);
+    --color-slate-200: oklch(0.922 0 0);
+    --color-slate-300: oklch(0.87 0 0);
+    --color-slate-400: oklch(0.708 0 0);
+    --color-slate-500: oklch(0.556 0 0);
+    --color-slate-600: oklch(0.439 0 0);
+    --color-slate-700: oklch(0.371 0 0);
+    --color-slate-800: oklch(0.269 0 0);
+    --color-slate-900: oklch(0.205 0 0);
+    --color-slate-950: oklch(0.145 0 0);
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
@@ -116,6 +133,10 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.6 0.23 270);
+    /* Lets native UI (scrollbars, form controls) default to their dark
+       rendering everywhere, as a fallback under the explicit scrollbar
+       styling below (e.g. Firefox honors this for scrollbar track color). */
+    color-scheme: dark;
 }
 
 @layer base {
@@ -187,12 +208,58 @@
   --dv-paneview-active-outline-color: var(--primary);
 }
 
-/* Used by the editor/canvas areas to fully hide the OS cursor in favor of
-   the custom Figma-style local cursor. `!important` + the descendant
-   selector are needed because plenty of children (code lines, buttons,
-   canvas layers) set their own cursor-text/cursor-pointer utilities that
-   would otherwise win the cascade over a plain inherited cursor-none. */
-.force-cursor-none,
-.force-cursor-none * {
+/* Detached tabs become dockview "floating groups" — round them to match
+   the design system's capsule/pill panel language instead of dockview's
+   default square corners, and clip their content (titlebar + tabs) to the
+   same curve. */
+.dockview-theme-devsign .dv-resize-container {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Global custom cursor: the OS cursor is hidden everywhere in the app in
+   favor of the Figma-style <LocalCursor/> mounted once at the App root.
+   `!important` on the universal selector is needed because plenty of
+   elements (code lines, buttons, canvas layers, text inputs) set their own
+   cursor-text/cursor-pointer/etc utilities that would otherwise win the
+   cascade over a plain `cursor: none` on `body`. */
+* {
   cursor: none !important;
+}
+
+/* Thin, dark-mode scrollbars everywhere — lists, sidebars, panels and
+   editors all inherit these instead of the browser's stark default (light,
+   full-width) thumb, which read as a jarring, out-of-place stripe against
+   this app's dark surfaces. Firefox gets the thin/color hints via the
+   standard properties; Chrome/Safari/Edge get the fuller custom styling via
+   the -webkit- pseudo-elements below. The thumb's rounded, inset look comes
+   from a transparent border + background-clip trick rather than a wider
+   bar, keeping it subtle rather than another visible chrome element. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
