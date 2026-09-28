@@ -68,28 +68,44 @@ function RailButton({ label, icon: Icon, className, ...triggerProps }) {
 }
 
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
-// route: the Devsign logo on top (the drawer's toggle), the four global
-// destinations, and Settings pinned to the bottom. Nothing contextual
+// route: the Devsign logo on top (opens the drawer, or goes Home once
+// it's open), the four global destinations, and Settings pinned to the
+// bottom. Nothing contextual
 // ever lands here. It always sits on the page's own deep `bg-background`
 // — open or collapsed, dashboard or project — so it's seamless with the
 // canvas beside it and toggling the drawer never shifts its tone.
-function ActivityBar({ drawerOpen, onToggleDrawer }) {
+function ActivityBar({ drawerOpen, onOpenDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
+      {/* Contextual, Gemini/standard hybrid: while the drawer is
+          collapsed the logo is its "open" trigger; once it's open the
+          logo is just the brand's Home link — closing the drawer is left
+          solely to the drawer's own close button (and ⌘B), so there's
+          never a second "hide sidebar" control. */}
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <Tooltip>
-          <TooltipTrigger
-            onClick={onToggleDrawer}
-            aria-expanded={drawerOpen}
-            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
-          >
-            <Logo iconOnly />
-          </TooltipTrigger>
-          <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
+          {drawerOpen ? (
+            <TooltipTrigger
+              render={<Link to="/dashboard" />}
+              aria-label="Home"
+              className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
+            >
+              <Logo iconOnly />
+            </TooltipTrigger>
+          ) : (
+            <TooltipTrigger
+              onClick={onOpenDrawer}
+              aria-expanded={false}
+              aria-label="Show sidebar"
+              className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
+            >
+              <Logo iconOnly />
+            </TooltipTrigger>
+          )}
+          <TooltipContent side="right">{drawerOpen ? 'Home' : 'Show sidebar · ⌘B'}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -167,11 +183,14 @@ function DrawerHeader({ project, onClose }) {
 // contextual items never share a column. Everything shares the page's
 // one deep background tone; faint hairlines on either side of the drawer
 // mark where one tier ends and the next begins.
-// The logo, the drawer's close button, and ⌘B all toggle the drawer.
+// The logo opens the drawer; only the drawer's close button (or ⌘B)
+// closes it.
 function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
+      {/* The logo only ever calls this while the drawer is collapsed, so
+          toggling here always means "open". */}
+      <ActivityBar drawerOpen={drawerOpen} onOpenDrawer={onToggleDrawer} />
 
       <div
         inert={!drawerOpen}

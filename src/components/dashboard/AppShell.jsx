@@ -52,8 +52,9 @@ function useSidebarCollapsed() {
 // show the current view's sub-menu — a project's switcher and
 // Workspace/Archive, or the active section's links. The drawer's width
 // animates, pushing the content column — top bar included — over rather
-// than overlapping it. The logo, the drawer's close button, and ⌘B /
-// Ctrl+B (VS Code's binding) toggle it.
+// than overlapping it. The logo opens it (and, once open, links Home);
+// the drawer's own close button closes it; ⌘B / Ctrl+B (VS Code's
+// binding) toggles it.
 function AppShell({ topBar, project, children }) {
   const [collapsed, setCollapsed] = useSidebarCollapsed()
 
