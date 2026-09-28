@@ -57,6 +57,7 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-canvas: var(--canvas);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -68,6 +69,9 @@
 
 :root {
     --background: oklch(1 0 0);
+    /* The infinite canvas (Workspace + Merge Studio) — a soft gray so the
+       white panels float above it. */
+    --canvas: oklch(0.967 0.001 286.375);
     --foreground: oklch(0.141 0.005 285.823);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.141 0.005 285.823);
@@ -109,6 +113,11 @@
        --popover = --sidebar), so nothing reads as a lighter, muddier gray
        box. Hover/selected fills (--muted) sit one step above that. */
     --background: oklch(0.115 0.004 285.8);
+    /* The infinite canvas behind the Workspace and Merge Studio windows —
+       exactly one shade above the surface tone (--card / --sidebar), so
+       navigation and panels (layer 0) read as a darker frame around a
+       slightly lifted canvas (layer 1) instead of a flat, muddy void. */
+    --canvas: oklch(0.185 0.005 285.85);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.15 0.005 285.85);
     --card-foreground: oklch(0.985 0 0);

@@ -2286,10 +2286,10 @@ function MergeInfiniteCanvas({
   }, [summaryOpen])
 
   return (
-    // The shared deep canvas tone (`bg-background`), same as the
-    // Workspace canvas — panels and the code window float above it on the
-    // shared surface tone (`bg-card`).
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    // The shared infinite-canvas tone (`bg-canvas`, one shade above the
+    // panel/sidebar surface), same as the Workspace canvas — panels and
+    // the code window sit on the surface tone (`bg-card`).
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         {/* Hand tool: a pan surface over the whole canvas (floating
             controls sit above it at z-20 and stay clickable). */}

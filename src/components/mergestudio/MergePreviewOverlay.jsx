@@ -15,7 +15,7 @@ const DEVICES = [
   { id: 'desktop', label: 'Desktop', icon: Monitor, w: 1440, h: 900, bezel: 6, radius: 14 },
 ]
 // The same surface + dot grid as the main Merge Studio canvas (its canvas
-// area is the shared deep `bg-background` with this grid — see
+// area is the shared `bg-canvas` with this grid — see
 // MergeInfiniteCanvas).
 const CANVAS_GRID = {
   backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
@@ -110,7 +110,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
   const selected = frame?.layers.find((l) => l.id === selectedId)
 
   return (
-    <div ref={stageRef} className="absolute inset-0 z-40 overflow-hidden bg-background" style={CANVAS_GRID}>
+    <div ref={stageRef} className="absolute inset-0 z-40 overflow-hidden bg-canvas" style={CANVAS_GRID}>
       {/* Floating header island: three groups — version | device |
           utilities — each on its own track, split by dividers. */}
       <div
