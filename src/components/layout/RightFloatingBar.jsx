@@ -27,9 +27,12 @@ import CommentsPanel from '@/components/dockview/panels/CommentsPanel'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 
 const EDGE_MARGIN = 12
-// TopBar is h-14 (56px) — the toolbar's positioning container sits below it,
-// so vertical space math needs to subtract it from window.innerHeight.
-const TOPBAR_HEIGHT = 56
+// Keep-out bands shared with the rest of the Workspace chrome (and matching
+// Merge Studio's rhythm): the top pill row sits at top-3 / h-10 (ends at
+// 52px) and the bottom row (save status, zoom) at bottom-5 / h-11 (starts
+// 64px up), so the toolbar — dragged or not — never lands on either.
+const TOP_CLEARANCE = 64
+const BOTTOM_CLEARANCE = 76
 // 4 icon buttons (36 each) + 3 gaps (6 each) + padding (12)
 const COLLAPSED_WIDTH = 48
 const COLLAPSED_HEIGHT_GUESS = 4 * 36 + 3 * 6 + 12
@@ -131,17 +134,17 @@ function RightFloatingBar() {
   const dragRef = useRef(null)
   const suppressClickRef = useRef(false)
   const boxRef = useRef(null)
-  // Default position: pinned to the right edge, vertically centered — window
-  // dimensions are known synchronously on the client, so this is correct
-  // from the very first render (no null-sentinel/visibility flash needed).
-  const [top, setTop] = useState(
-    () => (window.innerHeight - TOPBAR_HEIGHT - COLLAPSED_HEIGHT_GUESS) / 2
-  )
-  const [left, setLeft] = useState(() => window.innerWidth - COLLAPSED_WIDTH - EDGE_MARGIN)
-  const [windowSize, setWindowSize] = useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }))
+  const anchorRef = useRef(null)
+  // The toolbar is positioned inside the Workspace view, which starts to
+  // the right of the sidebar — not at the browser window's left edge — so
+  // all placement math runs against that container's real size (tracked
+  // below), never window.innerWidth/innerHeight. Using the window's size
+  // previously pushed the default position off the right edge by the
+  // sidebar's width. `top`/`left` stay null until a drag (or a panel
+  // "hop", see togglePanel) sets them; until then the defaults below apply.
+  const [containerSize, setContainerSize] = useState(null)
+  const [top, setTop] = useState(null)
+  const [left, setLeft] = useState(null)
   const [expandedPanel, setExpandedPanel] = useState(null)
   // Once the user has manually dragged the toolbar, its position is theirs
   // to keep (only clamped to stay on-screen). Until then, the default
@@ -157,19 +160,18 @@ function RightFloatingBar() {
   const boxWidth = expandedPanel ? EXPANDED_WIDTH : COLLAPSED_WIDTH
   const boxRadius = expandedPanel ? EXPANDED_RADIUS : COLLAPSED_RADIUS
 
+  // The positioning container is the Workspace view (this component's
+  // parent), whose size changes with the window *and* with the sidebar
+  // drawer opening/closing — so observe the element itself.
   useEffect(() => {
-    function onResize() {
-      const width = window.innerWidth
-      const height = window.innerHeight
-      setWindowSize({ width, height })
-      if (!userMoved) {
-        setLeft(width - boxWidth - EDGE_MARGIN)
-        setTop((height - TOPBAR_HEIGHT - COLLAPSED_HEIGHT_GUESS) / 2)
-      }
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [userMoved, boxWidth])
+    const container = anchorRef.current?.parentElement
+    if (!container) return
+    const measure = () => setContainerSize({ width: container.clientWidth, height: container.clientHeight })
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const el = boxRef.current
@@ -182,21 +184,24 @@ function RightFloatingBar() {
     return () => observer.disconnect()
   }, [])
 
-  // `top`/`left` are CSS offsets inside the layout row *below* the top nav
-  // bar, not the raw browser viewport — so the vertical room actually
-  // available to this toolbar is the window height minus that bar, not
-  // window.innerHeight itself (the row spans the full width, so no
-  // horizontal correction is needed). Using the raw window height here
-  // previously let expanded panels run past the real bottom edge by ~44px.
-  const containerHeight = windowSize.height - TOPBAR_HEIGHT
-  const containerWidth = windowSize.width
+  const containerHeight = containerSize?.height ?? 0
+  const containerWidth = containerSize?.width ?? 0
 
+  // Until the user drags it, the toolbar is pinned to the container's
+  // right edge — following it across resizes and sidebar toggles — and
+  // vertically centered in the band between the top and bottom pill rows.
+  const defaultTop =
+    TOP_CLEARANCE + Math.max(0, (containerHeight - TOP_CLEARANCE - BOTTOM_CLEARANCE - COLLAPSED_HEIGHT_GUESS) / 2)
+  const defaultLeft = containerWidth - boxWidth - EDGE_MARGIN
+
+  // Whatever the position, it's clamped inside that band and the
+  // container's side margins, so it can never sit under a pill row.
   const clampedTop = Math.min(
-    Math.max(top, EDGE_MARGIN),
-    Math.max(EDGE_MARGIN, containerHeight - renderedHeight - EDGE_MARGIN)
+    Math.max(top ?? defaultTop, TOP_CLEARANCE),
+    Math.max(TOP_CLEARANCE, containerHeight - renderedHeight - BOTTOM_CLEARANCE)
   )
   const clampedLeft = Math.min(
-    Math.max(left, EDGE_MARGIN),
+    Math.max(userMoved && left != null ? left : defaultLeft, EDGE_MARGIN),
     Math.max(EDGE_MARGIN, containerWidth - boxWidth - EDGE_MARGIN)
   )
 
@@ -208,7 +213,7 @@ function RightFloatingBar() {
   // box anchored halfway down the screen grow straight through the bottom
   // edge. Each panel's own internal list scrolls (keeping its bottom
   // input/button row pinned) once content exceeds this cap.
-  const expandedMaxHeight = containerHeight - clampedTop - EDGE_MARGIN
+  const expandedMaxHeight = containerHeight - clampedTop - BOTTOM_CLEARANCE
 
   // Press-and-move anywhere on the toolbar to reposition it. The drag only
   // arms once the pointer travels past DRAG_THRESHOLD, so a plain press on
@@ -266,9 +271,10 @@ function RightFloatingBar() {
       // grow into, instead of expanding into a sliver at the bottom edge.
       if (next && !current) {
         setTop((base) => {
-          const desired = Math.min(EXPANDED_PREFERRED_HEIGHT, containerHeight - EDGE_MARGIN * 2)
-          const maxAllowedTop = containerHeight - desired - EDGE_MARGIN
-          return base > maxAllowedTop ? Math.max(EDGE_MARGIN, maxAllowedTop) : base
+          const current = base ?? defaultTop
+          const desired = Math.min(EXPANDED_PREFERRED_HEIGHT, containerHeight - TOP_CLEARANCE - BOTTOM_CLEARANCE)
+          const maxAllowedTop = containerHeight - desired - BOTTOM_CLEARANCE
+          return current > maxAllowedTop ? Math.max(TOP_CLEARANCE, maxAllowedTop) : current
         })
       }
       return next
@@ -284,8 +290,11 @@ function RightFloatingBar() {
 
   return (
     <div
+      ref={anchorRef}
       className="pointer-events-none absolute z-20"
-      style={{ top: clampedTop, left: clampedLeft }}
+      // Hidden for the single frame before the container is measured, so
+      // it never flashes at a wrong spot.
+      style={{ top: clampedTop, left: clampedLeft, visibility: containerSize ? undefined : 'hidden' }}
     >
       {/* The toolbar container itself grows into the detail panel — no
           detached popover/window. Width and corner radius animate on a CSS

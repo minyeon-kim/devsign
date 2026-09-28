@@ -22,7 +22,8 @@ function SaveStatusIndicator({ projectId }) {
   return (
     <div
       className={cn(
-        'absolute bottom-3 left-4 z-20 flex h-11 items-center gap-2.5 rounded-full px-4 text-xs',
+        // bottom-5, on Merge Studio's bottom-row baseline (its zoom pill and AI bar).
+        'absolute bottom-5 left-4 z-20 flex h-11 items-center gap-2.5 rounded-full px-4 text-xs',
         FLOATING_PILL
       )}
     >

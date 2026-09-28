@@ -65,10 +65,15 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
       <ProjectTitle project={project} />
 
       {/* The same SearchField as the Home dashboard's top bar — same
-          capsule, fill, hairline and type — at the same 480px width,
-          capped so it stays clear of the title and action pills. */}
+          capsule, fill, hairline and type — at up to the same 480px.
+          Sized against the Workspace view itself (a container query on
+          WorkspacePage's root), not the browser window: the view narrows
+          when the sidebar drawer opens. It keeps 460px clear on each side
+          of center (the ~430px action pill + its 16px inset + a 12px gap)
+          and steps aside entirely when the view is too narrow to fit a
+          usable field between the pills, so it never collides with them. */}
       <SearchField
-        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[34vw] -translate-x-1/2"
+        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-920px)] -translate-x-1/2 @max-[1160px]:hidden"
         placeholder="Search files, commands..."
       />
 

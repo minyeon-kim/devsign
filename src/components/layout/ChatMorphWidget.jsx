@@ -34,7 +34,9 @@ const attachablePool = ['DesignCanvas.jsx', 'theme.css', 'tokens.json', 'screens
 const ICON_SIZE = 48
 const MODAL_WIDTH = 400
 const MODAL_HEIGHT = 560
-const MARGIN = 16
+// 18px so the 48px bubble's center lines up with the bottom row's 44px
+// pills on their bottom-5 baseline (20px + 22px = 18px + 24px).
+const MARGIN = 18
 const ICON_RADIUS = ICON_SIZE / 2
 const MODAL_RADIUS = 28
 

@@ -72,23 +72,26 @@ function WorkspaceFloatingCanvas() {
       const minY = Math.min(...groups.map((g) => g.y))
       const maxX = Math.max(...groups.map((g) => g.x + g.w))
       const maxY = Math.max(...groups.map((g) => g.y + g.h))
-      // Taller at the top than the other edges — clearing the TopBar pills
-      // (top-3, h-10) so the default layout doesn't start out tucked
-      // behind them. (The left edge no longer hosts a floating toolbar.)
+      // The same keep-out bands every floating control respects (Merge
+      // Studio's rhythm), so the default layout never starts out tucked
+      // under chrome: the top pill row (top-3 / h-10), the bottom row
+      // (save status + zoom at bottom-5 / h-11), and the right toolbar
+      // (48px + 12px margin) along the right edge.
       const leftMargin = 32
       const topMargin = 72
-      const margin = 32
+      const rightMargin = 76
+      const bottomMargin = 84
       const fitZoom = Math.min(
         MAX_ZOOM,
         100,
-        ((rect.width - leftMargin - margin) / (maxX - minX)) * 100,
-        ((rect.height - topMargin - margin) / (maxY - minY)) * 100
+        ((rect.width - leftMargin - rightMargin) / (maxX - minX)) * 100,
+        ((rect.height - topMargin - bottomMargin) / (maxY - minY)) * 100
       )
       const zoom = Math.max(MIN_ZOOM, fitZoom)
       const k = zoom / 100
       setView({
         zoom,
-        x: leftMargin - minX * k + Math.max(0, (rect.width - leftMargin - margin - (maxX - minX) * k) / 2),
+        x: leftMargin - minX * k + Math.max(0, (rect.width - leftMargin - rightMargin - (maxX - minX) * k) / 2),
         y: topMargin - minY * k,
       })
     }
@@ -180,12 +183,13 @@ function WorkspaceFloatingCanvas() {
       </div>
 
       {/* Bottom-right zoom pill — the same control as Merge Studio's own
-          (h-11 FLOATING_PILL, 32px round buttons, Minus/Plus icons) —
+          (h-11 FLOATING_PILL, 32px round buttons, Minus/Plus icons) — on
+          the same bottom-5 baseline as Merge Studio's bottom row, and
           right-20 (not right-3) so it clears ChatMorphWidget's collapsed
-          bubble (48px + 16px margin, fixed to the same corner). */}
+          bubble fixed to the same corner. */}
       <div
         data-zoom-control
-        className={cn('absolute right-20 bottom-3 z-20 flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}
+        className={cn('absolute right-20 bottom-5 z-20 flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}
       >
         <button
           type="button"

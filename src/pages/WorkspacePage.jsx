@@ -66,7 +66,9 @@ function WorkspacePage() {
     // bar, inspector, chat — is an absolutely positioned overlay on top of
     // it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
-    <div className="relative h-full overflow-hidden bg-background text-foreground">
+    // `@container` lets floating chrome (e.g. the TopBar search) size itself
+    // against this view's width, which shrinks when the sidebar drawer opens.
+    <div className="@container relative h-full overflow-hidden bg-background text-foreground">
       {inMergeStudio ? (
         // MergeStudioView/MergeStudioWorkspace size themselves with
         // flex-1 + min-h-0, expecting a flex-column ancestor with a
