@@ -7,7 +7,6 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
-import LocalCursor from '@/components/collab/LocalCursor'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -365,7 +364,6 @@ function EditorPanel() {
             onJump={jumpToRatio}
           />
           <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
-          <LocalCursor containerRef={cursorAreaRef} />
         </div>
       )}
 
