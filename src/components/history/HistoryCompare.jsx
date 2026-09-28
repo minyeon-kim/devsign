@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
-import { Code2, GitCompareArrows, LayoutTemplate, RotateCcw, Sparkles } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from 'sonner'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
+import SplitHandle from '@/components/layout/SplitHandle'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 
@@ -13,6 +14,8 @@ const ROW_TONES = {
   remove: 'bg-destructive/[0.08] text-red-300',
 }
 const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
+const MIN_CODE = 280
+const MIN_CANVAS = 260
 
 // Archive → History's detail pane: what restoring the selected version
 // would change relative to the current one (code, preview props,
@@ -25,11 +28,21 @@ const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 // `onCompareLatestChange` is given): on, an inline diff against the latest
 // state; off, just the file as it was at this version — what History
 // playback steps through. `footer` sits under the code (the timeline).
-// Code / Canvas switches between that file and the design as it rendered at
-// the version (beside the latest one while comparing).
+// The code and the design as it rendered at that version sit side by side,
+// split by a draggable handle, so a change reads in both at a glance.
 function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName } = useWorkspace()
-  const [view, setView] = useState('code')
+  const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
+  // The code pane's width in px (null = its default share); the canvas
+  // takes the rest.
+  const [codeWidth, setCodeWidth] = useState(null)
+  const splitRef = useRef(null)
+  const codeRef = useRef(null)
+  const dragStart = useRef(0)
+  const resizeCode = (width) => {
+    const total = splitRef.current?.clientWidth ?? 0
+    setCodeWidth(Math.max(MIN_CODE, Math.min(total - MIN_CANVAS, width)))
+  }
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const isCurrent = entryId === activeHistoryId
@@ -107,29 +120,6 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {onCompareLatestChange && (
-            <div className="flex items-center rounded-full bg-white/[0.04] p-0.5" role="tablist" aria-label="View">
-              {[
-                ['code', 'Code', Code2],
-                ['canvas', 'Canvas', LayoutTemplate],
-              ].map(([id, label, Icon]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === id}
-                  onClick={() => setView(id)}
-                  className={cn(
-                    'flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
-                    view === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-          {onCompareLatestChange && (
             <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400 select-none">
               Compare latest
               <button
@@ -168,23 +158,16 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
         </div>
       </div>
 
-      {view === 'canvas' ? (
-        <div className={cn('mx-3 mb-3 grid min-h-0 flex-1 gap-3', showDiff && 'grid-cols-2')}>
-          {showDiff && (
-            <div className="min-h-0 overflow-hidden rounded-xl">
-              <PreviewPanelContent previewProps={current?.snapshot.previewProps} caption={<span className="shrink-0">Latest</span>} />
-            </div>
-          )}
-          <div key={entry.id} className="min-h-0 overflow-hidden rounded-xl">
-            <PreviewPanelContent
-              previewProps={entry.snapshot.previewProps}
-              caption={<span className="shrink-0 text-emerald-300">{isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-black/20">
-          <p className="shrink-0 px-4 pt-2 pb-1 font-mono text-[11px] text-slate-500">{getFileName(entry.snapshot.fileId)}</p>
+      <div ref={splitRef} className="mx-3 mb-3 flex min-h-0 flex-1">
+        <div
+          ref={codeRef}
+          style={{ width: codeWidth ?? '58%', maxWidth: `calc(100% - ${MIN_CANVAS}px)` }}
+          className="flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl bg-black/20"
+        >
+          <p className="flex shrink-0 items-center gap-1.5 px-4 pt-2 pb-1 font-mono text-[11px] text-slate-500">
+            <Code2 className="size-3" />
+            {getFileName(entry.snapshot.fileId)}
+          </p>
           <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[12px] leading-5">
             {showDiff && rows.every((r) => r.kind === 'same') && (
               <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
@@ -199,7 +182,49 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             ))}
           </div>
         </div>
-      )}
+
+        <SplitHandle
+          label="Resize code and canvas"
+          onResizeStart={() => (dragStart.current = codeRef.current.offsetWidth)}
+          onResize={(dx) => resizeCode(dragStart.current + dx)}
+          onStep={(d) => resizeCode(codeRef.current.offsetWidth + d)}
+        />
+
+        {/* The design at this version, beside its code — while comparing,
+            flip it to the latest one to see the difference. */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
+          <PreviewPanelContent
+            key={canvasSide === 'latest' && showDiff ? 'latest' : entry.id}
+            previewProps={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.previewProps}
+            caption={
+              showDiff ? (
+                <span className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Canvas version">
+                  {[
+                    ['entry', 'This version'],
+                    ['latest', 'Latest'],
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={canvasSide === id}
+                      onClick={() => setCanvasSide(id)}
+                      className={cn(
+                        'h-5 rounded-full px-2 text-[10.5px] font-medium transition-colors',
+                        canvasSide === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              ) : (
+                <span className="shrink-0 text-emerald-300">{isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>
+              )
+            }
+          />
+        </div>
+      </div>
 
       {footer}
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
 
 // The common application shell, shared by the dashboard-level pages and
@@ -16,10 +16,12 @@ import Sidebar from '@/components/dashboard/Sidebar'
 // animates, pushing the content column over rather than overlapping it.
 // History is the one two-column view: its page opens the History drawer
 // (the checkpoint list) with it — however you got there — and leaving the
-// page closes it again.
+// page closes it again. Toggling History off (its icon, or closing its
+// drawer) leaves the whole view — list and viewer — for the Workspace.
 function AppShell({ topBar, project, children }) {
   // null | 'docs' | 'history'
   const [drawer, setDrawer] = useState(null)
+  const navigate = useNavigate()
   const { pathname } = useLocation()
   const onHistoryPage = !!project && pathname.replace(/\/$/, '') === `/projects/${project.id}/history`
   const [wasOnHistory, setWasOnHistory] = useState(false)
@@ -29,13 +31,16 @@ function AppShell({ topBar, project, children }) {
     else if (drawer === 'history') setDrawer(null)
   }
 
+  const leavingHistory = (panel) => onHistoryPage && panel === 'history' && drawer === 'history'
+  const exitHistory = () => navigate(`/projects/${project.id}/workspace`)
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         project={project}
         drawer={drawer}
-        onToggleDrawer={(panel) => setDrawer((open) => (open === panel ? null : panel))}
-        onCloseDrawer={() => setDrawer(null)}
+        onToggleDrawer={(panel) => (leavingHistory(panel) ? exitHistory() : setDrawer((open) => (open === panel ? null : panel)))}
+        onCloseDrawer={() => (leavingHistory(drawer) ? exitHistory() : setDrawer(null))}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

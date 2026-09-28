@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
@@ -8,6 +8,7 @@ import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer from '@/components/dashboard/HistoryDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
+import SplitHandle from '@/components/layout/SplitHandle'
 import { projectTone } from '@/lib/projectTone'
 
 // The global destinations, shown only outside a project: Home (the
@@ -120,8 +121,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
             />
             {/* The full History view — its page opens the checkpoint list in
-                the drawer beside it (AppShell). On it, the icon just shows /
-                hides that list. */}
+                the drawer beside it (AppShell). On it, the icon toggles
+                History off: back to the Workspace. */}
             <RailButton
               label="History"
               icon={History}
@@ -207,6 +208,9 @@ function HistoryNavButtons() {
 }
 
 const DRAWER_TITLES = { docs: 'Docs', history: 'History' }
+const DRAWER_WIDTH = 272
+const DRAWER_MIN = 220
+const DRAWER_MAX = 480
 
 // The app's navigation: the always-slim ActivityBar, and beside it a
 // drawer used by the Docs and History icons (the docs category tree, the
@@ -219,6 +223,12 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
   const [shown, setShown] = useState(drawer)
   if (drawer && drawer !== shown) setShown(drawer)
   const panel = drawer ?? shown
+  // The drawer's width, dragged from its right edge (no animation while
+  // dragging, so it tracks the pointer).
+  const [width, setWidth] = useState(DRAWER_WIDTH)
+  const [resizing, setResizing] = useState(false)
+  const dragStart = useRef(DRAWER_WIDTH)
+  const resize = (w) => setWidth(Math.max(DRAWER_MIN, Math.min(DRAWER_MAX, w)))
 
   return (
     <div className="z-10 flex h-full shrink-0">
@@ -227,15 +237,28 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
       <div
         inert={!drawer}
         aria-hidden={!drawer}
+        style={{ width: drawer ? width : 0 }}
         className={cn(
-          'h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          drawer ? 'w-68' : 'w-0'
+          'h-full shrink-0 overflow-hidden motion-reduce:transition-none',
+          !resizing && 'transition-[width] duration-200 ease-out'
         )}
       >
         <aside
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
-          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
+          style={{ width }}
+          className="relative flex h-full flex-col border-x border-white/[0.06] bg-sidebar pb-2"
         >
+          <SplitHandle
+            label="Resize sidebar"
+            className="absolute inset-y-0 -right-1 z-10"
+            onResizeStart={() => {
+              dragStart.current = width
+              setResizing(true)
+            }}
+            onResize={(dx) => resize(dragStart.current + dx)}
+            onResizeEnd={() => setResizing(false)}
+            onStep={(d) => resize(width + d)}
+          />
           <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
