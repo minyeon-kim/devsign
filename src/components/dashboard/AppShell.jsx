@@ -21,20 +21,28 @@ function readCollapsed() {
   }
 }
 
-// Every page mounts its own shell, so the drawer's open/closed state is
-// persisted rather than held in component state alone — otherwise it
-// would snap back open on each navigation.
-function useSidebarCollapsed() {
-  const [collapsed, setCollapsed] = useState(readCollapsed)
+// Every page mounts its own shell, so on global pages the drawer's
+// open/closed state is persisted rather than held in component state
+// alone — otherwise it would snap back open on each navigation.
+//
+// A project is different: entering one (or switching to another — the
+// project shell remounts per project) always starts with the drawer
+// collapsed, to give the canvas and editor the room. The user can still
+// open it, and it stays however they leave it while moving between that
+// project's Workspace and Archive (same mount); that choice just isn't
+// written back, so it never overrides the global pages' preference.
+function useSidebarCollapsed({ inProject }) {
+  const [collapsed, setCollapsed] = useState(() => (inProject ? true : readCollapsed()))
 
   useEffect(() => {
+    if (inProject) return
     try {
       localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0')
     } catch {
       // Storage unavailable (private mode, blocked site data) — the toggle
       // still works for this page, it just won't be remembered.
     }
-  }, [collapsed])
+  }, [collapsed, inProject])
 
   return [collapsed, setCollapsed]
 }
@@ -56,7 +64,7 @@ function useSidebarCollapsed() {
 // own close button closes it, and ⌘B / Ctrl+B (VS Code's binding)
 // toggles it too.
 function AppShell({ topBar, project, children }) {
-  const [collapsed, setCollapsed] = useSidebarCollapsed()
+  const [collapsed, setCollapsed] = useSidebarCollapsed({ inProject: !!project })
 
   useEffect(() => {
     function handleKeyDown(event) {

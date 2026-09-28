@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, Archive, ChevronRight, FileText, GitBranch, History, LayoutDashboard, LayoutPanelLeft, Users } from 'lucide-react'
+import { Activity, Archive, ChevronRight, FileText, GitBranch, History, LayoutDashboard, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { activeNavItem } from '@/components/dashboard/Sidebar'
 import { activities, allPeople, projects, referenceDocs } from '@/data/mockData'
@@ -227,16 +227,13 @@ function ArchiveTree({ project, pathname }) {
   )
 }
 
-// A project's own pages — deliberately no per-project Settings. Workspace
-// is a plain link; Archive is the expandable tree above.
+// A project's drawer body — deliberately no per-project Settings, and no
+// Workspace row: Workspace is the project's default view (you land there
+// on entering; the drawer header's project name leads back to it), so the
+// drawer is just Archive's expandable tree.
 function ProjectMenu({ project, pathname }) {
-  const workspacePath = `/projects/${project.id}/workspace`
-
   return (
     <nav aria-label={project.name} className="flex flex-col gap-1">
-      <NavRow to={workspacePath} active={pathname.startsWith(workspacePath)} icon={LayoutPanelLeft}>
-        Workspace
-      </NavRow>
       <ArchiveTree project={project} pathname={pathname} />
     </nav>
   )
@@ -245,7 +242,7 @@ function ProjectMenu({ project, pathname }) {
 // The body of the tier-2 contextual drawer (its header — section title,
 // or a project's back arrow + switcher — lives in Sidebar). It never
 // repeats the activity bar's global destinations: inside a project it's
-// that project's Workspace and its expandable Archive tree; elsewhere it's the sub-menu of the
+// that project's expandable Archive tree; elsewhere it's the sub-menu of the
 // active global section — Home → Overview/Conflicts, Projects → each
 // project, Activity → the feed, Team → the member list.
 function SidebarSubmenu({ project }) {

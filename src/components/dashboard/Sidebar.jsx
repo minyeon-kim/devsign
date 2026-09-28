@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, FolderKanban, House, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, Archive, FolderKanban, House, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -101,7 +101,11 @@ function ProjectsMark({ project }) {
 //   2. Projects, right under it — opens the Slack-style project switcher
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
-//   3. Home, Activity, Team;
+//   3. Home;
+//   4. inside a project, Archive — promoted right under Home as the
+//      project's high-frequency docs/specs/history view (Workspace is the
+//      default view and needs no icon) — then a hairline;
+//   5. the secondary global items, Activity and Team;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the page's own deep `bg-background` — open or
 // collapsed, dashboard or project — so it's seamless with the canvas
@@ -109,7 +113,10 @@ function ProjectsMark({ project }) {
 function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
-  const inProjects = current.id === 'projects'
+  const archivePath = project ? `/projects/${project.id}/archive` : null
+  const onArchive = !!archivePath && pathname.startsWith(archivePath)
+  // Archive carries its own highlight, so Projects doesn't double up there.
+  const inProjects = current.id === 'projects' && !onArchive
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
@@ -153,14 +160,32 @@ function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
         {navItems.map(({ id, label, icon, path }) => {
           const isActive = id === current.id
           return (
-            <RailButton
-              key={id}
-              label={label}
-              icon={icon}
-              render={<Link to={path} />}
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(isActive && activeClass)}
-            />
+            <Fragment key={id}>
+              <RailButton
+                label={label}
+                icon={icon}
+                render={<Link to={path} />}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(isActive && activeClass)}
+              />
+              {/* Inside a project, its one alternate view sits right under
+                  Home. (Workspace is the project's default view — you land
+                  there on entering — so it has no icon of its own.) */}
+              {id === 'home' && project && (
+                <>
+                  <RailButton
+                    label="Archive"
+                    icon={Archive}
+                    render={<Link to={archivePath} />}
+                    aria-current={onArchive ? 'page' : undefined}
+                    className={cn(onArchive && activeClass)}
+                  />
+                  {/* Separates the high-frequency project group above from
+                      the secondary global items (Activity, Team) below. */}
+                  <div role="separator" className="mx-3.5 my-1.5 h-px shrink-0 bg-white/[0.08]" />
+                </>
+              )}
+            </Fragment>
           )
         })}
       </nav>
@@ -202,9 +227,21 @@ function DrawerHeader({ project, onClose }) {
 
   return (
     <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
-      <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
-        {project ? project.name : activeNavItem(pathname).label}
-      </p>
+      {project ? (
+        // The way back to the project's default view (Workspace) — e.g.
+        // from Archive — now that the drawer has no Workspace row.
+        <Link
+          to={`/projects/${project.id}/workspace`}
+          title="Open Workspace"
+          className="min-w-0 flex-1 truncate rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          {project.name}
+        </Link>
+      ) : (
+        <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
+          {activeNavItem(pathname).label}
+        </p>
+      )}
       <CloseButton onClose={onClose} />
     </div>
   )

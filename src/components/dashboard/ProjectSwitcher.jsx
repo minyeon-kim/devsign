@@ -32,7 +32,13 @@ function ProjectSwitcher({ children, currentProjectId }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel>Switch project</DropdownMenuLabel>
           {projects.map((p) => (
-            <DropdownMenuItem key={p.id} onClick={() => navigate(`/projects/${p.id}/${tab}`)} className="gap-2.5">
+            <DropdownMenuItem
+              key={p.id}
+              // Re-picking the project you're in takes you to its default
+              // view (Workspace); another project opens on the same tab.
+              onClick={() => navigate(`/projects/${p.id}/${p.id === currentProjectId ? 'workspace' : tab}`)}
+              className="gap-2.5"
+            >
               <span
                 className={cn(
                   'flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold text-white',
