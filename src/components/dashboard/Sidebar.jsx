@@ -1,7 +1,18 @@
-import { Link, useLocation } from 'react-router-dom'
-import { Activity, FolderKanban, LayoutDashboard, Settings, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Activity, Bell, FolderKanban, LayoutDashboard, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import Logo from '@/components/layout/Logo'
+import { activities } from '@/data/mockData'
 
 // The four top-level destinations — the rail's only nav items. Shared
 // with SidebarSecondary, which picks its contextual sub-menu from the
@@ -51,50 +62,103 @@ const iconButtonClass =
 // not a saturated blue fill — the icon itself stays close to neutral.
 const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
 
+const recentNotifications = activities.slice(0, 4)
+
+// Lives in the rail's lower utility group (not the top bar) so it's
+// reachable from every route, including a project's Workspace/Archive,
+// which have no global top bar.
+function NotificationsButton() {
+  const navigate = useNavigate()
+  const [hasUnread, setHasUnread] = useState(true)
+
+  return (
+    <DropdownMenu onOpenChange={(open) => open && setHasUnread(false)}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              render={
+                <button type="button" aria-label="Notifications" className={cn(iconButtonClass, 'relative')}>
+                  <Bell className="size-[18px]" />
+                  {hasUnread && <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary" />}
+                </button>
+              }
+            />
+          }
+        />
+        <TooltipContent side="right">Notifications</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent side="right" align="end" sideOffset={8} className="w-72">
+        <p className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Notifications</p>
+        <DropdownMenuSeparator />
+        {recentNotifications.map((activity) => (
+          <DropdownMenuItem
+            key={activity.id}
+            className="flex-col items-start gap-0.5"
+            onClick={() => navigate('/activity')}
+          >
+            <span className="text-xs text-foreground">
+              {activity.actorName} {activity.action} {activity.target}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{activity.timestamp}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // Permanently docked and identical on every route (dashboard pages and a
-// project's Workspace/Archive alike) — only the labeled drawer beside it
-// (see AppShell) collapses. VS Code's activity-bar behavior drives that
-// drawer instead of a dedicated toggle control: clicking the section
-// you're already at the root of folds/unfolds it, and switching to a
-// different section always brings it back open.
-function Sidebar({ drawerOpen = true, onToggleDrawer, onOpenDrawer }) {
+// project's Workspace/Archive alike). Gemini-style, the app logo at the
+// top is the sidebar trigger: it folds/unfolds the labeled drawer beside
+// the rail (see AppShell), which is the only part that ever collapses.
+// The four section icons just navigate; Notifications and Settings sit in
+// the lower utility group.
+function Sidebar({ drawerOpen = true, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
+  const toggleLabel = `${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`
 
   return (
     <aside className="z-10 flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
+      <Tooltip>
+        <TooltipTrigger
+          onClick={onToggleDrawer}
+          aria-expanded={drawerOpen}
+          aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
+          className={cn(iconButtonClass, 'mb-2 rounded-lg')}
+        >
+          <Logo iconOnly />
+        </TooltipTrigger>
+        <TooltipContent side="right">{toggleLabel}</TooltipContent>
+      </Tooltip>
+
       <nav className="flex flex-col items-center gap-1">
         {navItems.map(({ id, label, icon: Icon, path }) => {
           const isActive = id === current.id
-          const togglesDrawer = isActive && pathname === path
           return (
             <Tooltip key={id}>
               <TooltipTrigger
                 render={<Link to={path} />}
-                onClick={(event) => {
-                  if (togglesDrawer) {
-                    event.preventDefault()
-                    onToggleDrawer?.()
-                  } else {
-                    onOpenDrawer?.()
-                  }
-                }}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(iconButtonClass, isActive && activeClass)}
               >
                 <Icon className="size-[18px]" />
               </TooltipTrigger>
-              <TooltipContent side="right">
-                {togglesDrawer ? `${label} · ${drawerOpen ? 'hide' : 'show'} sidebar` : label}
-              </TooltipContent>
+              <TooltipContent side="right">{label}</TooltipContent>
             </Tooltip>
           )
         })}
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-1">
+        <NotificationsButton />
         <Tooltip>
-          <TooltipTrigger className={iconButtonClass}>
+          <TooltipTrigger
+            onClick={() => toast('Settings', { description: 'Workspace settings' })}
+            aria-label="Settings"
+            className={iconButtonClass}
+          >
             <Settings className="size-[18px]" />
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>

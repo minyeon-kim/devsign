@@ -7,11 +7,9 @@ import {
   GitBranch,
   LayoutDashboard,
   LayoutPanelLeft,
-  PanelLeftClose,
   Users,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,31 +30,11 @@ const activeRowClass = 'bg-muted text-foreground'
 
 const totalOpenConflicts = projects.reduce((sum, p) => sum + p.conflicts, 0)
 
-function CollapseButton({ onCollapse }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        onClick={onCollapse}
-        aria-label="Hide sidebar"
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <PanelLeftClose className="size-4" />
-      </TooltipTrigger>
-      <TooltipContent side="right">Hide sidebar · ⌘B</TooltipContent>
-    </Tooltip>
-  )
-}
-
 // The drawer's first row — the section's name (or, inside a project, the
-// way back out) plus the hide button. Same h-9 pitch as the rail's first
-// icon beside it, so there's no spacer or divider line needed above it.
-function DrawerHeader({ children, onCollapse }) {
-  return (
-    <div className="mb-3 flex h-9 shrink-0 items-center justify-between gap-2 pl-2.5">
-      {children}
-      <CollapseButton onCollapse={onCollapse} />
-    </div>
-  )
+// way back out), lined up with the rail's logo trigger beside it, so
+// there's no spacer or divider line needed above it.
+function DrawerHeader({ children }) {
+  return <div className="mb-3 flex h-9 shrink-0 items-center gap-2 pl-2.5">{children}</div>
 }
 
 function SectionLabel({ children }) {
@@ -252,7 +230,7 @@ function ProjectSwitcher({ project, pathname }) {
 // (`project` set) it becomes that project's own menu instead: back to all
 // projects, a project-switch dropdown, and Workspace/Archive (deliberately
 // no per-project Settings).
-function SidebarSecondary({ project, onCollapse }) {
+function SidebarSecondary({ project }) {
   const { pathname } = useLocation()
 
   if (project) {
@@ -263,7 +241,7 @@ function SidebarSecondary({ project, onCollapse }) {
 
     return (
       <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card px-3 py-2">
-        <DrawerHeader onCollapse={onCollapse}>
+        <DrawerHeader>
           <Link
             to="/projects"
             className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -291,7 +269,7 @@ function SidebarSecondary({ project, onCollapse }) {
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card px-3 py-2">
-      <DrawerHeader onCollapse={onCollapse}>
+      <DrawerHeader>
         <p className="truncate text-[13px] font-semibold text-foreground">{section.label}</p>
       </DrawerHeader>
 

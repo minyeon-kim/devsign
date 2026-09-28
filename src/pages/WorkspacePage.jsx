@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
-import ActivityBar from '@/components/layout/ActivityBar'
 import RightFloatingBar from '@/components/layout/RightFloatingBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
@@ -63,7 +62,7 @@ function WorkspacePage() {
   return (
     // A single full-bleed surface, Merge-Studio style: the canvas (or
     // Merge Studio itself) fills the whole viewport and every other piece
-    // of chrome — top bar, activity rail, follow-me banner, right floating
+    // of chrome — top bar, follow-me banner, right floating
     // bar, inspector, chat — is an absolutely positioned overlay on top of
     // it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
@@ -81,8 +80,6 @@ function WorkspacePage() {
       ) : (
         <WorkspaceFloatingCanvas />
       )}
-
-      {!inMergeStudio && <ActivityBar dockApi={dockApi} />}
 
       <TopBar
         project={project}

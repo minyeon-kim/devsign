@@ -35,7 +35,7 @@ const ZOOM_STEP = 10
 // pannable/zoomable canvas of freely draggable/resizable windows — same
 // dot-grid background, same opaque glass-free card surface. `dockApi` (see
 // floatingDockApi.js) is a facade shaped exactly like dockview-react's own
-// API, so ActivityBar/LayoutMenu/CanvasPanel's layer-inspect tabs and the
+// API, so LayoutMenu/CanvasPanel's layer-inspect tabs and the
 // Preview toggle all keep working against it completely unchanged; only
 // this rendering layer is new.
 function WorkspaceFloatingCanvas() {
@@ -69,11 +69,10 @@ function WorkspaceFloatingCanvas() {
       const minY = Math.min(...groups.map((g) => g.y))
       const maxX = Math.max(...groups.map((g) => g.x + g.w))
       const maxY = Math.max(...groups.map((g) => g.y + g.h))
-      // Wider on the left/top than the other two edges — clearing the
-      // floating ActivityBar pill (left-4, w-12) and the TopBar pills
+      // Taller at the top than the other edges — clearing the TopBar pills
       // (top-3, h-10) so the default layout doesn't start out tucked
-      // behind either of them.
-      const leftMargin = 96
+      // behind them. (The left edge no longer hosts a floating toolbar.)
+      const leftMargin = 32
       const topMargin = 72
       const margin = 32
       const fitZoom = Math.min(

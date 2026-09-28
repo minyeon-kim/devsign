@@ -7,8 +7,8 @@ import { useReducer, useRef } from 'react'
 // exposed — getPanel/panels/addPanel/addGroup, panel.api.{setActive,close,
 // maximize,exitMaximized,isMaximized}, group.api.setSize, onDidLayoutChange
 // — means DockLayout.jsx's buildInitialLayout/addDockPanel/addSidebarPanel/
-// openOrFocusPanel, and every consumer of `dockApi` (ActivityBar,
-// LayoutMenu, CanvasPanel's layer-inspect tabs, WorkspacePage's Preview
+// openOrFocusPanel, and every consumer of `dockApi` (LayoutMenu,
+// CanvasPanel's layer-inspect tabs, WorkspacePage's Preview
 // toggle), all keep working completely unchanged — only the rendering
 // layer (this + FloatingCanvas, instead of DockviewReact) is new.
 const GAP = 12
@@ -92,7 +92,7 @@ export function useFloatingDockApi() {
           if (!g) return
           if (g.hideHeader) {
             // Headerless groups (Explorer, Layers+Assets) are one atomic
-            // unit from the ActivityBar's point of view — closing either
+            // unit from the Layout pop-up's point of view — closing either
             // tab tears down the whole group rather than leaving its
             // sibling stranded with no way back to it, matching
             // addSidebarPanel's "reopening always mints a fresh group"
@@ -252,7 +252,7 @@ export function useFloatingDockApi() {
 
   // Extra methods beyond dockview's own shape — user drag/resize on a
   // floating window, which dockview handled internally and none of the
-  // reused consumers (ActivityBar/LayoutMenu/CanvasPanel) need to touch.
+  // reused consumers (LayoutMenu/CanvasPanel) need to touch.
   function moveGroup(groupId, x, y) {
     const g = store.groups[groupId]
     if (!g || g.maximized) return

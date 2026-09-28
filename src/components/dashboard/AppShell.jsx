@@ -44,8 +44,8 @@ function useSidebarCollapsed() {
 // labels are clipped rather than re-wrapped mid-animation), which pushes
 // the content column over instead of overlapping it. `inert` keeps the
 // hidden drawer's links out of the tab order while it's collapsed.
-// ⌘B / Ctrl+B toggles it too (VS Code's binding), alongside the rail's
-// click-the-active-section behavior and the drawer's own hide button.
+// The rail's logo is the trigger; ⌘B / Ctrl+B (VS Code's binding) toggles
+// it too.
 function AppShell({ topBar, project, children }) {
   const [collapsed, setCollapsed] = useSidebarCollapsed()
   const toggleDrawer = () => setCollapsed((c) => !c)
@@ -69,7 +69,6 @@ function AppShell({ topBar, project, children }) {
         <Sidebar
           drawerOpen={!collapsed}
           onToggleDrawer={toggleDrawer}
-          onOpenDrawer={() => setCollapsed(false)}
         />
 
         <div
@@ -80,7 +79,7 @@ function AppShell({ topBar, project, children }) {
             collapsed ? 'w-0' : 'w-60'
           )}
         >
-          <SidebarSecondary project={project} onCollapse={() => setCollapsed(true)} />
+          <SidebarSecondary project={project} />
         </div>
 
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>

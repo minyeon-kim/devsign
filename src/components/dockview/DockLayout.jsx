@@ -48,21 +48,20 @@ export function addDockPanel(api, def, options) {
 }
 
 // Explorer/Layers render inside a *headerless* dockview group — a plain
-// collapsible section (icon-only ActivityBar toggle, single in-panel
+// collapsible section (toggled from the Layout pop-up, single in-panel
 // header), not a tabbed/closable dockview pane the way Editor/Terminal/
 // Preview are. Without `hideHeader: true` every group gets its own
 // `--dv-tabs-and-actions-container` tab strip, which duplicated the
 // section's own header (e.g. a "Layers" tab row sitting on top of the
 // panel's own Layers/Assets tabs). Used by both the initial layout below
-// and ActivityBar's reopen-after-close logic, so the two never drift.
+// and toggleSidebarPanel's reopen-after-close logic, so the two never drift.
 export function addSidebarPanel(api, def, groupOptions) {
   const group = api.addGroup({ hideHeader: true, ...sidebarWidthConstraints, ...groupOptions })
   addDockPanel(api, def, { position: { referenceGroup: group } })
   return group
 }
 
-// Re-opens a panel definition (from the ActivityBar, or the Preview
-// toggle) next to whatever else from its own "family" is still open —
+// Re-opens a panel definition (e.g. from the Preview toggle) next to whatever else from its own "family" is still open —
 // sidebar panels next to the sidebar, main-area panels next to the editor,
 // bottom-strip panels next to the terminal — instead of always docking
 // "within" `dockApi.panels[0]`, which is whichever panel buildInitialLayout
@@ -91,6 +90,37 @@ export function openOrFocusPanel(dockApi, def) {
     initialWidth: def.group === 'sidebar' ? 260 : undefined,
     initialHeight: def.group === 'bottom' ? 220 : undefined,
   })
+}
+
+// A real open/close toggle for the sidebar-family windows (Explorer,
+// Layers), used by the Workspace's Layout pop-up: an open panel closes
+// entirely; a closed one is re-added next to whichever sidebar sibling is
+// still open — or as a fresh sidebar window left of the editor if both
+// were closed.
+export function toggleSidebarPanel(dockApi, def) {
+  if (!dockApi) return
+
+  const existing = dockApi.getPanel(def.id)
+  if (existing) {
+    existing.api.close()
+    return
+  }
+
+  const explorerPanel = dockApi.getPanel('explorer')
+  const layersPanel = dockApi.getPanel('layers')
+  const editorPanel = dockApi.getPanel('editor') ?? dockApi.panels[0]
+
+  if (def.id === 'explorer' && layersPanel) {
+    addSidebarPanel(dockApi, def, { direction: 'above', referenceGroup: layersPanel.api.group })
+  } else if (def.id === 'layers' && explorerPanel) {
+    addSidebarPanel(dockApi, def, { direction: 'below', referenceGroup: explorerPanel.api.group })
+  } else if (editorPanel) {
+    addSidebarPanel(dockApi, def, {
+      direction: 'left',
+      referencePanel: editorPanel.id,
+      ...(def.id === 'explorer' ? { initialWidth: 260, initialHeight: 220 } : {}),
+    })
+  }
 }
 
 export function buildInitialLayout(api) {

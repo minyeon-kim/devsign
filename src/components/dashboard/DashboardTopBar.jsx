@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Bell, ChevronDown, File, Folder, Search, User as UserIcon } from 'lucide-react'
+import { ChevronDown, File, Folder, Search, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import Logo from '@/components/layout/Logo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { activities, allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
+import { allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
 
 const MAX_RESULTS_PER_GROUP = 4
 
@@ -33,19 +32,16 @@ function searchAll(query) {
   }
 }
 
-const recentNotifications = activities.slice(0, 4)
-
 // The dashboard's own top bar — distinct from the in-workspace `TopBar`
-// (src/components/layout/TopBar.jsx). Search/notifications/profile are
+// (src/components/layout/TopBar.jsx). Search and profile are
 // all wired to mock data + local state; nothing here touches a backend.
-// AppShell renders it as the outermost full-width layer, so it also
-// carries the brand mark the icon rail used to hold — `pl-3.5` centers
-// the 20px mark over the 48px rail below it.
+// AppShell renders it as the outermost full-width layer. Notifications
+// live in the icon rail's utility group and the logo is the rail's
+// sidebar trigger, so the bar itself is just search + profile.
 function DashboardTopBar() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
-  const [hasUnread, setHasUnread] = useState(true)
 
   const { projectResults, fileResults, memberResults } = useMemo(() => searchAll(query), [query])
   const totalResults = projectResults.length + fileResults.length + memberResults.length
@@ -58,22 +54,12 @@ function DashboardTopBar() {
   }
 
   return (
-    <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-card pr-6 pl-3.5">
-      <div className="flex flex-1 items-center">
-        <Link to="/dashboard" aria-label="Home" className="rounded-md">
-          <Logo />
-        </Link>
-      </div>
+    // Equal 1fr columns either side of the search pin it to the bar's exact
+    // center regardless of how wide the profile cluster on the right is.
+    <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,420px)_1fr] items-center gap-3 border-b bg-card px-6">
+      <div />
 
-      {/* Splitting the flanking space 50/50 puts the search box at the
-          header's exact geometric center, but the right cluster's own
-          content (bell + avatar + name + chevron, ~177px) hugs the far
-          edge rather than filling its whole flex-1 share — so the empty
-          space immediately next to the search box reads as bigger on the
-          left than the right. `mr` nudges the box left by half that
-          content width so the *visible* gap on each side matches, not
-          just the flex math. */}
-      <div className="relative mr-[201px] w-full max-w-[420px] shrink-0">
+      <div className="relative w-full">
         <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
@@ -154,38 +140,7 @@ function DashboardTopBar() {
         )}
       </div>
 
-      <div className="flex flex-1 items-center justify-end gap-4">
-        <DropdownMenu onOpenChange={(open) => open && setHasUnread(false)}>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                title="Notifications"
-                className="relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Bell className="size-4" />
-                {hasUnread && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" />}
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-72">
-            <p className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Notifications</p>
-            <DropdownMenuSeparator />
-            {recentNotifications.map((activity) => (
-              <DropdownMenuItem
-                key={activity.id}
-                className="flex-col items-start gap-0.5"
-                onClick={() => navigate('/activity')}
-              >
-                <span className="text-xs text-foreground">
-                  {activity.actorName} {activity.action} {activity.target}
-                </span>
-                <span className="text-[11px] text-muted-foreground">{activity.timestamp}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+      <div className="flex items-center justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
