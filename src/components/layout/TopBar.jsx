@@ -1,6 +1,6 @@
-import { PanelRight, Search } from 'lucide-react'
+import { PanelRight } from 'lucide-react'
 import { cn } from 'cn'
-import { Input } from '@/components/ui/input'
+import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
@@ -64,13 +64,13 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
     <>
       <ProjectTitle project={project} />
 
-      <div className="absolute top-3 left-1/2 z-40 w-72 max-w-[32vw] -translate-x-1/2">
-        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search files, commands..."
-          className={cn('h-10 w-full rounded-full border-0 pl-9 text-xs', FLOATING_PILL)}
-        />
-      </div>
+      {/* The same SearchField as the Home dashboard's top bar — same
+          capsule, fill, hairline and type — at the same 480px width,
+          capped so it stays clear of the title and action pills. */}
+      <SearchField
+        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[34vw] -translate-x-1/2"
+        placeholder="Search files, commands..."
+      />
 
       <div
         className={cn(

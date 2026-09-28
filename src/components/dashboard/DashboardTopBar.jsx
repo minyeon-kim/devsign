@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronDown, File, Folder, Search, User as UserIcon } from 'lucide-react'
+import { ChevronDown, File, Folder, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
+import SearchField from '@/components/layout/SearchField'
 import NotificationsMenu from '@/components/layout/NotificationsMenu'
 import {
   DropdownMenu,
@@ -64,17 +64,14 @@ function DashboardTopBar() {
     <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
       <div />
 
-      <div className="relative w-full">
-        <Search className="pointer-events-none absolute top-1/2 left-4 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 120)}
-          placeholder="Search projects, files, or members..."
-          className="h-10 w-full rounded-full border-transparent bg-muted/60 pl-10 text-[13px] transition-colors hover:bg-muted md:text-[13px] dark:bg-muted/60 dark:hover:bg-muted dark:focus-visible:bg-muted"
-        />
-
+      <SearchField
+        className="w-full"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 120)}
+        placeholder="Search projects, files, or members..."
+      >
         {showResults && (
           <div className="absolute top-full left-0 z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-2xl border border-border bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10">
             {totalResults === 0 ? (
@@ -143,7 +140,7 @@ function DashboardTopBar() {
             )}
           </div>
         )}
-      </div>
+      </SearchField>
 
       <div className="flex items-center justify-end gap-2">
         <NotificationsMenu className="size-9 hover:bg-muted" />
