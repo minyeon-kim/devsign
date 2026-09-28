@@ -4,8 +4,8 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
 import ProjectThumbnail from '@/components/dashboard/ProjectThumbnail'
 import { allPeople } from '@/data/mockData'
+import { projectTone } from '@/lib/projectTone'
 
-const ICON_TONES = ['bg-indigo-500', 'bg-rose-500', 'bg-emerald-500', 'bg-sky-500', 'bg-amber-500']
 const MAX_VISIBLE_AVATARS = 3
 
 function SelectIndicator({ selected }) {
@@ -26,9 +26,9 @@ function SelectIndicator({ selected }) {
 // lives on the Dashboard's "Needs attention" list, not duplicated here.
 // `selectable` (toggled from "All projects" in ProjectsSection) switches a
 // click from navigating into the project to toggling its selection instead.
-function ProjectCard({ project, index = 0, view = 'grid', selectable = false, selected = false, onToggleSelect }) {
+function ProjectCard({ project, view = 'grid', selectable = false, selected = false, onToggleSelect }) {
   const navigate = useNavigate()
-  const tone = ICON_TONES[index % ICON_TONES.length]
+  const tone = projectTone(project.id)
   const members = project.memberIds
     .map((id) => allPeople.find((p) => p.id === id))
     .filter(Boolean)

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, FolderKanban, House, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
+import { Activity, FolderKanban, House, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import Logo from '@/components/layout/Logo'
+import { projectTone } from '@/lib/projectTone'
 
 // The four global destinations — the activity bar's only nav items.
 // Shared with SidebarSubmenu, which picks the drawer's contextual
@@ -19,7 +20,7 @@ export const navItems = [
   {
     id: 'home',
     label: 'Home',
-    icon: LayoutDashboard,
+    icon: House,
     path: '/dashboard',
     match: (pathname) => pathname.startsWith('/dashboard') || pathname.startsWith('/conflicts'),
   },
@@ -69,9 +70,29 @@ function RailButton({ label, icon: Icon, className, ...triggerProps }) {
   )
 }
 
+// What the switcher button shows: the Devsign mark on global pages, or —
+// inside a project — that project's own color badge (its initial on its
+// identity color, see projectTone), swapping in with a quick scale/fade
+// whenever the project changes.
+function SwitcherMark({ project }) {
+  if (!project) return <Logo iconOnly />
+  return (
+    <span
+      key={project.id}
+      className={cn(
+        'flex size-7 items-center justify-center rounded-lg text-[13px] font-semibold text-white shadow-sm ring-1 ring-white/10 animate-in fade-in zoom-in-90 duration-200 motion-reduce:animate-none',
+        projectTone(project.id)
+      )}
+    >
+      {project.name.charAt(0)}
+    </span>
+  )
+}
+
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
-// route: the Devsign logo on top (the Slack-style project switcher), the
-// four global destinations, and Settings pinned to the bottom — with a
+// route: the switcher on top (the Devsign logo, or the current project's
+// badge — Slack's workspace switcher), Home directly below it, the other
+// global destinations, and Settings pinned to the bottom — with a
 // "Show sidebar" button above Settings only while the drawer is
 // collapsed. Nothing contextual ever lands here. It always sits on the
 // page's own deep `bg-background` — open or collapsed, dashboard or
@@ -84,7 +105,10 @@ function ActivityBar({ project, drawerOpen, onOpenDrawer }) {
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
       {/* Slack's workspace switcher: the logo opens the project menu
-          right from the top-left corner, on every route. */}
+          right from the top-left corner, on every route — and, like
+          Slack's workspace icon, it wears the current project's badge
+          while you're in one. Home sits directly below it as a separate
+          icon, so switching and going home never share a control. */}
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <Tooltip>
@@ -94,16 +118,16 @@ function ActivityBar({ project, drawerOpen, onOpenDrawer }) {
                   render={
                     <button
                       type="button"
-                      aria-label="Switch project"
+                      aria-label={project ? `Switch project (current: ${project.name})` : 'Switch project'}
                       className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted data-[popup-open]:bg-muted"
                     />
                   }
                 />
               }
             >
-              <Logo iconOnly />
+              <SwitcherMark project={project} />
             </TooltipTrigger>
-            <TooltipContent side="right">Switch project</TooltipContent>
+            <TooltipContent side="right">{project ? `${project.name} · Switch project` : 'Switch project'}</TooltipContent>
           </Tooltip>
         </ProjectSwitcher>
       </div>
@@ -159,8 +183,7 @@ function CloseButton({ onClose }) {
 // project's name (or, outside a project, the active section's name) and
 // the close button. No dropdown here — switching projects is the
 // activity bar logo's job (Slack's workspace switcher) — and no back
-// arrow: getting back out is the activity bar's Home icon and the
-// drawer's own "Back to Dashboard".
+// arrow: getting back out is the activity bar's Home icon.
 function DrawerHeader({ project, onClose }) {
   const { pathname } = useLocation()
 
@@ -203,24 +226,6 @@ function useContextSwitchAnimation(contextKey) {
   return animate
 }
 
-// The project drawer's way out: a dedicated, clearly labelled exit to the
-// global dashboard, pinned to the drawer's foot (the header stays the
-// project switcher alone). The activity bar's Home icon does the same
-// from the slim column.
-function DashboardExit() {
-  return (
-    <div className="shrink-0 px-2 pt-2">
-      <Link
-        to="/dashboard"
-        className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <House className="size-3.5 shrink-0" />
-        Back to Dashboard
-      </Link>
-    </div>
-  )
-}
-
 function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
   const animateIn = useContextSwitchAnimation(project ? `project:${project.id}` : 'global')
 
@@ -252,7 +257,6 @@ function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
             <div className="min-h-0 flex-1 overflow-y-auto px-2">
               <SidebarSubmenu project={project} />
             </div>
-            {project && <DashboardExit />}
           </div>
         </aside>
       </div>

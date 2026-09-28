@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, FolderKanban, House } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -7,15 +7,14 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { projects } from '@/data/mockData'
-
-const PROJECT_TONES = ['bg-indigo-500', 'bg-rose-500', 'bg-emerald-500', 'bg-sky-500', 'bg-amber-500']
+import { projectTone } from '@/lib/projectTone'
 
 // Slack's workspace switcher, opened from the brand logo at the very top
-// of the activity bar: every project (the current one checked), then the
-// ways out to the global views. `children` is the trigger subtree — it
+// of the activity bar: every project (the current one checked) — and
+// nothing else. Getting to the dashboard or the full project list is the
+// Home / Projects icons' job, so the two never overlap. `children` is the trigger subtree — it
 // must contain a DropdownMenuTrigger (the logo button, wrapped in its
 // tooltip). Switching projects keeps you on the same tab
 // (Workspace or Archive) you were on; from a global page it opens the
@@ -31,12 +30,12 @@ function ProjectSwitcher({ children, currentProjectId }) {
       <DropdownMenuContent side="bottom" align="start" sideOffset={6} className="w-64">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Switch project</DropdownMenuLabel>
-          {projects.map((p, index) => (
+          {projects.map((p) => (
             <DropdownMenuItem key={p.id} onClick={() => navigate(`/projects/${p.id}/${tab}`)} className="gap-2.5">
               <span
                 className={cn(
                   'flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold text-white',
-                  PROJECT_TONES[index % PROJECT_TONES.length]
+                  projectTone(p.id)
                 )}
               >
                 {p.name.charAt(0)}
@@ -46,15 +45,6 @@ function ProjectSwitcher({ children, currentProjectId }) {
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/projects')} className="gap-2.5">
-          <FolderKanban className="size-3.5" />
-          All projects
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/dashboard')} className="gap-2.5">
-          <House className="size-3.5" />
-          Home
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
