@@ -1,47 +1,60 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, FolderKanban, House } from 'lucide-react'
+import { cn } from 'cn'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { projects } from '@/data/mockData'
 
-// The current project's title as a Slack-style selector — just the name
-// and a small chevron, no icon tile — sitting in the drawer's header. Switching projects keeps you on the same
-// tab (Workspace or Archive) you were on, just for the other project.
-function ProjectSwitcher({ project }) {
+const PROJECT_TONES = ['bg-indigo-500', 'bg-rose-500', 'bg-emerald-500', 'bg-sky-500', 'bg-amber-500']
+
+// Slack's workspace switcher, opened from the brand logo at the very top
+// of the activity bar: every project (the current one checked), then the
+// ways out to the global views. `children` is the trigger subtree — it
+// must contain a DropdownMenuTrigger (the logo button, wrapped in its
+// tooltip). Switching projects keeps you on the same tab
+// (Workspace or Archive) you were on; from a global page it opens the
+// project's Workspace.
+function ProjectSwitcher({ children, currentProjectId }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const tab = pathname.endsWith('/archive') ? 'archive' : 'workspace'
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Switch project (current: ${project.name})`}
-            className="flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left transition-colors hover:bg-muted data-[popup-open]:bg-muted"
-          >
-            <span className="min-w-0 truncate text-[14px] font-semibold text-foreground">{project.name}</span>
-            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="start" className="w-60">
+      {children}
+      <DropdownMenuContent side="bottom" align="start" sideOffset={6} className="w-64">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Switch project</DropdownMenuLabel>
-          {projects.map((p) => (
-            <DropdownMenuItem key={p.id} onClick={() => navigate(`/projects/${p.id}/${tab}`)}>
+          {projects.map((p, index) => (
+            <DropdownMenuItem key={p.id} onClick={() => navigate(`/projects/${p.id}/${tab}`)} className="gap-2.5">
+              <span
+                className={cn(
+                  'flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold text-white',
+                  PROJECT_TONES[index % PROJECT_TONES.length]
+                )}
+              >
+                {p.name.charAt(0)}
+              </span>
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
-              {p.id === project.id && <Check className="size-3.5 text-primary" />}
+              {p.id === currentProjectId && <Check className="size-3.5 text-primary" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/projects')} className="gap-2.5">
+          <FolderKanban className="size-3.5" />
+          All projects
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/dashboard')} className="gap-2.5">
+          <House className="size-3.5" />
+          Home
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
