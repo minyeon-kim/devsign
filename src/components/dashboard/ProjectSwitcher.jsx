@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check } from 'lucide-react'
+import { Check, LayoutGrid } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -7,16 +7,17 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { projects } from '@/data/mockData'
 import { projectTone } from '@/lib/projectTone'
 
-// Slack's workspace switcher, opened from the brand logo at the very top
-// of the activity bar: every project (the current one checked) — and
-// nothing else. Getting to the dashboard or the full project list is the
-// Home / Projects icons' job, so the two never overlap. `children` is the trigger subtree — it
-// must contain a DropdownMenuTrigger (the logo button, wrapped in its
-// tooltip). Switching projects keeps you on the same tab
+// Slack's workspace switcher, opened from the activity bar's Projects
+// button (directly under the logo): every project (the current one
+// checked), then "All projects" for the full projects page. Getting to
+// the dashboard stays the Home icon's job. `children` is the trigger
+// subtree — it must contain a DropdownMenuTrigger (the Projects button,
+// wrapped in its tooltip). Switching projects keeps you on the same tab
 // (Workspace or Archive) you were on; from a global page it opens the
 // project's Workspace.
 function ProjectSwitcher({ children, currentProjectId }) {
@@ -45,6 +46,13 @@ function ProjectSwitcher({ children, currentProjectId }) {
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/projects')} className="gap-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <LayoutGrid className="size-3.5" />
+          </span>
+          All projects
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

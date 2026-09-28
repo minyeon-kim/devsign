@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, FolderKanban, House, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
+import { Activity, FolderKanban, House, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -10,12 +10,11 @@ import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import Logo from '@/components/layout/Logo'
 import { projectTone } from '@/lib/projectTone'
 
-// The four global destinations — the activity bar's only nav items.
-// Shared with SidebarSubmenu, which picks the drawer's contextual
-// sub-menu from the same `match` so the two tiers never disagree about
-// which section is active. Home also owns /conflicts (the full list behind the dashboard's
-// "Active conflicts" widget), and Projects owns every project's own
-// Workspace/Archive routes.
+// The activity bar's global destinations: Home, Activity, Team. Projects
+// isn't in this list — its button (the project switcher) sits above
+// these, directly under the logo, and is rendered separately. Home also
+// owns /conflicts (the full list behind the dashboard's "Active
+// conflicts" widget).
 export const navItems = [
   {
     id: 'home',
@@ -23,13 +22,6 @@ export const navItems = [
     icon: House,
     path: '/dashboard',
     match: (pathname) => pathname.startsWith('/dashboard') || pathname.startsWith('/conflicts'),
-  },
-  {
-    id: 'projects',
-    label: 'Projects',
-    icon: FolderKanban,
-    path: '/projects',
-    match: (pathname) => pathname.startsWith('/projects'),
   },
   {
     id: 'activity',
@@ -47,8 +39,21 @@ export const navItems = [
   },
 ]
 
+// Projects as a section for the drawer (the All projects page gets its
+// projects sub-menu and "Projects" header) and for the Projects button's
+// active state.
+const projectsSection = {
+  id: 'projects',
+  label: 'Projects',
+  path: '/projects',
+  match: (pathname) => pathname.startsWith('/projects'),
+}
+
+// The section the current route belongs to. Shared with SidebarSubmenu,
+// which picks the drawer's contextual sub-menu from the same `match`, so
+// the activity bar and the drawer never disagree about where you are.
 export function activeNavItem(pathname) {
-  return navItems.find((item) => item.match(pathname)) ?? navItems[0]
+  return [...navItems, projectsSection].find((item) => item.match(pathname)) ?? navItems[0]
 }
 
 const iconButtonClass =
@@ -70,17 +75,18 @@ function RailButton({ label, icon: Icon, className, ...triggerProps }) {
   )
 }
 
-// What the switcher button shows: the Devsign mark on global pages, or —
-// inside a project — that project's own color badge (its initial on its
-// identity color, see projectTone), swapping in with a quick scale/fade
-// whenever the project changes.
-function SwitcherMark({ project }) {
-  if (!project) return <Logo iconOnly />
+// The Projects button's face: a folder icon on global pages, or — inside
+// a project — that project's own color badge (its initial on its identity
+// color, see projectTone), sized to sit at the same visual weight as the
+// 18px icons around it and swapping in with a quick scale/fade whenever
+// the project changes.
+function ProjectsMark({ project }) {
+  if (!project) return <FolderKanban className="size-[18px]" />
   return (
     <span
       key={project.id}
       className={cn(
-        'flex size-7 items-center justify-center rounded-lg text-[13px] font-semibold text-white shadow-sm ring-1 ring-white/10 animate-in fade-in zoom-in-90 duration-200 motion-reduce:animate-none',
+        'flex size-[22px] items-center justify-center rounded-md text-[11px] font-semibold text-white ring-1 ring-white/10 animate-in fade-in zoom-in-90 duration-200 motion-reduce:animate-none',
         projectTone(project.id)
       )}
     >
@@ -90,26 +96,38 @@ function SwitcherMark({ project }) {
 }
 
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
-// route: the switcher on top (the Devsign logo, or the current project's
-// badge — Slack's workspace switcher), Home directly below it, the other
-// global destinations, and Settings pinned to the bottom — with a
-// "Show sidebar" button above Settings only while the drawer is
-// collapsed. Nothing contextual ever lands here. It always sits on the
-// page's own deep `bg-background` — open or collapsed, dashboard or
-// project — so it's seamless with the canvas beside it and toggling the
-// drawer never shifts its tone.
-function ActivityBar({ project, drawerOpen, onOpenDrawer }) {
+// route, top to bottom:
+//   1. the Devsign logo — the brand mark and the drawer's toggle;
+//   2. Projects, right under it — opens the Slack-style project switcher
+//      (every project, plus "All projects"), and wears the current
+//      project's badge while you're in one;
+//   3. Home, Activity, Team;
+// with Settings pinned to the bottom. Nothing contextual ever lands here.
+// It always sits on the page's own deep `bg-background` — open or
+// collapsed, dashboard or project — so it's seamless with the canvas
+// beside it and toggling the drawer never shifts its tone.
+function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
+  const inProjects = current.id === 'projects'
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
-      {/* Slack's workspace switcher: the logo opens the project menu
-          right from the top-left corner, on every route — and, like
-          Slack's workspace icon, it wears the current project's badge
-          while you're in one. Home sits directly below it as a separate
-          icon, so switching and going home never share a control. */}
       <div className="mb-1 flex h-14 shrink-0 items-center">
+        <Tooltip>
+          <TooltipTrigger
+            onClick={onToggleDrawer}
+            aria-expanded={drawerOpen}
+            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
+            className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
+          >
+            <Logo iconOnly />
+          </TooltipTrigger>
+          <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
+        </Tooltip>
+      </div>
+
+      <nav aria-label="Main" className="flex flex-col gap-1">
         <ProjectSwitcher currentProjectId={project?.id}>
           <Tooltip>
             <TooltipTrigger
@@ -118,21 +136,20 @@ function ActivityBar({ project, drawerOpen, onOpenDrawer }) {
                   render={
                     <button
                       type="button"
-                      aria-label={project ? `Switch project (current: ${project.name})` : 'Switch project'}
-                      className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted data-[popup-open]:bg-muted"
+                      aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
+                      aria-current={inProjects ? 'page' : undefined}
+                      className={cn(iconButtonClass, 'data-[popup-open]:bg-muted', inProjects && activeClass)}
                     />
                   }
                 />
               }
             >
-              <SwitcherMark project={project} />
+              <ProjectsMark project={project} />
             </TooltipTrigger>
-            <TooltipContent side="right">{project ? `${project.name} · Switch project` : 'Switch project'}</TooltipContent>
+            <TooltipContent side="right">{project ? `${project.name} · Switch project` : 'Projects'}</TooltipContent>
           </Tooltip>
         </ProjectSwitcher>
-      </div>
 
-      <nav aria-label="Main" className="flex flex-col gap-1">
         {navItems.map(({ id, label, icon, path }) => {
           const isActive = id === current.id
           return (
@@ -149,10 +166,6 @@ function ActivityBar({ project, drawerOpen, onOpenDrawer }) {
       </nav>
 
       <div className="mt-auto flex flex-col gap-1">
-        {/* The logo is the project switcher now, so a collapsed drawer
-            gets its own way back open. Closing stays with the drawer's
-            close button. */}
-        {!drawerOpen && <RailButton label="Show sidebar · ⌘B" icon={PanelLeftOpen} onClick={onOpenDrawer} />}
         <RailButton
           label="Settings"
           icon={Settings}
@@ -182,8 +195,8 @@ function CloseButton({ onClose }) {
 // the top bar beside it, and deliberately sparse: just the current
 // project's name (or, outside a project, the active section's name) and
 // the close button. No dropdown here — switching projects is the
-// activity bar logo's job (Slack's workspace switcher) — and no back
-// arrow: getting back out is the activity bar's Home icon.
+// activity bar's Projects button (Slack's workspace switcher) — and no
+// back arrow: getting back out is the activity bar's Home icon.
 function DrawerHeader({ project, onClose }) {
   const { pathname } = useLocation()
 
@@ -206,8 +219,8 @@ function DrawerHeader({ project, onClose }) {
 // contextual items never share a column. Everything shares the page's
 // one deep background tone; faint hairlines on either side of the drawer
 // mark where one tier ends and the next begins.
-// The activity bar's "Show sidebar" button opens the drawer; only the
-// drawer's close button (or ⌘B) closes it.
+// The activity bar's logo toggles the drawer, the drawer's own close
+// button closes it, and ⌘B toggles it too.
 //
 // Every page mounts its own shell, so the drawer can't tell a context
 // switch from a plain page change by its own state alone. The last
@@ -231,9 +244,7 @@ function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      {/* The expand button only shows while the drawer is collapsed, so
-          toggling here always means "open". */}
-      <ActivityBar project={project} drawerOpen={drawerOpen} onOpenDrawer={onToggleDrawer} />
+      <ActivityBar project={project} drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
 
       <div
         inert={!drawerOpen}
