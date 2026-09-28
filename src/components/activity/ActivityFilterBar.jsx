@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { projects } from '@/data/mockData'
 import { ACTIVITY_FILTERS } from './activityTypeMeta'
 
 // Date range is visual-only — it doesn't refilter `activities` (there's
@@ -14,7 +15,15 @@ import { ACTIVITY_FILTERS } from './activityTypeMeta'
 // visual" allowance.
 const dateRanges = ['This week', 'Last week', 'This month']
 
-function ActivityFilterBar({ activeFilter, onFilterChange }) {
+const dropdownTriggerClass =
+  'flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted'
+
+// Type pills on the left; project + date-range dropdowns on the right.
+// The project scope lives here in the page (not in the sidebar), so the
+// sidebar stays primary navigation only.
+function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProjectChange }) {
+  const selectedProject = projects.find((p) => p.id === projectFilter)
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -38,18 +47,42 @@ function ActivityFilterBar({ activeFilter, onFilterChange }) {
         })}
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
-          <CalendarDays className="size-3.5" />
-          This week
-          <ChevronDown className="size-3" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {dateRanges.map((range) => (
-            <DropdownMenuItem key={range}>{range}</DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex shrink-0 items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(dropdownTriggerClass, selectedProject && 'border-primary/40 bg-primary/10 text-foreground')}
+          >
+            <FolderKanban className="size-3.5" />
+            <span className="max-w-40 truncate">{selectedProject ? selectedProject.name : 'All projects'}</span>
+            <ChevronDown className="size-3" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => onProjectChange(null)}>
+              <span className="flex-1">All projects</span>
+              {!selectedProject && <Check className="size-3.5 text-primary" />}
+            </DropdownMenuItem>
+            {projects.map((p) => (
+              <DropdownMenuItem key={p.id} onClick={() => onProjectChange(p.id)}>
+                <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                {p.id === projectFilter && <Check className="size-3.5 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className={dropdownTriggerClass}>
+            <CalendarDays className="size-3.5" />
+            This week
+            <ChevronDown className="size-3" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {dateRanges.map((range) => (
+              <DropdownMenuItem key={range}>{range}</DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }

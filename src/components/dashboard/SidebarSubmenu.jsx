@@ -1,9 +1,8 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { Archive, GitBranch, LayoutDashboard, LayoutPanelLeft, Users } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Activity, Archive, GitBranch, LayoutDashboard, LayoutPanelLeft, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { activeNavItem } from '@/components/dashboard/Sidebar'
-import { ACTIVITY_FILTERS } from '@/components/activity/activityTypeMeta'
-import { activities, projects, teams } from '@/data/mockData'
+import { activities, allPeople, projects } from '@/data/mockData'
 
 // h-9 (not padding) so each row's pitch matches the top-level rows above.
 const rowClass =
@@ -11,14 +10,6 @@ const rowClass =
 const activeRowClass = 'bg-muted text-foreground'
 
 const totalOpenConflicts = projects.reduce((sum, p) => sum + p.conflicts, 0)
-
-function SectionLabel({ children }) {
-  return (
-    <p className="mt-3 mb-1 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase first:mt-0">
-      {children}
-    </p>
-  )
-}
 
 function Count({ value, tone = 'muted' }) {
   if (!value) return null
@@ -78,78 +69,26 @@ function ProjectsMenu() {
   )
 }
 
-// Filters for the global, cross-project Activity feed, kept in the URL
-// (`?type=`, `?project=`) so the sidebar and the page's own filter pills
-// read and write the same state.
-function ActivityMenu() {
-  const [searchParams] = useSearchParams()
-  const activeType = searchParams.get('type') ?? 'all'
-  const activeProject = searchParams.get('project')
-
-  function hrefWith(key, value) {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    const query = next.toString()
-    return query ? `/activity?${query}` : '/activity'
-  }
-
+// Activity and Team stay primary-navigation only. Their filters — the
+// feed's type/project scope, the member list's team tabs — live in the
+// pages themselves (ActivityFilterBar, TeamPage's tabs), so the drawer
+// never grows into a long, overflowing list.
+function ActivityMenu({ pathname }) {
   return (
     <nav className="flex flex-col gap-1">
-      <SectionLabel>Type</SectionLabel>
-      {ACTIVITY_FILTERS.map((filter) => (
-        <NavRow
-          key={filter.id}
-          to={hrefWith('type', filter.id === 'all' ? null : filter.id)}
-          active={activeType === filter.id}
-          count={
-            filter.id === 'all'
-              ? activities.length
-              : activities.filter((a) => a.type === filter.id).length
-          }
-        >
-          {filter.label}
-        </NavRow>
-      ))}
-
-      <SectionLabel>Project</SectionLabel>
-      <NavRow to={hrefWith('project', null)} active={!activeProject}>
-        All projects
+      <NavRow to="/activity" active={pathname.startsWith('/activity')} icon={Activity} count={activities.length}>
+        All activity
       </NavRow>
-      {projects.map((p) => (
-        <NavRow
-          key={p.id}
-          to={hrefWith('project', p.id)}
-          active={activeProject === p.id}
-          count={activities.filter((a) => a.projectId === p.id).length}
-        >
-          {p.name}
-        </NavRow>
-      ))}
     </nav>
   )
 }
 
-function TeamMenu() {
-  const [searchParams] = useSearchParams()
-  const activeTeam = searchParams.get('team')
-
+function TeamMenu({ pathname }) {
   return (
     <nav className="flex flex-col gap-1">
-      <NavRow to="/team" active={!activeTeam} icon={Users}>
+      <NavRow to="/team" active={pathname.startsWith('/team')} icon={Users} count={allPeople.length}>
         All members
       </NavRow>
-      <SectionLabel>Teams</SectionLabel>
-      {teams.map((team) => (
-        <NavRow
-          key={team.id}
-          to={`/team?team=${team.id}`}
-          active={activeTeam === team.id}
-          count={team.memberIds.length}
-        >
-          {team.name}
-        </NavRow>
-      ))}
     </nav>
   )
 }
@@ -184,7 +123,7 @@ function ProjectMenu({ project, pathname }) {
 // repeats the activity bar's global destinations: inside a project it's
 // that project's Workspace/Archive; elsewhere it's the sub-menu of the
 // active global section — Home → Overview/Conflicts, Projects → each
-// project, Activity → type/project filters, Team → members/teams.
+// project, Activity → the feed, Team → the member list.
 function SidebarSubmenu({ project }) {
   const { pathname } = useLocation()
   if (project) return <ProjectMenu project={project} pathname={pathname} />

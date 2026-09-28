@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Activity as ActivityIcon, X } from 'lucide-react'
+import { ArrowLeft, Activity as ActivityIcon } from 'lucide-react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import ActivityFilterBar from '@/components/activity/ActivityFilterBar'
@@ -8,17 +8,16 @@ import ActivityRow from '@/components/activity/ActivityRow'
 import ActivityOverview from '@/components/activity/ActivityOverview'
 import MostActiveProjects from '@/components/activity/MostActiveProjects'
 import StayInSync from '@/components/activity/StayInSync'
-import { activities, activityDateGroups, projects } from '@/data/mockData'
+import { activities, activityDateGroups } from '@/data/mockData'
 
 // The global feed — every project's activity in one place, as opposed to
 // a project's own Archive → History (that project's local change log,
 // with compare/restore). Filters live in the URL (`?type=`, `?project=`)
-// so the sidebar's Activity sub-menu and the pills here stay in sync.
+// so filtered views are linkable and survive a reload.
 function ActivityPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeFilter = searchParams.get('type') ?? 'all'
   const projectFilter = searchParams.get('project')
-  const filteredProject = projects.find((p) => p.id === projectFilter)
 
   function updateParam(key, value) {
     setSearchParams(
@@ -69,19 +68,14 @@ function ActivityPage() {
             What your team is doing across every project. For one project&apos;s saved versions, open its Archive → History.
           </p>
         </div>
-        {filteredProject && (
-          <button
-            type="button"
-            onClick={() => updateParam('project', null)}
-            className="ml-auto flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
-          >
-            {filteredProject.name}
-            <X className="size-3 text-muted-foreground" />
-          </button>
-        )}
       </div>
 
-      <ActivityFilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+      <ActivityFilterBar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        projectFilter={projectFilter}
+        onProjectChange={(projectId) => updateParam('project', projectId)}
+      />
 
       <div className="flex flex-col gap-5">
         {groupedActivities.length === 0 ? (

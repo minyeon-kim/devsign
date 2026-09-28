@@ -53,8 +53,9 @@ function TeamPage() {
   const [editingMember, setEditingMember] = useState(null)
   const [userModalKey, setUserModalKey] = useState(0)
 
-  // `?team=` comes from the sidebar's Team sub-menu.
-  const [searchParams] = useSearchParams()
+  // `?team=` — set by the team tabs above the table, kept in the URL so a
+  // filtered view is linkable.
+  const [searchParams, setSearchParams] = useSearchParams()
   const activeTeam = teams.find((team) => team.id === searchParams.get('team'))
 
   const visibleMembers = useMemo(() => {
@@ -191,7 +192,35 @@ function TeamPage() {
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
+      {/* Team scope as page-level tabs (not sidebar entries), in the same
+          pill style as the Activity page's type filters. */}
+      <div role="tablist" aria-label="Teams" className="mt-6 flex flex-wrap items-center gap-1.5">
+        {[{ id: null, name: 'All members', count: members.length }, ...teams.map((t) => ({ ...t, count: t.memberIds.length }))].map(
+          (tab) => {
+            const isActive = (activeTeam?.id ?? null) === tab.id
+            return (
+              <button
+                key={tab.id ?? 'all'}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setSearchParams(tab.id ? { team: tab.id } : {}, { replace: true })}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150',
+                  isActive
+                    ? 'border-primary/40 bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {tab.name}
+                <span className="text-[11px] text-muted-foreground tabular-nums">{tab.count}</span>
+              </button>
+            )
+          }
+        )}
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           <input
             type="checkbox"
