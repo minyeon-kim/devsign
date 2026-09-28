@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
+import { hasSubmenu } from '@/components/dashboard/SidebarSubmenu'
 
 // Lets views inside the shell react to the drawer — e.g. a project's
 // Workspace/Archive show the project title themselves only while the
@@ -63,26 +65,72 @@ function useSidebarCollapsed({ inProject }) {
 // than overlapping it. The activity bar's logo toggles it, the drawer's
 // own close button closes it, and ⌘B / Ctrl+B (VS Code's binding)
 // toggles it too.
+//
+// The drawer shows one of two panels: the current section's sub-menu,
+// or — from the activity bar's Conflicts icon, on any page — the
+// conflict list, whose items open the conflict detail modal over the
+// current view instead of navigating away. Sections with no sub-menu
+// (Home, Conflicts) have no drawer except for that conflict list.
 function AppShell({ topBar, project, children }) {
+  const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useSidebarCollapsed({ inProject: !!project })
+  const [conflictsOpen, setConflictsOpen] = useState(false)
+  const hasSectionDrawer = hasSubmenu(project, pathname)
+  const drawerVisible = !collapsed && (conflictsOpen || hasSectionDrawer)
+
+  function closeDrawer() {
+    setCollapsed(true)
+    setConflictsOpen(false)
+  }
+
+  function showSectionDrawer() {
+    setCollapsed(false)
+    setConflictsOpen(false)
+  }
+
+  const toggleDrawer = () => (drawerVisible ? closeDrawer() : showSectionDrawer())
+
+  // Like VS Code's activity bar: clicking the icon of the panel that's
+  // already showing collapses the drawer.
+  function toggleConflicts() {
+    if (drawerVisible && conflictsOpen) {
+      closeDrawer()
+    } else {
+      setConflictsOpen(true)
+      setCollapsed(false)
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(event) {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       if (event.key.toLowerCase() !== 'b') return
       event.preventDefault()
-      setCollapsed((c) => !c)
+      toggleDrawer()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCollapsed])
+  })
 
-  const toggleDrawer = () => setCollapsed((c) => !c)
+  // Views read `drawerOpen` as "the drawer is showing this view's own
+  // navigation" (e.g. the project title pill), which the conflict list
+  // isn't — so while it's up, they keep showing where you are.
+  const sectionDrawerOpen = drawerVisible && !conflictsOpen
 
   return (
-    <ShellDrawerContext.Provider value={{ drawerOpen: !collapsed, toggleDrawer }}>
+    <ShellDrawerContext.Provider
+      value={{ drawerOpen: sectionDrawerOpen, toggleDrawer: sectionDrawerOpen ? closeDrawer : showSectionDrawer }}
+    >
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <Sidebar project={project} drawerOpen={!collapsed} onToggleDrawer={toggleDrawer} />
+        <Sidebar
+          project={project}
+          canToggleDrawer={hasSectionDrawer || drawerVisible}
+          drawerOpen={drawerVisible}
+          conflictsOpen={conflictsOpen}
+          onToggleDrawer={toggleDrawer}
+          onCloseDrawer={closeDrawer}
+          onToggleConflicts={toggleConflicts}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {topBar}

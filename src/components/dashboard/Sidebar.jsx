@@ -5,7 +5,8 @@ import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, PanelL
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import SidebarSubmenu, { hasSubmenu } from '@/components/dashboard/SidebarSubmenu'
+import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
+import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
 import { projects } from '@/data/mockData'
@@ -125,13 +126,14 @@ function ProjectsMark({ project }) {
 //   4. inside a project, Archive — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
 //      default view and needs no icon) — then a hairline;
-//   5. the secondary global items, Conflicts, Activity and Team;
+//   5. the secondary global items: Conflicts (which opens the conflict
+//      list in the drawer, over any view), Activity and Team;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the shared surface tone (`bg-sidebar`, the same as
 // every panel and window) one step above the deeper canvas — open or
 // collapsed, dashboard or project — so toggling the drawer never shifts
 // its tone.
-function ActivityBar({ project, hasDrawer, drawerOpen, onToggleDrawer }) {
+function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onToggleDrawer, onToggleConflicts }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
   const archivePath = project ? `/projects/${project.id}/archive` : null
@@ -145,8 +147,8 @@ function ActivityBar({ project, hasDrawer, drawerOpen, onToggleDrawer }) {
         <Tooltip>
           <TooltipTrigger
             onClick={onToggleDrawer}
-            disabled={!hasDrawer}
-            aria-expanded={hasDrawer ? drawerOpen : undefined}
+            disabled={!canToggleDrawer}
+            aria-expanded={canToggleDrawer ? drawerOpen : undefined}
             aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
             className={cn(iconButtonClass, 'disabled:pointer-events-none disabled:opacity-40')}
           >
@@ -180,17 +182,31 @@ function ActivityBar({ project, hasDrawer, drawerOpen, onToggleDrawer }) {
         </ProjectSwitcher>
 
         {navItems.map(({ id, label, icon, path, badge }) => {
-          const isActive = id === current.id
+          // While the conflict list is up, Conflicts is the highlighted item.
+          const isActive = id === 'conflicts' ? conflictsOpen || id === current.id : !conflictsOpen && id === current.id
           return (
             <Fragment key={id}>
-              <RailButton
-                label={label}
-                icon={icon}
-                badge={badge}
-                render={<Link to={path} />}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(isActive && activeClass)}
-              />
+              {id === 'conflicts' ? (
+                // Opens the conflict list in the drawer rather than taking
+                // over the main view (the full page is its "View all").
+                <RailButton
+                  label={label}
+                  icon={icon}
+                  badge={badge}
+                  onClick={onToggleConflicts}
+                  aria-expanded={conflictsOpen}
+                  className={cn(isActive && activeClass)}
+                />
+              ) : (
+                <RailButton
+                  label={label}
+                  icon={icon}
+                  badge={badge}
+                  render={<Link to={path} />}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(isActive && activeClass)}
+                />
+              )}
               {/* Inside a project, its one alternate view sits right under
                   Home. (Workspace is the project's default view — you land
                   there on entering — so it has no icon of its own.) */}
@@ -246,12 +262,15 @@ function CloseButton({ onClose }) {
 // the close button. No dropdown here — switching projects is the
 // activity bar's Projects button (Slack's workspace switcher) — and no
 // back arrow: getting back out is the activity bar's Home icon.
-function DrawerHeader({ project, onClose }) {
+// A `title` overrides both (the conflict list's "Conflicts").
+function DrawerHeader({ project, title, onClose }) {
   const { pathname } = useLocation()
 
   return (
     <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
-      {project ? (
+      {title ? (
+        <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">{title}</p>
+      ) : project ? (
         // The way back to the project's default view (Workspace) — e.g.
         // from Archive — now that the drawer has no Workspace row.
         <Link
@@ -300,16 +319,35 @@ function useContextSwitchAnimation(contextKey) {
   return animate
 }
 
-// Sections without a sub-menu (Home, Conflicts) have no drawer at all.
-function Sidebar({ project, drawerOpen: drawerPreference = true, onToggleDrawer }) {
-  const { pathname } = useLocation()
-  const hasDrawer = hasSubmenu(project, pathname)
-  const drawerOpen = hasDrawer && drawerPreference
+// The drawer shows either the section sub-menu or, from the Conflicts
+// icon, the conflict list (see AppShell, which owns which one is up).
+function Sidebar({
+  project,
+  canToggleDrawer,
+  drawerOpen,
+  conflictsOpen,
+  onToggleDrawer,
+  onCloseDrawer,
+  onToggleConflicts,
+}) {
   const animateIn = useContextSwitchAnimation(project ? `project:${project.id}` : 'global')
+
+  // Keep showing the last panel while the drawer animates shut, instead
+  // of swapping its contents mid-collapse.
+  const panel = conflictsOpen ? 'conflicts' : 'section'
+  const [shownPanel, setShownPanel] = useState(panel)
+  if (drawerOpen && shownPanel !== panel) setShownPanel(panel)
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} hasDrawer={hasDrawer} drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
+      <ActivityBar
+        project={project}
+        canToggleDrawer={canToggleDrawer}
+        drawerOpen={drawerOpen}
+        conflictsOpen={drawerOpen && conflictsOpen}
+        onToggleDrawer={onToggleDrawer}
+        onToggleConflicts={onToggleConflicts}
+      />
 
       <div
         inert={!drawerOpen}
@@ -320,7 +358,9 @@ function Sidebar({ project, drawerOpen: drawerPreference = true, onToggleDrawer 
         )}
       >
         <aside
-          aria-label={project ? `${project.name} navigation` : 'Section navigation'}
+          aria-label={
+            shownPanel === 'conflicts' ? 'Conflicts' : project ? `${project.name} navigation` : 'Section navigation'
+          }
           className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
         >
           <div
@@ -329,10 +369,21 @@ function Sidebar({ project, drawerOpen: drawerPreference = true, onToggleDrawer 
               animateIn && 'animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none'
             )}
           >
-            <DrawerHeader project={project} onClose={onToggleDrawer} />
-            <div className="min-h-0 flex-1 overflow-y-auto px-2">
-              <SidebarSubmenu project={project} />
-            </div>
+            {shownPanel === 'conflicts' ? (
+              <>
+                <DrawerHeader title="Conflicts" onClose={onCloseDrawer} />
+                <div className="min-h-0 flex-1 overflow-y-auto px-2">
+                  <ConflictsDrawer onNavigate={onCloseDrawer} />
+                </div>
+              </>
+            ) : (
+              <>
+                <DrawerHeader project={project} onClose={onCloseDrawer} />
+                <div className="min-h-0 flex-1 overflow-y-auto px-2">
+                  <SidebarSubmenu project={project} />
+                </div>
+              </>
+            )}
           </div>
         </aside>
       </div>
