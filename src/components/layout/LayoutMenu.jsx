@@ -79,7 +79,7 @@ function LayoutMenu({ dockApi }) {
     <Popover>
       <PopoverTrigger
         title="Layout"
-        className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
       >
         <LayoutGrid className="size-4" />
       </PopoverTrigger>

@@ -1,15 +1,18 @@
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, FolderKanban, LayoutDashboard, Menu, Settings, Users } from 'lucide-react'
+import { Activity, FolderKanban, LayoutDashboard, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
+import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
+import Logo from '@/components/layout/Logo'
 
-// The four top-level destinations — the rail's only nav items. Shared
-// with SidebarSecondary, which picks its contextual sub-menu from the
-// same `match` so the icon rail and the labeled drawer never disagree
-// about which section is active. Home also owns /conflicts (the full list
-// behind the dashboard's "Active conflicts" widget), and Projects owns
-// every project's own Workspace/Archive routes.
+// The four global destinations — the activity bar's only nav items.
+// Shared with SidebarSubmenu, which picks the drawer's contextual
+// sub-menu from the same `match` so the two tiers never disagree about
+// which section is active. Home also owns /conflicts (the full list behind the dashboard's
+// "Active conflicts" widget), and Projects owns every project's own
+// Workspace/Archive routes.
 export const navItems = [
   {
     id: 'home',
@@ -46,69 +49,153 @@ export function activeNavItem(pathname) {
 }
 
 const iconButtonClass =
-  'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+  'mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
 // Deliberately restrained: a muted surface + a thin primary-tinted ring,
 // not a saturated blue fill — the icon itself stays close to neutral.
 const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
 
-// Permanently docked and identical on every route (dashboard pages and a
-// project's Workspace/Archive alike). The drawer beside it (see
-// AppShell) is the only part that ever collapses; its hamburger trigger
-// normally sits in the top bar's top-left corner, right above this rail,
-// so it only appears here on routes that have no top bar. The four
-// section icons just navigate; Settings sits in the lower utility group.
-function Sidebar({ showDrawerToggle = false, drawerOpen = true, onToggleDrawer }) {
+// An icon-only activity bar button, named by its tooltip.
+function RailButton({ label, icon: Icon, className, ...triggerProps }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
+        <Icon className="size-[18px]" />
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// Tier 1 — the activity bar. Permanently slim and icon-only on every
+// route: the Devsign logo on top (the drawer's toggle), the four global
+// destinations, and Settings pinned to the bottom. Nothing contextual
+// ever lands here. Collapsed, it sits on the page's own deep background
+// with no edge; while the drawer is open it lifts onto the same elevated
+// `bg-sidebar` surface, so the two tiers read as one layered panel.
+function ActivityBar({ drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
 
   return (
-    <aside className="z-10 flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
-      {showDrawerToggle && (
+    <div
+      className={cn(
+        'flex h-full w-12 shrink-0 flex-col gap-1 pb-2 transition-colors duration-200 ease-out motion-reduce:transition-none',
+        drawerOpen ? 'bg-sidebar' : 'bg-background'
+      )}
+    >
+      <div className="mb-1 flex h-14 shrink-0 items-center">
         <Tooltip>
           <TooltipTrigger
             onClick={onToggleDrawer}
             aria-expanded={drawerOpen}
             aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className={cn(iconButtonClass, 'mb-2')}
+            className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
           >
-            <Menu className="size-[18px]" />
+            <Logo iconOnly />
           </TooltipTrigger>
           <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
         </Tooltip>
-      )}
+      </div>
 
-      <nav className="flex flex-col items-center gap-1">
-        {navItems.map(({ id, label, icon: Icon, path }) => {
+      <nav aria-label="Main" className="flex flex-col gap-1">
+        {navItems.map(({ id, label, icon, path }) => {
           const isActive = id === current.id
           return (
-            <Tooltip key={id}>
-              <TooltipTrigger
-                render={<Link to={path} />}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(iconButtonClass, isActive && activeClass)}
-              >
-                <Icon className="size-[18px]" />
-              </TooltipTrigger>
-              <TooltipContent side="right">{label}</TooltipContent>
-            </Tooltip>
+            <RailButton
+              key={id}
+              label={label}
+              icon={icon}
+              render={<Link to={path} />}
+              aria-current={isActive ? 'page' : undefined}
+              className={cn(isActive && activeClass)}
+            />
           )
         })}
       </nav>
 
-      <div className="mt-auto flex flex-col items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={() => toast('Settings', { description: 'Workspace settings' })}
-            aria-label="Settings"
-            className={iconButtonClass}
-          >
-            <Settings className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
+      <div className="mt-auto flex flex-col gap-1">
+        <RailButton
+          label="Settings"
+          icon={Settings}
+          onClick={() => toast('Settings', { description: 'Workspace settings' })}
+        />
       </div>
-    </aside>
+    </div>
+  )
+}
+
+function CloseButton({ onClose }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        onClick={onClose}
+        aria-label="Hide sidebar"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <PanelLeftClose className="size-[18px]" />
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Hide sidebar · ⌘B</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// Tier 2 — the contextual drawer's header, same h-14 as the logo row and
+// the top bar beside it, and deliberately sparse (Slack): just two
+// things — on the left, the current project's title as its switcher
+// (or, outside a project, the active section's name), and on the right
+// the close button. No back arrow: getting back out is the activity
+// bar's job (Home, Projects).
+function DrawerHeader({ project, onClose }) {
+  const { pathname } = useLocation()
+
+  return (
+    <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
+      {project ? (
+        <ProjectSwitcher project={project} />
+      ) : (
+        <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
+          {activeNavItem(pathname).label}
+        </p>
+      )}
+      <CloseButton onClose={onClose} />
+    </div>
+  )
+}
+
+// The app's navigation, in two strict tiers side by side (see AppShell):
+// the always-slim ActivityBar with the global destinations, and beside it
+// the contextual drawer, which slides open (its width animates from 0;
+// its content keeps a fixed w-68 so nothing re-wraps mid-animation) to
+// show what belongs to the current view — a project's switcher and
+// Workspace/Archive, or the active section's sub-menu. Global and
+// contextual items never share a column. A faint hairline marks where
+// one tier ends and the other begins on the shared elevated surface.
+// The logo, the drawer's close button, and ⌘B all toggle the drawer.
+function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
+  return (
+    <div className="z-10 flex h-full shrink-0">
+      <ActivityBar drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
+
+      <div
+        inert={!drawerOpen}
+        aria-hidden={!drawerOpen}
+        className={cn(
+          'h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none',
+          drawerOpen ? 'w-68' : 'w-0'
+        )}
+      >
+        <aside
+          aria-label={project ? `${project.name} navigation` : 'Section navigation'}
+          className="flex h-full w-68 flex-col border-l border-white/[0.06] bg-sidebar pb-2"
+        >
+          <DrawerHeader project={project} onClose={onToggleDrawer} />
+          <div className="min-h-0 flex-1 overflow-y-auto px-2">
+            <SidebarSubmenu project={project} />
+          </div>
+        </aside>
+      </div>
+    </div>
   )
 }
 

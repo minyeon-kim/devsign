@@ -1,6 +1,5 @@
 import { Sparkles } from 'lucide-react'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // The header's "Merge Studio" button is the entry point into a separate
@@ -14,8 +13,10 @@ function MergeStudioMenu() {
 
   return (
     <Popover>
-      <PopoverTrigger render={<Button size="sm" className="gap-1.5" />}>
-        <Sparkles className="size-3.5" />
+      {/* Styled as a control inside the Workspace's action pill: a
+          borderless 32px pill with the accent carried by the icon only. */}
+      <PopoverTrigger className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10">
+        <Sparkles className="size-3.5 text-primary" />
         Merge Studio
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={10} className="w-72 gap-1 rounded-2xl p-2">

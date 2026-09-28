@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { cn } from 'cn'
 import Sidebar from '@/components/dashboard/Sidebar'
-import SidebarSecondary from '@/components/dashboard/SidebarSecondary'
 
-// Lets the top bar's hamburger (rendered by the page and passed in as
-// `topBar`) drive the same drawer state the rail and ⌘B do.
+// Lets views inside the shell react to the drawer — e.g. a project's
+// Workspace/Archive show the project title themselves only while the
+// drawer (which otherwise carries it in its switcher) is collapsed.
+// Outside a shell it reads as open, so nothing extra appears.
 const ShellDrawerContext = createContext({ drawerOpen: true, toggleDrawer: () => {} })
 
 export function useShellDrawer() {
@@ -39,27 +39,23 @@ function useSidebarCollapsed() {
   return [collapsed, setCollapsed]
 }
 
-// The common application shell (VS Code / Linear pattern), shared by the
-// dashboard-level pages and a project's Workspace/Archive:
+// The common application shell, shared by the dashboard-level pages and
+// a project's Workspace/Archive:
 //
-//   ┌──────────────────────── topBar (full width) ────────────────────────┐
-//   ├─ rail ─┬─ drawer ─┬──────────────────── content ────────────────────┤
+//   ┌ activity ┬ drawer ─┬──────────────── topBar (floating) ───────────────┐
+//   │ bar      │ (context│───────────────────── content ──────────────────────┤
+//   │ (global) │  , opt.)│                                                    │
 //
-// `topBar` is the outermost layer, spanning the whole viewport instead of
-// being squeezed between the sidebars. The icon rail stays docked on the
-// far left permanently; only the labeled drawer beside it collapses. The
-// drawer animates its own width (its inner panel keeps a fixed w-60, so
-// labels are clipped rather than re-wrapped mid-animation), which pushes
-// the content column over instead of overlapping it. `inert` keeps the
-// hidden drawer's links out of the tab order while it's collapsed.
-// The trigger is the hamburger in the top bar's top-left corner (YouTube/
-// Gemini style, next to the logo, right above the rail) — or, on routes
-// with no top bar (a project's Workspace/Archive), the same hamburger at
-// the top of the rail itself. ⌘B / Ctrl+B (VS Code's binding) toggles it
-// too.
+// Two navigation tiers run the full height of the window (see Sidebar):
+// the permanently slim, icon-only activity bar with the global
+// destinations, and the contextual drawer beside it, which slides open to
+// show the current view's sub-menu — a project's switcher and
+// Workspace/Archive, or the active section's links. The drawer's width
+// animates, pushing the content column — top bar included — over rather
+// than overlapping it. The logo, the drawer's close button, and ⌘B /
+// Ctrl+B (VS Code's binding) toggle it.
 function AppShell({ topBar, project, children }) {
   const [collapsed, setCollapsed] = useSidebarCollapsed()
-  const toggleDrawer = () => setCollapsed((c) => !c)
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -72,26 +68,16 @@ function AppShell({ topBar, project, children }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setCollapsed])
 
+  const toggleDrawer = () => setCollapsed((c) => !c)
+
   return (
     <ShellDrawerContext.Provider value={{ drawerOpen: !collapsed, toggleDrawer }}>
-      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-        {topBar}
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        <Sidebar project={project} drawerOpen={!collapsed} onToggleDrawer={toggleDrawer} />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <Sidebar showDrawerToggle={!topBar} drawerOpen={!collapsed} onToggleDrawer={toggleDrawer} />
-
-          <div
-            inert={collapsed}
-            aria-hidden={collapsed}
-            className={cn(
-              'h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none',
-              collapsed ? 'w-0' : 'w-60'
-            )}
-          >
-            <SidebarSecondary project={project} />
-          </div>
-
-          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {topBar}
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         </div>
       </div>
     </ShellDrawerContext.Provider>

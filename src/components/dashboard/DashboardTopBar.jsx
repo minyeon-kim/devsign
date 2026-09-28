@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Bell, ChevronDown, File, Folder, Menu, Search, User as UserIcon } from 'lucide-react'
+import { ChevronDown, File, Folder, Search, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import Logo from '@/components/layout/Logo'
-import { useShellDrawer } from '@/components/dashboard/AppShell'
+import NotificationsMenu from '@/components/layout/NotificationsMenu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,16 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { activities, allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
+import { allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
 
 const MAX_RESULTS_PER_GROUP = 4
-
-const recentNotifications = activities.slice(0, 4)
-
-// Frameless round icon button for the floating header — hover tint only,
-// no resting background or border.
-const headerIconButtonClass =
-  'relative flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
 const searchableFiles = Object.entries(projectFileSets).flatMap(([projectId, files]) => {
   const project = projects.find((p) => p.id === projectId)
@@ -45,16 +36,14 @@ function searchAll(query) {
 // The dashboard's own top bar — distinct from the in-workspace `TopBar`
 // (src/components/layout/TopBar.jsx). Search, notifications and profile
 // are all wired to mock data + local state; nothing here touches a
-// backend. YouTube/Gemini-style floating header: no background, no border,
-// no bounding box — just three clusters sitting directly on the app
-// background (AppShell renders it as the outermost full-width layer):
-// hamburger + logo top-left, the search pill dead center, and the
-// notifications/profile controls top-right. `px-1.5` centers the
-// hamburger over the 48px icon rail below it and stays symmetric, so the
-// equal 1fr side columns keep the pill exactly centered.
+// backend. Gemini-style floating header: no background, no border, no
+// bounding box — it sits directly on the app background at the top of the
+// content column, beside the full-height sidebar (whose own header holds
+// the logo and the sidebar toggle). An empty left column, the search
+// pill, and the notifications/profile controls on the right: equal 1fr
+// side columns with symmetric padding keep the pill exactly centered
+// over the content column.
 function DashboardTopBar() {
-  const { drawerOpen, toggleDrawer } = useShellDrawer()
-  const [hasUnread, setHasUnread] = useState(true)
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
@@ -72,23 +61,8 @@ function DashboardTopBar() {
   return (
     // Equal 1fr columns either side of the search pin it to the bar's exact
     // center regardless of how wide the profile cluster on the right is.
-    <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-1.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={toggleDrawer}
-            aria-expanded={drawerOpen}
-            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className={headerIconButtonClass}
-          >
-            <Menu className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
-        </Tooltip>
-        <Link to="/dashboard" aria-label="Home" className="rounded-md">
-          <Logo />
-        </Link>
-      </div>
+    <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
+      <div />
 
       <div className="relative w-full">
         <Search className="pointer-events-none absolute top-1/2 left-4 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -171,33 +145,8 @@ function DashboardTopBar() {
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 pr-3.5">
-        <DropdownMenu onOpenChange={(open) => open && setHasUnread(false)}>
-          <DropdownMenuTrigger
-            render={
-              <button type="button" aria-label="Notifications" title="Notifications" className={headerIconButtonClass}>
-                <Bell className="size-[18px]" />
-                {hasUnread && <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary" />}
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-72">
-            <p className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Notifications</p>
-            <DropdownMenuSeparator />
-            {recentNotifications.map((activity) => (
-              <DropdownMenuItem
-                key={activity.id}
-                className="flex-col items-start gap-0.5"
-                onClick={() => navigate('/activity')}
-              >
-                <span className="text-xs text-foreground">
-                  {activity.actorName} {activity.action} {activity.target}
-                </span>
-                <span className="text-[11px] text-muted-foreground">{activity.timestamp}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex items-center justify-end gap-2">
+        <NotificationsMenu className="size-9 hover:bg-muted" />
 
         <DropdownMenu>
           <DropdownMenuTrigger

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { useShellDrawer } from '@/components/dashboard/AppShell'
 import { allPeople, referenceDocs } from '@/data/mockData'
 
 const DOC_TONES = { design: 'bg-indigo-500', spec: 'bg-sky-500', doc: 'bg-emerald-500' }
@@ -69,13 +70,26 @@ function ArchivePage() {
   const location = useLocation()
   const initialTab = location.state?.tab === 'history' ? 'history' : 'referenceDocs'
   const highlightId = location.state?.highlightId
+  const { drawerOpen } = useShellDrawer()
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       <div className="flex shrink-0 items-center gap-3 border-b px-6 py-4">
-        <div>
-          <p className="text-[15px] font-semibold text-foreground">Archive</p>
-          <p className="text-[11px] text-muted-foreground">{project.name}</p>
+        {/* Just "Archive" while the sidebar drawer is open (its switcher
+            already names the project); collapsed, the project name slides
+            in ahead of it as a breadcrumb so the context isn't lost. */}
+        <div className="flex min-w-0 items-center text-[15px] font-semibold">
+          <span
+            aria-hidden={drawerOpen}
+            className={cn(
+              'flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out motion-reduce:transition-none',
+              drawerOpen ? 'mr-0 max-w-0 opacity-0' : 'mr-2 max-w-[320px] opacity-100'
+            )}
+          >
+            <span className="min-w-0 truncate text-muted-foreground">{project.name}</span>
+            <span className="shrink-0 font-normal text-muted-foreground/60">/</span>
+          </span>
+          <p className="shrink-0 text-foreground">Archive</p>
         </div>
       </div>
 
