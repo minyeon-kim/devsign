@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
@@ -12,11 +12,28 @@ import { allPeople, referenceDocs } from '@/data/mockData'
 
 const DOC_TONES = { design: 'bg-indigo-500', spec: 'bg-sky-500', doc: 'bg-emerald-500' }
 
-function ReferenceDocCard({ doc }) {
+// `selected` — the doc picked from the sidebar's Archive tree (or here) —
+// gets the ring and is scrolled into view when it arrives via a deep
+// link.
+function ReferenceDocCard({ doc, selected, onSelect }) {
   const author = allPeople.find((p) => p.id === doc.authorId)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [selected])
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40">
+    <button
+      ref={ref}
+      type="button"
+      onClick={() => onSelect(doc.id)}
+      aria-pressed={selected}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40',
+        selected ? 'border-primary/60 ring-2 ring-primary/30' : 'border-border'
+      )}
+    >
       <span
         className={cn(
           'flex size-9 shrink-0 items-center justify-center rounded-lg',
@@ -36,7 +53,7 @@ function ReferenceDocCard({ doc }) {
           </AvatarFallback>
         </Avatar>
       )}
-    </div>
+    </button>
   )
 }
 
@@ -70,6 +87,14 @@ function ArchivePage() {
   const location = useLocation()
   const initialTab = location.state?.tab === 'history' ? 'history' : 'referenceDocs'
   const highlightId = location.state?.highlightId
+  const [selectedDocId, setSelectedDocId] = useState(location.state?.docId ?? null)
+  // A new deep link (e.g. another doc picked in the sidebar tree) replaces
+  // the selection.
+  const [linkKey, setLinkKey] = useState(location.key)
+  if (location.key !== linkKey) {
+    setLinkKey(location.key)
+    setSelectedDocId(location.state?.docId ?? null)
+  }
   const { drawerOpen } = useShellDrawer()
 
   return (
@@ -95,8 +120,14 @@ function ArchivePage() {
 
       <div className="min-h-0 flex-1 overflow-hidden px-6 py-5">
         {/* Keyed by the navigation so a fresh deep-link re-applies its tab
-            and record even if Archive was already mounted. */}
-        <Tabs key={location.key} defaultValue={initialTab} className="flex h-full min-h-0 flex-col">
+            and record even if Archive was already mounted — and fades the
+            content in, so picking an item in the sidebar's Archive tree
+            loads it here lightly rather than as a hard swap. */}
+        <Tabs
+          key={location.key}
+          defaultValue={initialTab}
+          className="flex h-full min-h-0 flex-col animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
+        >
           <TabsList className="w-fit shrink-0">
             <TabsTrigger value="referenceDocs">Reference Docs</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -105,7 +136,12 @@ function ArchivePage() {
           <TabsContent value="referenceDocs" className="mt-4 min-h-0 flex-1 overflow-auto">
             <div className="flex flex-col gap-2">
               {referenceDocs.map((doc) => (
-                <ReferenceDocCard key={doc.id} doc={doc} />
+                <ReferenceDocCard
+                  key={doc.id}
+                  doc={doc}
+                  selected={selectedDocId === doc.id}
+                  onSelect={setSelectedDocId}
+                />
               ))}
             </div>
           </TabsContent>
