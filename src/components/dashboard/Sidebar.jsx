@@ -1,27 +1,37 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, Archive, FolderKanban, House, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
+import SidebarSubmenu, { hasSubmenu } from '@/components/dashboard/SidebarSubmenu'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
-import Logo from '@/components/layout/Logo'
 import { projectTone } from '@/lib/projectTone'
+import { projects } from '@/data/mockData'
 
-// The activity bar's global destinations: Home, Activity, Team. Projects
-// isn't in this list — its button (the project switcher) sits above
-// these, directly under the logo, and is rendered separately. Home also
-// owns /conflicts (the full list behind the dashboard's "Active
-// conflicts" widget).
+const totalOpenConflicts = projects.reduce((sum, p) => sum + p.conflicts, 0)
+
+// The activity bar's global destinations: Home, Conflicts, Activity,
+// Team. Projects isn't in this list — its button (the project switcher)
+// sits above these, directly under the drawer toggle, and is rendered
+// separately. Conflicts is the full list behind the dashboard's "Active
+// conflicts" widget, with its open count badged on the icon.
 export const navItems = [
   {
     id: 'home',
     label: 'Home',
     icon: House,
     path: '/dashboard',
-    match: (pathname) => pathname.startsWith('/dashboard') || pathname.startsWith('/conflicts'),
+    match: (pathname) => pathname.startsWith('/dashboard'),
+  },
+  {
+    id: 'conflicts',
+    label: 'Conflicts',
+    icon: GitBranch,
+    path: '/conflicts',
+    match: (pathname) => pathname.startsWith('/conflicts'),
+    badge: totalOpenConflicts,
   },
   {
     id: 'activity',
@@ -64,24 +74,34 @@ const iconButtonClass =
 const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
 
 // An icon-only activity bar button, named by its tooltip.
-function RailButton({ label, icon: Icon, className, ...triggerProps }) {
+// An optional `badge` count sits on the icon's top-right corner.
+function RailButton({ label, icon: Icon, badge, className, ...triggerProps }) {
   return (
     <Tooltip>
-      <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
+      <TooltipTrigger
+        aria-label={badge ? `${label} (${badge})` : label}
+        className={cn(iconButtonClass, 'relative', className)}
+        {...triggerProps}
+      >
         <Icon className="size-[18px]" />
+        {!!badge && (
+          <span className="absolute top-0.5 right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] leading-none font-semibold text-white tabular-nums">
+            {badge}
+          </span>
+        )}
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   )
 }
 
-// The Projects button's face: a folder icon on global pages, or — inside
+// The Projects button's face: a grid icon on global pages, or — inside
 // a project — that project's own color badge (its initial on its identity
 // color, see projectTone), sized to sit at the same visual weight as the
 // 18px icons around it and swapping in with a quick scale/fade whenever
 // the project changes.
 function ProjectsMark({ project }) {
-  if (!project) return <FolderKanban className="size-[18px]" />
+  if (!project) return <LayoutGrid className="size-[18px]" />
   return (
     <span
       key={project.id}
@@ -97,21 +117,21 @@ function ProjectsMark({ project }) {
 
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
 // route, top to bottom:
-//   1. the Devsign logo — the brand mark and the drawer's toggle;
+//   1. the drawer's toggle (disabled where there's no drawer, e.g. Home);
 //   2. Projects, right under it — opens the Slack-style project switcher
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
-//   3. Home;
+//   3. Home — straight to the dashboard, no drawer;
 //   4. inside a project, Archive — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
 //      default view and needs no icon) — then a hairline;
-//   5. the secondary global items, Activity and Team;
+//   5. the secondary global items, Conflicts, Activity and Team;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the shared surface tone (`bg-sidebar`, the same as
 // every panel and window) one step above the deeper canvas — open or
 // collapsed, dashboard or project — so toggling the drawer never shifts
 // its tone.
-function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
+function ActivityBar({ project, hasDrawer, drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
   const archivePath = project ? `/projects/${project.id}/archive` : null
@@ -125,11 +145,12 @@ function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
         <Tooltip>
           <TooltipTrigger
             onClick={onToggleDrawer}
-            aria-expanded={drawerOpen}
+            disabled={!hasDrawer}
+            aria-expanded={hasDrawer ? drawerOpen : undefined}
             aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className="mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
+            className={cn(iconButtonClass, 'disabled:pointer-events-none disabled:opacity-40')}
           >
-            <Logo iconOnly />
+            {drawerOpen ? <PanelLeftClose className="size-[18px]" /> : <PanelLeftOpen className="size-[18px]" />}
           </TooltipTrigger>
           <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
         </Tooltip>
@@ -158,13 +179,14 @@ function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
           </Tooltip>
         </ProjectSwitcher>
 
-        {navItems.map(({ id, label, icon, path }) => {
+        {navItems.map(({ id, label, icon, path, badge }) => {
           const isActive = id === current.id
           return (
             <Fragment key={id}>
               <RailButton
                 label={label}
                 icon={icon}
+                badge={badge}
                 render={<Link to={path} />}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(isActive && activeClass)}
@@ -182,7 +204,8 @@ function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
                     className={cn(onArchive && activeClass)}
                   />
                   {/* Separates the high-frequency project group above from
-                      the secondary global items (Activity, Team) below. */}
+                      the secondary global items (Conflicts, Activity, Team)
+                      below. */}
                   <div role="separator" className="mx-3.5 my-1.5 h-px shrink-0 bg-white/[0.08]" />
                 </>
               )}
@@ -257,7 +280,7 @@ function DrawerHeader({ project, onClose }) {
 // contextual items never share a column. Both tiers share the surface
 // tone (`bg-sidebar`) over the deeper canvas; faint hairlines on either
 // side of the drawer mark where one tier ends and the next begins.
-// The activity bar's logo toggles the drawer, the drawer's own close
+// The activity bar's top button toggles the drawer, the drawer's own close
 // button closes it, and ⌘B toggles it too.
 //
 // Every page mounts its own shell, so the drawer can't tell a context
@@ -277,12 +300,16 @@ function useContextSwitchAnimation(contextKey) {
   return animate
 }
 
-function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
+// Sections without a sub-menu (Home, Conflicts) have no drawer at all.
+function Sidebar({ project, drawerOpen: drawerPreference = true, onToggleDrawer }) {
+  const { pathname } = useLocation()
+  const hasDrawer = hasSubmenu(project, pathname)
+  const drawerOpen = hasDrawer && drawerPreference
   const animateIn = useContextSwitchAnimation(project ? `project:${project.id}` : 'global')
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
+      <ActivityBar project={project} hasDrawer={hasDrawer} drawerOpen={drawerOpen} onToggleDrawer={onToggleDrawer} />
 
       <div
         inert={!drawerOpen}

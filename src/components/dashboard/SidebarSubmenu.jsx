@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, Archive, ChevronRight, FileText, GitBranch, History, LayoutDashboard, Users } from 'lucide-react'
+import { Activity, Archive, ChevronRight, FileText, History, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { activeNavItem } from '@/components/dashboard/Sidebar'
 import { activities, allPeople, projects, referenceDocs } from '@/data/mockData'
@@ -10,8 +10,6 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const rowClass =
   'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 const activeRowClass = 'bg-muted text-foreground'
-
-const totalOpenConflicts = projects.reduce((sum, p) => sum + p.conflicts, 0)
 
 function Count({ value, tone = 'muted' }) {
   if (!value) return null
@@ -34,25 +32,6 @@ function NavRow({ to, active, icon: Icon, children, count, countTone }) {
       <span className="min-w-0 truncate">{children}</span>
       <Count value={count} tone={countTone} />
     </Link>
-  )
-}
-
-function HomeMenu({ pathname }) {
-  return (
-    <nav className="flex flex-col gap-1">
-      <NavRow to="/dashboard" active={pathname.startsWith('/dashboard')} icon={LayoutDashboard}>
-        Overview
-      </NavRow>
-      <NavRow
-        to="/conflicts"
-        active={pathname.startsWith('/conflicts')}
-        icon={GitBranch}
-        count={totalOpenConflicts}
-        countTone="alert"
-      >
-        Conflicts
-      </NavRow>
-    </nav>
   )
 }
 
@@ -95,8 +74,9 @@ function TeamMenu({ pathname }) {
   )
 }
 
+// Home and Conflicts have no sub-menu: their activity bar icons go
+// straight to the page, and the drawer stays hidden there.
 const SECTION_MENUS = {
-  home: HomeMenu,
   projects: ProjectsMenu,
   activity: ActivityMenu,
   team: TeamMenu,
@@ -243,8 +223,12 @@ function ProjectMenu({ project, pathname }) {
 // or a project's back arrow + switcher — lives in Sidebar). It never
 // repeats the activity bar's global destinations: inside a project it's
 // that project's expandable Archive tree; elsewhere it's the sub-menu of the
-// active global section — Home → Overview/Conflicts, Projects → each
-// project, Activity → the feed, Team → the member list.
+// active global section — Projects → each project, Activity → the feed,
+// Team → the member list.
+export function hasSubmenu(project, pathname) {
+  return !!project || !!SECTION_MENUS[activeNavItem(pathname).id]
+}
+
 function SidebarSubmenu({ project }) {
   const { pathname } = useLocation()
   if (project) return <ProjectMenu project={project} pathname={pathname} />
