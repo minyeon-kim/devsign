@@ -4,7 +4,6 @@ import TopBar from '@/components/layout/TopBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
-import SaveStatusIndicator from '@/components/layout/SaveStatusIndicator'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
@@ -97,7 +96,6 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <FilesLayersWindow />}
 
-        {!inMergeStudio && <SaveStatusIndicator />}
         <InspectorSidebar />
         {!inMergeStudio && <ChatMorphWidget />}
       </div>

@@ -25,6 +25,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import ChatCheckpoint from '@/components/history/ChatCheckpoint'
+import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { aiModels, chatSuggestions } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -72,6 +74,8 @@ function ChatMorphWidget() {
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
   const [autoMode, setAutoMode] = useState(true)
   const navigate = useNavigate()
+  // The checkpoint whose inline "Rollback here" was clicked (confirming).
+  const [rollbackId, setRollbackId] = useState(null)
   const dragRef = useRef(null)
   const listRef = useRef(null)
 
@@ -216,6 +220,12 @@ function ChatMorphWidget() {
               </Button>
             </div>
 
+            <RollbackCheckpointModal
+              key={rollbackId}
+              entryId={rollbackId}
+              onOpenChange={(open) => !open && setRollbackId(null)}
+            />
+
             <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
               {chatSuggestions.map((suggestion) => {
                 const Icon = suggestionIcons[suggestion.iconName]
@@ -237,7 +247,7 @@ function ChatMorphWidget() {
               {chatMessages.map((message) => (
                 <div
                   key={message.id}
-                  className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
+                  className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}
                 >
                   <div
                     className={cn(
@@ -249,6 +259,7 @@ function ChatMorphWidget() {
                   >
                     {message.text}
                   </div>
+                  {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
                 </div>
               ))}
               {isAiTyping && <TypingBubble />}

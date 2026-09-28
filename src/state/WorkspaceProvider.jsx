@@ -622,10 +622,6 @@ export function WorkspaceProvider({ children, projectId }) {
 
       window.setTimeout(() => {
         setIsAiTyping(false)
-        setChatMessages((prev) => [
-          ...prev,
-          { id: nextId('m'), role: 'assistant', text: scenario.reply },
-        ])
 
         const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
         const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
@@ -640,7 +636,10 @@ export function WorkspaceProvider({ children, projectId }) {
         setConflicts(nextConflicts)
         appendTerminalLines(scenario.terminalLines)
 
-        recordHistory({
+        // The edit is a checkpoint; the reply carries its id so the chat can
+        // offer "Rollback here" right under it. The checkpoint's agent
+        // memory includes this reply (+1 on the conversation so far).
+        const historyId = recordHistory({
           label: scenario.reply,
           prompt: trimmed,
           timestamp: timeLabel(),
@@ -651,8 +650,10 @@ export function WorkspaceProvider({ children, projectId }) {
             previewProps: nextPreviewProps,
             conflicts: nextConflicts,
             selectedLayerId,
+            chatLength: chatLengthRef.current + 1,
           },
         })
+        setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: scenario.reply, historyId }])
       }, 900)
     },
     [appendTerminalLines, conflicts, fileOverrides, previewProps, recordHistory, selectedLayerId]
