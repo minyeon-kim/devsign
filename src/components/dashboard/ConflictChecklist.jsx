@@ -1,12 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
-import { conflictChecklist } from '@/data/mockData'
-import ConflictModal, { STATUS_DOT_CLASS, fromChecklistConflict } from '@/components/modals/ConflictModal'
-
-function toConflictState(c) {
-  return { ...c, status: c.resolved ? 'Resolved' : 'Pending' }
-}
+import ConflictModal from '@/components/modals/ConflictModal'
+import { STAGE_DOT_CLASS, STAGE_LABEL, allConflictRecords, isOpen } from '@/lib/conflicts'
 
 // The dashboard's primary checklist: every open design/code conflict
 // across projects, resolved or not, in one scannable list — the same
@@ -16,14 +12,14 @@ function toConflictState(c) {
 // full /conflicts page holds its own independent copy.
 function ConflictChecklist() {
   const navigate = useNavigate()
-  const [conflicts, setConflicts] = useState(() => conflictChecklist.map(toConflictState))
+  const [conflicts, setConflicts] = useState(allConflictRecords)
   const [activeConflictId, setActiveConflictId] = useState(null)
 
   const activeConflict = conflicts.find((c) => c.id === activeConflictId) ?? null
-  const firstOpen = conflicts.find((c) => c.status !== 'Resolved')
+  const firstOpen = conflicts.find(isOpen)
 
-  function handleStatusChange(id, status) {
-    setConflicts((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
+  function handleUpdate(id, patch) {
+    setConflicts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
 
   function handleOpenMergeStudio(conflict) {
@@ -53,14 +49,14 @@ function ConflictChecklist() {
               className="flex w-full items-center justify-between gap-3 rounded-md py-2.5 text-left transition-colors hover:bg-muted/50"
             >
               <div className="min-w-0">
-                <p className="truncate text-xs text-foreground/90">{conflict.token}</p>
+                <p className="truncate text-xs text-foreground/90">{conflict.title}</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {conflict.projectName} · {conflict.timestamp}
+                  {conflict.projectName} · {conflict.file}
                 </p>
               </div>
               <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className={cn('size-1.5 rounded-full', STATUS_DOT_CLASS[conflict.status])} />
-                {conflict.status}
+                <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+                {STAGE_LABEL[conflict.reviewStage]}
               </span>
             </button>
           </li>
@@ -76,9 +72,9 @@ function ConflictChecklist() {
       </button>
 
       <ConflictModal
-        conflict={activeConflict && fromChecklistConflict(activeConflict)}
+        conflict={activeConflict}
         onOpenChange={(open) => !open && setActiveConflictId(null)}
-        onStatusChange={handleStatusChange}
+        onUpdate={handleUpdate}
         onOpenMergeStudio={handleOpenMergeStudio}
       />
     </div>

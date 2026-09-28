@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
-import ConflictModal, { STATUS_DOT_CLASS, fromChecklistConflict } from '@/components/modals/ConflictModal'
-import { conflictChecklist } from '@/data/mockData'
+import ConflictModal from '@/components/modals/ConflictModal'
+import { STAGE_DOT_CLASS, STAGE_LABEL, allConflictRecords, isOpen, sortOpenFirst } from '@/lib/conflicts'
 import { projectTone } from '@/lib/projectTone'
-
-function toConflictState(c) {
-  return { ...c, status: c.resolved ? 'Resolved' : 'Pending' }
-}
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // Groups conflicts by project, keeping the order projects first appear in.
 function groupByProject(conflicts) {
@@ -19,29 +16,60 @@ function groupByProject(conflicts) {
   return [...groups.values()]
 }
 
-// The drawer panel behind the activity bar's Conflicts icon: every
-// conflict as a compact list grouped by project, available over any view
-// — picking one opens the shared ConflictModal (the same one every
-// conflict entry point uses) over whatever you're looking at, rather than
-// taking over the main area. Like those views it holds its own local
-// copy of conflictChecklist (mock data, no shared store).
-//
-// Inside a project it lists only that project's conflicts; on the global
-// pages (no project in context) it lists every project's, grouped.
-function ConflictsDrawer({ project, onNavigate }) {
-  const navigate = useNavigate()
-  const [conflicts, setConflicts] = useState(() =>
-    conflictChecklist.filter((c) => !project || c.projectId === project.id).map(toConflictState)
+// A conflict row: status dot + title, and the file it lives in underneath.
+function ConflictRow({ conflict, active, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-haspopup="dialog"
+      title={`${conflict.title} · ${STAGE_LABEL[conflict.reviewStage]}`}
+      className={cn(
+        'flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-muted',
+        active && 'bg-muted',
+        !isOpen(conflict) && 'opacity-60'
+      )}
+    >
+      <span className="flex w-full items-center gap-2.5 text-[13px] text-foreground/90">
+        <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+        <span className="min-w-0 flex-1 truncate">{conflict.title}</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground/60">{conflict.detectedAt}</span>
+      </span>
+      <span className="truncate pl-4 font-mono text-[11px] text-muted-foreground/70">{conflict.file}</span>
+    </button>
   )
-  const [activeConflictId, setActiveConflictId] = useState(null)
-  const activeConflict = conflicts.find((c) => c.id === activeConflictId) ?? null
+}
 
-  function handleStatusChange(id, status) {
-    setConflicts((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
+// The drawer panel behind the activity bar's Conflicts icon, available
+// over any view — picking a conflict opens the shared ConflictModal over
+// whatever you're looking at instead of taking over the main area.
+//
+// Inside a project it lists that project's conflicts straight from the
+// workspace — the very list the terminal's Conflict Point tab shows, so
+// the two always match and a review done in either shows up in both. On
+// the global pages (no workspace) it lists every project's conflicts,
+// grouped, from its own local copy (mock data, like the dashboard widget
+// and /conflicts page).
+function ConflictsDrawer({ onNavigate }) {
+  const navigate = useNavigate()
+  const workspace = useWorkspaceOptional()
+  const [localConflicts, setLocalConflicts] = useState(allConflictRecords)
+  const [localReviewId, setLocalReviewId] = useState(null)
+
+  // Inside a project the review window is the workspace's single
+  // ConflictReviewHost (shared with the terminal); elsewhere, this
+  // drawer's own ConflictModal below.
+  const conflicts = workspace ? workspace.conflicts : localConflicts
+  const activeConflictId = workspace ? workspace.reviewConflictId : localReviewId
+  const openReview = workspace ? workspace.openConflictReview : setLocalReviewId
+  const localActiveConflict = workspace ? null : (conflicts.find((c) => c.id === localReviewId) ?? null)
+
+  function handleLocalUpdate(id, patch) {
+    setLocalConflicts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   }
 
   function handleOpenMergeStudio(conflict) {
-    setActiveConflictId(null)
+    setLocalReviewId(null)
     onNavigate?.()
     navigate(`/projects/${conflict.projectId}/workspace`, { state: { openMergeStudio: true } })
   }
@@ -52,10 +80,10 @@ function ConflictsDrawer({ project, onNavigate }) {
         {conflicts.length === 0 && (
           <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground/70">No conflicts in this project.</p>
         )}
-        {groupByProject(conflicts).map((group) => (
+        {groupByProject(sortOpenFirst(conflicts)).map((group) => (
           <div key={group.id}>
-            {/* One project needs no project heading. */}
-            {!project && (
+            {/* Inside a project, one project needs no heading. */}
+            {!workspace && (
               <p className="flex h-7 items-center gap-2 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">
                 <span className={cn('size-1.5 shrink-0 rounded-full', projectTone(group.id))} />
                 <span className="min-w-0 truncate">{group.name}</span>
@@ -63,22 +91,12 @@ function ConflictsDrawer({ project, onNavigate }) {
             )}
             <div className="flex flex-col gap-0.5">
               {group.items.map((conflict) => (
-                <button
+                <ConflictRow
                   key={conflict.id}
-                  type="button"
-                  onClick={() => setActiveConflictId(conflict.id)}
-                  aria-haspopup="dialog"
-                  title={`${conflict.token} · ${conflict.status}`}
-                  className={cn(
-                    'flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                    activeConflictId === conflict.id && 'bg-muted text-foreground',
-                    conflict.status === 'Resolved' && 'text-muted-foreground/60'
-                  )}
-                >
-                  <span className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[conflict.status])} />
-                  <span className="min-w-0 flex-1 truncate">{conflict.token}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground/60">{conflict.timestamp}</span>
-                </button>
+                  conflict={conflict}
+                  active={activeConflictId === conflict.id}
+                  onSelect={() => openReview(conflict.id)}
+                />
               ))}
             </div>
           </div>
@@ -93,12 +111,14 @@ function ConflictsDrawer({ project, onNavigate }) {
         </Link>
       </nav>
 
-      <ConflictModal
-        conflict={activeConflict && fromChecklistConflict(activeConflict)}
-        onOpenChange={(open) => !open && setActiveConflictId(null)}
-        onStatusChange={handleStatusChange}
-        onOpenMergeStudio={handleOpenMergeStudio}
-      />
+      {!workspace && (
+        <ConflictModal
+          conflict={localActiveConflict}
+          onOpenChange={(open) => !open && setLocalReviewId(null)}
+          onUpdate={handleLocalUpdate}
+          onOpenMergeStudio={handleOpenMergeStudio}
+        />
+      )}
     </>
   )
 }

@@ -165,6 +165,7 @@ export const conflictChecklist = [
   {
     id: 'cc-1',
     token: 'Button / Height',
+    file: 'src/components/ui/Button.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',
     timestamp: '2h ago',
@@ -190,6 +191,7 @@ export const conflictChecklist = [
   {
     id: 'cc-2',
     token: 'Merge conflict · DesignCanvas.jsx',
+    file: 'src/components/DesignCanvas.jsx',
     projectId: 'checkout-redesign',
     projectName: 'Checkout Redesign',
     timestamp: '4h ago',
@@ -223,6 +225,7 @@ export const conflictChecklist = [
   {
     id: 'cc-3',
     token: 'Card / Radius',
+    file: 'src/components/ui/Card.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',
     timestamp: 'Yesterday',
@@ -244,6 +247,7 @@ export const conflictChecklist = [
   {
     id: 'cc-4',
     token: 'Nav Icon / Size',
+    file: 'src/components/nav/BottomNav.jsx',
     projectId: 'mobile-nav-revamp',
     projectName: 'Mobile Nav Revamp',
     timestamp: 'Yesterday',
@@ -269,6 +273,7 @@ export const conflictChecklist = [
   {
     id: 'cc-5',
     token: 'Color token drift',
+    file: 'src/styles/tokens.css',
     projectId: 'onboarding-flow',
     projectName: 'Onboarding Flow',
     timestamp: '2 days ago',
@@ -290,6 +295,7 @@ export const conflictChecklist = [
   {
     id: 'cc-6',
     token: 'Input / Padding',
+    file: 'src/components/ui/Input.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',
     timestamp: '3 days ago',
@@ -312,6 +318,7 @@ export const conflictChecklist = [
   {
     id: 'cc-7',
     token: 'Spacing scale mismatch',
+    file: 'src/components/checkout/CheckoutForm.jsx',
     projectId: 'checkout-redesign',
     projectName: 'Checkout Redesign',
     timestamp: '4 days ago',
@@ -1312,6 +1319,7 @@ export const conflictPoints = [
 // The `padding-fix` AI chat scenario below resolves this conflict.
 export const paddingConflict = {
   id: 'conflict-padding',
+  title: 'Button / Padding',
   file: 'src/components/DesignCanvas.jsx',
   message: 'Design frame padding (12px 24px) does not match code button padding (8px 16px).',
   severity: 'medium',

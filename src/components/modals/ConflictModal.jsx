@@ -4,79 +4,59 @@ import {
   CircleAlert,
   Code2,
   Eye,
+  FileCode2,
   GitBranch,
   GitMerge,
   Info,
   Palette,
+  Plus,
+  RotateCcw,
   Send,
   Sparkles,
   TriangleAlert,
+  X,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { allPeople } from '@/data/mockData'
+import { allPeople, currentUser } from '@/data/mockData'
+import { REVIEW_STAGES, allReviewersApproved } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 
-// ─── The one conflict modal ────────────────────────────────────────────
-// Every entry point — the activity bar's Conflicts drawer, the dashboard's
-// "Active conflicts" widget, the /conflicts page and the workspace
-// terminal's Conflict Point tab — opens this same component, so the
-// options, tokens and behavior never drift apart. The two conflict data
-// sources (the cross-project checklist and a workspace's detected
-// conflict points) are normalized into one shape by the adapters below;
-// sections whose data a conflict doesn't carry show an empty state rather
-// than disappearing, so the layout is identical everywhere.
-
-export const CONFLICT_STATUSES = ['Pending', 'In Review', 'Resolved']
-
-export const STATUS_DOT_CLASS = {
-  Pending: 'bg-muted-foreground/40',
-  'In Review': 'bg-sky-400',
-  Resolved: 'bg-primary',
-}
-
-// A workspace conflict's review stage ↔ the shared status vocabulary.
-const STAGE_TO_STATUS = { detected: 'Pending', in_review: 'In Review', approved: 'In Review', resolved: 'Resolved' }
-export const STATUS_TO_STAGE = { Pending: 'detected', 'In Review': 'in_review', Resolved: 'resolved' }
-
-// A cross-project checklist item (conflictChecklist + its local status).
-export function fromChecklistConflict(c) {
-  return {
-    ...c,
-    title: c.token,
-    description: c.message ?? `Design ↔ code conflict in ${c.projectName}.`,
-    detectedAt: c.timestamp,
-  }
-}
-
-// A workspace conflict point (WorkspaceProvider's `conflicts`).
-export function fromWorkspaceConflict(c) {
-  return {
-    ...c,
-    title: c.file,
-    description: c.message,
-    status: STAGE_TO_STATUS[c.reviewStage] ?? 'Pending',
-  }
-}
+// ─── The one conflict review window ────────────────────────────────────
+// Every entry point — the activity bar's Conflicts drawer, the terminal's
+// Conflict Point tab, the dashboard widget and the /conflicts page — opens
+// this same component with a shared conflict record (see lib/conflicts).
+//
+// It's a step-by-step review, GitHub-PR style: a conflict moves
+// Pending → In Review → Approved → Resolved, and each step is gated on
+// the one before it — you request review once reviewers are assigned,
+// approve only after the code diff has been inspected and every reviewer
+// has signed off, and resolve only once approved. There is deliberately
+// no one-click "resolve" anywhere else.
 
 const severityConfig = {
   high: { label: 'High', icon: TriangleAlert, className: 'bg-destructive/15 text-destructive' },
   medium: { label: 'Medium', icon: CircleAlert, className: 'bg-amber-500/15 text-amber-500' },
   low: { label: 'Low', icon: Info, className: 'bg-sky-500/15 text-sky-500' },
+}
+
+const REVIEWER_STATUS = {
+  pending: { label: 'Pending', className: 'text-muted-foreground' },
+  approved: { label: 'Approved', className: 'text-emerald-400' },
+  changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
 
 const sectionLabelClass = 'text-[11px] font-semibold tracking-wide text-muted-foreground uppercase'
@@ -88,6 +68,51 @@ function EmptyNote({ children }) {
     </p>
   )
 }
+
+// ─── Stage stepper ─────────────────────────────────────────────────────
+
+function StageStepper({ stage }) {
+  const currentIndex = Math.max(
+    0,
+    REVIEW_STAGES.findIndex((s) => s.id === stage)
+  )
+
+  return (
+    <ol className="flex items-center gap-2 border-b px-5 py-3" aria-label="Review progress">
+      {REVIEW_STAGES.map((s, i) => {
+        const done = i < currentIndex || stage === 'resolved'
+        const active = i === currentIndex && stage !== 'resolved'
+        return (
+          <li key={s.id} className="flex min-w-0 flex-1 items-center gap-2" aria-current={active ? 'step' : undefined}>
+            <span
+              className={cn(
+                'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
+                done && 'bg-primary text-primary-foreground',
+                active && 'bg-primary/15 text-primary ring-1 ring-primary',
+                !done && !active && 'bg-muted text-muted-foreground'
+              )}
+            >
+              {done ? <Check className="size-3" strokeWidth={3} /> : i + 1}
+            </span>
+            <span
+              className={cn(
+                'truncate text-xs',
+                active ? 'font-semibold text-foreground' : done ? 'text-foreground/80' : 'text-muted-foreground'
+              )}
+            >
+              {s.label}
+            </span>
+            {i < REVIEW_STAGES.length - 1 && (
+              <span className={cn('h-px min-w-4 flex-1', i < currentIndex ? 'bg-primary/60' : 'bg-border')} />
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// ─── Left: working area ────────────────────────────────────────────────
 
 function DiffBlock({ label, lines, tone }) {
   if (!lines?.length) return null
@@ -108,9 +133,7 @@ function DiffBlock({ label, lines, tone }) {
   )
 }
 
-// One side of the Expected (Design System) vs Current (Code) comparison —
-// a small attribute table so the mismatch is scannable at a glance instead
-// of buried in a code diff (that lives in the Diff tab).
+// One side of the Expected (Design System) vs Current (Code) comparison.
 function ComparisonCard({ label, tone, icon: Icon, fields }) {
   return (
     <div
@@ -145,6 +168,8 @@ function OverviewTab({ conflict, onPreview }) {
 
   return (
     <div className="space-y-4 p-4">
+      {conflict.message && <p className="text-xs leading-relaxed text-foreground/85">{conflict.message}</p>}
+
       {fields.length ? (
         <div className="flex flex-col gap-3 sm:flex-row">
           <ComparisonCard
@@ -161,7 +186,7 @@ function OverviewTab({ conflict, onPreview }) {
           />
         </div>
       ) : (
-        <EmptyNote>No design ↔ code comparison captured for this conflict yet. Open Merge Studio to inspect it.</EmptyNote>
+        <EmptyNote>No design ↔ code comparison captured for this conflict yet.</EmptyNote>
       )}
 
       {conflict.suggestion && (
@@ -212,59 +237,154 @@ function DiffTab({ conflict }) {
   )
 }
 
-function StatusPicker({ status, onChange }) {
+// ─── Right: review sidebar ─────────────────────────────────────────────
+
+function ChecklistItem({ done, children }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {CONFLICT_STATUSES.map((option) => (
-        <button
-          key={option}
-          type="button"
-          aria-pressed={status === option}
-          onClick={() => onChange?.(option)}
-          className={cn(
-            'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-            status === option
-              ? 'border-transparent bg-foreground text-background'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <span className={cn('size-1.5 rounded-full', STATUS_DOT_CLASS[option])} />
-          {option}
-        </button>
-      ))}
-    </div>
+    <li className="flex items-center gap-2 text-xs">
+      <span
+        className={cn(
+          'flex size-4 shrink-0 items-center justify-center rounded-full',
+          done ? 'bg-emerald-500/15 text-emerald-400' : 'ring-1 ring-border'
+        )}
+      >
+        {done && <Check className="size-2.5" strokeWidth={3} />}
+      </span>
+      <span className={done ? 'text-foreground/85' : 'text-muted-foreground'}>{children}</span>
+    </li>
   )
 }
 
-function ReviewersList({ reviewers = [] }) {
-  if (!reviewers.length) {
-    return <p className="text-xs text-muted-foreground">No reviewers assigned.</p>
+function ReviewChecklist({ conflict }) {
+  const reviewers = conflict.reviewers
+  const approved = reviewers.filter((r) => r.status === 'approved').length
+  return (
+    <ul className="flex flex-col gap-2">
+      <ChecklistItem done={reviewers.length > 0}>Reviewer assigned</ChecklistItem>
+      <ChecklistItem done={conflict.diffInspected}>Code diff inspected</ChecklistItem>
+      <ChecklistItem done={allReviewersApproved(conflict)}>
+        All reviewers approved{reviewers.length > 0 && ` (${approved}/${reviewers.length})`}
+      </ChecklistItem>
+    </ul>
+  )
+}
+
+function PersonAvatar({ person }) {
+  return (
+    <Avatar size="sm">
+      <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
+        {person.initials}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
+const iconActionClass =
+  'flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+
+// Reviewers sign off here. Assigning/removing is open until the conflict
+// is resolved (removing only before review starts); approve / request
+// changes are the in-review actions.
+function ReviewersSection({ conflict, onUpdate }) {
+  const { reviewers, reviewStage } = conflict
+  const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
+
+  function setReviewers(next) {
+    onUpdate({ reviewers: next })
+  }
+
+  function setStatus(id, status) {
+    setReviewers(reviewers.map((r) => (r.id === id ? { ...r, status } : r)))
   }
 
   return (
-    <div className="space-y-2">
-      {reviewers.map((reviewer) => {
-        const person = allPeople.find((p) => p.id === reviewer.id)
-        if (!person) return null
-        return (
-          <div key={reviewer.id} className="flex items-center gap-2 text-xs">
-            <Avatar size="sm">
-              <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
-                {person.initials}
-              </AvatarFallback>
-            </Avatar>
-            <span className="flex-1 truncate font-medium text-foreground">{person.name}</span>
-            {reviewer.status === 'approved' ? (
-              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500">
-                <Check className="size-3" />
-                Approved
-              </span>
-            ) : (
-              <span className="text-[11px] text-muted-foreground">Pending</span>
-            )}
-          </div>
-        )
-      })}
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className={sectionLabelClass}>Reviewers</p>
+        {reviewStage !== 'resolved' && assignable.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                />
+              }
+            >
+              <Plus className="size-3" />
+              Assign
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {assignable.map((person) => (
+                <DropdownMenuItem
+                  key={person.id}
+                  onClick={() => setReviewers([...reviewers, { id: person.id, status: 'pending' }])}
+                  className="gap-2"
+                >
+                  <PersonAvatar person={person} />
+                  {person.name}
+                  {person.id === currentUser.id && <span className="text-muted-foreground">(you)</span>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
+      {reviewers.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No reviewers assigned yet.</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {reviewers.map((reviewer) => {
+            const person = allPeople.find((p) => p.id === reviewer.id)
+            if (!person) return null
+            const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
+            return (
+              <div key={reviewer.id} className="flex h-7 items-center gap-2 text-xs">
+                <PersonAvatar person={person} />
+                <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                  {person.name}
+                  {person.id === currentUser.id && <span className="font-normal text-muted-foreground"> (you)</span>}
+                </span>
+                <span className={cn('shrink-0 text-[11px]', status.className)}>{status.label}</span>
+                {reviewStage === 'in_review' && (
+                  <span className="flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      aria-label={`Approve as ${person.name}`}
+                      title="Approve"
+                      onClick={() => setStatus(reviewer.id, 'approved')}
+                      className={cn(iconActionClass, reviewer.status === 'approved' && 'text-emerald-400')}
+                    >
+                      <Check className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Request changes as ${person.name}`}
+                      title="Request changes"
+                      onClick={() => setStatus(reviewer.id, 'changes_requested')}
+                      className={cn(iconActionClass, reviewer.status === 'changes_requested' && 'text-amber-400')}
+                    >
+                      <RotateCcw className="size-3.5" />
+                    </button>
+                  </span>
+                )}
+                {reviewStage === 'detected' && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${person.name}`}
+                    title="Remove reviewer"
+                    onClick={() => setReviewers(reviewers.filter((r) => r.id !== reviewer.id))}
+                    className={iconActionClass}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -295,11 +415,7 @@ function CommentThread({ conflict, workspace }) {
           return (
             <div key={comment.id} className="rounded-xl border bg-background p-2.5 text-xs">
               <div className="flex items-center gap-1.5">
-                <Avatar size="sm">
-                  <AvatarFallback className={cn('text-[10px] font-medium text-white', author?.colorClass)}>
-                    {author?.initials}
-                  </AvatarFallback>
-                </Avatar>
+                {author && <PersonAvatar person={author} />}
                 <span className="font-medium text-foreground">{author?.name}</span>
                 <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{comment.timeLabel}</span>
               </div>
@@ -329,6 +445,34 @@ function CommentThread({ conflict, workspace }) {
     </div>
   )
 }
+
+// ─── Footer: the one next step ─────────────────────────────────────────
+
+// What the primary action does at each stage, whether it's allowed yet,
+// and — when it isn't — what's still missing.
+function nextStep(conflict) {
+  const { reviewStage, reviewers, diffInspected } = conflict
+  if (reviewStage === 'detected') {
+    return reviewers.length
+      ? { label: 'Request review', enabled: true, hint: 'Send it to the assigned reviewers to start sign-off.' }
+      : { label: 'Request review', enabled: false, hint: 'Assign at least one reviewer to request review.' }
+  }
+  if (reviewStage === 'in_review') {
+    const approved = reviewers.filter((r) => r.status === 'approved').length
+    const missing = []
+    if (!diffInspected) missing.push('inspect the code diff')
+    if (!allReviewersApproved(conflict)) missing.push(`${approved} of ${reviewers.length} approvals`)
+    return missing.length
+      ? { label: 'Approve', enabled: false, hint: `To approve: ${missing.join(' · ')}.` }
+      : { label: 'Approve', enabled: true, hint: 'Diff inspected and every reviewer signed off.' }
+  }
+  if (reviewStage === 'approved') {
+    return { label: 'Resolve conflict', enabled: true, hint: 'Approved — resolving applies the change and closes the conflict.' }
+  }
+  return null
+}
+
+// ─── Draggable window ──────────────────────────────────────────────────
 
 // Lets the window be dragged by its header. The offset is applied on top
 // of the dialog's centering translate, and clamped so the header can't be
@@ -371,24 +515,69 @@ function useDraggable() {
   }
 }
 
-// A 2-column dashboard: the left panel is the working area (Overview /
-// Diff / History tabs), the right panel is the review sidebar (status,
-// required reviewers, comment thread) that stays visible whichever tab is
-// open. Footer options are the same everywhere: Close, Open Merge Studio,
-// Mark resolved.
-//
+// ─── The window ────────────────────────────────────────────────────────
+
 // A floating window, not a blocking dialog: non-modal, no backdrop, and
 // clicking the page behind it doesn't dismiss it — the workspace and
 // canvas stay clear and fully interactive, and the window can be dragged
-// anywhere by its header. A shadow + hairline ring lift it off the page
-// instead of dimming. Close / Esc / the ✕ close it.
-function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStudio }) {
+// anywhere by its header. Close / Esc / the ✕ close it.
+//
+// `onUpdate(id, patch)` applies review edits (stage, reviewers,
+// diffInspected) to wherever the conflict lives; `onResolve(id)` is the
+// final step (defaults to an onUpdate to 'resolved').
+function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
   const open = Boolean(conflict)
   const { style: dragStyle, handleProps } = useDraggable()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
   const SeverityIcon = severity?.icon
+  const step = conflict && nextStep(conflict)
+
+  // The open tab, reset to Overview whenever a different conflict loads.
+  const [tab, setTab] = useState('overview')
+  const [tabConflictId, setTabConflictId] = useState(conflict?.id)
+  if (conflict && conflict.id !== tabConflictId) {
+    setTabConflictId(conflict.id)
+    setTab('overview')
+  }
+
+  function update(patch) {
+    onUpdate?.(conflict.id, patch)
+  }
+
+  function handleNextStep() {
+    const { reviewStage, reviewers } = conflict
+    if (reviewStage === 'detected') {
+      // A fresh review round: earlier "changes requested" go back to pending.
+      update({
+        reviewStage: 'in_review',
+        reviewers: reviewers.map((r) => (r.status === 'changes_requested' ? { ...r, status: 'pending' } : r)),
+      })
+    } else if (reviewStage === 'in_review') {
+      update({ reviewStage: 'approved' })
+    } else if (reviewStage === 'approved') {
+      if (onResolve) onResolve(conflict.id)
+      else update({ reviewStage: 'resolved' })
+    }
+  }
+
+  function handleReopen() {
+    update({
+      reviewStage: 'detected',
+      // Still looking at the diff counts as having inspected it.
+      diffInspected: tab === 'diff',
+      reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
+    })
+  }
+
+  // Opening the Diff tab is what counts as inspecting it.
+  function handleTabChange(value) {
+    setTab(value)
+    if (value === 'diff' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
+      update({ diffInspected: true })
+    }
+  }
 
   function handlePreviewChange() {
     if (conflict.previewPrompt) workspace.sendChatMessage(conflict.previewPrompt)
@@ -400,7 +589,7 @@ function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStud
       <DialogContent
         overlay={false}
         style={dragStyle}
-        className="flex h-[min(680px,85vh)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 shadow-2xl shadow-black/60 sm:max-w-4xl"
+        className="flex h-[min(720px,88vh)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 shadow-2xl shadow-black/60 sm:max-w-4xl"
       >
         {conflict && (
           <>
@@ -409,36 +598,44 @@ function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStud
               title="Drag to move"
               className="shrink-0 cursor-grab touch-none gap-1.5 border-b px-5 py-3.5 select-none active:cursor-grabbing"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 {severity && (
                   <Badge className={cn('gap-1 border-transparent', severity.className)}>
                     <SeverityIcon className="size-3" />
                     {severity.label}
                   </Badge>
                 )}
-                <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span className={cn('size-1.5 rounded-full', STATUS_DOT_CLASS[conflict.status])} />
-                  {conflict.status}
-                </span>
-                {conflict.projectName && (
-                  <span className="text-[11px] text-muted-foreground">· {conflict.projectName}</span>
-                )}
-                {conflict.detectedAt && (
-                  <span className="text-[11px] text-muted-foreground">· Detected {conflict.detectedAt}</span>
-                )}
+                {conflict.projectName && <span>{conflict.projectName}</span>}
+                {conflict.detectedAt && <span>· Detected {conflict.detectedAt}</span>}
               </div>
               <DialogTitle className="truncate pr-8 text-left">{conflict.title}</DialogTitle>
-              <DialogDescription className="text-left">{conflict.description}</DialogDescription>
+              <DialogDescription className="flex items-center gap-1.5 text-left font-mono text-[11px]">
+                <FileCode2 className="size-3.5 shrink-0" />
+                <span className="truncate">{conflict.file}</span>
+              </DialogDescription>
             </DialogHeader>
+
+            <StageStepper stage={conflict.reviewStage} />
 
             <div className="flex min-h-0 flex-1">
               {/* Left: working area */}
               <div className="flex min-h-0 flex-[1.6] flex-col border-r">
-                <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col gap-0">
+                <Tabs
+                  value={tab}
+                  onValueChange={handleTabChange}
+                  className="flex min-h-0 flex-1 flex-col gap-0"
+                >
                   <div className="flex h-10 shrink-0 items-center border-b px-4">
                     <TabsList variant="line">
                       <TabsTrigger value="overview">Overview</TabsTrigger>
-                      <TabsTrigger value="diff">Diff</TabsTrigger>
+                      <TabsTrigger value="diff" className="gap-1.5">
+                        Diff
+                        {conflict.diffInspected ? (
+                          <Check className="size-3 text-emerald-400" strokeWidth={3} />
+                        ) : (
+                          <span className="size-1.5 rounded-full bg-amber-400" aria-label="Not inspected yet" />
+                        )}
+                      </TabsTrigger>
                       <TabsTrigger value="history">History</TabsTrigger>
                     </TabsList>
                   </div>
@@ -458,19 +655,18 @@ function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStud
                 </Tabs>
               </div>
 
-              {/* Right: review sidebar — status/reviewers stay pinned, only
-                  the comment thread scrolls internally. */}
-              <div className="flex w-72 shrink-0 flex-col gap-4 overflow-hidden p-4">
+              {/* Right: review sidebar — checklist and reviewers stay
+                  pinned, only the comment thread scrolls. */}
+              <div className="flex w-80 shrink-0 flex-col gap-4 overflow-hidden p-4">
                 <div className="shrink-0">
-                  <p className={cn(sectionLabelClass, 'mb-2')}>Status</p>
-                  <StatusPicker status={conflict.status} onChange={(status) => onStatusChange?.(conflict.id, status)} />
+                  <p className={cn(sectionLabelClass, 'mb-2')}>Review checklist</p>
+                  <ReviewChecklist conflict={conflict} />
                 </div>
 
                 <Separator className="shrink-0" />
 
                 <div className="shrink-0">
-                  <p className={cn(sectionLabelClass, 'mb-2')}>Required reviewers</p>
-                  <ReviewersList reviewers={conflict.reviewers} />
+                  <ReviewersSection conflict={conflict} onUpdate={update} />
                 </div>
 
                 <Separator className="shrink-0" />
@@ -482,21 +678,34 @@ function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStud
               </div>
             </div>
 
-            <DialogFooter className="mx-0 mb-0 shrink-0">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Close
-              </Button>
-              <Button type="button" variant="outline" className="gap-1.5" onClick={() => onOpenMergeStudio?.(conflict)}>
-                <GitMerge className="size-3.5" />
-                Open Merge Studio
-              </Button>
-              <Button
-                type="button"
-                disabled={conflict.status === 'Resolved'}
-                onClick={() => onStatusChange?.(conflict.id, 'Resolved')}
-              >
-                Mark resolved
-              </Button>
+            <DialogFooter className="mx-0 mb-0 shrink-0 items-center sm:justify-between">
+              <p className="min-w-0 truncate text-xs text-muted-foreground">
+                {step ? step.hint : 'Resolved. Reopen it to run the review again.'}
+              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => onOpenMergeStudio?.(conflict)}
+                >
+                  <GitMerge className="size-3.5" />
+                  Open Merge Studio
+                </Button>
+                {step ? (
+                  <Button type="button" disabled={!step.enabled} onClick={handleNextStep}>
+                    {step.label}
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" className="gap-1.5" onClick={handleReopen}>
+                    <RotateCcw className="size-3.5" />
+                    Reopen
+                  </Button>
+                )}
+              </div>
             </DialogFooter>
           </>
         )}

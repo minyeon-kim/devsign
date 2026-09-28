@@ -3,7 +3,6 @@ import {
   aiEditScenarios,
   canvasPages,
   comments as seedComments,
-  conflictPoints as seedConflicts,
   consoleLogLines as seedConsoleLogLines,
   currentUser,
   findCanvasTarget,
@@ -18,6 +17,7 @@ import {
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
 } from '@/data/mockData'
+import { projectConflictRecords, toConflictRecord } from '@/lib/conflicts'
 
 // How often each teammate's mock viewport advances to the next entry in
 // their `viewportSequence` — simulates them navigating the file on their
@@ -57,7 +57,13 @@ export function WorkspaceProvider({ children, projectId }) {
   const [consoleEntries] = useState(() =>
     seedConsoleLogLines.map((text) => ({ id: nextId('c'), text }))
   )
-  const [conflicts, setConflicts] = useState(seedConflicts)
+  // This project's conflicts — the single list the Conflicts drawer and
+  // the terminal's Conflict Point tab both read and update.
+  const [conflicts, setConflicts] = useState(() => projectConflictRecords(projectId))
+  // The conflict open in the review window (ConflictReviewHost). One per
+  // workspace, so opening a conflict from the drawer or the terminal
+  // always reuses the same window instead of stacking a second one.
+  const [reviewConflictId, setReviewConflictId] = useState(null)
   const [chatMessages, setChatMessages] = useState(initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
@@ -261,21 +267,25 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [])
 
   const addConflict = useCallback((conflict) => {
-    setConflicts((prev) => (prev.some((c) => c.id === conflict.id) ? prev : [...prev, conflict]))
-  }, [])
+    setConflicts((prev) =>
+      prev.some((c) => c.id === conflict.id) ? prev : [...prev, toConflictRecord({ projectId, ...conflict })]
+    )
+  }, [projectId])
 
   const resolveConflict = useCallback(
     (conflictId) => {
-      setConflicts((prev) => prev.filter((c) => c.id !== conflictId))
+      // Resolved conflicts stay in the list (as Resolved) for the audit
+      // trail; only the review workflow's final step calls this.
+      setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, reviewStage: 'resolved' } : c)))
       appendTerminalLines(['$ devsign resolve-conflict', '✓ conflict marked resolved'])
     },
     [appendTerminalLines]
   )
 
-  // Moves a conflict along its review stages without resolving it (the
-  // conflict modal's Pending / In Review status control).
-  const setConflictStage = useCallback((conflictId, reviewStage) => {
-    setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, reviewStage } : c)))
+  // Review-workflow edits from the conflict modal (stage, reviewers,
+  // diff inspected) — everything short of the final resolve.
+  const updateConflict = useCallback((conflictId, patch) => {
+    setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, ...patch } : c)))
   }, [])
 
   const setActiveFileId = useCallback((fileId) => {
@@ -406,7 +416,7 @@ export function WorkspaceProvider({ children, projectId }) {
         const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
         const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
         const nextConflicts = scenario.resolvesConflictId
-          ? conflicts.filter((c) => c.id !== scenario.resolvesConflictId)
+          ? conflicts.map((c) => (c.id === scenario.resolvesConflictId ? { ...c, reviewStage: 'resolved' } : c))
           : conflicts
 
         setFileOverrides(nextFileOverrides)
@@ -524,7 +534,9 @@ export function WorkspaceProvider({ children, projectId }) {
     consoleEntries,
     conflicts,
     resolveConflict,
-    setConflictStage,
+    updateConflict,
+    reviewConflictId,
+    openConflictReview: setReviewConflictId,
     chatMessages,
     isAiTyping,
     sendChatMessage,

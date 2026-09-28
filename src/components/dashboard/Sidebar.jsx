@@ -9,9 +9,10 @@ import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
 import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
-import { projects } from '@/data/mockData'
+import { allConflictRecords, isOpen } from '@/lib/conflicts'
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
-const totalOpenConflicts = projects.reduce((sum, p) => sum + p.conflicts, 0)
+const totalOpenConflicts = allConflictRecords().filter(isOpen).length
 
 // The activity bar's global destinations: Home, Conflicts, Activity,
 // Team. Projects isn't in this list — its button (the project switcher)
@@ -32,7 +33,6 @@ export const navItems = [
     icon: GitBranch,
     path: '/conflicts',
     match: (pathname) => pathname.startsWith('/conflicts'),
-    badge: totalOpenConflicts,
   },
   {
     id: 'activity',
@@ -135,6 +135,10 @@ function ProjectsMark({ project }) {
 // its tone.
 function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onToggleDrawer, onToggleConflicts }) {
   const { pathname } = useLocation()
+  const workspace = useWorkspaceOptional()
+  // Inside a project, the live count of its open conflicts (the same list
+  // the drawer and the terminal show); elsewhere, every project's.
+  const openConflicts = workspace ? workspace.conflicts.filter(isOpen).length : totalOpenConflicts
   const current = activeNavItem(pathname)
   const archivePath = project ? `/projects/${project.id}/archive` : null
   const onArchive = !!archivePath && pathname.startsWith(archivePath)
@@ -182,7 +186,7 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
           <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
         </Tooltip>
 
-        {navItems.map(({ id, label, icon, path, badge }) => {
+        {navItems.map(({ id, label, icon, path }) => {
           // While the conflict list is up, Conflicts is the highlighted item.
           const isActive = id === 'conflicts' ? conflictsOpen || id === current.id : !conflictsOpen && id === current.id
           return (
@@ -193,8 +197,7 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
                 <RailButton
                   label={label}
                   icon={icon}
-                  // Inside a project, only that project's open conflicts.
-                  badge={project ? project.conflicts : badge}
+                  badge={openConflicts}
                   onClick={onToggleConflicts}
                   aria-expanded={conflictsOpen}
                   className={cn(isActive && activeClass)}
@@ -203,7 +206,6 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
                 <RailButton
                   label={label}
                   icon={icon}
-                  badge={badge}
                   render={<Link to={path} />}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(isActive && activeClass)}
@@ -375,7 +377,7 @@ function Sidebar({
               <>
                 <DrawerHeader title="Conflicts" onClose={onCloseDrawer} />
                 <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                  <ConflictsDrawer project={project} onNavigate={onCloseDrawer} />
+                  <ConflictsDrawer onNavigate={onCloseDrawer} />
                 </div>
               </>
             ) : (

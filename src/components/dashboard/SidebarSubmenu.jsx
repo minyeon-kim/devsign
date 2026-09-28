@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, Archive, ChevronRight, FileText, History, Users } from 'lucide-react'
+import { Archive, ChevronRight, FileText, History, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { activeNavItem } from '@/components/dashboard/Sidebar'
-import { activities, allPeople, projects, referenceDocs } from '@/data/mockData'
+import { allPeople, projects, referenceDocs } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // h-9 (not padding) so each row's pitch matches the top-level rows above.
@@ -50,20 +50,9 @@ function ProjectsMenu() {
   )
 }
 
-// Activity and Team stay primary-navigation only. Their filters — the
-// feed's type/project scope, the member list's team tabs — live in the
-// pages themselves (ActivityFilterBar, TeamPage's tabs), so the drawer
-// never grows into a long, overflowing list.
-function ActivityMenu({ pathname }) {
-  return (
-    <nav className="flex flex-col gap-1">
-      <NavRow to="/activity" active={pathname.startsWith('/activity')} icon={Activity} count={activities.length}>
-        All activity
-      </NavRow>
-    </nav>
-  )
-}
-
+// Team stays primary-navigation only. Its filters (the member list's
+// team tabs) live in the page itself, so the drawer never grows into a
+// long, overflowing list.
 function TeamMenu({ pathname }) {
   return (
     <nav className="flex flex-col gap-1">
@@ -74,11 +63,10 @@ function TeamMenu({ pathname }) {
   )
 }
 
-// Home and Conflicts have no sub-menu: their activity bar icons go
-// straight to the page, and the drawer stays hidden there.
+// Home, Activity and Conflicts have no sub-menu: their activity bar icons
+// go straight to the full page, and the drawer stays hidden there.
 const SECTION_MENUS = {
   projects: ProjectsMenu,
-  activity: ActivityMenu,
   team: TeamMenu,
 }
 
@@ -223,8 +211,7 @@ function ProjectMenu({ project, pathname }) {
 // or a project's back arrow + switcher — lives in Sidebar). It never
 // repeats the activity bar's global destinations: inside a project it's
 // that project's expandable Archive tree; elsewhere it's the sub-menu of the
-// active global section — Projects → each project, Activity → the feed,
-// Team → the member list.
+// active global section — Projects → each project, Team → the member list.
 export function hasSubmenu(project, pathname) {
   return !!project || !!SECTION_MENUS[activeNavItem(pathname).id]
 }
