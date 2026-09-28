@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { FLOATING_PANEL, FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
@@ -301,7 +302,12 @@ function RightFloatingBar() {
           maxHeight: expandedPanel ? expandedMaxHeight : undefined,
           borderRadius: boxRadius,
         }}
-        className="pointer-events-auto flex flex-col overflow-hidden border bg-card/90 shadow-lg backdrop-blur-md transition-[width,border-radius] duration-300 ease-in-out"
+        className={cn(
+          'pointer-events-auto flex flex-col overflow-hidden transition-[width,border-radius] duration-300 ease-in-out',
+          // Merge Studio's own surfaces: the glass pill while collapsed to
+          // its icon strip, the opaque panel once a panel is expanded.
+          expandedPanel ? FLOATING_PANEL : FLOATING_PILL
+        )}
       >
         {expandedPanel ? (
           <div className="flex min-h-0 flex-1 flex-col">
@@ -309,7 +315,7 @@ function RightFloatingBar() {
               onPointerDown={handleDragStart}
               onClickCapture={handleClickCapture}
               title="Drag to reposition"
-              className="flex shrink-0 cursor-grab items-center gap-1.5 border-b px-2.5"
+              className="flex shrink-0 cursor-grab items-center gap-1.5 px-2.5"
               style={{ height: HEADER_HEIGHT }}
             >
               {panelSwitcher.map(({ id, Icon, label }) => (

@@ -70,20 +70,15 @@ function RailButton({ label, icon: Icon, className, ...triggerProps }) {
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
 // route: the Devsign logo on top (the drawer's toggle), the four global
 // destinations, and Settings pinned to the bottom. Nothing contextual
-// ever lands here. Collapsed, it sits on the page's own deep background
-// with no edge; while the drawer is open it lifts onto the same elevated
-// `bg-sidebar` surface, so the two tiers read as one layered panel.
+// ever lands here. It always sits on the same elevated `bg-sidebar`
+// surface — open or collapsed — so toggling the drawer never shifts its
+// tone; the open drawer extends that same surface beside it.
 function ActivityBar({ drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
 
   return (
-    <div
-      className={cn(
-        'flex h-full w-12 shrink-0 flex-col gap-1 pb-2 transition-colors duration-200 ease-out motion-reduce:transition-none',
-        drawerOpen ? 'bg-sidebar' : 'bg-background'
-      )}
-    >
+    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <Tooltip>
           <TooltipTrigger

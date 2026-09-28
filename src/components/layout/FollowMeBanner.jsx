@@ -1,5 +1,6 @@
 import { Radio, UserRound, X } from 'lucide-react'
 import { cn } from 'cn'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { teamMembers } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -30,7 +31,7 @@ function FollowMeBanner() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[52px] z-50 flex justify-center">
-      <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border bg-card/95 py-1.5 pr-1.5 pl-3 text-xs shadow-xl shadow-black/20 backdrop-blur-md">
+      <div className={cn('pointer-events-auto flex items-center gap-2.5 rounded-full py-1.5 pr-1.5 pl-3 text-xs', FLOATING_PILL)}>
         {followingMe ? (
           <>
             <PulsingDot className="bg-primary" />

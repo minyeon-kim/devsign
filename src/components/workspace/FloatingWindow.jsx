@@ -1,14 +1,22 @@
 import { useRef } from 'react'
 import { Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
-import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
+import {
+  CATEGORY_TAB,
+  CATEGORY_TAB_ACTIVE,
+  CATEGORY_TAB_IDLE,
+  FLOATING_PANEL,
+  PANEL_RADIUS,
+} from '@/components/mergestudio/floatingStyles'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
 
 const DRAG_THRESHOLD = 4
 
 // One floating window over the canvas — the Merge Studio "card" visual
-// language (rounded-2xl, glass-free opaque panel, soft lifted shadow)
-// wrapping whatever dockview panel content is its active tab. `group` is
+// language (PANEL_RADIUS, the opaque FLOATING_PANEL surface, soft lifted
+// shadow) wrapping whatever dockview panel content is its active tab. Its
+// header matches Merge Studio's panels too: no divider or tinted bar, the
+// shared category-tab pills for tabs, and 28px round window controls. `group` is
 // the raw layout record from floatingDockApi's store (read fresh every
 // render, mutated imperatively by dockApi); `panelsById` resolves each of
 // its tab ids to `{ component, title, params }`. `components` maps a
@@ -79,14 +87,14 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
       {group.hideHeader ? (
         <div
           onPointerDown={beginDrag}
-          className="flex h-8 shrink-0 cursor-grab items-center gap-1.5 border-b border-white/10 bg-black/10 px-3 text-[11px] font-medium text-muted-foreground select-none active:cursor-grabbing"
+          className="flex h-10 shrink-0 cursor-grab items-center gap-1.5 px-4 text-xs font-medium text-slate-300 select-none active:cursor-grabbing"
         >
           {activePanel?.title}
         </div>
       ) : (
         <div
           onPointerDown={beginDrag}
-          className="flex h-9 shrink-0 cursor-grab items-center gap-0.5 overflow-x-auto border-b border-white/10 bg-black/20 px-1.5 active:cursor-grabbing"
+          className="flex h-11 shrink-0 cursor-grab items-center gap-1 overflow-x-auto px-2.5 active:cursor-grabbing"
         >
           {group.panelIds.map((pid) => {
             const p = panelsById[pid]
@@ -98,10 +106,7 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
                 key={pid}
                 type="button"
                 onClick={() => dockApi.setActiveTab(group.id, pid)}
-                className={cn(
-                  'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
-                  active ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:text-foreground'
-                )}
+                className={cn(CATEGORY_TAB, 'gap-1.5', active ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
               >
                 {Icon && <Icon className="size-3.5 shrink-0" />}
                 <span className="max-w-[140px] truncate">{p.title}</span>
@@ -113,17 +118,17 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
               type="button"
               title={isMaximized ? 'Restore' : 'Maximize'}
               onClick={() => (isMaximized ? activeHandle?.api.exitMaximized() : activeHandle?.api.maximize())}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+              className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
             >
-              {isMaximized ? <Minimize2 className="size-3" /> : <Maximize2 className="size-3" />}
+              {isMaximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             </button>
             <button
               type="button"
               title="Close"
               onClick={() => activeHandle?.api.close()}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+              className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-destructive/15 hover:text-destructive"
             >
-              <X className="size-3" />
+              <X className="size-3.5" />
             </button>
           </div>
         </div>

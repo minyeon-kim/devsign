@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Check, Copy, ScanEye, X } from 'lucide-react'
 import { cn } from 'cn'
-import { Button } from '@/components/ui/button'
+import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { canvasFrames, inspectorSpecsByType } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -66,23 +66,35 @@ function InspectorSidebar() {
   }
 
   return (
-    <div className="animate-in absolute inset-y-0 right-0 z-40 flex w-80 flex-col border-l bg-card shadow-2xl slide-in-from-right duration-200">
-      <div className="flex h-11 shrink-0 items-center justify-between border-b px-3">
-        <div className="flex items-center gap-1.5 text-xs font-medium">
-          <ScanEye className="size-3.5 text-primary" />
-          Inspect
-        </div>
-        <Button variant="ghost" size="icon-sm" onClick={() => setInspectorOpen(false)}>
-          <X className="size-3.5" />
-        </Button>
+    // Same shell as Merge Studio's right-hand drawers (MergeDrawer): a
+    // floating card inset from the edges and below the top pill row, with
+    // a borderless title bar — not a full-height docked sheet.
+    <div
+      className={cn(
+        'absolute top-[60px] right-4 bottom-4 z-40 flex w-80 max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        PANEL_RADIUS,
+        FLOATING_PANEL
+      )}
+    >
+      <div className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-5">
+        <ScanEye className="size-4 text-primary" />
+        <h2 className="text-sm font-semibold text-foreground">Inspect</h2>
+        <button
+          type="button"
+          onClick={() => setInspectorOpen(false)}
+          title="Close"
+          className="ml-auto flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
       </div>
 
       {!selected ? (
-        <div className="flex flex-1 items-center justify-center p-6 text-center text-xs text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center px-6 pb-6 text-center text-xs text-muted-foreground">
           Select a frame or shape on the Canvas to inspect its design spec.
         </div>
       ) : (
-        <div className="flex-1 space-y-5 overflow-auto p-3">
+        <div className="flex-1 space-y-5 overflow-auto px-5 pb-5">
           <div>
             <p className="text-sm font-medium">{selected.name}</p>
             <p className="text-[11px] text-muted-foreground capitalize">{selected.type}</p>

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Minus, Plus } from 'lucide-react'
+import { cn } from 'cn'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
 import LayersPanel from '@/components/dockview/panels/LayersPanel'
 import AssetsPanel from '@/components/dockview/panels/AssetsPanel'
@@ -174,29 +177,30 @@ function WorkspaceFloatingCanvas() {
         </div>
       </div>
 
-      {/* Bottom-right zoom pill, same family as Merge Studio's own —
+      {/* Bottom-right zoom pill — the same control as Merge Studio's own
+          (h-11 FLOATING_PILL, 32px round buttons, Minus/Plus icons) —
           right-20 (not right-3) so it clears ChatMorphWidget's collapsed
           bubble (48px + 16px margin, fixed to the same corner). */}
       <div
         data-zoom-control
-        className="absolute right-20 bottom-3 z-20 flex h-10 items-center gap-1.5 rounded-full border border-white/10 bg-card/90 px-2 text-sm shadow-lg backdrop-blur-md"
+        className={cn('absolute right-20 bottom-3 z-20 flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}
       >
         <button
           type="button"
           title="Zoom out"
           onClick={() => zoomBy(-ZOOM_STEP)}
-          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          −
+          <Minus className="size-4" />
         </button>
-        <span className="w-10 text-center text-xs tabular-nums text-muted-foreground">{Math.round(view.zoom)}%</span>
+        <span className="w-12 text-center text-sm tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
         <button
           type="button"
           title="Zoom in"
           onClick={() => zoomBy(ZOOM_STEP)}
-          className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          +
+          <Plus className="size-4" />
         </button>
       </div>
     </div>

@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { FLOATING_PANEL } from '@/components/mergestudio/floatingStyles'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -179,10 +180,10 @@ function ChatMorphWidget() {
           borderRadius: rect.radius,
         }}
         className={cn(
-          'fixed z-30 flex flex-col overflow-hidden shadow-xl transition-[left,top,width,height,border-radius] duration-300 ease-in-out',
-          open
-            ? 'border bg-card/98 backdrop-blur-sm'
-            : 'bg-primary text-primary-foreground shadow-primary/30'
+          'fixed z-30 flex flex-col overflow-hidden transition-[left,top,width,height,border-radius] duration-300 ease-in-out',
+          // Open, it's a Merge Studio panel (FLOATING_PANEL); collapsed,
+          // the primary-filled launcher bubble.
+          open ? FLOATING_PANEL : 'bg-primary text-primary-foreground shadow-xl shadow-primary/30'
         )}
       >
         {open ? (
@@ -190,7 +191,7 @@ function ChatMorphWidget() {
             <div
               onPointerDown={handleDragStart}
               title="Drag to reposition"
-              className="flex shrink-0 cursor-grab items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
+              className="flex shrink-0 cursor-grab items-center gap-1.5 px-3 py-2 active:cursor-grabbing"
             >
               <GripHorizontal className="size-3.5 text-muted-foreground/50" />
               <Sparkles className="size-4 text-primary" />
@@ -211,7 +212,7 @@ function ChatMorphWidget() {
 
             <AgentHistoryModal open={agentLogOpen} onOpenChange={setAgentLogOpen} />
 
-            <div className="flex shrink-0 flex-wrap gap-1.5 border-b px-3 py-2">
+            <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
               {chatSuggestions.map((suggestion) => {
                 const Icon = suggestionIcons[suggestion.iconName]
                 return (
