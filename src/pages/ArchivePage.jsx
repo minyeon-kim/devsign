@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RollbackHistoryList from '@/components/history/RollbackHistoryList'
+import HistoryCompare from '@/components/history/HistoryCompare'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allPeople, referenceDocs } from '@/data/mockData'
 
 const DOC_TONES = { design: 'bg-indigo-500', spec: 'bg-sky-500', doc: 'bg-emerald-500' }
@@ -36,11 +39,31 @@ function ReferenceDocCard({ doc }) {
   )
 }
 
+// Project-level History — this project's own saved versions, to compare
+// against the current one and restore — as opposed to the global Activity
+// feed, which aggregates what everyone did across every project. The
+// list selects; the pane beside it compares and restores.
+function HistoryTab({ highlightId }) {
+  const { activeHistoryId } = useWorkspace()
+  const [selectedId, setSelectedId] = useState(highlightId ?? activeHistoryId)
+
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(260px,340px)_1fr]">
+      <div className="flex min-h-0 flex-col overflow-y-auto pr-1">
+        <RollbackHistoryList highlightId={highlightId} selectedId={selectedId} onSelect={setSelectedId} />
+      </div>
+      <div className="min-h-[320px] lg:min-h-0">
+        <HistoryCompare entryId={selectedId} />
+      </div>
+    </div>
+  )
+}
+
 // Reads `project` from ProjectLayout's <Outlet context> (the shared
 // WorkspaceProvider ancestor is what lets the History tab reuse
 // RollbackHistoryList verbatim). `location.state` carries the deep-link
 // set by Workspace's SaveStatusIndicator — which tab to land on and which
-// record to scroll to/highlight.
+// record to preselect, scroll to and highlight.
 function ArchivePage() {
   const { project } = useOutletContext()
   const location = useLocation()
@@ -57,7 +80,9 @@ function ArchivePage() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden px-6 py-5">
-        <Tabs defaultValue={initialTab} className="flex h-full min-h-0 flex-col">
+        {/* Keyed by the navigation so a fresh deep-link re-applies its tab
+            and record even if Archive was already mounted. */}
+        <Tabs key={location.key} defaultValue={initialTab} className="flex h-full min-h-0 flex-col">
           <TabsList className="w-fit shrink-0">
             <TabsTrigger value="referenceDocs">Reference Docs</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -72,7 +97,10 @@ function ArchivePage() {
           </TabsContent>
 
           <TabsContent value="history" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
-            <RollbackHistoryList highlightId={highlightId} />
+            <p className="mb-3 shrink-0 text-xs text-muted-foreground">
+              Saved versions of {project.name}. Select one to compare it with the current version, then restore it if needed.
+            </p>
+            <HistoryTab highlightId={highlightId} />
           </TabsContent>
         </Tabs>
       </div>

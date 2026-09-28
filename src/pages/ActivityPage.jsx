@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Activity as ActivityIcon } from 'lucide-react'
+import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Activity as ActivityIcon, X } from 'lucide-react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import ActivityFilterBar from '@/components/activity/ActivityFilterBar'
@@ -8,14 +8,37 @@ import ActivityRow from '@/components/activity/ActivityRow'
 import ActivityOverview from '@/components/activity/ActivityOverview'
 import MostActiveProjects from '@/components/activity/MostActiveProjects'
 import StayInSync from '@/components/activity/StayInSync'
-import { activities, activityDateGroups } from '@/data/mockData'
+import { activities, activityDateGroups, projects } from '@/data/mockData'
 
+// The global feed — every project's activity in one place, as opposed to
+// a project's own Archive → History (that project's local change log,
+// with compare/restore). Filters live in the URL (`?type=`, `?project=`)
+// so the sidebar's Activity sub-menu and the pills here stay in sync.
 function ActivityPage() {
-  const [activeFilter, setActiveFilter] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeFilter = searchParams.get('type') ?? 'all'
+  const projectFilter = searchParams.get('project')
+  const filteredProject = projects.find((p) => p.id === projectFilter)
+
+  function updateParam(key, value) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (value) next.set(key, value)
+        else next.delete(key)
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  const setActiveFilter = (filterId) => updateParam('type', filterId === 'all' ? null : filterId)
 
   const groupedActivities = useMemo(() => {
-    const filtered =
-      activeFilter === 'all' ? activities : activities.filter((a) => a.type === activeFilter)
+    const filtered = activities.filter(
+      (a) =>
+        (activeFilter === 'all' || a.type === activeFilter) && (!projectFilter || a.projectId === projectFilter)
+    )
 
     return activityDateGroups
       .map((group) => ({
@@ -23,7 +46,7 @@ function ActivityPage() {
         items: filtered.filter((a) => a.dateGroup === group.id),
       }))
       .filter((group) => group.items.length > 0)
-  }, [activeFilter])
+  }, [activeFilter, projectFilter])
 
   return (
     <DashboardLayout
@@ -40,7 +63,22 @@ function ActivityPage() {
           <ArrowLeft className="size-3.5" />
         </Button>
         <ActivityIcon className="size-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold text-foreground">All activities</h1>
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">All activities</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            What your team is doing across every project. For one project&apos;s saved versions, open its Archive → History.
+          </p>
+        </div>
+        {filteredProject && (
+          <button
+            type="button"
+            onClick={() => updateParam('project', null)}
+            className="ml-auto flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
+          >
+            {filteredProject.name}
+            <X className="size-3 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       <ActivityFilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />

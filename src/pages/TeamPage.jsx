@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Archive, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Download, Lock, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { cn } from 'cn'
@@ -53,11 +53,16 @@ function TeamPage() {
   const [editingMember, setEditingMember] = useState(null)
   const [userModalKey, setUserModalKey] = useState(0)
 
+  // `?team=` comes from the sidebar's Team sub-menu.
+  const [searchParams] = useSearchParams()
+  const activeTeam = teams.find((team) => team.id === searchParams.get('team'))
+
   const visibleMembers = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const inTeam = activeTeam ? members.filter((m) => activeTeam.memberIds.includes(m.id)) : members
     let list = !q
-      ? members
-      : members.filter(
+      ? inTeam
+      : inTeam.filter(
           (m) =>
             m.name.toLowerCase().includes(q) || m.handle.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
         )
@@ -70,7 +75,7 @@ function TeamPage() {
       })
     }
     return list
-  }, [members, query, statusSort])
+  }, [activeTeam, members, query, statusSort])
 
   const allVisibleSelected = visibleMembers.length > 0 && visibleMembers.every((m) => selected.has(m.id))
 
@@ -154,8 +159,10 @@ function TeamPage() {
             <ArrowLeft className="size-3.5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Team members</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">People with access to your projects.</p>
+            <h1 className="text-xl font-semibold text-foreground">{activeTeam ? activeTeam.name : 'Team members'}</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {activeTeam ? `${activeTeam.memberIds.length} members of this team.` : 'People with access to your projects.'}
+            </p>
           </div>
         </div>
 

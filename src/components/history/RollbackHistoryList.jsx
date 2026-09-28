@@ -16,7 +16,10 @@ function EmptyState({ message }) {
 // The Stitch-style rollback timeline — shared by the "Agent Log" modal
 // (opened from Ask Devsign) and the right floating toolbar's History
 // flyout, so both surfaces stay in sync with a single implementation.
-function RollbackHistoryList({ onRollback, highlightId }) {
+// Passing `onSelect` switches a row click from rolling back immediately to
+// just selecting it (`selectedId`), for Archive's History tab, which
+// compares the selected version first and restores it explicitly.
+function RollbackHistoryList({ onRollback, highlightId, selectedId, onSelect }) {
   const {
     historyEntries,
     activeHistoryId,
@@ -38,6 +41,10 @@ function RollbackHistoryList({ onRollback, highlightId }) {
   }, [highlightId])
 
   function handleRollback(id) {
+    if (onSelect) {
+      onSelect(id)
+      return
+    }
     rollbackTo(id)
     onRollback?.(id)
   }
@@ -76,6 +83,7 @@ function RollbackHistoryList({ onRollback, highlightId }) {
             {active.map((entry) => {
               const isActive = entry.id === activeHistoryId
               const isHighlighted = entry.id === highlightId
+              const isSelected = onSelect && entry.id === selectedId
               return (
                 <div
                   key={entry.id}
@@ -97,10 +105,12 @@ function RollbackHistoryList({ onRollback, highlightId }) {
                   <button
                     type="button"
                     onClick={() => handleRollback(entry.id)}
+                    aria-pressed={onSelect ? isSelected : undefined}
                     className={cn(
                       'block w-full rounded-xl border py-2 pr-8 pl-2.5 text-left transition-colors group-hover:border-primary/40',
                       isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-background',
-                      isHighlighted && 'ring-2 ring-primary/60'
+                      isHighlighted && 'ring-2 ring-primary/60',
+                      isSelected && !isActive && 'border-foreground/30 bg-muted/60'
                     )}
                   >
                     <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
