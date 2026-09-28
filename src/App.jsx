@@ -23,14 +23,16 @@ function App() {
           <Route path="/projects/:projectId/workspace" element={<WorkspacePage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+
+        {/* Single global cursor overlay — mounted here (not inside the
+            workspace) so it stands in for the OS cursor, hidden site-wide
+            via index.css, on every page (dashboard/projects/team/...), not
+            just inside a project's workspace. Needs to be inside
+            BrowserRouter (not just anywhere in the tree) since it reads
+            the current route via useLocation(). */}
+        <LocalCursor />
       </BrowserRouter>
       <Toaster position="bottom-right" />
-
-      {/* Single global cursor overlay — mounted here (not inside the
-          workspace) so it stands in for the OS cursor, hidden site-wide via
-          index.css, on every page (dashboard/projects/team/...), not just
-          inside a project's workspace. */}
-      <LocalCursor />
     </TooltipProvider>
   )
 }

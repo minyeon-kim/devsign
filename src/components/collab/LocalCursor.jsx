@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Hand, Frame as FrameIcon, MessageSquarePlus, Square, Type } from 'lucide-react'
 import { cn } from 'cn'
 import { currentUser } from '@/data/mockData'
@@ -29,13 +30,17 @@ const toolCursorIcons = {
 function LocalCursor({ containerRef }) {
   const [pos, setPos] = useState(null)
   const [overCanvas, setOverCanvas] = useState(false)
-  // Optional: this cursor is also mounted globally (outside any project's
-  // workspace) so it can stand in for the hidden OS cursor on the
-  // dashboard/projects/team pages too — those have no WorkspaceProvider and
-  // simply get the plain arrow, since there's no Canvas tool to reflect.
-  const workspace = useWorkspaceOptional()
-  const inWorkspace = Boolean(workspace)
-  const canvasTool = workspace?.canvasTool
+  // This cursor is mounted globally in App.jsx (outside any project's
+  // WorkspaceProvider — see the comment below) so it can stand in for the
+  // hidden OS cursor on the dashboard/projects/team pages too, which means
+  // `useWorkspaceOptional()` alone can't tell it "is the workspace/Merge
+  // Studio active" — that context simply doesn't reach upward across the
+  // router. The route itself is the reliable signal instead; the workspace
+  // context (when present, e.g. the scoped instance inside EditorPanel) is
+  // still used for the live Canvas-tool glyph.
+  const location = useLocation()
+  const inWorkspace = location.pathname.includes('/workspace')
+  const canvasTool = useWorkspaceOptional()?.canvasTool
 
   useEffect(() => {
     const el = containerRef?.current ?? window
