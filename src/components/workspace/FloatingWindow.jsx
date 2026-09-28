@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
 import {
@@ -9,6 +9,7 @@ import {
   PANEL_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
+import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 
 const DRAG_THRESHOLD = 4
 
@@ -16,7 +17,10 @@ const DRAG_THRESHOLD = 4
 // language (PANEL_RADIUS, the opaque FLOATING_PANEL surface, soft lifted
 // shadow) wrapping whatever dockview panel content is its active tab. Its
 // header matches Merge Studio's panels too: no divider or tinted bar, the
-// shared category-tab pills for tabs, and 28px round window controls. `group` is
+// shared category-tab pills for tabs, and 28px round window controls. The
+// active panel can put its own toolbar on that same line (the editor's file
+// tabs, the canvas's page tabs) through the header slot, so a window has a
+// single header row rather than a title row plus a tab row. `group` is
 // the raw layout record from floatingDockApi's store (read fresh every
 // render, mutated imperatively by dockApi); `panelsById` resolves each of
 // its tab ids to `{ component, title, params }`. `components` maps a
@@ -24,6 +28,9 @@ const DRAG_THRESHOLD = 4
 // convention dockview used.
 function FloatingWindow({ group, panelsById, dockApi, components }) {
   const dragRef = useRef(null)
+  // The header's slot for the active panel's own toolbar (see
+  // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
+  const [headerSlot, setHeaderSlot] = useState(null)
 
   if (!group.open || group.panelIds.length === 0) return null
 
@@ -94,25 +101,31 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
       ) : (
         <div
           onPointerDown={beginDrag}
-          className="flex h-11 shrink-0 cursor-grab items-center gap-1 overflow-x-auto px-2.5 active:cursor-grabbing"
+          className="flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
         >
-          {group.panelIds.map((pid) => {
-            const p = panelsById[pid]
-            if (!p) return null
-            const Icon = PANEL_ICONS[p.params?.iconName]
-            const active = pid === group.activeId
-            return (
-              <button
-                key={pid}
-                type="button"
-                onClick={() => dockApi.setActiveTab(group.id, pid)}
-                className={cn(CATEGORY_TAB, 'gap-1.5', active ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
-              >
-                {Icon && <Icon className="size-3.5 shrink-0" />}
-                <span className="max-w-[140px] truncate">{p.title}</span>
-              </button>
-            )
-          })}
+          <div className="flex shrink-0 items-center gap-1">
+            {group.panelIds.map((pid) => {
+              const p = panelsById[pid]
+              if (!p) return null
+              const Icon = PANEL_ICONS[p.params?.iconName]
+              const active = pid === group.activeId
+              return (
+                <button
+                  key={pid}
+                  type="button"
+                  onClick={() => dockApi.setActiveTab(group.id, pid)}
+                  className={cn(CATEGORY_TAB, 'gap-1.5', active ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+                >
+                  {Icon && <Icon className="size-3.5 shrink-0" />}
+                  <span className="max-w-[140px] truncate">{p.title}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div
+            ref={setHeaderSlot}
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
+          />
           <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
             <button
               type="button"
@@ -135,7 +148,9 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
       )}
 
       <div className="min-h-0 flex-1 overflow-hidden bg-card">
-        {ActiveContent && <ActiveContent params={activePanel.params} />}
+        <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
+          {ActiveContent && <ActiveContent params={activePanel.params} />}
+        </WindowHeaderSlotContext.Provider>
       </div>
 
       {!isMaximized && (

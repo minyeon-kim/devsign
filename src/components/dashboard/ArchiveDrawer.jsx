@@ -1,157 +1,189 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, FileText, GitCommitHorizontal, History, Library, Palette } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { ChevronRight, FileText, GitCommitHorizontal, History, Library, Palette } from 'lucide-react'
 import { cn } from 'cn'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const rowClass =
-  'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 const itemClass =
-  'flex h-8 items-center gap-2 rounded-lg px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+  'flex h-8 min-w-0 items-center gap-2 rounded-lg px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 const activeClass = 'bg-muted text-foreground'
 
 const STAGE_DOT = { update: 'bg-amber-400', documented: 'bg-sky-400', archived: 'bg-emerald-400' }
 
-function Count({ value }) {
-  if (!value) return null
-  return <span className="ml-auto shrink-0 text-[11px] text-muted-foreground/70 tabular-nums">{value}</span>
-}
-
-// Which Archive section (and item) the current route shows, or null on
-// the Archive home / outside the Archive.
-function currentSection(location, archivePath) {
+// Which Archive section / item the current route shows (null outside it).
+function currentView(location, archivePath) {
   if (!location.pathname.startsWith(archivePath)) return null
   const state = location.state ?? {}
-  if (state.tab === 'history' || state.highlightId) return { id: 'history', itemId: state.highlightId }
-  if (state.tab === 'dsUpdates') return { id: 'dsUpdates' }
-  if (state.tab === 'referenceDocs' || state.docId) return { id: 'referenceDocs', itemId: state.docId }
-  return null
+  if (state.tab === 'history' || state.highlightId) return { section: 'history', itemId: state.highlightId }
+  if (state.tab === 'dsUpdates') return { section: 'dsUpdates' }
+  if (state.tab === 'referenceDocs' || state.docId) return { section: 'referenceDocs', itemId: state.docId }
+  return { section: null }
 }
 
-// "Back to Workspace", pinned at the top of the drawer on every level:
-// returns to the project's Workspace (and closes the drawer) from anywhere
-// in the Archive.
-function BackToWorkspace({ project, onDone }) {
-  const navigate = useNavigate()
+// One accordion section: the chevron expands / collapses its items in
+// place; the name opens the section's own view in the main area.
+function Section({ id, label, icon: Icon, count, open, onToggle, to, state, active, children }) {
   return (
-    <button
-      type="button"
-      onClick={() => {
-        navigate(`/projects/${project.id}/workspace`)
-        onDone?.()
-      }}
-      className="mb-3 flex h-9 w-full items-center gap-2 rounded-full bg-white/[0.05] px-3 text-[13px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
-    >
-      <ArrowLeft className="size-4 shrink-0" />
-      Back to Workspace
-    </button>
+    <div>
+      <div className={cn('group flex h-9 items-center rounded-lg transition-colors hover:bg-muted', active && activeClass)}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={`archive-${id}`}
+          aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
+          className="flex h-9 w-7 shrink-0 items-center justify-center rounded-l-lg text-muted-foreground/70 hover:text-foreground"
+        >
+          <ChevronRight className={cn('size-3.5 transition-transform duration-200 motion-reduce:transition-none', open && 'rotate-90')} />
+        </button>
+        <Link
+          to={to}
+          state={state}
+          replace={false}
+          aria-current={active ? 'page' : undefined}
+          className={cn(
+            'flex h-9 min-w-0 flex-1 items-center gap-2 pr-2.5 text-[13px] font-medium text-muted-foreground group-hover:text-foreground',
+            active && 'text-foreground'
+          )}
+        >
+          <Icon className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          {count > 0 && <span className="shrink-0 text-[11px] text-muted-foreground/70 tabular-nums">{count}</span>}
+        </Link>
+      </div>
+      <div
+        id={`archive-${id}`}
+        inert={!open}
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-0.5 mb-1 ml-[21px] flex flex-col gap-0.5 border-l border-white/[0.06] pl-2">{children}</div>
+        </div>
+      </div>
+    </div>
   )
 }
 
-// The drawer behind the activity bar's Archive icon, as two levels under
-// an always-visible "Back to Workspace":
-//   · the section list — Design System Updates, Reference Docs, History
-//     (pipeline order: a change → its documentation → where it's
-//     recorded); picking one opens it in the main area;
-//   · inside a section, an "Archive › Section" breadcrumb (Archive goes
-//     back to the section list and the Archive home) and the section's
-//     items (each doc / version / update) to move between them.
-function ArchiveDrawer({ project, onClose }) {
+// Archive views share one URL (the view is in `location.state`), and a Link
+// to the same URL replaces the history entry by default — `replace={false}`
+// makes each pick a real step, so the header's ‹ › move between them.
+//
+// The drawer behind the activity bar's Archive icon, as an accordion tree:
+// Design System Updates, Reference Docs and History each expand in place
+// to list their updates / docs / versions, instead of navigating into a
+// separate level. The section a route is showing starts expanded. Titles
+// and paths live only in the main area's header — the drawer carries no
+// breadcrumb — and moving back / forward is the drawer header's ‹ › icons.
+function ArchiveDrawer({ project }) {
   const location = useLocation()
   const { historyEntries, activeHistoryId, referenceDocs, dsUpdates } = useWorkspace()
   const archivePath = `/projects/${project.id}/archive`
-  const section = currentSection(location, archivePath)
+  const view = currentView(location, archivePath)
   const history = [...historyEntries].filter((e) => !e.archived).reverse()
-  const pendingUpdates = dsUpdates.filter((u) => u.stage !== 'archived').length
 
-  if (!section) {
-    return (
-      <nav aria-label="Archive" className="flex flex-col gap-1">
-        <BackToWorkspace project={project} onDone={onClose} />
-        {[
-          ['dsUpdates', 'Design System Updates', Palette, pendingUpdates],
-          ['referenceDocs', 'Reference Docs', Library, referenceDocs.length],
-          ['history', 'History', History, history.length],
-        ].map(([tab, label, Icon, count]) => (
-          <Link key={tab} to={archivePath} state={{ tab }} className={cn(rowClass, 'group')}>
-            <Icon className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{label}</span>
-            <Count value={count} />
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50 group-hover:text-foreground" />
-          </Link>
-        ))}
-      </nav>
-    )
+  const [open, setOpen] = useState(() => new Set([view?.section ?? 'referenceDocs']))
+  // Arriving on a section from elsewhere expands it too.
+  const [seenSection, setSeenSection] = useState(view?.section)
+  if (view?.section !== seenSection) {
+    setSeenSection(view?.section)
+    if (view?.section && !open.has(view.section)) setOpen((prev) => new Set(prev).add(view.section))
   }
 
-  const titles = { dsUpdates: 'Design System Updates', referenceDocs: 'Reference Docs', history: 'History' }
+  function toggle(id) {
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const sectionActive = (id) => view?.section === id && !view.itemId
 
   return (
-    <nav aria-label={titles[section.id]} className="flex flex-col gap-1 animate-in fade-in slide-in-from-right-1 duration-150 motion-reduce:animate-none">
-      <BackToWorkspace project={project} onDone={onClose} />
-      <p className="mb-1 flex h-7 items-center gap-1 px-2.5 text-[12px] text-muted-foreground">
-        <Link to={archivePath} className="rounded transition-colors hover:text-foreground">
-          Archive
-        </Link>
-        <ChevronRight className="size-3 text-muted-foreground/50" />
-        <span className="truncate text-foreground/80">{titles[section.id]}</span>
-      </p>
-
-      {/* The section itself — its index view in the main area. */}
-      <Link
+    <nav aria-label="Archive" className="flex flex-col gap-0.5 pb-2">
+      <Section
+        id="dsUpdates"
+        label="Design System Updates"
+        icon={Palette}
+        count={dsUpdates.filter((u) => u.stage !== 'archived').length}
+        open={open.has('dsUpdates')}
+        onToggle={() => toggle('dsUpdates')}
         to={archivePath}
-        state={{ tab: section.id }}
-        aria-current={!section.itemId ? 'page' : undefined}
-        className={cn(rowClass, 'text-foreground', !section.itemId && activeClass)}
+        state={{ tab: 'dsUpdates' }}
+        active={sectionActive('dsUpdates')}
       >
-        {section.id === 'dsUpdates' ? (
-          <Palette className="size-3.5 shrink-0" />
-        ) : section.id === 'history' ? (
-          <History className="size-3.5 shrink-0" />
-        ) : (
-          <Library className="size-3.5 shrink-0" />
-        )}
-        <span className="min-w-0 truncate">{titles[section.id]}</span>
-      </Link>
+        {dsUpdates.map((update) => (
+          <Link key={update.id} to={archivePath} replace={false} state={{ tab: 'dsUpdates' }} title={update.summary} className={itemClass}>
+            <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT[update.stage])} />
+            <span className="min-w-0 truncate">{update.title}</span>
+          </Link>
+        ))}
+      </Section>
 
-      <div className="ml-[17px] flex flex-col gap-0.5 border-l border-white/[0.06] pl-2">
-        {section.id === 'referenceDocs' &&
-          referenceDocs.map((doc) => (
+      <Section
+        id="referenceDocs"
+        label="Reference Docs"
+        icon={Library}
+        count={referenceDocs.length}
+        open={open.has('referenceDocs')}
+        onToggle={() => toggle('referenceDocs')}
+        to={archivePath}
+        state={{ tab: 'referenceDocs' }}
+        active={sectionActive('referenceDocs')}
+      >
+        {referenceDocs.map((doc) => {
+          const active = view?.section === 'referenceDocs' && view.itemId === doc.id
+          return (
             <Link
               key={doc.id}
               to={archivePath}
               state={{ tab: 'referenceDocs', docId: doc.id }}
-              aria-current={section.itemId === doc.id ? 'page' : undefined}
-              className={cn(itemClass, section.itemId === doc.id && activeClass)}
+              replace={false}
+              aria-current={active ? 'page' : undefined}
+              title={doc.title}
+              className={cn(itemClass, active && activeClass)}
             >
               <FileText className="size-3.5 shrink-0" />
               <span className="min-w-0 truncate">{doc.title}</span>
             </Link>
-          ))}
+          )
+        })}
+      </Section>
 
-        {section.id === 'history' &&
-          history.map((entry) => (
+      <Section
+        id="history"
+        label="History"
+        icon={History}
+        count={history.length}
+        open={open.has('history')}
+        onToggle={() => toggle('history')}
+        to={archivePath}
+        state={{ tab: 'history' }}
+        active={sectionActive('history')}
+      >
+        {history.map((entry) => {
+          const active = view?.section === 'history' && view.itemId === entry.id
+          return (
             <Link
               key={entry.id}
               to={archivePath}
               state={{ tab: 'history', highlightId: entry.id }}
-              aria-current={section.itemId === entry.id ? 'page' : undefined}
+              replace={false}
+              aria-current={active ? 'page' : undefined}
               title={`${entry.label} · ${entry.timestamp}`}
-              className={cn(itemClass, section.itemId === entry.id && activeClass)}
+              className={cn(itemClass, active && activeClass)}
             >
               <GitCommitHorizontal className="size-3.5 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{entry.label}</span>
               {entry.id === activeHistoryId && <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Current" />}
             </Link>
-          ))}
-
-        {section.id === 'dsUpdates' &&
-          dsUpdates.map((update) => (
-            <div key={update.id} className={itemClass} title={update.summary}>
-              <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT[update.stage])} />
-              <span className="min-w-0 truncate">{update.title}</span>
-            </div>
-          ))}
-      </div>
+          )
+        })}
+      </Section>
     </nav>
   )
 }

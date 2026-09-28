@@ -8,6 +8,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import { RemoteCaretsOnLine, useRemoteCaretLines } from '@/components/collab/RemoteCarets'
 import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
+import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -263,10 +264,12 @@ function EditorPanel() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-card font-mono">
-      <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
+      {/* File tabs sit on the window's title line, right after "Code Editor"
+          (see WindowHeaderSlot). */}
+      <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
+        <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
         {/* The file tree lives in the floating Files / Layers window. */}
         <FilesLayersButton tab="files" icon={Files} label="Files" />
-        <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
         {workspaceFiles.map((file) => {
           const name = getFileName(file.id)
           const { Icon, colorClass } = getFileIconMeta(name)
@@ -288,7 +291,7 @@ function EditorPanel() {
             </button>
           )
         })}
-      </div>
+      </WindowHeaderPortal>
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

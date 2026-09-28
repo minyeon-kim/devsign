@@ -1847,6 +1847,52 @@ export const initialHistoryEntries = [
   },
 ]
 
+// Older saved versions, so History has a realistic length — long enough to
+// scroll. They restore the same state as the first seed entry.
+const OLDER_HISTORY = [
+  ['Set up the project and design tokens', null, 'Mar 2, 9:14 AM'],
+  ['Added the color palette tokens', 'Add the brand palette as CSS variables', 'Mar 2, 11:02 AM'],
+  ['Imported the type scale from Figma', null, 'Mar 3, 10:20 AM'],
+  ['Created Button with primary and ghost variants', 'Create a Button with primary and ghost variants', 'Mar 3, 2:45 PM'],
+  ['Button sizes sm / md / lg', null, 'Mar 4, 9:30 AM'],
+  ['Input component with label and helper text', 'Build an Input with label and helper text', 'Mar 4, 4:12 PM'],
+  ['Card component and elevation tokens', null, 'Mar 5, 11:48 AM'],
+  ['Merged feature/card-radius into main', null, 'Mar 6, 3:05 PM'],
+  ['Replaced hard-coded grays with surface tokens', 'Replace hard-coded grays with surface tokens', 'Mar 7, 10:31 AM'],
+  ['Focus rings on every interactive component', null, 'Mar 7, 5:18 PM'],
+  ['Status chip and badge variants', 'Add status chip variants: new, active, archived', 'Mar 9, 9:52 AM'],
+  ['Navigation bar for the mobile frame', null, 'Mar 9, 1:40 PM'],
+  ['Tab bar with active indicator', 'Add a bottom tab bar with an active indicator', 'Mar 10, 10:05 AM'],
+  ['Rolled back the tab bar animation', null, 'Mar 10, 2:22 PM'],
+  ['Toggle switch with keyboard support', null, 'Mar 11, 11:17 AM'],
+  ['Avatar and avatar group components', 'Create Avatar and AvatarGroup', 'Mar 12, 9:40 AM'],
+  ['Dashboard card chart placeholder', null, 'Mar 12, 4:03 PM'],
+  ['Spacing pass on the mobile frame (4/8 scale)', 'Align the mobile frame spacing to the 8px scale', 'Mar 13, 10:26 AM'],
+  ['Resolved merge conflict in DesignCanvas.jsx', null, 'Mar 14, 3:47 PM'],
+  ['Dark mode surface steps', null, 'Mar 16, 9:08 AM'],
+  ['Primary color moved to the brand token', 'Point --primary at the brand token', 'Mar 17, 11:55 AM'],
+  ['Search input with icon slot', null, 'Mar 18, 2:14 PM'],
+  ['Email input and validation states', 'Add validation states to the email input', 'Mar 19, 10:39 AM'],
+  ['Follow chip and meta text on cards', null, 'Mar 20, 4:28 PM'],
+  ['Merged design-system-v2 into release/1.4', null, 'Mar 21, 6:02 PM'],
+  ['Hero card layout for the landing page with gradient background and chart', 'Lay out the hero card with a gradient and a chart', 'Mar 23, 9:47 AM'],
+  ['Cleanup: removed unused tokens and dead styles', null, 'Mar 24, 1:11 PM'],
+  ['Accessibility pass: labels and contrast', 'Fix missing labels and contrast issues', 'Mar 25, 10:58 AM'],
+  ['Prepared the canvas scaffold', null, 'Last week, 3:30 PM'],
+  ['Scaffold review with the team', null, 'Last week, 5:12 PM'],
+]
+
+initialHistoryEntries.unshift(
+  ...OLDER_HISTORY.map(([label, prompt, timestamp], i) => ({
+    id: `history-older-${i + 1}`,
+    label,
+    ...(prompt && { prompt }),
+    timestamp,
+    archived: false,
+    snapshot: initialHistoryEntries[0].snapshot,
+  }))
+)
+
 // Archive's reference docs — illustrative mock content (no editing or
 // versioning behavior). `type` picks an icon/tone locally; `blocks` is the
 // doc body as structured blocks the Archive doc view renders directly
@@ -2080,6 +2126,48 @@ export const referenceDocs = [
     ],
   },
 ]
+
+// More Reference Docs, so the Archive's lists have a realistic length —
+// long enough to scroll, with titles long enough to truncate.
+const MORE_REFERENCE_DOCS = [
+  ['doc-color-tokens', 'Color tokens and semantic aliases', 'design', 'Every color token, what it maps to, and when to use the semantic alias instead.', 'min', '4 days ago'],
+  ['doc-type-scale', 'Type scale', 'design', 'Font sizes, line heights and weights for UI and long-form text.', 'min', '5 days ago'],
+  ['doc-spacing', 'Spacing and layout grid', 'design', 'The 4/8 spacing scale, container widths and breakpoints.', 'jane', '1 week ago'],
+  ['doc-motion', 'Motion principles', 'design', 'Durations, easing curves and when not to animate at all.', 'jane', '1 week ago'],
+  ['doc-iconography', 'Iconography guidelines for product surfaces and marketing', 'design', 'Stroke width, sizes, optical alignment and naming for the icon set.', 'min', '2 weeks ago'],
+  ['doc-button-spec', 'Button component spec', 'spec', 'Variants, sizes, states and the props contract for Button.', 'james', '2 days ago'],
+  ['doc-input-spec', 'Input and form field spec', 'spec', 'Labels, helper text, validation states and focus handling.', 'james', '3 days ago'],
+  ['doc-card-spec', 'Card component spec', 'spec', 'Padding, radius, elevation and content slots for Card.', 'james', '6 days ago'],
+  ['doc-modal-spec', 'Dialog and floating window behaviour', 'spec', 'Modal vs. non-modal, focus trapping, dismissal and stacking.', 'james', '1 week ago'],
+  ['doc-a11y', 'Accessibility checklist for every release', 'doc', 'Contrast, keyboard paths, focus order and screen reader labels to verify before shipping.', 'jane', '1 week ago'],
+  ['doc-release', 'Release process', 'doc', 'Branching, review sign-off, merge windows and rollback.', 'james', '2 weeks ago'],
+  ['doc-review', 'Design review rituals', 'doc', 'How and when design reviews happen, and who signs off.', 'min', '2 weeks ago'],
+  ['doc-naming', 'Naming conventions: components, tokens, files and Figma layers', 'doc', 'One naming scheme across code and design so layers map to components.', 'jane', '3 weeks ago'],
+  ['doc-handoff', 'Design → code handoff', 'doc', 'What a frame needs before it is ready for implementation.', 'min', '3 weeks ago'],
+  ['doc-api-errors', 'API error codes', 'spec', 'Every error the payments API returns and the copy we show for it.', 'james', '1 month ago'],
+  ['doc-analytics', 'Analytics events', 'spec', 'Event names, properties and where each one fires.', 'james', '1 month ago'],
+  ['doc-copy', 'Voice and tone', 'design', 'Writing UI copy: sentence case, verbs first, no jargon.', 'min', '1 month ago'],
+  ['doc-dark-mode', 'Dark mode surfaces and elevation', 'design', 'Surface steps, borders and shadows in the dark theme.', 'jane', '1 month ago'],
+]
+
+referenceDocs.push(
+  ...MORE_REFERENCE_DOCS.map(([id, title, type, summary, authorId, updatedAtLabel]) => ({
+    id,
+    title,
+    type,
+    summary,
+    authorId,
+    updatedAtLabel,
+    blocks: [
+      { type: 'p', text: summary },
+      { type: 'h2', id: 'overview', text: 'Overview' },
+      {
+        type: 'p',
+        text: 'This page is the source of truth for the topic above. Changes go through a Design System Update so they are documented here and recorded in History.',
+      },
+    ],
+  }))
+)
 
 // Figma-style tool picker shown in the pill toolbar docked at the bottom of
 // the Canvas panel. `iconName` is resolved to a lucide component locally.

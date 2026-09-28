@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, Archive, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, Archive, ChevronLeft, ChevronRight, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -158,6 +158,32 @@ function CloseButton({ onClose }) {
   )
 }
 
+// Claude-style back / forward icons in the drawer header — through the
+// browser history, so ‹ from anywhere in the Archive returns to where you
+// came from (e.g. the Workspace), and › goes forward again.
+function HistoryNavButtons() {
+  const navigate = useNavigate()
+  useLocation() // re-render on every navigation so the enabled states stay current
+  // Only enabled when there's somewhere to go inside the app — never back
+  // out of it: Back uses react-router's own history index (0 = the first
+  // page of this visit); Forward asks the Navigation API where supported.
+  const canGoBack = (window.history.state?.idx ?? 0) > 0
+  const canGoForward = window.navigation?.canGoForward ?? true
+
+  const buttonClass =
+    'flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35'
+  return (
+    <div className="flex shrink-0 items-center">
+      <button type="button" title="Back" aria-label="Back" disabled={!canGoBack} onClick={() => navigate(-1)} className={buttonClass}>
+        <ChevronLeft className="size-4" />
+      </button>
+      <button type="button" title="Forward" aria-label="Forward" disabled={!canGoForward} onClick={() => navigate(1)} className={buttonClass}>
+        <ChevronRight className="size-4" />
+      </button>
+    </div>
+  )
+}
+
 const DRAWER_TITLES = { archive: 'Archive' }
 
 // The app's navigation: the always-slim ActivityBar, and beside it a
@@ -187,14 +213,15 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
           className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
         >
-          <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
+          <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
             </p>
+            <HistoryNavButtons />
             <CloseButton onClose={onCloseDrawer} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
-            {panel === 'archive' && project && <ArchiveDrawer project={project} onClose={onCloseDrawer} />}
+            {panel === 'archive' && project && <ArchiveDrawer project={project} />}
           </div>
         </aside>
       </div>

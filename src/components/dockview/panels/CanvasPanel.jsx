@@ -20,6 +20,7 @@ import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
 import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
+import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 200
@@ -97,33 +98,32 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // The Layers button (opening the floating Files / Layers window) leads the
 // row, the same place the editor keeps its Files button.
 function PageTabs({ activePageId, onSelectPage }) {
+  // On the window's title line (see WindowHeaderSlot), right after "Canvas".
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2 font-sans">
+    <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2">
+      <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
       {/* The layer tree lives in the floating Files / Layers window. */}
       <FilesLayersButton tab="layers" icon={LayersIcon} label="Layers" />
-      <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-        {canvasPages.map((page) => {
-          const active = activePageId === page.id
-          return (
-            <button
-              key={page.id}
-              type="button"
-              onClick={() => onSelectPage(page.id)}
-              className={cn(
-                'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
-                active
-                  ? 'bg-muted text-foreground ring-1 ring-border'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-              )}
-            >
-              <FileImage className={cn('size-3.5 shrink-0', active ? 'text-primary' : '')} />
-              {page.name}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+      {canvasPages.map((page) => {
+        const active = activePageId === page.id
+        return (
+          <button
+            key={page.id}
+            type="button"
+            onClick={() => onSelectPage(page.id)}
+            className={cn(
+              'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
+              active
+                ? 'bg-muted text-foreground ring-1 ring-border'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+            )}
+          >
+            <FileImage className={cn('size-3.5 shrink-0', active ? 'text-primary' : '')} />
+            {page.name}
+          </button>
+        )
+      })}
+    </WindowHeaderPortal>
   )
 }
 
