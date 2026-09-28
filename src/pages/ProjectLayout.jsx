@@ -1,6 +1,5 @@
 import { Navigate, Outlet, useParams } from 'react-router-dom'
-import Sidebar from '@/components/dashboard/Sidebar'
-import SidebarSecondary from '@/components/dashboard/SidebarSecondary'
+import AppShell from '@/components/dashboard/AppShell'
 import { WorkspaceProvider } from '@/state/WorkspaceProvider'
 import { projects } from '@/data/mockData'
 
@@ -8,8 +7,10 @@ import { projects } from '@/data/mockData'
 // resolves :projectId once, mounts a single WorkspaceProvider so both
 // child routes read/write the same live state (needed for the Archive
 // history deep-link to actually land on real data), and renders the same
-// icon rail + project-context secondary sidebar around whichever child
-// route is active.
+// icon rail + collapsible project-context drawer (AppShell) around
+// whichever child route is active. No global top bar here: Workspace
+// brings its own floating TopBar pills (project name, file search,
+// layout/preview actions) and a second search bar above it would clash.
 function ProjectLayout() {
   const { projectId } = useParams()
   const project = projects.find((p) => p.id === projectId)
@@ -20,13 +21,9 @@ function ProjectLayout() {
 
   return (
     <WorkspaceProvider key={projectId} projectId={project.id}>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <SidebarSecondary project={project} />
-        <div className="relative min-w-0 flex-1 overflow-hidden">
-          <Outlet context={{ project }} />
-        </div>
-      </div>
+      <AppShell project={project}>
+        <Outlet context={{ project }} />
+      </AppShell>
     </WorkspaceProvider>
   )
 }

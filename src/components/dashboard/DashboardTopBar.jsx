@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Bell, ChevronDown, File, Folder, Search, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
+import Logo from '@/components/layout/Logo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,9 @@ const recentNotifications = activities.slice(0, 4)
 // The dashboard's own top bar — distinct from the in-workspace `TopBar`
 // (src/components/layout/TopBar.jsx). Search/notifications/profile are
 // all wired to mock data + local state; nothing here touches a backend.
+// AppShell renders it as the outermost full-width layer, so it also
+// carries the brand mark the icon rail used to hold — `pl-3.5` centers
+// the 20px mark over the 48px rail below it.
 function DashboardTopBar() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -54,8 +58,12 @@ function DashboardTopBar() {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card/60 px-6">
-      <div className="flex-1" />
+    <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-card pr-6 pl-3.5">
+      <div className="flex flex-1 items-center">
+        <Link to="/dashboard" aria-label="Home" className="rounded-md">
+          <Logo />
+        </Link>
+      </div>
 
       {/* Splitting the flanking space 50/50 puts the search box at the
           header's exact geometric center, but the right cluster's own

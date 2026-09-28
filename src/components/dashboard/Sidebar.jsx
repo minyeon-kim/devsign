@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, FolderKanban, LayoutDashboard, Settings, Users } from 'lucide-react'
+import { Activity, FolderKanban, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Logo from '@/components/layout/Logo'
@@ -22,14 +22,34 @@ const iconButtonClass =
 // not a saturated blue fill — the icon itself stays close to neutral.
 const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
 
-function Sidebar() {
+// Permanently docked — only the labeled drawer beside it (see AppShell)
+// collapses. The drawer toggle is the rail's first control so it stays
+// reachable in both states. The Logo only appears here when there's no
+// full-width top bar above the rail to carry it (a project's routes).
+function Sidebar({ showLogo = false, drawerOpen = true, onToggleDrawer }) {
   const { pathname } = useLocation()
+  const ToggleIcon = drawerOpen ? PanelLeftClose : PanelLeftOpen
+  const toggleLabel = drawerOpen ? 'Collapse sidebar' : 'Expand sidebar'
 
   return (
-    <aside className="flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
-      <div className="mb-1 flex size-9 items-center justify-center">
-        <Logo iconOnly />
-      </div>
+    <aside className="z-10 flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">
+      {showLogo && (
+        <div className="mb-1 flex size-9 items-center justify-center">
+          <Logo iconOnly />
+        </div>
+      )}
+
+      <Tooltip>
+        <TooltipTrigger
+          onClick={onToggleDrawer}
+          aria-expanded={drawerOpen}
+          aria-label={toggleLabel}
+          className={cn(iconButtonClass, 'mb-1')}
+        >
+          <ToggleIcon className="size-[18px]" />
+        </TooltipTrigger>
+        <TooltipContent side="right">{toggleLabel}</TooltipContent>
+      </Tooltip>
 
       <nav className="flex flex-col items-center gap-1">
         {navItems.map(({ id, label, icon: Icon, path }) => {
