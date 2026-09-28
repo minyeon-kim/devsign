@@ -28,7 +28,7 @@ function EditorMinimap({ lines, language, viewport, onJump }) {
 
   return (
     // No border or distinct background here on purpose — it sits directly on
-    // the editor's own bg-background so it reads as part of the same surface,
+    // the editor's own surface (bg-card) so it reads as part of it,
     // the way VS Code's minimap does, rather than a separate side panel.
     <div
       ref={trackRef}

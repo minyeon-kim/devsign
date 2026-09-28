@@ -232,7 +232,7 @@ function EditorPanel() {
   }
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background font-mono">
+    <div className="flex h-full min-w-0 flex-col bg-card font-mono">
       <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
         <ContainerDrawerToggle
           open={explorerOpen}
@@ -333,7 +333,7 @@ function EditorPanel() {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
               }}
               spellCheck={false}
-              className="min-h-0 flex-1 resize-none bg-background px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
+              className="min-h-0 flex-1 resize-none bg-card px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
             />
           ) : (
             <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1">

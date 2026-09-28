@@ -211,7 +211,7 @@ function InboxItem({ n, onJump }) {
             </button>
           </div>
           {emojiOpen && (
-            <div className="absolute right-16 bottom-full z-10 mb-2 flex gap-0.5 rounded-full border border-white/10 bg-[#1c1c1f] p-1 shadow-xl shadow-black/50">
+            <div className="absolute right-16 bottom-full z-10 mb-2 flex gap-0.5 rounded-full border border-white/10 bg-popover p-1 shadow-xl shadow-black/50">
               {EMOJI.map((e) => (
                 <button
                   key={e}

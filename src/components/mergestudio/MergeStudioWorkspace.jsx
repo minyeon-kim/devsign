@@ -615,13 +615,13 @@ function MergeStudioWorkspace({ item }) {
         </div>
       ) : (
         // Nothing is auto-selected — but the empty state is the same canvas
-        // surface as MergeInfiniteCanvas (bg-slate-800 + its dot grid at
+        // surface as MergeInfiniteCanvas (bg-background + its dot grid at
         // 100% zoom), so selecting an item just fills the canvas in rather
         // than swapping a flat placeholder for a whole new background. The
         // "pick an item" guidance is the onboarding guide's job (MergeGuide),
         // keeping the canvas clean.
         <div
-          className="min-h-0 flex-1 bg-slate-800"
+          className="min-h-0 flex-1 bg-background"
           style={{
             backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
             backgroundSize: '18px 18px',

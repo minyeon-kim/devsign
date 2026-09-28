@@ -164,7 +164,7 @@ function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, onLiveLine, fi
   return (
     <div
       data-code-scroll
-      className="relative min-h-0 flex-1 overflow-auto bg-slate-900 font-mono text-[11px] leading-relaxed"
+      className="relative min-h-0 flex-1 overflow-auto bg-card font-mono text-[11px] leading-relaxed"
     >
       <div className="py-2">
         {lines.map((line, i) => {
@@ -325,12 +325,12 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, rev
     <div
       ref={rootRef}
       data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg will-change-transform active:cursor-grabbing"
+      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border border-white/10 bg-card shadow-lg will-change-transform active:cursor-grabbing"
       style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-slate-950 px-1.5 pt-1.5">
+      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-background px-1.5 pt-1.5">
         {files.map((file) => {
           const meta = getFileIconMeta(file.name)
           const active = file.id === activeFile.id
@@ -341,7 +341,7 @@ function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, rev
               onClick={() => setActiveFileId(file.id)}
               className={cn(
                 'flex shrink-0 items-center justify-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
-                active ? 'bg-slate-900 text-foreground' : 'text-muted-foreground hover:text-foreground'
+                active ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <meta.Icon className="size-3 shrink-0 text-slate-400" />
@@ -2286,11 +2286,10 @@ function MergeInfiniteCanvas({
   }, [summaryOpen])
 
   return (
-    // `bg-slate-800`, not the shared `bg-card` token — a dedicated, slightly
-    // brighter/airier tone for just the canvas surface (vs. the darker
-    // `bg-card`/`bg-slate-900` still used by panels and the code window),
-    // so the whole app's other dark surfaces are untouched.
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-800">
+    // The shared deep canvas tone (`bg-background`), same as the
+    // Workspace canvas — panels and the code window float above it on the
+    // shared surface tone (`bg-card`).
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         {/* Hand tool: a pan surface over the whole canvas (floating
             controls sit above it at z-20 and stay clickable). */}

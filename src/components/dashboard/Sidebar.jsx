@@ -107,9 +107,10 @@ function ProjectsMark({ project }) {
 //      default view and needs no icon) — then a hairline;
 //   5. the secondary global items, Activity and Team;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
-// It always sits on the page's own deep `bg-background` — open or
-// collapsed, dashboard or project — so it's seamless with the canvas
-// beside it and toggling the drawer never shifts its tone.
+// It always sits on the shared surface tone (`bg-sidebar`, the same as
+// every panel and window) one step above the deeper canvas — open or
+// collapsed, dashboard or project — so toggling the drawer never shifts
+// its tone.
 function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
@@ -119,7 +120,7 @@ function ActivityBar({ project, drawerOpen, onToggleDrawer }) {
   const inProjects = current.id === 'projects' && !onArchive
 
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
+    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <Tooltip>
           <TooltipTrigger
@@ -253,9 +254,9 @@ function DrawerHeader({ project, onClose }) {
 // its content keeps a fixed w-68 so nothing re-wraps mid-animation) to
 // show what belongs to the current view — a project's switcher and
 // Workspace/Archive, or the active section's sub-menu. Global and
-// contextual items never share a column. Everything shares the page's
-// one deep background tone; faint hairlines on either side of the drawer
-// mark where one tier ends and the next begins.
+// contextual items never share a column. Both tiers share the surface
+// tone (`bg-sidebar`) over the deeper canvas; faint hairlines on either
+// side of the drawer mark where one tier ends and the next begins.
 // The activity bar's logo toggles the drawer, the drawer's own close
 // button closes it, and ⌘B toggles it too.
 //
@@ -293,7 +294,7 @@ function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
       >
         <aside
           aria-label={project ? `${project.name} navigation` : 'Section navigation'}
-          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-background pb-2"
+          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
         >
           <div
             className={cn(

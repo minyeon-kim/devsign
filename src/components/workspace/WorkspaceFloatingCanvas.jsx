@@ -151,7 +151,10 @@ function WorkspaceFloatingCanvas() {
   const groups = Object.values(store.groups)
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-slate-800">
+    // The shared deep canvas tone (`bg-background`) — the same as Merge
+    // Studio's canvas — with the windows floating above it on the shared
+    // surface tone.
+    <div className="absolute inset-0 overflow-hidden bg-background">
       <div
         ref={viewportRef}
         onPointerDown={startPan}

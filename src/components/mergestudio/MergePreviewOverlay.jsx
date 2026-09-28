@@ -15,7 +15,8 @@ const DEVICES = [
   { id: 'desktop', label: 'Desktop', icon: Monitor, w: 1440, h: 900, bezel: 6, radius: 14 },
 ]
 // The same surface + dot grid as the main Merge Studio canvas (its canvas
-// area is `bg-slate-800` with this grid — see MergeInfiniteCanvas).
+// area is the shared deep `bg-background` with this grid — see
+// MergeInfiniteCanvas).
 const CANVAS_GRID = {
   backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
   backgroundSize: '18px 18px',
@@ -109,7 +110,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
   const selected = frame?.layers.find((l) => l.id === selectedId)
 
   return (
-    <div ref={stageRef} className="absolute inset-0 z-40 overflow-hidden bg-slate-800" style={CANVAS_GRID}>
+    <div ref={stageRef} className="absolute inset-0 z-40 overflow-hidden bg-background" style={CANVAS_GRID}>
       {/* Floating header island: three groups — version | device |
           utilities — each on its own track, split by dividers. */}
       <div
@@ -168,7 +169,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
           <div className="absolute inset-x-0 flex items-center justify-center" style={{ top: INSET.top, bottom: INSET.bottom }}>
             <div style={{ width: outerW * scale, height: outerH * scale }} className="transition-[width,height] duration-300 ease-out">
               <div
-                className="overflow-hidden bg-[#141417] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.85),0_12px_32px_-12px_rgba(0,0,0,0.6)] ring-1 ring-white/[0.08]"
+                className="overflow-hidden bg-card shadow-[0_40px_100px_-30px_rgba(0,0,0,0.85),0_12px_32px_-12px_rgba(0,0,0,0.6)] ring-1 ring-white/[0.08]"
                 style={{ width: outerW, height: outerH, padding: dev.bezel, borderRadius: dev.radius, transform: `scale(${scale})`, transformOrigin: 'top left' }}
               >
                 <div

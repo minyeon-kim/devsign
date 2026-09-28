@@ -435,7 +435,7 @@ function CanvasPanel() {
   )
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background">
+    <div className="flex h-full min-w-0 flex-col bg-card">
       <PageTabs
         activePageId={activePage?.id}
         onSelectPage={handleSelectPage}

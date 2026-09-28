@@ -74,7 +74,7 @@ function LayerInspectPanel({ params }) {
   const Icon = kindIcons[node.kind] ?? Group
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-background p-4">
+    <div className="flex h-full flex-col overflow-auto bg-card p-4">
       <div className="mb-3 flex items-center gap-1 text-[11px] text-muted-foreground">
         <span>{page.name}</span>
         <ChevronRight className="size-3" />
