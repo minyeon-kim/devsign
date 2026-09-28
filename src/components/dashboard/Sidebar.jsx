@@ -9,7 +9,7 @@ import Logo from '@/components/layout/Logo'
 // workspace chrome read as one product. Shared with SidebarSecondary so
 // the icon rail and the labeled panel next to it never drift apart.
 export const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'projects', label: 'Projects', icon: FolderKanban, path: '/projects' },
   { id: 'activity', label: 'Activity', icon: Activity, path: '/activity' },
   { id: 'team', label: 'Team', icon: Users, path: '/team' },

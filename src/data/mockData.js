@@ -1724,6 +1724,32 @@ export const initialHistoryEntries = [
   },
 ]
 
+// Archive page's "Reference Docs" tab — purely illustrative placeholder
+// content (no editing/versioning behavior), `type` picks an icon locally.
+export const referenceDocs = [
+  {
+    id: 'doc-brand-guidelines',
+    title: 'Brand Guidelines',
+    authorId: 'min',
+    updatedAtLabel: '3 days ago',
+    type: 'design',
+  },
+  {
+    id: 'doc-api-contract',
+    title: 'API Contract Notes',
+    authorId: 'james',
+    updatedAtLabel: '1 week ago',
+    type: 'spec',
+  },
+  {
+    id: 'doc-onboarding',
+    title: 'Project Onboarding',
+    authorId: 'jane',
+    updatedAtLabel: '2 weeks ago',
+    type: 'doc',
+  },
+]
+
 // Figma-style tool picker shown in the pill toolbar docked at the bottom of
 // the Canvas panel. `iconName` is resolved to a lucide component locally.
 export const canvasTools = [

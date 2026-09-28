@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Archive, ArchiveRestore, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from 'sonner'
@@ -15,7 +16,7 @@ function EmptyState({ message }) {
 // The Stitch-style rollback timeline — shared by the "Agent Log" modal
 // (opened from Ask Devsign) and the right floating toolbar's History
 // flyout, so both surfaces stay in sync with a single implementation.
-function RollbackHistoryList({ onRollback }) {
+function RollbackHistoryList({ onRollback, highlightId }) {
   const {
     historyEntries,
     activeHistoryId,
@@ -26,6 +27,15 @@ function RollbackHistoryList({ onRollback }) {
 
   const active = [...historyEntries].filter((e) => !e.archived).reverse()
   const archived = [...historyEntries].filter((e) => e.archived).reverse()
+
+  // Deep-linked from the Workspace's "view change history" action — scroll
+  // the referenced record into view and flash it, on whichever tab it
+  // actually lives in (an entry can have since been archived).
+  const highlightRefs = useRef(new Map())
+  useEffect(() => {
+    if (!highlightId) return
+    highlightRefs.current.get(highlightId)?.scrollIntoView({ block: 'center' })
+  }, [highlightId])
 
   function handleRollback(id) {
     rollbackTo(id)
@@ -45,8 +55,10 @@ function RollbackHistoryList({ onRollback }) {
     toast('Restored to active history', { description: entry.label })
   }
 
+  const defaultTab = archived.some((e) => e.id === highlightId) ? 'archived' : 'active'
+
   return (
-    <Tabs defaultValue="active" className="min-h-0 flex-1">
+    <Tabs defaultValue={defaultTab} className="min-h-0 flex-1">
       <TabsList className="w-full shrink-0">
         <TabsTrigger value="active">Active</TabsTrigger>
         <TabsTrigger value="archived">
@@ -63,8 +75,16 @@ function RollbackHistoryList({ onRollback }) {
 
             {active.map((entry) => {
               const isActive = entry.id === activeHistoryId
+              const isHighlighted = entry.id === highlightId
               return (
-                <div key={entry.id} className="group relative mb-3 last:mb-0">
+                <div
+                  key={entry.id}
+                  ref={(el) => {
+                    if (el) highlightRefs.current.set(entry.id, el)
+                    else highlightRefs.current.delete(entry.id)
+                  }}
+                  className="group relative mb-3 last:mb-0"
+                >
                   <span
                     className={cn(
                       'absolute -left-5 top-1.5 flex size-2.5 items-center justify-center rounded-full border-2 bg-card',
@@ -79,7 +99,8 @@ function RollbackHistoryList({ onRollback }) {
                     onClick={() => handleRollback(entry.id)}
                     className={cn(
                       'block w-full rounded-xl border py-2 pr-8 pl-2.5 text-left transition-colors group-hover:border-primary/40',
-                      isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-background'
+                      isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-background',
+                      isHighlighted && 'ring-2 ring-primary/60'
                     )}
                   >
                     <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
@@ -127,7 +148,14 @@ function RollbackHistoryList({ onRollback }) {
             {archived.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center gap-2 rounded-xl border border-border bg-background/60 py-2 pr-2 pl-2.5 opacity-80 transition-opacity hover:opacity-100"
+                ref={(el) => {
+                  if (el) highlightRefs.current.set(entry.id, el)
+                  else highlightRefs.current.delete(entry.id)
+                }}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl border border-border bg-background/60 py-2 pr-2 pl-2.5 opacity-80 transition-opacity hover:opacity-100',
+                  entry.id === highlightId && 'ring-2 ring-primary/60 opacity-100'
+                )}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] text-muted-foreground">{entry.timestamp}</p>

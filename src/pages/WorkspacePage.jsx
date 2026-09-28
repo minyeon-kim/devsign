@@ -1,24 +1,25 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
 import ActivityBar from '@/components/layout/ActivityBar'
 import RightFloatingBar from '@/components/layout/RightFloatingBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
+import SaveStatusIndicator from '@/components/layout/SaveStatusIndicator'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
-import { WorkspaceProvider, useWorkspace } from '@/state/WorkspaceProvider'
-import { panelDefinitions, projects } from '@/data/mockData'
+import { useWorkspace } from '@/state/WorkspaceProvider'
+import { panelDefinitions } from '@/data/mockData'
 
 const previewDef = panelDefinitions.find((def) => def.id === 'preview')
 
-// Everything that needs workspace context (dockApi, the active view) lives
-// here rather than in WorkspaceShell itself, since WorkspaceShell is the
-// component that instantiates WorkspaceProvider and so sits one level
-// above where useWorkspace() can be called.
-function WorkspaceContent({ project }) {
+// Project resolution + WorkspaceProvider now live in ProjectLayout (the
+// parent route), shared with ArchivePage — this component just consumes
+// that context via useOutletContext/useWorkspace.
+function WorkspacePage() {
+  const { project } = useOutletContext()
   const location = useLocation()
   const { dockApi, activeView, mergePreviewOpen, setMergePreviewOpen, openMergeStudio } = useWorkspace()
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -66,7 +67,7 @@ function WorkspaceContent({ project }) {
     // bar, inspector, chat — is an absolutely positioned overlay on top of
     // it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
-    <div className="relative h-screen overflow-hidden bg-background text-foreground">
+    <div className="relative h-full overflow-hidden bg-background text-foreground">
       {inMergeStudio ? (
         // MergeStudioView/MergeStudioWorkspace size themselves with
         // flex-1 + min-h-0, expecting a flex-column ancestor with a
@@ -94,33 +95,11 @@ function WorkspaceContent({ project }) {
       {/* Merge Studio has its own canvas tools (select / hand) and moves
           comments, share and history into its header and Changes log. */}
       {!inMergeStudio && <RightFloatingBar />}
+      {!inMergeStudio && <SaveStatusIndicator projectId={project.id} />}
       <InspectorSidebar />
       {!inMergeStudio && <ChatMorphWidget />}
     </div>
   )
-}
-
-function WorkspaceShell({ project }) {
-  return (
-    <WorkspaceProvider projectId={project.id}>
-      <WorkspaceContent project={project} />
-    </WorkspaceProvider>
-  )
-}
-
-function WorkspacePage() {
-  const { projectId } = useParams()
-  const project = projects.find((p) => p.id === projectId)
-
-  if (!project) {
-    return <Navigate to="/projects" replace />
-  }
-
-  // Remounting the whole workspace subtree on project change (rather than
-  // just re-rendering) keeps in-memory workspace state (active file,
-  // history, chat, conflicts) from one project leaking into another if a
-  // user edits the :projectId segment directly in the URL bar.
-  return <WorkspaceShell key={projectId} project={project} />
 }
 
 export default WorkspacePage

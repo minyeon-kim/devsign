@@ -1,21 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Bell, Folder, Layers, Settings } from 'lucide-react'
 import { cn } from 'cn'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { addSidebarPanel } from '@/components/dockview/DockLayout'
-import { panelDefinitions, projects } from '@/data/mockData'
-import { useWorkspace } from '@/state/WorkspaceProvider'
+import { panelDefinitions } from '@/data/mockData'
 
 const panelIcons = {
   Folder,
@@ -63,63 +52,7 @@ function toggleSidebarPanel(dockApi, def) {
   }
 }
 
-function initialsFor(name) {
-  return name
-    .split(' ')
-    .map((word) => word[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
-// Slack-style workspace switcher, pinned above the panel icons — a
-// square (not the pill/circle used everywhere else) so it reads as a
-// distinct "which workspace" control rather than another panel shortcut.
-// Switching navigates straight into the other project's workspace,
-// which remounts WorkspaceProvider (see WorkspacePage's `key={projectId}`)
-// and swaps in that project's file set immediately.
-function WorkspaceSwitcher({ currentProjectId }) {
-  const navigate = useNavigate()
-  const currentProject = projects.find((p) => p.id === currentProjectId)
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        title={currentProject?.name ?? 'Switch project'}
-        className="flex size-9 items-center justify-center rounded-xl bg-primary text-[11px] font-semibold text-primary-foreground shadow-sm transition-[filter] duration-150 hover:brightness-110"
-      >
-        {currentProject ? initialsFor(currentProject.name) : '?'}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="start" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Projects</DropdownMenuLabel>
-          {projects.map((project) => {
-            const isActive = project.id === currentProjectId
-            return (
-              <DropdownMenuItem
-                key={project.id}
-                onClick={() => navigate(`/projects/${project.id}/workspace`)}
-              >
-                <span
-                  className={cn(
-                    'mr-2 size-1.5 shrink-0 rounded-full',
-                    isActive ? 'bg-primary' : 'border border-muted-foreground/50'
-                  )}
-                />
-                <span className={cn('truncate', isActive && 'font-medium text-foreground')}>
-                  {project.name}
-                </span>
-              </DropdownMenuItem>
-            )
-          })}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function ActivityBar({ dockApi }) {
-  const { projectId } = useWorkspace()
   // Which sidebar panels currently exist in the layout — this is "is it
   // open", not "is it focused": Explorer and Layers are separate stacked
   // groups that are both visible at once, so the icon's highlighted state
@@ -147,12 +80,6 @@ function ActivityBar({ dockApi }) {
         FLOATING_PILL
       )}
     >
-      {projects.length > 1 && (
-        <>
-          <WorkspaceSwitcher currentProjectId={projectId} />
-          <Separator className="my-1 bg-white/10" />
-        </>
-      )}
       <div className="flex flex-col items-center gap-1.5">
         {panelDefinitions
           .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
