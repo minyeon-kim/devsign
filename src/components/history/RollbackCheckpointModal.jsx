@@ -69,9 +69,9 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
   const laterMessages = entry ? Math.max(0, chatMessages.length - (entry.snapshot.chatLength ?? 1)) : 0
 
   function confirm() {
-    rollbackTo(entry.id, { conflicts, agentMemory })
+    const restoredId = rollbackTo(entry.id, { conflicts, agentMemory })
     onOpenChange(false)
-    onDone?.(entry)
+    onDone?.(entry, restoredId)
   }
 
   return (
@@ -89,7 +89,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-[15px] font-semibold text-white">Rollback to checkpoint</DialogTitle>
                 <DialogDescription className="mt-0.5 text-xs text-slate-400">
-                  Your work goes back to how it was at this checkpoint. Later checkpoints stay in History.
+                  Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.
                 </DialogDescription>
               </div>
               <DialogClose

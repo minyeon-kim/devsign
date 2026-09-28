@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Archive, ArchiveRestore, Eye, FileCode2, History, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import HistoryCompare from '@/components/history/HistoryCompare'
+import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import {
   ACCENT_SOFT,
@@ -98,8 +99,10 @@ function CheckpointCard({ entry, current, selected, highlighted, stats, fileName
 // every saved state is a card with "Rollback here", which opens the
 // "Rollback to checkpoint" dialog (target, preview, and what gets rolled
 // back). Selecting a card previews it against the current version in the
-// pane beside the list. This is the single place for history — the
-// Workspace has no history button of its own.
+// pane beside the list, with a version slider under it to scrub or play
+// back the history, and a "Compare latest" toggle between an inline diff
+// and the plain file at that version. Rollbacks never erase anything: the
+// restored state lands on top as a new checkpoint.
 function HistoryPage() {
   const { project } = useOutletContext()
   const location = useLocation()
@@ -117,6 +120,58 @@ function HistoryPage() {
   useEffect(() => {
     if (highlightId) refs.current.get(highlightId)?.scrollIntoView({ block: 'center' })
   }, [highlightId])
+
+  // The timeline runs oldest → newest over the active checkpoints.
+  const timeline = useMemo(() => historyEntries.filter((e) => !e.archived), [historyEntries])
+  const [compareLatest, setCompareLatest] = useState(true)
+  const [playing, setPlaying] = useState(false)
+
+  // Keep the list following the scrubber / playback.
+  useEffect(() => {
+    refs.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedId])
+
+  // Playback: step forward one version at a time like a timelapse, and stop
+  // on the latest. Playing from the end starts over from the first.
+  const timelineIndex = timeline.findIndex((e) => e.id === selectedId)
+  useEffect(() => {
+    if (!playing) return
+    const timer = setTimeout(() => {
+      const next = timeline[timelineIndex + 1]
+      if (next) setSelectedId(next.id)
+      else setPlaying(false)
+    }, 900)
+    return () => clearTimeout(timer)
+  }, [playing, timelineIndex, timeline])
+
+  function togglePlay() {
+    if (!playing && timelineIndex >= timeline.length - 1 && timeline[0]) setSelectedId(timeline[0].id)
+    setPlaying((p) => !p)
+  }
+
+  function selectVersion(id) {
+    setPlaying(false)
+    setSelectedId(id)
+  }
+
+  // ← / → step through versions anywhere on the page (not while typing,
+  // on the slider itself, or with a dialog open).
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+      if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return
+      const t = event.target
+      if (t.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="slider"]')) return
+      const i = timeline.findIndex((e) => e.id === selectedId)
+      const from = i === -1 ? timeline.length - 1 : i
+      const next = timeline[from + (event.key === 'ArrowRight' ? 1 : -1)]
+      if (!next) return
+      event.preventDefault()
+      selectVersion(next.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   function archive(entry) {
     archiveHistoryEntry(entry.id)
@@ -165,7 +220,7 @@ function HistoryPage() {
                   highlighted={entry.id === highlightId}
                   stats={diffStats(current?.snapshot.lines, entry.snapshot.lines)}
                   fileName={getFileName(entry.snapshot.fileId)}
-                  onPreview={() => setSelectedId(entry.id)}
+                  onPreview={() => selectVersion(entry.id)}
                   onRollback={() => setRollbackId(entry.id)}
                   onArchive={() => archive(entry)}
                 />
@@ -198,7 +253,24 @@ function HistoryPage() {
         </div>
 
         <div className="hidden min-h-0 lg:block">
-          <HistoryCompare entryId={selectedId} onRollback={(id) => setRollbackId(id)} />
+          <HistoryCompare
+            entryId={selectedId}
+            onRollback={(id) => {
+              setPlaying(false)
+              setRollbackId(id)
+            }}
+            compareLatest={compareLatest}
+            onCompareLatestChange={setCompareLatest}
+            footer={
+              <HistoryTimeline
+                entries={timeline}
+                selectedId={selectedId}
+                onSelect={selectVersion}
+                playing={playing}
+                onTogglePlay={togglePlay}
+              />
+            }
+          />
         </div>
       </div>
 
@@ -206,9 +278,9 @@ function HistoryPage() {
         key={rollbackId}
         entryId={rollbackId}
         onOpenChange={(open) => !open && setRollbackId(null)}
-        onDone={(entry) => {
-          setSelectedId(entry.id)
-          toast('Rolled back to checkpoint', { description: entry.label })
+        onDone={(entry, restoredId) => {
+          setSelectedId(restoredId ?? entry.id)
+          toast('Rolled back to checkpoint', { description: `${entry.label} — saved as a new checkpoint` })
         }}
       />
     </div>

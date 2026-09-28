@@ -20,7 +20,11 @@ const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 // rollback the Workspace would do.
 // With `onRollback`, the button hands off to the caller (History's
 // "Rollback to checkpoint" confirmation) instead of restoring directly.
-function HistoryCompare({ entryId, onRollback }) {
+// `compareLatest` (Replit's "Compare latest" toggle, shown when
+// `onCompareLatestChange` is given): on, an inline diff against the latest
+// state; off, just the file as it was at this version — what History
+// playback steps through. `footer` sits under the code (the timeline).
+function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer }) {
   const { historyEntries, activeHistoryId, rollbackTo } = useWorkspace()
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
@@ -30,6 +34,18 @@ function HistoryCompare({ entryId, onRollback }) {
     () => (entry && current ? diffLines(current.snapshot.lines, entry.snapshot.lines) : []),
     [entry, current]
   )
+  const showDiff = compareLatest && !isCurrent
+  const codeRows = useMemo(() => {
+    const source = showDiff ? rows : (entry?.snapshot.lines ?? []).map((text) => ({ kind: 'same', text }))
+    // Old (latest) / new (this version) line numbers, like a split gutter.
+    let a = 0
+    let b = 0
+    return source.map((row) => ({
+      ...row,
+      from: row.kind === 'add' ? null : ++a,
+      to: row.kind === 'remove' ? null : ++b,
+    }))
+  }, [showDiff, rows, entry])
 
   if (!entry) {
     return (
@@ -72,6 +88,8 @@ function HistoryCompare({ entryId, onRollback }) {
             <GitCompareArrows className="size-3" />
             {isCurrent ? (
               'This is the current version.'
+            ) : !showDiff ? (
+              'The file as it was at this version.'
             ) : (
               <>
                 Compared with current ·{' '}
@@ -83,6 +101,30 @@ function HistoryCompare({ entryId, onRollback }) {
             )}
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-3">
+        {onCompareLatestChange && (
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400 select-none">
+            Compare latest
+            <button
+              type="button"
+              role="switch"
+              aria-checked={compareLatest}
+              aria-label="Compare latest"
+              onClick={() => onCompareLatestChange(!compareLatest)}
+              className={cn(
+                'relative h-[18px] w-8 rounded-full transition-colors',
+                compareLatest ? 'bg-emerald-400/80' : 'bg-white/[0.12]'
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-[3px] left-[3px] size-3 rounded-full bg-white shadow transition-transform',
+                  compareLatest && 'translate-x-3.5'
+                )}
+              />
+            </button>
+          </label>
+        )}
         <button
           type="button"
           onClick={handleRestore}
@@ -96,18 +138,26 @@ function HistoryCompare({ entryId, onRollback }) {
           <RotateCcw className="size-3.5" />
           {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
         </button>
+        </div>
       </div>
 
       <div className="mx-3 mb-3 min-h-0 flex-1 overflow-auto rounded-xl bg-black/20 py-2 font-mono text-[12px] leading-5">
-        {rows.map((row, index) => (
-          <div key={index} className={cn('flex px-4 whitespace-pre', ROW_TONES[row.kind])}>
-            <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
+        {showDiff && rows.every((r) => r.kind === 'same') && (
+          <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
+        )}
+        {codeRows.map((row, index) => (
+          <div key={index} className={cn('flex pr-4 whitespace-pre', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
+            {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
+            <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
+            {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
             <span>{row.text || ' '}</span>
           </div>
         ))}
       </div>
 
-      {propChanges.length > 0 && !isCurrent && (
+      {footer}
+
+      {propChanges.length > 0 && showDiff && (
         <div className="shrink-0 px-5 pb-4">
           <p className="mb-1 text-xs font-medium text-slate-300">Preview props</p>
           {propChanges.map((key) => (

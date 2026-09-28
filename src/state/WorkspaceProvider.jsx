@@ -571,10 +571,13 @@ export function WorkspaceProvider({ children, projectId }) {
   // go back; `conflicts` (the Conflict Points' review state) and
   // `agentMemory` (the agent conversation after the checkpoint) are the
   // rollback dialog's options, both on unless turned off.
+  // Non-destructive (Replit style): nothing after the checkpoint is erased —
+  // the restored state is appended as a brand-new "Restored" checkpoint on
+  // top of the timeline, and that new one becomes current. Returns its id.
   const rollbackTo = useCallback(
     (entryId, { conflicts: restoreConflicts = true, agentMemory = false } = {}) => {
       const entry = historyEntries.find((h) => h.id === entryId)
-      if (!entry) return
+      if (!entry) return null
       const { snapshot } = entry
 
       setFileOverrides((prev) => ({ ...prev, [snapshot.fileId]: snapshot.lines }))
@@ -591,20 +594,25 @@ export function WorkspaceProvider({ children, projectId }) {
       }
       // Agent memory: forget the conversation after the checkpoint (older
       // checkpoints without a recorded length go back to the opening one).
-      if (agentMemory) {
-        const keep = snapshot.chatLength ?? initialChatMessages.length
-        setChatMessages((prev) => prev.slice(0, keep))
-      }
+      const keep = snapshot.chatLength ?? initialChatMessages.length
+      if (agentMemory) setChatMessages((prev) => prev.slice(0, keep))
       setSelectedLayerId(snapshot.selectedLayerId ?? null)
-      setActiveHistoryId(entryId)
+
+      const restoredId = recordHistory({
+        label: `Restored: ${entry.label.replace(/^Restored: /, '')}`,
+        timestamp: timeLabel(),
+        restoredFrom: entry.id,
+        snapshot: { ...snapshot, chatLength: agentMemory ? keep : chatLengthRef.current },
+      })
 
       appendTerminalLines([
         `$ devsign rollback --to "${entry.label}"${agentMemory ? ' --agent-memory' : ''}`,
         '[HMR] workspace restored',
-        '✓ rollback complete',
+        '✓ rollback complete · saved as a new checkpoint',
       ])
+      return restoredId
     },
-    [historyEntries, appendTerminalLines]
+    [historyEntries, appendTerminalLines, recordHistory]
   )
 
   const sendChatMessage = useCallback(
