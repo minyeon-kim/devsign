@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, Play, ScanEye } from 'lucide-react'
+import { Bell, FolderTree, Play, ScanEye } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -74,7 +74,8 @@ function InboxButton({ open, onToggle }) {
 }
 
 function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
-  const { activeView, requestMergeFocus, openMergeStudio, inspectorOpen, setInspectorOpen } = useWorkspace()
+  const { activeView, requestMergeFocus, openMergeStudio, inspectorOpen, setInspectorOpen, filesWindow, setFilesWindow } =
+    useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
 
@@ -86,12 +87,12 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
           capsule, fill, hairline and type — at up to the same 480px.
           Sized against the Workspace view itself (a container query on
           WorkspacePage's root), not the browser window: the view narrows
-          when the sidebar drawer opens. It keeps 590px clear on each side
-          of center (the ~560px action pill + its 16px inset + a 12px gap)
+          when the sidebar drawer opens. It keeps 630px clear on each side
+          of center (the ~600px action cluster + its 16px inset + a 12px gap)
           and steps aside entirely when the view is too narrow to fit a
           usable field between the pills, so it never collides with them. */}
       <SearchField
-        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-1180px)] -translate-x-1/2 @max-[1400px]:hidden"
+        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden"
         placeholder="Search files, commands..."
       />
 
@@ -109,6 +110,19 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
         </div>
 
         <div className={cn('flex h-10 items-center gap-0.5 rounded-full px-1', FLOATING_PILL)}>
+          <button
+            type="button"
+            title="Files & Layers"
+            aria-label="Files & Layers"
+            aria-pressed={filesWindow.open}
+            onClick={() => setFilesWindow({ open: !filesWindow.open })}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+              filesWindow.open && 'bg-emerald-400/20 text-emerald-300'
+            )}
+          >
+            <FolderTree className="size-4" />
+          </button>
           <LayoutMenu dockApi={dockApi} />
           <button
             type="button"

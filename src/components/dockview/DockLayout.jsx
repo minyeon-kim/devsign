@@ -84,10 +84,9 @@ export function buildInitialLayout(api) {
   // — so the layout starts from the editor.
   addDockPanel(api, panelById.editor)
 
-  // No Explorer/Layers windows: Explorer lives inside the editor and
-  // Layers (with Assets) inside the canvas, each as its own slide-in
-  // drawer (see ContainerDrawer), so the editor spans the whole left of
-  // the layout.
+  // No Explorer/Layers windows here: both are tabs of the separate
+  // floating Files / Layers window (see FilesLayersWindow), so the editor
+  // spans the whole left of the layout.
 
   // Canvas sits beside the editor (with Preview as its sibling tab).
   // 620px (not 460) so the canvas surface keeps a usable width beside

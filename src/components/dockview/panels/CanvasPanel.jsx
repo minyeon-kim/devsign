@@ -19,8 +19,7 @@ import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
-import LayersPanel from '@/components/dockview/panels/LayersPanel'
-import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
+import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 200
@@ -95,12 +94,13 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // pill styling and single-row layout as the code editor's file tabs, so a
 // user can pop between "design files" the same way they pop between code
 // files.
-// The Layers drawer's toggle leads the row, the same place the editor
-// keeps its Explorer toggle.
-function PageTabs({ activePageId, onSelectPage, layersOpen, onToggleLayers }) {
+// The Layers button (opening the floating Files / Layers window) leads the
+// row, the same place the editor keeps its Files button.
+function PageTabs({ activePageId, onSelectPage }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2 font-sans">
-      <ContainerDrawerToggle open={layersOpen} onToggle={onToggleLayers} icon={LayersIcon} label="Layers" />
+      {/* The layer tree lives in the floating Files / Layers window. */}
+      <FilesLayersButton tab="layers" icon={LayersIcon} label="Layers" />
       <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
         {canvasPages.map((page) => {
@@ -359,10 +359,6 @@ function CanvasPanel() {
   const [pendingComment, setPendingComment] = useState(null)
   const [pendingDraft, setPendingDraft] = useState('')
   const [openPinId, setOpenPinId] = useState(null)
-  // Layers (with its Assets tab) lives inside the canvas (Figma-style) as
-  // a slide-in drawer toggled from the page-tab row, rather than as its
-  // own floating window.
-  const [layersOpen, setLayersOpen] = useState(true)
   const scrollRef = useRef(null)
   const surfaceRef = useRef(null)
   // selectedLayerId and activePageId both live in workspace context (not
@@ -397,7 +393,10 @@ function CanvasPanel() {
   }
   const activePage = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
   const commentMode = canvasTool === 'comment'
-  const selectedLayer = findCanvasTarget(selectedLayerId)?.layer
+  // The selected layer, if it's on the page being shown (a selection made
+  // on another page shouldn't keep its property bar up here).
+  const selectedTarget = findCanvasTarget(selectedLayerId)
+  const selectedLayer = selectedTarget?.page.id === activePage?.id ? selectedTarget.layer : null
 
   function handleSelect(id) {
     selectCanvasLayer(id, {
@@ -460,14 +459,9 @@ function CanvasPanel() {
       <PageTabs
         activePageId={activePage?.id}
         onSelectPage={handleSelectPage}
-        layersOpen={layersOpen}
-        onToggleLayers={() => setLayersOpen((o) => !o)}
       />
 
       <div className="flex min-h-0 flex-1">
-        <ContainerDrawer open={layersOpen} label="Layers">
-          <LayersPanel />
-        </ContainerDrawer>
 
         <div
           ref={scrollRef}

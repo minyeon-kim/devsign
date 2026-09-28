@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, FileText, GitCommitHorizontal, History, Library, Palette } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, ChevronRight, FileText, GitCommitHorizontal, History, Library, Palette } from 'lucide-react'
 import { cn } from 'cn'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -27,14 +27,35 @@ function currentSection(location, archivePath) {
   return null
 }
 
-// The drawer behind the activity bar's Archive icon, as two levels:
+// "Back to Workspace", pinned at the top of the drawer on every level:
+// returns to the project's Workspace (and closes the drawer) from anywhere
+// in the Archive.
+function BackToWorkspace({ project, onDone }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigate(`/projects/${project.id}/workspace`)
+        onDone?.()
+      }}
+      className="mb-3 flex h-9 w-full items-center gap-2 rounded-full bg-white/[0.05] px-3 text-[13px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
+    >
+      <ArrowLeft className="size-4 shrink-0" />
+      Back to Workspace
+    </button>
+  )
+}
+
+// The drawer behind the activity bar's Archive icon, as two levels under
+// an always-visible "Back to Workspace":
 //   · the section list — Design System Updates, Reference Docs, History
 //     (pipeline order: a change → its documentation → where it's
 //     recorded); picking one opens it in the main area;
-//   · inside a section, a "← Archive" back row, the section's name, and
-//     its items (each doc / version / update) to move between them. Back
-//     returns to the section list and the Archive home.
-function ArchiveDrawer({ project }) {
+//   · inside a section, an "Archive › Section" breadcrumb (Archive goes
+//     back to the section list and the Archive home) and the section's
+//     items (each doc / version / update) to move between them.
+function ArchiveDrawer({ project, onClose }) {
   const location = useLocation()
   const { historyEntries, activeHistoryId, referenceDocs, dsUpdates } = useWorkspace()
   const archivePath = `/projects/${project.id}/archive`
@@ -45,6 +66,7 @@ function ArchiveDrawer({ project }) {
   if (!section) {
     return (
       <nav aria-label="Archive" className="flex flex-col gap-1">
+        <BackToWorkspace project={project} onDone={onClose} />
         {[
           ['dsUpdates', 'Design System Updates', Palette, pendingUpdates],
           ['referenceDocs', 'Reference Docs', Library, referenceDocs.length],
@@ -65,13 +87,14 @@ function ArchiveDrawer({ project }) {
 
   return (
     <nav aria-label={titles[section.id]} className="flex flex-col gap-1 animate-in fade-in slide-in-from-right-1 duration-150 motion-reduce:animate-none">
-      <Link
-        to={archivePath}
-        className="mb-1 flex h-8 w-fit items-center gap-1 rounded-full pr-3 pl-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Archive
-      </Link>
+      <BackToWorkspace project={project} onDone={onClose} />
+      <p className="mb-1 flex h-7 items-center gap-1 px-2.5 text-[12px] text-muted-foreground">
+        <Link to={archivePath} className="rounded transition-colors hover:text-foreground">
+          Archive
+        </Link>
+        <ChevronRight className="size-3 text-muted-foreground/50" />
+        <span className="truncate text-foreground/80">{titles[section.id]}</span>
+      </p>
 
       {/* The section itself — its index view in the main area. */}
       <Link

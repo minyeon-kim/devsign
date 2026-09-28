@@ -37,9 +37,9 @@ const icons = {
   ScanEye,
 }
 
-// Explorer/Layers no longer mount this at all — they're drawers inside the
-// editor and canvas now (see ContainerDrawer), not panels with a tab strip
-// to render a CustomTab into. Every panel that has a header (Editor,
+// Explorer/Layers no longer mount this at all — they're tabs of the
+// floating Files / Layers window now (see FilesLayersWindow), not panels
+// with a tab strip to render a CustomTab into. Every panel that has a header (Editor,
 // Terminal, Preview, Conflict, ...) gets the full maximize/close treatment
 // below.
 function CustomTab({ api, containerApi, params }) {

@@ -120,6 +120,10 @@ export function WorkspaceProvider({ children, projectId }) {
   // and its expanded height (dragged from its top edge).
   const [bottomPanel, setBottomPanelState] = useState({ tab: 'terminal', open: true, height: 240 })
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
+  // The floating Files / Layers window (FilesLayersWindow): open or not,
+  // and which tab it shows.
+  const [filesWindow, setFilesWindowState] = useState({ open: false, tab: 'files' })
+  const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
   const [chatMessages, setChatMessages] = useState(initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
@@ -747,6 +751,8 @@ export function WorkspaceProvider({ children, projectId }) {
     archiveDsUpdate,
     referenceDocs: allReferenceDocs,
     setBottomPanel,
+    filesWindow,
+    setFilesWindow,
     openConflictReview: setReviewConflictId,
     chatMessages,
     isAiTyping,

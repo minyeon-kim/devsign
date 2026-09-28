@@ -194,7 +194,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
             <CloseButton onClose={onCloseDrawer} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
-            {panel === 'archive' && project && <ArchiveDrawer project={project} />}
+            {panel === 'archive' && project && <ArchiveDrawer project={project} onClose={onCloseDrawer} />}
           </div>
         </aside>
       </div>

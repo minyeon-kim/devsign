@@ -7,8 +7,7 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import { RemoteCaretsOnLine, useRemoteCaretLines } from '@/components/collab/RemoteCarets'
-import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
-import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
+import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -151,9 +150,6 @@ function EditorPanel() {
   } = useWorkspace()
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
-  // Explorer lives inside the editor (VS Code-style) as a slide-in drawer
-  // toggled from the tab row, rather than as its own floating window.
-  const [explorerOpen, setExplorerOpen] = useState(true)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
   const [isEditing, setIsEditing] = useState(false)
   const [draftText, setDraftText] = useState('')
@@ -268,12 +264,8 @@ function EditorPanel() {
   return (
     <div className="flex h-full min-w-0 flex-col bg-card font-mono">
       <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
-        <ContainerDrawerToggle
-          open={explorerOpen}
-          onToggle={() => setExplorerOpen((o) => !o)}
-          icon={Files}
-          label="Explorer"
-        />
+        {/* The file tree lives in the floating Files / Layers window. */}
+        <FilesLayersButton tab="files" icon={Files} label="Files" />
         <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
         {workspaceFiles.map((file) => {
           const name = getFileName(file.id)
@@ -299,10 +291,6 @@ function EditorPanel() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <ContainerDrawer open={explorerOpen} label="Explorer">
-          <ExplorerPanel />
-        </ContainerDrawer>
-
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-7 shrink-0 items-center justify-between border-b bg-card/60 px-3 font-sans text-[11px] text-muted-foreground">
             <span className="truncate">{activeFile?.path}</span>

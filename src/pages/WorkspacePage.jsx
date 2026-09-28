@@ -9,6 +9,7 @@ import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
+import FilesLayersWindow from '@/components/workspace/FilesLayersWindow'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelDefinitions } from '@/data/mockData'
 
@@ -94,6 +95,7 @@ function WorkspacePage() {
           dockApi={dockApi}
         />
         {!inMergeStudio && <FollowMeBanner />}
+        {!inMergeStudio && <FilesLayersWindow />}
 
         {!inMergeStudio && <SaveStatusIndicator projectId={project.id} />}
         <InspectorSidebar />

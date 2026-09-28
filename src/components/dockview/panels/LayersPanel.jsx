@@ -1,7 +1,6 @@
-import { Circle, Component, File, Frame, Group, Layers as LayersIcon, Type } from 'lucide-react'
+import { Circle, Component, File, Frame, Group, Type } from 'lucide-react'
 import { cn } from 'cn'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { assets, canvasFrames, canvasPages } from '@/data/mockData'
+import { canvasPages } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const kindIcons = {
@@ -31,35 +30,22 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
   )
 }
 
+// The canvas's layer tree for whichever page is open — the Layers tab of
+// the floating Files / Layers window (Assets is its own tab there).
 function LayersPanel() {
-  const { selectCanvasLayer, selectedLayerId } = useWorkspace()
-  const page = canvasPages[0]
+  const { selectCanvasLayer, selectedLayerId, activePageId } = useWorkspace()
+  // The layer tree of whichever page is open on the canvas.
+  const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
 
   return (
-    <Tabs defaultValue="layers" className="flex h-full flex-col gap-0 bg-card">
-      {/* Same h-9 height, border, and px-3 as Explorer's header — only
-          difference is Layers actually needs two switchable views, so
-          this stays a real tab list instead of a static label. */}
-      <div className="flex h-9 shrink-0 items-center border-b border-border/60 px-3">
-        <TabsList variant="line">
-          <TabsTrigger value="layers" className="gap-1.5 text-xs font-medium">
-            <LayersIcon className="size-3.5" />
-            Layers
-          </TabsTrigger>
-          <TabsTrigger value="assets" className="gap-1.5 text-xs font-medium">
-            <Component className="size-3.5" />
-            Assets
-          </TabsTrigger>
-        </TabsList>
-      </div>
-
-      <TabsContent value="layers" className="flex-1 overflow-auto p-2">
+    <div className="flex h-full flex-col bg-card">
+      <div className="min-h-0 flex-1 overflow-auto p-2">
         <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-foreground/70">
           <File className="size-3.5" />
           {page?.name}
         </div>
 
-        {canvasFrames.map((frame) => (
+        {page.frames.map((frame) => (
           <div key={frame.id}>
             <LayerRow
               id={frame.id}
@@ -82,22 +68,8 @@ function LayersPanel() {
             ))}
           </div>
         ))}
-      </TabsContent>
-
-      <TabsContent
-        value="assets"
-        className="flex-1 overflow-auto p-2 text-xs text-muted-foreground"
-      >
-        {assets.map((asset) => (
-          <div
-            key={asset.id}
-            className="cursor-default rounded-lg px-2 py-1.5 transition-colors hover:bg-muted hover:text-foreground"
-          >
-            {asset.name}
-          </div>
-        ))}
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   )
 }
 
