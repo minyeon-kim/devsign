@@ -12,9 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
-// Merge Studio's Share control, in the top header (it used to live in the
-// app's right-hand floating toolbar): per-teammate access, general link
-// access, and a copy-link for this merge item.
+// The Share control, in the top header of both Merge Studio and the
+// Workspace (it used to live in the app's right-hand floating toolbar):
+// per-teammate access, general link access, and a copy-link. Merge Studio
+// shares its merge item as a standalone pill; the Workspace passes its own
+// `title` / `link` and an `inline` trigger that sits inside its action pill.
 function RoleMenu({ value, options, onChange }) {
   return (
     <DropdownMenu>
@@ -35,11 +37,11 @@ function RoleMenu({ value, options, onChange }) {
   )
 }
 
-function MergeShareButton({ item }) {
+function MergeShareButton({ item, title = item?.title, link: linkProp, inline = false }) {
   const [roles, setRoles] = useState(() => Object.fromEntries(teamMembers.map((m) => [m.id, 'Can edit'])))
   const [linkAccess, setLinkAccess] = useState('Restricted')
   const [copied, setCopied] = useState(false)
-  const link = `https://devsign.app/merge/${item.id}`
+  const link = linkProp ?? `https://devsign.app/merge/${item.id}`
 
   function copyLink() {
     navigator.clipboard?.writeText(link)
@@ -49,12 +51,18 @@ function MergeShareButton({ item }) {
 
   return (
     <Popover>
-      <PopoverTrigger className={cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}>
-        <Share2 className="size-4" />
+      <PopoverTrigger
+        className={
+          inline
+            ? 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
+            : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)
+        }
+      >
+        <Share2 className={inline ? 'size-3.5' : 'size-4'} />
         Share
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 gap-3 rounded-2xl border border-white/10 bg-card/95 p-3 backdrop-blur-xl">
-        <p className="text-sm font-semibold text-foreground">Share “{item.title}”</p>
+        <p className="text-sm font-semibold text-foreground">Share “{title}”</p>
         <div className="space-y-1.5">
           {teamMembers.map((m) => (
             <div key={m.id} className="flex items-center gap-2 text-xs">

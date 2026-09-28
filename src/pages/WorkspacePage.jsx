@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
-import RightFloatingBar from '@/components/layout/RightFloatingBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
@@ -9,6 +8,7 @@ import SaveStatusIndicator from '@/components/layout/SaveStatusIndicator'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
+import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelDefinitions } from '@/data/mockData'
 
@@ -61,42 +61,45 @@ function WorkspacePage() {
 
   return (
     // A single full-bleed surface, Merge-Studio style: the canvas (or
-    // Merge Studio itself) fills the whole viewport and every other piece
-    // of chrome — top bar, follow-me banner, right floating
-    // bar, inspector, chat — is an absolutely positioned overlay on top of
-    // it, instead of a flex row/column that carves the viewport into fixed
+    // Merge Studio itself) fills the view and every other piece of chrome —
+    // top bar, follow-me banner, inspector, chat — is an absolutely
+    // positioned overlay on top of it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
     // `@container` lets floating chrome (e.g. the TopBar search) size itself
     // against this view's width, which shrinks when the sidebar drawer opens.
-    <div className="@container relative h-full overflow-hidden bg-background text-foreground">
-      {inMergeStudio ? (
-        // MergeStudioView/MergeStudioWorkspace size themselves with
-        // flex-1 + min-h-0, expecting a flex-column ancestor with a
-        // definite height to cascade from (the old layout nested it
-        // several flex levels deep under h-screen) — this root is
-        // `relative`, not `flex`, so it needs its own properly-sized flex
-        // wrapper here instead of relying on the root itself.
-        <div className="absolute inset-0 flex flex-col">
-          <MergeStudioView />
-        </div>
-      ) : (
-        <WorkspaceFloatingCanvas />
-      )}
+    //
+    // Below it, outside that overlay area, sits the docked bottom panel
+    // (Terminal / Console / Conflict Points), so it never floats over the
+    // canvas and the bottom-row chrome (save status, zoom) sits just above it.
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+      <div className="@container relative min-h-0 flex-1 overflow-hidden">
+        {inMergeStudio ? (
+          // MergeStudioView/MergeStudioWorkspace size themselves with
+          // flex-1 + min-h-0, expecting a flex-column ancestor with a
+          // definite height to cascade from (the old layout nested it
+          // several flex levels deep under h-screen) — this root is
+          // `relative`, not `flex`, so it needs its own properly-sized flex
+          // wrapper here instead of relying on the root itself.
+          <div className="absolute inset-0 flex flex-col">
+            <MergeStudioView />
+          </div>
+        ) : (
+          <WorkspaceFloatingCanvas />
+        )}
 
-      <TopBar
-        project={project}
-        previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
-        onTogglePreview={togglePreview}
-        dockApi={dockApi}
-      />
-      {!inMergeStudio && <FollowMeBanner />}
+        <TopBar
+          project={project}
+          previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
+          onTogglePreview={togglePreview}
+          dockApi={dockApi}
+        />
+        {!inMergeStudio && <FollowMeBanner />}
 
-      {/* Merge Studio has its own canvas tools (select / hand) and moves
-          comments, share and history into its header and Changes log. */}
-      {!inMergeStudio && <RightFloatingBar />}
-      {!inMergeStudio && <SaveStatusIndicator projectId={project.id} />}
-      <InspectorSidebar />
-      {!inMergeStudio && <ChatMorphWidget />}
+        {!inMergeStudio && <SaveStatusIndicator projectId={project.id} />}
+        <InspectorSidebar />
+        {!inMergeStudio && <ChatMorphWidget />}
+      </div>
+      {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>
   )
 }

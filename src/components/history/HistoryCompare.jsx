@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Plain LCS line diff — snapshots are a few dozen lines at most, so the
@@ -38,9 +38,9 @@ function diffLines(from, to) {
 }
 
 const ROW_TONES = {
-  same: 'text-muted-foreground',
-  add: 'bg-emerald-500/10 text-emerald-300',
-  remove: 'bg-destructive/10 text-destructive',
+  same: 'text-slate-500',
+  add: 'bg-emerald-400/[0.08] text-emerald-300',
+  remove: 'bg-destructive/[0.08] text-red-300',
 }
 const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 
@@ -62,7 +62,7 @@ function HistoryCompare({ entryId }) {
 
   if (!entry) {
     return (
-      <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-xs text-muted-foreground">
+      <div className="flex h-full items-center justify-center rounded-[20px] bg-white/[0.03] text-xs text-slate-500">
         Select a version to compare it with the current one.
       </div>
     )
@@ -83,36 +83,47 @@ function HistoryCompare({ entryId }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card">
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b px-4 py-3">
+    // A Merge Studio floating panel: the same surface as the Version
+    // History drawer, borderless inside, the mint accent for Restore.
+    <div className={cn('flex h-full min-h-0 flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}>
+      <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-4 pb-3">
         <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground">{entry.timestamp}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] font-semibold text-foreground">
-            {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-primary" />}
+          <p className="text-[11px] text-slate-500 tabular-nums">{entry.timestamp}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] font-semibold text-white">
+            {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
             {entry.label}
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
             <GitCompareArrows className="size-3" />
             {isCurrent ? (
               'This is the current version.'
             ) : (
               <>
                 Compared with current ·{' '}
-                <span className="text-emerald-400">+{added}</span>
-                <span className="text-destructive">−{removed}</span> lines
+                <span className="text-emerald-300">+{added}</span>
+                <span className="text-red-300">−{removed}</span> lines
                 {propChanges.length > 0 && ` · ${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`}
                 {conflictDelta !== 0 && ` · ${conflictDelta > 0 ? '+' : ''}${conflictDelta} conflicts`}
               </>
             )}
           </p>
         </div>
-        <Button size="sm" onClick={handleRestore} disabled={isCurrent} className="shrink-0 gap-1.5">
+        <button
+          type="button"
+          onClick={handleRestore}
+          disabled={isCurrent}
+          className={cn(
+            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
+            ACCENT_CTA,
+            'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
+          )}
+        >
           <RotateCcw className="size-3.5" />
           {isCurrent ? 'Current' : 'Restore this version'}
-        </Button>
+        </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto py-2 font-mono text-[12px] leading-5">
+      <div className="mx-3 mb-3 min-h-0 flex-1 overflow-auto rounded-xl bg-black/20 py-2 font-mono text-[12px] leading-5">
         {rows.map((row, index) => (
           <div key={index} className={cn('flex px-4 whitespace-pre', ROW_TONES[row.kind])}>
             <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
@@ -122,12 +133,12 @@ function HistoryCompare({ entryId }) {
       </div>
 
       {propChanges.length > 0 && !isCurrent && (
-        <div className="shrink-0 border-t px-4 py-2.5">
-          <p className="mb-1 text-[11px] font-medium text-muted-foreground">Preview props</p>
+        <div className="shrink-0 px-5 pb-4">
+          <p className="mb-1 text-xs font-medium text-slate-300">Preview props</p>
           {propChanges.map((key) => (
-            <p key={key} className="font-mono text-[11px] text-muted-foreground">
-              {key}: <span className="text-destructive line-through">{String(current.snapshot.previewProps?.[key] ?? '—')}</span>{' '}
-              → <span className="text-emerald-400">{String(entry.snapshot.previewProps?.[key] ?? '—')}</span>
+            <p key={key} className="font-mono text-[11px] text-slate-500">
+              {key}: <span className="text-red-300 line-through">{String(current.snapshot.previewProps?.[key] ?? '—')}</span>{' '}
+              → <span className="text-emerald-300">{String(entry.snapshot.previewProps?.[key] ?? '—')}</span>
             </p>
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
@@ -6,6 +6,7 @@ import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
+import ArchiveDrawer from '@/components/dashboard/ArchiveDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
 import { allConflictRecords, isOpen } from '@/lib/conflicts'
@@ -13,7 +14,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 const totalOpenConflicts = allConflictRecords().filter(isOpen).length
 
-// The activity bar's global destinations: Home, Conflicts, Activity,
+// The activity bar's global destinations: Home, Conflict Points, Activity,
 // Team. Projects isn't in this list — its button (the project switcher)
 // sits above these, at the very top, and is rendered separately. Conflicts is the full list behind the dashboard's "Active
 // conflicts" widget, with its open count badged on the icon.
@@ -27,7 +28,7 @@ export const navItems = [
   },
   {
     id: 'conflicts',
-    label: 'Conflicts',
+    label: 'Conflict Points',
     icon: GitBranch,
     path: '/conflicts',
     match: (pathname) => pathname.startsWith('/conflicts'),
@@ -116,16 +117,18 @@ function ProjectsMark({ project }) {
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
 //   2. Home — straight to the dashboard;
-//   3. inside a project, Archive — promoted right under Home as the
+//   3. inside a project, Archive (which opens its Reference Docs / History
+//      sub-navigation in the drawer rather than jumping into content) — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
 //      default view and needs no icon) — then a hairline;
-//   4. the secondary global items: Conflicts (which opens the conflict
-//      list in the drawer, over any view), Activity and Team — every item
-//      but Conflicts goes straight to its full page, with no drawer;
+//   4. the secondary global items: Conflict Points (which opens the
+//      conflict list in the drawer, over any view), Activity and Team —
+//      which go straight to their full pages, with no drawer;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the shared surface tone (`bg-sidebar`, the same as
 // every panel and window) one step above the deeper canvas.
-function ActivityBar({ project, conflictsOpen, onToggleConflicts }) {
+function ActivityBar({ project, drawer, onToggleDrawer }) {
+  const conflictsOpen = drawer === 'conflicts'
   const { pathname } = useLocation()
   const workspace = useWorkspaceOptional()
   // Inside a project, the live count of its open conflicts (the same list
@@ -177,7 +180,7 @@ function ActivityBar({ project, conflictsOpen, onToggleConflicts }) {
                   label={label}
                   icon={icon}
                   badge={openConflicts}
-                  onClick={onToggleConflicts}
+                  onClick={() => onToggleDrawer('conflicts')}
                   aria-expanded={conflictsOpen}
                   className={cn(isActive && activeClass)}
                 />
@@ -198,9 +201,9 @@ function ActivityBar({ project, conflictsOpen, onToggleConflicts }) {
                   <RailButton
                     label="Archive"
                     icon={Archive}
-                    render={<Link to={archivePath} />}
-                    aria-current={onArchive ? 'page' : undefined}
-                    className={cn(onArchive && activeClass)}
+                    onClick={() => onToggleDrawer('archive')}
+                    aria-expanded={drawer === 'archive'}
+                    className={cn((drawer === 'archive' || (onArchive && !drawer)) && activeClass)}
                   />
                   {/* Separates the high-frequency project group above from
                       the secondary global items (Conflicts, Activity, Team)
@@ -229,7 +232,7 @@ function CloseButton({ onClose }) {
     <Tooltip>
       <TooltipTrigger
         onClick={onClose}
-        aria-label="Close conflicts"
+        aria-label="Close drawer"
         className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <PanelLeftClose className="size-[18px]" />
@@ -239,32 +242,46 @@ function CloseButton({ onClose }) {
   )
 }
 
+const DRAWER_TITLES = { conflicts: 'Conflict Points', archive: 'Archive' }
+
 // The app's navigation: the always-slim ActivityBar with the global
-// destinations, and beside it a drawer used only by the Conflicts icon —
-// it slides open (its width animates from 0; its content keeps a fixed
-// w-68 so nothing re-wraps mid-animation) to list the conflicts, and
-// closes from its own button or the Conflicts icon again. Every other
-// destination is a plain full page; there is no general sidebar toggle.
-function Sidebar({ project, conflictsOpen, onToggleConflicts, onCloseConflicts }) {
+// destinations, and beside it a drawer used by just two icons — Conflict
+// Points (the conflict list) and Archive (its sub-navigation). It slides
+// open (its width animates from 0; its content keeps a fixed w-68 so
+// nothing re-wraps mid-animation) and closes from its own button or the
+// same icon again. Every other destination is a plain full page; there is
+// no general sidebar toggle.
+function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
+  // Keep showing the last panel while the drawer animates shut.
+  const [shown, setShown] = useState(drawer)
+  if (drawer && drawer !== shown) setShown(drawer)
+  const panel = drawer ?? shown
+
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} conflictsOpen={conflictsOpen} onToggleConflicts={onToggleConflicts} />
+      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} />
 
       <div
-        inert={!conflictsOpen}
-        aria-hidden={!conflictsOpen}
+        inert={!drawer}
+        aria-hidden={!drawer}
         className={cn(
           'h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          conflictsOpen ? 'w-68' : 'w-0'
+          drawer ? 'w-68' : 'w-0'
         )}
       >
-        <aside aria-label="Conflicts" className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2">
+        <aside
+          aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
+          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
+        >
           <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
-            <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">Conflicts</p>
-            <CloseButton onClose={onCloseConflicts} />
+            <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
+              {DRAWER_TITLES[panel]}
+            </p>
+            <CloseButton onClose={onCloseDrawer} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
-            <ConflictsDrawer onNavigate={onCloseConflicts} />
+            {panel === 'conflicts' && <ConflictsDrawer onNavigate={onCloseDrawer} />}
+            {panel === 'archive' && project && <ArchiveDrawer project={project} />}
           </div>
         </aside>
       </div>

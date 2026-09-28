@@ -534,7 +534,7 @@ export const layoutPresets = [
   {
     id: 'default',
     label: 'Default',
-    description: 'Editor (with Explorer), Canvas (with Layers), Preview & Terminal',
+    description: 'Editor (with Explorer), Canvas (with Layers) & Preview',
     iconName: 'LayoutGrid',
   },
   {
@@ -1713,7 +1713,7 @@ export const panelDefinitions = [
   { id: 'preview', title: 'Preview', component: 'preview', iconName: 'Monitor', group: 'main' },
   { id: 'terminal', title: 'Terminal', component: 'terminal', iconName: 'SquareTerminal', group: 'bottom' },
   { id: 'console', title: 'Console', component: 'console', iconName: 'ScrollText', group: 'bottom' },
-  { id: 'conflict', title: 'Conflict Point', component: 'conflict', iconName: 'TriangleAlert', group: 'bottom' },
+  { id: 'conflict', title: 'Conflict Points', component: 'conflict', iconName: 'TriangleAlert', group: 'bottom' },
 ]
 
 

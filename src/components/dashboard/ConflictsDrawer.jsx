@@ -45,7 +45,7 @@ function ConflictRow({ conflict, active, onSelect }) {
 // whatever you're looking at instead of taking over the main area.
 //
 // Inside a project it lists that project's conflicts straight from the
-// workspace — the very list the terminal's Conflict Point tab shows, so
+// workspace — the very list the bottom panel's Conflict Points tab shows, so
 // the two always match and a review done in either shows up in both. On
 // the global pages (no workspace) it lists every project's conflicts,
 // grouped, from its own local copy (mock data, like the dashboard widget
@@ -78,7 +78,7 @@ function ConflictsDrawer({ onNavigate }) {
     <>
       <nav aria-label="Conflicts" className="flex flex-col gap-3">
         {conflicts.length === 0 && (
-          <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground/70">No conflicts in this project.</p>
+          <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground/70">No conflict points in this project.</p>
         )}
         {groupByProject(sortOpenFirst(conflicts)).map((group) => (
           <div key={group.id}>
@@ -107,7 +107,7 @@ function ConflictsDrawer({ onNavigate }) {
           onClick={onNavigate}
           className="flex h-8 items-center px-2.5 text-[12px] text-muted-foreground/70 transition-colors hover:text-foreground"
         >
-          View all conflicts
+          View all conflict points
         </Link>
       </nav>
 

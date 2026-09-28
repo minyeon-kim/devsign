@@ -13,7 +13,7 @@ const severityConfig = {
   low: { label: 'Low', icon: Info, className: 'bg-sky-500/15 text-sky-500' },
 }
 
-// The terminal's Conflict Point tab: the same project-scoped conflict
+// The bottom panel's Conflict Points tab: the same project-scoped conflict
 // list as the activity bar's Conflicts drawer (both read the workspace's
 // `conflicts`). There's deliberately no one-click Resolve here — a row
 // opens the conflict's review window, where resolving is the last step
@@ -25,9 +25,8 @@ function ConflictPanel() {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      {/* No internal title bar here — the dockview tab above already reads
-          "Conflict Point", so repeating it as a panel header would just be a
-          duplicate label. */}
+      {/* No internal title bar here — the bottom panel's tab above already
+          reads "Conflict Points". */}
       {conflicts.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
           <CircleCheck className="size-6 text-emerald-500" />

@@ -3,7 +3,7 @@ import ConflictModal from '@/components/modals/ConflictModal'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // The project's single conflict review window. The Conflicts drawer and
-// the terminal's Conflict Point tab both just call openConflictReview(id);
+// the bottom panel's Conflict Points tab both just call openConflictReview(id);
 // this renders the one ConflictModal for whichever conflict that is,
 // bound to the workspace's shared conflict list.
 function ConflictReviewHost() {

@@ -59,7 +59,7 @@ function TypingBubble() {
 // window, and the close button reverses the animation back down into the
 // icon at its fixed corner.
 function ChatMorphWidget() {
-  const { chatMessages, isAiTyping, sendChatMessage } = useWorkspace()
+  const { chatMessages, isAiTyping, sendChatMessage, bottomPanel } = useWorkspace()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [windowSize, setWindowSize] = useState(() => ({
@@ -89,7 +89,10 @@ function ChatMorphWidget() {
   }, [chatMessages, isAiTyping, open])
 
   const iconLeft = windowSize.width - MARGIN - ICON_SIZE
-  const iconTop = windowSize.height - MARGIN - ICON_SIZE
+  // Sits above the workspace's docked bottom panel (expanded or just its
+  // 40px tab strip), not on top of it.
+  const bottomInset = bottomPanel.open ? bottomPanel.height : 40
+  const iconTop = windowSize.height - MARGIN - ICON_SIZE - bottomInset
 
   function clamp(value, size, max) {
     return Math.min(Math.max(value, MARGIN), Math.max(MARGIN, max - size - MARGIN))

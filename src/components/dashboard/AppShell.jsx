@@ -4,26 +4,28 @@ import Sidebar from '@/components/dashboard/Sidebar'
 // The common application shell, shared by the dashboard-level pages and
 // a project's Workspace/Archive:
 //
-//   ┌ activity ┬ conflicts ┬─────────────── topBar (floating) ───────────────┐
-//   │ bar      │ (drawer,  │──────────────────── content ─────────────────────┤
-//   │ (global) │  optional)│                                                  │
+//   ┌ activity ┬ drawer     ┬─────────────── topBar (floating) ──────────────┐
+//   │ bar      │ (optional) │─────────────────── content ─────────────────────┤
+//   │ (global) │            │                                                 │
 //
 // The permanently slim, icon-only activity bar runs the full height of
 // the window. Its destinations are plain full pages — there's no general
-// sidebar toggle — except Conflicts, which slides a drawer open beside
-// it listing the conflicts, whose items open the conflict review window
-// over the current view instead of navigating away. The drawer's width
-// animates, pushing the content column over rather than overlapping it.
+// sidebar toggle — except two that slide a drawer open beside it instead:
+// Conflict Points (the conflict list, whose items open the review window
+// over the current view) and, inside a project, Archive (its Reference
+// Docs / History sub-navigation). The drawer's width animates, pushing the
+// content column over rather than overlapping it.
 function AppShell({ topBar, project, children }) {
-  const [conflictsOpen, setConflictsOpen] = useState(false)
+  // null | 'conflicts' | 'archive'
+  const [drawer, setDrawer] = useState(null)
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         project={project}
-        conflictsOpen={conflictsOpen}
-        onToggleConflicts={() => setConflictsOpen((open) => !open)}
-        onCloseConflicts={() => setConflictsOpen(false)}
+        drawer={drawer}
+        onToggleDrawer={(panel) => setDrawer((open) => (open === panel ? null : panel))}
+        onCloseDrawer={() => setDrawer(null)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

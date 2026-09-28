@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Bell, PanelRight } from 'lucide-react'
+import { Bell, PanelRight, ScanEye } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
+import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -73,7 +74,7 @@ function InboxButton({ open, onToggle }) {
 }
 
 function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
-  const { activeView, requestMergeFocus, openMergeStudio } = useWorkspace()
+  const { activeView, requestMergeFocus, openMergeStudio, inspectorOpen, setInspectorOpen } = useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
 
@@ -85,12 +86,12 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
           capsule, fill, hairline and type — at up to the same 480px.
           Sized against the Workspace view itself (a container query on
           WorkspacePage's root), not the browser window: the view narrows
-          when the sidebar drawer opens. It keeps 460px clear on each side
-          of center (the ~430px action pill + its 16px inset + a 12px gap)
+          when the sidebar drawer opens. It keeps 590px clear on each side
+          of center (the ~560px action pill + its 16px inset + a 12px gap)
           and steps aside entirely when the view is too narrow to fit a
           usable field between the pills, so it never collides with them. */}
       <SearchField
-        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-920px)] -translate-x-1/2 @max-[1160px]:hidden"
+        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-1180px)] -translate-x-1/2 @max-[1400px]:hidden"
         placeholder="Search files, commands..."
       />
 
@@ -102,9 +103,25 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
       >
         <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
         <LayoutMenu dockApi={dockApi} />
+        {/* Inspect and Share used to sit in a separate floating toolbar on
+            the right edge; they live here now with the other actions. */}
+        <button
+          type="button"
+          title="Inspect"
+          aria-label="Inspect"
+          aria-pressed={inspectorOpen}
+          onClick={() => setInspectorOpen((v) => !v)}
+          className={cn(
+            'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+            inspectorOpen && 'bg-emerald-400/20 text-emerald-300'
+          )}
+        >
+          <ScanEye className="size-4" />
+        </button>
         <PillDivider />
         <UserPresence />
         <PillDivider />
+        <MergeShareButton inline title={project?.name} link={`https://devsign.app/projects/${project?.id}`} />
         <MergeStudioMenu />
         <button
           type="button"

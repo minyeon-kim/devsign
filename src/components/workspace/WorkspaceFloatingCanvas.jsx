@@ -8,9 +8,6 @@ import AssetsPanel from '@/components/dockview/panels/AssetsPanel'
 import CanvasPanel from '@/components/dockview/panels/CanvasPanel'
 import EditorPanel from '@/components/dockview/panels/EditorPanel'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
-import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
-import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
-import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import LayerInspectPanel from '@/components/dockview/panels/LayerInspectPanel'
 import { buildInitialLayout } from '@/components/dockview/DockLayout'
 import FloatingWindow from '@/components/workspace/FloatingWindow'
@@ -24,9 +21,6 @@ const components = {
   canvas: CanvasPanel,
   editor: EditorPanel,
   preview: PreviewPanelContent,
-  terminal: TerminalPanel,
-  console: ConsolePanel,
-  conflict: ConflictPanel,
   layerInspect: LayerInspectPanel,
 }
 
@@ -74,12 +68,11 @@ function WorkspaceFloatingCanvas() {
       const maxY = Math.max(...groups.map((g) => g.y + g.h))
       // The same keep-out bands every floating control respects (Merge
       // Studio's rhythm), so the default layout never starts out tucked
-      // under chrome: the top pill row (top-3 / h-10), the bottom row
-      // (save status + zoom at bottom-5 / h-11), and the right toolbar
-      // (48px + 12px margin) along the right edge.
+      // under chrome: the top pill row (top-3 / h-10) and the bottom row
+      // (save status + zoom at bottom-5 / h-11).
       const leftMargin = 32
       const topMargin = 72
-      const rightMargin = 76
+      const rightMargin = 32
       const bottomMargin = 84
       const fitZoom = Math.min(
         MAX_ZOOM,

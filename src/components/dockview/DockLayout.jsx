@@ -79,29 +79,17 @@ export function openOrFocusPanel(dockApi, def) {
 }
 
 export function buildInitialLayout(api) {
-  addDockPanel(api, panelById.terminal, { initialHeight: 220 })
-
-  // Docked as a sibling tab of Terminal (Chrome-style: one tab row) instead
-  // of the old internal Terminal/Console sub-tab strip.
-  addDockPanel(api, panelById.console, {
-    position: { direction: 'within', referencePanel: panelById.terminal.id },
-  })
-
-  addDockPanel(api, panelById.conflict, {
-    position: { direction: 'within', referencePanel: panelById.terminal.id },
-  })
-
-  addDockPanel(api, panelById.editor, {
-    position: { direction: 'above', referencePanel: panelById.terminal.id },
-  })
+  // Terminal, Console and Conflict Points aren't floating windows anymore —
+  // they live in the workspace's docked bottom panel (WorkspaceBottomPanel)
+  // — so the layout starts from the editor.
+  addDockPanel(api, panelById.editor)
 
   // No Explorer/Layers windows: Explorer lives inside the editor and
   // Layers (with Assets) inside the canvas, each as its own slide-in
   // drawer (see ContainerDrawer), so the editor spans the whole left of
   // the layout.
 
-  // Canvas sits beside the editor (with Preview as its sibling tab) so the
-  // canvas and terminal are both on screen from the first frame.
+  // Canvas sits beside the editor (with Preview as its sibling tab).
   // 620px (not 460) so the canvas surface keeps a usable width beside
   // its built-in Layers drawer.
   addDockPanel(api, panelById.canvas, {
@@ -114,13 +102,6 @@ export function buildInitialLayout(api) {
 
   api.getPanel(panelById.editor.id)?.api.setActive()
   api.getPanel(panelById.canvas.id)?.api.setActive()
-  api.getPanel(panelById.terminal.id)?.api.setActive()
-
-  // Splitting the editor above the terminal defaults to a 50/50 split,
-  // which makes the terminal far too tall. Pin it to ~28% of the height.
-  const terminalGroup = api.getPanel(panelById.terminal.id)?.group
-  const height = Math.round(Math.min(260, Math.max(150, api.height * 0.28)))
-  terminalGroup?.api.setSize({ height })
 }
 
 function DockLayout({ onReady }) {

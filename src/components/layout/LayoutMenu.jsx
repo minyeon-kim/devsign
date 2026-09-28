@@ -2,10 +2,11 @@ import { Columns2, LayoutGrid, Maximize, Rows2 } from 'lucide-react'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { layoutPresets } from '@/data/mockData'
 import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/DockLayout'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const presetIcons = { LayoutGrid, Maximize, Columns2, Rows2 }
 
-function applyLayoutPreset(dockApi, presetId) {
+function applyLayoutPreset(dockApi, presetId, { showTerminal }) {
   if (!dockApi) return
   const editor = dockApi.getPanel(panelById.editor.id)
 
@@ -35,7 +36,8 @@ function applyLayoutPreset(dockApi, presetId) {
     }
     case 'stacked-terminal': {
       if (editor?.api.isMaximized?.()) editor.api.exitMaximized()
-      dockApi.getPanel(panelById.terminal.id)?.api.setActive()
+      // The terminal lives in the docked bottom panel now.
+      showTerminal()
       break
     }
     default:
@@ -48,6 +50,9 @@ function applyLayoutPreset(dockApi, presetId) {
 // and Layers aren't windows anymore — they're drawers inside the editor
 // and canvas, toggled from those containers' own headers.)
 function LayoutMenu({ dockApi }) {
+  const { setBottomPanel } = useWorkspace()
+  const showTerminal = () => setBottomPanel({ tab: 'terminal', open: true })
+
   return (
     <Popover>
       <PopoverTrigger
@@ -67,7 +72,7 @@ function LayoutMenu({ dockApi }) {
               <PopoverClose
                 key={preset.id}
                 type="button"
-                onClick={() => applyLayoutPreset(dockApi, preset.id)}
+                onClick={() => applyLayoutPreset(dockApi, preset.id, { showTerminal })}
                 className="flex flex-col items-start gap-1 rounded-xl border border-transparent p-2 text-left transition-colors hover:border-border hover:bg-muted"
               >
                 <span className="flex size-7 items-center justify-center rounded-full bg-muted text-foreground/80">

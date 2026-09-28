@@ -58,12 +58,17 @@ export function WorkspaceProvider({ children, projectId }) {
     seedConsoleLogLines.map((text) => ({ id: nextId('c'), text }))
   )
   // This project's conflicts — the single list the Conflicts drawer and
-  // the terminal's Conflict Point tab both read and update.
+  // the bottom panel's Conflict Points tab both read and update.
   const [conflicts, setConflicts] = useState(() => projectConflictRecords(projectId))
   // The conflict open in the review window (ConflictReviewHost). One per
   // workspace, so opening a conflict from the drawer or the terminal
   // always reuses the same window instead of stacking a second one.
   const [reviewConflictId, setReviewConflictId] = useState(null)
+  // The docked bottom panel (Terminal / Console / Conflict Points): which
+  // tab is showing, whether it's expanded or collapsed to its tab strip,
+  // and its expanded height (dragged from its top edge).
+  const [bottomPanel, setBottomPanelState] = useState({ tab: 'terminal', open: true, height: 240 })
+  const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
   const [chatMessages, setChatMessages] = useState(initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
@@ -380,7 +385,12 @@ export function WorkspaceProvider({ children, projectId }) {
       setActiveFileIdState(snapshot.activeFileId)
       setPreviewProps(snapshot.previewProps)
       setPreviewVersion((v) => v + 1)
-      setConflicts(snapshot.conflicts)
+      // Conflict points are review records, not code state: restore the
+      // ones this project's list and the snapshot share (e.g. a conflict an
+      // AI edit resolved reopens), but never drop or add others — an older
+      // snapshot that predates them must not wipe the review trail.
+      const snapshotConflicts = new Map((snapshot.conflicts ?? []).map((c) => [c.id, c]))
+      setConflicts((prev) => prev.map((c) => snapshotConflicts.get(c.id) ?? c))
       setSelectedLayerId(snapshot.selectedLayerId ?? null)
       setActiveHistoryId(entryId)
 
@@ -536,6 +546,8 @@ export function WorkspaceProvider({ children, projectId }) {
     resolveConflict,
     updateConflict,
     reviewConflictId,
+    bottomPanel,
+    setBottomPanel,
     openConflictReview: setReviewConflictId,
     chatMessages,
     isAiTyping,

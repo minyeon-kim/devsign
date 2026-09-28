@@ -1,7 +1,7 @@
 import { conflictChecklist } from '@/data/mockData'
 
 // The one conflict model every conflict surface shares — the activity
-// bar's Conflicts drawer, the workspace terminal's Conflict Point tab,
+// bar's Conflicts drawer, the workspace bottom panel's Conflict Points tab,
 // the dashboard widget, the /conflicts page and the ConflictModal review
 // window. Status is always the review stage below; there is no separate
 // "resolved" flag or status string.

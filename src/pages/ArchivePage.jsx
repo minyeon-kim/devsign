@@ -10,7 +10,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allPeople, referenceDocs } from '@/data/mockData'
 
 // The Reference Docs index — shown when no single doc is picked. Each card
-// opens that doc (the same deep link the sidebar's Archive tree uses).
+// opens that doc (the same deep link the Archive drawer uses).
 function ReferenceDocCard({ doc, onOpen }) {
   const author = allPeople.find((p) => p.id === doc.authorId)
   const type = DOC_TYPES[doc.type] ?? DOC_TYPES.doc
@@ -68,8 +68,8 @@ function HistoryView({ project, highlightId }) {
 }
 
 // Which Archive view to show, read from the link that opened it (the
-// sidebar's Archive tree, or Workspace's save-status link) — no in-page
-// tabs; the sidebar tree is the navigation.
+// Archive drawer's Reference Docs / History items, or Workspace's
+// save-status link) — no in-page tabs; the drawer is the navigation.
 function resolveView(state) {
   const doc = state?.docId && referenceDocs.find((d) => d.id === state.docId)
   if (doc) return { kind: 'doc', doc }

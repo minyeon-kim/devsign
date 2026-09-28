@@ -38,7 +38,7 @@ function ConflictsPage() {
           <ArrowLeft className="size-3.5" />
         </Button>
         <GitMerge className="size-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold text-foreground">All conflicts</h1>
+        <h1 className="text-lg font-semibold text-foreground">Conflict Points</h1>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
@@ -62,7 +62,7 @@ function ConflictsPage() {
 
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
         {visible.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">No conflicts match this filter.</p>
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">No conflict points match this filter.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border/60">
             {visible.map((conflict) => (

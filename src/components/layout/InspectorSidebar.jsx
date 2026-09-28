@@ -69,12 +69,11 @@ function InspectorSidebar() {
     // Same shell as Merge Studio's right-hand drawers (MergeDrawer): a
     // floating card with a borderless title bar — not a full-height docked
     // sheet. It sits in the band between the top pill row (ends 52px down)
-    // and the bottom row (bottom-5 / h-11), and just left of the right
-    // toolbar (12px margin + 48px + 12px gap), so it never covers the
-    // toolbar's Inspect toggle or any pill.
+    // and the bottom row (bottom-5 / h-11), on the right edge, so it never
+    // covers any pill (its toggle is the top bar's Inspect button).
     <div
       className={cn(
-        'absolute top-16 right-[72px] bottom-[76px] z-40 flex w-80 max-w-[calc(100%-6rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        'absolute top-16 right-4 bottom-[76px] z-40 flex w-80 max-w-[calc(100%-6rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
         PANEL_RADIUS,
         FLOATING_PANEL
       )}
