@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, Archive, ChevronLeft, ChevronRight, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import ArchiveDrawer from '@/components/dashboard/ArchiveDrawer'
+import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
 
@@ -60,8 +60,9 @@ function ProjectsMark({ project }) {
 //   · at the top, always: Projects — the Slack-style project switcher,
 //     wearing the current project's badge while you're in one;
 //   · outside a project: Home (the project hub), Activity and Team;
-//   · inside a project: just that project's views — Home (its overview)
-//     and Archive (which opens its sub-navigation in the drawer). Activity
+//   · inside a project: just that project's views — Home (its overview),
+//     Docs (which opens the docs category tree in the drawer), History (its
+//     checkpoints) and Import (the import screen). Activity
 //     and Team step aside so the focused workspace isn't cluttered, and
 //     Conflict Points live only in the Workspace's bottom panel.
 // Settings is pinned to the bottom.
@@ -69,8 +70,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   const { pathname } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
-  const archivePath = project ? `/projects/${project.id}/archive` : null
-  const onArchive = !!archivePath && path.startsWith(archivePath)
+  const base = project ? `/projects/${project.id}` : null
+  const onDocs = !!base && path.startsWith(`${base}/docs`)
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
@@ -108,12 +109,29 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               className={cn(path === overviewPath && !drawer && activeClass)}
             />
             <RailButton
-              label="Archive"
-              icon={Archive}
-              onClick={() => onToggleDrawer('archive')}
-              aria-expanded={drawer === 'archive'}
-              className={cn((drawer === 'archive' || (onArchive && !drawer)) && activeClass)}
+              label="Docs"
+              icon={BookOpen}
+              onClick={() => onToggleDrawer('docs')}
+              aria-expanded={drawer === 'docs'}
+              className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
             />
+            {[
+              ['history', 'History', History],
+              ['import', 'Import', Import],
+            ].map(([seg, label, icon]) => {
+              const to = `${base}/${seg}`
+              const active = path.startsWith(to)
+              return (
+                <RailButton
+                  key={seg}
+                  label={label}
+                  icon={icon}
+                  render={<Link to={to} />}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(active && !drawer && activeClass)}
+                />
+              )
+            })}
           </>
         ) : (
           globalItems.map(({ id, label, icon, path: to }) => {
@@ -159,7 +177,7 @@ function CloseButton({ onClose }) {
 }
 
 // Claude-style back / forward icons in the drawer header — through the
-// browser history, so ‹ from anywhere in the Archive returns to where you
+// browser history, so ‹ from anywhere in Docs returns to where you
 // came from (e.g. the Workspace), and › goes forward again.
 function HistoryNavButtons() {
   const navigate = useNavigate()
@@ -184,13 +202,13 @@ function HistoryNavButtons() {
   )
 }
 
-const DRAWER_TITLES = { archive: 'Archive' }
+const DRAWER_TITLES = { docs: 'Docs' }
 
 // The app's navigation: the always-slim ActivityBar, and beside it a
-// drawer used by the Archive icon for its sub-navigation. It slides open
+// drawer used by the Docs icon for the docs category tree. It slides open
 // (its width animates from 0; its content keeps a fixed w-68 so nothing
-// re-wraps mid-animation) and closes from its own button or the Archive
-// icon again. Every other destination is a plain full page.
+// re-wraps mid-animation) and closes from its own button or the Docs icon
+// again. Every other destination is a plain full page.
 function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
@@ -221,7 +239,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
             <CloseButton onClose={onCloseDrawer} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
-            {panel === 'archive' && project && <ArchiveDrawer project={project} />}
+            {panel === 'docs' && project && <DocsDrawer project={project} />}
           </div>
         </aside>
       </div>

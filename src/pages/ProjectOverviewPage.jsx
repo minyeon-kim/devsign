@@ -64,7 +64,8 @@ function ProjectOverviewPage() {
   const { conflicts, openConflictReview, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel } =
     useWorkspace()
   const workspacePath = `/projects/${project.id}/workspace`
-  const archivePath = `/projects/${project.id}/archive`
+  const docsPath = `/projects/${project.id}/docs`
+  const historyPath = `/projects/${project.id}/history`
 
   const openConflicts = conflicts.filter(isOpen)
   const recentActivity = activities.filter((a) => a.projectId === project.id).slice(0, 5)
@@ -204,7 +205,7 @@ function ProjectOverviewPage() {
             <Section
               title="Design system pipeline"
               action={
-                <SectionLink to={archivePath} state={{ tab: 'dsUpdates' }}>
+                <SectionLink to={docsPath} state={{ tab: 'dsUpdates' }}>
                   Open
                 </SectionLink>
               }
@@ -226,7 +227,7 @@ function ProjectOverviewPage() {
             <Section
               title="Reference docs"
               action={
-                <SectionLink to={archivePath} state={{ tab: 'referenceDocs' }}>
+                <SectionLink to={docsPath}>
                   All docs
                 </SectionLink>
               }
@@ -235,8 +236,8 @@ function ProjectOverviewPage() {
                 {referenceDocs.slice(0, 4).map((doc) => (
                   <Link
                     key={doc.id}
-                    to={archivePath}
-                    state={{ tab: 'referenceDocs', docId: doc.id }}
+                    to={docsPath}
+                    state={{ docId: doc.id }}
                     className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-slate-300 transition-colors hover:bg-white/[0.04] hover:text-white"
                   >
                     <BookOpen className="size-3.5 shrink-0 text-slate-500" />
@@ -250,7 +251,7 @@ function ProjectOverviewPage() {
             <Section
               title="Recent versions"
               action={
-                <SectionLink to={archivePath} state={{ tab: 'history' }}>
+                <SectionLink to={historyPath}>
                   History
                 </SectionLink>
               }
@@ -259,8 +260,8 @@ function ProjectOverviewPage() {
                 {recentHistory.map((entry) => (
                   <Link
                     key={entry.id}
-                    to={archivePath}
-                    state={{ tab: 'history', highlightId: entry.id }}
+                    to={historyPath}
+                    state={{ highlightId: entry.id }}
                     className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-slate-300 transition-colors hover:bg-white/[0.04] hover:text-white"
                   >
                     <GitMerge className="size-3.5 shrink-0 text-slate-500" />

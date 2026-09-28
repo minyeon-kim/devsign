@@ -18,14 +18,14 @@ import { projectTone } from '@/lib/projectTone'
 // rail's Home icon goes to the project's overview, so the global Home is
 // reached from here. `children` is the trigger subtree — it must contain a
 // DropdownMenuTrigger (the Projects button, wrapped in its tooltip).
-// Switching projects keeps you on the same view (overview, Workspace or
-// Archive) you were on; from a global page it opens the project's overview.
+// Switching projects keeps you on the same view you were on; from a global
+// page it opens the project's overview.
 function ProjectSwitcher({ children, currentProjectId }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  // The project view you're on (overview, Workspace or Archive), kept when
-  // switching to another project; from a global page, its overview.
-  const tab = pathname.endsWith('/archive') ? '/archive' : pathname.endsWith('/workspace') ? '/workspace' : ''
+  // The project view you're on (overview, Workspace, Docs, History or
+  // Import), kept when switching to another project.
+  const tab = pathname.match(/\/(workspace|docs|history|import)$/)?.[0] ?? ''
 
   return (
     <DropdownMenu>

@@ -28,7 +28,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUser } from '@/data/mockData'
 import { REVIEW_STAGES, allReviewersApproved } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import RollbackHistoryList from '@/components/history/RollbackHistoryList'
+import { useNavigate } from 'react-router-dom'
 import {
   ACCENT_CTA,
   CATEGORY_TAB,
@@ -556,6 +556,7 @@ function useDraggable() {
 // final step (defaults to an onUpdate to 'resolved').
 function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
+  const navigate = useNavigate()
   const open = Boolean(conflict)
   const { style: dragStyle, handleProps } = useDraggable()
 
@@ -696,12 +697,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                     <OverviewTab conflict={conflict} onPreview={workspace ? handlePreviewChange : null} />
                   )}
                   {tab === 'diff' && <DiffTab conflict={conflict} />}
-                  {tab === 'history' &&
-                    (workspace ? (
-                      <RollbackHistoryList />
-                    ) : (
-                      <EmptyNote>Version history lives in the project's workspace.</EmptyNote>
-                    ))}
+                  {/* History lives in one place — the project's History menu
+                      (checkpoints with rollback) — so this tab points there. */}
+                  {tab === 'history' && (
+                    <div className="flex flex-col items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-8 text-center">
+                      <p className="text-xs text-slate-400">Checkpoints and rollbacks for this project are in History.</p>
+                      {workspace && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onOpenChange(false)
+                            navigate(`/projects/${workspace.projectId}/history`)
+                          }}
+                          className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium', GHOST_BUTTON)}
+                        >
+                          Open History
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

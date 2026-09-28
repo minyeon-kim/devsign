@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Braces,
   ChevronDown,
@@ -24,7 +25,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import AgentHistoryModal from '@/components/modals/AgentHistoryModal'
 import { aiModels, chatSuggestions } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -59,7 +59,7 @@ function TypingBubble() {
 // window, and the close button reverses the animation back down into the
 // icon at its fixed corner.
 function ChatMorphWidget() {
-  const { chatMessages, isAiTyping, sendChatMessage, bottomPanel } = useWorkspace()
+  const { chatMessages, isAiTyping, sendChatMessage, bottomPanel, projectId } = useWorkspace()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [windowSize, setWindowSize] = useState(() => ({
@@ -71,7 +71,7 @@ function ChatMorphWidget() {
   const [codeBlockMode, setCodeBlockMode] = useState(false)
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
   const [autoMode, setAutoMode] = useState(true)
-  const [agentLogOpen, setAgentLogOpen] = useState(false)
+  const navigate = useNavigate()
   const dragRef = useRef(null)
   const listRef = useRef(null)
 
@@ -205,8 +205,9 @@ function ChatMorphWidget() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                title="Agent Log"
-                onClick={() => setAgentLogOpen(true)}
+                title="Agent checkpoints (History)"
+                // The agent's checkpoints are in the project's History menu.
+                onClick={() => navigate(`/projects/${projectId}/history`)}
               >
                 <History className="size-3.5" />
               </Button>
@@ -214,8 +215,6 @@ function ChatMorphWidget() {
                 <X className="size-3.5" />
               </Button>
             </div>
-
-            <AgentHistoryModal open={agentLogOpen} onOpenChange={setAgentLogOpen} />
 
             <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
               {chatSuggestions.map((suggestion) => {

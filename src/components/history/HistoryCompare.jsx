@@ -4,38 +4,7 @@ import { cn } from 'cn'
 import { toast } from 'sonner'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-
-// Plain LCS line diff — snapshots are a few dozen lines at most, so the
-// O(n·m) table is cheap. Returns rows tagged 'same' | 'add' | 'remove',
-// reading `from` → `to`.
-function diffLines(from, to) {
-  const n = from.length
-  const m = to.length
-  const lcs = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      lcs[i][j] = from[i] === to[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
-    }
-  }
-
-  const rows = []
-  let i = 0
-  let j = 0
-  while (i < n && j < m) {
-    if (from[i] === to[j]) {
-      rows.push({ kind: 'same', text: from[i] })
-      i++
-      j++
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      rows.push({ kind: 'remove', text: from[i++] })
-    } else {
-      rows.push({ kind: 'add', text: to[j++] })
-    }
-  }
-  while (i < n) rows.push({ kind: 'remove', text: from[i++] })
-  while (j < m) rows.push({ kind: 'add', text: to[j++] })
-  return rows
-}
+import { diffLines } from '@/lib/lineDiff'
 
 const ROW_TONES = {
   same: 'text-slate-500',
@@ -49,7 +18,9 @@ const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 // conflicts), with the explicit Restore action. Reads the same
 // WorkspaceProvider the Workspace uses, so a restore here is exactly the
 // rollback the Workspace would do.
-function HistoryCompare({ entryId }) {
+// With `onRollback`, the button hands off to the caller (History's
+// "Rollback to checkpoint" confirmation) instead of restoring directly.
+function HistoryCompare({ entryId, onRollback }) {
   const { historyEntries, activeHistoryId, rollbackTo } = useWorkspace()
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
@@ -78,6 +49,10 @@ function HistoryCompare({ entryId }) {
   const conflictDelta = (entry.snapshot.conflicts?.length ?? 0) - (current?.snapshot.conflicts?.length ?? 0)
 
   function handleRestore() {
+    if (onRollback) {
+      onRollback(entry.id)
+      return
+    }
     rollbackTo(entry.id)
     toast('Restored this version', { description: entry.label })
   }
@@ -119,7 +94,7 @@ function HistoryCompare({ entryId }) {
           )}
         >
           <RotateCcw className="size-3.5" />
-          {isCurrent ? 'Current' : 'Restore this version'}
+          {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
         </button>
       </div>
 

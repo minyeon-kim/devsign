@@ -10,11 +10,11 @@ import Sidebar from '@/components/dashboard/Sidebar'
 //
 // The permanently slim, icon-only activity bar runs the full height of
 // the window. Its destinations are plain full pages — there's no general
-// sidebar toggle — except, inside a project, Archive, which slides a
-// drawer open beside it with its sub-navigation. The drawer's width
+// sidebar toggle — except, inside a project, Docs, which slides a drawer
+// open beside it with the docs category tree. The drawer's width
 // animates, pushing the content column over rather than overlapping it.
 function AppShell({ topBar, project, children }) {
-  // null | 'archive'
+  // null | 'docs'
   const [drawer, setDrawer] = useState(null)
 
   return (

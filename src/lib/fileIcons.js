@@ -2,7 +2,7 @@
 // extension -> icon-name map in mockData, so file/extension associations
 // stay data-driven while the actual lucide components stay out of the data
 // layer.
-import { File, FileCode, FileJson, FileTerminal, Frame, Image, Palette, PenTool, Shapes } from 'lucide-react'
+import { File, FileArchive, FileCode, FileJson, FileSpreadsheet, FileTerminal, Frame, Image, Palette, PenTool, Shapes } from 'lucide-react'
 import { fileExtensionMeta } from '@/data/mockData'
 
 const iconComponents = { File, FileCode, FileJson, FileTerminal, Palette }
@@ -18,7 +18,14 @@ export function getFileIconMeta(fileName = '') {
 
 // Icon per imported design file kind (see lib/importFiles), for the file
 // tree's Design imports and the Assets panel.
-export const ASSET_ICONS = { figma: Frame, illustrator: PenTool, vector: Shapes, image: Image }
+export const ASSET_ICONS = {
+  figma: Frame,
+  illustrator: PenTool,
+  vector: Shapes,
+  image: Image,
+  archive: FileArchive,
+  spreadsheet: FileSpreadsheet,
+}
 
 export function assetIcon(kind) {
   return ASSET_ICONS[kind] ?? Image

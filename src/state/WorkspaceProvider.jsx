@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   aiEditScenarios,
   canvasPages,
@@ -434,9 +434,17 @@ export function WorkspaceProvider({ children, projectId }) {
     setSelectedLayerId(target.layerId ?? null)
   }, [followedMemberId, remoteViewportIndex])
 
+  // How long the agent conversation is right now — stored on each new
+  // checkpoint so a rollback can also rewind the agent's memory to it.
+  const chatLengthRef = useRef(initialChatMessages.length)
+  useEffect(() => {
+    chatLengthRef.current = chatMessages.length
+  }, [chatMessages])
+
   const recordHistory = useCallback((entry) => {
     const id = nextId('h')
-    setHistoryEntries((prev) => [...prev, { archived: false, id, ...entry }])
+    const snapshot = { chatLength: chatLengthRef.current, ...entry.snapshot }
+    setHistoryEntries((prev) => [...prev, { archived: false, id, ...entry, snapshot }])
     setActiveHistoryId(id)
     return id
   }, [])
@@ -559,8 +567,12 @@ export function WorkspaceProvider({ children, projectId }) {
     )
   }, [])
 
+  // Roll back to a checkpoint. Files, preview and canvas selection always
+  // go back; `conflicts` (the Conflict Points' review state) and
+  // `agentMemory` (the agent conversation after the checkpoint) are the
+  // rollback dialog's options, both on unless turned off.
   const rollbackTo = useCallback(
-    (entryId) => {
+    (entryId, { conflicts: restoreConflicts = true, agentMemory = false } = {}) => {
       const entry = historyEntries.find((h) => h.id === entryId)
       if (!entry) return
       const { snapshot } = entry
@@ -573,13 +585,21 @@ export function WorkspaceProvider({ children, projectId }) {
       // ones this project's list and the snapshot share (e.g. a conflict an
       // AI edit resolved reopens), but never drop or add others — an older
       // snapshot that predates them must not wipe the review trail.
-      const snapshotConflicts = new Map((snapshot.conflicts ?? []).map((c) => [c.id, c]))
-      setConflicts((prev) => prev.map((c) => snapshotConflicts.get(c.id) ?? c))
+      if (restoreConflicts) {
+        const snapshotConflicts = new Map((snapshot.conflicts ?? []).map((c) => [c.id, c]))
+        setConflicts((prev) => prev.map((c) => snapshotConflicts.get(c.id) ?? c))
+      }
+      // Agent memory: forget the conversation after the checkpoint (older
+      // checkpoints without a recorded length go back to the opening one).
+      if (agentMemory) {
+        const keep = snapshot.chatLength ?? initialChatMessages.length
+        setChatMessages((prev) => prev.slice(0, keep))
+      }
       setSelectedLayerId(snapshot.selectedLayerId ?? null)
       setActiveHistoryId(entryId)
 
       appendTerminalLines([
-        `$ devsign rollback --to "${entry.label}"`,
+        `$ devsign rollback --to "${entry.label}"${agentMemory ? ' --agent-memory' : ''}`,
         '[HMR] workspace restored',
         '✓ rollback complete',
       ])

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import LocalCursor from '@/components/collab/LocalCursor'
@@ -8,7 +8,17 @@ import TeamPage from '@/pages/TeamPage'
 import ProjectLayout from '@/pages/ProjectLayout'
 import ProjectOverviewPage from '@/pages/ProjectOverviewPage'
 import WorkspacePage from '@/pages/WorkspacePage'
-import ArchivePage from '@/pages/ArchivePage'
+import DocsPage from '@/pages/DocsPage'
+import HistoryPage from '@/pages/HistoryPage'
+import ImportPage from '@/pages/ImportPage'
+
+// The Archive was split into Docs and History: old /archive links (and
+// their `location.state`) land on whichever of the two they pointed at.
+function ArchiveRedirect() {
+  const { state } = useLocation()
+  const toHistory = state?.tab === 'history' || state?.highlightId
+  return <Navigate to={toHistory ? '../history' : '../docs'} state={state} replace relative="path" />
+}
 
 function App() {
   return (
@@ -25,7 +35,10 @@ function App() {
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<ProjectOverviewPage />} />
             <Route path="workspace" element={<WorkspacePage />} />
-            <Route path="archive" element={<ArchivePage />} />
+            <Route path="docs" element={<DocsPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="import" element={<ImportPage />} />
+            <Route path="archive" element={<ArchiveRedirect />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

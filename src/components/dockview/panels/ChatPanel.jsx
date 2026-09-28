@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Braces,
   ChevronDown,
@@ -23,7 +24,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import AgentHistoryModal from '@/components/modals/AgentHistoryModal'
 import { aiModels, chatSuggestions } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -43,13 +43,13 @@ function TypingBubble() {
 }
 
 function ChatPanel() {
-  const { chatMessages, isAiTyping, sendChatMessage } = useWorkspace()
+  const { chatMessages, isAiTyping, sendChatMessage, projectId } = useWorkspace()
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState([])
   const [codeBlockMode, setCodeBlockMode] = useState(false)
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
   const [autoMode, setAutoMode] = useState(true)
-  const [agentLogOpen, setAgentLogOpen] = useState(false)
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -91,14 +91,12 @@ function ChatPanel() {
           type="button"
           variant="ghost"
           size="icon-sm"
-          title="Agent Log"
-          onClick={() => setAgentLogOpen(true)}
+          title="Agent checkpoints (History)"
+          onClick={() => navigate(`/projects/${projectId}/history`)}
         >
           <History className="size-3.5" />
         </Button>
       </div>
-
-      <AgentHistoryModal open={agentLogOpen} onOpenChange={setAgentLogOpen} />
 
       <div className="flex shrink-0 flex-wrap gap-1.5 border-b px-3 py-2">
         {chatSuggestions.map((suggestion) => {

@@ -97,7 +97,7 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <FilesLayersWindow />}
 
-        {!inMergeStudio && <SaveStatusIndicator projectId={project.id} />}
+        {!inMergeStudio && <SaveStatusIndicator />}
         <InspectorSidebar />
         {!inMergeStudio && <ChatMorphWidget />}
       </div>

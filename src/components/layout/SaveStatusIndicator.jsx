@@ -1,24 +1,10 @@
-import { useNavigate } from 'react-router-dom'
-import { History } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
-import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // A small floating status pill (same family as the canvas's zoom-control
-// pill) telling the user their work is saved, with a direct link into
-// Archive's History tab at the exact record currently active — the bridge
-// between "what am I looking at" (workspace) and "how did it get here"
-// (archive).
-function SaveStatusIndicator({ projectId }) {
-  const navigate = useNavigate()
-  const { activeHistoryId } = useWorkspace()
-
-  function viewHistory() {
-    navigate(`/projects/${projectId}/archive`, {
-      state: { tab: 'history', highlightId: activeHistoryId },
-    })
-  }
-
+// pill) telling the user their work is saved. History itself — checkpoints
+// and rollback — lives in the activity bar's History menu, not here.
+function SaveStatusIndicator() {
   return (
     <div
       className={cn(
@@ -31,14 +17,6 @@ function SaveStatusIndicator({ projectId }) {
         <span className="size-1.5 rounded-full bg-emerald-400" />
         Saved
       </span>
-      <button
-        type="button"
-        onClick={viewHistory}
-        className="flex items-center gap-1 rounded-full text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <History className="size-3.5" />
-        View change history
-      </button>
     </div>
   )
 }
