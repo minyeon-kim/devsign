@@ -1,11 +1,10 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings, Users } from 'lucide-react'
+import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import SidebarSubmenu from '@/components/dashboard/SidebarSubmenu'
 import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
@@ -16,8 +15,7 @@ const totalOpenConflicts = allConflictRecords().filter(isOpen).length
 
 // The activity bar's global destinations: Home, Conflicts, Activity,
 // Team. Projects isn't in this list — its button (the project switcher)
-// sits above these, directly under the drawer toggle, and is rendered
-// separately. Conflicts is the full list behind the dashboard's "Active
+// sits above these, at the very top, and is rendered separately. Conflicts is the full list behind the dashboard's "Active
 // conflicts" widget, with its open count badged on the icon.
 export const navItems = [
   {
@@ -50,9 +48,7 @@ export const navItems = [
   },
 ]
 
-// Projects as a section for the drawer (the All projects page gets its
-// projects sub-menu and "Projects" header) and for the Projects button's
-// active state.
+// Projects as a section, for the Projects button's active state.
 const projectsSection = {
   id: 'projects',
   label: 'Projects',
@@ -60,10 +56,8 @@ const projectsSection = {
   match: (pathname) => pathname.startsWith('/projects'),
 }
 
-// The section the current route belongs to. Shared with SidebarSubmenu,
-// which picks the drawer's contextual sub-menu from the same `match`, so
-// the activity bar and the drawer never disagree about where you are.
-export function activeNavItem(pathname) {
+// The section the current route belongs to.
+function activeNavItem(pathname) {
   return [...navItems, projectsSection].find((item) => item.match(pathname)) ?? navItems[0]
 }
 
@@ -121,19 +115,17 @@ function ProjectsMark({ project }) {
 //   1. Projects, at the very top — opens the Slack-style project switcher
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
-//   2. the drawer's toggle (disabled where there's no drawer, e.g. Home);
-//   3. Home — straight to the dashboard, no drawer;
-//   4. inside a project, Archive — promoted right under Home as the
+//   2. Home — straight to the dashboard;
+//   3. inside a project, Archive — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
 //      default view and needs no icon) — then a hairline;
-//   5. the secondary global items: Conflicts (which opens the conflict
-//      list in the drawer, over any view), Activity and Team;
+//   4. the secondary global items: Conflicts (which opens the conflict
+//      list in the drawer, over any view), Activity and Team — every item
+//      but Conflicts goes straight to its full page, with no drawer;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the shared surface tone (`bg-sidebar`, the same as
-// every panel and window) one step above the deeper canvas — open or
-// collapsed, dashboard or project — so toggling the drawer never shifts
-// its tone.
-function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onToggleDrawer, onToggleConflicts }) {
+// every panel and window) one step above the deeper canvas.
+function ActivityBar({ project, conflictsOpen, onToggleConflicts }) {
   const { pathname } = useLocation()
   const workspace = useWorkspaceOptional()
   // Inside a project, the live count of its open conflicts (the same list
@@ -173,19 +165,6 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
       </div>
 
       <nav aria-label="Main" className="flex flex-col gap-1">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={onToggleDrawer}
-            disabled={!canToggleDrawer}
-            aria-expanded={canToggleDrawer ? drawerOpen : undefined}
-            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className={cn(iconButtonClass, 'disabled:pointer-events-none disabled:opacity-40')}
-          >
-            {drawerOpen ? <PanelLeftClose className="size-[18px]" /> : <PanelLeftOpen className="size-[18px]" />}
-          </TooltipTrigger>
-          <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
-        </Tooltip>
-
         {navItems.map(({ id, label, icon, path }) => {
           // While the conflict list is up, Conflicts is the highlighted item.
           const isActive = id === 'conflicts' ? conflictsOpen || id === current.id : !conflictsOpen && id === current.id
@@ -250,144 +229,42 @@ function CloseButton({ onClose }) {
     <Tooltip>
       <TooltipTrigger
         onClick={onClose}
-        aria-label="Hide sidebar"
+        aria-label="Close conflicts"
         className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <PanelLeftClose className="size-[18px]" />
       </TooltipTrigger>
-      <TooltipContent side="bottom">Hide sidebar · ⌘B</TooltipContent>
+      <TooltipContent side="bottom">Close</TooltipContent>
     </Tooltip>
   )
 }
 
-// Tier 2 — the contextual drawer's header, same h-14 as the logo row and
-// the top bar beside it, and deliberately sparse: just the current
-// project's name (or, outside a project, the active section's name) and
-// the close button. No dropdown here — switching projects is the
-// activity bar's Projects button (Slack's workspace switcher) — and no
-// back arrow: getting back out is the activity bar's Home icon.
-// A `title` overrides both (the conflict list's "Conflicts").
-function DrawerHeader({ project, title, onClose }) {
-  const { pathname } = useLocation()
-
-  return (
-    <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
-      {title ? (
-        <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">{title}</p>
-      ) : project ? (
-        // The way back to the project's default view (Workspace) — e.g.
-        // from Archive — now that the drawer has no Workspace row.
-        <Link
-          to={`/projects/${project.id}/workspace`}
-          title="Open Workspace"
-          className="min-w-0 flex-1 truncate rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
-        >
-          {project.name}
-        </Link>
-      ) : (
-        <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
-          {activeNavItem(pathname).label}
-        </p>
-      )}
-      <CloseButton onClose={onClose} />
-    </div>
-  )
-}
-
-// The app's navigation, in two strict tiers side by side (see AppShell):
-// the always-slim ActivityBar with the global destinations, and beside it
-// the contextual drawer, which slides open (its width animates from 0;
-// its content keeps a fixed w-68 so nothing re-wraps mid-animation) to
-// show what belongs to the current view — a project's switcher and
-// Workspace/Archive, or the active section's sub-menu. Global and
-// contextual items never share a column. Both tiers share the surface
-// tone (`bg-sidebar`) over the deeper canvas; faint hairlines on either
-// side of the drawer mark where one tier ends and the next begins.
-// The activity bar's top button toggles the drawer, the drawer's own close
-// button closes it, and ⌘B toggles it too.
-//
-// Every page mounts its own shell, so the drawer can't tell a context
-// switch from a plain page change by its own state alone. The last
-// context seen ("global", or one specific project) is remembered here so
-// the drawer's contents fade/slide in only when that context actually
-// changes — entering a project, switching projects, or heading back to
-// the dashboard — and stay still when moving between pages of the same
-// context.
-let lastShellContext = null
-
-function useContextSwitchAnimation(contextKey) {
-  const [animate] = useState(() => lastShellContext !== null && lastShellContext !== contextKey)
-  useEffect(() => {
-    lastShellContext = contextKey
-  }, [contextKey])
-  return animate
-}
-
-// The drawer shows either the section sub-menu or, from the Conflicts
-// icon, the conflict list (see AppShell, which owns which one is up).
-function Sidebar({
-  project,
-  canToggleDrawer,
-  drawerOpen,
-  conflictsOpen,
-  onToggleDrawer,
-  onCloseDrawer,
-  onToggleConflicts,
-}) {
-  const animateIn = useContextSwitchAnimation(project ? `project:${project.id}` : 'global')
-
-  // Keep showing the last panel while the drawer animates shut, instead
-  // of swapping its contents mid-collapse.
-  const panel = conflictsOpen ? 'conflicts' : 'section'
-  const [shownPanel, setShownPanel] = useState(panel)
-  if (drawerOpen && shownPanel !== panel) setShownPanel(panel)
-
+// The app's navigation: the always-slim ActivityBar with the global
+// destinations, and beside it a drawer used only by the Conflicts icon —
+// it slides open (its width animates from 0; its content keeps a fixed
+// w-68 so nothing re-wraps mid-animation) to list the conflicts, and
+// closes from its own button or the Conflicts icon again. Every other
+// destination is a plain full page; there is no general sidebar toggle.
+function Sidebar({ project, conflictsOpen, onToggleConflicts, onCloseConflicts }) {
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar
-        project={project}
-        canToggleDrawer={canToggleDrawer}
-        drawerOpen={drawerOpen}
-        conflictsOpen={drawerOpen && conflictsOpen}
-        onToggleDrawer={onToggleDrawer}
-        onToggleConflicts={onToggleConflicts}
-      />
+      <ActivityBar project={project} conflictsOpen={conflictsOpen} onToggleConflicts={onToggleConflicts} />
 
       <div
-        inert={!drawerOpen}
-        aria-hidden={!drawerOpen}
+        inert={!conflictsOpen}
+        aria-hidden={!conflictsOpen}
         className={cn(
           'h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          drawerOpen ? 'w-68' : 'w-0'
+          conflictsOpen ? 'w-68' : 'w-0'
         )}
       >
-        <aside
-          aria-label={
-            shownPanel === 'conflicts' ? 'Conflicts' : project ? `${project.name} navigation` : 'Section navigation'
-          }
-          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2"
-        >
-          <div
-            className={cn(
-              'flex min-h-0 flex-1 flex-col',
-              animateIn && 'animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none'
-            )}
-          >
-            {shownPanel === 'conflicts' ? (
-              <>
-                <DrawerHeader title="Conflicts" onClose={onCloseDrawer} />
-                <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                  <ConflictsDrawer onNavigate={onCloseDrawer} />
-                </div>
-              </>
-            ) : (
-              <>
-                <DrawerHeader project={project} onClose={onCloseDrawer} />
-                <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                  <SidebarSubmenu project={project} />
-                </div>
-              </>
-            )}
+        <aside aria-label="Conflicts" className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-sidebar pb-2">
+          <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-2 pr-2 pl-2">
+            <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">Conflicts</p>
+            <CloseButton onClose={onCloseConflicts} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2">
+            <ConflictsDrawer onNavigate={onCloseConflicts} />
           </div>
         </aside>
       </div>

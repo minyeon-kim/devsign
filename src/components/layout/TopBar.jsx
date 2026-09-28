@@ -1,12 +1,12 @@
-import { PanelRight } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, PanelRight } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
-import NotificationsMenu from '@/components/layout/NotificationsMenu'
+import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import UserPresence from '@/components/layout/UserPresence'
-import { useShellDrawer } from '@/components/dashboard/AppShell'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Hairline between groups inside the action pill — Merge Studio's own
@@ -18,8 +18,7 @@ function PillDivider() {
 // The normal workspace's chrome, in the same floating-pill language as
 // Merge Studio's own header — no docked bar spanning the viewport, three
 // floating pieces instead sitting directly over the canvas: the project
-// breadcrumb top-left (only while the sidebar drawer is collapsed — see
-// ProjectTitle), the search, and one unified action pill top-right —
+// breadcrumb top-left, the search, and one unified action pill top-right —
 // notifications + layout, the teammate presence stack, then Merge Studio
 // and Preview — built like Merge Studio's action bar (40px glass pill,
 // 32px round controls, hairline dividers between groups). Merge Studio
@@ -27,37 +26,55 @@ function PillDivider() {
 // entirely while activeView is 'mergeStudio' rather than trying to host
 // both sets of controls at once.
 // The project's title as a floating Linear-style breadcrumb
-// ("Project / Workspace"), shown only while the sidebar drawer is
-// collapsed — when it's open, the drawer's own project switcher already
-// says where you are, so the canvas stays free of a duplicate title. It
-// fades/slides in as the drawer closes (and out as it opens), so the
-// context never disappears. Clicking it brings the drawer (and its
-// switcher) back.
+// ("Project / Workspace"), always shown — there's no project sidebar to
+// carry the name instead.
 function ProjectTitle({ project }) {
-  const { drawerOpen, toggleDrawer } = useShellDrawer()
-
   return (
-    <button
-      type="button"
-      onClick={toggleDrawer}
-      inert={drawerOpen}
-      aria-hidden={drawerOpen}
-      title="Show sidebar"
+    <div
       className={cn(
-        'absolute top-3 left-4 z-40 flex h-10 max-w-[320px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px] transition-[opacity,translate,background-color] duration-200 ease-out hover:bg-muted motion-reduce:transition-none',
-        FLOATING_PILL,
-        drawerOpen ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'
+        'absolute top-3 left-4 z-40 flex h-10 max-w-[320px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        FLOATING_PILL
       )}
     >
       <span className="min-w-0 truncate font-semibold text-foreground">{project?.name}</span>
       <span className="shrink-0 text-muted-foreground/60">/</span>
       <span className="shrink-0 text-muted-foreground">Workspace</span>
+    </div>
+  )
+}
+
+// The bell: opens the same Inbox panel Merge Studio uses (MergeInboxDrawer
+// — All / Unread / Approvals / Comments / Feedback), styled like Merge
+// Studio's own bell, with the unread count badged on it.
+function InboxButton({ open, onToggle }) {
+  const { notifications } = useWorkspace()
+  const unreadCount = notifications.filter((n) => n.unread).length
+
+  return (
+    <button
+      type="button"
+      title="Inbox"
+      aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
+      aria-expanded={open}
+      onClick={onToggle}
+      className={cn(
+        'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+        open && 'bg-emerald-400/20 text-emerald-300'
+      )}
+    >
+      <Bell className="size-4" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+          {unreadCount}
+        </span>
+      )}
     </button>
   )
 }
 
 function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
-  const { activeView } = useWorkspace()
+  const { activeView, requestMergeFocus, openMergeStudio } = useWorkspace()
+  const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
 
   return (
@@ -83,7 +100,7 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
           FLOATING_PILL
         )}
       >
-        <NotificationsMenu className="size-8 hover:bg-white/10" iconClassName="size-4" />
+        <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
         <LayoutMenu dockApi={dockApi} />
         <PillDivider />
         <UserPresence />
@@ -104,6 +121,18 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
           Preview
         </button>
       </div>
+
+      {inboxOpen && (
+        <MergeInboxDrawer
+          // Inbox items point at Merge Studio targets: jump there, focused.
+          onJump={(n) => {
+            setInboxOpen(false)
+            requestMergeFocus({ ...n.target, pulse: true })
+            openMergeStudio()
+          }}
+          onClose={() => setInboxOpen(false)}
+        />
+      )}
     </>
   )
 }

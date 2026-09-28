@@ -23,7 +23,6 @@ import {
 import { cn } from 'cn'
 import { allPeople, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
 import { itemSeverity } from '@/components/mergestudio/mergeSummary'
@@ -409,7 +408,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
     exitMergeStudio,
     requestMergeFocus,
   } = useWorkspace()
-  const [confirmExitOpen, setConfirmExitOpen] = useState(false)
   // Navigation stack: 'list' or 'detail' (the open item's Files / Layers).
   // `navDir` picks the slide direction — forward pushes in from the right,
   // back returns from the left; null (first render) doesn't animate.
@@ -469,7 +467,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       <div className="absolute top-3 left-4 z-40 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setConfirmExitOpen(true)}
+          // Straight back, no confirmation wall — merge progress is kept
+          // in the workspace state either way.
+          onClick={exitMergeStudio}
           className={cn('flex h-10 items-center justify-center gap-2 rounded-full px-4.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
         >
           <ArrowLeft className="size-4" />
@@ -667,39 +667,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
 
       </div>
     </div>
-      <Dialog open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="rounded-2xl border border-white/10 bg-card p-5 shadow-2xl"
-        >
-          <div className="flex size-10 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-400">
-            <ArrowLeft className="size-4.5" strokeWidth={2.5} />
-          </div>
-          <DialogTitle className="text-base font-semibold">Back to Workspace?</DialogTitle>
-          <DialogDescription>
-            You'll leave Merge Studio and return to the main workspace. Your merge progress stays saved.
-          </DialogDescription>
-          <div className="mt-1 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirmExitOpen(false)}
-              className="inline-flex items-center justify-center rounded-full px-4 h-8 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmExitOpen(false)
-                exitMergeStudio()
-              }}
-              className="inline-flex items-center justify-center rounded-full bg-emerald-400 px-4 h-8 text-[13px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110"
-            >
-              Back to Workspace
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

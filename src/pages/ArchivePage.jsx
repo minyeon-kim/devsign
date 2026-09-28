@@ -7,7 +7,6 @@ import RollbackHistoryList from '@/components/history/RollbackHistoryList'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocView'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { useShellDrawer } from '@/components/dashboard/AppShell'
 import { allPeople, referenceDocs } from '@/data/mockData'
 
 // The Reference Docs index — shown when no single doc is picked. Each card
@@ -100,7 +99,6 @@ function ArchivePage() {
   const { project } = useOutletContext()
   const location = useLocation()
   const navigate = useNavigate()
-  const { drawerOpen } = useShellDrawer()
   const view = resolveView(location.state)
   const archivePath = `/projects/${project.id}/archive`
 
@@ -110,19 +108,10 @@ function ArchivePage() {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       <div className="flex shrink-0 items-center gap-3 border-b px-6 py-4">
-        {/* Breadcrumb: Archive / section / doc ("Archive" returns to the
-            Reference Docs index). While the sidebar drawer is
-            open (its header already names the project) it starts at
-            "Archive"; collapsed, the project name slides in ahead of it so
-            the context isn't lost. */}
+        {/* Breadcrumb: Project / Archive / section / doc ("Archive"
+            returns to the Reference Docs index). */}
         <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
-          <span
-            aria-hidden={drawerOpen}
-            className={cn(
-              'flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out motion-reduce:transition-none',
-              drawerOpen ? '-mr-2 max-w-0 opacity-0' : 'mr-0 max-w-[320px] opacity-100'
-            )}
-          >
+          <span className="flex max-w-[320px] min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
             <span className="min-w-0 truncate text-muted-foreground">{project.name}</span>
             <CrumbSeparator />
           </span>
