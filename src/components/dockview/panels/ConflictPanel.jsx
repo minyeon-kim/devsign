@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import ConflictDetailModal from '@/components/modals/ConflictDetailModal'
+import ConflictModal, { STATUS_TO_STAGE, fromWorkspaceConflict } from '@/components/modals/ConflictModal'
 
 // One icon per row, chosen by severity and carried only inside the badge —
 // avoids the old layout's duplicate "TriangleAlert next to TriangleAlert"
@@ -18,7 +18,7 @@ const severityConfig = {
 }
 
 function ConflictPanel() {
-  const { conflicts, resolveConflict } = useWorkspace()
+  const { conflicts, resolveConflict, setConflictStage, openMergeStudio } = useWorkspace()
   const [detailId, setDetailId] = useState(null)
   const detailConflict = conflicts.find((c) => c.id === detailId) ?? null
 
@@ -118,13 +118,21 @@ function ConflictPanel() {
         </div>
       )}
 
-      <ConflictDetailModal
-        conflict={detailConflict}
-        open={!!detailConflict}
+      <ConflictModal
+        conflict={detailConflict && fromWorkspaceConflict(detailConflict)}
         onOpenChange={(open) => !open && setDetailId(null)}
-        onResolve={(id) => {
-          resolveConflict(id)
+        onStatusChange={(id, status) => {
+          // Resolving removes the conflict point from the workspace.
+          if (status === 'Resolved') {
+            resolveConflict(id)
+            setDetailId(null)
+          } else {
+            setConflictStage(id, STATUS_TO_STAGE[status])
+          }
+        }}
+        onOpenMergeStudio={() => {
           setDetailId(null)
+          openMergeStudio()
         }}
       />
     </div>

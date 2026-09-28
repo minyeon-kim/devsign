@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
-import ConflictStatusModal, { STATUS_DOT_CLASS } from '@/components/modals/ConflictStatusModal'
+import ConflictModal, { STATUS_DOT_CLASS, fromChecklistConflict } from '@/components/modals/ConflictModal'
 import { conflictChecklist } from '@/data/mockData'
 import { projectTone } from '@/lib/projectTone'
 
@@ -21,8 +21,8 @@ function groupByProject(conflicts) {
 
 // The drawer panel behind the activity bar's Conflicts icon: every
 // conflict as a compact list grouped by project, available over any view
-// — picking one opens the same ConflictStatusModal the dashboard widget
-// and /conflicts page use, over whatever you're looking at, rather than
+// — picking one opens the shared ConflictModal (the same one every
+// conflict entry point uses) over whatever you're looking at, rather than
 // taking over the main area. Like those views it holds its own local
 // copy of conflictChecklist (mock data, no shared store).
 function ConflictsDrawer({ onNavigate }) {
@@ -82,8 +82,8 @@ function ConflictsDrawer({ onNavigate }) {
         </Link>
       </nav>
 
-      <ConflictStatusModal
-        conflict={activeConflict}
+      <ConflictModal
+        conflict={activeConflict && fromChecklistConflict(activeConflict)}
         onOpenChange={(open) => !open && setActiveConflictId(null)}
         onStatusChange={handleStatusChange}
         onOpenMergeStudio={handleOpenMergeStudio}

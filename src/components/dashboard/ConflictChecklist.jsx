@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
 import { conflictChecklist } from '@/data/mockData'
-import ConflictStatusModal, { STATUS_DOT_CLASS } from '@/components/modals/ConflictStatusModal'
+import ConflictModal, { STATUS_DOT_CLASS, fromChecklistConflict } from '@/components/modals/ConflictModal'
 
 function toConflictState(c) {
   return { ...c, status: c.resolved ? 'Resolved' : 'Pending' }
@@ -75,8 +75,8 @@ function ConflictChecklist() {
         Open Merge Studio
       </button>
 
-      <ConflictStatusModal
-        conflict={activeConflict}
+      <ConflictModal
+        conflict={activeConflict && fromChecklistConflict(activeConflict)}
         onOpenChange={(open) => !open && setActiveConflictId(null)}
         onStatusChange={handleStatusChange}
         onOpenMergeStudio={handleOpenMergeStudio}

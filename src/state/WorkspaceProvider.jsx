@@ -272,6 +272,12 @@ export function WorkspaceProvider({ children, projectId }) {
     [appendTerminalLines]
   )
 
+  // Moves a conflict along its review stages without resolving it (the
+  // conflict modal's Pending / In Review status control).
+  const setConflictStage = useCallback((conflictId, reviewStage) => {
+    setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, reviewStage } : c)))
+  }, [])
+
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
   }, [])
@@ -518,6 +524,7 @@ export function WorkspaceProvider({ children, projectId }) {
     consoleEntries,
     conflicts,
     resolveConflict,
+    setConflictStage,
     chatMessages,
     isAiTyping,
     sendChatMessage,

@@ -4,7 +4,7 @@ import { ArrowLeft, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Button } from '@/components/ui/button'
-import ConflictStatusModal, { CONFLICT_STATUSES, STATUS_DOT_CLASS } from '@/components/modals/ConflictStatusModal'
+import ConflictModal, { CONFLICT_STATUSES, STATUS_DOT_CLASS, fromChecklistConflict } from '@/components/modals/ConflictModal'
 import { conflictChecklist } from '@/data/mockData'
 
 function toConflictState(c) {
@@ -92,8 +92,8 @@ function ConflictsPage() {
         )}
       </div>
 
-      <ConflictStatusModal
-        conflict={activeConflict}
+      <ConflictModal
+        conflict={activeConflict && fromChecklistConflict(activeConflict)}
         onOpenChange={(open) => !open && setActiveConflictId(null)}
         onStatusChange={handleStatusChange}
         onOpenMergeStudio={handleOpenMergeStudio}
