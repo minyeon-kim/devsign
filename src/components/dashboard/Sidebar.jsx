@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
@@ -116,29 +116,55 @@ function ProjectsMark({ project }) {
 //   1. Projects, at the very top — opens the Slack-style project switcher
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
-//   2. Home — straight to the dashboard;
+//   2. Home — the dashboard, or inside a project that project's overview
+//      (so Home never drops you out of the project you're working in);
 //   3. inside a project, Archive (which opens its Reference Docs / History
 //      sub-navigation in the drawer rather than jumping into content) — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
 //      default view and needs no icon) — then a hairline;
-//   4. the secondary global items: Conflict Points (which opens the
-//      conflict list in the drawer, over any view), Activity and Team —
+//   4. the secondary global items: Conflict Points (the conflict list — in
+//      a drawer over any view, or inside a project the Workspace's bottom
+//      panel tab, so the list never shows twice), Activity and Team —
 //      which go straight to their full pages, with no drawer;
 // with Settings pinned to the bottom. Nothing contextual ever lands here.
 // It always sits on the shared surface tone (`bg-sidebar`, the same as
 // every panel and window) one step above the deeper canvas.
 function ActivityBar({ project, drawer, onToggleDrawer }) {
-  const conflictsOpen = drawer === 'conflicts'
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const workspace = useWorkspaceOptional()
+  const workspacePath = project ? `/projects/${project.id}/workspace` : null
+  const overviewPath = project ? `/projects/${project.id}` : null
+  const onOverview = !!overviewPath && pathname.replace(/\/$/, '') === overviewPath
+  // Inside a project, Conflict Points is the Workspace's bottom-panel tab
+  // (the single place that list lives there — no second copy in a drawer);
+  // elsewhere it's the drawer.
+  const conflictsInPanel = Boolean(workspace)
+  const conflictsOpen = conflictsInPanel
+    ? pathname.startsWith(workspacePath) && workspace.bottomPanel.open && workspace.bottomPanel.tab === 'conflict'
+    : drawer === 'conflicts'
+
+  function toggleConflicts() {
+    if (!conflictsInPanel) {
+      onToggleDrawer('conflicts')
+      return
+    }
+    if (conflictsOpen) {
+      workspace.setBottomPanel({ open: false })
+      return
+    }
+    workspace.setBottomPanel({ tab: 'conflict', open: true })
+    if (!pathname.startsWith(workspacePath)) navigate(workspacePath)
+  }
   // Inside a project, the live count of its open conflicts (the same list
   // the drawer and the terminal show); elsewhere, every project's.
   const openConflicts = workspace ? workspace.conflicts.filter(isOpen).length : totalOpenConflicts
   const current = activeNavItem(pathname)
   const archivePath = project ? `/projects/${project.id}/archive` : null
   const onArchive = !!archivePath && pathname.startsWith(archivePath)
-  // Archive carries its own highlight, so Projects doesn't double up there.
-  const inProjects = current.id === 'projects' && !onArchive
+  // Only the All projects page highlights the switcher — inside a project,
+  // Home / Archive carry the highlight.
+  const inProjects = current.id === 'projects' && !project
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
@@ -170,7 +196,13 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       <nav aria-label="Main" className="flex flex-col gap-1">
         {navItems.map(({ id, label, icon, path }) => {
           // While the conflict list is up, Conflicts is the highlighted item.
-          const isActive = id === 'conflicts' ? conflictsOpen || id === current.id : !conflictsOpen && id === current.id
+          // Inside a project, Home is the project's overview page.
+          const isActive =
+            id === 'conflicts'
+              ? conflictsOpen || id === current.id
+              : id === 'home' && project
+                ? onOverview && !conflictsOpen
+                : !conflictsOpen && id === current.id
           return (
             <Fragment key={id}>
               {id === 'conflicts' ? (
@@ -180,15 +212,16 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
                   label={label}
                   icon={icon}
                   badge={openConflicts}
-                  onClick={() => onToggleDrawer('conflicts')}
+                  onClick={toggleConflicts}
                   aria-expanded={conflictsOpen}
                   className={cn(isActive && activeClass)}
                 />
               ) : (
                 <RailButton
-                  label={label}
+                  label={id === 'home' && project ? `${project.name} home` : label}
                   icon={icon}
-                  render={<Link to={path} />}
+                  // Home keeps you in the project you're in: its overview.
+                  render={<Link to={id === 'home' && project ? overviewPath : path} />}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(isActive && activeClass)}
                 />

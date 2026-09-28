@@ -5,7 +5,6 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { isOpen } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const TABS = [
@@ -23,14 +22,15 @@ const MIN_CANVAS = 220
 // one docked strip under the canvas (VS Code / Merge Studio style), not a
 // window floating over it. It spans the workspace's full width on the
 // panel surface with a hairline above; its tab row uses the studio's pill
-// category tabs. Drag the top edge to resize; the chevron (or clicking
+// category tabs. Conflict Points' open count is badged once, on the
+// activity bar's icon (which opens this tab), not repeated here. Drag the
+// top edge to resize; the chevron (or clicking
 // the active tab) collapses it down to just its tab strip.
 function WorkspaceBottomPanel() {
-  const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
+  const { bottomPanel, setBottomPanel } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const active = TABS.find((t) => t.id === tab) ?? TABS[0]
-  const openConflicts = conflicts.filter(isOpen).length
 
   function pickTab(id) {
     if (id === tab && open) setBottomPanel({ open: false })
@@ -89,11 +89,6 @@ function WorkspaceBottomPanel() {
           >
             <Icon className="size-3.5" />
             {label}
-            {id === 'conflict' && openConflicts > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">
-                {openConflicts}
-              </span>
-            )}
           </button>
         ))}
         <button

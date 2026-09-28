@@ -37,7 +37,7 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
 
   function handleActivate() {
     if (selectable) onToggleSelect(project.id)
-    else navigate(`/projects/${project.id}/workspace`)
+    else navigate(`/projects/${project.id}`)
   }
 
   if (view === 'list') {

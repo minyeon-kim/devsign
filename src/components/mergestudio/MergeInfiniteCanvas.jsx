@@ -2700,7 +2700,7 @@ function MergeInfiniteCanvas({
           pan/zoom-transformed content) so cursors track real screen
           position regardless of canvas pan/zoom, matching how the
           workspace panels position it. */}
-      <MultiplayerCursors />
+      <MultiplayerCursors scopeKey={item.id} />
 
       {/* Bottom-right row: zoom pill sits directly beside the Changes Log
           toggle (both `items-end`-aligned so the zoom pill's bottom edge

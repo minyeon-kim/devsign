@@ -17,6 +17,8 @@ import { allPeople, canvasPages, canvasTools, findCanvasTarget, paddingConflict 
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
+import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
 import LayersPanel from '@/components/dockview/panels/LayersPanel'
 import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
 
@@ -34,16 +36,14 @@ const toolIcons = {
 }
 
 // Opens a frame/layer's inspection tab docked in the same tab strip as the
-// code editor's file tabs — "exactly like opening a file". Re-focuses the
-// existing tab instead of duplicating it if that node is already open.
+// code editor's file tabs — "exactly like opening a file" — but leaves the
+// code editor in front: selecting on the canvas jumps the editor to that
+// layer's line in the page's code file (design ↔ code sync), and the
+// inspect tab is one click away beside it.
 function openLayerInspectTab(dockApi, node) {
   if (!dockApi || !node) return
   const panelId = `inspect-${node.id}`
-  const existing = dockApi.getPanel(panelId)
-  if (existing) {
-    existing.api.setActive()
-    return
-  }
+  if (dockApi.getPanel(panelId)) return
 
   const anchor =
     dockApi.getPanel(panelById.editor.id) ??
@@ -56,6 +56,7 @@ function openLayerInspectTab(dockApi, node) {
     params: { iconName: 'ScanEye', targetId: node.id },
     position: anchor ? { direction: 'within', referencePanel: anchor.id } : undefined,
   })
+  dockApi.getPanel(panelById.editor.id)?.api.setActive()
 }
 
 // Figma-style pill toolbar docked at the bottom-center of the canvas — a
@@ -246,81 +247,19 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
   )
 }
 
-function CanvasLayer({ layer, isSelected, onSelect, commentMode }) {
-  function handleClick(event) {
-    // In Comment mode, clicks fall through to the canvas surface's
-    // pin-drop handler instead of selecting the layer underneath.
-    if (commentMode) return
-    event.stopPropagation()
-    onSelect(layer.id)
-  }
+const FILL_SWATCHES = ['#6366f1', '#8b5cf6', '#10b981', '#f43f5e', '#0f172a']
 
-  const base = 'absolute cursor-pointer'
-  const style = {
-    left: layer.x,
-    top: layer.y,
-    width: layer.width,
-    height: layer.height,
-  }
-
-  let content = null
-  if (layer.type === 'bar') {
-    content = (
-      <div className="flex h-full w-full items-center justify-between rounded-sm bg-muted px-2">
-        <span className="text-[9px] text-muted-foreground">9:41</span>
-        <div className="flex items-center gap-0.5">
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-          <span className="size-1 rounded-full bg-muted-foreground/60" />
-        </div>
-      </div>
-    )
-  } else if (layer.type === 'card') {
-    content = (
-      <div
-        className="h-full w-full rounded-lg border border-border bg-muted/40"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(45deg, color-mix(in oklch, var(--foreground) 6%, transparent) 0 6px, transparent 6px 12px)',
-        }}
-      />
-    )
-  } else if (layer.type === 'avatar') {
-    content = <div className="h-full w-full rounded-full bg-muted-foreground/30" />
-  } else if (layer.type === 'button') {
-    content = (
-      <div className="flex h-full w-full items-center justify-center rounded-md bg-primary text-xs font-medium text-primary-foreground">
-        {layer.label ?? 'Button'}
-      </div>
-    )
-  } else {
-    // 'text' and any other type fall back to a redacted text-line bar.
-    content = <div className="h-full w-full rounded-sm bg-muted-foreground/25" />
-  }
-
-  return (
-    <div
-      onClick={handleClick}
-      className={cn(base, isSelected && 'outline outline-2 outline-offset-1 outline-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.6)]')}
-      style={style}
-    >
-      {content}
-      {isSelected && <SelectionHandles />}
-    </div>
-  )
-}
-
-function CanvasFrame({ frame, selectedId, onSelect, commentMode }) {
+// A hi-fi artboard: the frame drawn as a real, light product screen with
+// Merge Studio's StaticLayer (actual copy, inputs, buttons, charts) rather
+// than wireframe bars. Text is edited in place by double-clicking it, and
+// every edit — plus fill/radius from the property bar — is synced to the
+// page's code file (see lib/prototypeSync).
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText }) {
   const isFrameSelected = selectedId === frame.id
 
   return (
-    <div
-      className="absolute"
-      style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-    >
-      <span className="absolute -top-5 left-0 text-[10px] text-muted-foreground select-none">
-        {frame.name}
-      </span>
+    <div className="absolute" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+      <span className="absolute -top-5 left-0 text-[10px] text-muted-foreground select-none">{frame.name}</span>
       <div
         onClick={(event) => {
           if (commentMode) return
@@ -328,21 +267,89 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode }) {
           onSelect(frame.id)
         }}
         className={cn(
-          'relative h-full w-full cursor-pointer rounded-md border border-border bg-card shadow-lg',
-          isFrameSelected && 'outline outline-2 outline-offset-1 outline-lime-400 shadow-[0_0_12px_rgba(163,230,53,0.5)]'
+          'relative h-full w-full cursor-pointer overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/40 ring-1 ring-slate-200/80',
+          isFrameSelected && 'outline outline-2 outline-offset-2 outline-emerald-400'
         )}
       >
-        {frame.layers.map((layer) => (
-          <CanvasLayer
-            key={layer.id}
-            layer={layer}
-            isSelected={selectedId === layer.id}
-            onSelect={onSelect}
-            commentMode={commentMode}
-          />
-        ))}
+        {/* In Comment mode clicks fall through to the pin-drop handler. */}
+        <div className={cn('absolute inset-0', commentMode && 'pointer-events-none')}>
+          {frame.layers.map((layer) => (
+            <StaticLayer
+              key={layer.id}
+              layer={layer}
+              override={overrideFromEdit(edits[layer.id])}
+              selected={selectedId === layer.id}
+              dimmed={Boolean(selectedId) && selectedId !== frame.id}
+              onSelect={() => onSelect(layer.id)}
+              onEditText={onEditText}
+            />
+          ))}
+        </div>
         {isFrameSelected && <SelectionHandles />}
       </div>
+    </div>
+  )
+}
+
+// Shown for a selected layer that syncs to code: its fill and corner
+// radius, edited here and written straight into the page's code file.
+function PropertyBar({ layer, edit, onChange }) {
+  const canFill = SYNC_FILL_TYPES.has(layer.type)
+  const canRadius = SYNC_RADIUS_TYPES.has(layer.type)
+  const radius = edit?.radius
+
+  return (
+    <div
+      onClick={(event) => event.stopPropagation()}
+      className="pointer-events-auto absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-card/95 py-1 pr-1.5 pl-3 font-sans text-xs shadow-xl backdrop-blur-sm"
+    >
+      <span className="max-w-32 truncate font-medium text-foreground">{layer.name}</span>
+      {canFill && (
+        <>
+          <span className="h-4 w-px bg-white/10" />
+          <span className="flex items-center gap-1" role="group" aria-label="Fill">
+            {FILL_SWATCHES.map((color) => (
+              <button
+                key={color}
+                type="button"
+                title={color}
+                aria-label={`Fill ${color}`}
+                aria-pressed={edit?.fill === color}
+                onClick={() => onChange({ fill: color })}
+                className={cn('size-5 rounded-full ring-1 ring-white/15 transition-transform hover:scale-110', edit?.fill === color && 'ring-2 ring-white')}
+                style={{ background: color }}
+              />
+            ))}
+          </span>
+        </>
+      )}
+      {canRadius && (
+        <>
+          <span className="h-4 w-px bg-white/10" />
+          <span className="flex items-center gap-0.5" role="group" aria-label="Radius">
+            <span className="px-1 text-muted-foreground">Radius</span>
+            <button
+              type="button"
+              aria-label="Less radius"
+              onClick={() => onChange({ radius: Math.max(0, (radius ?? 8) - 2) })}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+            >
+              <Minus className="size-3" />
+            </button>
+            <span className="w-7 text-center text-foreground tabular-nums">{radius ?? '—'}</span>
+            <button
+              type="button"
+              aria-label="More radius"
+              onClick={() => onChange({ radius: Math.min(28, (radius ?? 8) + 2) })}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+            >
+              <Plus className="size-3" />
+            </button>
+          </span>
+        </>
+      )}
+      <span className="h-4 w-px bg-white/10" />
+      <span className="pr-1.5 text-muted-foreground">Double-click text to edit</span>
     </div>
   )
 }
@@ -374,9 +381,23 @@ function CanvasPanel() {
     comments,
     addComment,
     getViewersForCanvasPage,
+    prototypeEdits,
+    editPrototypeLayer,
   } = useWorkspace()
+  // The value a text slot had when in-place editing started, so Escape can
+  // put it back after the live preview.
+  const editStart = useRef(new Map())
+
+  function handleEditText(layerId, slot, value, { live } = {}) {
+    const key = `${layerId}:${slot}`
+    if (!editStart.current.has(key)) editStart.current.set(key, prototypeEdits[layerId]?.copy?.[slot])
+    const next = value === null ? editStart.current.get(key) : value
+    editPrototypeLayer(layerId, { copy: { [slot]: next } })
+    if (!live || value === null) editStart.current.delete(key)
+  }
   const activePage = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
   const commentMode = canvasTool === 'comment'
+  const selectedLayer = findCanvasTarget(selectedLayerId)?.layer
 
   function handleSelect(id) {
     selectCanvasLayer(id, {
@@ -472,6 +493,8 @@ function CanvasPanel() {
                 selectedId={selectedLayerId}
                 onSelect={handleSelect}
                 commentMode={commentMode}
+                edits={prototypeEdits}
+                onEditText={commentMode ? undefined : handleEditText}
               />
             ))}
 
@@ -485,8 +508,15 @@ function CanvasPanel() {
             ))}
           </div>
 
-          <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} />
+          <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} scopeKey={activePage?.id} />
           <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} />
+          {selectedLayer && (SYNC_FILL_TYPES.has(selectedLayer.type) || SYNC_RADIUS_TYPES.has(selectedLayer.type)) && (
+            <PropertyBar
+              layer={selectedLayer}
+              edit={prototypeEdits[selectedLayer.id]}
+              onChange={(patch) => editPrototypeLayer(selectedLayer.id, patch)}
+            />
+          )}
 
           {pendingComment && (
             <PinComposer

@@ -1,4 +1,6 @@
 import { Sparkles } from 'lucide-react'
+import { cn } from 'cn'
+import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -8,15 +10,23 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // whole workspace body swaps over. Popover.Trigger already toggles on
 // repeat clicks and dismisses on an outside click/Escape out of the box
 // (base-ui), so no extra open-state or click-outside wiring is needed here.
-function MergeStudioMenu() {
+// `standalone` renders the trigger as its own floating pill (the
+// Workspace header's separate pieces) instead of a control inside a pill.
+function MergeStudioMenu({ standalone = false }) {
   const { openMergeStudio, startMergeFromOpenFiles } = useWorkspace()
 
   return (
     <Popover>
       {/* Styled as a control inside the Workspace's action pill: a
           borderless 32px pill with the accent carried by the icon only. */}
-      <PopoverTrigger className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10">
-        <Sparkles className="size-3.5 text-primary" />
+      <PopoverTrigger
+        className={
+          standalone
+            ? cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)
+            : 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
+        }
+      >
+        <Sparkles className={cn('text-emerald-400', standalone ? 'size-4' : 'size-3.5')} />
         Merge Studio
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={10} className="w-72 gap-1 rounded-2xl p-2">

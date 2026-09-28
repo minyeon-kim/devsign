@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, LayoutGrid } from 'lucide-react'
+import { Check, House, LayoutGrid } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -13,17 +13,19 @@ import { projects } from '@/data/mockData'
 import { projectTone } from '@/lib/projectTone'
 
 // Slack's workspace switcher, opened from the activity bar's Projects
-// button (directly under the logo): every project (the current one
-// checked), then "All projects" for the full projects page. Getting to
-// the dashboard stays the Home icon's job. `children` is the trigger
-// subtree — it must contain a DropdownMenuTrigger (the Projects button,
-// wrapped in its tooltip). Switching projects keeps you on the same tab
-// (Workspace or Archive) you were on; from a global page it opens the
-// project's Workspace.
+// button (at the top of the activity bar): every project (the current one
+// checked), then Dashboard and All projects. Inside a project the Home
+// icon goes to the project's overview, so the global dashboard is reached
+// from here. `children` is the trigger subtree — it must contain a
+// DropdownMenuTrigger (the Projects button, wrapped in its tooltip).
+// Switching projects keeps you on the same view (overview, Workspace or
+// Archive) you were on; from a global page it opens the project's overview.
 function ProjectSwitcher({ children, currentProjectId }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const tab = pathname.endsWith('/archive') ? 'archive' : 'workspace'
+  // The project view you're on (overview, Workspace or Archive), kept when
+  // switching to another project; from a global page, its overview.
+  const tab = pathname.endsWith('/archive') ? '/archive' : pathname.endsWith('/workspace') ? '/workspace' : ''
 
   return (
     <DropdownMenu>
@@ -34,9 +36,9 @@ function ProjectSwitcher({ children, currentProjectId }) {
           {projects.map((p) => (
             <DropdownMenuItem
               key={p.id}
-              // Re-picking the project you're in takes you to its default
-              // view (Workspace); another project opens on the same tab.
-              onClick={() => navigate(`/projects/${p.id}/${p.id === currentProjectId ? 'workspace' : tab}`)}
+              // Re-picking the project you're in takes you to its overview;
+              // another project opens on the same view.
+              onClick={() => navigate(`/projects/${p.id}${p.id === currentProjectId ? '' : tab}`)}
               className="gap-2.5"
             >
               <span
@@ -53,6 +55,12 @@ function ProjectSwitcher({ children, currentProjectId }) {
           ))}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/dashboard')} className="gap-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <House className="size-3.5" />
+          </span>
+          Dashboard
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/projects')} className="gap-2.5">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <LayoutGrid className="size-3.5" />

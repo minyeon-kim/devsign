@@ -1852,6 +1852,62 @@ export const initialHistoryEntries = [
 // doc body as structured blocks the Archive doc view renders directly
 // (h2 / p / ul / ol / code / callout / table), so there's no markdown
 // parser involved. Each h2 carries an `id` for the "On this page" list.
+// Design System Updates — the start of the Design System Update →
+// Documentation → History pipeline (see lib/designSystemUpdates and
+// Archive → Design System Updates). Each is a token/component change,
+// usually born from a resolved Conflict Point (`conflictId`), that moves
+// through `stage`: 'update' (changed, not yet written up) → 'documented'
+// (has a generated Reference Doc) → 'archived' (recorded in History).
+export const designSystemUpdates = [
+  {
+    id: 'dsu-input-padding',
+    projectId: 'design-system-v2',
+    conflictId: 'cc-6',
+    title: 'Input horizontal padding',
+    summary: 'Inputs move from 10px to the 12px design system padding.',
+    authorId: 'jane',
+    createdAtLabel: '3 days ago',
+    stage: 'archived',
+    archivedAtLabel: '2 days ago',
+    changes: [{ label: 'Padding X', from: '10px', to: '12px' }],
+  },
+  {
+    id: 'dsu-radius-scale',
+    projectId: 'design-system-v2',
+    title: 'Radius scale: lg step',
+    summary: 'The lg radius step becomes 12px so cards and sheets share one curve.',
+    authorId: 'james',
+    createdAtLabel: 'Yesterday',
+    stage: 'documented',
+    changes: [
+      { label: '--radius-lg', from: '8px', to: '12px' },
+      { label: 'Card radius', from: 'rounded-lg', to: 'var(--radius-lg)' },
+    ],
+  },
+  {
+    id: 'dsu-primary-color',
+    projectId: 'onboarding-flow',
+    conflictId: 'cc-5',
+    title: 'Primary color token',
+    summary: '--primary points at the brand token instead of a hard-coded hex.',
+    authorId: 'min',
+    createdAtLabel: '2 days ago',
+    stage: 'documented',
+    changes: [{ label: '--primary', from: '#5B5BD6', to: 'var(--brand-500)' }],
+  },
+  {
+    id: 'dsu-spacing-scale',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-7',
+    title: 'Checkout spacing on the 8px scale',
+    summary: 'Form gaps move from 6px to 8px to stay on the 4/8 spacing scale.',
+    authorId: 'james',
+    createdAtLabel: '4 days ago',
+    stage: 'update',
+    changes: [{ label: 'Field gap', from: '6px', to: '8px' }],
+  },
+]
+
 export const referenceDocs = [
   {
     id: 'doc-brand-guidelines',

@@ -1,49 +1,74 @@
-import { cn } from 'cn'
+import { useEffect, useRef, useState } from 'react'
+import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { canvasPages } from '@/data/mockData'
+import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const buttonColorClasses = {
-  primary: 'bg-primary text-primary-foreground',
-  sky: 'bg-sky-500 text-white',
+// "12px 24px" → { y: 12, x: 24 }
+function parsePadding(value) {
+  const [y, x = y] = String(value ?? '')
+    .split(/\s+/)
+    .map((v) => parseFloat(v))
+  return Number.isFinite(y) ? { y, x } : undefined
 }
 
+// The running prototype: the active canvas page rendered read-only at a
+// size that fits the panel, from the same model as the canvas and its
+// code file (see lib/prototypeSync) — so a text, fill or radius change on
+// either side shows up here too. The AI chat's padding fix still applies
+// to the primary button through `previewProps`.
 function PreviewPanelContent() {
-  const { workspaceFiles, activeFileId, previewProps, previewVersion } = useWorkspace()
-  const activeFile = workspaceFiles.find((file) => file.id === activeFileId) ?? workspaceFiles[0]
+  const { activePageId, prototypeEdits, previewProps, previewVersion } = useWorkspace()
+  const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
+  const file = prototypeFileForPage(page.id)
+  const boxRef = useRef(null)
+  const [width, setWidth] = useState(320)
+
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const buttonPadding = parsePadding(previewProps.buttonPadding)
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-card p-4">
-      <div className="mb-3 flex shrink-0 items-center justify-between text-[11px] text-muted-foreground">
-        <span className="truncate">Synced from {activeFile?.path}</span>
+    <div className="flex h-full flex-col overflow-hidden bg-card">
+      <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2 text-[11px] text-muted-foreground">
+        <span className="truncate">Synced from {file?.path}</span>
         <span className="flex shrink-0 items-center gap-1">
           <span className="size-1.5 rounded-full bg-emerald-400" />
           Live
         </span>
       </div>
 
-      <div
-        key={previewVersion}
-        className="mx-auto w-full max-w-[260px] animate-in rounded-xl border bg-background p-4 shadow-lg duration-300 fade-in zoom-in-95"
-      >
-        <div
-          className="mb-4 h-28 rounded-lg border border-border bg-muted/40"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(45deg, color-mix(in oklch, var(--foreground) 6%, transparent) 0 6px, transparent 6px 12px)',
-          }}
-        />
-        <div className="mb-1.5 h-3.5 w-3/4 rounded-sm bg-muted-foreground/25" />
-        <div className="mb-1.5 h-2.5 w-full rounded-sm bg-muted-foreground/20" />
-        <div className="mb-4 h-2.5 w-2/3 rounded-sm bg-muted-foreground/20" />
-        <button
-          type="button"
-          className={cn(
-            'w-full rounded-md text-xs font-medium transition-colors',
-            buttonColorClasses[previewProps.buttonColor] ?? buttonColorClasses.primary
-          )}
-          style={{ padding: previewProps.buttonPadding }}
-        >
-          Continue
-        </button>
+      <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+        <div key={previewVersion} className="flex flex-col items-center gap-6 animate-in fade-in duration-300">
+          {page.frames.map((frame) => {
+            const scale = Math.min(1, width / frame.width)
+            return (
+              <div
+                key={frame.id}
+                className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80"
+                style={{ width: frame.width * scale, height: frame.height * scale }}
+              >
+                <div
+                  className="relative"
+                  style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+                >
+                  {frame.layers.map((layer) => {
+                    const override = overrideFromEdit(prototypeEdits[layer.id])
+                    const withPadding =
+                      layer.id === 'primary-button' && buttonPadding ? { ...override, padding: buttonPadding } : override
+                    return <StaticLayer key={layer.id} layer={layer} override={withPadding} onSelect={() => {}} />
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

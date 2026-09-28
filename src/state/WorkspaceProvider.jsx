@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   aiEditScenarios,
   canvasPages,
+  conflictChecklist,
+  designSystemUpdates,
+  referenceDocs as staticReferenceDocs,
   comments as seedComments,
   consoleLogLines as seedConsoleLogLines,
   currentUser,
@@ -18,11 +21,23 @@ import {
   terminalLogLines as seedTerminalLogLines,
 } from '@/data/mockData'
 import { projectConflictRecords, toConflictRecord } from '@/lib/conflicts'
+import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUpdates'
+import { importKind } from '@/lib/importFiles'
+import {
+  PROTOTYPE_FILES,
+  lineForLayer,
+  parsePrototype,
+  prototypeFile,
+  prototypeFileForPage,
+  prototypeLines,
+} from '@/lib/prototypeSync'
 
 // How often each teammate's mock viewport advances to the next entry in
 // their `viewportSequence` — simulates them navigating the file on their
 // own, independent of whether anyone is following them.
-const REMOTE_VIEWPORT_INTERVAL = 6000
+// How long a teammate stays on one file/layer before moving on — long
+// enough that their cursor settles instead of hopping between files.
+const REMOTE_VIEWPORT_INTERVAL = 20000
 
 const WorkspaceContext = createContext(null)
 
@@ -37,6 +52,14 @@ const DEFAULT_PREVIEW_PROPS = {
   buttonColor: 'primary',
 }
 
+// This project's design system updates, with the title of the Conflict
+// Point each one came from (for its generated doc).
+function seedDsUpdates(projectId) {
+  return designSystemUpdates
+    .filter((u) => u.projectId === projectId)
+    .map((u) => ({ ...u, conflictTitle: conflictChecklist.find((c) => c.id === u.conflictId)?.token }))
+}
+
 function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
@@ -46,7 +69,26 @@ export function WorkspaceProvider({ children, projectId }) {
   // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
   // so this only needs to swap which file objects those ids resolve to,
   // nothing else in this provider needs to change per project.
-  const files = projectFileSets[projectId] ?? openFiles
+  const baseFiles = projectFileSets[projectId] ?? openFiles
+  // Code files brought in with Import (see importFiles) join the file tree
+  // and editor like any other file; design files (Figma, Illustrator,
+  // images) land in `importedAssets` instead.
+  const [importedFiles, setImportedFiles] = useState([])
+  const [importedAssets, setImportedAssets] = useState([])
+  // The canvas pages' code files (src/prototype/*.jsx) are part of every
+  // project's tree: generated from — and parsed back into — the canvas
+  // (see lib/prototypeSync), so design and code stay in sync both ways.
+  const files = useMemo(() => [...baseFiles, ...PROTOTYPE_FILES, ...importedFiles], [baseFiles, importedFiles])
+  const [prototypeEdits, setPrototypeEdits] = useState({})
+  // A line the editor should briefly highlight and scroll to — the code a
+  // canvas edit or selection just touched: { fileId, line, nonce }.
+  const [codeFlash, setCodeFlash] = useState(null)
+  // Generated once per edit (not per call), so a prototype file's lines
+  // keep a stable identity for consumers that react to them changing.
+  const generatedPrototypeLines = useMemo(
+    () => Object.fromEntries(PROTOTYPE_FILES.map((f) => [f.id, prototypeLines(f.id, prototypeEdits)])),
+    [prototypeEdits]
+  )
   const [activeFileId, setActiveFileIdState] = useState(files[0]?.id ?? null)
   const [fileOverrides, setFileOverrides] = useState({})
   const [fileNameOverrides, setFileNameOverrides] = useState({})
@@ -64,6 +106,15 @@ export function WorkspaceProvider({ children, projectId }) {
   // workspace, so opening a conflict from the drawer or the terminal
   // always reuses the same window instead of stacking a second one.
   const [reviewConflictId, setReviewConflictId] = useState(null)
+  // Design System Update → Documentation → History (see
+  // lib/designSystemUpdates): the updates, and the Reference Docs the
+  // documented ones generated (shown in the Archive beside the static docs).
+  const [dsUpdates, setDsUpdates] = useState(() => seedDsUpdates(projectId))
+  const [generatedDocs, setGeneratedDocs] = useState(() =>
+    seedDsUpdates(projectId)
+      .filter((u) => u.stage !== 'update')
+      .map(docForUpdate)
+  )
   // The docked bottom panel (Terminal / Console / Conflict Points): which
   // tab is showing, whether it's expanded or collapsed to its tab strip,
   // and its expanded height (dragged from its top edge).
@@ -283,8 +334,15 @@ export function WorkspaceProvider({ children, projectId }) {
       // trail; only the review workflow's final step calls this.
       setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, reviewStage: 'resolved' } : c)))
       appendTerminalLines(['$ devsign resolve-conflict', '✓ conflict marked resolved'])
+      // A resolved conflict is a design system change: it enters the
+      // Design System Update → Documentation → History pipeline.
+      const conflict = conflicts.find((c) => c.id === conflictId)
+      if (conflict) {
+        const update = updateFromConflict(conflict, projectId)
+        setDsUpdates((prev) => (prev.some((u) => u.id === update.id) ? prev : [update, ...prev]))
+      }
     },
-    [appendTerminalLines]
+    [appendTerminalLines, conflicts, projectId]
   )
 
   // Review-workflow edits from the conflict modal (stage, reviewers,
@@ -301,12 +359,40 @@ export function WorkspaceProvider({ children, projectId }) {
     (layerId, { conflict } = {}) => {
       setSelectedLayerId(layerId)
       if (!layerId) return
-      setActiveFileIdState(files[0].id)
-      appendTerminalLines([`[HMR] ${files[0]?.name ?? 'file'} updated (layer: ${layerId})`])
+      // Selecting on the canvas opens the page's code file at that layer's
+      // line — the other half of the design ↔ code link.
+      const proto = prototypeFileForPage(findCanvasTarget(layerId)?.page.id)
+      const file = proto ?? files[0]
+      setActiveFileIdState(file.id)
+      const line = proto && lineForLayer(proto.id, layerId, prototypeEdits)
+      if (line) setCodeFlash({ fileId: proto.id, line, nonce: nextId('flash') })
+      appendTerminalLines([`[HMR] ${file.name} updated (layer: ${layerId})`])
       setPreviewVersion((v) => v + 1)
       if (conflict) addConflict(conflict)
     },
-    [appendTerminalLines, addConflict, files]
+    [appendTerminalLines, addConflict, files, prototypeEdits]
+  )
+
+  // Canvas → code: an edit made on the canvas (text, fill, radius) updates
+  // the model, which regenerates the page's file; the editor jumps to and
+  // flashes the line that changed.
+  const editPrototypeLayer = useCallback(
+    (layerId, patch) => {
+      const proto = prototypeFileForPage(findCanvasTarget(layerId)?.page.id)
+      if (!proto) return
+      setPrototypeEdits((prev) => {
+        const current = prev[layerId] ?? {}
+        return {
+          ...prev,
+          [layerId]: { ...current, ...patch, copy: { ...current.copy, ...patch.copy } },
+        }
+      })
+      setActiveFileIdState(proto.id)
+      const line = lineForLayer(proto.id, layerId, prototypeEdits)
+      if (line) setCodeFlash({ fileId: proto.id, line, nonce: nextId('flash') })
+      setPreviewVersion((v) => v + 1)
+    },
+    [prototypeEdits]
   )
 
   const startFollowMe = useCallback(() => {
@@ -350,6 +436,100 @@ export function WorkspaceProvider({ children, projectId }) {
     setActiveHistoryId(id)
     return id
   }, [])
+
+  // The current workspace as a History snapshot (what rollback restores).
+  const currentSnapshot = useCallback(
+    () => ({
+      activeFileId,
+      fileId: activeFileId,
+      lines: fileOverrides[activeFileId] ?? files.find((f) => f.id === activeFileId)?.lines ?? [],
+      previewProps,
+      conflicts,
+      selectedLayerId,
+    }),
+    [activeFileId, fileOverrides, files, previewProps, conflicts, selectedLayerId]
+  )
+
+  // Pipeline step 2: write the update up as a Reference Doc.
+  const documentDsUpdate = useCallback(
+    (updateId) => {
+      const update = dsUpdates.find((u) => u.id === updateId)
+      if (!update || update.stage !== 'update') return
+      const documented = { ...update, stage: 'documented', documentedAtLabel: 'Just now' }
+      setDsUpdates((prev) => prev.map((u) => (u.id === updateId ? documented : u)))
+      setGeneratedDocs((prev) => [...prev.filter((d) => d.id !== docIdFor(update)), docForUpdate(documented)])
+      appendTerminalLines([`$ devsign docs generate "${update.title}"`, '✓ reference doc created'])
+    },
+    [dsUpdates, appendTerminalLines]
+  )
+
+  // Pipeline step 3: record it in History as a version of the project.
+  const archiveDsUpdate = useCallback(
+    (updateId) => {
+      const update = dsUpdates.find((u) => u.id === updateId)
+      if (!update || update.stage !== 'documented') return
+      const historyId = recordHistory({
+        label: `Design system update · ${update.title}`,
+        timestamp: timeLabel(),
+        snapshot: currentSnapshot(),
+      })
+      setDsUpdates((prev) =>
+        prev.map((u) => (u.id === updateId ? { ...u, stage: 'archived', archivedAtLabel: 'Just now', historyId } : u))
+      )
+      appendTerminalLines([`$ devsign history record "${update.title}"`, '✓ archived to history'])
+    },
+    [dsUpdates, recordHistory, currentSnapshot, appendTerminalLines]
+  )
+
+  // Import: code files are read as text and added to the project's file
+  // tree (and opened); design files become entries in the Assets panel.
+  const importFiles = useCallback(
+    async (fileList) => {
+      const code = []
+      const design = []
+      for (const file of Array.from(fileList)) {
+        const kind = importKind(file.name)
+        if (kind === 'code') {
+          const text = await file.text()
+          const ext = file.name.split('.').pop().toLowerCase()
+          code.push({
+            id: nextId('import'),
+            name: file.name,
+            path: `src/imports/${file.name}`,
+            language: ext,
+            iconName: 'FileCode',
+            imported: true,
+            lines: text.replace(/\r\n/g, '\n').split('\n'),
+          })
+        } else {
+          design.push({ id: nextId('asset'), name: file.name, kind, size: file.size, source: 'upload' })
+        }
+      }
+      if (code.length) {
+        setImportedFiles((prev) => [...prev, ...code])
+        setActiveFileIdState(code[0].id)
+      }
+      if (design.length) setImportedAssets((prev) => [...prev, ...design])
+      appendTerminalLines([
+        `$ devsign import ${Array.from(fileList).map((f) => f.name).join(' ')}`,
+        `✓ ${code.length} code file${code.length === 1 ? '' : 's'}, ${design.length} design file${design.length === 1 ? '' : 's'} imported`,
+      ])
+      return { code: code.length, design: design.length }
+    },
+    [appendTerminalLines]
+  )
+
+  const importFigmaLink = useCallback(
+    (url) => {
+      const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? '').replace(/-/g, ' ').trim() || 'Figma file'
+      setImportedAssets((prev) => [...prev, { id: nextId('asset'), name, kind: 'figma', url, source: 'figma' }])
+      appendTerminalLines([`$ devsign import --figma ${url}`, `✓ linked "${name}" from Figma`])
+      return name
+    },
+    [appendTerminalLines]
+  )
+
+  const allReferenceDocs = useMemo(() => [...staticReferenceDocs, ...generatedDocs], [generatedDocs])
 
   // Archiving is a soft-delete: the entry drops out of the active rollback
   // timeline but its snapshot is kept, so `restoreHistoryEntry` can always
@@ -456,10 +636,11 @@ export function WorkspaceProvider({ children, projectId }) {
 
   const getFileLines = useCallback(
     (fileId) => {
+      if (prototypeFile(fileId)) return generatedPrototypeLines[fileId]
       const file = files.find((f) => f.id === fileId)
       return fileOverrides[fileId] ?? file?.lines ?? []
     },
-    [fileOverrides, files]
+    [fileOverrides, files, generatedPrototypeLines]
   )
 
   const getFileName = useCallback(
@@ -485,10 +666,18 @@ export function WorkspaceProvider({ children, projectId }) {
   // (`fileOverrides`), so rollback/history keep working on hand-edited
   // content exactly like they do on AI-generated content.
   const updateFileContent = useCallback(
-    (fileId, lines) => {
-      setFileOverrides((prev) => ({ ...prev, [fileId]: lines }))
+    (fileId, lines, { live = false } = {}) => {
+      // Code → canvas: a prototype file is parsed back into the canvas
+      // model rather than stored as text.
+      if (prototypeFile(fileId)) {
+        const parsed = parsePrototype(fileId, lines)
+        setPrototypeEdits((prev) => ({ ...prev, ...parsed }))
+      } else {
+        if (live) return
+        setFileOverrides((prev) => ({ ...prev, [fileId]: lines }))
+      }
       setPreviewVersion((v) => v + 1)
-      appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
+      if (!live) appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
     },
     [appendTerminalLines, getFileName]
   )
@@ -532,6 +721,12 @@ export function WorkspaceProvider({ children, projectId }) {
   const value = {
     projectId,
     workspaceFiles: files,
+    prototypeEdits,
+    editPrototypeLayer,
+    codeFlash,
+    importedAssets,
+    importFiles,
+    importFigmaLink,
     activeFileId,
     setActiveFileId,
     getFileLines,
@@ -547,6 +742,10 @@ export function WorkspaceProvider({ children, projectId }) {
     updateConflict,
     reviewConflictId,
     bottomPanel,
+    dsUpdates,
+    documentDsUpdate,
+    archiveDsUpdate,
+    referenceDocs: allReferenceDocs,
     setBottomPanel,
     openConflictReview: setReviewConflictId,
     chatMessages,

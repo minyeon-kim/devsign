@@ -6,7 +6,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
-import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
+import { RemoteCaretsOnLine, useRemoteCaretLines } from '@/components/collab/RemoteCarets'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
 import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
 
@@ -147,6 +147,7 @@ function EditorPanel() {
     comments,
     addComment,
     getViewersForFile,
+    codeFlash,
   } = useWorkspace()
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
@@ -158,11 +159,18 @@ function EditorPanel() {
   const [draftText, setDraftText] = useState('')
   const [openLine, setOpenLine] = useState(null)
   const [lineDraft, setLineDraft] = useState('')
+  const [flashLine, setFlashLine] = useState(null)
+  // A prototype file's content when editing started, so Cancel can undo
+  // the live sync to the canvas.
+  const editStartLines = useRef(null)
   const codeAreaRef = useRef(null)
-  const cursorAreaRef = useRef(null) // still needed as the relative anchor for MultiplayerCursors
+  const cursorAreaRef = useRef(null)
 
   const activeFile = workspaceFiles.find((file) => file.id === activeFileId) ?? workspaceFiles[0]
   const activeLines = getFileLines(activeFile.id)
+  // Teammates with this exact file open, as carets bound to its lines.
+  const viewers = getViewersForFile(activeFile.id)
+  const caretLines = useRemoteCaretLines(viewers, activeFile.id, activeLines)
 
   // Switching files while mid-edit or mid-comment would leave state pointed
   // at the wrong file, so just drop out of both — same as closing a file
@@ -217,9 +225,32 @@ function EditorPanel() {
     window.setTimeout(() => setCopied(false), 1500)
   }
 
+  // A canvas edit or selection points here: scroll its line into view and
+  // flash it (see WorkspaceProvider's codeFlash).
+  useEffect(() => {
+    if (!codeFlash || codeFlash.fileId !== activeFile.id) return
+    setFlashLine(codeFlash.line)
+    const frame = requestAnimationFrame(() => {
+      codeAreaRef.current?.querySelector(`[data-line="${codeFlash.line}"]`)?.scrollIntoView({ block: 'nearest' })
+    })
+    const timer = window.setTimeout(() => setFlashLine(null), 1400)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [codeFlash, activeFile.id])
+
   function startEditing() {
+    editStartLines.current = activeLines
     setDraftText(activeLines.join('\n'))
     setIsEditing(true)
+  }
+
+  // Typing in a prototype file updates the canvas as you type (code →
+  // design, live); other files apply on save.
+  function changeDraft(text) {
+    setDraftText(text)
+    if (activeFile.prototype) updateFileContent(activeFile.id, text.split('\n'), { live: true })
   }
 
   function saveEditing() {
@@ -228,6 +259,9 @@ function EditorPanel() {
   }
 
   function cancelEditing() {
+    if (activeFile.prototype && editStartLines.current) {
+      updateFileContent(activeFile.id, editStartLines.current, { live: true })
+    }
     setIsEditing(false)
   }
 
@@ -327,7 +361,7 @@ function EditorPanel() {
             <textarea
               autoFocus
               value={draftText}
-              onChange={(e) => setDraftText(e.target.value)}
+              onChange={(e) => changeDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') cancelEditing()
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
@@ -351,7 +385,19 @@ function EditorPanel() {
                       c.target.line === lineNumber
                   )
                   return (
-                    <div key={i}>
+                    <div
+                      key={i}
+                      data-line={lineNumber}
+                      className={cn(
+                        'relative transition-colors duration-700',
+                        flashLine === lineNumber && 'bg-emerald-400/15'
+                      )}
+                    >
+                      <RemoteCaretsOnLine
+                        viewers={viewers.filter((v) => caretLines[v.id] === lineNumber)}
+                        lineNumber={lineNumber}
+                        lines={activeLines}
+                      />
                       <CodeLine
                         line={line}
                         language={activeFile.language}
@@ -381,7 +427,6 @@ function EditorPanel() {
                 viewport={viewport}
                 onJump={jumpToRatio}
               />
-              <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
             </div>
           )}
 

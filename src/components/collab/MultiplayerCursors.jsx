@@ -1,63 +1,70 @@
 import { useEffect, useState } from 'react'
 import { teamMembers } from '@/data/mockData'
 
-const MOVE_INTERVAL = 2600
+// A lightweight "someone else is here" simulation for design surfaces
+// (the Workspace canvas and Merge Studio's canvas). The code editor uses
+// line-bound carets instead (see RemoteCarets).
+//
+// Kept deliberately calm: each teammate has a resting spot on the page
+// (derived from who they are and which page it is) and only drifts a few
+// percent around it, slowly, every several seconds — no sweeping across
+// the whole surface. `scopeKey` names the page/file the cursors belong to:
+// when it changes, cursors re-appear at their new spot with a fade instead
+// of gliding over from wherever they were on the previous page.
+//
+// `members` is expected to already be scoped to that page (CanvasPanel
+// passes getViewersForCanvasPage) — this component renders whoever it's
+// given.
 
-function randomPoint() {
-  // Keep cursors within a comfortable, mostly-visible band rather than
-  // wandering into the very edges of the panel (or behind bottom toolbars).
+const DRIFT_MS = 8000
+const DRIFT_RANGE = 4 // percent, each axis, around the resting spot
+
+function hash(text) {
+  let h = 0
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+// Resting spot inside a comfortable band away from the edges and the
+// bottom toolbars.
+function restingPoint(memberId, scopeKey) {
+  const h = hash(`${memberId}:${scopeKey}`)
+  return { x: 18 + (h % 55), y: 16 + ((h >> 7) % 42) }
+}
+
+function driftAround(home) {
   return {
-    x: 12 + Math.random() * 70,
-    y: 10 + Math.random() * 58,
+    x: home.x + (Math.random() * 2 - 1) * DRIFT_RANGE,
+    y: home.y + (Math.random() * 2 - 1) * DRIFT_RANGE,
   }
 }
 
-// A lightweight "someone else is here" simulation — each teammate's cursor
-// drifts to a new random point on a timer, and CSS transitions the actual
-// movement so it reads as a smooth, live pointer rather than a teleport.
-// Mounted independently inside both the Editor and Canvas panels, so each
-// gets its own coordinate space (percentage-based) and its own timers.
-//
-// `members` is expected to already be file/page-scoped (EditorPanel and
-// CanvasPanel each pass only the teammates currently "looking at" that
-// exact file/canvas page — see WorkspaceProvider's getViewersForFile /
-// getViewersForCanvasPage) — this component itself renders whoever it's
-// given, unfiltered. Because that list's *contents* can change over time
-// (a teammate's mock viewport rotates every few seconds) while its array
-// *identity* changes on every render regardless, timers are keyed off the
-// member-id list rather than the array reference, and a just-arrived
-// member without a stored point yet is skipped for one render instead of
-// crashing on it.
-function MultiplayerCursors({ members = teamMembers }) {
-  const [points, setPoints] = useState(() =>
-    Object.fromEntries(members.map((m) => [m.id, randomPoint()]))
-  )
+function MultiplayerCursors({ members = teamMembers, scopeKey = 'default' }) {
   const memberIds = members.map((m) => m.id).join(',')
+  const key = `${scopeKey}|${memberIds}`
+  const [state, setState] = useState({ key: null, points: {} })
+
+  let points = state.points
+  if (state.key !== key) {
+    points = Object.fromEntries(members.map((m) => [m.id, restingPoint(m.id, scopeKey)]))
+    setState({ key, points })
+  }
 
   useEffect(() => {
-    setPoints((prev) => {
-      let changed = false
-      const next = { ...prev }
-      members.forEach((m) => {
-        if (!next[m.id]) {
-          next[m.id] = randomPoint()
-          changed = true
-        }
-      })
-      return changed ? next : prev
-    })
-
     const timers = members.map((member, i) =>
       window.setInterval(
         () => {
-          setPoints((prev) => ({ ...prev, [member.id]: randomPoint() }))
+          setState((prev) => ({
+            ...prev,
+            points: { ...prev.points, [member.id]: driftAround(restingPoint(member.id, scopeKey)) },
+          }))
         },
-        MOVE_INTERVAL + i * 700
+        DRIFT_MS + i * 1900
       )
     )
     return () => timers.forEach(window.clearInterval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberIds])
+  }, [key])
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
@@ -66,8 +73,10 @@ function MultiplayerCursors({ members = teamMembers }) {
         if (!point) return null
         return (
           <div
-            key={member.id}
-            className="absolute transition-[left,top] duration-[2200ms] ease-in-out"
+            // Keyed by page too: a new page mounts a fresh cursor (fade in)
+            // rather than animating one across from the old page.
+            key={`${scopeKey}:${member.id}`}
+            className="absolute animate-in fade-in transition-[left,top] duration-[1400ms] ease-out motion-reduce:animate-none motion-reduce:transition-none"
             style={{ left: `${point.x}%`, top: `${point.y}%` }}
           >
             <svg

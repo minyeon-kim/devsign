@@ -86,7 +86,7 @@ function DashboardTopBar() {
                         key={project.id}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => goTo(`/projects/${project.id}/workspace`)}
+                        onClick={() => goTo(`/projects/${project.id}`)}
                         className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
                       >
                         <Folder className="size-3.5 shrink-0 text-muted-foreground" />

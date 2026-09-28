@@ -8,6 +8,7 @@ import ActivityPage from '@/pages/ActivityPage'
 import TeamPage from '@/pages/TeamPage'
 import ConflictsPage from '@/pages/ConflictsPage'
 import ProjectLayout from '@/pages/ProjectLayout'
+import ProjectOverviewPage from '@/pages/ProjectOverviewPage'
 import WorkspacePage from '@/pages/WorkspacePage'
 import ArchivePage from '@/pages/ArchivePage'
 
@@ -23,6 +24,7 @@ function App() {
           <Route path="/team" element={<TeamPage />} />
           <Route path="/conflicts" element={<ConflictsPage />} />
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
+            <Route index element={<ProjectOverviewPage />} />
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="archive" element={<ArchivePage />} />
           </Route>

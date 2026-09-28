@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, History, Library } from 'lucide-react'
+import { FileText, History, Library, Palette } from 'lucide-react'
 import { cn } from 'cn'
-import { referenceDocs } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const rowClass =
@@ -15,24 +14,37 @@ function Count({ value }) {
   return <span className="ml-auto shrink-0 text-[11px] text-muted-foreground/70 tabular-nums">{value}</span>
 }
 
-// The drawer behind the activity bar's Archive icon: the Archive's two
-// sections — Reference Docs (with each doc under it) and History — as
-// navigation. Picking one renders that view in the main area (the
-// Archive page, deep-linked through `location.state`); the Archive icon
-// itself never jumps straight into content.
+// The drawer behind the activity bar's Archive icon: the Archive's
+// sections as navigation, in pipeline order — Design System Updates (a
+// change), Reference Docs (its documentation, with each doc under it) and
+// History (where it's recorded). Picking one renders that view in the
+// main area (the Archive page, deep-linked through `location.state`); the
+// Archive icon itself never jumps straight into content.
 function ArchiveDrawer({ project }) {
   const location = useLocation()
-  const { historyEntries } = useWorkspace()
+  const { historyEntries, referenceDocs, dsUpdates } = useWorkspace()
   const archivePath = `/projects/${project.id}/archive`
   const onArchive = location.pathname.startsWith(archivePath)
   const state = onArchive ? (location.state ?? {}) : null
-  const onHistory = state?.tab === 'history'
-  const docId = state && !onHistory ? state.docId : null
-  const onDocsIndex = Boolean(state) && !onHistory && !docId
+  const onHistory = state?.tab === 'history' || Boolean(state?.highlightId)
+  const onDsUpdates = state?.tab === 'dsUpdates'
+  const docId = state && !onHistory && !onDsUpdates ? state.docId : null
+  const onDocsIndex = Boolean(state) && !onHistory && !onDsUpdates && !docId
   const historyCount = historyEntries.filter((e) => !e.archived).length
+  const pendingUpdates = dsUpdates.filter((u) => u.stage !== 'archived').length
 
   return (
     <nav aria-label="Archive" className="flex flex-col gap-1">
+      <Link
+        to={archivePath}
+        state={{ tab: 'dsUpdates' }}
+        aria-current={onDsUpdates ? 'page' : undefined}
+        className={cn(rowClass, 'mb-2', onDsUpdates && activeClass)}
+      >
+        <Palette className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate">Design System Updates</span>
+        <Count value={pendingUpdates} />
+      </Link>
       <Link
         to={archivePath}
         state={{ tab: 'referenceDocs' }}

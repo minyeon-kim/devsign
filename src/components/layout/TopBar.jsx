@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Bell, PanelRight, ScanEye } from 'lucide-react'
+import { Bell, Play, ScanEye } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
-import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import LayoutMenu from '@/components/layout/LayoutMenu'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -95,47 +95,51 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
         placeholder="Search files, commands..."
       />
 
-      <div
-        className={cn(
-          'absolute top-3 right-4 z-40 flex h-10 shrink-0 items-center gap-1.5 rounded-full px-1.5',
-          FLOATING_PILL
-        )}
-      >
-        <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
-        <LayoutMenu dockApi={dockApi} />
-        {/* Inspect and Share used to sit in a separate floating toolbar on
-            the right edge; they live here now with the other actions. */}
-        <button
-          type="button"
-          title="Inspect"
-          aria-label="Inspect"
-          aria-pressed={inspectorOpen}
-          onClick={() => setInspectorOpen((v) => !v)}
-          className={cn(
-            'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-            inspectorOpen && 'bg-emerald-400/20 text-emerald-300'
-          )}
-        >
-          <ScanEye className="size-4" />
-        </button>
-        <PillDivider />
-        <UserPresence />
-        <PillDivider />
-        <MergeShareButton inline title={project?.name} link={`https://devsign.app/projects/${project?.id}`} />
-        <MergeStudioMenu />
+      {/* The action cluster, built exactly like Merge Studio's header:
+          separate floating pieces rather than one long bar — the people
+          pill (Inbox + teammates), the view tools as icon buttons, Share,
+          Merge Studio, and Preview as an icon-only floating action. */}
+      <div className="absolute top-3 right-4 z-40 flex items-center gap-2">
+        <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
+          <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
+          <PillDivider />
+          <span className={PRESENCE_STACK}>
+            <UserPresence />
+          </span>
+        </div>
+
+        <div className={cn('flex h-10 items-center gap-0.5 rounded-full px-1', FLOATING_PILL)}>
+          <LayoutMenu dockApi={dockApi} />
+          <button
+            type="button"
+            title="Inspect"
+            aria-label="Inspect"
+            aria-pressed={inspectorOpen}
+            onClick={() => setInspectorOpen((v) => !v)}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+              inspectorOpen && 'bg-emerald-400/20 text-emerald-300'
+            )}
+          >
+            <ScanEye className="size-4" />
+          </button>
+        </div>
+
+        <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} />
+        <MergeStudioMenu standalone />
         <button
           type="button"
           onClick={onTogglePreview}
+          title={previewOpen ? 'Close preview' : 'Preview'}
+          aria-label="Preview"
           aria-pressed={previewOpen}
           className={cn(
-            'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors',
-            previewOpen
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'text-foreground hover:bg-white/10'
+            'flex size-10 items-center justify-center rounded-full transition-colors',
+            FLOATING_PILL,
+            previewOpen ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-muted'
           )}
         >
-          <PanelRight className="size-3.5" />
-          Preview
+          <Play className="size-4 translate-x-px" />
         </button>
       </div>
 

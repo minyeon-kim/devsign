@@ -59,7 +59,7 @@ function ProjectProgressCards() {
           <button
             key={project.id}
             type="button"
-            onClick={() => navigate(`/projects/${project.id}/workspace`)}
+            onClick={() => navigate(`/projects/${project.id}`)}
             className={cn(
               'flex flex-col rounded-2xl p-5 text-left text-white shadow-sm transition-transform duration-150 hover:-translate-y-0.5',
               style.bg

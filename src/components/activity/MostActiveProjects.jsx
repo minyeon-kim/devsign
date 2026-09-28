@@ -13,7 +13,7 @@ function MostActiveProjects() {
         {sortedProjects.map((project) => (
           <Link
             key={project.id}
-            to={`/projects/${project.id}/workspace`}
+            to={`/projects/${project.id}`}
             className="group flex items-center gap-2.5 rounded-md px-1 py-0.5 -mx-1 transition-colors hover:bg-muted/60"
           >
             <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
