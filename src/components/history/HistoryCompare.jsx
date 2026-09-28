@@ -30,7 +30,9 @@ const MIN_CANVAS = 260
 // playback steps through. `footer` sits under the code (the timeline).
 // The code and the design as it rendered at that version sit side by side,
 // split by a draggable handle, so a change reads in both at a glance.
-function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer }) {
+// `hideRestore` drops the header's restore button when the caller has its
+// own (History's control bar).
+function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName } = useWorkspace()
   const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
   // The code pane's width in px (null = its default share); the canvas
@@ -142,6 +144,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
               </button>
             </label>
           )}
+          {!hideRestore && (
           <button
             type="button"
             onClick={handleRestore}
@@ -155,6 +158,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             <RotateCcw className="size-3.5" />
             {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
           </button>
+          )}
         </div>
       </div>
 

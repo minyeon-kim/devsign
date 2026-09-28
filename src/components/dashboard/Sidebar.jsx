@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer from '@/components/dashboard/HistoryDrawer'
+import ImportDrawer from '@/components/dashboard/ImportDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { projectTone } from '@/lib/projectTone'
@@ -63,9 +64,9 @@ function ProjectsMark({ project }) {
 //     wearing the current project's badge while you're in one;
 //   · outside a project: Home (the project hub), Activity and Team;
 //   · inside a project: just that project's views — Home (its overview),
-//     Docs (the docs category tree, in the drawer beside the current
-//     view), History (the full History view, which brings its checkpoint
-//     list up in the drawer) and Import (the import screen). Activity
+//     Docs and Import (each in the drawer beside the current view: the
+//     docs category tree, the import sources) and History (the full
+//     History view, which brings its checkpoint list up in the drawer). Activity
 //     and Team step aside so the focused workspace isn't cluttered, and
 //     Conflict Points live only in the Workspace's bottom panel.
 // Settings is pinned to the bottom.
@@ -130,12 +131,13 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
+            {/* A drawer beside the current view, like Docs. */}
             <RailButton
               label="Import"
               icon={Import}
-              render={<Link to={`${base}/import`} />}
-              aria-current={path.startsWith(`${base}/import`) ? 'page' : undefined}
-              className={cn(path.startsWith(`${base}/import`) && !drawer && activeClass)}
+              onClick={() => onToggleDrawer('import')}
+              aria-expanded={drawer === 'import'}
+              className={cn((drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)) && activeClass)}
             />
           </>
         ) : (
@@ -207,7 +209,7 @@ function HistoryNavButtons() {
   )
 }
 
-const DRAWER_TITLES = { docs: 'Docs', history: 'History' }
+const DRAWER_TITLES = { docs: 'Docs', history: 'History', import: 'Import' }
 const DRAWER_WIDTH = 272
 const DRAWER_MIN = 220
 const DRAWER_MAX = 480
@@ -269,6 +271,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
             {panel === 'docs' && project && <DocsDrawer project={project} />}
             {panel === 'history' && project && <HistoryDrawer project={project} />}
+            {panel === 'import' && project && <ImportDrawer project={project} />}
           </div>
         </aside>
       </div>

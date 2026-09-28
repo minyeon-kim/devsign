@@ -19,7 +19,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // as a new checkpoint.
 function HistoryPage() {
   const { project } = useOutletContext()
-  const { historyEntries } = useWorkspace()
+  const { historyEntries, activeHistoryId } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   const [compareLatest, setCompareLatest] = useState(true)
@@ -86,24 +86,23 @@ function HistoryPage() {
         <span className="ml-2 text-xs font-normal text-slate-500">{timeline.length} checkpoints</span>
       </div>
 
-      <div className="min-h-0 flex-1 p-4">
-        <HistoryCompare
-          entryId={selectedId}
-          onRollback={(id) => {
-            setPlaying(false)
-            setRollbackId(id)
-          }}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+        <div className="min-h-0 flex-1">
+          <HistoryCompare entryId={selectedId} compareLatest={compareLatest} hideRestore />
+        </div>
+        <HistoryTimeline
+          entries={timeline}
+          selectedId={selectedId}
+          onSelect={selectVersion}
+          playing={playing}
+          onTogglePlay={togglePlay}
           compareLatest={compareLatest}
           onCompareLatestChange={setCompareLatest}
-          footer={
-            <HistoryTimeline
-              entries={timeline}
-              selectedId={selectedId}
-              onSelect={selectVersion}
-              playing={playing}
-              onTogglePlay={togglePlay}
-            />
-          }
+          isCurrent={selectedId === activeHistoryId}
+          onRestore={() => {
+            setPlaying(false)
+            setRollbackId(selectedId)
+          }}
         />
       </div>
 

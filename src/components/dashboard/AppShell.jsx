@@ -19,7 +19,7 @@ import Sidebar from '@/components/dashboard/Sidebar'
 // page closes it again. Toggling History off (its icon, or closing its
 // drawer) leaves the whole view — list and viewer — for the Workspace.
 function AppShell({ topBar, project, children }) {
-  // null | 'docs' | 'history'
+  // null | 'docs' | 'history' | 'import'
   const [drawer, setDrawer] = useState(null)
   const navigate = useNavigate()
   const { pathname } = useLocation()
