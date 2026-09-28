@@ -41,9 +41,9 @@ import {
 } from '@/components/mergestudio/floatingStyles'
 
 // ─── The one conflict review window ────────────────────────────────────
-// Every entry point — the activity bar's Conflicts drawer, the terminal's
-// Conflict Point tab, the dashboard widget and the /conflicts page — opens
-// this same component with a shared conflict record (see lib/conflicts).
+// Opened from the Workspace bottom panel's Conflict Points tab (via the
+// project's ConflictReviewHost) with a shared conflict record (see
+// lib/conflicts).
 //
 // It's a step-by-step review, GitHub-PR style: a conflict moves
 // Pending → In Review → Approved → Resolved, and each step is gated on

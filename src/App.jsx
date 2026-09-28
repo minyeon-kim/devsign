@@ -3,10 +3,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import LocalCursor from '@/components/collab/LocalCursor'
 import DashboardPage from '@/pages/DashboardPage'
-import ProjectsListPage from '@/pages/ProjectsListPage'
 import ActivityPage from '@/pages/ActivityPage'
 import TeamPage from '@/pages/TeamPage'
-import ConflictsPage from '@/pages/ConflictsPage'
 import ProjectLayout from '@/pages/ProjectLayout'
 import ProjectOverviewPage from '@/pages/ProjectOverviewPage'
 import WorkspacePage from '@/pages/WorkspacePage'
@@ -19,10 +17,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/projects" element={<ProjectsListPage />} />
+          {/* All projects lives on Home now; Conflict Points only in a
+              project Workspace's bottom panel. Old links land on Home. */}
+          <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/team" element={<TeamPage />} />
-          <Route path="/conflicts" element={<ConflictsPage />} />
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<ProjectOverviewPage />} />
             <Route path="workspace" element={<WorkspacePage />} />

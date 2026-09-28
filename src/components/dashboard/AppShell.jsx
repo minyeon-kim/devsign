@@ -10,13 +10,11 @@ import Sidebar from '@/components/dashboard/Sidebar'
 //
 // The permanently slim, icon-only activity bar runs the full height of
 // the window. Its destinations are plain full pages — there's no general
-// sidebar toggle — except two that slide a drawer open beside it instead:
-// Conflict Points (the conflict list, whose items open the review window
-// over the current view) and, inside a project, Archive (its Reference
-// Docs / History sub-navigation). The drawer's width animates, pushing the
-// content column over rather than overlapping it.
+// sidebar toggle — except, inside a project, Archive, which slides a
+// drawer open beside it with its sub-navigation. The drawer's width
+// animates, pushing the content column over rather than overlapping it.
 function AppShell({ topBar, project, children }) {
-  // null | 'conflicts' | 'archive'
+  // null | 'archive'
   const [drawer, setDrawer] = useState(null)
 
   return (

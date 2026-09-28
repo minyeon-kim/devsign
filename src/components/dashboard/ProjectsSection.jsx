@@ -80,7 +80,7 @@ function ProjectsSection() {
           className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 transition-colors hover:bg-muted"
         >
           <Folder className="size-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">All projects</h1>
+          <h1 className="text-lg font-semibold text-foreground">Projects</h1>
           <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', selectMode && 'rotate-180')} />
         </button>
 

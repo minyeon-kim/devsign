@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, House, LayoutGrid } from 'lucide-react'
+import { Check, House } from 'lucide-react'
 import { cn } from 'cn'
 import {
   DropdownMenu,
@@ -14,9 +14,9 @@ import { projectTone } from '@/lib/projectTone'
 
 // Slack's workspace switcher, opened from the activity bar's Projects
 // button (at the top of the activity bar): every project (the current one
-// checked), then Dashboard and All projects. Inside a project the Home
-// icon goes to the project's overview, so the global dashboard is reached
-// from here. `children` is the trigger subtree — it must contain a
+// checked), then Home — the hub with every project. Inside a project the
+// rail's Home icon goes to the project's overview, so the global Home is
+// reached from here. `children` is the trigger subtree — it must contain a
 // DropdownMenuTrigger (the Projects button, wrapped in its tooltip).
 // Switching projects keeps you on the same view (overview, Workspace or
 // Archive) you were on; from a global page it opens the project's overview.
@@ -59,13 +59,7 @@ function ProjectSwitcher({ children, currentProjectId }) {
           <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <House className="size-3.5" />
           </span>
-          Dashboard
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/projects')} className="gap-2.5">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <LayoutGrid className="size-3.5" />
-          </span>
-          All projects
+          Home · All projects
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

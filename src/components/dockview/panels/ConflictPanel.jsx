@@ -13,12 +13,11 @@ const severityConfig = {
   low: { label: 'Low', icon: Info, className: 'bg-sky-500/15 text-sky-500' },
 }
 
-// The bottom panel's Conflict Points tab: the same project-scoped conflict
-// list as the activity bar's Conflicts drawer (both read the workspace's
-// `conflicts`). There's deliberately no one-click Resolve here — a row
-// opens the conflict's review window, where resolving is the last step
-// of the review (see ConflictModal). The window itself is the project's
-// single ConflictReviewHost, shared with the drawer.
+// The bottom panel's Conflict Points tab: the one place a project's
+// conflicts are inspected and resolved (the workspace's `conflicts`).
+// There's deliberately no one-click Resolve here — a row opens the
+// conflict's review window, where resolving is the last step of the
+// review (see ConflictModal and the project's single ConflictReviewHost).
 function ConflictPanel() {
   const { conflicts, reviewConflictId, openConflictReview } = useWorkspace()
   const openCount = conflicts.filter(isOpen).length

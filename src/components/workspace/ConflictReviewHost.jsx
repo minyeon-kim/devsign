@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import ConflictModal from '@/components/modals/ConflictModal'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-// The project's single conflict review window. The Conflicts drawer and
-// the bottom panel's Conflict Points tab both just call openConflictReview(id);
-// this renders the one ConflictModal for whichever conflict that is,
-// bound to the workspace's shared conflict list.
+// The project's single conflict review window. The bottom panel's
+// Conflict Points tab (and the project overview's shortcut into it) call
+// openConflictReview(id); this renders the one ConflictModal for whichever
+// conflict that is, bound to the workspace's shared conflict list.
 function ConflictReviewHost() {
   const navigate = useNavigate()
   const { projectId, conflicts, reviewConflictId, openConflictReview, updateConflict, resolveConflict } =

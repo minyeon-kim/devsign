@@ -154,7 +154,13 @@ function ProjectOverviewPage() {
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => openConflictReview(c.id)}
+                      // Conflicts are inspected and resolved only in the
+                      // Workspace's Conflict Points tab: go there, open it.
+                      onClick={() => {
+                        setBottomPanel({ tab: 'conflict', open: true })
+                        openConflictReview(c.id)
+                        navigate(workspacePath)
+                      }}
                       className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.04]"
                     >
                       <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[c.reviewStage])} />

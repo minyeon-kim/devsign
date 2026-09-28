@@ -1,66 +1,22 @@
-import { Fragment, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity, Archive, GitBranch, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, Archive, House, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ArchiveDrawer from '@/components/dashboard/ArchiveDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import { projectTone } from '@/lib/projectTone'
-import { allConflictRecords, isOpen } from '@/lib/conflicts'
-import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
-const totalOpenConflicts = allConflictRecords().filter(isOpen).length
-
-// The activity bar's global destinations: Home, Conflict Points, Activity,
-// Team. Projects isn't in this list — its button (the project switcher)
-// sits above these, at the very top, and is rendered separately. Conflicts is the full list behind the dashboard's "Active
-// conflicts" widget, with its open count badged on the icon.
-export const navItems = [
-  {
-    id: 'home',
-    label: 'Home',
-    icon: House,
-    path: '/dashboard',
-    match: (pathname) => pathname.startsWith('/dashboard'),
-  },
-  {
-    id: 'conflicts',
-    label: 'Conflict Points',
-    icon: GitBranch,
-    path: '/conflicts',
-    match: (pathname) => pathname.startsWith('/conflicts'),
-  },
-  {
-    id: 'activity',
-    label: 'Activity',
-    icon: Activity,
-    path: '/activity',
-    match: (pathname) => pathname.startsWith('/activity'),
-  },
-  {
-    id: 'team',
-    label: 'Team',
-    icon: Users,
-    path: '/team',
-    match: (pathname) => pathname.startsWith('/team'),
-  },
+// The global destinations, shown only outside a project: Home (the
+// project hub), Activity and Team. Inside a project they step aside so
+// the rail only carries that project's own views.
+const globalItems = [
+  { id: 'home', label: 'Home', icon: House, path: '/dashboard' },
+  { id: 'activity', label: 'Activity', icon: Activity, path: '/activity' },
+  { id: 'team', label: 'Team', icon: Users, path: '/team' },
 ]
-
-// Projects as a section, for the Projects button's active state.
-const projectsSection = {
-  id: 'projects',
-  label: 'Projects',
-  path: '/projects',
-  match: (pathname) => pathname.startsWith('/projects'),
-}
-
-// The section the current route belongs to.
-function activeNavItem(pathname) {
-  return [...navItems, projectsSection].find((item) => item.match(pathname)) ?? navItems[0]
-}
 
 const iconButtonClass =
   'mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
@@ -70,21 +26,11 @@ const iconButtonClass =
 const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
 
 // An icon-only activity bar button, named by its tooltip.
-// An optional `badge` count sits on the icon's top-right corner.
-function RailButton({ label, icon: Icon, badge, className, ...triggerProps }) {
+function RailButton({ label, icon: Icon, className, ...triggerProps }) {
   return (
     <Tooltip>
-      <TooltipTrigger
-        aria-label={badge ? `${label} (${badge})` : label}
-        className={cn(iconButtonClass, 'relative', className)}
-        {...triggerProps}
-      >
+      <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
         <Icon className="size-[18px]" />
-        {!!badge && (
-          <span className="absolute top-0.5 right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] leading-none font-semibold text-white tabular-nums">
-            {badge}
-          </span>
-        )}
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
@@ -93,8 +39,7 @@ function RailButton({ label, icon: Icon, badge, className, ...triggerProps }) {
 
 // The Projects button's face: a grid icon on global pages, or — inside
 // a project — that project's own color badge (its initial on its identity
-// color, see projectTone), sized to sit at the same visual weight as the
-// 18px icons around it and swapping in with a quick scale/fade whenever
+// color, see projectTone), swapping in with a quick scale/fade whenever
 // the project changes.
 function ProjectsMark({ project }) {
   if (!project) return <LayoutGrid className="size-[18px]" />
@@ -111,64 +56,24 @@ function ProjectsMark({ project }) {
   )
 }
 
-// Tier 1 — the activity bar. Permanently slim and icon-only on every
-// route, top to bottom:
-//   1. Projects, at the very top — opens the Slack-style project switcher
-//      (every project, plus "All projects"), and wears the current
-//      project's badge while you're in one;
-//   2. Home — the dashboard, or inside a project that project's overview
-//      (so Home never drops you out of the project you're working in);
-//   3. inside a project, Archive (which opens its Reference Docs / History
-//      sub-navigation in the drawer rather than jumping into content) — promoted right under Home as the
-//      project's high-frequency docs/specs/history view (Workspace is the
-//      default view and needs no icon) — then a hairline;
-//   4. the secondary global items: Conflict Points (the conflict list — in
-//      a drawer over any view, or inside a project the Workspace's bottom
-//      panel tab, so the list never shows twice), Activity and Team —
-//      which go straight to their full pages, with no drawer;
-// with Settings pinned to the bottom. Nothing contextual ever lands here.
-// It always sits on the shared surface tone (`bg-sidebar`, the same as
-// every panel and window) one step above the deeper canvas.
+// The activity bar, permanently slim and icon-only, and contextual:
+//   · at the top, always: Projects — the Slack-style project switcher,
+//     wearing the current project's badge while you're in one;
+//   · outside a project: Home (the project hub), Activity and Team;
+//   · inside a project: just that project's views — Home (its overview)
+//     and Archive (which opens its sub-navigation in the drawer). Activity
+//     and Team step aside so the focused workspace isn't cluttered, and
+//     Conflict Points live only in the Workspace's bottom panel.
+// Settings is pinned to the bottom.
 function ActivityBar({ project, drawer, onToggleDrawer }) {
   const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const workspace = useWorkspaceOptional()
-  const workspacePath = project ? `/projects/${project.id}/workspace` : null
+  const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
-  const onOverview = !!overviewPath && pathname.replace(/\/$/, '') === overviewPath
-  // Inside a project, Conflict Points is the Workspace's bottom-panel tab
-  // (the single place that list lives there — no second copy in a drawer);
-  // elsewhere it's the drawer.
-  const conflictsInPanel = Boolean(workspace)
-  const conflictsOpen = conflictsInPanel
-    ? pathname.startsWith(workspacePath) && workspace.bottomPanel.open && workspace.bottomPanel.tab === 'conflict'
-    : drawer === 'conflicts'
-
-  function toggleConflicts() {
-    if (!conflictsInPanel) {
-      onToggleDrawer('conflicts')
-      return
-    }
-    if (conflictsOpen) {
-      workspace.setBottomPanel({ open: false })
-      return
-    }
-    workspace.setBottomPanel({ tab: 'conflict', open: true })
-    if (!pathname.startsWith(workspacePath)) navigate(workspacePath)
-  }
-  // Inside a project, the live count of its open conflicts (the same list
-  // the drawer and the terminal show); elsewhere, every project's.
-  const openConflicts = workspace ? workspace.conflicts.filter(isOpen).length : totalOpenConflicts
-  const current = activeNavItem(pathname)
   const archivePath = project ? `/projects/${project.id}/archive` : null
-  const onArchive = !!archivePath && pathname.startsWith(archivePath)
-  // Only the All projects page highlights the switcher — inside a project,
-  // Home / Archive carry the highlight.
-  const inProjects = current.id === 'projects' && !project
+  const onArchive = !!archivePath && path.startsWith(archivePath)
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
-      {/* Project context comes first: the switcher owns the top slot. */}
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <Tooltip>
@@ -179,8 +84,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
                     <button
                       type="button"
                       aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
-                      aria-current={inProjects ? 'page' : undefined}
-                      className={cn(iconButtonClass, 'data-[popup-open]:bg-muted', inProjects && activeClass)}
+                      className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
                     />
                   }
                 />
@@ -194,59 +98,38 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       </div>
 
       <nav aria-label="Main" className="flex flex-col gap-1">
-        {navItems.map(({ id, label, icon, path }) => {
-          // While the conflict list is up, Conflicts is the highlighted item.
-          // Inside a project, Home is the project's overview page.
-          const isActive =
-            id === 'conflicts'
-              ? conflictsOpen || id === current.id
-              : id === 'home' && project
-                ? onOverview && !conflictsOpen
-                : !conflictsOpen && id === current.id
-          return (
-            <Fragment key={id}>
-              {id === 'conflicts' ? (
-                // Opens the conflict list in the drawer rather than taking
-                // over the main view (the full page is its "View all").
-                <RailButton
-                  label={label}
-                  icon={icon}
-                  badge={openConflicts}
-                  onClick={toggleConflicts}
-                  aria-expanded={conflictsOpen}
-                  className={cn(isActive && activeClass)}
-                />
-              ) : (
-                <RailButton
-                  label={id === 'home' && project ? `${project.name} home` : label}
-                  icon={icon}
-                  // Home keeps you in the project you're in: its overview.
-                  render={<Link to={id === 'home' && project ? overviewPath : path} />}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={cn(isActive && activeClass)}
-                />
-              )}
-              {/* Inside a project, its one alternate view sits right under
-                  Home. (Workspace is the project's default view — you land
-                  there on entering — so it has no icon of its own.) */}
-              {id === 'home' && project && (
-                <>
-                  <RailButton
-                    label="Archive"
-                    icon={Archive}
-                    onClick={() => onToggleDrawer('archive')}
-                    aria-expanded={drawer === 'archive'}
-                    className={cn((drawer === 'archive' || (onArchive && !drawer)) && activeClass)}
-                  />
-                  {/* Separates the high-frequency project group above from
-                      the secondary global items (Conflicts, Activity, Team)
-                      below. */}
-                  <div role="separator" className="mx-3.5 my-1.5 h-px shrink-0 bg-white/[0.08]" />
-                </>
-              )}
-            </Fragment>
-          )
-        })}
+        {project ? (
+          <>
+            <RailButton
+              label={`${project.name} home`}
+              icon={House}
+              render={<Link to={overviewPath} />}
+              aria-current={path === overviewPath ? 'page' : undefined}
+              className={cn(path === overviewPath && !drawer && activeClass)}
+            />
+            <RailButton
+              label="Archive"
+              icon={Archive}
+              onClick={() => onToggleDrawer('archive')}
+              aria-expanded={drawer === 'archive'}
+              className={cn((drawer === 'archive' || (onArchive && !drawer)) && activeClass)}
+            />
+          </>
+        ) : (
+          globalItems.map(({ id, label, icon, path: to }) => {
+            const active = path.startsWith(to)
+            return (
+              <RailButton
+                key={id}
+                label={label}
+                icon={icon}
+                render={<Link to={to} />}
+                aria-current={active ? 'page' : undefined}
+                className={cn(active && activeClass)}
+              />
+            )
+          })
+        )}
       </nav>
 
       <div className="mt-auto flex flex-col gap-1">
@@ -275,15 +158,13 @@ function CloseButton({ onClose }) {
   )
 }
 
-const DRAWER_TITLES = { conflicts: 'Conflict Points', archive: 'Archive' }
+const DRAWER_TITLES = { archive: 'Archive' }
 
-// The app's navigation: the always-slim ActivityBar with the global
-// destinations, and beside it a drawer used by just two icons — Conflict
-// Points (the conflict list) and Archive (its sub-navigation). It slides
-// open (its width animates from 0; its content keeps a fixed w-68 so
-// nothing re-wraps mid-animation) and closes from its own button or the
-// same icon again. Every other destination is a plain full page; there is
-// no general sidebar toggle.
+// The app's navigation: the always-slim ActivityBar, and beside it a
+// drawer used by the Archive icon for its sub-navigation. It slides open
+// (its width animates from 0; its content keeps a fixed w-68 so nothing
+// re-wraps mid-animation) and closes from its own button or the Archive
+// icon again. Every other destination is a plain full page.
 function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
@@ -313,7 +194,6 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
             <CloseButton onClose={onCloseDrawer} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2">
-            {panel === 'conflicts' && <ConflictsDrawer onNavigate={onCloseDrawer} />}
             {panel === 'archive' && project && <ArchiveDrawer project={project} />}
           </div>
         </aside>

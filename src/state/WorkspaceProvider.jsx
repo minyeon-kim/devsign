@@ -99,8 +99,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const [consoleEntries] = useState(() =>
     seedConsoleLogLines.map((text) => ({ id: nextId('c'), text }))
   )
-  // This project's conflicts — the single list the Conflicts drawer and
-  // the bottom panel's Conflict Points tab both read and update.
+  // This project's conflicts — the list behind the Workspace bottom
+  // panel's Conflict Points tab (the one place conflicts are resolved).
   const [conflicts, setConflicts] = useState(() => projectConflictRecords(projectId))
   // The conflict open in the review window (ConflictReviewHost). One per
   // workspace, so opening a conflict from the drawer or the terminal
