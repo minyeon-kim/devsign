@@ -1720,29 +1720,181 @@ export const initialHistoryEntries = [
   },
 ]
 
-// Archive page's "Reference Docs" tab — purely illustrative placeholder
-// content (no editing/versioning behavior), `type` picks an icon locally.
+// Archive's reference docs — illustrative mock content (no editing or
+// versioning behavior). `type` picks an icon/tone locally; `blocks` is the
+// doc body as structured blocks the Archive doc view renders directly
+// (h2 / p / ul / ol / code / callout / table), so there's no markdown
+// parser involved. Each h2 carries an `id` for the "On this page" list.
 export const referenceDocs = [
   {
     id: 'doc-brand-guidelines',
     title: 'Brand Guidelines',
+    summary: 'How Devsign-built products look and sound: color, type, radius and voice.',
     authorId: 'min',
     updatedAtLabel: '3 days ago',
     type: 'design',
+    blocks: [
+      {
+        type: 'p',
+        text: 'These guidelines keep every surface of the product feeling like one system. When a decision isn\'t covered here, favor restraint: fewer colors, more whitespace, one clear action per view.',
+      },
+      { type: 'h2', id: 'color', text: 'Color' },
+      {
+        type: 'p',
+        text: 'Color carries meaning, not decoration. Neutral surfaces do the heavy lifting; the indigo accent is reserved for primary actions, focus and selection.',
+      },
+      {
+        type: 'table',
+        columns: ['Token', 'Value', 'Use for'],
+        rows: [
+          ['--accent-indigo', 'oklch(0.55 0.22 270)', 'Primary actions, focus rings, selection'],
+          ['--accent-violet', 'oklch(0.6 0.24 300)', 'Merge and AI-assisted moments only'],
+          ['--surface', 'oklch(0.21 0.006 286)', 'Cards, panels, popovers'],
+          ['--background', 'oklch(0.14 0.005 286)', 'The app canvas'],
+        ],
+        swatchColumn: 1,
+      },
+      {
+        type: 'callout',
+        tone: 'warning',
+        text: 'Never place accent text on an accent fill. Use white or the dark foreground for contrast (WCAG AA at minimum).',
+      },
+      { type: 'h2', id: 'typography', text: 'Typography' },
+      {
+        type: 'ul',
+        items: [
+          'Geist for all UI text; Geist Mono for code, tokens and numbers that align in columns.',
+          'Body copy at 14px / 1.7. UI labels at 12–13px, medium weight.',
+          'Sentence case everywhere — buttons, headings and menu items alike.',
+        ],
+      },
+      { type: 'h2', id: 'shape', text: 'Shape & radius' },
+      {
+        type: 'p',
+        text: 'Controls are pills; containers are soft rectangles. Mixing the two on one element is the most common drift we catch in review.',
+      },
+      {
+        type: 'code',
+        language: 'css',
+        text: `:root {\n  --radius-full: 9999px;   /* buttons, chips, tabs */\n  --radius-panel: 20px;   /* floating panels */\n  --radius-card: 12px;    /* cards, inputs */\n}`,
+      },
+      { type: 'h2', id: 'voice', text: 'Voice' },
+      {
+        type: 'ol',
+        items: [
+          'Say what happened, then what to do next: "Merge failed — resolve 2 conflicts to continue."',
+          'Prefer verbs on buttons ("Restore version", not "OK").',
+          'No exclamation marks in system messages.',
+        ],
+      },
+    ],
   },
   {
     id: 'doc-api-contract',
     title: 'API Contract Notes',
+    summary: 'The endpoints the design ↔ code sync relies on, and the rules for changing them.',
     authorId: 'james',
     updatedAtLabel: '1 week ago',
     type: 'spec',
+    blocks: [
+      {
+        type: 'p',
+        text: 'Sync between the canvas and the codebase runs through three endpoints. Treat their request and response shapes as a contract: additive changes are fine, anything else needs a version bump.',
+      },
+      { type: 'h2', id: 'endpoints', text: 'Endpoints' },
+      {
+        type: 'table',
+        columns: ['Method', 'Path', 'Purpose'],
+        rows: [
+          ['GET', '/v1/projects/:id/tokens', 'Current design tokens, resolved per theme'],
+          ['POST', '/v1/projects/:id/sync', 'Push canvas changes; returns detected conflicts'],
+          ['POST', '/v1/merges/:mergeId/apply', 'Apply an approved merge to the target branch'],
+        ],
+      },
+      { type: 'h2', id: 'sync-payload', text: 'Sync payload' },
+      {
+        type: 'code',
+        language: 'json',
+        text: `{\n  "projectId": "design-system-v2",\n  "changes": [\n    { "layerId": "btn-primary", "prop": "padding", "value": "8px 16px" }\n  ],\n  "baseVersion": "history-seed-2"\n}`,
+      },
+      {
+        type: 'callout',
+        tone: 'info',
+        text: '`baseVersion` is required. Requests without it are rejected with 409 so a stale canvas can never overwrite newer code.',
+      },
+      { type: 'h2', id: 'errors', text: 'Errors' },
+      {
+        type: 'ul',
+        items: [
+          '409 Conflict — the base version is behind; the body lists the conflicting fields.',
+          '422 Unprocessable — a token reference doesn\'t resolve in the target theme.',
+          '429 Too Many Requests — back off using the Retry-After header.',
+        ],
+      },
+      { type: 'h2', id: 'changing-the-contract', text: 'Changing the contract' },
+      {
+        type: 'ol',
+        items: [
+          'Propose the change in #api-contracts with an example payload.',
+          'Ship it behind a new version prefix (/v2) alongside the old one.',
+          'Remove the old version only after every client has migrated.',
+        ],
+      },
+    ],
   },
   {
     id: 'doc-onboarding',
     title: 'Project Onboarding',
+    summary: 'Everything a new teammate needs for their first week on the project.',
     authorId: 'jane',
     updatedAtLabel: '2 weeks ago',
     type: 'doc',
+    blocks: [
+      {
+        type: 'p',
+        text: 'Welcome aboard. This page walks you from a fresh laptop to your first merged change. Most people get through it in an afternoon.',
+      },
+      { type: 'h2', id: 'setup', text: 'Local setup' },
+      {
+        type: 'code',
+        language: 'bash',
+        text: `git clone git@github.com:devsign/design-system.git\ncd design-system\nnpm install\nnpm run dev`,
+      },
+      {
+        type: 'callout',
+        tone: 'info',
+        text: 'The dev server runs on http://localhost:5173. The Workspace preview points there by default.',
+      },
+      { type: 'h2', id: 'first-week', text: 'Your first week' },
+      {
+        type: 'ol',
+        items: [
+          'Read the Brand Guidelines and the API Contract Notes in this Archive.',
+          'Pair with someone on a Merge Studio session to see conflict review end to end.',
+          'Pick a "good first issue" and open it in the Workspace.',
+          'Get your first merge approved.',
+        ],
+      },
+      { type: 'h2', id: 'how-we-work', text: 'How we work' },
+      {
+        type: 'ul',
+        items: [
+          'Every change goes through Merge Studio — no direct pushes to main.',
+          'Conflicts are resolved by whoever is closest to the intent, design or code.',
+          'Saved versions are cheap. Restore freely from History when an experiment goes sideways.',
+        ],
+      },
+      { type: 'h2', id: 'people', text: 'Who to ask' },
+      {
+        type: 'table',
+        columns: ['Topic', 'Person'],
+        rows: [
+          ['Design tokens & brand', 'Min'],
+          ['Sync API & builds', 'James'],
+          ['Anything else', 'Jane'],
+        ],
+      },
+    ],
   },
 ]
 
