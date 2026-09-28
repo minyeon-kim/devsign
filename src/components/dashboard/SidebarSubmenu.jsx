@@ -234,7 +234,7 @@ function SidebarSubmenu({ project }) {
   if (project) return <ProjectMenu project={project} pathname={pathname} />
 
   const Menu = SECTION_MENUS[activeNavItem(pathname).id]
-  return <Menu pathname={pathname} />
+  return Menu ? <Menu pathname={pathname} /> : null
 }
 
 export default SidebarSubmenu
