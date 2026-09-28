@@ -62,9 +62,9 @@ function ProjectsMark({ project }) {
 //     wearing the current project's badge while you're in one;
 //   · outside a project: Home (the project hub), Activity and Team;
 //   · inside a project: just that project's views — Home (its overview),
-//     Docs and History (each opening in the drawer beside the current view:
-//     the docs category tree, the checkpoints) and Import (the import
-//     screen). Activity
+//     Docs (the docs category tree, in the drawer beside the current
+//     view), History (the full History view, which brings its checkpoint
+//     list up in the drawer) and Import (the import screen). Activity
 //     and Team step aside so the focused workspace isn't cluttered, and
 //     Conflict Points live only in the Workspace's bottom panel.
 // Settings is pinned to the bottom.
@@ -75,6 +75,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   const base = project ? `/projects/${project.id}` : null
   const onDocs = !!base && path.startsWith(`${base}/docs`)
   const onHistory = !!base && path.startsWith(`${base}/history`)
+  const navigate = useNavigate()
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
@@ -118,12 +119,14 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-expanded={drawer === 'docs'}
               className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
             />
-            {/* A drawer beside the Workspace, like Docs — not a full page. */}
+            {/* The full History view — its page opens the checkpoint list in
+                the drawer beside it (AppShell). On it, the icon just shows /
+                hides that list. */}
             <RailButton
               label="History"
               icon={History}
-              onClick={() => onToggleDrawer('history')}
-              aria-expanded={drawer === 'history'}
+              onClick={() => (onHistory ? onToggleDrawer('history') : navigate(`${base}/history`))}
+              aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
             <RailButton

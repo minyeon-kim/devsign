@@ -17,8 +17,11 @@ function parsePadding(value) {
 // code file (see lib/prototypeSync) — so a text, fill or radius change on
 // either side shows up here too. The AI chat's padding fix still applies
 // to the primary button through `previewProps`.
-function PreviewPanelContent() {
-  const { activePageId, prototypeEdits, previewProps, previewVersion } = useWorkspace()
+// History renders it at a past version: `previewProps` then comes from that
+// checkpoint's snapshot and `caption` replaces the "Live" header.
+function PreviewPanelContent({ previewProps: snapshotProps, caption } = {}) {
+  const { activePageId, prototypeEdits, previewProps: liveProps, previewVersion } = useWorkspace()
+  const previewProps = snapshotProps ?? liveProps
   const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
   const file = prototypeFileForPage(page.id)
   const boxRef = useRef(null)
@@ -32,16 +35,18 @@ function PreviewPanelContent() {
     return () => observer.disconnect()
   }, [])
 
-  const buttonPadding = parsePadding(previewProps.buttonPadding)
+  const buttonPadding = parsePadding(previewProps?.buttonPadding)
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-card">
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2 text-[11px] text-muted-foreground">
         <span className="truncate">Synced from {file?.path}</span>
-        <span className="flex shrink-0 items-center gap-1">
-          <span className="size-1.5 rounded-full bg-emerald-400" />
-          Live
-        </span>
+        {caption ?? (
+          <span className="flex shrink-0 items-center gap-1">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            Live
+          </span>
+        )}
       </div>
 
       <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">

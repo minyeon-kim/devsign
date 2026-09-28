@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
-import { GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Code2, GitCompareArrows, LayoutTemplate, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from 'sonner'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
+import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 
@@ -24,8 +25,11 @@ const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 // `onCompareLatestChange` is given): on, an inline diff against the latest
 // state; off, just the file as it was at this version — what History
 // playback steps through. `footer` sits under the code (the timeline).
+// Code / Canvas switches between that file and the design as it rendered at
+// the version (beside the latest one while comparing).
 function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer }) {
-  const { historyEntries, activeHistoryId, rollbackTo } = useWorkspace()
+  const { historyEntries, activeHistoryId, rollbackTo, getFileName } = useWorkspace()
+  const [view, setView] = useState('code')
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const isCurrent = entryId === activeHistoryId
@@ -102,58 +106,100 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-        {onCompareLatestChange && (
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400 select-none">
-            Compare latest
-            <button
-              type="button"
-              role="switch"
-              aria-checked={compareLatest}
-              aria-label="Compare latest"
-              onClick={() => onCompareLatestChange(!compareLatest)}
-              className={cn(
-                'relative h-[18px] w-8 rounded-full transition-colors',
-                compareLatest ? 'bg-emerald-400/80' : 'bg-white/[0.12]'
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-[3px] left-[3px] size-3 rounded-full bg-white shadow transition-transform',
-                  compareLatest && 'translate-x-3.5'
-                )}
-              />
-            </button>
-          </label>
-        )}
-        <button
-          type="button"
-          onClick={handleRestore}
-          disabled={isCurrent}
-          className={cn(
-            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
-            ACCENT_CTA,
-            'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
+          {onCompareLatestChange && (
+            <div className="flex items-center rounded-full bg-white/[0.04] p-0.5" role="tablist" aria-label="View">
+              {[
+                ['code', 'Code', Code2],
+                ['canvas', 'Canvas', LayoutTemplate],
+              ].map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === id}
+                  onClick={() => setView(id)}
+                  className={cn(
+                    'flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+                    view === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
           )}
-        >
-          <RotateCcw className="size-3.5" />
-          {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
-        </button>
+          {onCompareLatestChange && (
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400 select-none">
+              Compare latest
+              <button
+                type="button"
+                role="switch"
+                aria-checked={compareLatest}
+                aria-label="Compare latest"
+                onClick={() => onCompareLatestChange(!compareLatest)}
+                className={cn(
+                  'relative h-[18px] w-8 rounded-full transition-colors',
+                  compareLatest ? 'bg-emerald-400/80' : 'bg-white/[0.12]'
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-[3px] left-[3px] size-3 rounded-full bg-white shadow transition-transform',
+                    compareLatest && 'translate-x-3.5'
+                  )}
+                />
+              </button>
+            </label>
+          )}
+          <button
+            type="button"
+            onClick={handleRestore}
+            disabled={isCurrent}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
+              ACCENT_CTA,
+              'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
+            )}
+          >
+            <RotateCcw className="size-3.5" />
+            {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
+          </button>
         </div>
       </div>
 
-      <div className="mx-3 mb-3 min-h-0 flex-1 overflow-auto rounded-xl bg-black/20 py-2 font-mono text-[12px] leading-5">
-        {showDiff && rows.every((r) => r.kind === 'same') && (
-          <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
-        )}
-        {codeRows.map((row, index) => (
-          <div key={index} className={cn('flex pr-4 whitespace-pre', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
-            {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
-            <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
-            {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
-            <span>{row.text || ' '}</span>
+      {view === 'canvas' ? (
+        <div className={cn('mx-3 mb-3 grid min-h-0 flex-1 gap-3', showDiff && 'grid-cols-2')}>
+          {showDiff && (
+            <div className="min-h-0 overflow-hidden rounded-xl">
+              <PreviewPanelContent previewProps={current?.snapshot.previewProps} caption={<span className="shrink-0">Latest</span>} />
+            </div>
+          )}
+          <div key={entry.id} className="min-h-0 overflow-hidden rounded-xl">
+            <PreviewPanelContent
+              previewProps={entry.snapshot.previewProps}
+              caption={<span className="shrink-0 text-emerald-300">{isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>}
+            />
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-black/20">
+          <p className="shrink-0 px-4 pt-2 pb-1 font-mono text-[11px] text-slate-500">{getFileName(entry.snapshot.fileId)}</p>
+          <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[12px] leading-5">
+            {showDiff && rows.every((r) => r.kind === 'same') && (
+              <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
+            )}
+            {codeRows.map((row, index) => (
+              <div key={index} className={cn('flex pr-4 whitespace-pre', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
+                {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
+                <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
+                {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
+                <span>{row.text || ' '}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {footer}
 
