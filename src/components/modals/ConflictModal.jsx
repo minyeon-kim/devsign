@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Check,
   CircleAlert,
@@ -58,7 +58,7 @@ export function fromChecklistConflict(c) {
   return {
     ...c,
     title: c.token,
-    description: `Design ↔ code conflict in ${c.projectName}.`,
+    description: c.message ?? `Design ↔ code conflict in ${c.projectName}.`,
     detectedAt: c.timestamp,
   }
 }
@@ -330,18 +330,62 @@ function CommentThread({ conflict, workspace }) {
   )
 }
 
+// Lets the window be dragged by its header. The offset is applied on top
+// of the dialog's centering translate, and clamped so the header can't be
+// dragged fully off-screen. It persists while the modal stays mounted, so
+// moving between conflicts keeps the window where you put it.
+function useDraggable() {
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const drag = useRef(null)
+
+  function onPointerDown(event) {
+    if (event.button !== 0 || event.target.closest('button, a, input, textarea, [role=tab]')) return
+    const popup = event.currentTarget.closest('[data-slot=dialog-content]')
+    drag.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offset,
+      rect: popup.getBoundingClientRect(),
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function onPointerMove(event) {
+    const d = drag.current
+    if (!d) return
+    const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
+    const dx = clamp(event.clientX - d.pointerX, 120 - d.rect.right, window.innerWidth - 120 - d.rect.left)
+    const dy = clamp(event.clientY - d.pointerY, -d.rect.top, window.innerHeight - 56 - d.rect.top)
+    setOffset({ x: d.offset.x + dx, y: d.offset.y + dy })
+  }
+
+  function onPointerUp() {
+    drag.current = null
+  }
+
+  return {
+    // No transition, so the window tracks the pointer 1:1 (open/close
+    // use keyframe animations, which this doesn't affect).
+    style: { translate: `calc(-50% + ${offset.x}px) calc(-50% + ${offset.y}px)`, transition: 'none' },
+    handleProps: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp },
+  }
+}
+
 // A 2-column dashboard: the left panel is the working area (Overview /
 // Diff / History tabs), the right panel is the review sidebar (status,
 // required reviewers, comment thread) that stays visible whichever tab is
 // open. Footer options are the same everywhere: Close, Open Merge Studio,
 // Mark resolved.
 //
-// Non-modal and without a backdrop: the workspace and canvas behind it
-// stay clear and interactive (clicking outside dismisses it), with a
-// shadow + hairline ring to lift it off the page instead of dimming.
+// A floating window, not a blocking dialog: non-modal, no backdrop, and
+// clicking the page behind it doesn't dismiss it — the workspace and
+// canvas stay clear and fully interactive, and the window can be dragged
+// anywhere by its header. A shadow + hairline ring lift it off the page
+// instead of dimming. Close / Esc / the ✕ close it.
 function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
   const open = Boolean(conflict)
+  const { style: dragStyle, handleProps } = useDraggable()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
   const SeverityIcon = severity?.icon
@@ -352,14 +396,19 @@ function ConflictModal({ conflict, onOpenChange, onStatusChange, onOpenMergeStud
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false} disablePointerDismissal>
       <DialogContent
         overlay={false}
+        style={dragStyle}
         className="flex h-[min(680px,85vh)] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 shadow-2xl shadow-black/60 sm:max-w-4xl"
       >
         {conflict && (
           <>
-            <DialogHeader className="shrink-0 gap-1.5 border-b px-5 py-3.5">
+            <DialogHeader
+              {...handleProps}
+              title="Drag to move"
+              className="shrink-0 cursor-grab touch-none gap-1.5 border-b px-5 py-3.5 select-none active:cursor-grabbing"
+            >
               <div className="flex items-center gap-2">
                 {severity && (
                   <Badge className={cn('gap-1 border-transparent', severity.className)}>

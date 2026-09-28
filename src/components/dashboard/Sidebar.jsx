@@ -118,10 +118,10 @@ function ProjectsMark({ project }) {
 
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
 // route, top to bottom:
-//   1. the drawer's toggle (disabled where there's no drawer, e.g. Home);
-//   2. Projects, right under it — opens the Slack-style project switcher
+//   1. Projects, at the very top — opens the Slack-style project switcher
 //      (every project, plus "All projects"), and wears the current
 //      project's badge while you're in one;
+//   2. the drawer's toggle (disabled where there's no drawer, e.g. Home);
 //   3. Home — straight to the dashboard, no drawer;
 //   4. inside a project, Archive — promoted right under Home as the
 //      project's high-frequency docs/specs/history view (Workspace is the
@@ -143,22 +143,8 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
 
   return (
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
+      {/* Project context comes first: the switcher owns the top slot. */}
       <div className="mb-1 flex h-14 shrink-0 items-center">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={onToggleDrawer}
-            disabled={!canToggleDrawer}
-            aria-expanded={canToggleDrawer ? drawerOpen : undefined}
-            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className={cn(iconButtonClass, 'disabled:pointer-events-none disabled:opacity-40')}
-          >
-            {drawerOpen ? <PanelLeftClose className="size-[18px]" /> : <PanelLeftOpen className="size-[18px]" />}
-          </TooltipTrigger>
-          <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
-        </Tooltip>
-      </div>
-
-      <nav aria-label="Main" className="flex flex-col gap-1">
         <ProjectSwitcher currentProjectId={project?.id}>
           <Tooltip>
             <TooltipTrigger
@@ -180,6 +166,21 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
             <TooltipContent side="right">{project ? `${project.name} · Switch project` : 'Projects'}</TooltipContent>
           </Tooltip>
         </ProjectSwitcher>
+      </div>
+
+      <nav aria-label="Main" className="flex flex-col gap-1">
+        <Tooltip>
+          <TooltipTrigger
+            onClick={onToggleDrawer}
+            disabled={!canToggleDrawer}
+            aria-expanded={canToggleDrawer ? drawerOpen : undefined}
+            aria-label={drawerOpen ? 'Hide sidebar' : 'Show sidebar'}
+            className={cn(iconButtonClass, 'disabled:pointer-events-none disabled:opacity-40')}
+          >
+            {drawerOpen ? <PanelLeftClose className="size-[18px]" /> : <PanelLeftOpen className="size-[18px]" />}
+          </TooltipTrigger>
+          <TooltipContent side="right">{`${drawerOpen ? 'Hide' : 'Show'} sidebar · ⌘B`}</TooltipContent>
+        </Tooltip>
 
         {navItems.map(({ id, label, icon, path, badge }) => {
           // While the conflict list is up, Conflicts is the highlighted item.
@@ -192,7 +193,8 @@ function ActivityBar({ project, canToggleDrawer, drawerOpen, conflictsOpen, onTo
                 <RailButton
                   label={label}
                   icon={icon}
-                  badge={badge}
+                  // Inside a project, only that project's open conflicts.
+                  badge={project ? project.conflicts : badge}
                   onClick={onToggleConflicts}
                   aria-expanded={conflictsOpen}
                   className={cn(isActive && activeClass)}
@@ -373,7 +375,7 @@ function Sidebar({
               <>
                 <DrawerHeader title="Conflicts" onClose={onCloseDrawer} />
                 <div className="min-h-0 flex-1 overflow-y-auto px-2">
-                  <ConflictsDrawer onNavigate={onCloseDrawer} />
+                  <ConflictsDrawer project={project} onNavigate={onCloseDrawer} />
                 </div>
               </>
             ) : (

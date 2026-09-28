@@ -156,7 +156,11 @@ export const projects = [
 
 // Drives the dashboard's "Active conflicts" checklist — every open
 // design/code conflict across projects, in one place, each with a
-// resolved/unresolved state (the checklist's checkmark).
+// resolved/unresolved state (the checklist's checkmark). Each also carries
+// the same detail fields as a workspace conflict point (severity, message,
+// branches, diff, comparisonFields, suggestion, reviewers — see
+// conflictPoints below), so the shared ConflictModal shows the full
+// Overview / Diff / AI suggestion view from every entry point.
 export const conflictChecklist = [
   {
     id: 'cc-1',
@@ -165,6 +169,23 @@ export const conflictChecklist = [
     projectName: 'Design System v2',
     timestamp: '2h ago',
     resolved: false,
+    severity: 'medium',
+    message: 'Button height in code (36px) drifts from the design system token (40px).',
+    branches: { local: 'Button.jsx', remote: 'Button · Size/MD (Figma)' },
+    suggestion: 'Swap the hard-coded h-9 for the size token so the button follows the design system height.',
+    previewPrompt: 'Match the button height to the design system token',
+    reviewers: [
+      { id: 'jane', status: 'pending' },
+      { id: 'james', status: 'pending' },
+    ],
+    comparisonFields: [
+      { label: 'Height', expected: '40px (size/md)', current: '36px (h-9)' },
+      { label: 'Token', expected: '--button-height-md', current: 'none — hard-coded' },
+    ],
+    diff: {
+      before: ['<button className="h-9 px-4 rounded-lg">'],
+      after: ['<button className="h-[var(--button-height-md)] px-4 rounded-lg">'],
+    },
   },
   {
     id: 'cc-2',
@@ -173,6 +194,31 @@ export const conflictChecklist = [
     projectName: 'Checkout Redesign',
     timestamp: '4h ago',
     resolved: true,
+    severity: 'high',
+    message: 'Merge conflict between local and remote branch (lines 9-14).',
+    branches: { local: 'feature/canvas-frames', remote: 'main' },
+    linkedCommentId: 'comment-1',
+    suggestion:
+      "Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.",
+    previewPrompt: 'Resolve the merge conflict in DesignCanvas.jsx',
+    reviewers: [
+      { id: 'james', status: 'approved' },
+      { id: 'min', status: 'approved' },
+    ],
+    comparisonFields: [
+      { label: 'key prop', expected: 'frame.id (preserved)', current: 'missing — merge conflict' },
+      { label: 'onSelect handler', expected: 'kept from local branch', current: 'duplicated across branches' },
+    ],
+    diff: {
+      before: [
+        '<<<<<<< HEAD (local)',
+        '  <Frame data={frame} onSelect={() => setSelected(frame.id)} />',
+        '=======',
+        '  <Frame key={frame.id} data={frame} />',
+        '>>>>>>> origin/main',
+      ],
+      after: ['  <Frame key={frame.id} data={frame} onSelect={() => setSelected(frame.id)} />'],
+    },
   },
   {
     id: 'cc-3',
@@ -181,6 +227,19 @@ export const conflictChecklist = [
     projectName: 'Design System v2',
     timestamp: 'Yesterday',
     resolved: false,
+    severity: 'low',
+    message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
+    branches: { local: 'Card.jsx', remote: 'Card · Default (Figma)' },
+    suggestion: 'Use the radius-lg token on the card container instead of rounded-lg.',
+    previewPrompt: 'Match the card radius to the design system',
+    reviewers: [{ id: 'min', status: 'pending' }],
+    comparisonFields: [
+      { label: 'Radius', expected: '12px (radius/lg)', current: '8px (rounded-lg)' },
+    ],
+    diff: {
+      before: ['<div className="rounded-lg border bg-card p-4">'],
+      after: ['<div className="rounded-[var(--radius-lg)] border bg-card p-4">'],
+    },
   },
   {
     id: 'cc-4',
@@ -189,6 +248,23 @@ export const conflictChecklist = [
     projectName: 'Mobile Nav Revamp',
     timestamp: 'Yesterday',
     resolved: false,
+    severity: 'medium',
+    message: 'Nav icons render at 20px in code but 24px in the redesigned nav frame.',
+    branches: { local: 'BottomNav.jsx', remote: 'Nav · Tab bar (Figma)' },
+    suggestion: 'Bump the nav icon size to 24px and keep the 44px hit area.',
+    previewPrompt: 'Resize the bottom nav icons to 24px',
+    reviewers: [
+      { id: 'jane', status: 'approved' },
+      { id: 'james', status: 'pending' },
+    ],
+    comparisonFields: [
+      { label: 'Icon size', expected: '24px', current: '20px' },
+      { label: 'Hit area', expected: '44px', current: '44px' },
+    ],
+    diff: {
+      before: ['<Icon className="size-5" />'],
+      after: ['<Icon className="size-6" />'],
+    },
   },
   {
     id: 'cc-5',
@@ -197,6 +273,19 @@ export const conflictChecklist = [
     projectName: 'Onboarding Flow',
     timestamp: '2 days ago',
     resolved: true,
+    severity: 'low',
+    message: 'Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).',
+    branches: { local: 'tokens.css', remote: 'Color · Primary (Figma)' },
+    suggestion: 'Point --primary at the brand token instead of the hard-coded hex.',
+    previewPrompt: 'Sync the primary color with the brand token',
+    reviewers: [{ id: 'min', status: 'approved' }],
+    comparisonFields: [
+      { label: 'Primary', expected: '#5E6AD2', current: '#5B5BD6' },
+    ],
+    diff: {
+      before: ['--primary: #5B5BD6;'],
+      after: ['--primary: var(--brand-500); /* #5E6AD2 */'],
+    },
   },
   {
     id: 'cc-6',
@@ -205,6 +294,20 @@ export const conflictChecklist = [
     projectName: 'Design System v2',
     timestamp: '3 days ago',
     resolved: true,
+    severity: 'low',
+    message: 'Input horizontal padding (10px) differs from the design system (12px).',
+    branches: { local: 'Input.jsx', remote: 'Input · Default (Figma)' },
+    linkedCommentId: 'comment-2',
+    suggestion: 'Use px-3 on the input so it matches the 12px design padding.',
+    previewPrompt: 'Fix the input padding to match the design system',
+    reviewers: [{ id: 'jane', status: 'approved' }],
+    comparisonFields: [
+      { label: 'Padding X', expected: '12px', current: '10px' },
+    ],
+    diff: {
+      before: ['<input className="h-9 px-2.5 rounded-lg" />'],
+      after: ['<input className="h-9 px-3 rounded-lg" />'],
+    },
   },
   {
     id: 'cc-7',
@@ -213,6 +316,22 @@ export const conflictChecklist = [
     projectName: 'Checkout Redesign',
     timestamp: '4 days ago',
     resolved: true,
+    severity: 'medium',
+    message: 'Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.',
+    branches: { local: 'CheckoutForm.jsx', remote: 'Checkout · Form (Figma)' },
+    suggestion: 'Replace gap-1.5 with gap-2 so the form sits on the 8px scale.',
+    previewPrompt: 'Align checkout spacing to the 8px scale',
+    reviewers: [
+      { id: 'james', status: 'approved' },
+      { id: 'min', status: 'approved' },
+    ],
+    comparisonFields: [
+      { label: 'Field gap', expected: '8px', current: '6px' },
+    ],
+    diff: {
+      before: ['<form className="flex flex-col gap-1.5">'],
+      after: ['<form className="flex flex-col gap-2">'],
+    },
   },
 ]
 

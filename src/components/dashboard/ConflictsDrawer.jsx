@@ -25,9 +25,14 @@ function groupByProject(conflicts) {
 // conflict entry point uses) over whatever you're looking at, rather than
 // taking over the main area. Like those views it holds its own local
 // copy of conflictChecklist (mock data, no shared store).
-function ConflictsDrawer({ onNavigate }) {
+//
+// Inside a project it lists only that project's conflicts; on the global
+// pages (no project in context) it lists every project's, grouped.
+function ConflictsDrawer({ project, onNavigate }) {
   const navigate = useNavigate()
-  const [conflicts, setConflicts] = useState(() => conflictChecklist.map(toConflictState))
+  const [conflicts, setConflicts] = useState(() =>
+    conflictChecklist.filter((c) => !project || c.projectId === project.id).map(toConflictState)
+  )
   const [activeConflictId, setActiveConflictId] = useState(null)
   const activeConflict = conflicts.find((c) => c.id === activeConflictId) ?? null
 
@@ -44,12 +49,18 @@ function ConflictsDrawer({ onNavigate }) {
   return (
     <>
       <nav aria-label="Conflicts" className="flex flex-col gap-3">
+        {conflicts.length === 0 && (
+          <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground/70">No conflicts in this project.</p>
+        )}
         {groupByProject(conflicts).map((group) => (
           <div key={group.id}>
-            <p className="flex h-7 items-center gap-2 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">
-              <span className={cn('size-1.5 shrink-0 rounded-full', projectTone(group.id))} />
-              <span className="min-w-0 truncate">{group.name}</span>
-            </p>
+            {/* One project needs no project heading. */}
+            {!project && (
+              <p className="flex h-7 items-center gap-2 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+                <span className={cn('size-1.5 shrink-0 rounded-full', projectTone(group.id))} />
+                <span className="min-w-0 truncate">{group.name}</span>
+              </p>
+            )}
             <div className="flex flex-col gap-0.5">
               {group.items.map((conflict) => (
                 <button
