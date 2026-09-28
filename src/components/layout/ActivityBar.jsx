@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, Folder, Layers, Settings } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Folder, Layers, Settings } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
@@ -58,6 +58,10 @@ function ActivityBar({ dockApi }) {
   // groups that are both visible at once, so the icon's highlighted state
   // tracks open/closed rather than last-focused.
   const [openPanelIds, setOpenPanelIds] = useState(() => new Set())
+  // Folds down to just the toggle handle — pinned at the same top-20
+  // offset either way, well clear of TopBar's own top-3 pills, so
+  // collapsing/expanding never risks the two overlapping.
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     if (!dockApi) return
@@ -80,45 +84,59 @@ function ActivityBar({ dockApi }) {
         FLOATING_PILL
       )}
     >
-      <div className="flex flex-col items-center gap-1.5">
-        {panelDefinitions
-          .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
-          .map((def) => {
-            const Icon = panelIcons[def.iconName]
-            const isOpen = openPanelIds.has(def.id)
-            return (
-              <Tooltip key={def.id}>
-                <TooltipTrigger
-                  onClick={() => toggleSidebarPanel(dockApi, def)}
-                  aria-pressed={isOpen}
-                  className={cn(
-                    'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                    isOpen && 'bg-primary/10 text-primary'
-                  )}
-                >
-                  <Icon className="size-[18px]" />
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {def.title} · {isOpen ? 'hide' : 'show'}
-                </TooltipContent>
-              </Tooltip>
-            )
-          })}
-      </div>
-      <div className="mt-auto flex flex-col items-center gap-1.5">
-        <Tooltip>
-          <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <Settings className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <Bell className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="right">Notifications</TooltipContent>
-        </Tooltip>
-      </div>
+      <Tooltip>
+        <TooltipTrigger
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {collapsed ? <ChevronRight className="size-[18px]" /> : <ChevronLeft className="size-[18px]" />}
+        </TooltipTrigger>
+        <TooltipContent side="right">{collapsed ? 'Expand' : 'Collapse'}</TooltipContent>
+      </Tooltip>
+
+      {!collapsed && (
+        <>
+          <div className="flex flex-col items-center gap-1.5">
+            {panelDefinitions
+              .filter((def) => ACTIVITY_BAR_PANEL_IDS.includes(def.id))
+              .map((def) => {
+                const Icon = panelIcons[def.iconName]
+                const isOpen = openPanelIds.has(def.id)
+                return (
+                  <Tooltip key={def.id}>
+                    <TooltipTrigger
+                      onClick={() => toggleSidebarPanel(dockApi, def)}
+                      aria-pressed={isOpen}
+                      className={cn(
+                        'flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                        isOpen && 'bg-primary/10 text-primary'
+                      )}
+                    >
+                      <Icon className="size-[18px]" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {def.title} · {isOpen ? 'hide' : 'show'}
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              })}
+          </div>
+          <div className="mt-auto flex flex-col items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <Settings className="size-[18px]" />
+              </TooltipTrigger>
+              <TooltipContent side="right">Settings</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <Bell className="size-[18px]" />
+              </TooltipTrigger>
+              <TooltipContent side="right">Notifications</TooltipContent>
+            </Tooltip>
+          </div>
+        </>
+      )}
     </nav>
   )
 }
