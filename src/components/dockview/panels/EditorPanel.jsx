@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
+import { Check, Copy, Files, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -7,6 +7,8 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
+import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
+import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -148,6 +150,9 @@ function EditorPanel() {
   } = useWorkspace()
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
+  // Explorer lives inside the editor (VS Code-style) as a slide-in drawer
+  // toggled from the tab row, rather than as its own floating window.
+  const [explorerOpen, setExplorerOpen] = useState(true)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
   const [isEditing, setIsEditing] = useState(false)
   const [draftText, setDraftText] = useState('')
@@ -229,6 +234,13 @@ function EditorPanel() {
   return (
     <div className="flex h-full min-w-0 flex-col bg-background font-mono">
       <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
+        <ContainerDrawerToggle
+          open={explorerOpen}
+          onToggle={() => setExplorerOpen((o) => !o)}
+          icon={Files}
+          label="Explorer"
+        />
+        <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
         {workspaceFiles.map((file) => {
           const name = getFileName(file.id)
           const { Icon, colorClass } = getFileIconMeta(name)
@@ -252,130 +264,138 @@ function EditorPanel() {
         })}
       </div>
 
-      <div className="flex h-7 shrink-0 items-center justify-between border-b bg-card/60 px-3 font-sans text-[11px] text-muted-foreground">
-        <span className="truncate">{activeFile?.path}</span>
-        <div className="flex shrink-0 items-center gap-3">
-          {isEditing ? (
-            <>
-              <span className="flex items-center gap-1 text-primary">
-                <span className="size-1.5 rounded-full bg-primary" />
-                Editing
-              </span>
-              <button
-                type="button"
-                onClick={cancelEditing}
-                className="flex items-center gap-1 rounded hover:text-foreground"
-              >
-                <X className="size-3" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={saveEditing}
-                className="flex items-center gap-1 rounded text-primary hover:text-primary/80"
-              >
-                <Save className="size-3" />
-                Done
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="flex items-center gap-1">
-                <span className="size-1.5 rounded-full bg-emerald-400" />
-                Saved
-              </span>
-              <button
-                type="button"
-                onClick={startEditing}
-                className="flex items-center gap-1 rounded hover:text-foreground"
-              >
-                <Pencil className="size-3" />
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={copyCode}
-                className="flex items-center gap-1 rounded hover:text-foreground"
-              >
-                {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <div className="flex min-h-0 flex-1">
+        <ContainerDrawer open={explorerOpen} label="Explorer">
+          <ExplorerPanel />
+        </ContainerDrawer>
 
-      {isEditing ? (
-        <textarea
-          autoFocus
-          value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') cancelEditing()
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
-          }}
-          spellCheck={false}
-          className="min-h-0 flex-1 resize-none bg-background px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
-        />
-      ) : (
-        <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1">
-          <div
-            ref={codeAreaRef}
-            onScroll={updateViewport}
-            className="flex-1 overflow-auto py-2 text-xs leading-relaxed"
-          >
-            {activeLines.map((line, i) => {
-              const lineNumber = i + 1
-              const lineComments = comments.filter(
-                (c) =>
-                  c.target?.type === 'editor' &&
-                  c.target.fileId === activeFile.id &&
-                  c.target.line === lineNumber
-              )
-              return (
-                <div key={i}>
-                  <CodeLine
-                    line={line}
-                    language={activeFile.language}
-                    lineNumber={lineNumber}
-                    isActive={cursor.line === lineNumber}
-                    onSelect={selectCursor}
-                    pinCount={lineComments.length}
-                    isPinOpen={openLine === lineNumber}
-                    onTogglePin={toggleLinePin}
-                  />
-                  {openLine === lineNumber && (
-                    <LineCommentThread
-                      lineComments={lineComments}
-                      value={lineDraft}
-                      onChange={setLineDraft}
-                      onSubmit={() => submitLineComment(lineNumber)}
-                      onClose={() => setOpenLine(null)}
-                    />
-                  )}
-                </div>
-              )
-            })}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex h-7 shrink-0 items-center justify-between border-b bg-card/60 px-3 font-sans text-[11px] text-muted-foreground">
+            <span className="truncate">{activeFile?.path}</span>
+            <div className="flex shrink-0 items-center gap-3">
+              {isEditing ? (
+                <>
+                  <span className="flex items-center gap-1 text-primary">
+                    <span className="size-1.5 rounded-full bg-primary" />
+                    Editing
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    className="flex items-center gap-1 rounded hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveEditing}
+                    className="flex items-center gap-1 rounded text-primary hover:text-primary/80"
+                  >
+                    <Save className="size-3" />
+                    Done
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-400" />
+                    Saved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={startEditing}
+                    className="flex items-center gap-1 rounded hover:text-foreground"
+                  >
+                    <Pencil className="size-3" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="flex items-center gap-1 rounded hover:text-foreground"
+                  >
+                    {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <EditorMinimap
-            lines={activeLines}
-            language={activeFile.language}
-            viewport={viewport}
-            onJump={jumpToRatio}
-          />
-          <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
-        </div>
-      )}
 
-      <div className="flex h-6 shrink-0 items-center justify-between border-t bg-card px-3 font-sans text-[11px] text-muted-foreground">
-        <span>
-          Ln {cursor.line}, Col {cursor.col}
-        </span>
-        <div className="flex items-center gap-3">
-          <span>Spaces: 2</span>
-          <span>UTF-8</span>
-          <span>LF</span>
-          <span>{languageLabels[activeFile?.language] ?? 'Plain Text'}</span>
+          {isEditing ? (
+            <textarea
+              autoFocus
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') cancelEditing()
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
+              }}
+              spellCheck={false}
+              className="min-h-0 flex-1 resize-none bg-background px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
+            />
+          ) : (
+            <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1">
+              <div
+                ref={codeAreaRef}
+                onScroll={updateViewport}
+                className="flex-1 overflow-auto py-2 text-xs leading-relaxed"
+              >
+                {activeLines.map((line, i) => {
+                  const lineNumber = i + 1
+                  const lineComments = comments.filter(
+                    (c) =>
+                      c.target?.type === 'editor' &&
+                      c.target.fileId === activeFile.id &&
+                      c.target.line === lineNumber
+                  )
+                  return (
+                    <div key={i}>
+                      <CodeLine
+                        line={line}
+                        language={activeFile.language}
+                        lineNumber={lineNumber}
+                        isActive={cursor.line === lineNumber}
+                        onSelect={selectCursor}
+                        pinCount={lineComments.length}
+                        isPinOpen={openLine === lineNumber}
+                        onTogglePin={toggleLinePin}
+                      />
+                      {openLine === lineNumber && (
+                        <LineCommentThread
+                          lineComments={lineComments}
+                          value={lineDraft}
+                          onChange={setLineDraft}
+                          onSubmit={() => submitLineComment(lineNumber)}
+                          onClose={() => setOpenLine(null)}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <EditorMinimap
+                lines={activeLines}
+                language={activeFile.language}
+                viewport={viewport}
+                onJump={jumpToRatio}
+              />
+              <MultiplayerCursors members={getViewersForFile(activeFile.id)} />
+            </div>
+          )}
+
+          <div className="flex h-6 shrink-0 items-center justify-between border-t bg-card px-3 font-sans text-[11px] text-muted-foreground">
+            <span>
+              Ln {cursor.line}, Col {cursor.col}
+            </span>
+            <div className="flex items-center gap-3">
+              <span>Spaces: 2</span>
+              <span>UTF-8</span>
+              <span>LF</span>
+              <span>{languageLabels[activeFile?.language] ?? 'Plain Text'}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

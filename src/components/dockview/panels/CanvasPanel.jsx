@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import {
   FileImage,
   Frame as FrameIcon,
+  Layers as LayersIcon,
   Hand,
   MessageCircle,
   MessageSquarePlus,
@@ -16,6 +17,8 @@ import { allPeople, canvasPages, canvasTools, findCanvasTarget, paddingConflict 
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
+import LayersPanel from '@/components/dockview/panels/LayersPanel'
+import { ContainerDrawer, ContainerDrawerToggle } from '@/components/workspace/ContainerDrawer'
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 200
@@ -91,9 +94,13 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // pill styling and single-row layout as the code editor's file tabs, so a
 // user can pop between "design files" the same way they pop between code
 // files.
-function PageTabs({ activePageId, onSelectPage }) {
+// The Layers drawer's toggle leads the row, the same place the editor
+// keeps its Explorer toggle.
+function PageTabs({ activePageId, onSelectPage, layersOpen, onToggleLayers }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2 font-sans">
+      <ContainerDrawerToggle open={layersOpen} onToggle={onToggleLayers} icon={LayersIcon} label="Layers" />
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
         {canvasPages.map((page) => {
           const active = activePageId === page.id
@@ -345,6 +352,10 @@ function CanvasPanel() {
   const [pendingComment, setPendingComment] = useState(null)
   const [pendingDraft, setPendingDraft] = useState('')
   const [openPinId, setOpenPinId] = useState(null)
+  // Layers (with its Assets tab) lives inside the canvas (Figma-style) as
+  // a slide-in drawer toggled from the page-tab row, rather than as its
+  // own floating window.
+  const [layersOpen, setLayersOpen] = useState(true)
   const scrollRef = useRef(null)
   const surfaceRef = useRef(null)
   // selectedLayerId and activePageId both live in workspace context (not
@@ -425,80 +436,91 @@ function CanvasPanel() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-background">
-      <PageTabs activePageId={activePage?.id} onSelectPage={handleSelectPage} />
+      <PageTabs
+        activePageId={activePage?.id}
+        onSelectPage={handleSelectPage}
+        layersOpen={layersOpen}
+        onToggleLayers={() => setLayersOpen((o) => !o)}
+      />
 
-      <div
-        ref={scrollRef}
-        data-cursor-zone="canvas"
-        data-cursor-tool={canvasTool}
-        onClick={handleSurfaceClick}
-        className="relative min-h-0 flex-1 overflow-auto"
-        style={{
-          backgroundImage:
-            'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
-          backgroundSize: '18px 18px',
-        }}
-      >
-        <div
-          ref={surfaceRef}
-          className="relative min-h-full min-w-full p-16"
-          style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
-        >
-          {activePage?.frames.map((frame) => (
-            <CanvasFrame
-              key={frame.id}
-              frame={frame}
-              selectedId={selectedLayerId}
-              onSelect={handleSelect}
-              commentMode={commentMode}
-            />
-          ))}
-
-          {pinsForPage.map((comment) => (
-            <CommentPin
-              key={comment.id}
-              comment={comment}
-              open={openPinId === comment.id}
-              onToggle={() => setOpenPinId((cur) => (cur === comment.id ? null : comment.id))}
-            />
-          ))}
-        </div>
-
-        <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} />
-        <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} />
-
-        {pendingComment && (
-          <PinComposer
-            pending={pendingComment}
-            value={pendingDraft}
-            onChange={setPendingDraft}
-            onSubmit={submitPendingComment}
-            onCancel={() => {
-              setPendingComment(null)
-              setPendingDraft('')
-            }}
-          />
-        )}
+      <div className="flex min-h-0 flex-1">
+        <ContainerDrawer open={layersOpen} label="Layers">
+          <LayersPanel />
+        </ContainerDrawer>
 
         <div
-          onClick={(event) => event.stopPropagation()}
-          className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm"
+          ref={scrollRef}
+          data-cursor-zone="canvas"
+          data-cursor-tool={canvasTool}
+          onClick={handleSurfaceClick}
+          className="relative min-h-0 min-w-0 flex-1 overflow-auto"
+          style={{
+            backgroundImage:
+              'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}
         >
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          <div
+            ref={surfaceRef}
+            className="relative min-h-full min-w-full p-16"
+            style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
           >
-            <Minus className="size-3.5" />
-          </button>
-          <span className="w-10 text-center tabular-nums text-foreground">{zoom}%</span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            {activePage?.frames.map((frame) => (
+              <CanvasFrame
+                key={frame.id}
+                frame={frame}
+                selectedId={selectedLayerId}
+                onSelect={handleSelect}
+                commentMode={commentMode}
+              />
+            ))}
+
+            {pinsForPage.map((comment) => (
+              <CommentPin
+                key={comment.id}
+                comment={comment}
+                open={openPinId === comment.id}
+                onToggle={() => setOpenPinId((cur) => (cur === comment.id ? null : comment.id))}
+              />
+            ))}
+          </div>
+
+          <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} />
+          <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} />
+
+          {pendingComment && (
+            <PinComposer
+              pending={pendingComment}
+              value={pendingDraft}
+              onChange={setPendingDraft}
+              onSubmit={submitPendingComment}
+              onCancel={() => {
+                setPendingComment(null)
+                setPendingDraft('')
+              }}
+            />
+          )}
+
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm"
           >
-            <Plus className="size-3.5" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Minus className="size-3.5" />
+            </button>
+            <span className="w-10 text-center tabular-nums text-foreground">{zoom}%</span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

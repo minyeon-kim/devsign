@@ -16,7 +16,7 @@ import ChatPanel from '@/components/dockview/panels/ChatPanel'
 import CommentsPanel from '@/components/dockview/panels/CommentsPanel'
 import VersionHistoryPanel from '@/components/dockview/panels/VersionHistoryPanel'
 import LayerInspectPanel from '@/components/dockview/panels/LayerInspectPanel'
-import { panelDefinitions, sidebarWidthConstraints } from '@/data/mockData'
+import { panelDefinitions } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const components = {
@@ -45,20 +45,6 @@ export function addDockPanel(api, def, options) {
     params: { iconName: def.iconName },
     ...options,
   })
-}
-
-// Explorer/Layers render inside a *headerless* dockview group — a plain
-// collapsible section (toggled from the Layout pop-up, single in-panel
-// header), not a tabbed/closable dockview pane the way Editor/Terminal/
-// Preview are. Without `hideHeader: true` every group gets its own
-// `--dv-tabs-and-actions-container` tab strip, which duplicated the
-// section's own header (e.g. a "Layers" tab row sitting on top of the
-// panel's own Layers/Assets tabs). Used by both the initial layout below
-// and toggleSidebarPanel's reopen-after-close logic, so the two never drift.
-export function addSidebarPanel(api, def, groupOptions) {
-  const group = api.addGroup({ hideHeader: true, ...sidebarWidthConstraints, ...groupOptions })
-  addDockPanel(api, def, { position: { referenceGroup: group } })
-  return group
 }
 
 // Re-opens a panel definition (e.g. from the Preview toggle) next to whatever else from its own "family" is still open —
@@ -92,37 +78,6 @@ export function openOrFocusPanel(dockApi, def) {
   })
 }
 
-// A real open/close toggle for the sidebar-family windows (Explorer,
-// Layers), used by the Workspace's Layout pop-up: an open panel closes
-// entirely; a closed one is re-added next to whichever sidebar sibling is
-// still open — or as a fresh sidebar window left of the editor if both
-// were closed.
-export function toggleSidebarPanel(dockApi, def) {
-  if (!dockApi) return
-
-  const existing = dockApi.getPanel(def.id)
-  if (existing) {
-    existing.api.close()
-    return
-  }
-
-  const explorerPanel = dockApi.getPanel('explorer')
-  const layersPanel = dockApi.getPanel('layers')
-  const editorPanel = dockApi.getPanel('editor') ?? dockApi.panels[0]
-
-  if (def.id === 'explorer' && layersPanel) {
-    addSidebarPanel(dockApi, def, { direction: 'above', referenceGroup: layersPanel.api.group })
-  } else if (def.id === 'layers' && explorerPanel) {
-    addSidebarPanel(dockApi, def, { direction: 'below', referenceGroup: explorerPanel.api.group })
-  } else if (editorPanel) {
-    addSidebarPanel(dockApi, def, {
-      direction: 'left',
-      referencePanel: editorPanel.id,
-      ...(def.id === 'explorer' ? { initialWidth: 260, initialHeight: 220 } : {}),
-    })
-  }
-}
-
 export function buildInitialLayout(api) {
   addDockPanel(api, panelById.terminal, { initialHeight: 220 })
 
@@ -140,34 +95,18 @@ export function buildInitialLayout(api) {
     position: { direction: 'above', referencePanel: panelById.terminal.id },
   })
 
-  // Left sidebar: Explorer (top) and Layers (bottom) split so both are
-  // visible at once, both pinned to the same width band. Explorer gets a
-  // modest fixed starting height instead of splitting 50/50 with Layers —
-  // a handful of files doesn't need half the sidebar, and Layers' deeper
-  // tree benefits far more from the extra room.
-  const explorerGroup = addSidebarPanel(api, panelById.explorer, {
-    direction: 'left',
-    referencePanel: panelById.editor.id,
-    initialWidth: 260,
-    initialHeight: 220,
-  })
-
-  addSidebarPanel(api, panelById.layers, {
-    direction: 'below',
-    referenceGroup: explorerGroup,
-  })
-
-  // Docked as a sibling tab of Layers (Chrome-style: one tab row, click to
-  // switch) instead of the old internal Layers/Assets sub-tab strip.
-  addDockPanel(api, panelById.assets, {
-    position: { direction: 'within', referencePanel: panelById.layers.id },
-  })
+  // No Explorer/Layers windows: Explorer lives inside the editor and
+  // Layers (with Assets) inside the canvas, each as its own slide-in
+  // drawer (see ContainerDrawer), so the editor spans the whole left of
+  // the layout.
 
   // Canvas sits beside the editor (with Preview as its sibling tab) so the
   // canvas and terminal are both on screen from the first frame.
+  // 620px (not 460) so the canvas surface keeps a usable width beside
+  // its built-in Layers drawer.
   addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.editor.id },
-    initialWidth: 460,
+    initialWidth: 620,
   })
   addDockPanel(api, panelById.preview, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
@@ -176,7 +115,6 @@ export function buildInitialLayout(api) {
   api.getPanel(panelById.editor.id)?.api.setActive()
   api.getPanel(panelById.canvas.id)?.api.setActive()
   api.getPanel(panelById.terminal.id)?.api.setActive()
-  api.getPanel(panelById.layers.id)?.api.setActive()
 
   // Splitting the editor above the terminal defaults to a 50/50 split,
   // which makes the terminal far too tall. Pin it to ~28% of the height.

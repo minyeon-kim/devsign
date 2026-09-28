@@ -1,35 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Check, Columns2, Folder, Layers, LayoutGrid, Maximize, Rows2 } from 'lucide-react'
-import { cn } from 'cn'
+import { Columns2, LayoutGrid, Maximize, Rows2 } from 'lucide-react'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { layoutPresets } from '@/data/mockData'
-import { addDockPanel, buildInitialLayout, panelById, toggleSidebarPanel } from '@/components/dockview/DockLayout'
+import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/DockLayout'
 
 const presetIcons = { LayoutGrid, Maximize, Columns2, Rows2 }
-
-// The floating windows that used to have their own always-on toolbar
-// pill over the canvas — now shown/hidden from here instead.
-const TOGGLEABLE_PANELS = [
-  { def: panelById.explorer, icon: Folder },
-  { def: panelById.layers, icon: Layers },
-]
-
-// Which of TOGGLEABLE_PANELS currently exist in the layout — "is it
-// open", not "is it focused".
-function useOpenPanelIds(dockApi) {
-  const [openIds, setOpenIds] = useState(() => new Set())
-
-  useEffect(() => {
-    if (!dockApi) return
-    const sync = () =>
-      setOpenIds(new Set(TOGGLEABLE_PANELS.map(({ def }) => def.id).filter((id) => !!dockApi.getPanel(id))))
-    sync()
-    const disposable = dockApi.onDidLayoutChange(sync)
-    return () => disposable.dispose()
-  }, [dockApi])
-
-  return openIds
-}
 
 function applyLayoutPreset(dockApi, presetId) {
   if (!dockApi) return
@@ -69,12 +43,11 @@ function applyLayoutPreset(dockApi, presetId) {
   }
 }
 
-// Layout icon in the top nav — a contextual pop-up with show/hide toggles
-// for the Explorer/Layers windows, plus a Mac-style window/grid picker so
-// a preset arrangement of the panels can be applied in one click.
+// Layout icon in the top nav — opens a Mac-style window/grid picker so a
+// preset arrangement of the panels can be applied in one click. (Explorer
+// and Layers aren't windows anymore — they're drawers inside the editor
+// and canvas, toggled from those containers' own headers.)
 function LayoutMenu({ dockApi }) {
-  const openIds = useOpenPanelIds(dockApi)
-
   return (
     <Popover>
       <PopoverTrigger
@@ -84,31 +57,6 @@ function LayoutMenu({ dockApi }) {
         <LayoutGrid className="size-4" />
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={10} className="w-64 gap-1 rounded-2xl p-2">
-        <p className="px-1 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-          Panels
-        </p>
-        <div className="mb-2 flex flex-col gap-0.5">
-          {TOGGLEABLE_PANELS.map(({ def, icon: Icon }) => {
-            const isOpen = openIds.has(def.id)
-            return (
-              <button
-                key={def.id}
-                type="button"
-                onClick={() => toggleSidebarPanel(dockApi, def)}
-                aria-pressed={isOpen}
-                className={cn(
-                  'flex h-8 items-center gap-2.5 rounded-lg px-2 text-left text-xs font-medium transition-colors hover:bg-muted',
-                  isOpen ? 'text-foreground' : 'text-muted-foreground'
-                )}
-              >
-                <Icon className="size-3.5 shrink-0" />
-                <span className="flex-1">{def.title}</span>
-                {isOpen && <Check className="size-3.5 text-primary" />}
-              </button>
-            )
-          })}
-        </div>
-
         <p className="px-1 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           Window Layout
         </p>

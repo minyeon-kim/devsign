@@ -6,7 +6,7 @@ import { useReducer, useRef } from 'react'
 // docked split-pane tree. Implementing the same shape dockview-react
 // exposed — getPanel/panels/addPanel/addGroup, panel.api.{setActive,close,
 // maximize,exitMaximized,isMaximized}, group.api.setSize, onDidLayoutChange
-// — means DockLayout.jsx's buildInitialLayout/addDockPanel/addSidebarPanel/
+// — means DockLayout.jsx's buildInitialLayout/addDockPanel/
 // openOrFocusPanel, and every consumer of `dockApi` (LayoutMenu,
 // CanvasPanel's layer-inspect tabs, WorkspacePage's Preview
 // toggle), all keep working completely unchanged — only the rendering
@@ -14,9 +14,8 @@ import { useReducer, useRef } from 'react'
 const GAP = 12
 const DEFAULT_GROUP_W = 420
 // Used for the editor's 'above'-the-terminal split specifically (its only
-// caller with no explicit initialHeight) — tall enough that the sidebar
-// column carved out of it (explorer + gap + layers, ~450px) fits inside
-// its row instead of poking down into the terminal strip below.
+// caller with no explicit initialHeight) — a comfortable editor height
+// that leaves the terminal strip below it room to breathe.
 const DEFAULT_GROUP_H = 550
 // The very first group added (with no reference — dockview's real
 // equivalent temporarily fills the whole view) needs a footprint generous
@@ -91,12 +90,10 @@ export function useFloatingDockApi() {
           const g = store.groups[p.groupId]
           if (!g) return
           if (g.hideHeader) {
-            // Headerless groups (Explorer, Layers+Assets) are one atomic
-            // unit from the Layout pop-up's point of view — closing either
-            // tab tears down the whole group rather than leaving its
-            // sibling stranded with no way back to it, matching
-            // addSidebarPanel's "reopening always mints a fresh group"
-            // comment (there's nothing worth keeping around to reuse).
+            // Headerless groups are one atomic unit — closing either tab
+            // tears down the whole group rather than leaving its sibling
+            // stranded with no way back to it (there's nothing worth
+            // keeping around to reuse).
             g.panelIds.forEach((id) => delete store.panels[id])
             g.panelIds = []
             g.activeId = null

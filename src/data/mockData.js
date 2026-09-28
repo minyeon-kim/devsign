@@ -408,7 +408,7 @@ export const layoutPresets = [
   {
     id: 'default',
     label: 'Default',
-    description: 'Explorer, Layers, Editor, Preview & Terminal',
+    description: 'Editor (with Explorer), Canvas (with Layers), Preview & Terminal',
     iconName: 'LayoutGrid',
   },
   {
@@ -1589,10 +1589,6 @@ export const panelDefinitions = [
   { id: 'conflict', title: 'Conflict Point', component: 'conflict', iconName: 'TriangleAlert', group: 'bottom' },
 ]
 
-// The left sidebar's Explorer/Layers split panels are kept between these
-// bounds so the column can't be dragged into an unusably narrow or
-// disproportionately wide state.
-export const sidebarWidthConstraints = { minimumWidth: 200, maximumWidth: 360 }
 
 // Comments shown in the Comments panel. `authorId` resolves against
 // `allPeople`, `status` is 'open' | 'resolved'.

@@ -125,11 +125,7 @@
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    /* The open nav shell's elevated surface — one quiet step above
-       --background (0.141), well short of --card (0.21), so the open
-       sidebar reads as a layer over the canvas (Gemini-style) rather
-       than as another card. */
-    --sidebar: oklch(0.183 0.006 285.885);
+    --sidebar: oklch(0.21 0.006 285.885);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.6 0.225 270);
     --sidebar-primary-foreground: oklch(0.985 0 0);

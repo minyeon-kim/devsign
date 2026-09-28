@@ -70,15 +70,15 @@ function RailButton({ label, icon: Icon, className, ...triggerProps }) {
 // Tier 1 — the activity bar. Permanently slim and icon-only on every
 // route: the Devsign logo on top (the drawer's toggle), the four global
 // destinations, and Settings pinned to the bottom. Nothing contextual
-// ever lands here. It always sits on the same elevated `bg-sidebar`
-// surface — open or collapsed — so toggling the drawer never shifts its
-// tone; the open drawer extends that same surface beside it.
+// ever lands here. It always sits on the page's own deep `bg-background`
+// — open or collapsed, dashboard or project — so it's seamless with the
+// canvas beside it and toggling the drawer never shifts its tone.
 function ActivityBar({ drawerOpen, onToggleDrawer }) {
   const { pathname } = useLocation()
   const current = activeNavItem(pathname)
 
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
+    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-background pb-2">
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <Tooltip>
           <TooltipTrigger
@@ -164,8 +164,9 @@ function DrawerHeader({ project, onClose }) {
 // its content keeps a fixed w-68 so nothing re-wraps mid-animation) to
 // show what belongs to the current view — a project's switcher and
 // Workspace/Archive, or the active section's sub-menu. Global and
-// contextual items never share a column. A faint hairline marks where
-// one tier ends and the other begins on the shared elevated surface.
+// contextual items never share a column. Everything shares the page's
+// one deep background tone; faint hairlines on either side of the drawer
+// mark where one tier ends and the next begins.
 // The logo, the drawer's close button, and ⌘B all toggle the drawer.
 function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
   return (
@@ -182,7 +183,7 @@ function Sidebar({ project, drawerOpen = true, onToggleDrawer }) {
       >
         <aside
           aria-label={project ? `${project.name} navigation` : 'Section navigation'}
-          className="flex h-full w-68 flex-col border-l border-white/[0.06] bg-sidebar pb-2"
+          className="flex h-full w-68 flex-col border-x border-white/[0.06] bg-background pb-2"
         >
           <DrawerHeader project={project} onClose={onToggleDrawer} />
           <div className="min-h-0 flex-1 overflow-y-auto px-2">

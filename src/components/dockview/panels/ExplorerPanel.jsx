@@ -22,9 +22,9 @@ function ExplorerPanel() {
   return (
     <div className="flex h-full flex-col bg-card">
       {/* Matches Layers' own h-9 tab-row header (height, border, type
-          scale) instead of repeating "Explorer" (the dockview tab above
-          already says that) — the root folder name earns its place here
-          the way Layers/Assets tabs earn theirs. */}
+          scale) instead of repeating "Explorer" (the editor's drawer
+          toggle already says that) — the root folder name earns its place
+          here the way Layers/Assets tabs earn theirs. */}
       <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/60 px-3 text-xs font-medium text-foreground/70">
         <Folder className="size-3.5" />
         src
