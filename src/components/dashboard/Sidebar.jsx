@@ -26,7 +26,7 @@ const iconButtonClass =
 
 // Deliberately restrained: a muted surface + a thin primary-tinted ring,
 // not a saturated blue fill — the icon itself stays close to neutral.
-const activeClass = 'bg-muted text-foreground ring-1 ring-primary/40'
+const activeClass = 'bg-white/[0.08] text-foreground'
 
 // An icon-only activity bar button, named by its tooltip.
 function RailButton({ label, icon: Icon, className, ...triggerProps }) {
