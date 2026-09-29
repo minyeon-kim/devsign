@@ -99,9 +99,9 @@ function zoneRect(rect, zone) {
 // Files / Layers navigator as a pane before them when it's open. Nothing
 // pans. Panes split both ways: side by side and stacked, as a tree
 // (floatingDockApi's `layout`), with draggable splitters between them.
-// Drag a window by its header onto another to dock it beside it (drop near
-// an edge) or into it as tabs (drop in the middle); each header's `+` opens
-// another view as a tab or a split.
+// Drag a window by its header — or a single tab — onto a pane to dock it
+// beside it (drop near an edge) or into it as a tab (drop in the middle);
+// each header's `+` opens another view in that pane.
 // It's the same window model as before (floatingDockApi, built by
 // DockLayout's buildInitialLayout), so every window keeps its header —
 // tabs, the panel's own toolbar, maximize / close, plus minimize — and
@@ -128,9 +128,12 @@ function WorkspaceSplitLayout() {
     buildInitialLayout(dockApi)
   }, [dockApi])
 
-  // Drag a window by its header: past a small threshold, track the pane
-  // under the pointer and the zone on it; dropping docks it there.
-  function startDockDrag(groupId, event) {
+  // Drag a window by its header — or one of its tabs — past a small
+  // threshold, then track the pane under the pointer and the zone on it;
+  // dropping docks it there. A tab may also land on an edge of its own
+  // window (splitting it off), when there are other tabs to leave behind.
+  function startDockDrag(source, event) {
+    const { groupId, panelId } = source
     const startX = event.clientX
     const startY = event.clientY
     let current = null
@@ -140,16 +143,20 @@ function WorkspaceSplitLayout() {
       if (!moved && Math.hypot(m.clientX - startX, m.clientY - startY) < DRAG_THRESHOLD) return
       moved = true
       document.body.style.cursor = 'grabbing'
+      document.body.style.userSelect = 'none'
       const leaf = document.elementFromPoint(m.clientX, m.clientY)?.closest('[data-leaf]')
       const target = leaf?.getAttribute('data-leaf')
       const root = rootRef.current?.getBoundingClientRect()
-      if (!leaf || !target || target === groupId || !root) {
+      const r = leaf?.getBoundingClientRect()
+      const zone = r && dropZone(r, m.clientX, m.clientY)
+      const own = target === groupId
+      const allowed =
+        leaf && target && root && (!own || (panelId && zone !== 'center' && store.groups[groupId]?.panelIds.length > 1))
+      if (!allowed) {
         current = null
         setDock({ groupId, target: null })
         return
       }
-      const r = leaf.getBoundingClientRect()
-      const zone = dropZone(r, m.clientX, m.clientY)
       const z = zoneRect({ left: r.left, top: r.top, width: r.width, height: r.height }, zone)
       current = { target, zone }
       setDock({ groupId, target, zone, rect: { left: z.left - root.left, top: z.top - root.top, width: z.width, height: z.height } })
@@ -158,8 +165,11 @@ function WorkspaceSplitLayout() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       document.body.style.cursor = ''
+      document.body.style.userSelect = ''
       setDock(null)
-      if (current) dockApi.dockGroup(groupId, current.target, current.zone)
+      if (!current) return
+      if (panelId) dockApi.dockPanel(panelId, current.target, current.zone)
+      else dockApi.dockGroup(groupId, current.target, current.zone)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)

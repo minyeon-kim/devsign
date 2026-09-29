@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
-import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import CommandPalette from '@/components/layout/CommandPalette'
@@ -99,7 +98,6 @@ function WorkspacePage() {
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
 
         <InspectorSidebar />
-        {!inMergeStudio && <ChatMorphWidget />}
       </div>
       {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>

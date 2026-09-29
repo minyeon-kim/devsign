@@ -411,6 +411,45 @@ export function useFloatingDockApi() {
     notify()
   }
 
+  // Takes a panel out of its window; a window left with no tabs closes.
+  function detachPanel(panelId) {
+    const p = store.panels[panelId]
+    const g = store.groups[p.groupId]
+    g.panelIds = g.panelIds.filter((id) => id !== panelId)
+    if (g.activeId === panelId) g.activeId = g.panelIds[g.panelIds.length - 1] ?? null
+    if (g.panelIds.length === 0) {
+      g.open = false
+      store.layout = removeLeaf(store.layout, g.id)
+    }
+  }
+
+  // A single tab dragged and dropped on a window: 'center' makes it a tab
+  // there; an edge zone splits that window and gives the tab its own pane
+  // on that side (its own window too, if it had siblings to leave).
+  function dockPanel(panelId, targetId, zone) {
+    const p = store.panels[panelId]
+    const target = store.groups[targetId]
+    if (!p || !target) return
+    const source = store.groups[p.groupId]
+    if (zone === 'center') {
+      if (source.id === targetId) return
+      detachPanel(panelId)
+      p.groupId = targetId
+      target.panelIds.push(panelId)
+      target.activeId = panelId
+      target.minimized = false
+    } else {
+      if (source.id === targetId && source.panelIds.length < 2) return
+      detachPanel(panelId)
+      const handle = addGroup({ referenceGroup: targetId, direction: zone })
+      const g = store.groups[handle.id]
+      p.groupId = g.id
+      g.panelIds.push(panelId)
+      g.activeId = panelId
+    }
+    notify()
+  }
+
   function setActiveTab(groupId, panelId) {
     const g = store.groups[groupId]
     if (!g || !g.panelIds.includes(panelId)) return
@@ -441,6 +480,7 @@ export function useFloatingDockApi() {
     minimizeGroup,
     setSplitSizes,
     dockGroup,
+    dockPanel,
     setActiveTab,
   }).current
 

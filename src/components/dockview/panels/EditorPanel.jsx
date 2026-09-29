@@ -140,6 +140,8 @@ function EditorPanel() {
     workspaceFiles,
     activeFileId,
     setActiveFileId,
+    openFileIds,
+    closeFileTab,
     getFileLines,
     getFileName,
     updateFileContent,
@@ -263,29 +265,42 @@ function EditorPanel() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-card font-mono">
-      {/* File tabs sit on the window's title line, right after "Code Editor"
-          (see WindowHeaderSlot). */}
+      {/* The open files' tabs sit on the window's title line, right after
+          "Code Editor" (see WindowHeaderSlot) — only the ones you've opened;
+          every file is in the file tree (the Files pane), not repeated here. */}
       <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
         <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
-        {workspaceFiles.map((file) => {
-          const name = getFileName(file.id)
+        {openFileIds.map((fileId) => {
+          const name = getFileName(fileId)
           const { Icon, colorClass } = getFileIconMeta(name)
-          const active = activeFileId === file.id
+          const active = activeFileId === fileId
           return (
-            <button
-              key={file.id}
-              type="button"
-              onClick={() => setActiveFileId(file.id)}
+            <span
+              key={fileId}
               className={cn(
-                'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
-                active
-                  ? 'bg-muted text-foreground ring-1 ring-border'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                'group/tab flex h-7 shrink-0 items-center rounded-full text-xs transition-colors',
+                active ? 'bg-muted text-foreground ring-1 ring-border' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
               )}
             >
-              <Icon className={cn('size-3.5 shrink-0', colorClass)} />
-              {name}
-            </button>
+              <button type="button" onClick={() => setActiveFileId(fileId)} className="flex h-full items-center gap-1.5 pl-3 pr-1.5">
+                <Icon className={cn('size-3.5 shrink-0', colorClass)} />
+                {name}
+              </button>
+              {openFileIds.length > 1 && (
+                <button
+                  type="button"
+                  aria-label={`Close ${name}`}
+                  title="Close"
+                  onClick={() => closeFileTab(fileId)}
+                  className={cn(
+                    'mr-1.5 flex size-4 items-center justify-center rounded-full text-muted-foreground transition-opacity hover:bg-white/10 hover:text-foreground',
+                    active ? 'opacity-100' : 'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100'
+                  )}
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </span>
           )
         })}
       </WindowHeaderPortal>

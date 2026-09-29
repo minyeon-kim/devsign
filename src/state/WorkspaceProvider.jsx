@@ -90,6 +90,11 @@ export function WorkspaceProvider({ children, projectId }) {
     [prototypeEdits]
   )
   const [activeFileId, setActiveFileIdState] = useState(files[0]?.id ?? null)
+  // The code editor's open tabs (the file tree lists every file; the
+  // editor header only the ones you've opened). Whatever becomes the active
+  // file — from the tree, the canvas, an AI edit, a rollback — joins them.
+  const [openFileIds, setOpenFileIds] = useState(() => files.slice(0, 2).map((f) => f.id))
+  if (activeFileId && !openFileIds.includes(activeFileId)) setOpenFileIds([...openFileIds, activeFileId])
   const [fileOverrides, setFileOverrides] = useState({})
   const [fileNameOverrides, setFileNameOverrides] = useState({})
   const [selectedLayerId, setSelectedLayerId] = useState(null)
@@ -122,7 +127,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
   // The floating Files / Layers window (FilesLayersWindow): open or not,
   // and which tab it shows.
-  const [filesWindow, setFilesWindowState] = useState({ open: false, tab: 'files' })
+  // Open from the start: the file tree lives in the left sidebar pane.
+  const [filesWindow, setFilesWindowState] = useState({ open: true, tab: 'files' })
   const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
   const [chatMessages, setChatMessages] = useState(initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
@@ -358,6 +364,19 @@ export function WorkspaceProvider({ children, projectId }) {
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
   }, [])
+
+  // Close an editor tab; closing the active one moves to its neighbor. The
+  // last tab stays (the editor always shows a file).
+  const closeFileTab = useCallback(
+    (fileId) => {
+      if (openFileIds.length < 2 || !openFileIds.includes(fileId)) return
+      const i = openFileIds.indexOf(fileId)
+      const next = openFileIds.filter((id) => id !== fileId)
+      setOpenFileIds(next)
+      if (fileId === activeFileId) setActiveFileIdState(next[Math.min(i, next.length - 1)])
+    },
+    [openFileIds, activeFileId]
+  )
 
   const selectCanvasLayer = useCallback(
     (layerId, { conflict } = {}) => {
@@ -762,6 +781,8 @@ export function WorkspaceProvider({ children, projectId }) {
     importFigmaLink,
     activeFileId,
     setActiveFileId,
+    openFileIds,
+    closeFileTab,
     getFileLines,
     getFileName,
     renameFile,

@@ -30,8 +30,9 @@ const DRAG_THRESHOLD = 4
 // `docked` (the Workspace's split-pane layout, see WorkspaceSplitLayout):
 // the window fills its pane instead of floating at x/y — no corner resize
 // (the splitters between panes do that); dragging its header hands off to
-// `onDockDragStart` (drop it beside / into another pane) — and its header
-// gains the `+` view menu and a minimize control beside maximize / close.
+// `onDockDragStart` (drop it beside / into another pane), and so does
+// dragging one of its tabs (just that tab moves) — and its header gains the
+// `+` view menu and a minimize control beside maximize / close.
 function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
@@ -48,7 +49,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
   function beginDrag(e) {
     if (e.button !== 0 || e.target.closest('button, input, [role="tablist"] *')) return
     if (docked) {
-      onDockDragStart?.(group.id, e)
+      onDockDragStart?.({ groupId: group.id }, e)
       return
     }
     dockApi.focusGroup(group.id)
@@ -126,6 +127,8 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                   key={pid}
                   type="button"
                   onClick={() => dockApi.setActiveTab(group.id, pid)}
+                  onPointerDown={(e) => docked && e.button === 0 && onDockDragStart?.({ groupId: group.id, panelId: pid }, e)}
+                  title={docked ? 'Drag to split or move' : undefined}
                   className={cn(CATEGORY_TAB, 'gap-1.5', active ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
                 >
                   {Icon && <Icon className="size-3.5 shrink-0" />}
