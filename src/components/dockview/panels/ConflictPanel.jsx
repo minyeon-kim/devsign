@@ -145,7 +145,7 @@ function ConflictPanel() {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-2.5 pr-0 pl-3" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-3.5 pr-0 pl-3" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -157,23 +157,23 @@ function ConflictPanel() {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3.5">
                       <Badge className={cn('gap-1 border-transparent', severity.className)}>
                         <SeverityIcon className="size-3" />
                         {severity.label}
                       </Badge>
                     </td>
-                    <td className="max-w-72 px-3 py-2.5">
+                    <td className="max-w-72 px-3 py-3.5">
                       <p className="truncate font-medium text-foreground">{conflict.title}</p>
-                      <p className="mt-0.5 flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                      <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
                         <FileCode2 className="size-3 shrink-0" />
                         <span className="truncate">{conflict.file}</span>
                       </p>
                       {conflict.message && (
-                        <p className="mt-1 line-clamp-1 text-foreground/70">{conflict.message}</p>
+                        <p className="mt-1.5 line-clamp-1 leading-relaxed text-foreground/70">{conflict.message}</p>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-3.5 whitespace-nowrap">
                       <span className="flex items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
@@ -182,7 +182,7 @@ function ConflictPanel() {
                         <span className="mt-1 block text-[11px] font-medium text-sky-300">Needs your review</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3.5">
                       {reviewers.length ? (
                         <div className="flex -space-x-1.5">
                           {reviewers.map((person) => (
@@ -197,24 +197,24 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="py-2.5 pr-3 pl-1 text-right">
+                    <td className="py-3.5 pr-3 pl-1 text-right">
                       <button
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation()
                           openConflictReview(conflict.id)
                         }}
-                        className="inline-flex h-6 items-center gap-0.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors group-hover:text-foreground hover:bg-muted"
+                        className={REVIEW_CTA}
                       >
                         Review
-                        <ChevronRight className="size-3" />
+                        <ChevronRight className="size-3.5" strokeWidth={2.5} />
                       </button>
                     </td>
                   </tr>
                   {expanded && (
                     <tr className="border-b border-border/60 bg-white/[0.015]">
                       <td />
-                      <td colSpan={5} className="px-3 pt-1 pb-3">
+                      <td colSpan={5} className="px-3 pt-1 pb-4">
                         <MiniDiff conflict={conflict} onOpenReview={() => openConflictReview(conflict.id)} />
                       </td>
                     </tr>
@@ -254,6 +254,11 @@ function ConflictPanel() {
   )
 }
 
+// The row's primary action: a filled accent pill (the studio's one accent),
+// so "Review" reads as the thing to do next rather than a passing link.
+const REVIEW_CTA =
+  'inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-emerald-400 pr-2 pl-3 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
+
 const DIFF_TONES = {
   same: 'text-slate-400',
   add: 'bg-emerald-400/[0.08] text-emerald-300',
@@ -266,8 +271,8 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 function MiniDiff({ conflict, onOpenReview }) {
   const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
   return (
-    <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
+    <div className="flex items-start gap-4">
+      <div className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-black/25 py-2.5 font-mono text-[11px] leading-6">
         {rows.map((row, i) => (
           <div key={i} className={cn('flex px-3 whitespace-pre', DIFF_TONES[row.kind])}>
             <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
@@ -278,10 +283,10 @@ function MiniDiff({ conflict, onOpenReview }) {
       <button
         type="button"
         onClick={onOpenReview}
-        className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className={REVIEW_CTA}
       >
         Open review
-        <ChevronRight className="size-3" />
+        <ChevronRight className="size-3.5" strokeWidth={2.5} />
       </button>
     </div>
   )
