@@ -1,6 +1,8 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import {
   FileImage,
+  Check,
+  Ellipsis,
   Frame as FrameIcon,
   Hand,
   MessageCircle,
@@ -19,6 +21,12 @@ import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 400
@@ -57,19 +65,54 @@ function openLayerInspectTab(dockApi, node) {
   dockApi.getPanel(panelById.editor.id)?.api.setActive()
 }
 
-// Figma-style pill toolbar docked at the bottom-center of the canvas — a
+// Figma-style pill toolbar docked at the top-right of the canvas — a
 // real tool *picker*: the active tool both gets a highlight state here and
 // changes what clicking the canvas surface does (see CanvasPanel) and what
 // the global cursor looks like while hovering it (see LocalCursor).
-function CanvasToolbar({ tool, onSelectTool }) {
+function CanvasToolbar({ tool, onSelectTool, compact }) {
+  const activeTool = canvasTools.find((item) => item.id === tool) ?? canvasTools[0]
+  const ActiveIcon = toolIcons[activeTool.iconName]
+
   return (
     <div
       data-canvas-chrome
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
-      className="pointer-events-auto absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-full border bg-card/95 p-1 shadow-xl backdrop-blur-sm"
+      className="pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/95 p-0.5 shadow-xl backdrop-blur-sm"
     >
-      {canvasTools.map((t) => {
+      {compact ? (
+        <>
+          <span
+            title={`Current tool: ${activeTool.label}`}
+            aria-label={`Current tool: ${activeTool.label}`}
+            className="flex size-6 items-center justify-center rounded-full bg-emerald-400 text-slate-950"
+          >
+            {ActiveIcon && <ActiveIcon className="size-3.5" />}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              type="button"
+              title="Choose canvas tool"
+              aria-label="Choose canvas tool"
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Ellipsis className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {canvasTools.map((t) => {
+                const Icon = toolIcons[t.iconName]
+                return (
+                  <DropdownMenuItem key={t.id} onClick={() => onSelectTool(t.id)} className="gap-2">
+                    {Icon && <Icon className="size-4" />}
+                    <span className="flex-1">{t.label}</span>
+                    {tool === t.id && <Check className="size-3.5 text-emerald-300" />}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      ) : canvasTools.map((t) => {
         const Icon = toolIcons[t.iconName]
         const active = tool === t.id
         return (
@@ -79,11 +122,11 @@ function CanvasToolbar({ tool, onSelectTool }) {
             title={t.label}
             onClick={() => onSelectTool(t.id)}
             className={cn(
-              'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
               active && 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
             )}
           >
-            {Icon && <Icon className="size-4" />}
+            {Icon && <Icon className="size-3.5" />}
           </button>
         )
       })}
@@ -369,6 +412,18 @@ function CanvasPanel() {
   const [pendingDraft, setPendingDraft] = useState('')
   const [openPinId, setOpenPinId] = useState(null)
   const scrollRef = useRef(null)
+  const [canvasWidth, setCanvasWidth] = useState(0)
+  const compactToolbar = canvasWidth > 0 && canvasWidth < 380
+
+  useEffect(() => {
+    const viewport = scrollRef.current
+    if (!viewport) return
+    const measure = () => setCanvasWidth(viewport.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
   const surfaceRef = useRef(null)
   // selectedLayerId and activePageId both live in workspace context (not
   // local state) so a followed teammate's viewport can drive the same
@@ -581,7 +636,6 @@ function CanvasPanel() {
           </div>
 
           <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} scopeKey={activePage?.id} />
-          <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} />
           {selectedLayer && (SYNC_FILL_TYPES.has(selectedLayer.type) || SYNC_RADIUS_TYPES.has(selectedLayer.type)) && (
             <PropertyBar
               layer={selectedLayer}
@@ -603,29 +657,32 @@ function CanvasPanel() {
             />
           )}
 
-          <div
-            data-canvas-chrome
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm"
-          >
-            <button
-              type="button"
-              title="Zoom out"
-              onClick={() => zoomBy(-ZOOM_STEP)}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          <div className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-1.5">
+            <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} compact={compactToolbar} />
+            <div
+              data-canvas-chrome
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              className="pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/90 px-1 py-0.5 text-[10px] shadow-lg backdrop-blur-sm"
             >
-              <Minus className="size-3.5" />
-            </button>
-            <span className="w-10 text-center tabular-nums text-foreground">{zoom}%</span>
-            <button
-              type="button"
-              title="Zoom in"
-              onClick={() => zoomBy(ZOOM_STEP)}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <Plus className="size-3.5" />
-            </button>
+              <button
+                type="button"
+                title="Zoom out"
+                onClick={() => zoomBy(-ZOOM_STEP)}
+                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Minus className="size-3" />
+              </button>
+              <span className="w-8 text-center tabular-nums text-foreground">{zoom}%</span>
+              <button
+                type="button"
+                title="Zoom in"
+                onClick={() => zoomBy(ZOOM_STEP)}
+                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Plus className="size-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
