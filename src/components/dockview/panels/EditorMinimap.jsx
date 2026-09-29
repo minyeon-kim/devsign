@@ -1,51 +1,62 @@
-import { useRef } from 'react'
-import { cn } from 'cn'
-import { tokenizeLine } from '@/lib/syntaxHighlight'
+import { useLayoutEffect, useRef, useState } from 'react'
 
-const MAX_LINE_WIDTH_CHARS = 60
+const MAX_LINE_WIDTH_CHARS = 64
+const LINE_HEIGHT = 2
 
-function minimapColor(type) {
-  if (type === 'comment') return 'bg-muted-foreground/30'
-  if (type === 'string') return 'bg-emerald-400/60'
-  if (type === 'keyword' || type === 'tag' || type === 'boolean') return 'bg-primary/70'
-  if (type === 'function' || type === 'property' || type === 'key') return 'bg-sky-400/60'
-  return 'bg-foreground/25'
-}
-
-// A simplified VS Code-style minimap: each source line becomes a thin
-// proportionally-sized bar tinted by its dominant token type, plus a
-// draggable-looking viewport indicator kept in sync with the editor's
-// scroll position. Clicking anywhere jumps the editor to that line.
-function EditorMinimap({ lines, language, viewport, onJump }) {
+// A monochrome code-density map. Every source line is placed proportionally
+// through the full file map, so short and long files both fit without clipping.
+function EditorMinimap({ lines, viewport, onJump }) {
   const trackRef = useRef(null)
+  const dragging = useRef(false)
+  const [trackHeight, setTrackHeight] = useState(0)
 
-  function handleClick(event) {
+  useLayoutEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const measure = () => setTrackHeight(track.clientHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [])
+
+  const mapHeight = Math.min(trackHeight, Math.max(16, lines.length * LINE_HEIGHT))
+
+  function jumpAt(event) {
     const rect = trackRef.current?.getBoundingClientRect()
-    if (!rect || rect.height === 0) return
+    if (!rect || rect.height <= 0) return
     const ratio = Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1)
     onJump?.(ratio)
   }
 
   return (
-    // No border or distinct background here on purpose — it sits directly on
-    // the editor's own surface (bg-card) so it reads as part of it,
-    // the way VS Code's minimap does, rather than a separate side panel.
     <div
       ref={trackRef}
-      onClick={handleClick}
-      title="Minimap — click to jump"
-      className="relative hidden w-14 shrink-0 cursor-pointer select-none sm:block"
+      onPointerDown={(event) => {
+        if (event.button !== 0) return
+        dragging.current = true
+        event.currentTarget.setPointerCapture(event.pointerId)
+        jumpAt(event)
+      }}
+      onPointerMove={(event) => dragging.current && jumpAt(event)}
+      onPointerUp={() => { dragging.current = false }}
+      onPointerCancel={() => { dragging.current = false }}
+      title="Minimap — drag or click to navigate"
+      aria-label="Code minimap. Drag or click to navigate the file."
+      className="relative hidden h-full min-h-0 w-14 shrink-0 cursor-pointer touch-none select-none overflow-hidden bg-[#0B0B0D] sm:block"
     >
-      <div className="absolute inset-0 flex flex-col gap-[3px] overflow-hidden px-2 py-2">
-        {lines.map((line, i) => {
-          const tokens = tokenizeLine(line, language)
-          const dominant = tokens.find((t) => t.type !== 'plain' && t.type !== 'punct')
-          const widthPct = Math.min((line.length / MAX_LINE_WIDTH_CHARS) * 100, 100)
+      <div className="absolute top-2 left-0 w-full overflow-hidden px-2" style={{ height: Math.max(0, mapHeight - 16) }}>
+        {lines.map((line, index) => {
+          const width = Math.min((line.length / MAX_LINE_WIDTH_CHARS) * 100, 100)
           return (
             <span
-              key={i}
-              className={cn('block h-[2px] shrink-0 rounded-full', minimapColor(dominant?.type))}
-              style={{ width: `${widthPct}%` }}
+              key={index}
+              className="absolute left-2 h-px rounded-full bg-slate-300/45"
+              style={{
+                top: `${index * LINE_HEIGHT}px`,
+                width: `${width}%`,
+                opacity: line.trim() ? 0.3 + Math.min(line.length / MAX_LINE_WIDTH_CHARS, 1) * 0.55 : 0,
+              }}
             />
           )
         })}
@@ -53,10 +64,10 @@ function EditorMinimap({ lines, language, viewport, onJump }) {
 
       {viewport && (
         <div
-          className="pointer-events-none absolute inset-x-0 rounded-[3px] bg-foreground/[0.06] ring-1 ring-inset ring-foreground/10 hover:bg-foreground/10"
+          className="pointer-events-none absolute inset-x-0 rounded-[3px] bg-white/[0.08]"
           style={{
-            top: `${viewport.top * 100}%`,
-            height: `${Math.max(viewport.height * 100, 4)}%`,
+            top: `${8 + viewport.top * Math.max(0, mapHeight - 16)}px`,
+            height: `${Math.max(viewport.height * Math.max(0, mapHeight - 16), 8)}px`,
           }}
         />
       )}
