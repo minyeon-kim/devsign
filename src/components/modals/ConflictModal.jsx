@@ -3,25 +3,23 @@ import {
   Bell,
   Bot,
   Check,
-  CircleAlert,
   Code2,
   Eye,
   FileCode2,
   FlaskConical,
   GitBranch,
   GitMerge,
-  Info,
   Palette,
   Plus,
   RotateCcw,
   Send,
   Sparkles,
-  TriangleAlert,
   User,
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +41,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { useNavigate } from 'react-router-dom'
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
   CATEGORY_TAB,
@@ -73,9 +72,9 @@ import {
 // and the single primary action in the footer.
 
 const severityConfig = {
-  high: { label: 'High', icon: TriangleAlert, className: 'border border-rose-400/30 bg-rose-400/15 text-rose-200' },
-  medium: { label: 'Medium', icon: CircleAlert, className: 'border border-amber-400/30 bg-amber-400/15 text-amber-200' },
-  low: { label: 'Low', icon: Info, className: 'border border-sky-400/30 bg-sky-400/15 text-sky-200' },
+  high: { label: 'High' },
+  medium: { label: 'Medium' },
+  low: { label: 'Low' },
 }
 
 const REVIEWER_STATUS = {
@@ -231,8 +230,8 @@ function SuggestionCard({ conflict, onViewDiff }) {
   ].filter(([, text]) => text)
 
   return (
-    <div className="rounded-xl bg-emerald-400/[0.06] p-5">
-      <p className="mb-4 flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-5 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
+      <p className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
         <Sparkles className="size-3.5" />
         AI suggestion
       </p>
@@ -291,10 +290,20 @@ function OverviewTab({ conflict, onViewDiff }) {
           Devsign AI already made this change in the workspace. It becomes final only when approved and merged.
         </p>
       )}
-      {conflict.message && <p className="text-[13px] leading-relaxed text-slate-300">{conflict.message}</p>}
+      {(conflict.message || conflict.riskReason) && (
+        <div className="space-y-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+          {conflict.message && <p className="text-[13px] leading-relaxed text-slate-200">{conflict.message}</p>}
+          {conflict.riskReason && (
+            <div className={cn(conflict.message && 'border-t border-white/[0.07] pt-4')}>
+              <p className={cn(PANEL_LABEL, 'mb-2')}>Why review is needed</p>
+              <p className="text-[13px] leading-relaxed text-slate-300">{conflict.riskReason}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {conflict.preview && (
-        <Section label="Before and after">
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
           <ChangePreview preview={conflict.preview} />
           {conflict.uxNote && (
             <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
@@ -302,19 +311,13 @@ function OverviewTab({ conflict, onViewDiff }) {
               {conflict.uxNote}
             </p>
           )}
-        </Section>
+        </div>
       )}
 
       <Section label="What changed">
         {fields.length ? <ComparisonTable fields={fields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
         {!conflict.preview && conflict.uxNote && <p className="mt-2 text-xs text-amber-200/90">{conflict.uxNote}</p>}
       </Section>
-
-      {conflict.riskReason && (
-        <Section label="Why review is needed">
-          <p className="text-[13px] leading-relaxed text-slate-300">{conflict.riskReason}</p>
-        </Section>
-      )}
 
       <Provenance conflict={conflict} />
 
@@ -333,11 +336,21 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 // The proposed change as an inline diff — review only. Nothing here is
 // applied: the fix reaches the workspace when the change is merged.
 function DiffTab({ conflict }) {
-  if (!conflict.branches && !conflict.diff) return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+  if (!conflict.branches && !conflict.diff && !conflict.suggestion) return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
 
   return (
     <div className="space-y-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+      {conflict.suggestion && (
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+            <Sparkles className="size-3.5" />
+            AI suggestion being reviewed
+          </p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-200">{conflict.suggestion}</p>
+          {conflict.suggestionReason && <p className="mt-1 text-xs leading-relaxed text-slate-400">{conflict.suggestionReason}</p>}
+        </div>
+      )}
       {conflict.branches && (
         <div className="flex items-center gap-2 text-xs">
           <GitBranch className="size-3.5 shrink-0 text-slate-500" />
@@ -378,8 +391,8 @@ function DiffTab({ conflict }) {
 const STATUS_TONE = {
   action: 'bg-sky-400/[0.08]',
   waiting: 'bg-white/[0.04]',
-  ready: 'bg-emerald-400/[0.07]',
-  done: 'bg-emerald-400/[0.07]',
+  ready: 'border border-emerald-400/25 bg-emerald-400/[0.12]',
+  done: 'border border-emerald-400/25 bg-emerald-400/[0.12]',
   idle: 'bg-white/[0.04]',
 }
 
@@ -686,7 +699,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const { style: dragStyle, handleProps } = useDraggable()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
-  const SeverityIcon = severity?.icon
 
   // The open tab, reset to Overview whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
@@ -827,27 +839,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             >
               <div className="min-w-0 flex-1">
                 <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   {severity && (
-                    <span
-                      title="Risk"
-                      className={cn('inline-flex h-5 items-center gap-1 rounded-full px-2 text-[10px] font-semibold', severity.className)}
-                    >
-                      <SeverityIcon className="size-3" />
-                      {severity.label} risk
+                    <span className="inline-flex items-center gap-1.5">
+                      <SeverityPill level={severity.label} />
                     </span>
                   )}
                   <StagePill stage={stage} />
-                  <DialogDescription className="ml-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
-                    <FileCode2 className="size-3.5 shrink-0" />
-                    <span className="truncate font-mono text-slate-400">
+                </div>
+                <DialogDescription className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1">
+                    <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
+                    <span className="truncate font-mono text-slate-300">
                       {conflict.file}
                       {conflict.line ? `:${conflict.line}` : ''}
                     </span>
-                    {conflict.projectName && <span className="shrink-0">· {conflict.projectName}</span>}
-                    {conflict.detectedAt && <span className="shrink-0">· {conflict.detectedAt}</span>}
-                  </DialogDescription>
-                </div>
+                  </span>
+                  {conflict.projectName && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Project · {conflict.projectName}</span>}
+                  {conflict.detectedAt && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Detected · {conflict.detectedAt}</span>}
+                </DialogDescription>
               </div>
               <button
                 type="button"
@@ -884,8 +894,20 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {/* History lives in one place — the project's History menu
                       (checkpoints with rollback) — so this tab points there. */}
                   {tab === 'history' && (
-                    <div className="flex flex-col items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-8 text-center">
-                      <p className="text-xs text-slate-400">Checkpoints and rollbacks for this project are in History.</p>
+                    <div className="space-y-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Project history</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-400">Checkpoints and rollbacks for this project are in History.</p>
+                      </div>
+                      {workspace?.historyEntries?.length > 0 ? (
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Latest checkpoint</p>
+                          <p className="mt-1 truncate text-[13px] font-medium text-slate-200">{workspace.historyEntries[workspace.historyEntries.length - 1].label}</p>
+                          <p className="mt-1 text-[11px] text-slate-500">{workspace.historyEntries[workspace.historyEntries.length - 1].timestamp}</p>
+                        </div>
+                      ) : (
+                        <p className="rounded-xl bg-white/[0.03] px-4 py-3 text-xs text-slate-500">No checkpoints recorded yet.</p>
+                      )}
                       {workspace && (
                         <button
                           type="button"
@@ -920,17 +942,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-8 py-4">
               {stage !== 'resolved' && (
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onOpenMergeStudio?.(conflict)}
-                    className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
-                  >
-                    <GitMerge className="size-3.5" />
-                    Open in Merge Studio
-                  </button>
-                  <span className="hidden max-w-[200px] text-[11px] leading-snug text-slate-500 xl:block">
-                    Edit or combine elements in Merge Studio before merging.
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger
+                      type="button"
+                      onClick={() => onOpenMergeStudio?.(conflict)}
+                      className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
+                    >
+                      <GitMerge className="size-3.5" />
+                      Open in Merge Studio
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Edit or combine elements before merging.</TooltipContent>
+                  </Tooltip>
                 </div>
               )}
               <div className="ml-auto flex items-center gap-2">
