@@ -31,6 +31,7 @@ import {
 import ChatCheckpoint from '@/components/history/ChatCheckpoint'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { aiModels, chatSuggestions, findCanvasTarget, forProject } from '@/data/mockData'
+import { getFileIconMeta } from '@/lib/fileIcons'
 import { prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -81,17 +82,25 @@ function selectionKey({ selectedLayerId, activePageId, activeFileId }) {
 const TARGET_KIND_LABEL = { element: 'Selected element', page: 'Current page', file: 'Open file' }
 
 function TargetChip({ target, options, onPick }) {
+  const workspace = useWorkspace()
+  const fileName = target?.kind === 'file'
+    ? target.label
+    : target?.fileId
+      ? workspace.getFileName(target.fileId)
+      : workspace.activeFileId
+        ? workspace.getFileName(workspace.activeFileId)
+        : null
+  const { Icon } = getFileIconMeta(fileName ?? '')
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
           'flex max-w-full min-w-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors',
-          target ? 'text-foreground/80 hover:bg-muted' : 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/15'
+          'bg-white/[0.07] text-slate-300 hover:bg-white/[0.11] hover:text-white'
         )}
       >
-        <Crosshair className="size-3 shrink-0" />
-        <span className="shrink-0 text-muted-foreground">Target:</span>
-        <span className="truncate font-medium">{target ? target.label : 'Choose what to change'}</span>
+        <Icon className="size-3 shrink-0 text-slate-400" />
+        <span className="truncate font-medium">{fileName ?? 'Choose a file'}</span>
         <ChevronDown className="size-2.5 shrink-0" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">

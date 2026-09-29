@@ -10,9 +10,9 @@ import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const TABS = [
+  { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, Panel: TerminalPanel },
   { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
-  { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
 ]
 
 const STRIP_HEIGHT = 40
