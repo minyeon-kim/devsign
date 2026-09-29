@@ -71,11 +71,11 @@ function ConflictPanel() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-card">
+    <div className="flex h-full min-w-0 flex-col bg-card">
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
-        <div className="flex shrink-0 items-center gap-1 px-3 pt-2 pb-1" role="group" aria-label="Filter conflicts">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pt-4 pb-3" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -98,11 +98,21 @@ function ConflictPanel() {
           <p className="text-xs">No conflicts — design and code are in sync.</p>
         </div>
       ) : (
-        <div className="relative flex-1 overflow-auto">
-          <table className="w-full min-w-[620px] border-collapse text-xs">
-            <thead className="sticky top-0 bg-card">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
+          <table className="w-full min-w-[860px] table-fixed border-collapse text-xs">
+            {/* Shared widths keep the header, rows and expanded diff aligned.
+                Only Issue grows; narrow panels scroll within the list. */}
+            <colgroup>
+              <col className="w-12" />
+              <col className="w-28" />
+              <col />
+              <col className="w-44" />
+              <col className="w-28" />
+              <col className="w-[108px]" />
+            </colgroup>
+            <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b text-left text-[11px] text-muted-foreground">
-                <th className="w-0 py-2 pr-2 pl-4">
+                <th className="py-3 pr-2 pl-6">
                   <Checkbox
                     checked={allSelected}
                     disabled={batchable.length === 0}
@@ -110,11 +120,11 @@ function ConflictPanel() {
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
                 </th>
-                <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Severity</th>
-                <th className="w-0 px-3 py-2 font-medium">Issue</th>
-                <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Status</th>
-                <th className="w-0 py-2 pr-3 pl-1 font-medium whitespace-nowrap">Reviewers</th>
-                <th className="w-full py-2 pr-6 pl-3" />
+                <th className="px-3 py-3 font-medium whitespace-nowrap">Severity</th>
+                <th className="px-3 py-3 font-medium">Issue</th>
+                <th className="px-3 py-3 font-medium whitespace-nowrap">Status</th>
+                <th className="py-3 pr-3 pl-1 text-right font-medium whitespace-nowrap">Reviewers</th>
+                <th className="py-3 pr-6 pl-3" />
               </tr>
             </thead>
             <tbody>
@@ -145,7 +155,7 @@ function ConflictPanel() {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="w-0 py-1.5 pr-2 pl-4" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-4 pr-2 pl-6" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -157,46 +167,41 @@ function ConflictPanel() {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="w-0 px-3 py-1.5 whitespace-nowrap">
+                    <td className="px-3 py-4 whitespace-nowrap">
                       <Badge className={cn('gap-1 border-transparent', severity.className)}>
                         <SeverityIcon className="size-3" />
                         {severity.label}
                       </Badge>
                     </td>
-                    {/* Issue is a fixed, comfortable width (its text truncates)
-                        with Status and Reviewers right after it; the spare
-                        width goes before the Review CTA instead of opening a
-                        gap in the middle of the row. */}
-                    <td className="w-0 px-3 py-1.5">
-                      <div className="w-[clamp(240px,34vw,480px)]">
-                      <p className="truncate leading-5 font-medium text-foreground">{conflict.title}</p>
-                      <p className="flex min-w-0 items-center gap-1 text-[11px] leading-4 text-muted-foreground">
-                        <FileCode2 className="size-3 shrink-0" />
-                        <span className="max-w-[70%] shrink-0 truncate font-mono">{conflict.file}</span>
+                    <td className="min-w-0 px-3 py-4">
+                      <div className="min-w-0 space-y-1">
+                        <p className="line-clamp-2 leading-5 font-medium break-words text-foreground">{conflict.title}</p>
+                        <p className="flex min-w-0 items-start gap-1 text-[11px] leading-4 text-muted-foreground">
+                          <FileCode2 className="mt-0.5 size-3 shrink-0" />
+                          <span className="line-clamp-2 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
+                        </p>
                         {conflict.message && (
-                          <span className="min-w-0 truncate text-foreground/60" title={conflict.message}>
-                            · {conflict.message}
-                          </span>
+                          <p className="line-clamp-2 text-[11px] leading-4 break-words text-foreground/60" title={conflict.message}>
+                            {conflict.message}
+                          </p>
                         )}
-                      </p>
                       </div>
                     </td>
-                    {/* One line, so every row's status sits on the same center
-                        line as its badge, avatars and Review button. */}
-                    <td className="w-0 px-3 py-1.5 whitespace-nowrap">
-                      <span className="flex items-center gap-1.5 text-foreground/80">
-                        <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+                    {/* Status wraps within its own column, without pushing the CTA. */}
+                    <td className="px-3 py-4 whitespace-nowrap">
+                      <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
+                        <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                         {needsReviewFrom(conflict) && (
-                          <span className="ml-1 inline-flex h-5 items-center rounded-full bg-sky-400/10 px-2 text-[10.5px] font-medium text-sky-300">
+                          <span className="inline-flex h-5 items-center rounded-full bg-sky-400/10 px-2 text-[10.5px] font-medium text-sky-300">
                             Needs your review
                           </span>
                         )}
                       </span>
                     </td>
-                    <td className="w-0 py-1.5 pr-3 pl-1 whitespace-nowrap">
+                    <td className="py-4 pr-3 pl-1 text-right">
                       {reviewers.length ? (
-                        <div className="flex -space-x-1.5">
+                        <div className="flex flex-wrap justify-end gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
                             <Avatar key={person.id} size="sm" className="ring-2 ring-card" title={person.name}>
                               <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
@@ -209,7 +214,7 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="w-full py-1.5 pr-6 pl-3 text-right">
+                    <td className="py-4 pr-6 pl-3 text-right">
                       <button
                         type="button"
                         onClick={(event) => {
@@ -230,9 +235,10 @@ function ConflictPanel() {
                     <tr className="border-b border-border/60 bg-white/[0.015]">
                       <td />
                       <td />
-                      <td colSpan={3} className="px-3 pt-0.5 pb-3">
+                      <td colSpan={3} className="min-w-0 px-3 pt-2 pb-4">
                         <MiniDiff conflict={conflict} />
                       </td>
+                      <td />
                     </tr>
                   )}
                   </Fragment>
@@ -273,7 +279,7 @@ function ConflictPanel() {
 // The row's primary action: a filled accent pill (the studio's one accent),
 // so "Review" reads as the thing to do next rather than a passing link.
 const REVIEW_CTA =
-  'inline-flex h-7 shrink-0 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
+  'inline-flex h-9 w-[72px] shrink-0 items-center justify-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
 
 const DIFF_TONES = {
   same: 'text-slate-400',
@@ -284,17 +290,16 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
 // A low-risk row's expansion: the proposed change as a compact inline diff,
 // so what's being batch-approved can be checked in place. Capped in height
-// (it scrolls past that) with long lines ellipsized — the full diff is in
-// the review window. `w-0 min-w-full` keeps long lines from widening the
+// with long lines scrolling horizontally. `w-0 min-w-full` keeps them from widening the
 // table: it fills its cell without adding to the column widths.
 function MiniDiff({ conflict }) {
   const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
   return (
-    <div className="max-h-32 w-0 min-w-full overflow-y-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
+    <div className="max-h-32 w-0 min-w-full overflow-auto rounded-lg border border-border/60 bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
       {rows.map((row, i) => (
-        <div key={i} className={cn('flex px-3', DIFF_TONES[row.kind])} title={row.text}>
+        <div key={i} className={cn('flex min-w-full w-max px-3', DIFF_TONES[row.kind])} title={row.text}>
           <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre">{row.text || ' '}</span>
+          <span className="whitespace-pre">{row.text || ' '}</span>
         </div>
       ))}
     </div>
