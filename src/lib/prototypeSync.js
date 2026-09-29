@@ -162,7 +162,7 @@ export function parsePrototype(fileId, lines) {
 // A layer's edits as a StaticLayer override (text copy, fill, radius).
 export function overrideFromEdit(edit) {
   if (!edit) return undefined
-  const override = {}
+  const override = { ...edit.merged }
   const copy = Object.fromEntries(Object.entries(edit.copy ?? {}).filter(([, v]) => v !== undefined))
   if (Object.keys(copy).length) override.copy = copy
   if (edit.fill) override.fillStyle = { background: edit.fill, color: '#fff' }

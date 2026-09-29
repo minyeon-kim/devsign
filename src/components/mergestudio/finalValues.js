@@ -1,3 +1,4 @@
+import { signature } from '@/lib/demoStorage'
 import { ASSEMBLY_FILLS, SHAPES, isCustomResolution } from '@/components/mergestudio/mergeEffects'
 
 // Final (to-be-merged) values for the Preview step, derived only from the
@@ -55,7 +56,7 @@ function fromResolution(diff, side) {
 }
 
 // One row per drift property: Original | Current | Final (+ source).
-export function finalRowsFor({ layerId, diffs, resolutions, assembly, sources, aiEffects = [], codeOverride, preset }) {
+export function finalRowsFor({ layerId, diffs, resolutions, assembly, sources, aiEffects = [], codeOverride, preset, layer }) {
   return diffs.map((diff) => {
     const kind = propKindOf(diff)
     let final = fromResolution(diff, resolutions[`${layerId}:${diff.id}`])
@@ -76,6 +77,8 @@ export function finalRowsFor({ layerId, diffs, resolutions, assembly, sources, a
           if (shape) final = { value: `${shape.radius}px (${shape.label})`, source: assembleSource(sources, 'shape') }
         }
       }
+      if (kind === 'size' && /height/i.test(diff.label) && assembly.height !== undefined) final = { value: `${assembly.height}px`, source: assembleSource(sources, 'height') }
+      if (kind === 'size' && /width/i.test(diff.label) && assembly.width !== undefined) final = { value: `${assembly.width}px`, source: assembleSource(sources, 'width') }
       if (kind === 'color') {
         if (assembly.fillColor) final = { value: assembly.fillColor, source: assembleSource(sources, 'fillColor') }
         else if (assembly.fill) {
@@ -90,6 +93,7 @@ export function finalRowsFor({ layerId, diffs, resolutions, assembly, sources, a
 
     // Code edits (e.g. a changed token line) apply after Assemble.
     if (codeOverride) {
+      if (kind === 'size' && /height/i.test(diff.label) && layer && codeOverride.dh) final = { value: `${layer.height + codeOverride.dh}px`, source: { kind: 'custom', detail: 'Edited in code' } }
       if (kind === 'radius' && codeOverride.radius !== undefined) final = { value: `${codeOverride.radius}px`, source: { kind: 'custom', detail: 'Edited in code' } }
       if (kind === 'color' && codeOverride.fillStyle?.background) final = { value: codeOverride.fillStyle.background, source: { kind: 'custom', detail: 'Edited in code' } }
       else if (kind === 'color' && codeOverride.className) final = { value: fillLabel(codeOverride.className), source: { kind: 'custom', detail: 'Edited in code' } }
@@ -109,7 +113,7 @@ export function finalRowsFor({ layerId, diffs, resolutions, assembly, sources, a
 // library component's look. Only names actually recorded are shown.
 export function componentOf(assembly, sources) {
   if (!assembly) return null
-  const fromLibrary = Object.values(sources ?? {}).find((s) => s.kind === 'designSystem' && s.component)
+  const fromLibrary = sources?.component
   if (assembly.asName) return { replaced: true, name: assembly.asName, tokens: fromLibrary?.tokens ?? [] }
   if (fromLibrary) return { replaced: false, name: fromLibrary.component, tokens: fromLibrary.tokens ?? [] }
   return null
@@ -125,8 +129,8 @@ export function componentOf(assembly, sources) {
 export function reviewSignature(drift, ctx) {
   if (drift.kind === 'design') {
     const layerId = drift.layerId
-    return JSON.stringify({
-      res: drift.diffs.map((d) => ctx.resolutions[`${layerId}:${d.id}`] ?? null),
+    return signature({
+      final: ctx.rowsFor(drift),
       asm: ctx.assemblies[layerId] ?? null,
       src: ctx.assemblySources[layerId] ?? null,
       code: ctx.codeOverrides[layerId] ?? null,
@@ -134,11 +138,11 @@ export function reviewSignature(drift, ctx) {
       // edits change its merged code even without a visual effect).
       lines: ctx.layerCodeLines(layerId),
       ai: ctx.aiEffectsFor(layerId),
-      preset: ctx.preset?.layerId === layerId ? ctx.preset.label : null,
+      preset: ctx.preset?.layerId === layerId ? ctx.preset : null,
     })
   }
-  return JSON.stringify({
-    manual: ctx.manualCode[`${drift.fileId}:${drift.line}`] ?? null,
+  return signature({
+    final: ctx.codeValueFor(drift),
     ai: ctx.aiLineFor(drift.fileId, drift.line),
   })
 }

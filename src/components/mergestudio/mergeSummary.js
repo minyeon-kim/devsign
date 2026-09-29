@@ -87,26 +87,28 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
 // owning layer, it could make `< >` navigation loop back on itself.
 // Shared by the canvas's own drift pager and the merge wizard's Check step,
 // so both walk the exact same list.
-export function buildDrifts(item, frame) {
+export function buildDrifts(item, frame, { assemblies = {}, code = {}, annotations = [], preset, manualCode = {} } = {}) {
   const layerDiffMap = designMergeVariants[item.id]?.layerDiffs ?? {}
   const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+  const editedLayers = new Set([...Object.keys(assemblies), ...Object.keys(code), ...annotations.filter((a) => a.status === 'done').flatMap((a) => a.targets ?? []), ...(preset ? [preset.layerId] : [])])
+  const layers = (frame?.layers ?? []).filter((l) => layerDiffMap[l.id]?.length || editedLayers.has(l.id))
   const codeCoveredByDesign = (fileId, line) =>
-    Object.values(codeMap).some((t) => t.fileId === fileId && line >= t.line && line <= t.line + (t.span ?? 1) - 1)
-  return [
-    ...(frame?.layers ?? [])
-      .filter((l) => layerDiffMap[l.id])
+    layers.some((l) => { const t = codeMap[l.id]; return t && t.fileId === fileId && line >= t.line && line < t.line + (t.span ?? 1) })
+  const drifts = [
+    ...layers
       .map((l) => ({
         id: `d:${l.id}`,
         kind: 'design',
         layerId: l.id,
-        diffs: layerDiffMap[l.id],
-        label: `${l.name} · ${layerDiffMap[l.id].length} change${layerDiffMap[l.id].length === 1 ? '' : 's'}`,
+        diffs: layerDiffMap[l.id] ?? [],
+        label: `${l.name} · ${layerDiffMap[l.id]?.length ?? 1} change${(layerDiffMap[l.id]?.length ?? 1) === 1 ? '' : 's'}`,
       })),
     ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, diffs]) =>
       diffs
         .filter((d) => !codeCoveredByDesign(fileId, d.line))
         .map((d) => ({
-          id: `c:${fileId}:${d.line}`,
+          id: `c:${fileId}:${d.id ?? encodeURIComponent(d.incoming.trim())}`,
+          incoming: d.incoming,
           kind: 'code',
           fileId,
           line: d.line,
@@ -114,6 +116,18 @@ export function buildDrifts(item, frame) {
         }))
     ),
   ]
+  for (const [key, text] of Object.entries(manualCode)) {
+    const split = key.lastIndexOf(':')
+    const fileId = key.slice(0, split)
+    const line = Number(key.slice(split + 1))
+    if (codeCoveredByDesign(fileId, line) || drifts.some((d) => d.fileId === fileId && d.line === line)) continue
+    const base = mergeFilesFor(item).find((f) => f.id === fileId)?.lines[line - 1]
+    if (base === text) continue
+    // Source content identifies an otherwise unlinked code change, not its line index.
+    const anchor = base?.trim() || text.trim()
+    drifts.push({ id: `c:${fileId}:${encodeURIComponent(anchor)}`, kind: 'code', fileId, line, incoming: text, label: `${fileId} · code change` })
+  }
+  return [...new Map(drifts.map((d) => [d.id, d])).values()]
 }
 
 // Staged/merged design output: the artboard frame (plus library layers) and a

@@ -255,6 +255,9 @@ const FILL_SWATCHES = ['#6366f1', '#8b5cf6', '#10b981', '#f43f5e', '#0f172a']
 // every edit — plus fill/radius from the property bar — is synced to the
 // page's code file (see lib/prototypeSync).
 function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText }) {
+  const { mergedBaseline } = useWorkspace()
+  const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
+  if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
   const isFrameSelected = selectedId === frame.id
 
   return (

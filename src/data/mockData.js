@@ -1043,20 +1043,22 @@ export const designMergeVariants = {
 export const codeMergeVariants = {
   // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
   'merge-checkout-cta': {
-    app: [{ line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
+    app: [{ id: 'place-order-button', line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
   },
   'merge-flowbank': {
     app: [
       {
+        id: 'clear-selection-button',
         line: 16,
         incoming: '      <Button onClick={() => setSelected(null)} className="accent-violet">Deselect</Button>',
       },
     ],
-    theme: [{ line: 3, incoming: '  --primary: oklch(0.6 0.25 292);' }],
+    theme: [{ id: 'primary-color-token', line: 3, incoming: '  --primary: oklch(0.6 0.25 292);' }],
   },
   'merge-authmodal': {
     app: [
       {
+        id: 'clear-selection-button',
         line: 16,
         incoming:
           '      <Button onClick={() => setSelected(null)} aria-label="Clear selection">Deselect</Button>',
@@ -1064,8 +1066,8 @@ export const codeMergeVariants = {
     ],
   },
   'merge-settings': {
-    app: [{ line: 16, incoming: '      <Button onClick={() => setSelected(null)} className="rounded-2xl">Deselect</Button>' }],
-    tokens: [{ line: 3, incoming: '    "primary": "#8b5cf6",' }],
+    app: [{ id: 'clear-selection-button', line: 16, incoming: '      <Button onClick={() => setSelected(null)} className="rounded-2xl">Deselect</Button>' }],
+    tokens: [{ id: 'primary-color-token', line: 3, incoming: '    "primary": "#8b5cf6",' }],
   },
 }
 

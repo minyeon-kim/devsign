@@ -1,3 +1,4 @@
+import DemoTools from '@/components/workspace/DemoTools'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -158,6 +159,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       </nav>
 
       <div className="mt-auto flex flex-col gap-1">
+        <DemoTools />
         <RailButton
           label="Settings"
           icon={Settings}

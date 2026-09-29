@@ -24,9 +24,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, buildSummary, buildOverrides } from '@/components/mergestudio/mergeSummary'
 import ConflictResolver from '@/components/mergestudio/ConflictResolutionModal'
-import { codeOverrides } from '@/components/mergestudio/codeSync'
+import { codeOverrides, workspaceCodeEdits } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
@@ -204,10 +204,8 @@ const SOURCE_TONE = {
 
 // The design-system token that's relevant to a property, when the
 // component recorded one (e.g. radius.full for Corner Radius).
-function tokenFor(source, propLabel) {
-  if (source.token) return source.token
-  const prefix = /radius/i.test(propLabel) ? 'radius.' : /color|background/i.test(propLabel) ? 'color.' : null
-  return prefix ? source.tokens?.find((t) => t.startsWith(prefix)) : undefined
+function tokenFor(source) {
+  return source.token
 }
 
 function SourceBadge({ source, propLabel }) {
@@ -215,10 +213,10 @@ function SourceBadge({ source, propLabel }) {
     source.kind === 'designSystem'
       ? [source.component, tokenFor(source, propLabel)].filter(Boolean).join(' · ')
       : source.kind === 'current' && source.defaulted
-        ? 'not chosen'
+        ? 'default'
         : source.detail
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-1.5" title={source.defaulted ? "No explicit selection. The current implementation will be used." : undefined}>
       <span className={cn('shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium', SOURCE_TONE[source.kind])}>{SOURCE_LABELS[source.kind]}</span>
       {detail && <span className="min-w-0 truncate text-[11px] text-slate-500">{detail}</span>}
     </span>
@@ -254,7 +252,7 @@ function DriftReviewSection({ item, drifts, review, frame, resolutions, assembli
   // when they explicitly step through items with < >.
 
   if (!drifts.length) return null
-  const d = drifts[index]
+  const d = drifts[Math.min(index, drifts.length - 1)]
   const status = review.statusOf(d)
   const rows = d.kind === 'design' ? review.rowsFor(d) : []
   const component = d.kind === 'design' ? componentOf(assemblies[d.layerId], assemblySources[d.layerId]) : null
@@ -536,14 +534,14 @@ const RISK_TONE = { Low: 'text-emerald-300', Medium: 'text-amber-300', High: 'te
 // previewing — four headline numbers, which screens it touches, then the
 // automated checks. Conflict resolution is one of the checks (its Resolve
 // action swaps this step's content for the inline resolver).
-function CheckStep({ item, resolutions, summary }) {
+function CheckStep({ item, resolutions, summary, onResolveDiff, onEditCode }) {
   const [conflictOpen, setConflictOpen] = useState(false)
   const a = assessMerge(item, resolutions, summary)
   const passed = a.checks.filter((c) => c.ok).length
   const attention = a.checks.length - passed
 
   if (conflictOpen) {
-    return <ConflictResolver item={item} onBack={() => setConflictOpen(false)} onResolved={() => setConflictOpen(false)} />
+    return <ConflictResolver item={item} onResolveDiff={onResolveDiff} onEditCode={onEditCode} onBack={() => setConflictOpen(false)} onResolved={() => setConflictOpen(false)} />
   }
 
   const metrics = [
@@ -648,24 +646,27 @@ function CheckStep({ item, resolutions, summary }) {
 // review items, each design item's Original | Current | Final rows, and
 // each item's review status against the recorded marks.
 function buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }) {
+  manualCode = { ...workspaceCodeEdits(item, getFileLines), ...manualCode }
   const baseFrame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
-  const drifts = buildDrifts(item, baseFrame)
   const frame = item.hasDesign ? frameWithLayers(baseFrame, extraLayers) : null
   const codeOv = codeOverrides(item.id, frame, manualCode, getFileLines)
+  const drifts = buildDrifts(item, frame, { assemblies, code: codeOv, annotations, preset, manualCode })
   const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const aiEffectsFor = (layerId) => annotations.filter((a) => a.effect && (a.targets ?? []).includes(layerId)).map((a) => a.effect)
   const aiLineFor = (fileId, line) => annotations.find((a) => a.status === 'done' && a.fileId === fileId && a.line === line)?.summary ?? null
   const layerCodeLines = (layerId) => {
     const t = codeMap[layerId]
     if (!t) return null
-    const out = {}
+    const out = []
     for (let n = t.line; n < t.line + (t.span ?? 1); n++) {
-      const v = manualCode[`${t.fileId}:${n}`]
-      if (v !== undefined) out[n] = v
+      out.push(manualCode[`${t.fileId}:${n}`] ?? getFileLines(t.fileId)[n - 1] ?? '')
     }
     return out
   }
   const ctx = { resolutions, assemblies, assemblySources, codeOverrides: codeOv, aiEffectsFor, aiLineFor, layerCodeLines, preset, manualCode }
+  ctx.rowsFor = (d) => finalRowsFor({ layerId: d.layerId, diffs: d.diffs, resolutions,
+    assembly: assemblies[d.layerId], sources: assemblySources[d.layerId], aiEffects: aiEffectsFor(d.layerId), codeOverride: codeOv[d.layerId], preset, layer: frame?.layers.find((l) => l.id === d.layerId) })
+  ctx.codeValueFor = (d) => manualCode[`${d.fileId}:${d.line}`] ?? d.incoming ?? getFileLines(d.fileId)[d.line - 1]
   const statusOf = (d) => reviewStatus(d, reviewMarks, ctx)
   return {
     drifts,
@@ -680,6 +681,7 @@ function buildReviewModel({ item, resolutions, annotations, preset, assemblies, 
         aiEffects: aiEffectsFor(d.layerId),
         codeOverride: codeOv[d.layerId],
         preset,
+        layer: frame?.layers.find((l) => l.id === d.layerId),
       }),
     statusOf,
     signatureOf: (d) => reviewSignature(d, ctx),
@@ -759,21 +761,26 @@ function MacroZoomPair({ frame, layerId, originalOverride, mergedOverride, stack
   const bFrame = useRef(null)
   const [views, setViews] = useState(null)
   useLayoutEffect(() => {
-    const boxA = measureLayer(aFrame.current, layerId)
-    const boxB = measureLayer(bFrame.current, layerId)
-    const W = aView.current?.clientWidth
-    if (!boxA || !boxB || !W) return
-    // One shared scale that fits the larger element on both axes.
-    const k = Math.min(
-      W / (Math.max(boxA.w, boxB.w) + ZOOM_PAD * 2),
-      height / (Math.max(boxA.h, boxB.h) + ZOOM_PAD * 2),
-      ZOOM_MAX
-    )
-    const place = (box) => ({ k, tx: W / 2 - (box.x + box.w / 2) * k, ty: height / 2 - (box.y + box.h / 2) * k, box })
-    const next = { k, a: place(boxA), b: place(boxB) }
-    const same = (p, q) => p && ['k', 'tx', 'ty'].every((key) => Math.abs(p[key] - q[key]) < 0.01) && ['w', 'h'].every((key) => p.box[key] === q.box[key])
-    if (!views || !same(views.a, next.a) || !same(views.b, next.b)) setViews(next)
-  })
+    function measure() {
+      const boxA = measureLayer(aFrame.current, layerId)
+      const boxB = measureLayer(bFrame.current, layerId)
+      const widthA = aView.current?.clientWidth
+      const widthB = bView.current?.clientWidth
+      if (!boxA || !boxB || !widthA || !widthB) return
+      const k = Math.min(Math.min(widthA, widthB) / (Math.max(boxA.w, boxB.w) + ZOOM_PAD * 2),
+        height / (Math.max(boxA.h, boxB.h) + ZOOM_PAD * 2), ZOOM_MAX)
+      const place = (box, width) => ({ k, tx: width / 2 - (box.x + box.w / 2) * k,
+        ty: height / 2 - (box.y + box.h / 2) * k, box })
+      const next = { k, a: place(boxA, widthA), b: place(boxB, widthB) }
+      setViews((prev) => JSON.stringify(prev) === JSON.stringify(next) ? prev : next)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    for (const el of [aView.current, bView.current, aFrame.current?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`), bFrame.current?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`)]) {
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+  }, [layerId, height, stacked, frame, originalOverride, mergedOverride])
 
   return (
     <div>
@@ -819,27 +826,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   const frame = item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
-  const overrides = {}
-  // Undecided options default to the Current Implementation's value.
-  for (const [layerId, diffs] of Object.entries(layerDiffs)) {
-    for (const diff of diffs) {
-      overrides[layerId] = mergeEffect(overrides[layerId], yieldToExact(diffEffect(diff, resolutions[`${layerId}:${diff.id}`] ?? 'B'), assemblies[layerId]))
-    }
-  }
-  for (const a of annotations) {
-    if (!a.effect) continue
-    for (const t of a.targets ?? []) overrides[t] = mergeEffect(overrides[t], a.effect)
-  }
-
-  for (const [layerId, a] of Object.entries(assemblies)) {
-    const layer = frame?.layers.find((l) => l.id === layerId)
-    const o = layer && assemblyToOverride(a, layer)
-    if (o) overrides[layerId] = mergeOverride(overrides[layerId], o)
-  }
-  for (const [layerId, o] of Object.entries(codeOverrides(item.id, frame, manualCode, getFileLines))) {
-    overrides[layerId] = mergeOverride(overrides[layerId], o)
-  }
-  if (preset) overrides[preset.layerId] = mergeEffect(overrides[preset.layerId], { className: preset.previewClass })
+  const { overrides } = buildOverrides(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, getFileLines)
 
   const activeFile = files.find((f) => f.id === fileId) ?? files[0]
   const lines = activeFile ? getFileLines(activeFile.id) : []
@@ -1148,9 +1135,10 @@ const DISPLAY_STEPS = [{ id: 'compare', label: 'Compare' }, ...WIZARD_STEPS]
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, reviewMarks = {}, onSetReviewMark, onEditInAssemble, initialDriftId, initialStep = 0, onStepChange, onClose, onComplete }) {
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, reviewMarks = {}, onSetReviewMark, onEditInAssemble, initialDriftId, initialStep = 0, onStepChange, onClose, onComplete, onFinalMerge, onEditCode }) {
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
-  const { getFileLines } = useWorkspace()
+  const { getFileLines, conflicts, updateConflict, updateMergeItem } = useWorkspace()
+  const linkedConflicts = conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId)
   const review = useMemo(
     () => buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }),
     [item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines]
@@ -1225,7 +1213,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   useEffect(() => {
     if (run === 'progress' && progress >= PROGRESS_STEPS.length) {
       setRun('success')
-      onComplete()
+      onComplete(reviewerIds)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress, run])
@@ -1296,7 +1284,25 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {run === 'idle' && step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
+          <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged · Local demo</p>
+          {item.tag === 'In Review' && <div className="mb-4 space-y-2">
+            <p className="text-xs text-slate-400">Required approvals · Local demo simulation</p>
+            {(linkedConflicts.length ? linkedConflicts.flatMap((c) => c.reviewers.map((r) => ({ ...r, conflictId: c.id }))) : item.reviewers ?? []).map((r) => (
+              <button key={`${r.conflictId ?? item.id}:${r.id}`} type="button" disabled={r.status === 'approved'} className="mr-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-50" onClick={() => {
+                if (r.conflictId) {
+                  const c = linkedConflicts.find((c) => c.id === r.conflictId)
+                  const next = c.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person)
+                  updateConflict(c.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
+                } else updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person) })
+              }}>{r.status === 'approved' ? 'Approved' : 'Simulate approval'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
+            ))}
+          </div>}
+          {item.tag === 'In Review' && (
+            <button type="button" onClick={() => { if (onFinalMerge()) onClose() }} className="mb-4 rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950">
+              Merge approved changes
+            </button>
+          )}
+          {run === 'idle' && step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} onEditCode={onEditCode} />}
           {run === 'idle' && step === 1 && (
             <PreviewStep
               item={item}

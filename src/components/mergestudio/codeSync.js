@@ -1,4 +1,4 @@
-import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
+import { codeMergeVariants, designMergeVariants, mergeFilesFor, mergeListItems } from '@/data/mockData'
 import { ASSEMBLY_FILLS, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { COPY_FILE_ID, copyEdits } from '@/components/mergestudio/copyFile'
@@ -82,12 +82,22 @@ function lineOverride(original, edited) {
 const PRIMARY_TOKEN = /(--primary|"primary")\s*:/
 const PRIMARY_TYPES = new Set(['button', 'chip', 'toggle'])
 
+export function workspaceCodeEdits(item, getFileLines) {
+  const edits = {}
+  for (const file of mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id))) {
+    getFileLines(file.id).forEach((line, i) => { if (line !== file.lines[i]) edits[`${file.id}:${i + 1}`] = line })
+  }
+  return edits
+}
+
 // Builds per-layer overrides from the edited code. `code` maps `fileId:line`
 // to edited text; each edit is compared with what the Current Implementation
 // already reflects for that line (its incoming text, else the file's own).
 export function codeOverrides(itemId, frame, code, getFileLines) {
   const result = {}
-  if (!frame || !code) return result
+  if (!frame) return result
+  const item = mergeListItems.find((m) => m.id === itemId)
+  code = { ...(item ? workspaceCodeEdits(item, getFileLines) : {}), ...code }
   const spans = designMergeVariants[itemId]?.layerCodeMap ?? {}
   // copy.json lines carry design text: each changed string becomes that
   // layer's text slot.

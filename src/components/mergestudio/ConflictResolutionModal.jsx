@@ -18,6 +18,7 @@ function buildBlocks(item, getFileLines) {
       blocks.push({
         id: `t:${layerId}:${diff.id}`,
         kind: 'token',
+        diffId: diff.id,
         layerId,
         title: `${layer?.name ?? layerId} · ${diff.label}`,
         current: [diff.optionA],
@@ -46,29 +47,6 @@ function buildBlocks(item, getFileLines) {
     }
   }
 
-  if (!blocks.length) {
-    const file = mergeFilesFor(item).find((f) => item.fileIds?.includes(f.id))
-    const lines = file ? getFileLines(file.id) : []
-    // No mock diff data at all for this item — fall back to a realistic,
-    // single-property change (a shared button style token) instead of a
-    // generic multi-line dump, so the block still reads as a real decision.
-    const idx = lines.findIndex((l) => l.includes('<Button'))
-    const line = idx >= 0 ? lines[idx] : (lines[0] ?? '')
-    const incomingLine = line.includes('className=')
-      ? line.replace(/className="[^"]*"/, 'className="rounded-full bg-violet-500"')
-      : line.replace('<Button', '<Button className="rounded-full bg-violet-500"')
-    blocks.push({
-      id: 'c:fallback',
-      kind: 'code',
-      fileId: file?.id,
-      line: idx >= 0 ? idx + 1 : 1,
-      title: `${file?.name ?? 'File'} · line ${idx >= 0 ? idx + 1 : 1}`,
-      current: [line],
-      incoming: [incomingLine],
-      recommended: 'B',
-      reason: 'Matches the shared button style token',
-    })
-  }
   return blocks
 }
 
@@ -116,10 +94,10 @@ function OptionRow({ label, lines, selected, recommended, strong, onSelect }) {
 // jump), Previous / Next, and "Resolve all with AI". Picking a side moves
 // on to the next open conflict; each conflict is also selected on the
 // canvas. Applying the resolution clears the item's conflict.
-function ConflictResolver({ item, onBack, onResolved }) {
+function ConflictResolver({ item, onBack, onResolved, onResolveDiff, onEditCode }) {
   const { getFileLines, updateMergeItem, requestMergeFocus } = useWorkspace()
   const blocks = useMemo(() => buildBlocks(item, getFileLines), [item, getFileLines])
-  const [choices, setChoices] = useState({})
+  const [choices, setChoices] = useState(item.conflictChoices ?? {})
   const [aiApplied, setAiApplied] = useState(false)
   const [active, setActive] = useState(0)
   const resolved = blocks.filter((b) => choices[b.id]).length
@@ -158,9 +136,16 @@ function ConflictResolver({ item, onBack, onResolved }) {
   }
 
   function apply() {
-    updateMergeItem(item.id, { conflictLevel: 'None', updatedLabel: 'Just now' })
+    if (!allDone || !blocks.length) return
+    for (const block of blocks) {
+      if (block.kind === 'token') onResolveDiff?.(block.layerId, block.diffId, choices[block.id])
+      else onEditCode?.(block.fileId, block.line, (choices[block.id] === 'A' ? block.current : block.incoming).join('\n'))
+    }
+    updateMergeItem(item.id, { conflictLevel: 'None', conflictChoices: choices, updatedLabel: 'Just now' })
     onResolved?.()
   }
+
+  if (!b) return <div className="space-y-3 text-sm text-slate-400"><p>No linked conflict blocks are available. This item cannot be resolved without its source data.</p><button onClick={onBack}>Back to Check</button></div>
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-200">

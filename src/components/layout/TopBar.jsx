@@ -29,16 +29,18 @@ function PillDivider() {
 // ("Project / Workspace"), always shown — there's no project sidebar to
 // carry the name instead.
 function ProjectTitle({ project }) {
+  const { draftChanges } = useWorkspace()
   return (
     <div
       className={cn(
-        'absolute top-3 left-3 z-40 flex h-10 max-w-[320px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        'absolute top-3 left-3 z-40 flex h-10 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
         FLOATING_PILL
       )}
     >
       <span className="min-w-0 truncate font-semibold text-foreground">{project?.name}</span>
       <span className="shrink-0 text-muted-foreground/60">/</span>
       <span className="shrink-0 text-muted-foreground">Workspace</span>
+      {Object.keys(draftChanges).length > 0 && <span className="truncate text-[11px] text-amber-300">Draft changes · Not merged</span>}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { signature } from '@/lib/demoStorage'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Blocks } from 'lucide-react'
 import { cn } from 'cn'
@@ -7,7 +8,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
-import { ASSEMBLY_FILLS, diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
+import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
@@ -101,46 +102,51 @@ function MergeStudioWorkspace({ item }) {
     openConflictReview,
     setBottomPanel,
     mergeDrafts,
+    saveMergeDraft,
+    completeMerge,
+    conflicts,
+    updateConflict,
   } = useWorkspace()
-  const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
-  const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
+  const savedDraft = mergeDrafts.current[item?.id] ?? {}
+  const [historyEvents, setHistoryEvents] = useState(savedDraft.historyEvents ?? mergeHistoryEvents)
+  const [currentHistoryId, setCurrentHistoryId] = useState(savedDraft.currentHistoryId ?? mergeHistoryEvents[0].id)
   const [syncSelection, setSyncSelection] = useState(null)
-  const [appliedPreset, setAppliedPreset] = useState(null)
+  const [appliedPreset, setAppliedPreset] = useState(savedDraft.appliedPreset ?? null)
   const [deckOpen, setDeckOpen] = useState(false)
   // The Block Deck collapses into a toggle pill in the canvas header (next
   // to Share); any fresh selection re-expands it.
   const [deckCollapsed, setDeckCollapsed] = useState(false)
   const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
-  const [annotationsSnap, setAnnotationsSnap] = useState([])
+  const [annotationsSnap, setAnnotationsSnap] = useState(savedDraft.annotations ?? [])
   // Block Assemble: per-layer structural edits (shape, size, fill, border,
   // shadow, alignment, icon), previewed live on Option B and bundled into the
   // merge wizard.
-  const [assemblies, setAssemblies] = useState({})
+  const [assemblies, setAssemblies] = useState(savedDraft.assemblies ?? {})
   // Where each Assemble field came from, recorded by the action that wrote
   // it (never inferred from values): { [layerId]: { [field]: source } }
   // with source { kind: 'custom' } for direct edits, or { kind:
   // 'designSystem', component?, token?, tokens? } for Library components
   // and design-system fill tokens. Preview's Final column reads it.
-  const [assemblySources, setAssemblySources] = useState({})
+  const [assemblySources, setAssemblySources] = useState(savedDraft.assemblySources ?? {})
   // Preview's per-item review marks: { [driftId]: signature at review time }.
   // Lives here (not in the wizard, which remounts per open) so reviews
   // survive a round trip to Assemble; see finalValues.reviewStatus.
-  const [reviewMarks, setReviewMarks] = useState({})
+  const [reviewMarks, setReviewMarks] = useState(savedDraft.reviewMarks ?? {})
   // Asks the Block Deck to switch tabs (e.g. Preview's "Edit in Assemble").
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
-  const [addedLayers, setAddedLayers] = useState([])
+  const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
   const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   const [deckFloating, setDeckFloating] = useState(false)
   // Variant Compare state lives here (not in the deck) so choosing — or
   // merely hovering — an option can live-preview on the Option B artboard.
-  const [resolutions, setResolutions] = useState({})
+  const [resolutions, setResolutions] = useState(savedDraft.resolutions ?? {})
   const [hoverDiff, setHoverDiff] = useState(null) // { layerId, diffId, side }
   // Hand-typed code lines from the code window, keyed `fileId:line`. They
   // win over incoming and AI-edited text everywhere the merged code shows.
-  const [manualCode, setManualCode] = useState({})
+  const [manualCode, setManualCode] = useState(savedDraft.manualCode ?? {})
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -155,50 +161,25 @@ function MergeStudioWorkspace({ item }) {
   // Unmerged edits are kept per item (in the project's WorkspaceProvider),
   // so switching items, going back to the Workspace or arriving from a
   // Conflict Point's "Open in Merge Studio" picks up where you left off.
-  const draftRef = useRef(null)
-  draftRef.current = { resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode }
   useEffect(() => {
-    const id = item?.id
-    return () => {
-      // The latest edits on purpose (the ref is data, not a DOM node).
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      if (id) mergeDrafts.current[id] = draftRef.current
-    }
-  }, [item?.id, mergeDrafts])
+    if (item?.id) saveMergeDraft(item.id, {
+      resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode,
+      annotations: annotationsSnap, appliedPreset, syncSelection, historyEvents, currentHistoryId,
+    })
+  }, [item?.id, saveMergeDraft, resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode, annotationsSnap, appliedPreset, syncSelection, historyEvents, currentHistoryId])
 
   useEffect(() => {
     if (!item) return
-    const draft = mergeDrafts.current[item.id]
-    setSyncSelection(null)
-    setAppliedPreset(null)
-    setDeckOpen(false)
-    setMergeModal(null)
-    setResolutions(draft?.resolutions ?? {})
-    setAssemblies(draft?.assemblies ?? {})
-    setAssemblySources(draft?.assemblySources ?? {})
-    setReviewMarks(draft?.reviewMarks ?? {})
-    setAddedLayers(draft?.addedLayers ?? [])
-    setHoverDiff(null)
-    setManualCode(draft?.manualCode ?? {})
-    setLiveCode(null)
-    setCodeReveal(null)
-    // Uniform initialization: every item starts with a default selected element.
     const defLayer = defaultLayerFor(item)
-    if (defLayer) {
-      const t = designMergeVariants[item.id]?.layerCodeMap?.[defLayer]
-      setSyncSelection({
-        layerId: defLayer,
-        fileId: t?.fileId,
-        line: t?.line,
-        endLine: t ? t.line + (t.span ?? 1) - 1 : undefined,
-      })
-    } else {
-      setSyncSelection(defaultLineFor(item))
-    }
+    const t = designMergeVariants[item.id]?.layerCodeMap?.[defLayer]
+    setSyncSelection(savedDraft.syncSelection ?? (defLayer
+      ? { layerId: defLayer, fileId: t?.fileId, line: t?.line, endLine: t ? t.line + (t.span ?? 1) - 1 : undefined }
+      : defaultLineFor(item)))
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
+    // This workspace is keyed by item; switching items mounts its saved draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id])
+  }, [])
 
   // A layer's code block: its `layerCodeMap` span, else (for text-bearing
   // layers with no other code link) its lines in Merge Studio's copy.json.
@@ -221,7 +202,6 @@ function MergeStudioWorkspace({ item }) {
       line: target?.line,
       endLine: target ? target.line + (target.span ?? 1) - 1 : undefined,
     })
-    setAppliedPreset(null)
     if (openDeck) setDeckOpen(true)
     // copy.json is Merge Studio-only; never hand it to the main workspace.
     if (target?.fileId && target.fileId !== COPY_FILE_ID) setActiveFileId(target.fileId)
@@ -229,7 +209,6 @@ function MergeStudioWorkspace({ item }) {
 
   function selectFrame() {
     // Keep the current selection so the Block Deck still has a target.
-    setAppliedPreset(null)
     setDeckOpen(true)
   }
 
@@ -251,7 +230,6 @@ function MergeStudioWorkspace({ item }) {
         ? { layerId, fileId: t.fileId, line: t.line, endLine: t.line + (t.span ?? 1) - 1 }
         : { layerId: undefined, fileId, line, endLine: line }
     )
-    setAppliedPreset(null)
     if (openDeck) setDeckOpen(true)
   }
 
@@ -260,8 +238,8 @@ function MergeStudioWorkspace({ item }) {
   // preset, and the canvas annotations.
   function openWizard(annotations = annotationsSnap, step = 0) {
     const preset =
-      appliedPreset && syncSelection?.layerId
-        ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+      appliedPreset?.layerId
+        ? appliedPreset
         : null
     setMergeModal({ annotations, step, preset })
   }
@@ -315,15 +293,11 @@ function MergeStudioWorkspace({ item }) {
   }
 
   // A direct Assemble edit: every field it writes is the user's own
-  // (`custom`) — except a fill swatch, which applies a design-system token.
+  // (`custom`), including the ordinary color palette.
   function assemble(layerId, patch) {
     setAssemblies((prev) => ({ ...prev, [layerId]: { ...prev[layerId], ...patch } }))
-    const keys = Object.keys(patch)
-    recordSources(layerId, keys.filter((k) => k !== 'fill'), { kind: 'custom', detail: 'Assemble' })
-    if (patch.fill) {
-      const token = ASSEMBLY_FILLS.find((f) => f.id === patch.fill)?.token
-      recordSources(layerId, ['fill'], token ? { kind: 'designSystem', token } : { kind: 'custom', detail: 'Assemble' })
-    }
+    const keys = Object.keys(patch).filter((key) => signature(assemblies[layerId]?.[key]) !== signature(patch[key]))
+    if (keys.length) recordSources(layerId, keys, { kind: 'custom', detail: 'Assemble' })
   }
 
   function resetAssembly(layerId) {
@@ -407,7 +381,7 @@ function MergeStudioWorkspace({ item }) {
     setAssemblies((prev) => ({ ...prev, [selectedLayer.id]: next }))
     // Every field now comes from this Library component (the assembly is
     // replaced wholesale), with its real name and token list.
-    recordSources(selectedLayer.id, Object.keys(next), { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
+    recordSources(selectedLayer.id, ['component', ...Object.keys(next)], { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
   }
 
   // Insert: drop a component into the selected container element.
@@ -439,9 +413,8 @@ function MergeStudioWorkspace({ item }) {
     }
     setAddedLayers((prev) => [...prev, layer])
     setAssemblies((prev) => ({ ...prev, [layer.id]: { ...def.assembly } }))
-    recordSources(layer.id, Object.keys(def.assembly ?? {}), { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
+    recordSources(layer.id, ['component', ...Object.keys(def.assembly ?? {})], { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
     setSyncSelection({ layerId: layer.id })
-    setAppliedPreset(null)
   }
 
   // Placement mode for a Library component: { def, mode: 'click' | 'drag' }.
@@ -579,7 +552,7 @@ function MergeStudioWorkspace({ item }) {
   }, [selId])
   const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
   const copy = copyFile(frame0)
-  const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
+  const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)).map((f) => ({ ...f, lines: getFileLines(f.id) })), ...(copy ? [copy] : [])] : []
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
@@ -713,6 +686,7 @@ function MergeStudioWorkspace({ item }) {
           onEditText={editText}
           codeReveal={codeReveal}
           onUndoChange={undoChange}
+          annotations={annotationsSnap}
           onAnnotationsChange={setAnnotationsSnap}
           onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
@@ -782,7 +756,7 @@ function MergeStudioWorkspace({ item }) {
           onAddComponent={(def) => setPlacing({ def, mode: 'click' })}
           onDragComponent={(def) => setPlacing({ def, mode: 'drag' })}
           onInsertComponent={insertComponent}
-          onApplyPreset={setAppliedPreset}
+          onApplyPreset={(preset) => setAppliedPreset(preset ? { ...preset, layerId: deckLayerId } : null)}
           tabRequest={deckTabRequest}
         />
       )}
@@ -819,7 +793,15 @@ function MergeStudioWorkspace({ item }) {
           // Opening the PR hands the item to its reviewers: it reads
           // "In Review" in the Merge List until it's approved (merging and
           // deploying happen after approval, outside this flow).
-          onComplete={() => updateMergeItem(item.id, { tag: 'In Review', updatedLabel: 'Just now' })}
+          onComplete={(reviewerIds) => {
+            updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => ({ id, status: 'pending' })), updatedLabel: 'Just now' })
+            for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
+              const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
+              updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
+            }
+          }}
+          onFinalMerge={() => completeMerge(item.id)}
+          onEditCode={editCodeLine}
         />
       )}
 
@@ -853,8 +835,8 @@ function MergeStudioWorkspace({ item }) {
           resolutions={resolutions}
           annotations={annotationsSnap}
           preset={
-            appliedPreset && syncSelection?.layerId
-              ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+            appliedPreset?.layerId
+              ? appliedPreset
               : null
           }
           assemblies={assemblies}

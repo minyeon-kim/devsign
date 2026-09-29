@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useDemoState } from '@/state/useDemoState'
+import { createContext, useCallback, useContext, useMemo } from 'react'
 import { allConflictRecords } from '@/lib/conflicts'
 
 // App-level store for every project's Conflict Points — the single source
@@ -13,15 +14,13 @@ import { allConflictRecords } from '@/lib/conflicts'
 
 const ConflictStoreContext = createContext(null)
 
-let seq = 0
 function nextEventId() {
-  seq += 1
-  return `ev-${seq}`
+  return `ev-${crypto.randomUUID()}`
 }
 
 export function ConflictStoreProvider({ children }) {
-  const [conflicts, setConflicts] = useState(allConflictRecords)
-  const [events, setEvents] = useState([])
+  const [conflicts, setConflicts] = useDemoState('conflicts', allConflictRecords)
+  const [events, setEvents] = useDemoState('events', [])
 
   // Replace one project's conflicts (value or updater over that project's
   // list), keeping every other project's — and the overall order — intact.
@@ -36,11 +35,11 @@ export function ConflictStoreProvider({ children }) {
       const added = next.filter((c) => !prev.some((p) => p.id === c.id))
       return [...kept, ...added]
     })
-  }, [])
+  }, [setConflicts])
 
   const logEvent = useCallback((event) => {
     setEvents((prev) => [{ id: nextEventId(), timeLabel: 'Just now', ...event }, ...prev])
-  }, [])
+  }, [setEvents])
 
   const value = useMemo(
     () => ({ conflicts, setProjectConflicts, events, logEvent }),

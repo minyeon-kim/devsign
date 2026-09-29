@@ -1507,6 +1507,7 @@ function MergeInfiniteCanvas({
   onEditText,
   codeReveal,
   onUndoChange,
+  annotations = [],
   onAnnotationsChange,
   stage = 'compare',
   onMerge,
@@ -1559,7 +1560,7 @@ function MergeInfiniteCanvas({
   const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
-  const [annotations, setAnnotations] = useState([])
+  const setAnnotations = onAnnotationsChange
   // Resolved drifts + applied AI notes: the Merge Changes button's count.
   const mergeCount = resolutionCount + annotations.filter((a) => a.status === 'done').length
   const [openNote, setOpenNote] = useState(null)
@@ -1644,7 +1645,6 @@ function MergeInfiniteCanvas({
     setHover(null)
     setFrameSel(null)
     setAiStage(null)
-    setAnnotations([])
     setOpenNote(null)
     setDriftIdx(-1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1906,9 +1906,7 @@ function MergeInfiniteCanvas({
 
   // Share the annotation list upward so the Block Deck's merge button can
   // bundle it into the wizard.
-  useEffect(() => {
-    onAnnotationsChange?.(annotations)
-  }, [annotations, onAnnotationsChange])
+
 
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
@@ -2245,7 +2243,7 @@ function MergeInfiniteCanvas({
     }
   }
   const selId = syncSelection?.layerId
-  if (selId && appliedPreset) overrides[selId] = { ...overrides[selId], className: appliedPreset.previewClass }
+  if (appliedPreset?.layerId) overrides[appliedPreset.layerId] = { ...overrides[appliedPreset.layerId], className: appliedPreset.previewClass }
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
@@ -2765,8 +2763,8 @@ function MergeInfiniteCanvas({
 
         {stage === 'compare' && (() => {
           const presetObj =
-            appliedPreset && syncSelection?.layerId
-              ? { layerId: syncSelection.layerId, label: appliedPreset.label, previewClass: appliedPreset.previewClass }
+            appliedPreset?.layerId
+              ? appliedPreset
               : null
           const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {}, files.filter((f) => f.id === COPY_FILE_ID))
           const entries = [

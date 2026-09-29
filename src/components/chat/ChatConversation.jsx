@@ -120,7 +120,7 @@ function TargetChip({ target, options, onPick }) {
 const RESULT_STATUS = {
   done: { label: 'Done', icon: Check, className: 'text-emerald-400' },
   partial: { label: 'Partially done', icon: CircleAlert, className: 'text-amber-400' },
-  no_change: { label: 'No change', icon: CircleMinus, className: 'text-muted-foreground' },
+  no_change: { label: 'No changes made', icon: CircleMinus, className: 'text-muted-foreground' },
   failed: { label: 'Failed', icon: X, className: 'text-destructive' },
 }
 
@@ -150,6 +150,7 @@ function ResultCard({ result }) {
       {changed && (
         <>
           <p className="mt-1 font-medium text-foreground">{result.title}</p>
+          <p className="mt-1 text-[11px] text-amber-300">Draft changes · Not merged</p>
           <ul className="mt-1.5 space-y-1">
             {result.changes.map((c, i) => (
               <li key={i} className="text-[11px] text-foreground/80">
@@ -311,7 +312,7 @@ function ChatConversation() {
                 {message.target.label}
               </span>
             )}
-            {message.result && message.result.status !== 'no_change' && <ResultCard result={message.result} />}
+            {message.result && <ResultCard result={message.result} />}
             {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
           </div>
         ))}

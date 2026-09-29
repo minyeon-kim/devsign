@@ -1,3 +1,8 @@
+import { mergeBlockReason } from '@/lib/mergePolicy'
+import { buildOverrides } from '@/components/mergestudio/mergeSummary'
+import { codeMergeVariants } from '@/data/mockData'
+import { useDemoState } from '@/state/useDemoState'
+import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -47,10 +52,8 @@ const REMOTE_VIEWPORT_INTERVAL = 20000
 
 const WorkspaceContext = createContext(null)
 
-let uid = 0
 function nextId(prefix) {
-  uid += 1
-  return `${prefix}-${uid}`
+  return `${prefix}-${crypto.randomUUID()}`
 }
 
 const DEFAULT_PREVIEW_PROPS = {
@@ -79,8 +82,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // Code files brought in with Import (see importFiles) join the file tree
   // and editor like any other file; design files (Figma, Illustrator,
   // images) land in `importedAssets` instead.
-  const [importedFiles, setImportedFiles] = useState([])
-  const [importedAssets, setImportedAssets] = useState([])
+  const [importedFiles, setImportedFiles] = useDemoState(`project:${projectId}:importedFiles`, [])
+  const [importedAssets, setImportedAssets] = useDemoState(`project:${projectId}:importedAssets`, [])
   // The canvas pages' code files (src/prototype/*.jsx) are part of every
   // project's tree: generated from — and parsed back into — the canvas
   // (see lib/prototypeSync), so design and code stay in sync both ways.
@@ -95,7 +98,7 @@ export function WorkspaceProvider({ children, projectId }) {
     () => [...baseFiles, ...projectPrototypeFiles, ...importedFiles],
     [baseFiles, projectPrototypeFiles, importedFiles]
   )
-  const [prototypeEdits, setPrototypeEdits] = useState({})
+  const [prototypeEdits, setPrototypeEdits] = useDemoState(`project:${projectId}:prototypeEdits`, {})
   // A line the editor should briefly highlight and scroll to — the code a
   // canvas edit or selection just touched: { fileId, line, nonce }.
   const [codeFlash, setCodeFlash] = useState(null)
@@ -111,8 +114,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // file — from the tree, the canvas, an AI edit, a rollback — joins them.
   const [openFileIds, setOpenFileIds] = useState(() => files.slice(0, 2).map((f) => f.id))
   if (activeFileId && !openFileIds.includes(activeFileId)) setOpenFileIds([...openFileIds, activeFileId])
-  const [fileOverrides, setFileOverrides] = useState({})
-  const [fileNameOverrides, setFileNameOverrides] = useState({})
+  const [fileOverrides, setFileOverrides] = useDemoState(`project:${projectId}:fileOverrides`, {})
+  const [fileNameOverrides, setFileNameOverrides] = useDemoState(`project:${projectId}:fileNameOverrides`, {})
   const [selectedLayerId, setSelectedLayerId] = useState(null)
   const [terminalEntries, setTerminalEntries] = useState(() =>
     seedTerminalLogLines.map((text) => ({ id: nextId('t'), text }))
@@ -137,8 +140,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // Design System Update → Documentation → History (see
   // lib/designSystemUpdates): the updates, and the Reference Docs the
   // documented ones generated (shown in the Archive beside the static docs).
-  const [dsUpdates, setDsUpdates] = useState(() => seedDsUpdates(projectId))
-  const [generatedDocs, setGeneratedDocs] = useState(() =>
+  const [dsUpdates, setDsUpdates] = useDemoState(`project:${projectId}:dsUpdates`, () => seedDsUpdates(projectId))
+  const [generatedDocs, setGeneratedDocs] = useDemoState(`project:${projectId}:generatedDocs`, () =>
     seedDsUpdates(projectId)
       .filter((u) => u.stage !== 'update')
       .map(docForUpdate)
@@ -156,7 +159,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Assemble edits made from the navigator's Assets view (Block Deck's
   // Assemble, outside Merge Studio): { [layerId]: assembly }. Kept here so
   // they survive switching navigator tabs; `null` resets a layer.
-  const [assetAssemblies, setAssetAssemblies] = useState({})
+  const [assetAssemblies, setAssetAssemblies] = useDemoState(`project:${projectId}:assetAssemblies`, {})
   const assembleAsset = useCallback(
     (layerId, patch) =>
       setAssetAssemblies((prev) => {
@@ -167,14 +170,14 @@ export function WorkspaceProvider({ children, projectId }) {
       }),
     []
   )
-  const [chatMessages, setChatMessages] = useState(initialChatMessages)
+  const [chatMessages, setChatMessages] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
-  const [previewProps, setPreviewProps] = useState(DEFAULT_PREVIEW_PROPS)
+  const [previewProps, setPreviewProps] = useDemoState(`project:${projectId}:previewProps`, DEFAULT_PREVIEW_PROPS)
   const [comments, setComments] = useState(seedComments)
   const historySeed = projectHistorySeeds[projectId] ?? initialHistoryEntries
-  const [historyEntries, setHistoryEntries] = useState(historySeed)
-  const [activeHistoryId, setActiveHistoryId] = useState(historySeed[historySeed.length - 1]?.id ?? null)
+  const [historyEntries, setHistoryEntries] = useDemoState(`project:${projectId}:historyEntries`, historySeed)
+  const [activeHistoryId, setActiveHistoryId] = useDemoState(`project:${projectId}:activeHistoryId`, historySeed[historySeed.length - 1]?.id ?? null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   // Which design "page"/file the Canvas file-tab bar has open — shared here
   // (not local to CanvasPanel) so the Layers panel's frame tree stays in
@@ -196,13 +199,17 @@ export function WorkspaceProvider({ children, projectId }) {
   // dockview — Merge Studio's "Merge List" sidebar + workspace is its own
   // screen, not another dockable panel.
   const [activeView, setActiveView] = useState('workspace')
-  const [mergeItems, setMergeItems] = useState(() => forProject(seedMergeListItems, projectId))
-  const [selectedMergeItemId, setSelectedMergeItemId] = useState(null)
+  const [mergeItems, setMergeItems] = useDemoState(`project:${projectId}:mergeItems`, () => forProject(seedMergeListItems, projectId))
+  // Recreate only dynamically registered demo variants after reload.
+  useMemo(() => {
+    for (const item of mergeItems) if (item.category === 'Workspace') registerMergeVariants(item.id, item.designPageId)
+  }, [mergeItems])
+  const [selectedMergeItemId, setSelectedMergeItemId] = useDemoState(`project:${projectId}:selectedMergeItemId`, null)
   // Merge Studio collaboration: which right-hand drawer is open, the inbox,
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
   // Merge Studio's feed plus this project's Conflict Points items.
-  const [notifications, setNotifications] = useState(() => [
+  const [notifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
     ...conflictNotifications.filter((n) => n.projectId === projectId),
     ...seedMergeNotifications,
   ])
@@ -215,7 +222,25 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
-  const mergeDrafts = useRef({})
+  const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, {}))
+  const saveMergeDraft = useCallback((id, draft) => {
+    const content = (d = {}) => ({ resolutions: d.resolutions ?? {}, assemblies: d.assemblies ?? {},
+      assemblySources: d.assemblySources ?? {}, addedLayers: d.addedLayers ?? [], manualCode: d.manualCode ?? {},
+      annotations: (d.annotations ?? []).filter((a) => a.status === 'done').map(({ effect, targets, fileId, line, summary }) => ({ effect, targets, fileId, line, summary })),
+      preset: d.appliedPreset ?? null })
+    if (signature(content(mergeDrafts.current[id])) !== signature(content(draft))) {
+      setConflicts((prev) => prev.map((c) => c.mergeItemId === id ? {
+        ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected',
+        reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+      } : c))
+      setMergeItems((prev) => prev.map((m) => m.id === id ? { ...m, tag: 'In Review', reviewers: m.reviewers?.map((r) => ({ ...r, status: 'pending' })) } : m))
+    }
+    mergeDrafts.current[id] = draft
+    writeDemo(`project:${projectId}:mergeDrafts`, mergeDrafts.current)
+  }, [projectId, setConflicts])
+  // Baseline moves only in the shared final merge operation, never on AI edits.
+  const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
+  const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
@@ -340,15 +365,6 @@ export function WorkspaceProvider({ children, projectId }) {
     },
     []
   )
-
-  // Finalizes a merge item: marks it Merged and clears its conflict level.
-  const completeMerge = useCallback((id) => {
-    setMergeItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' } : item
-      )
-    )
-  }, [])
 
   // "Start New with Current Work" — snapshots whatever's open in the editor
   // right now into a fresh Merge List entry, selects it, and enters Merge
@@ -537,65 +553,62 @@ export function WorkspaceProvider({ children, projectId }) {
     [activeFileId, fileOverrides, files, previewProps, conflicts, selectedLayerId]
   )
 
-  // Merging — the review workflow's final step (the existing policy: only
-  // an Approved conflict whose every required reviewer signed off can be
-  // merged). Merging is when its fix (if Devsign has one for it) is finally
-  // applied to the workspace — never on approval — and it's recorded as a
-  // History checkpoint titled by the change, with who approved and merged.
-  // Merged conflicts stay in the list (as Merged) for the audit trail.
-  // Returns whether it merged.
-  const resolveConflict = useCallback(
-    (conflictId) => {
-      const conflict = conflicts.find((c) => c.id === conflictId)
-      if (!conflict || conflict.reviewStage !== 'approved' || !allReviewersApproved(conflict)) {
-        toast("Can't merge yet", { description: 'Every required reviewer has to approve first.' })
-        return false
+  // One final commit operation for both UI entry points. Approval never calls it.
+  const commitMerge = useCallback(({ conflictId, itemId }) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    const item = mergeItems.find((m) => m.id === (itemId ?? conflict?.mergeItemId))
+    const related = item ? conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId) : conflict ? [conflict] : []
+    if (!item && !conflict) return false
+    const draft = mergeDrafts.current[item?.id] ?? {}
+    const finalFiles = {}
+    const fix = conflict && aiEditScenarios.find((sc) => sc.resolvesConflictId === conflict.id && (!sc.projectId || sc.projectId === projectId))
+    if (item) {
+      for (const fileId of item.fileIds ?? []) {
+        const incoming = new Map((codeMergeVariants[item.id]?.[fileId] ?? []).map((d) => [d.line, d.incoming]))
+        const ai = new Map((draft.annotations ?? []).filter((a) => a.status === 'done' && a.fileId === fileId).map((a) => [a.line, a.summary]))
+        const base = fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? []
+        finalFiles[fileId] = base.map((line, i) => draft.manualCode?.[`${fileId}:${i + 1}`] ?? (incoming.get(i + 1) ?? line) + (ai.has(i + 1) ? `  // AI: ${ai.get(i + 1)}` : ''))
       }
-      const fix = aiEditScenarios.find((sc) => sc.resolvesConflictId === conflictId && (!sc.projectId || sc.projectId === projectId))
-      const nextConflicts = conflicts.map((c) =>
-        c.id === conflictId
-          ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id }
-          : c
-      )
-      const nextPreviewProps = fix ? { ...previewProps, ...(fix.previewProps ?? {}) } : previewProps
-      setConflicts(nextConflicts)
-      if (fix) {
-        setFileOverrides((prev) => ({ ...prev, [fix.fileId]: fix.lines }))
-        setActiveFileIdState(fix.fileId)
-        setPreviewProps(nextPreviewProps)
-        setPreviewVersion((v) => v + 1)
-      }
-      const base = currentSnapshot()
-      const approvedBy = conflict.reviewers.filter((r) => r.status === 'approved').map((r) => r.id)
-      recordHistory({
-        label: conflict.mergeTitle ?? `Merged ${conflict.title}`,
-        kind: 'merge',
-        actorId: currentUser.id,
-        target: conflict.file,
-        approvedBy,
-        timestamp: timeLabel(),
-        conflictId,
-        snapshot: {
-          ...base,
-          ...(fix && { activeFileId: fix.fileId, fileId: fix.fileId, lines: fix.lines }),
-          previewProps: nextPreviewProps,
-          conflicts: nextConflicts,
-        },
-      })
-      logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
-      appendTerminalLines([
-        `$ devsign merge "${conflict.title}"`,
-        ...(fix ? ['[HMR] approved change applied'] : []),
-        '✓ merged · checkpoint saved to History',
-      ])
-      // A merged conflict is a design system change: it enters the
-      // Design System Update → Documentation → History pipeline.
-      const update = updateFromConflict(conflict, projectId)
-      setDsUpdates((prev) => (prev.some((u) => u.id === update.id) ? prev : [update, ...prev]))
-      return true
-    },
-    [appendTerminalLines, conflicts, currentSnapshot, logEvent, previewProps, projectId, recordHistory, setConflicts]
-  )
+    } else if (fix) {
+      finalFiles[fix.fileId] = draftChanges[fix.fileId] ? fileOverrides[fix.fileId] : fix.lines
+    }
+    const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
+    if (reason) { toast("Can't merge yet", { description: reason }); return false }
+    const mergedIds = new Set(related.map((c) => c.id))
+    const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
+      ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id } : c)
+    const preset = draft.appliedPreset ?? null
+    const design = item ? buildOverrides(item, draft.resolutions, draft.annotations, preset, draft.assemblies, draft.addedLayers, draft.manualCode,
+      (id) => fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []) : null
+    const nextPreviewProps = !item && fix ? { ...previewProps, ...fix.previewProps } : previewProps
+    const output = { savedAt: Date.now(), files: finalFiles, design, sources: draft.assemblySources ?? {}, previewProps: nextPreviewProps }
+    setMergedBaseline((prev) => ({ ...prev, [item?.id ?? conflictId]: output }))
+    setFileOverrides((prev) => ({ ...prev, ...finalFiles }))
+    if (design) setPrototypeEdits((prev) => {
+      const next = { ...prev }
+      for (const [layerId, override] of Object.entries(design.overrides)) next[layerId] = { merged: override }
+      return next
+    })
+    setPreviewProps(nextPreviewProps)
+    setPreviewVersion((v) => v + 1)
+    setConflicts(nextConflicts)
+    if (item) updateMergeItem(item.id, { tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' })
+    setDraftChanges((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !Object.hasOwn(finalFiles, id))))
+    const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
+    recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap((c) => c.reviewers) : item.reviewers).map((r) => r.id))],
+      snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps } })
+    for (const c of related) {
+      logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
+      const update = updateFromConflict(c, projectId)
+      setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [update, ...prev])
+    }
+    if (!related.length) logEvent({ kind: 'merge', projectId, actorId: currentUser.id, title: item.title })
+    appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
+    return true
+  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines])
+  const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
+  const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
 
   // Your own sign-off on a conflict in review (approving never changes
   // code). You approve as yourself only; it moves to Approved when every
@@ -842,6 +855,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // `result`: done / partial / no change, what changed where, and which
   // Conflict Points now need review. Only an actual change writes files and
   // becomes a History checkpoint — titled by the change, not the reply.
+  const aiStateRef = useRef(null)
+  aiStateRef.current = { fileOverrides, previewProps, conflicts }
   const sendChatMessage = useCallback(
     (text, target = null) => {
       const trimmed = text.trim()
@@ -869,19 +884,30 @@ export function WorkspaceProvider({ children, projectId }) {
           return
         }
 
+        const live = aiStateRef.current
+        const currentLines = live.fileOverrides[scenario.fileId] ?? files.find((f) => f.id === scenario.fileId)?.lines ?? []
+        if (!Array.isArray(scenario.lines) || scenario.lines.some((line) => typeof line !== 'string')) {
+          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: 'The demo could not apply this code. Try a supported request or edit the target in Assemble.', result: { status: 'failed', target } }])
+          return
+        }
+        if (signature(currentLines) === signature(scenario.lines) && Object.entries(scenario.previewProps ?? {}).every(([key, value]) => signature(live.previewProps[key]) === signature(value))) {
+          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: 'The target already matches this result. No files or approvals were changed.', result: { status: 'no_change', target } }])
+          return
+        }
+        const { fileOverrides, previewProps, conflicts } = live
         const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
         const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
         // A fix for a conflict point doesn't close it: the conflict goes
         // (back) into review, and only its reviewers' sign-off merges it.
         const reopened = scenario.resolvesConflictId
-          ? conflicts.find((c) => c.id === scenario.resolvesConflictId && c.reviewStage !== 'resolved')
+          ? conflicts.find((c) => c.id === scenario.resolvesConflictId)
           : null
         const nextConflicts = reopened
           ? conflicts.map((c) =>
               c.id === reopened.id
                 ? {
                     ...c,
-                    reviewStage: c.reviewers.length ? 'in_review' : c.reviewStage,
+                    reviewStage: c.reviewers.length ? 'in_review' : 'detected',
                     reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
                     // The change under review is now the AI's.
                     changedBy: { type: 'ai', what: `${scenario.title} (requested by ${currentUser.name} in AI chat)` },
@@ -890,6 +916,10 @@ export function WorkspaceProvider({ children, projectId }) {
             )
           : conflicts
 
+        setDraftChanges((prev) => ({ ...prev, [scenario.fileId]: { conflictId: reopened?.id, title: scenario.title } }))
+        if (reopened?.mergeItemId) updateMergeItem(reopened.mergeItemId, { tag: 'In Review', updatedLabel: 'Just now' })
+        // Include the just-applied result even if a second request finishes before React renders.
+        aiStateRef.current = { fileOverrides: nextFileOverrides, previewProps: nextPreviewProps, conflicts: nextConflicts }
         setFileOverrides(nextFileOverrides)
         setActiveFileIdState(scenario.fileId)
         setPreviewProps(nextPreviewProps)
@@ -1103,6 +1133,9 @@ export function WorkspaceProvider({ children, projectId }) {
     mergeItems,
     selectedMergeItemId,
     mergeDrafts,
+    saveMergeDraft,
+    draftChanges,
+    mergedBaseline,
     setSelectedMergeItemId,
     openMergeStudio,
     exitMergeStudio,
