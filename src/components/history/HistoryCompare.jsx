@@ -7,6 +7,7 @@ import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelConten
 import SplitHandle from '@/components/layout/SplitHandle'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
+import { historyMeta } from '@/lib/historyMeta'
 
 const ROW_TONES = {
   same: 'text-slate-500',
@@ -103,6 +104,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
             {entry.label}
           </p>
+          {historyMeta(entry) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry)}</p>}
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
             <GitCompareArrows className="size-3" />
             {isCurrent ? (

@@ -5,7 +5,7 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { isOpen } from '@/lib/conflicts'
+import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const TABS = [
@@ -33,7 +33,7 @@ function WorkspaceBottomPanel() {
   const rootRef = useRef(null)
   // The height to go back to while maximized (null = not maximized).
   const [restoreHeight, setRestoreHeight] = useState(null)
-  const openConflicts = conflicts.filter(isOpen).length
+  const { open: openConflicts, needsMyReview } = conflictCounts(conflicts)
 
   function maxHeight() {
     const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
@@ -110,12 +110,27 @@ function WorkspaceBottomPanel() {
             <Icon className="size-3.5" />
             {label}
             {id === 'conflict' && openConflicts > 0 && (
-              <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] leading-4 font-semibold text-amber-300 tabular-nums">
+              <span
+                title={`${openConflicts} open`}
+                className="rounded-full bg-white/[0.08] px-1.5 text-[10px] leading-4 font-semibold text-slate-300 tabular-nums"
+              >
                 {openConflicts}
               </span>
             )}
           </button>
         ))}
+        {/* Your share of the open ones, kept apart from the total: jumps to
+            the Conflict Points list filtered to what needs your review. */}
+        {needsMyReview > 0 && (
+          <button
+            type="button"
+            onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
+            className="ml-1 inline-flex h-6 items-center gap-1.5 rounded-full bg-sky-400/10 px-2.5 text-[11px] font-medium text-sky-300 transition-colors hover:bg-sky-400/20"
+          >
+            <span className="size-1.5 rounded-full bg-sky-400" />
+            Needs your review · {needsMyReview}
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleMaximize}

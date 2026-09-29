@@ -1,13 +1,16 @@
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import ProjectsSection from '@/components/dashboard/ProjectsSection'
+import ReviewQueue from '@/components/dashboard/ReviewQueue'
 
-// Home: the project hub. One clean grid of every project (with create,
-// grid/list and bulk select) to pick where to work — no dashboard widgets.
+// Home: what needs you first (Your queue — reviews you owe, high-risk
+// items, approved changes waiting to merge), then the project hub: one
+// grid of every project (with create, grid/list and bulk select).
 // Opening a project lands on its overview. It replaces the separate All
 // projects page, which now redirects here.
 function DashboardPage() {
   return (
     <DashboardLayout>
+      <ReviewQueue />
       <ProjectsSection />
     </DashboardLayout>
   )

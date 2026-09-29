@@ -11,8 +11,11 @@ import {
   consoleLogLines as seedConsoleLogLines,
   currentUser,
   findCanvasTarget,
+  forProject,
   initialChatMessages,
   initialHistoryEntries,
+  projectHistorySeeds,
+  projectViewportSequences,
   mergeListItems as seedMergeListItems,
   registerMergeVariants,
   seedMergeNotifications,
@@ -22,7 +25,8 @@ import {
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
 } from '@/data/mockData'
-import { allReviewersApproved, projectConflictRecords, toConflictRecord } from '@/lib/conflicts'
+import { allReviewersApproved, toConflictRecord } from '@/lib/conflicts'
+import { useConflictStore } from '@/state/ConflictStore'
 import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUpdates'
 import { importKind } from '@/lib/importFiles'
 import {
@@ -80,7 +84,17 @@ export function WorkspaceProvider({ children, projectId }) {
   // The canvas pages' code files (src/prototype/*.jsx) are part of every
   // project's tree: generated from — and parsed back into — the canvas
   // (see lib/prototypeSync), so design and code stay in sync both ways.
-  const files = useMemo(() => [...baseFiles, ...PROTOTYPE_FILES, ...importedFiles], [baseFiles, importedFiles])
+  // This project's design pages (its own, or the shared ones — see
+  // forProject) and, with them, which page code files it has.
+  const projectPages = useMemo(() => forProject(canvasPages, projectId), [projectId])
+  const projectPrototypeFiles = useMemo(
+    () => PROTOTYPE_FILES.filter((f) => projectPages.some((p) => p.id === f.pageId)),
+    [projectPages]
+  )
+  const files = useMemo(
+    () => [...baseFiles, ...projectPrototypeFiles, ...importedFiles],
+    [baseFiles, projectPrototypeFiles, importedFiles]
+  )
   const [prototypeEdits, setPrototypeEdits] = useState({})
   // A line the editor should briefly highlight and scroll to — the code a
   // canvas edit or selection just touched: { fileId, line, nonce }.
@@ -106,9 +120,16 @@ export function WorkspaceProvider({ children, projectId }) {
   const [consoleEntries] = useState(() =>
     seedConsoleLogLines.map((text) => ({ id: nextId('c'), text }))
   )
-  // This project's conflicts — the list behind the Workspace bottom
-  // panel's Conflict Points tab (the one place conflicts are resolved).
-  const [conflicts, setConflicts] = useState(() => projectConflictRecords(projectId))
+  // This project's conflicts — its slice of the app-level ConflictStore
+  // (so the Dashboard sees every review / merge made here). `setConflicts`
+  // takes a value or an updater over this project's list only.
+  const conflictStore = useConflictStore()
+  const { setProjectConflicts, logEvent } = conflictStore
+  const conflicts = useMemo(
+    () => conflictStore.conflicts.filter((c) => c.projectId === projectId),
+    [conflictStore.conflicts, projectId]
+  )
+  const setConflicts = useCallback((updater) => setProjectConflicts(projectId, updater), [setProjectConflicts, projectId])
   // The conflict open in the review window (ConflictReviewHost). One per
   // workspace, so opening a conflict from the drawer or the terminal
   // always reuses the same window instead of stacking a second one.
@@ -137,15 +158,14 @@ export function WorkspaceProvider({ children, projectId }) {
   const [previewVersion, setPreviewVersion] = useState(0)
   const [previewProps, setPreviewProps] = useState(DEFAULT_PREVIEW_PROPS)
   const [comments, setComments] = useState(seedComments)
-  const [historyEntries, setHistoryEntries] = useState(initialHistoryEntries)
-  const [activeHistoryId, setActiveHistoryId] = useState(
-    initialHistoryEntries[initialHistoryEntries.length - 1]?.id ?? null
-  )
+  const historySeed = projectHistorySeeds[projectId] ?? initialHistoryEntries
+  const [historyEntries, setHistoryEntries] = useState(historySeed)
+  const [activeHistoryId, setActiveHistoryId] = useState(historySeed[historySeed.length - 1]?.id ?? null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   // Which design "page"/file the Canvas file-tab bar has open — shared here
   // (not local to CanvasPanel) so the Layers panel's frame tree stays in
   // sync with whichever page is active.
-  const [activePageId, setActivePageId] = useState(canvasPages[0]?.id ?? null)
+  const [activePageId, setActivePageId] = useState(() => forProject(canvasPages, projectId)[0]?.id ?? null)
   // The dockview API, handed up once DockLayout's onReady fires — stored
   // here (rather than only as App-local state) so any panel deep in the
   // tree (Canvas, Editor) can open/focus dockview panels itself, e.g. to
@@ -162,7 +182,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // dockview — Merge Studio's "Merge List" sidebar + workspace is its own
   // screen, not another dockable panel.
   const [activeView, setActiveView] = useState('workspace')
-  const [mergeItems, setMergeItems] = useState(seedMergeListItems)
+  const [mergeItems, setMergeItems] = useState(() => forProject(seedMergeListItems, projectId))
   const [selectedMergeItemId, setSelectedMergeItemId] = useState(null)
   // Merge Studio collaboration: which right-hand drawer is open, the inbox,
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
@@ -172,7 +192,16 @@ export function WorkspaceProvider({ children, projectId }) {
     ...conflictNotifications.filter((n) => n.projectId === projectId),
     ...seedMergeNotifications,
   ])
+  // The AI chat's unsent draft and an explicitly picked request target,
+  // kept here (not in the chat pane) so collapsing the pane or switching
+  // tabs never loses them (see ChatConversation).
+  const [chatDraft, setChatDraft] = useState('')
+  const [chatTargetOverride, setChatTargetOverride] = useState(null)
   const [mergeFocus, setMergeFocus] = useState(null)
+  // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
+  // across item switches and trips out of Merge Studio (see
+  // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
+  const mergeDrafts = useRef({})
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
@@ -222,13 +251,19 @@ export function WorkspaceProvider({ children, projectId }) {
     return () => clearTimeout(timer)
   }, [activeView])
 
+  // Each teammate's simulated timeline for this project (its own when the
+  // project has one, else their default).
+  const sequenceFor = useCallback(
+    (member) => projectViewportSequences[projectId]?.[member.id] ?? member.viewportSequence ?? [],
+    [projectId]
+  )
   const memberViewports = useMemo(
     () =>
-      teamMembers.map((member) => ({
-        member,
-        viewport: member.viewportSequence?.[remoteViewportIndex[member.id] ?? 0] ?? null,
-      })),
-    [remoteViewportIndex]
+      teamMembers.map((member) => {
+        const sequence = sequenceFor(member)
+        return { member, viewport: sequence[(remoteViewportIndex[member.id] ?? 0) % Math.max(1, sequence.length)] ?? null }
+      }),
+    [remoteViewportIndex, sequenceFor]
   )
 
   const getViewersForFile = useCallback(
@@ -342,13 +377,13 @@ export function WorkspaceProvider({ children, projectId }) {
     setConflicts((prev) =>
       prev.some((c) => c.id === conflict.id) ? prev : [...prev, toConflictRecord({ projectId, ...conflict })]
     )
-  }, [projectId])
+  }, [projectId, setConflicts])
 
   // Review-workflow edits from the conflict modal (stage, reviewers,
   // diff inspected) — everything short of the final resolve.
   const updateConflict = useCallback((conflictId, patch) => {
     setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, ...patch } : c)))
-  }, [])
+  }, [setConflicts])
 
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
@@ -384,6 +419,24 @@ export function WorkspaceProvider({ children, projectId }) {
     },
     [appendTerminalLines, addConflict, files, prototypeEdits]
   )
+
+  // Puts a change in view — a Conflict Point's, or an AI result's
+  // ({ layerId?, fileId?, line? }): its element selected on its page, and
+  // its file open at the changed line. Only links it has are followed.
+  const focusChange = useCallback((conflict) => {
+    if (!conflict) return
+    if (conflict.layerId) {
+      const target = findCanvasTarget(conflict.layerId)
+      if (target) {
+        setActivePageId(target.page.id)
+        setSelectedLayerId(conflict.layerId)
+      }
+    }
+    if (conflict.fileId) {
+      setActiveFileIdState(conflict.fileId)
+      if (conflict.line) setCodeFlash({ fileId: conflict.fileId, line: conflict.line, nonce: nextId('flash') })
+    }
+  }, [])
 
   // Canvas → code: an edit made on the canvas (text, fill, radius) updates
   // the model, which regenerates the page's file; the editor jumps to and
@@ -432,15 +485,15 @@ export function WorkspaceProvider({ children, projectId }) {
   useEffect(() => {
     if (!followedMemberId) return
     const member = teamMembers.find((m) => m.id === followedMemberId)
-    const sequence = member?.viewportSequence
+    const sequence = member && sequenceFor(member)
     if (!sequence?.length) return
 
-    const index = remoteViewportIndex[followedMemberId] ?? 0
+    const index = (remoteViewportIndex[followedMemberId] ?? 0) % sequence.length
     const target = sequence[index]
 
     setActiveFileIdState(target.fileId)
     setSelectedLayerId(target.layerId ?? null)
-  }, [followedMemberId, remoteViewportIndex])
+  }, [followedMemberId, remoteViewportIndex, sequenceFor])
 
   // How long the agent conversation is right now — stored on each new
   // checkpoint so a rollback can also rewind the agent's memory to it.
@@ -470,22 +523,25 @@ export function WorkspaceProvider({ children, projectId }) {
     [activeFileId, fileOverrides, files, previewProps, conflicts, selectedLayerId]
   )
 
-  // The review workflow's final step. Only an Approved conflict whose
-  // every reviewer signed off can be resolved; resolving is when its AI fix
-  // (if Devsign has one for it) is finally applied to the workspace — never
-  // before — and the resolved state is recorded as a History checkpoint.
-  // Resolved conflicts stay in the list (as Resolved) for the audit trail.
-  // Returns whether it resolved.
+  // Merging — the review workflow's final step (the existing policy: only
+  // an Approved conflict whose every required reviewer signed off can be
+  // merged). Merging is when its fix (if Devsign has one for it) is finally
+  // applied to the workspace — never on approval — and it's recorded as a
+  // History checkpoint titled by the change, with who approved and merged.
+  // Merged conflicts stay in the list (as Merged) for the audit trail.
+  // Returns whether it merged.
   const resolveConflict = useCallback(
     (conflictId) => {
       const conflict = conflicts.find((c) => c.id === conflictId)
       if (!conflict || conflict.reviewStage !== 'approved' || !allReviewersApproved(conflict)) {
-        toast("Can't resolve yet", { description: 'Every reviewer has to approve first.' })
+        toast("Can't merge yet", { description: 'Every required reviewer has to approve first.' })
         return false
       }
-      const fix = aiEditScenarios.find((sc) => sc.resolvesConflictId === conflictId)
+      const fix = aiEditScenarios.find((sc) => sc.resolvesConflictId === conflictId && (!sc.projectId || sc.projectId === projectId))
       const nextConflicts = conflicts.map((c) =>
-        c.id === conflictId ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now' } : c
+        c.id === conflictId
+          ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id }
+          : c
       )
       const nextPreviewProps = fix ? { ...previewProps, ...(fix.previewProps ?? {}) } : previewProps
       setConflicts(nextConflicts)
@@ -496,8 +552,13 @@ export function WorkspaceProvider({ children, projectId }) {
         setPreviewVersion((v) => v + 1)
       }
       const base = currentSnapshot()
+      const approvedBy = conflict.reviewers.filter((r) => r.status === 'approved').map((r) => r.id)
       recordHistory({
-        label: `Resolved conflict · ${conflict.title}`,
+        label: conflict.mergeTitle ?? `Merged ${conflict.title}`,
+        kind: 'merge',
+        actorId: currentUser.id,
+        target: conflict.file,
+        approvedBy,
         timestamp: timeLabel(),
         conflictId,
         snapshot: {
@@ -507,18 +568,54 @@ export function WorkspaceProvider({ children, projectId }) {
           conflicts: nextConflicts,
         },
       })
+      logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
       appendTerminalLines([
-        `$ devsign resolve-conflict "${conflict.title}"`,
-        ...(fix ? ['[HMR] approved fix applied'] : []),
-        '✓ conflict resolved · checkpoint saved to History',
+        `$ devsign merge "${conflict.title}"`,
+        ...(fix ? ['[HMR] approved change applied'] : []),
+        '✓ merged · checkpoint saved to History',
       ])
-      // A resolved conflict is a design system change: it enters the
+      // A merged conflict is a design system change: it enters the
       // Design System Update → Documentation → History pipeline.
       const update = updateFromConflict(conflict, projectId)
       setDsUpdates((prev) => (prev.some((u) => u.id === update.id) ? prev : [update, ...prev]))
       return true
     },
-    [appendTerminalLines, conflicts, currentSnapshot, previewProps, projectId, recordHistory]
+    [appendTerminalLines, conflicts, currentSnapshot, logEvent, previewProps, projectId, recordHistory, setConflicts]
+  )
+
+  // Your own sign-off on a conflict in review (approving never changes
+  // code). You approve as yourself only; it moves to Approved when every
+  // required reviewer has approved — the same rule batch approval uses.
+  const approveConflict = useCallback(
+    (conflictId) => {
+      const conflict = conflicts.find((c) => c.id === conflictId)
+      if (!conflict || conflict.reviewStage !== 'in_review') return null
+      if (!conflict.reviewers.some((r) => r.id === currentUser.id)) return null
+      const reviewers = conflict.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'approved' } : r))
+      const updated = { ...conflict, reviewers, diffInspected: true }
+      const next = { ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }
+      setConflicts((prev) => prev.map((c) => (c.id === conflictId ? next : c)))
+      logEvent({ kind: 'approve', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+      appendTerminalLines([`$ devsign review approve "${conflict.title}" --as ${currentUser.id}`])
+      return next
+    },
+    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts]
+  )
+
+  const requestChanges = useCallback(
+    (conflictId) => {
+      const conflict = conflicts.find((c) => c.id === conflictId)
+      if (!conflict || conflict.reviewStage !== 'in_review') return
+      setConflicts((prev) =>
+        prev.map((c) =>
+          c.id === conflictId
+            ? { ...c, reviewers: c.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'changes_requested' } : r)) }
+            : c
+        )
+      )
+      logEvent({ kind: 'changes', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    },
+    [conflicts, logEvent, projectId, setConflicts]
   )
 
   // Batch approval (the Conflict Points list): your sign-off on several
@@ -543,6 +640,7 @@ export function WorkspaceProvider({ children, projectId }) {
         })
       )
       setConflicts((prev) => prev.map((c) => next.get(c.id) ?? c))
+      for (const c of next.values()) logEvent({ kind: 'approve', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
       const approved = [...next.values()].filter((c) => c.reviewStage === 'approved').length
       appendTerminalLines([
         `$ devsign review approve --as ${currentUser.id} --batch (${next.size})`,
@@ -550,7 +648,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return { approved, waiting: next.size - approved }
     },
-    [appendTerminalLines, conflicts]
+    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts]
   )
 
   // Pipeline step 2: write the update up as a Reference Doc.
@@ -703,36 +801,76 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return restoredId
     },
-    [historyEntries, appendTerminalLines, recordHistory]
+    [historyEntries, appendTerminalLines, recordHistory, setConflicts]
   )
 
+  // Does a scenario's change fall inside the request's target? The target
+  // is what the user picked before sending (an element, a page or a file);
+  // an AI change is only applied when it lands inside it, so the chat's
+  // target and what actually gets edited can't drift apart.
+  function scenarioFitsTarget(scenario, target) {
+    if (!target) return true
+    const layers = scenario.elements ?? []
+    const filesTouched = (scenario.changes ?? []).map((c) => c.fileId)
+    if (target.kind === 'element') return scenario.target?.layerId === target.layerId || layers.includes(target.layerId)
+    if (target.kind === 'page') {
+      const page = canvasPages.find((p) => p.id === target.pageId)
+      const onPage = (id) => page?.frames.some((f) => f.id === id || f.layers.some((l) => l.id === id))
+      return layers.some(onPage) || filesTouched.includes(target.fileId)
+    }
+    if (target.kind === 'file') return filesTouched.includes(target.fileId) || scenario.fileId === target.fileId
+    return true
+  }
+
+  // `target` is captured when the message is sent (see ChatConversation)
+  // and stored on it, so changing the selection afterwards never rewrites
+  // what an earlier request was about. The reply carries a structured
+  // `result`: done / partial / no change, what changed where, and which
+  // Conflict Points now need review. Only an actual change writes files and
+  // becomes a History checkpoint — titled by the change, not the reply.
   const sendChatMessage = useCallback(
-    (text) => {
+    (text, target = null) => {
       const trimmed = text.trim()
       if (!trimmed) return
 
-      setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed }])
+      setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed, target }])
       setIsAiTyping(true)
 
       const lower = trimmed.toLowerCase()
-      const scenario =
-        aiEditScenarios.find((s) => s.keywords.some((k) => lower.includes(k))) ??
-        aiEditScenarios.find((s) => s.id === 'default')
+      const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
+      const fits = scenario && scenarioFitsTarget(scenario, target)
 
       window.setTimeout(() => {
         setIsAiTyping(false)
 
+        if (!scenario || !fits) {
+          const where = target?.label ?? 'the current target'
+          const reason = !scenario
+            ? `I couldn’t turn that into a specific change in ${where}. Nothing was changed.`
+            : `That change would edit ${scenario.target?.layerId ? findCanvasTarget(scenario.target.layerId)?.layer?.name ?? 'another element' : getFileNameRef.current(scenario.fileId)}, which is outside your target (${where}). Nothing was changed — change the target or rephrase.`
+          setChatMessages((prev) => [
+            ...prev,
+            { id: nextId('m'), role: 'assistant', text: reason, result: { status: 'no_change', target } },
+          ])
+          return
+        }
+
         const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
         const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
         // A fix for a conflict point doesn't close it: the conflict goes
-        // (back) into review, and only its reviewers' sign-off resolves it.
-        const nextConflicts = scenario.resolvesConflictId
+        // (back) into review, and only its reviewers' sign-off merges it.
+        const reopened = scenario.resolvesConflictId
+          ? conflicts.find((c) => c.id === scenario.resolvesConflictId && c.reviewStage !== 'resolved')
+          : null
+        const nextConflicts = reopened
           ? conflicts.map((c) =>
-              c.id === scenario.resolvesConflictId && c.reviewStage !== 'resolved'
+              c.id === reopened.id
                 ? {
                     ...c,
                     reviewStage: c.reviewers.length ? 'in_review' : c.reviewStage,
                     reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+                    // The change under review is now the AI's.
+                    changedBy: { type: 'ai', what: `${scenario.title} (requested by ${currentUser.name} in AI chat)` },
                   }
                 : c
             )
@@ -745,11 +883,30 @@ export function WorkspaceProvider({ children, projectId }) {
         setConflicts(nextConflicts)
         appendTerminalLines(scenario.terminalLines)
 
+        const changes = (scenario.changes ?? [{ fileId: scenario.fileId, summary: scenario.title }]).map((c) => ({
+          ...c,
+          fileName: getFileNameRef.current(c.fileId),
+        }))
+        const result = {
+          status: scenario.partialNote ? 'partial' : 'done',
+          title: scenario.title,
+          target,
+          changes,
+          fileCount: new Set(changes.map((c) => c.fileId)).size,
+          elementCount: scenario.elements?.length ?? 0,
+          reviewItems: reopened ? [{ conflictId: reopened.id, title: reopened.title }] : [],
+          note: scenario.partialNote ?? null,
+        }
+
         // The edit is a checkpoint; the reply carries its id so the chat can
         // offer "Rollback here" right under it. The checkpoint's agent
         // memory includes this reply (+1 on the conversation so far).
         const historyId = recordHistory({
-          label: scenario.reply,
+          label: scenario.title,
+          kind: 'ai-edit',
+          actorId: currentUser.id,
+          actorLabel: 'Devsign AI',
+          target: target?.label ?? changes.map((c) => c.fileName).join(', '),
           prompt: trimmed,
           timestamp: timeLabel(),
           snapshot: {
@@ -762,10 +919,11 @@ export function WorkspaceProvider({ children, projectId }) {
             chatLength: chatLengthRef.current + 1,
           },
         })
-        setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: scenario.reply, historyId }])
+        setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: scenario.reply, historyId, result }])
       }, 900)
     },
-    [appendTerminalLines, conflicts, fileOverrides, previewProps, recordHistory, selectedLayerId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appendTerminalLines, conflicts, fileOverrides, previewProps, projectId, recordHistory, selectedLayerId, setConflicts]
   )
 
   const getFileLines = useCallback(
@@ -784,6 +942,11 @@ export function WorkspaceProvider({ children, projectId }) {
     },
     [fileNameOverrides, files]
   )
+
+  // For callbacks defined above getFileName (e.g. the chat's result
+  // summary) — always the latest file names, renames included.
+  const getFileNameRef = useRef(getFileName)
+  getFileNameRef.current = getFileName
 
   const renameFile = useCallback(
     (fileId, newName) => {
@@ -875,7 +1038,11 @@ export function WorkspaceProvider({ children, projectId }) {
     consoleEntries,
     conflicts,
     resolveConflict,
+    approveConflict,
+    requestChanges,
     batchApproveConflicts,
+    projectPages,
+    memberViewports,
     updateConflict,
     reviewConflictId,
     bottomPanel,
@@ -887,6 +1054,11 @@ export function WorkspaceProvider({ children, projectId }) {
     filesWindow,
     setFilesWindow,
     openConflictReview: setReviewConflictId,
+    focusChange,
+    chatDraft,
+    setChatDraft,
+    chatTargetOverride,
+    setChatTargetOverride,
     chatMessages,
     isAiTyping,
     sendChatMessage,
@@ -914,6 +1086,7 @@ export function WorkspaceProvider({ children, projectId }) {
     activeView,
     mergeItems,
     selectedMergeItemId,
+    mergeDrafts,
     setSelectedMergeItemId,
     openMergeStudio,
     exitMergeStudio,

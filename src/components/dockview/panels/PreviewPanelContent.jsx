@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { canvasPages } from '@/data/mockData'
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -20,9 +19,9 @@ function parsePadding(value) {
 // History renders it at a past version: `previewProps` then comes from that
 // checkpoint's snapshot, and `caption` adds a label to its header.
 function PreviewPanelContent({ previewProps: snapshotProps, caption } = {}) {
-  const { activePageId, prototypeEdits, previewProps: liveProps, previewVersion } = useWorkspace()
+  const { activePageId, projectPages, prototypeEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? liveProps
-  const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
+  const page = projectPages.find((p) => p.id === activePageId) ?? projectPages[0]
   const file = prototypeFileForPage(page.id)
   const boxRef = useRef(null)
   const [width, setWidth] = useState(320)

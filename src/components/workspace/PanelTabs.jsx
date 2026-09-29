@@ -1,6 +1,5 @@
 import { Component, FileImage, Files, Layers, X } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -39,7 +38,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       }
     })
   } else if (panel.component === 'canvas') {
-    items = canvasPages.map((page) => {
+    items = workspace.projectPages.map((page) => {
       const active = panelActive && workspace.activePageId === page.id
       return {
         key: page.id,

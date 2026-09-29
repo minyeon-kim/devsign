@@ -1,6 +1,5 @@
 import { Circle, Component, File, Frame, Group, Type } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const kindIcons = {
@@ -33,9 +32,9 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
 // The canvas's layer tree for whichever page is open — the Layers tab of
 // the floating Files / Layers window (Assets is its own tab there).
 function LayersPanel() {
-  const { selectCanvasLayer, selectedLayerId, activePageId } = useWorkspace()
+  const { selectCanvasLayer, selectedLayerId, activePageId, projectPages } = useWorkspace()
   // The layer tree of whichever page is open on the canvas.
-  const page = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
+  const page = projectPages.find((p) => p.id === activePageId) ?? projectPages[0]
 
   return (
     <div className="flex h-full flex-col bg-card">

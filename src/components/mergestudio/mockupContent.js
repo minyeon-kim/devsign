@@ -49,6 +49,17 @@ export const LAYER_MOCKUP = {
   'email-input': { placeholder: 'Enter your email…', icon: 'mail' },
   'toggle-label': { text: 'Email notifications', tone: 'strong', weight: 500 },
   'tab-bar': { tabs: [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']] },
+
+  // Checkout · Payment step (Checkout Redesign)
+  'co-statusbar': { role: 'status' },
+  'co-title': { text: 'Checkout', tone: 'strong', weight: 700 },
+  'co-step': { text: 'Step 3 of 3 · Payment', tone: 'muted' },
+  'order-summary': { icon: 'shield', title: 'Order summary', body: '2 items · $128.00' },
+  'payment-label': { text: 'Card number', tone: 'muted', weight: 500 },
+  'card-input': { placeholder: '1234 5678 9012 3456' },
+  'shipping-label': { text: 'Standard shipping · 3–5 days', tone: 'muted' },
+  'total-text': { text: 'Total  $128.00', tone: 'strong', weight: 600 },
+  'place-order': {},
 }
 
 // Extra mockup-only layers appended to a frame inside Merge Studio, so the

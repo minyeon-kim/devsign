@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { ArrowLeft, Blocks } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
-import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -100,6 +100,7 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio,
     openConflictReview,
     setBottomPanel,
+    mergeDrafts,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -151,19 +152,34 @@ function MergeStudioWorkspace({ item }) {
   const [listFocus, setListFocus] = useState(null)
   const deferredLive = useDeferredValue(liveCode)
 
+  // Unmerged edits are kept per item (in the project's WorkspaceProvider),
+  // so switching items, going back to the Workspace or arriving from a
+  // Conflict Point's "Open in Merge Studio" picks up where you left off.
+  const draftRef = useRef(null)
+  draftRef.current = { resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode }
+  useEffect(() => {
+    const id = item?.id
+    return () => {
+      // The latest edits on purpose (the ref is data, not a DOM node).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (id) mergeDrafts.current[id] = draftRef.current
+    }
+  }, [item?.id, mergeDrafts])
+
   useEffect(() => {
     if (!item) return
+    const draft = mergeDrafts.current[item.id]
     setSyncSelection(null)
     setAppliedPreset(null)
     setDeckOpen(false)
     setMergeModal(null)
-    setResolutions({})
-    setAssemblies({})
-    setAssemblySources({})
-    setReviewMarks({})
-    setAddedLayers([])
+    setResolutions(draft?.resolutions ?? {})
+    setAssemblies(draft?.assemblies ?? {})
+    setAssemblySources(draft?.assemblySources ?? {})
+    setReviewMarks(draft?.reviewMarks ?? {})
+    setAddedLayers(draft?.addedLayers ?? [])
     setHoverDiff(null)
-    setManualCode({})
+    setManualCode(draft?.manualCode ?? {})
     setLiveCode(null)
     setCodeReveal(null)
     // Uniform initialization: every item starts with a default selected element.
@@ -563,7 +579,7 @@ function MergeStudioWorkspace({ item }) {
   }, [selId])
   const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
   const copy = copyFile(frame0)
-  const files = item ? [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
+  const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import LocalCursor from '@/components/collab/LocalCursor'
+import { ConflictStoreProvider } from '@/state/ConflictStore'
 import DashboardPage from '@/pages/DashboardPage'
 import ActivityPage from '@/pages/ActivityPage'
 import TeamPage from '@/pages/TeamPage'
@@ -23,6 +24,9 @@ function ArchiveRedirect() {
 function App() {
   return (
     <TooltipProvider>
+      {/* Every project's Conflict Points live here, above the routes, so
+          the Dashboard and each project's Workspace share one state. */}
+      <ConflictStoreProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -51,6 +55,7 @@ function App() {
             the current route via useLocation(). */}
         <LocalCursor />
       </BrowserRouter>
+      </ConflictStoreProvider>
       <Toaster position="bottom-right" />
     </TooltipProvider>
   )

@@ -8,6 +8,7 @@ import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoin
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { historyMeta } from '@/lib/historyMeta'
 
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -107,6 +108,11 @@ function HistoryDrawer({ project }) {
                 >
                   {entry.label}
                 </span>
+                {historyMeta(entry) && (
+                  <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry)}>
+                    {historyMeta(entry)}
+                  </span>
+                )}
               </button>
               {!isCurrent && (
                 <div className="absolute top-1 right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

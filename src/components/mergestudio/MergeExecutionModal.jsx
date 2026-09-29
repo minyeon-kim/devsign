@@ -22,7 +22,7 @@ import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
-import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import ConflictResolver from '@/components/mergestudio/ConflictResolutionModal'
@@ -354,7 +354,7 @@ function DriftReviewSection({ item, drifts, review, frame, resolutions, assembli
         </>
       ) : (
         <p className="mt-2 text-[13px] text-slate-400">
-          {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — its final code is in the output below.
+          {mergeFilesFor(item).find((f) => f.id === d.fileId)?.name} · line {d.line} — its final code is in the output below.
         </p>
       )}
 
@@ -795,7 +795,7 @@ function MacroZoomPair({ frame, layerId, originalOverride, mergedOverride, stack
 // (incoming lines + AI edits, with hand-edited lines taking precedence).
 function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, assemblySources = {}, extraLayers = [], manualCode = {}, onResolveDiff, review, onSetReviewMark, onEditInAssemble, initialDriftId }) {
   const { getFileLines } = useWorkspace()
-  const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
+  const files = mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
 
   // Context-aware spotlight: the drift picked in the pager above is
