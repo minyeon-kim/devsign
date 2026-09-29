@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import {
   Bell,
   Bot,
+  ArrowLeft,
   Check,
   Clock3,
   Code2,
@@ -86,6 +87,9 @@ const TABS = [
   ['history', 'History'],
 ]
 
+const REVIEW_INFO_GRID = 'grid items-start gap-x-4 gap-y-2 sm:grid-cols-[104px_minmax(0,1fr)]'
+const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
+
 function EmptyNote({ children }) {
   return <p className="rounded-xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">{children}</p>
 }
@@ -97,6 +101,15 @@ function PersonAvatar({ person }) {
         {person.initials}
       </AvatarFallback>
     </Avatar>
+  )
+}
+
+function PersonRole({ person }) {
+  if (!person?.role || person.role === 'You') return null
+  return (
+    <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
+      {person.role}
+    </span>
   )
 }
 
@@ -113,7 +126,7 @@ function StagePill({ stage }) {
     <span
       title="Review status"
       aria-label={`Review status: ${STAGE_LABEL[stage]}, step ${index + 1} of ${REVIEW_STAGES.length}`}
-      className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[10px] font-semibold text-slate-200"
+      className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[11px] font-semibold text-slate-200"
     >
       <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[stage])} />
       {STAGE_LABEL[stage]}
@@ -150,21 +163,23 @@ function personName(id) {
 
 // Who (or which AI) made the change under review, what flagged it, and the
 // screens / components / files it reaches — only what the record knows.
-function Provenance({ conflict }) {
+function Provenance({ conflict, className }) {
   const { changedBy, detectedBy, impact } = conflict
+  const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
+  const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
   const impactRows = [
     ['Screens', impact?.screens],
     ['Components', impact?.components],
-    ['Files', impact?.files],
+    ['Files', files],
   ].filter(([, list]) => list?.length)
   if (!changedBy && !detectedBy && !impactRows.length) return null
 
   return (
-    <div className="grid gap-x-4 gap-y-2 rounded-xl bg-white/[0.03] px-4 py-3 text-xs sm:grid-cols-[88px_1fr]">
+    <div className={cn(REVIEW_INFO_GRID, 'gap-y-3 text-xs', className)}>
       {changedBy && (
         <>
-          <span className="text-slate-500">Changed by</span>
-          <span className="text-slate-200">
+          <span className={REVIEW_INFO_LABEL}>Changed by</span>
+          <span className="text-xs leading-5 text-slate-200">
             <span className="inline-flex items-center gap-1 font-medium">
               {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
               {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id)}
@@ -175,13 +190,13 @@ function Provenance({ conflict }) {
       )}
       {detectedBy && (
         <>
-          <span className="text-slate-500">Detected by</span>
-          <span className="text-slate-300">{detectedBy}</span>
+          <span className={REVIEW_INFO_LABEL}>Detected by</span>
+          <span className="text-xs leading-5 text-slate-300">{detectedBy}</span>
         </>
       )}
       {impactRows.map(([label, list]) => (
         <Fragment key={label}>
-          <span className="text-slate-500">{label}</span>
+          <span className={REVIEW_INFO_LABEL}>{label}</span>
           <span className="flex flex-wrap gap-1">
             {list.map((item) => (
               <span
@@ -209,22 +224,22 @@ function SuggestionCard({ conflict, onViewDiff }) {
   ].filter(([, text]) => text)
 
   return (
-    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-4 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-5 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
+      <p className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
         <Sparkles className="size-3.5" />
         AI suggestion
       </p>
-      <dl className="space-y-3">
+      <dl className="space-y-4">
         {rows.map(([label, text]) => (
           <div key={label}>
             <dt className="text-[11px] text-slate-500">{label}</dt>
-            <dd className="mt-0.5 text-[13px] leading-relaxed text-slate-200">{text}</dd>
+            <dd className="mt-1 text-[13px] leading-relaxed text-slate-200">{text}</dd>
           </div>
         ))}
         {conflict.references?.length > 0 && (
           <div>
             <dt className="text-[11px] text-slate-500">References</dt>
-            <dd className="mt-1 flex flex-wrap gap-1.5">
+            <dd className="mt-2 flex flex-wrap gap-1.5">
               {conflict.references.map((ref) => (
                 <span key={ref.label} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-slate-200">
                   <span className="font-mono">{ref.label}</span>
@@ -235,7 +250,7 @@ function SuggestionCard({ conflict, onViewDiff }) {
           </div>
         )}
       </dl>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         {onViewDiff && (
           <button
             type="button"
@@ -253,8 +268,21 @@ function SuggestionCard({ conflict, onViewDiff }) {
 }
 
 function OverviewTab({ conflict, onViewDiff }) {
+  const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
+  const riskExplanation = riskPrefix
+    ? conflict.riskReason.slice(riskPrefix[0].length)
+    : conflict.riskReason
+  const reviewImpact = riskExplanation && `This needs review because ${riskExplanation}`
+  const hasMetadata = Boolean(
+    conflict.changedBy ||
+    conflict.detectedBy ||
+    conflict.impact?.screens?.length ||
+    conflict.impact?.components?.length ||
+    conflict.impact?.files?.length
+  )
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {conflict.reviewStage === 'resolved' && (
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
           <Check className="size-3.5" strokeWidth={2.5} />
@@ -267,19 +295,26 @@ function OverviewTab({ conflict, onViewDiff }) {
           Devsign AI already made this change in the workspace. It becomes final only when approved and merged.
         </p>
       )}
-      {(conflict.message || conflict.riskReason) && (
-        <div className="space-y-3 px-1">
-          {conflict.message && <p className="text-[13px] leading-relaxed text-slate-200">{conflict.message}</p>}
-          {conflict.riskReason && (
-            <div>
-              <p className={cn(PANEL_LABEL, 'mb-2')}>Why review is needed</p>
-              <p className="text-[13px] leading-relaxed text-slate-300">{conflict.riskReason}</p>
+      {(conflict.message || reviewImpact || hasMetadata) && (
+        <section className="rounded-2xl bg-white/[0.03] p-5">
+          {conflict.message && (
+            <div className={REVIEW_INFO_GRID}>
+              <p className={REVIEW_INFO_LABEL}>Issue summary</p>
+              <p className="text-sm leading-6 font-medium text-slate-200">{conflict.message}</p>
             </div>
           )}
-        </div>
+          {reviewImpact && (
+            <div className={cn(REVIEW_INFO_GRID, conflict.message && 'mt-4 border-t border-white/[0.08] pt-4')}>
+              <p className={REVIEW_INFO_LABEL}>Review impact</p>
+              <p className="text-sm leading-6 text-slate-300">{reviewImpact}</p>
+            </div>
+          )}
+          <Provenance
+            conflict={conflict}
+            className={cn((conflict.message || reviewImpact) && hasMetadata && 'mt-4 border-t border-white/[0.08] pt-4')}
+          />
+        </section>
       )}
-
-      <Provenance conflict={conflict} />
 
       {conflict.suggestion && <SuggestionCard conflict={conflict} onViewDiff={onViewDiff} />}
     </div>
@@ -326,10 +361,10 @@ function DiffTab({ conflict }) {
   const pairedPreview = conflict.preview && conflict.preview.kind !== 'divider' && conflict.comparisonFields?.length > 0
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
-        <section className="rounded-xl bg-white/[0.025] p-3">
-          <div className="flex flex-col gap-3">
+        <section className="rounded-xl bg-white/[0.025] p-4">
+          <div className="flex flex-col gap-4">
             {conflict.suggestion && (
               <div className="rounded-xl bg-emerald-400/[0.07] px-3 py-2">
                 <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
@@ -410,13 +445,6 @@ function DiffTab({ conflict }) {
 
 // ─── Right: the review ─────────────────────────────────────────────────
 
-const REVIEW_STATUS_LABEL = {
-  detected: 'Detected',
-  in_review: 'In review',
-  approved: 'Pending merge',
-  resolved: 'Merged',
-}
-
 // Where the review stands, in plain lines from the actual required
 // reviewers ("Approved by you", "Waiting for Min", "All required approvals
 // received", "Pending merge", "Merged") — shown instead of a disabled
@@ -425,26 +453,22 @@ function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
   const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
   return (
-    <div className="min-w-0 px-1 py-0">
+    <div className="min-w-0 rounded-xl bg-white/[0.03] p-4">
       <ol
         aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
-        className="mt-2 grid w-full min-w-0 grid-cols-4 items-center rounded-full bg-[#08090b]/70 p-1"
+        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1"
       >
         {REVIEW_STAGES.map((step, index) => {
-          const complete = index < currentStep || conflict.reviewStage === 'resolved'
           const current = index === currentStep
           return (
             <Fragment key={step.id}>
-              <li aria-current={current ? 'step' : undefined} className="relative flex min-w-0 items-center justify-center px-1">
-                {index > 0 && <span aria-hidden="true" className="absolute left-0 text-[9px] text-slate-600">→</span>}
-                <span
-                  title={step.label}
-                  className={cn(
-                    'max-w-full truncate rounded-full px-1.5 py-1 text-[9px] leading-none font-medium whitespace-nowrap',
-                    current ? 'bg-emerald-300 font-semibold text-[#050506]' : complete ? 'text-slate-400' : 'text-slate-500'
-                  )}
-                >
-                  {REVIEW_STATUS_LABEL[step.id] === 'Pending merge' ? 'Approved' : step.label}
+              {index > 0 && <li aria-hidden="true" className="px-1 text-[10px] text-slate-600">→</li>}
+              <li aria-current={current ? 'step' : undefined} className="flex min-w-0 items-center justify-center">
+                <span className={cn(
+                  'max-w-full truncate text-xs leading-4 font-semibold whitespace-nowrap',
+                  current ? 'inline-flex items-center rounded-full bg-emerald-300 px-1.5 py-1 text-[#050506]' : 'text-slate-400'
+                )}>
+                  {step.label}
                 </span>
               </li>
             </Fragment>
@@ -454,7 +478,7 @@ function StatusCard({ conflict }) {
       {conflict.reviewStage === 'in_review' && status.lines.length > 0 && (
         <ul className="mt-2 space-y-1">
           {status.lines.map((line) => (
-            <li key={line} className="text-xs font-medium leading-4 text-slate-200">{line}</li>
+            <li key={line} className="text-xs leading-4 text-slate-300">{line}</li>
           ))}
         </ul>
       )}
@@ -551,57 +575,61 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
       {reviewers.length === 0 ? (
         <p className="text-xs text-slate-500">No reviewers yet.</p>
       ) : (
-        <div className="-mx-2 space-y-0.5">
+        <div className="space-y-1">
           {reviewers.map((reviewer) => {
             const person = allPeople.find((p) => p.id === reviewer.id)
             if (!person) return null
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
-              <div key={reviewer.id} className="group/rev flex h-9 items-center gap-2.5 rounded-lg px-2 text-xs hover:bg-white/[0.03]">
-                <PersonAvatar person={person} />
-                <span className="min-w-0 flex-1 truncate font-medium text-slate-200">
-                  {person.name}
-                  {person.id === currentUser.id && <span className="font-normal text-slate-500"> (you)</span>}
-                </span>
-                <span className={cn('shrink-0 text-[11px]', status.className)}>
+              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_64px_72px] items-center gap-2.5 rounded-lg text-xs hover:bg-white/[0.03]">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <PersonAvatar person={person} />
+                  <span className="min-w-0 truncate font-medium text-slate-200">
+                    {person.name}
+                    {person.id === currentUser.id && <span className="font-normal text-slate-500"> (you)</span>}
+                  </span>
+                </div>
+                <span className={cn('w-16 truncate text-right text-[11px]', status.className)}>
                   {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
-                {canRemind && reviewer.status !== 'approved' && reviewer.id !== currentUser.id && (
-                  <button
-                    type="button"
-                    aria-label={`Remind ${person.name}`}
-                    title="Remind"
-                    onClick={() => remind([reviewer.id])}
-                    className={iconActionClass}
-                  >
-                    <Bell className="size-3.5" />
-                  </button>
-                )}
-                {/* Teammates aren't live: in this prototype their sign-off
-                    is simulated, and labeled as such. */}
-                {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== currentUser.id && onSimulateApproval && (
-                  <button
-                    type="button"
-                    aria-label={`Simulate ${person.name}'s approval (demo)`}
-                    title={`Simulate ${person.name}'s approval (demo — teammates aren't live)`}
-                    onClick={() => onSimulateApproval(reviewer.id)}
-                    className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
-                  >
-                    <FlaskConical className="size-3.5" />
-                  </button>
-                )}
-                {(reviewStage === 'detected' ||
-                  (reviewStage === 'in_review' && reviewer.status !== 'approved' && reviewers.length > 1)) && (
-                  <button
-                    type="button"
-                    aria-label={`Remove ${person.name}`}
-                    title="Remove reviewer"
-                    onClick={() => setReviewers(reviewers.filter((r) => r.id !== reviewer.id))}
-                    className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
+                <div className="flex w-[72px] shrink-0 items-center justify-end gap-0">
+                  {canRemind && reviewer.status !== 'approved' && reviewer.id !== currentUser.id && (
+                    <button
+                      type="button"
+                      aria-label={`Remind ${person.name}`}
+                      title="Remind"
+                      onClick={() => remind([reviewer.id])}
+                      className={iconActionClass}
+                    >
+                      <Bell className="size-3.5" />
+                    </button>
+                  )}
+                  {/* Teammates aren't live: in this prototype their sign-off
+                      is simulated, and labeled as such. */}
+                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== currentUser.id && onSimulateApproval && (
+                    <button
+                      type="button"
+                      aria-label={`Simulate ${person.name}'s approval (demo)`}
+                      title={`Simulate ${person.name}'s approval (demo — teammates aren't live)`}
+                      onClick={() => onSimulateApproval(reviewer.id)}
+                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
+                    >
+                      <FlaskConical className="size-3.5" />
+                    </button>
+                  )}
+                  {(reviewStage === 'detected' ||
+                    (reviewStage === 'in_review' && reviewer.status !== 'approved' && reviewers.length > 1)) && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${person.name}`}
+                      title="Remove reviewer"
+                      onClick={() => setReviewers(reviewers.filter((r) => r.id !== reviewer.id))}
+                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -615,6 +643,8 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
 // global conflict list) the thread says where to find it instead.
 function CommentThread({ conflict, workspace }) {
   const [draft, setDraft] = useState('')
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [replyDraft, setReplyDraft] = useState('')
 
   if (!workspace) {
     return <p className="text-xs text-slate-500">Open the project's workspace to see and reply to its thread.</p>
@@ -622,6 +652,7 @@ function CommentThread({ conflict, workspace }) {
 
   // The conflict's seeded linked comment, plus everything posted here.
   const linked = workspace.comments.filter((c) => c.id === conflict.linkedCommentId || c.target?.conflictId === conflict.id)
+  const comments = linked.filter((comment) => !comment.target?.replyTo)
 
   function handleSend(event) {
     event.preventDefault()
@@ -630,22 +661,84 @@ function CommentThread({ conflict, workspace }) {
     setDraft('')
   }
 
+  function handleReply(event, commentId) {
+    event.preventDefault()
+    if (!replyDraft.trim()) return
+    workspace.addComment(replyDraft, { conflictId: conflict.id, replyTo: commentId })
+    setReplyDraft('')
+    setReplyingTo(null)
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="min-h-0 flex-1 space-y-3 overflow-auto">
-        {linked.length === 0 && <p className="text-xs text-slate-500">No comments yet.</p>}
-        {linked.map((comment) => {
+        {comments.length === 0 && <p className="text-xs text-slate-500">No comments yet.</p>}
+        {comments.map((comment) => {
           const author = allPeople.find((p) => p.id === comment.authorId)
+          const replies = linked.filter((reply) => reply.target?.replyTo === comment.id)
           return (
-            <div key={comment.id} className="flex gap-2.5 text-xs">
-              {author && <PersonAvatar person={author} />}
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5">
-                  <span className="font-medium text-slate-200">{author?.name}</span>
-                  <span className="text-[11px] text-slate-500">{comment.timeLabel}</span>
-                </p>
-                <p className="mt-0.5 leading-relaxed text-slate-300">{comment.text}</p>
+            <div key={comment.id} className="space-y-2 text-xs">
+              <div className="flex gap-2.5">
+                {author && <PersonAvatar person={author} />}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium text-slate-200">{author?.name}</span>
+                    <PersonRole person={author} />
+                    <span className="text-[11px] text-slate-500">{comment.timeLabel}</span>
+                  </p>
+                  <p className="mt-0.5 leading-relaxed text-slate-300">{comment.text}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                      setReplyDraft('')
+                    }}
+                    className="mt-1 text-[11px] font-medium text-slate-400 transition-colors hover:text-white"
+                  >
+                    {replyingTo === comment.id ? 'Cancel reply' : 'Reply'}
+                  </button>
+                </div>
               </div>
+              {replies.length > 0 && (
+                <div className="ml-7 space-y-2 border-l border-white/[0.08] pl-3">
+                  {replies.map((reply) => {
+                    const replyAuthor = allPeople.find((person) => person.id === reply.authorId)
+                    return (
+                      <div key={reply.id} className="flex gap-2.5">
+                        {replyAuthor && <PersonAvatar person={replyAuthor} />}
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-medium text-slate-200">{replyAuthor?.name}</span>
+                            <PersonRole person={replyAuthor} />
+                            <span className="text-[11px] text-slate-500">{reply.timeLabel}</span>
+                          </p>
+                          <p className="mt-0.5 leading-relaxed text-slate-300">{reply.text}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {replyingTo === comment.id && (
+                <form onSubmit={(event) => handleReply(event, comment.id)} className="ml-7 flex h-8 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] pr-1 pl-3 focus-within:border-white/25">
+                  <input
+                    autoFocus
+                    value={replyDraft}
+                    onChange={(event) => setReplyDraft(event.target.value)}
+                    placeholder="Write a reply"
+                    aria-label={`Reply to ${author?.name ?? 'comment'}`}
+                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Send reply"
+                    disabled={!replyDraft.trim()}
+                    className="flex size-6 items-center justify-center rounded-full bg-[#2c2c31] text-white ring-1 ring-white/10 ring-inset transition-colors hover:bg-[#38383e] disabled:text-slate-500"
+                  >
+                    <Send className="size-3" />
+                  </button>
+                </form>
+              )}
             </div>
           )
         })}
@@ -942,29 +1035,24 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            {/* Primary header combines the issue identity and file context. */}
-            <div className="flex min-h-11 shrink-0 items-center justify-between gap-4 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <h2 className="truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
-                {severity && <SeverityPill level={severity.label} />}
-                <StagePill stage={stage} />
+            {/* Primary header combines the issue identity and project context. */}
+            <div className="flex min-h-14 shrink-0 items-center justify-between gap-5 border-b border-white/[0.07] bg-white/[0.02] px-5 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  {severity && <SeverityPill level={severity.label} />}
+                  <StagePill stage={stage} />
+                </div>
               </div>
-              <div className="flex min-w-0 max-w-[52%] flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-slate-500">
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                  <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
-                  <span className="truncate font-mono text-slate-300">
-                    {conflict.file}
-                    {conflict.line ? `:${conflict.line}` : ''}
-                  </span>
-                </span>
+              <div className="flex min-w-0 max-w-[52%] flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-xs text-slate-500">
                 {conflict.projectName && <span className="text-slate-500">Project · <span className="text-slate-400">{conflict.projectName}</span></span>}
                 {conflict.detectedAt && <span className="text-slate-500">Detected · <span className="text-slate-400">{conflict.detectedAt}</span></span>}
               </div>
             </div>
 
-            <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(240px,1fr)]">
-              <div className="flex min-h-0 min-w-0 flex-col">
-            <div className="flex shrink-0 items-center gap-1 border-b border-white/[0.07] px-5 py-1.5" role="tablist" aria-label="Conflict details">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-5 py-2.5">
+                <div className="flex items-center gap-1" role="tablist" aria-label="Conflict details">
                   {TABS.map(([id, label]) => (
                     <button
                       key={id}
@@ -977,29 +1065,38 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {label}
                     </button>
                   ))}
-            </div>
-
-                <div className="min-h-0 flex-1 overflow-auto px-5 pt-5 pb-3" role="tabpanel">
-                  {tab === 'overview' && (
-                    <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
-                  )}
-                  {tab === 'diff' && <DiffTab conflict={conflict} />}
-                  {tab === 'history' && (
-                    <HistoryCheckpointTimeline workspace={workspace} />
-                  )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  Back to list
+                </button>
               </div>
 
-              {/* Right: the review — status, reviewers, comments — kept to
-                  a slim column beside the left workspace from the top edge. */}
-              <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden bg-white/[0.015] px-3 py-3">
-                <StatusCard conflict={conflict} />
-                <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
-                  <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
+              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
+                <div className="min-h-0 min-w-0 overflow-auto px-5 pt-4 pb-4" role="tabpanel">
+                    {tab === 'overview' && (
+                      <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
+                    )}
+                    {tab === 'diff' && <DiffTab conflict={conflict} />}
+                    {tab === 'history' && (
+                      <HistoryCheckpointTimeline workspace={workspace} />
+                    )}
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.025] p-3">
-                  <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
-                  <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
+
+                {/* Sidebar begins level with the main content beneath the shared tab bar. */}
+                <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden px-3 pt-4 pb-3">
+                  <StatusCard conflict={conflict} />
+                  <div className="min-w-0 rounded-xl bg-white/[0.03] p-4">
+                    <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
+                  </div>
+                  <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.03] p-4">
+                    <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
+                    <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1023,13 +1120,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               )}
               <div className="flex shrink-0 items-center gap-1.5">
                 {footerNote && <span className="mr-1 hidden text-right text-[10px] leading-snug text-slate-400 xl:block">{footerNote}</span>}
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  className="inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white"
-                >
-                  Back to list
-                </button>
                 {primary}
               </div>
             </div>
