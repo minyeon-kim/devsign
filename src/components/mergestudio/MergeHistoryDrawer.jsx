@@ -177,7 +177,7 @@ function MergeHistoryDrawer({ events, currentId, onRollback, onClose }) {
   return (
     <MergeDrawer icon={History} title="Version History" onClose={onClose}>
       <p className="shrink-0 px-5 pb-1 text-xs text-slate-500">Merges, branches and reviews — newest first.</p>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
+      <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-5 pb-2">
         {events.map((event, i) => (
           <HistoryEntry
             key={event.id}

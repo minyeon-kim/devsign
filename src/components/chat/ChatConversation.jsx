@@ -5,14 +5,19 @@ import {
   ChevronDown,
   CircleAlert,
   CircleMinus,
+  Copy,
+  ArrowUp,
   Code2,
   Crosshair,
   FileCode,
   MessageCircle,
   Paperclip,
   Pin,
-  Send,
+  RotateCw,
+  Share2,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
@@ -230,6 +235,15 @@ function TypingBubble() {
   )
 }
 
+function ActionButton({ label, pressed, disabled, onClick, children }) {
+  return (
+    <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}
+      className={cn('inline-flex size-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
+      {children}
+    </button>
+  )
+}
+
 // The "Ask Devsign" conversation itself — suggestions, the messages (each
 // AI change with its inline checkpoint and "Rollback here"), the composer —
 // shared by the floating chat widget and the AI Chat pane, so both are the
@@ -257,6 +271,8 @@ function ChatConversation() {
   const [codeBlockMode, setCodeBlockMode] = useState(false)
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
   const [autoMode, setAutoMode] = useState(true)
+  const [copiedId, setCopiedId] = useState(null)
+  const [feedback, setFeedback] = useState({})
   // The checkpoint whose inline "Rollback here" was clicked (confirming).
   const [rollbackId, setRollbackId] = useState(null)
   const listRef = useRef(null)
@@ -271,6 +287,23 @@ function ChatConversation() {
     setInput('')
     setAttachments([])
     setCodeBlockMode(false)
+  }
+
+  async function copyMessage(message) {
+    try {
+      await navigator.clipboard.writeText(message.text)
+      setCopiedId(message.id)
+      window.setTimeout(() => setCopiedId((id) => (id === message.id ? null : id)), 1400)
+    } catch {
+      // Clipboard access can be unavailable in embedded or non-secure contexts.
+    }
+  }
+
+  async function shareMessage(message) {
+    try {
+      if (navigator.share) await navigator.share({ text: message.text })
+      else await copyMessage(message)
+    } catch { /* Share was dismissed or unavailable. */ }
   }
 
   function handleKeyDown(event) {
@@ -295,13 +328,14 @@ function ChatConversation() {
     <div className="flex min-h-0 flex-1 flex-col">
       <RollbackCheckpointModal key={rollbackId} entryId={rollbackId} onOpenChange={(open) => !open && setRollbackId(null)} />
 
-      <div ref={listRef} className="flex-1 space-y-2 overflow-auto p-3">
-        {chatMessages.map((message) => (
-          <div key={message.id} className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}>
+      <div className="relative flex min-h-0 flex-1">
+        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto p-2">
+        {chatMessages.map((message, index) => (
+          <div key={message.id} className={cn('group/chat flex w-full flex-col gap-1.5', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
               translate="no"
               className={cn(
-                'max-w-[95%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
+                'max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
                 message.role === 'user'
                   ? 'bg-[#0E1F1B] text-[#D1FAE5]'
                   : 'bg-slate-800/80 text-slate-200'
@@ -309,20 +343,29 @@ function ChatConversation() {
             >
               {message.text}
             </div>
-            {message.role === 'user' && message.target && (
-              <span className="mt-0.5 flex max-w-[85%] items-center gap-1 truncate text-[10.5px] text-muted-foreground">
-                <Crosshair className="size-2.5 shrink-0" />
-                {message.target.label}
-              </span>
-            )}
+            {message.role === 'user' ? message.target && (
+              <div className="flex w-full items-center justify-end gap-1 px-1 text-[10px] text-slate-500">
+                <span className="flex min-w-0 items-center gap-1 truncate">
+                  <Crosshair className="size-2.5 shrink-0" />
+                  <span className="truncate">{message.target.label}</span>
+                </span>
+              </div>
+            ) : <div className="flex w-full items-center justify-start gap-1 px-1 opacity-0 transition-opacity group-hover/chat:opacity-100 focus-within:opacity-100">
+              <ActionButton label={copiedId === message.id ? 'Copied' : 'Copy'} onClick={() => copyMessage(message)}>{copiedId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</ActionButton>
+              <ActionButton label="Regenerate" disabled={isAiTyping || Boolean(message.historyId) || !chatMessages.slice(0, index).some((m) => m.role === 'user')} onClick={() => { const previous = chatMessages.slice(0, index).reverse().find((m) => m.role === 'user'); if (previous) sendChatMessage(previous.text, previous.target, { includeUser: false, replaceMessageId: message.id }) }}><RotateCw className="size-3.5" /></ActionButton>
+              <ActionButton label="Thumbs up" pressed={feedback[message.id] === 'up'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'up' ? null : 'up' }))}><ThumbsUp className="size-3.5" /></ActionButton>
+              <ActionButton label="Thumbs down" pressed={feedback[message.id] === 'down'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'down' ? null : 'down' }))}><ThumbsDown className="size-3.5" /></ActionButton>
+              <ActionButton label="Share" onClick={() => shareMessage(message)}><Share2 className="size-3.5" /></ActionButton>
+            </div>}
             {message.result && <ResultCard result={message.result} />}
             {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
           </div>
         ))}
         {isAiTyping && <TypingBubble />}
+        </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
+      <div className="flex shrink-0 flex-wrap gap-2 px-2 pt-3 pb-2">
         {suggestions.map((suggestion) => {
           const Icon = suggestionIcons[suggestion.iconName]
           return (
@@ -355,7 +398,7 @@ function ChatConversation() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-white/10 bg-card focus-within:border-emerald-400/40">
+        <div className="rounded-2xl border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-emerald-400/35 focus-within:ring-2 focus-within:ring-emerald-400/15 focus-within:shadow-[0_0_18px_-8px_rgba(52,211,153,0.35)]">
           <div className="flex min-w-0 items-center px-3 pt-2">
             <TargetChip
               target={target}
@@ -420,9 +463,9 @@ function ChatConversation() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !target}
                 title={target ? 'Send' : 'Choose a target first'}
-                className="size-8 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 disabled:bg-white/[0.06] disabled:text-slate-500"
+                className="size-8 rounded-full bg-[#0E201C] text-[#D1FAE5] shadow-[0_0_12px_-4px_rgba(52,211,153,0.22)] hover:bg-[#15302A] disabled:bg-white/[0.06] disabled:text-slate-500"
               >
-                <Send className="size-3.5" />
+                <ArrowUp className="size-3.5" />
               </Button>
             </div>
           </div>

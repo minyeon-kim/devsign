@@ -114,7 +114,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout() {
-  const { setDockApi, filesWindow, setFilesWindow } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel } = useWorkspace()
   const { dockApi, store } = useFloatingDockApi()
   const [dock, setDock] = useState(null) // { groupId, target, zone, rect } while dragging a window
   const rootRef = useRef(null)
@@ -284,12 +284,9 @@ function WorkspaceSplitLayout() {
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} />
   }
 
-  // One 12px grid: the frame's inset (from the activity bar, the view's
-  // edges and the bottom panel), the gutters between panes, and the top
-  // bar's pills (top-3, 40px tall — so panes start 12px below them) all
-  // share it.
+  // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
-    <div className="absolute inset-0 bg-background px-3 pt-16 pb-3">
+    <div className={cn('absolute inset-0 bg-background px-0 pt-[52px] pr-2', bottomPanel.open ? 'pb-2' : 'pb-0')}>
       <div ref={rootRef} className="relative isolate flex size-full min-w-0">
         <div className="flex min-w-0 flex-1">
           {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}
@@ -386,7 +383,7 @@ function SplitNode({ node, dockApi, store, renderNode }) {
                 <SplitHandle
                   label="Resize panes"
                   orientation={row ? 'vertical' : 'horizontal'}
-                  className={row ? 'w-3' : 'h-3'}
+                  className={row ? 'w-2' : 'h-2'}
                   onResizeStart={() => startResize(node.children.indexOf(prev), index)}
                   onResize={resize}
                   onResizeEnd={() => (drag.current = null)}
@@ -397,7 +394,7 @@ function SplitNode({ node, dockApi, store, renderNode }) {
                   }}
                 />
               ) : (
-                <span className={row ? 'w-3 shrink-0' : 'h-3 shrink-0'} />
+                <span className={row ? 'w-2 shrink-0' : 'h-2 shrink-0'} />
               ))}
             {isMinimized(child) ? (
               renderNode(child, node.dir)

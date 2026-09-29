@@ -87,8 +87,10 @@ const TABS = [
   ['history', 'History'],
 ]
 
-const REVIEW_INFO_GRID = 'grid items-start gap-x-4 gap-y-2 sm:grid-cols-[104px_minmax(0,1fr)]'
+const REVIEW_INFO_GRID = 'grid items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
 const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
+const REVIEW_DETAIL_CARD = 'rounded-2xl bg-white/[0.03] p-4'
+const REVIEW_DETAIL_COPY = 'text-[13px] leading-5 text-slate-200'
 
 function EmptyNote({ children }) {
   return <p className="rounded-xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">{children}</p>
@@ -224,22 +226,22 @@ function SuggestionCard({ conflict, onViewDiff }) {
   ].filter(([, text]) => text)
 
   return (
-    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-5 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
-      <p className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+    <div className={REVIEW_DETAIL_CARD}>
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
         <Sparkles className="size-3.5" />
         AI suggestion
       </p>
-      <dl className="space-y-4">
+      <dl className="space-y-2.5">
         {rows.map(([label, text]) => (
-          <div key={label}>
-            <dt className="text-[11px] text-slate-500">{label}</dt>
-            <dd className="mt-1 text-[13px] leading-relaxed text-slate-200">{text}</dd>
+          <div key={label} className={REVIEW_INFO_GRID}>
+            <dt className={REVIEW_INFO_LABEL}>{label}</dt>
+            <dd className={REVIEW_DETAIL_COPY}>{text}</dd>
           </div>
         ))}
         {conflict.references?.length > 0 && (
-          <div>
-            <dt className="text-[11px] text-slate-500">References</dt>
-            <dd className="mt-2 flex flex-wrap gap-1.5">
+          <div className={REVIEW_INFO_GRID}>
+            <dt className={REVIEW_INFO_LABEL}>References</dt>
+            <dd className="flex flex-wrap gap-1.5">
               {conflict.references.map((ref) => (
                 <span key={ref.label} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-slate-200">
                   <span className="font-mono">{ref.label}</span>
@@ -250,7 +252,7 @@ function SuggestionCard({ conflict, onViewDiff }) {
           </div>
         )}
       </dl>
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         {onViewDiff && (
           <button
             type="button"
@@ -296,17 +298,17 @@ function OverviewTab({ conflict, onViewDiff }) {
         </p>
       )}
       {(conflict.message || reviewImpact || hasMetadata) && (
-        <section className="rounded-2xl bg-white/[0.03] p-5">
+        <section className={REVIEW_DETAIL_CARD}>
           {conflict.message && (
             <div className={REVIEW_INFO_GRID}>
               <p className={REVIEW_INFO_LABEL}>Issue summary</p>
-              <p className="text-sm leading-6 font-medium text-slate-200">{conflict.message}</p>
+              <p className={cn(REVIEW_DETAIL_COPY, 'font-medium')}>{conflict.message}</p>
             </div>
           )}
           {reviewImpact && (
             <div className={cn(REVIEW_INFO_GRID, conflict.message && 'mt-4 border-t border-white/[0.08] pt-4')}>
               <p className={REVIEW_INFO_LABEL}>Review impact</p>
-              <p className="text-sm leading-6 text-slate-300">{reviewImpact}</p>
+              <p className="text-[13px] leading-5 text-slate-300">{reviewImpact}</p>
             </div>
           )}
           <Provenance
@@ -337,12 +339,12 @@ function CodeDiffColumns({ rows }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {columns.map((column) => (
-        <div key={column.id} role="group" aria-label={`${column.label} code`} className="min-w-0 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11px] leading-relaxed">
+        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11px] leading-relaxed">
           <span className="sr-only">{column.label}</span>
           {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
-            <div key={`${row.kind}-${index}`} className={cn('flex px-2 whitespace-pre', DIFF_TONES[row.kind])}>
+            <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-2 whitespace-pre-wrap [word-break:break-all]', DIFF_TONES[row.kind])}>
               <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-              <span>{row.text || ' '}</span>
+              <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
             </div>
           ))}
         </div>
@@ -366,13 +368,29 @@ function DiffTab({ conflict }) {
         <section className="rounded-xl bg-white/[0.025] p-4">
           <div className="flex flex-col gap-4">
             {conflict.suggestion && (
-              <div className="rounded-xl bg-emerald-400/[0.07] px-3 py-2">
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+              <div className="rounded-xl bg-white/[0.03] p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
                   <Sparkles className="size-3.5" />
                   AI suggestion
                 </p>
-                <p className="mt-1 text-[13px] leading-relaxed text-slate-200">{conflict.suggestion}</p>
-                {conflict.suggestionReason && <p className="mt-1 text-xs leading-relaxed text-slate-400">{conflict.suggestionReason}</p>}
+                <dl className="mt-2 space-y-2">
+                  <div className={REVIEW_INFO_GRID}>
+                    <dt className={REVIEW_INFO_LABEL}>Proposal</dt>
+                    <dd className={REVIEW_DETAIL_COPY}>{conflict.suggestion}</dd>
+                  </div>
+                  {conflict.suggestionReason && (
+                    <div className={REVIEW_INFO_GRID}>
+                      <dt className={REVIEW_INFO_LABEL}>Why</dt>
+                      <dd className={REVIEW_DETAIL_COPY}>{conflict.suggestionReason}</dd>
+                    </div>
+                  )}
+                  {conflict.expectedResult && (
+                    <div className={REVIEW_INFO_GRID}>
+                      <dt className={REVIEW_INFO_LABEL}>Expected result</dt>
+                      <dd className={REVIEW_DETAIL_COPY}>{conflict.expectedResult}</dd>
+                    </div>
+                  )}
+                </dl>
               </div>
             )}
             {pairedPreview ? (
@@ -453,20 +471,20 @@ function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
   const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
   return (
-    <div className="min-w-0 rounded-xl bg-white/[0.03] p-4">
+    <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
       <ol
         aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
-        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1"
+        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)] items-center gap-x-0"
       >
         {REVIEW_STAGES.map((step, index) => {
           const current = index === currentStep
           return (
             <Fragment key={step.id}>
-              {index > 0 && <li aria-hidden="true" className="px-1 text-[10px] text-slate-600">→</li>}
+              {index > 0 && <li aria-hidden="true" className="text-center text-[10px] text-slate-600">→</li>}
               <li aria-current={current ? 'step' : undefined} className="flex min-w-0 items-center justify-center">
                 <span className={cn(
-                  'max-w-full truncate text-xs leading-4 font-semibold whitespace-nowrap',
-                  current ? 'inline-flex items-center rounded-full bg-emerald-300 px-1.5 py-1 text-[#050506]' : 'text-slate-400'
+                  'max-w-full truncate text-[10px] leading-4 font-semibold whitespace-nowrap',
+                  current ? 'inline-flex items-center rounded-full bg-emerald-300 px-1.5 py-0.5 text-[#050506]' : 'text-slate-400'
                 )}>
                   {step.label}
                 </span>
@@ -476,7 +494,7 @@ function StatusCard({ conflict }) {
         })}
       </ol>
       {conflict.reviewStage === 'in_review' && status.lines.length > 0 && (
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-1.5 space-y-1">
           {status.lines.map((line) => (
             <li key={line} className="text-xs leading-4 text-slate-300">{line}</li>
           ))}
@@ -581,7 +599,7 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
             if (!person) return null
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
-              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_64px_72px] items-center gap-2.5 rounded-lg text-xs hover:bg-white/[0.03]">
+              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_64px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <PersonAvatar person={person} />
                   <span className="min-w-0 truncate font-medium text-slate-200">
@@ -671,7 +689,7 @@ function CommentThread({ conflict, workspace }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto">
+        <div className="scroll-fade-bottom min-h-0 flex-1 space-y-3 overflow-auto">
         {comments.length === 0 && <p className="text-xs text-slate-500">No comments yet.</p>}
         {comments.map((comment) => {
           const author = allPeople.find((p) => p.id === comment.authorId)
@@ -826,7 +844,7 @@ function HistoryCheckpointTimeline({ workspace }) {
           <span className="text-xs font-medium text-slate-300">Checkpoints</span>
           <span className="ml-auto text-[10px] tabular-nums text-slate-500">{entries.length}</span>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+        <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
           {[...entries].reverse().map((entry) => {
             const person = allPeople.find((candidate) => candidate.id === entry.actorId)
             const author = entry.actorLabel ?? person?.name ?? 'Workspace'
@@ -886,9 +904,9 @@ function HistoryCheckpointTimeline({ workspace }) {
             </div>
             <div className="min-h-0 flex-1 overflow-auto border-t border-white/[0.05] py-1.5 font-mono text-[10px] leading-relaxed">
               {rows.length === 0 ? <p className="px-3 py-3 text-slate-500">No file snapshot is available for this checkpoint.</p> : rows.map((row, index) => (
-                <div key={`${row.kind}-${index}`} className={cn('flex min-w-max px-3 whitespace-pre', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
+                <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
                   <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
-                  <span>{row.text || ' '}</span>
+                  <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
                 </div>
               ))}
             </div>
@@ -994,7 +1012,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           <button
             type="button"
             onClick={() => onRequestChanges?.(conflict.id)}
-            className={cn('inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-medium whitespace-nowrap', GHOST_BUTTON)}
+            className={cn('inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-medium whitespace-nowrap', GHOST_BUTTON)}
           >
             Request changes
           </button>
@@ -1015,7 +1033,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         <button
           type="button"
           onClick={handleReopen}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
         >
           <RotateCcw className="size-3.5" />
           Reopen
@@ -1037,7 +1055,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           <>
             {/* Primary header combines the issue identity and project context. */}
             <div className="flex min-h-14 shrink-0 items-center justify-between gap-5 border-b border-white/[0.07] bg-white/[0.02] px-5 py-3">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  title="Back to list"
+                  aria-label="Back to list"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
                 <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
                 <div className="flex shrink-0 items-center gap-2.5">
                   {severity && <SeverityPill level={severity.label} />}
@@ -1066,18 +1093,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  <ArrowLeft className="size-3.5" />
-                  Back to list
-                </button>
               </div>
 
-              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
-                <div className="min-h-0 min-w-0 overflow-auto px-5 pt-4 pb-4" role="tabpanel">
+              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
+                <div className="scroll-fade-bottom min-h-0 min-w-0 overflow-auto px-5 pt-4 pb-4" role="tabpanel">
                     {tab === 'overview' && (
                       <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                     )}
@@ -1088,12 +1107,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
 
                 {/* Sidebar begins level with the main content beneath the shared tab bar. */}
-                <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden px-3 pt-4 pb-3">
+                <div className="flex min-h-0 min-w-0 flex-col gap-2.5 overflow-hidden px-2.5 pt-3 pb-2.5">
                   <StatusCard conflict={conflict} />
-                  <div className="min-w-0 rounded-xl bg-white/[0.03] p-4">
+                  <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
                     <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                   </div>
-                  <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.03] p-4">
+                  <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.03] p-3">
                     <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
                     <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                   </div>
@@ -1101,25 +1120,23 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] bg-white/[0.02] px-5 py-2.5">
+            <div className="flex shrink-0 items-center gap-1.5 px-5 py-2.5">
               <div className="min-w-0 flex-1" />
               {stage !== 'resolved' && (
-                <div className="flex shrink-0 items-center">
-                  <Tooltip>
-                    <TooltipTrigger
-                      type="button"
-                      onClick={() => onOpenMergeStudio?.(conflict)}
-                      className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
-                    >
-                      <GitMerge className="size-3.5" />
-                      Open in Merge Studio
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Edit or combine elements before merging.</TooltipContent>
-                  </Tooltip>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger
+                    type="button"
+                    onClick={() => onOpenMergeStudio?.(conflict)}
+                    className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
+                  >
+                    <GitMerge className="size-3.5" />
+                    Open in Merge Studio
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Edit or combine elements before merging.</TooltipContent>
+                </Tooltip>
               )}
-              <div className="flex shrink-0 items-center gap-1.5">
-                {footerNote && <span className="mr-1 hidden text-right text-[10px] leading-snug text-slate-400 xl:block">{footerNote}</span>}
+              <div className="flex shrink-0 items-center">
+                {footerNote && <span className="mr-1.5 hidden text-right text-[10px] leading-snug text-slate-400 xl:block">{footerNote}</span>}
                 {primary}
               </div>
             </div>

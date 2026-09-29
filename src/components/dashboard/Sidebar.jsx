@@ -22,7 +22,7 @@ const globalItems = [
 ]
 
 const iconButtonClass =
-  'mx-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+  'mx-auto flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full p-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
 // Deliberately restrained: a muted surface + a thin primary-tinted ring,
 // not a saturated blue fill — the icon itself stays close to neutral.
@@ -83,21 +83,29 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   return (
     <div
       className={cn(
-        'flex h-full w-12 shrink-0 flex-col gap-1 pt-3 pb-2 transition-colors duration-300 ease-out',
+        'flex h-full w-12 shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
         drawer ? 'bg-[#0B0B0E]' : 'bg-[#050506]'
       )}
     >
-      <div className="flex h-9 shrink-0 items-center">
+      <div className="group/project relative flex h-9 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <DropdownMenuTrigger
             type="button"
             aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
+            aria-describedby="activity-project-switcher-tooltip"
             title={project ? `${project.name} · Switch project` : 'Projects'}
             className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
           >
             <ProjectsMark project={project} />
           </DropdownMenuTrigger>
         </ProjectSwitcher>
+        <span
+          id="activity-project-switcher-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute top-1/2 left-[calc(100%+8px)] z-[100] -translate-y-1/2 whitespace-nowrap rounded-md border border-white/10 bg-popover px-3 py-1.5 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/project:opacity-100 group-focus-within/project:opacity-100"
+        >
+          Projects · Switch project
+        </span>
       </div>
 
       <nav aria-label="Main" className="flex flex-col gap-1">

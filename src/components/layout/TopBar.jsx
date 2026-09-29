@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Bell } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -8,12 +9,6 @@ import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-
-// Hairline between groups inside the action pill — Merge Studio's own
-// divider (see MergeInfiniteCanvas's header cluster).
-function PillDivider() {
-  return <span className="h-4 w-px shrink-0 bg-white/10" />
-}
 
 // The normal workspace's chrome, in the same floating-pill language as
 // Merge Studio's own header — no docked bar spanning the viewport, three
@@ -33,14 +28,26 @@ function ProjectTitle({ project }) {
   return (
     <div
       className={cn(
-        'absolute top-3 left-3 z-40 flex h-10 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        'absolute top-2 left-2 z-40 flex h-10 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
         FLOATING_PILL,
         'border-0'
       )}
     >
-      <span className="min-w-0 truncate font-semibold text-foreground">{project?.name}</span>
+      <Link
+        to={`/projects/${project?.id}`}
+        title={`Open ${project?.name}`}
+        className="min-w-0 truncate rounded-md px-1 py-1 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+      >
+        {project?.name}
+      </Link>
       <span className="shrink-0 text-muted-foreground/60">/</span>
-      <span className="shrink-0 text-muted-foreground">Workspace</span>
+      <Link
+        to={`/projects/${project?.id}/workspace`}
+        title="Open workspace"
+        className="shrink-0 rounded-md px-1 py-1 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+      >
+        Workspace
+      </Link>
       {Object.keys(draftChanges).length > 0 && <span className="truncate text-[11px] text-amber-300">Draft changes · Not merged</span>}
     </div>
   )
@@ -94,7 +101,7 @@ function TopBar({ project, onOpenPalette }) {
           usable field between the pills, so it never collides with them.
           It opens the command palette (⌘K) rather than taking text itself. */}
       <SearchField
-        className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden"
+        className="absolute top-[10px] left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden"
         placeholder="Search files, commands..."
         readOnly
         aria-haspopup="dialog"
@@ -112,10 +119,8 @@ function TopBar({ project, onOpenPalette }) {
           (Files & Layers, views, layout, Inspect) live in the command
           palette (⌘K, the search field) and each window's `+` — the only
           place Preview opens from. */}
-      <div className="absolute top-3 right-3 z-40 flex items-center gap-2">
-        <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL, 'border-0')}>
-          <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
-          <PillDivider />
+      <div className="absolute top-2 right-4 z-40 flex items-center gap-2">
+        <div className={cn('flex h-10 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0')}>
           <span className={PRESENCE_STACK}>
             <UserPresence />
           </span>
@@ -123,6 +128,7 @@ function TopBar({ project, onOpenPalette }) {
 
         <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
         <MergeStudioMenu standalone borderless />
+        <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
       </div>
 
       {inboxOpen && (

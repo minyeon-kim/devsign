@@ -203,7 +203,7 @@ function ExplorerPanel() {
         <span title="Project root">/</span>
         <ImportMenu />
       </div>
-      <div className="flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
+      <div className="scroll-fade-bottom flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
         <div role="tree" aria-label="Project files">{renderNodes(tree)}</div>
         {!tree.length && <p className="px-2 py-4">No files yet. Import files to get started.</p>}
 

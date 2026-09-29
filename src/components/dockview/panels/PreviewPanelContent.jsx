@@ -43,7 +43,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, caption } = {}) {
         {caption}
       </div>
 
-      <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+      <div ref={boxRef} className="scroll-fade-bottom min-h-0 flex-1 overflow-auto px-4 pb-4">
         <div key={previewVersion} className="flex flex-col items-center gap-6 animate-in fade-in duration-300">
           {page.frames.map((frame) => {
             const scale = Math.min(1, width / frame.width)

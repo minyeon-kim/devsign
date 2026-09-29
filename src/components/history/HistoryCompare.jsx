@@ -179,11 +179,11 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
               <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
             )}
             {codeRows.map((row, index) => (
-              <div key={index} className={cn('flex pr-4 whitespace-pre', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
+              <div key={index} className={cn('flex min-w-0 pr-4 whitespace-pre-wrap [word-break:break-all]', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
                 {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
                 <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
                 {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
-                <span>{row.text || ' '}</span>
+                <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
               </div>
             ))}
           </div>

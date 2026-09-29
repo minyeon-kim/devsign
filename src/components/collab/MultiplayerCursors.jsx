@@ -1,23 +1,16 @@
-import { useEffect, useState } from 'react'
 import { teamMembers } from '@/data/mockData'
 
 // A lightweight "someone else is here" simulation for design surfaces
 // (the Workspace canvas and Merge Studio's canvas). The code editor uses
 // line-bound carets instead (see RemoteCarets).
 //
-// Kept deliberately calm: each teammate has a resting spot on the page
-// (derived from who they are and which page it is) and only drifts a few
-// percent around it, slowly, every several seconds — no sweeping across
-// the whole surface. `scopeKey` names the page/file the cursors belong to:
-// when it changes, cursors re-appear at their new spot with a fade instead
-// of gliding over from wherever they were on the previous page.
+// Each teammate has a stable editor-space coordinate derived from their id
+// and page. Pixel coordinates keep cursors anchored when surrounding panes
+// resize; the overlay clips them naturally at the editor's current bounds.
 //
 // `members` is expected to already be scoped to that page (CanvasPanel
 // passes getViewersForCanvasPage) — this component renders whoever it's
 // given.
-
-const DRIFT_MS = 8000
-const DRIFT_RANGE = 4 // percent, each axis, around the resting spot
 
 function hash(text) {
   let h = 0
@@ -25,59 +18,24 @@ function hash(text) {
   return Math.abs(h)
 }
 
-// Resting spot inside a comfortable band away from the edges and the
-// bottom toolbars.
-function restingPoint(memberId, scopeKey) {
+// Fixed coordinates in CSS pixels, inside a comfortable editor-space band.
+function editorPoint(memberId, scopeKey) {
   const h = hash(`${memberId}:${scopeKey}`)
-  return { x: 18 + (h % 55), y: 16 + ((h >> 7) % 42) }
-}
-
-function driftAround(home) {
-  return {
-    x: home.x + (Math.random() * 2 - 1) * DRIFT_RANGE,
-    y: home.y + (Math.random() * 2 - 1) * DRIFT_RANGE,
-  }
+  return { x: 160 + (h % 420), y: 110 + ((h >> 7) % 240) }
 }
 
 function MultiplayerCursors({ members = teamMembers, scopeKey = 'default' }) {
-  const memberIds = members.map((m) => m.id).join(',')
-  const key = `${scopeKey}|${memberIds}`
-  const [state, setState] = useState({ key: null, points: {} })
-
-  let points = state.points
-  if (state.key !== key) {
-    points = Object.fromEntries(members.map((m) => [m.id, restingPoint(m.id, scopeKey)]))
-    setState({ key, points })
-  }
-
-  useEffect(() => {
-    const timers = members.map((member, i) =>
-      window.setInterval(
-        () => {
-          setState((prev) => ({
-            ...prev,
-            points: { ...prev.points, [member.id]: driftAround(restingPoint(member.id, scopeKey)) },
-          }))
-        },
-        DRIFT_MS + i * 1900
-      )
-    )
-    return () => timers.forEach(window.clearInterval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
-
   return (
     <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       {members.map((member) => {
-        const point = points[member.id]
-        if (!point) return null
+        const point = editorPoint(member.id, scopeKey)
         return (
           <div
             // Keyed by page too: a new page mounts a fresh cursor (fade in)
             // rather than animating one across from the old page.
             key={`${scopeKey}:${member.id}`}
-            className="absolute animate-in fade-in transition-[left,top] duration-[1400ms] ease-out motion-reduce:animate-none motion-reduce:transition-none"
-            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+            className="absolute"
+            style={{ left: point.x, top: point.y }}
           >
             <svg
               width="19"

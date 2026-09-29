@@ -295,7 +295,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-5 pb-2">
+      <div className="scroll-fade-bottom min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-5 pb-2">
         {visible.map((n) => (
           <InboxItem key={n.id} n={n} onJump={onJump} />
         ))}

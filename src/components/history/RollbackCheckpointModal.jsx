@@ -130,9 +130,9 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
                     <p className="px-4 py-2 font-sans text-xs text-slate-500">The code is the same as the current version.</p>
                   ) : (
                     changedRows.slice(0, 24).map((row, i) => (
-                      <div key={i} className={cn('flex px-4 whitespace-pre', ROW_TONES[row.kind])}>
+                      <div key={i} className={cn('flex min-w-0 px-4 whitespace-pre-wrap [word-break:break-all]', ROW_TONES[row.kind])}>
                         <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
-                        <span>{row.text || ' '}</span>
+                        <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
                       </div>
                     ))
                   )}

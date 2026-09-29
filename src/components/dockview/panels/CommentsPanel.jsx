@@ -117,7 +117,7 @@ function CommentsPanel() {
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
+      <div className="scroll-fade-bottom min-h-0 flex-1 space-y-2 overflow-auto p-2">
         {comments.length === 0 && (
           <p className="p-2 text-xs text-muted-foreground">No comments yet.</p>
         )}

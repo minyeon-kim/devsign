@@ -2539,25 +2539,6 @@ function MergeInfiniteCanvas({
               bar is hidden in Merge Studio, so it lives here instead, in a
               glass pill matched to the Preview button's 30px height. */}
           <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
-            {/* Notifications (the merge inbox) live with the people who
-                send them: right beside the avatars. */}
-            <button
-              type="button"
-              title="Notifications"
-              onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
-              className={cn(
-                'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-                mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
-              )}
-            >
-              <Bell className="size-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            <span className="h-4 w-px bg-white/10" />
             {/* Studio-scoped styling for the shared presence stack (the
                 component itself is untouched): left-on-top order and the
                 soft surface-colored ring. */}
@@ -2602,6 +2583,24 @@ function MergeInfiniteCanvas({
               )}
             </button>
           )}
+          <button
+            type="button"
+            title="Notifications"
+            aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+            aria-expanded={mergeDrawer === 'inbox'}
+            onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
+            className={cn(
+              'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+              mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
+            )}
+          >
+            <Bell className="size-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+                {unreadCount}
+              </span>
+            )}
+          </button>
           </div>
         </div>
 

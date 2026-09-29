@@ -528,7 +528,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       {/* No title row: the top "Merge List" pill (with its count) already
           names this panel, so it opens straight onto search and filters —
           20px in from the top, the same as the sides. */}
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="scroll-fade-bottom min-h-0 flex-1 overflow-auto">
           <div className="space-y-4 px-5 pt-5 pb-5">
             {/* Search and a single Filter button on one row, straight in the
                 panel's flow (no box around them); what's filtered shows as
@@ -643,7 +643,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               Back to Merge List
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="scroll-fade-bottom min-h-0 flex-1 overflow-auto">
             <ItemDetailView
               item={item}
               files={files}

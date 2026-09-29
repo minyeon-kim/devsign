@@ -865,11 +865,18 @@ export function WorkspaceProvider({ children, projectId }) {
   const aiStateRef = useRef(null)
   aiStateRef.current = { fileOverrides, previewProps, conflicts }
   const sendChatMessage = useCallback(
-    (text, target = null) => {
+    (text, target = null, options = {}) => {
       const trimmed = text.trim()
       if (!trimmed) return
 
-      setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed, target }])
+      if (options.includeUser !== false) setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed, target }])
+      const appendAssistant = (message) => setChatMessages((prev) => {
+        if (options.replaceMessageId) {
+          const index = prev.findIndex((entry) => entry.id === options.replaceMessageId)
+          if (index >= 0) return prev.map((entry, i) => i === index ? { ...message, id: entry.id } : entry)
+        }
+        return [...prev, message]
+      })
       setIsAiTyping(true)
 
       const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && q.prompt.toLowerCase() === trimmed.toLowerCase())
@@ -881,7 +888,7 @@ export function WorkspaceProvider({ children, projectId }) {
         setIsAiTyping(false)
 
         if (answer) {
-          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: answer.reply }])
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: answer.reply })
           return
         }
         if (!scenario || !fits) {
@@ -889,21 +896,18 @@ export function WorkspaceProvider({ children, projectId }) {
           const reason = !scenario
             ? `I couldn’t turn that into a specific change in ${where}. Nothing was changed.`
             : `That change would edit ${scenario.target?.layerId ? findCanvasTarget(scenario.target.layerId)?.layer?.name ?? 'another element' : getFileNameRef.current(scenario.fileId)}, which is outside your target (${where}). Nothing was changed — change the target or rephrase.`
-          setChatMessages((prev) => [
-            ...prev,
-            { id: nextId('m'), role: 'assistant', text: reason, result: { status: 'no_change', target } },
-          ])
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: reason, result: { status: 'no_change', target } })
           return
         }
 
         const live = aiStateRef.current
         const currentLines = live.fileOverrides[scenario.fileId] ?? files.find((f) => f.id === scenario.fileId)?.lines ?? []
         if (!Array.isArray(scenario.lines) || scenario.lines.some((line) => typeof line !== 'string')) {
-          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: 'The demo could not apply this code. Try a supported request or edit the target in Assemble.', result: { status: 'failed', target } }])
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The demo could not apply this code. Try a supported request or edit the target in Assemble.', result: { status: 'failed', target } })
           return
         }
         if (signature(currentLines) === signature(scenario.lines) && Object.entries(scenario.previewProps ?? {}).every(([key, value]) => signature(live.previewProps[key]) === signature(value))) {
-          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: 'The target already matches this result. No files or approvals were changed.', result: { status: 'no_change', target } }])
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The target already matches this result. No files or approvals were changed.', result: { status: 'no_change', target } })
           return
         }
         const { fileOverrides, previewProps, conflicts } = live
@@ -975,7 +979,7 @@ export function WorkspaceProvider({ children, projectId }) {
             chatLength: chatLengthRef.current + 1,
           },
         })
-        setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: scenario.reply, historyId, result }])
+        appendAssistant({ id: nextId('m'), role: 'assistant', text: scenario.reply, historyId, result })
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

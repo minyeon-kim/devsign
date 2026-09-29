@@ -10,7 +10,7 @@ function ConsolePanel() {
   return (
     <AutoScrollList
       entries={consoleEntries}
-      className="h-full overflow-auto bg-card p-3 font-mono text-xs text-muted-foreground"
+      className="scroll-fade-bottom h-full overflow-auto bg-card p-3 font-mono text-xs text-muted-foreground"
     />
   )
 }

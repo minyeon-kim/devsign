@@ -124,14 +124,14 @@ function ConflictPanel({ onContentHeightChange }) {
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pt-4 pb-3" role="group" aria-label="Filter conflicts">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-2 pb-2" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               aria-pressed={f.id === filter.id}
               onClick={() => setBottomPanel({ conflictFilter: f.id })}
-              className={cn(CATEGORY_TAB, 'h-6 gap-1.5 px-2.5 text-[11px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+              className={cn(CATEGORY_TAB, 'h-6 gap-1 px-2 text-[10.5px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
               {f.label}
               <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
@@ -147,7 +147,7 @@ function ConflictPanel({ onContentHeightChange }) {
           <p className="text-xs">No conflicts — design and code are in sync.</p>
         </div>
       ) : (
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
+        <div className="scroll-fade-bottom relative min-h-0 min-w-0 flex-1 overflow-auto">
           <table className="w-full min-w-[860px] table-fixed border-collapse text-xs">
             {/* Shared widths keep the header, rows and expanded diff aligned.
                 Only Issue grows; narrow panels scroll within the list. */}
@@ -161,7 +161,7 @@ function ConflictPanel({ onContentHeightChange }) {
             </colgroup>
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b text-left text-[11px] text-muted-foreground">
-                <th className="py-3 pr-2 pl-6">
+                <th className="py-1.5 pr-1.5 pl-4">
                   <Checkbox
                     checked={allSelected}
                     disabled={batchable.length === 0}
@@ -169,11 +169,11 @@ function ConflictPanel({ onContentHeightChange }) {
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
                 </th>
-                <th className="px-3 py-3 font-medium whitespace-nowrap">Severity</th>
-                <th className="px-3 py-3 font-medium">Issue</th>
-                <th className="px-3 py-3 font-medium whitespace-nowrap">Status</th>
-                <th className="py-3 pr-3 pl-1 text-right font-medium whitespace-nowrap">Reviewers</th>
-                <th className="py-3 pr-6 pl-3" />
+                <th className="px-2 py-1.5 font-medium whitespace-nowrap">Severity</th>
+                <th className="px-2 py-1.5 font-medium">Issue</th>
+                <th className="px-2 py-1.5 font-medium whitespace-nowrap">Status</th>
+                <th className="py-1.5 pr-2 pl-1 text-right font-medium whitespace-nowrap">Reviewers</th>
+                <th className="py-1.5 pr-4 pl-2" />
               </tr>
             </thead>
             <tbody>
@@ -202,7 +202,7 @@ function ConflictPanel({ onContentHeightChange }) {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-4 pr-2 pl-6" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-2 pr-1.5 pl-4" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -214,12 +214,12 @@ function ConflictPanel({ onContentHeightChange }) {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       <SeverityPill level={severity.label} />
                     </td>
-                    <td className="min-w-0 px-3 py-4">
-                      <div className="min-w-0 space-y-1">
-                        <p className="line-clamp-2 leading-5 font-medium break-words text-white">{conflict.title}</p>
+                    <td className="min-w-0 px-2 py-2">
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="line-clamp-2 text-[11.5px] leading-4 font-medium break-words text-white">{conflict.title}</p>
                         {expandable && (
                           <button
                             type="button"
@@ -227,39 +227,39 @@ function ConflictPanel({ onContentHeightChange }) {
                               event.stopPropagation()
                               setExpandedId(expanded ? null : conflict.id)
                             }}
-                            className="text-[11px] text-slate-500 transition-colors hover:text-slate-300"
+                            className="text-[10px] leading-3 text-slate-500 transition-colors hover:text-slate-300"
                           >
                             {expanded ? 'Hide quick diff' : 'Quick diff'}
                           </button>
                         )}
-                        <p className="flex min-w-0 items-start gap-1 text-xs leading-4 text-slate-400">
-                          <FileCode2 className="mt-0.5 size-3 shrink-0" />
+                        <p className="flex min-w-0 items-start gap-1 text-[10px] leading-3.5 text-slate-400">
+                          <FileCode2 className="mt-0.5 size-2.5 shrink-0" />
                           <span className="line-clamp-2 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
                         </p>
                         {conflict.message && (
-                          <p className="line-clamp-2 text-xs leading-4 break-words text-slate-400" title={conflict.message}>
+                          <p className="line-clamp-2 text-[10px] leading-3.5 break-words text-slate-400" title={conflict.message}>
                             {conflict.message}
                           </p>
                         )}
                       </div>
                     </td>
                     {/* Status wraps within its own column, without pushing the CTA. */}
-                    <td className="px-3 py-4 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                         {needsReviewFrom(conflict) && (
-                            <span className="inline-flex h-5 items-center rounded-full bg-emerald-400/10 px-2 text-[10.5px] font-medium text-emerald-300">
+                            <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">
                             Needs your review
                           </span>
                         )}
                       </span>
                     </td>
-                    <td className="py-4 pr-3 pl-1 text-right">
+                    <td className="py-2 pr-2 pl-1 text-right">
                       {reviewers.length ? (
                         <div className="flex flex-wrap justify-end gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
-                            <Avatar key={person.id} size="sm" className="ring-2 ring-card" title={person.name}>
+                            <Avatar key={person.id} size="sm" className="size-5 ring-2 ring-card" title={person.name}>
                               <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
                                 {person.initials}
                               </AvatarFallback>
@@ -270,7 +270,7 @@ function ConflictPanel({ onContentHeightChange }) {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="py-4 pr-6 pl-3 text-right">
+                    <td className="py-2 pr-4 pl-2 text-right">
                       <button
                         type="button"
                         onClick={(event) => {
@@ -335,7 +335,7 @@ function ConflictPanel({ onContentHeightChange }) {
 // The row action stays available without competing with the conflict title,
 // severity, and status hierarchy. Clicking the row still opens the review.
 const REVIEW_CTA =
-  'inline-flex h-8 w-[64px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none'
+  'inline-flex h-7 w-[60px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[11px] font-medium whitespace-nowrap text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none'
 
 const DIFF_TONES = {
   same: 'text-slate-400',
@@ -346,16 +346,15 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
 // A low-risk row's expansion: the proposed change as a compact inline diff,
 // so what's being batch-approved can be checked in place. Capped in height
-// with long lines scrolling horizontally. `w-0 min-w-full` keeps them from widening the
-// table: it fills its cell without adding to the column widths.
+// with long lines wrapping to the available cell width.
 function MiniDiff({ conflict }) {
   const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
   return (
-    <div className="max-h-32 w-0 min-w-full overflow-auto rounded-lg border border-border/60 bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
+    <div className="max-h-32 w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/60 bg-black/25 py-1.5 font-mono text-[11px] leading-5">
       {rows.map((row, i) => (
-        <div key={i} className={cn('flex min-w-full w-max px-3', DIFF_TONES[row.kind])} title={row.text}>
+        <div key={i} className={cn('flex min-w-0 w-full px-3 whitespace-pre-wrap [word-break:break-all]', DIFF_TONES[row.kind])} title={row.text}>
           <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-          <span className="whitespace-pre">{row.text || ' '}</span>
+          <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
         </div>
       ))}
     </div>

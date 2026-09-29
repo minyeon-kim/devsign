@@ -1,4 +1,4 @@
-import { ChevronDown, Headset } from 'lucide-react'
+import { Headset } from 'lucide-react'
 import { cn } from 'cn'
 import {
   Avatar,
@@ -32,8 +32,11 @@ function UserPresence() {
   // simulated collaboration timeline (mock data, not a live connection).
   function contextFor(member) {
     const viewport = memberViewports.find((m) => m.member.id === member.id)?.viewport
-    if (!viewport) return null
-    return { label: viewport.label, file: files.find((f) => f.id === viewport.fileId)?.name }
+    return {
+      status: viewport?.status ?? (member.online ? 'Online' : 'Offline'),
+      label: viewport?.label,
+      file: viewport && files.find((f) => f.id === viewport.fileId)?.name,
+    }
   }
 
   function toggleFollowMe() {
@@ -45,53 +48,19 @@ function UserPresence() {
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <AvatarGroup className="flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background">
       {/* Clicking a teammate's avatar directly toggles following their view —
           no popover in the way, per the Follow Me interaction spec. */}
-      <AvatarGroup size="sm">
-        {teamMembers.map((member) => {
-          const active = followedMemberId === member.id
-          const currentView = contextFor(member)
-          return (
-            <Tooltip key={member.id}>
-              <TooltipTrigger
-                onClick={() => followMember(member.id)}
-                className={cn(
-                  'rounded-full transition-transform hover:scale-105',
-                  active && 'ring-2 ring-primary ring-offset-1 ring-offset-card'
-                )}
-              >
-                <Avatar>
-                  <AvatarFallback
-                    className={cn('text-[10px] font-medium text-white', member.colorClass)}
-                  >
-                    {member.initials}
-                  </AvatarFallback>
-                  {member.online && <AvatarBadge className="bg-emerald-500" />}
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="flex-col items-start gap-0.5">
-                <p className="font-medium">
-                  {active ? `Following ${member.name}` : member.name}
-                  {currentView && <span className="font-normal"> · {currentView.label}</span>}
-                </p>
-                {currentView?.file && <p className="font-mono text-background/70">{currentView.file}</p>}
-              </TooltipContent>
-            </Tooltip>
-          )
-        })}
-      </AvatarGroup>
-
       <Popover>
-        <PopoverTrigger className="flex items-center gap-0.5 rounded-full transition-opacity hover:opacity-80">
-          <Avatar size="sm" className="ring-2 ring-background">
-            <AvatarFallback
-              className={cn('text-[10px] font-medium text-white', currentUser.colorClass)}
-            >
+        <PopoverTrigger
+          aria-label={`${currentUser.name} profile`}
+          className="relative z-40 flex size-5 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80"
+        >
+          <Avatar size="sm" className="size-5">
+            <AvatarFallback className={cn('text-[9px] font-medium text-white', currentUser.colorClass)}>
               {currentUser.initials}
             </AvatarFallback>
           </Avatar>
-          <ChevronDown className="size-3 text-muted-foreground" />
         </PopoverTrigger>
 
         <PopoverContent align="end" sideOffset={10} className="w-64 gap-0 p-0">
@@ -166,7 +135,53 @@ function UserPresence() {
           </p>
         </PopoverContent>
       </Popover>
-    </div>
+
+        {teamMembers.slice(0, 2).map((member) => {
+          const active = followedMemberId === member.id
+          const currentView = contextFor(member)
+          return (
+            <Tooltip key={member.id}>
+              <TooltipTrigger
+                onClick={() => followMember(member.id)}
+                className={cn(
+                  'relative z-30 size-5 rounded-full transition-transform hover:scale-105',
+                  active && 'ring-2 ring-primary ring-offset-1 ring-offset-card'
+                )}
+              >
+                <Avatar size="sm" className="size-5">
+                  <AvatarFallback
+                    className={cn('text-[10px] font-medium text-white', member.colorClass)}
+                  >
+                    {member.initials}
+                  </AvatarFallback>
+                  {member.online && <AvatarBadge className="bg-emerald-500" />}
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="flex-col items-start gap-0.5">
+                <p className="font-medium">
+                  {active ? `Following ${member.name}` : member.name}
+                  <span className="font-normal text-background/70"> · {currentView.status}</span>
+                </p>
+                {currentView.label && <p>{currentView.label}</p>}
+                {currentView?.file && <p className="font-mono text-background/70">{currentView.file}</p>}
+              </TooltipContent>
+            </Tooltip>
+          )
+        })}
+        {teamMembers.length > 2 && (
+          <Tooltip>
+            <TooltipTrigger
+              aria-label={`${teamMembers.length - 2} more teammates`}
+              className="relative z-10 flex size-5 items-center justify-center rounded-full bg-white/[0.1] text-[9px] font-medium text-slate-300"
+            >
+              +{teamMembers.length - 2}
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {teamMembers.slice(2).map((member) => `${member.name} · ${contextFor(member).status}`).join('  /  ')}
+            </TooltipContent>
+          </Tooltip>
+        )}
+    </AvatarGroup>
   )
 }
 

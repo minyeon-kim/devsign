@@ -236,7 +236,7 @@ function DeckScroll({ innerClassName, children }) {
       onScroll={(e) => {
         if (e.currentTarget.scrollLeft) e.currentTarget.scrollLeft = 0
       }}
-      className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]"
+      className="scroll-fade-bottom min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
     >
       <div className={innerClassName} style={{ marginRight: -scrollbar }}>
         {children}

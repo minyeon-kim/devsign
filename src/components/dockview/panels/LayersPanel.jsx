@@ -38,7 +38,7 @@ function LayersPanel() {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="min-h-0 flex-1 overflow-auto p-2">
+      <div className="scroll-fade-bottom min-h-0 flex-1 overflow-auto p-2">
         <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-foreground/70">
           <File className="size-3.5" />
           {page?.name}
