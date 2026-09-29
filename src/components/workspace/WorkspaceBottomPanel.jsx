@@ -162,7 +162,7 @@ function WorkspaceBottomPanel() {
               setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
             }}
             onClick={() => pickTab(id)}
-            className={cn(CATEGORY_TAB, 'gap-1.5', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             <Icon className="size-3.5" />
             {label}
