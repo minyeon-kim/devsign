@@ -61,7 +61,7 @@ function ConflictPanel({ onContentHeightChange }) {
     if (reviewConflict) {
       // Give the review workspace room for its diff, reviewer controls, and
       // comments; WorkspaceBottomPanel caps this to the available canvas area.
-      onContentHeightChange(600)
+      onContentHeightChange(440)
       return
     }
     const root = contentRef.current

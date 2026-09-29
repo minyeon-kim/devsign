@@ -58,9 +58,13 @@ function WorkspaceBottomPanel() {
 
   useLayoutEffect(() => {
     if (tab !== 'conflict' || !open || contentHeight == null || manuallySized.current) return
-    const fitted = Math.min(availableHeight, Math.max(MIN_HEIGHT, STRIP_HEIGHT + contentHeight + 1))
+    const workspaceHeight = rootRef.current?.parentElement?.clientHeight ?? availableHeight
+    const desired = reviewConflictId
+      ? Math.round(workspaceHeight * 0.6)
+      : STRIP_HEIGHT + contentHeight + 1
+    const fitted = Math.min(availableHeight, Math.max(MIN_HEIGHT, desired))
     if (height !== fitted) setBottomPanel({ height: fitted })
-  }, [tab, open, contentHeight, availableHeight, height, setBottomPanel])
+  }, [tab, open, reviewConflictId, contentHeight, availableHeight, height, setBottomPanel])
   const { open: openConflicts, needsMyReview } = conflictCounts(conflicts)
 
   function maxHeight() {

@@ -154,7 +154,7 @@ function ComparisonTable({ fields }) {
 
 function Section({ label, children }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
       <p className={cn(PANEL_LABEL, 'mb-3')}>{label}</p>
       {children}
     </div>
@@ -178,7 +178,7 @@ function Provenance({ conflict }) {
   if (!changedBy && !detectedBy && !impactRows.length) return null
 
   return (
-    <div className="grid gap-x-5 gap-y-3 rounded-xl bg-white/[0.03] px-5 py-4 text-xs sm:grid-cols-[96px_1fr]">
+    <div className="grid gap-x-4 gap-y-2 rounded-xl bg-white/[0.03] px-4 py-3 text-xs sm:grid-cols-[88px_1fr]">
       {changedBy && (
         <>
           <span className="text-slate-500">Changed by</span>
@@ -227,12 +227,12 @@ function SuggestionCard({ conflict, onViewDiff }) {
   ].filter(([, text]) => text)
 
   return (
-    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-5 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
-      <p className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.12] p-4 shadow-[inset_0_1px_0_rgba(110,231,183,0.08)]">
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
         <Sparkles className="size-3.5" />
         AI suggestion
       </p>
-      <dl className="space-y-4">
+      <dl className="space-y-3">
         {rows.map(([label, text]) => (
           <div key={label}>
             <dt className="text-[11px] text-slate-500">{label}</dt>
@@ -253,7 +253,7 @@ function SuggestionCard({ conflict, onViewDiff }) {
           </div>
         )}
       </dl>
-      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         {onViewDiff && (
           <button
             type="button"
@@ -272,7 +272,7 @@ function SuggestionCard({ conflict, onViewDiff }) {
 
 function OverviewTab({ conflict, onViewDiff }) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-4">
       {conflict.reviewStage === 'resolved' && (
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
           <Check className="size-3.5" strokeWidth={2.5} />
@@ -286,7 +286,7 @@ function OverviewTab({ conflict, onViewDiff }) {
         </p>
       )}
       {(conflict.message || conflict.riskReason) && (
-        <div className="space-y-5 px-1">
+        <div className="space-y-3 px-1">
           {conflict.message && <p className="text-[13px] leading-relaxed text-slate-200">{conflict.message}</p>}
           {conflict.riskReason && (
             <div>
@@ -320,7 +320,7 @@ function DiffTab({ conflict }) {
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+    <div className="space-y-3">
       {conflict.suggestion && (
         <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
@@ -332,7 +332,7 @@ function DiffTab({ conflict }) {
         </div>
       )}
       {conflict.preview && (
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+        <div className="rounded-xl bg-white/[0.025] p-4">
           <p className={cn(PANEL_LABEL, 'mb-3')}>Before and after</p>
           <ChangePreview preview={conflict.preview} />
           {conflict.uxNote && (
@@ -399,7 +399,7 @@ function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
   const next = nextActionFor(conflict)
   return (
-    <div className={cn('rounded-xl p-4', STATUS_TONE[status.tone])}>
+    <div className={cn('min-w-0 rounded-xl p-3', STATUS_TONE[status.tone])}>
       <p className="text-[11px] font-medium text-slate-500">Status</p>
       <ul className="mt-1 space-y-0.5">
         {status.lines.map((line) => (
@@ -412,7 +412,7 @@ function StatusCard({ conflict }) {
         ))}
       </ul>
       {conflict.reviewStage !== 'resolved' && (
-        <p className={cn('mt-2 text-xs', next.mine ? 'text-sky-300' : 'text-slate-400')}>
+        <p className={cn('mt-1.5 text-[11px]', next.mine ? 'text-sky-300' : 'text-slate-400')}>
           Next: {next.mine ? 'your review' : next.label}
         </p>
       )}
@@ -421,7 +421,7 @@ function StatusCard({ conflict }) {
 }
 
 const PRIMARY_BUTTON = cn(
-  'inline-flex h-9 shrink-0 items-center rounded-full px-5 text-[13px] font-semibold whitespace-nowrap',
+  'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-semibold whitespace-nowrap',
   ACCENT_CTA,
   'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
 )
@@ -765,20 +765,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            {/* Header — the drag handle. Risk and processing status are two
-                separate badges: how much it matters vs. where it is. */}
-            <div className="flex shrink-0 items-start gap-3 border-b border-white/[0.07] bg-white/[0.02] px-6 py-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[15px] font-semibold text-white">{conflict.title}</h2>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  {severity && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <SeverityPill level={severity.label} />
-                    </span>
-                  )}
-                  <StagePill stage={stage} />
-                </div>
-                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500">
+            {/* Compact context row; title and review actions share the bottom bar. */}
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1">
                     <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
                     <span className="truncate font-mono text-slate-300">
@@ -789,21 +778,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {conflict.projectName && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Project · {conflict.projectName}</span>}
                   {conflict.detectedAt && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Detected · {conflict.detectedAt}</span>}
                 </div>
-              </div>
-              <button
-                type="button"
-                aria-label="Back to Conflict Points"
-                onClick={() => onOpenChange(false)}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
-              >
-                <X className="size-4" />
-              </button>
             </div>
 
             <div className="flex min-h-0 flex-1">
               {/* Left: what's in conflict */}
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center gap-1 px-6 pt-4 pb-4" role="tablist" aria-label="Conflict details">
+                <div className="flex shrink-0 items-center gap-1 px-5 pt-2 pb-2" role="tablist" aria-label="Conflict details">
                   {TABS.map(([id, label]) => (
                     <button
                       key={id}
@@ -817,7 +797,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </button>
                   ))}
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto px-6 pb-6" role="tabpanel">
+                <div className="min-h-0 flex-1 overflow-auto px-5 pb-3" role="tabpanel">
                   {tab === 'overview' && (
                     <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                   )}
@@ -825,16 +805,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {/* History lives in one place — the project's History menu
                       (checkpoints with rollback) — so this tab points there. */}
                   {tab === 'history' && (
-                    <div className="space-y-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
-                      <div>
-                        <p className="text-sm font-semibold text-white">Project history</p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-400">Checkpoints and rollbacks for this project are in History.</p>
-                      </div>
+                    <div className="max-w-3xl space-y-3">
+                      <p className="text-xs text-slate-400">Project checkpoints and rollbacks</p>
                       {workspace?.historyEntries?.length > 0 ? (
-                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Latest checkpoint</p>
-                          <p className="mt-1 truncate text-[13px] font-medium text-slate-200">{workspace.historyEntries[workspace.historyEntries.length - 1].label}</p>
-                          <p className="mt-1 text-[11px] text-slate-500">{workspace.historyEntries[workspace.historyEntries.length - 1].timestamp}</p>
+                        <div className="flex items-center gap-3 rounded-xl bg-white/[0.035] px-4 py-3">
+                          <span className="relative flex size-2 shrink-0">
+                            <span className="absolute inset-0 rounded-full bg-emerald-300/30" />
+                            <span className="relative m-auto size-1 rounded-full bg-emerald-300" />
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-200">{workspace.historyEntries[workspace.historyEntries.length - 1].label}</span>
+                          <span className="shrink-0 text-[11px] text-slate-500">{workspace.historyEntries[workspace.historyEntries.length - 1].timestamp}</span>
                         </div>
                       ) : (
                         <p className="rounded-xl bg-white/[0.03] px-4 py-3 text-xs text-slate-500">No checkpoints recorded yet.</p>
@@ -858,26 +838,31 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
               {/* Right: the review — status, reviewers, comments — kept to
                   ~30% so the content under review (left, ~70%) gets the room. */}
-              <div className="flex w-[30%] min-w-[250px] shrink-0 flex-col gap-5 overflow-hidden bg-white/[0.015] px-5 pt-5 pb-5">
+              <div className="flex w-[34%] min-w-[300px] shrink-0 flex-col gap-2 overflow-hidden bg-white/[0.015] px-4 py-3">
                 <StatusCard conflict={conflict} />
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
                   <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.025] p-3">
                   <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
                   <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                 </div>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-6 py-3">
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] bg-white/[0.02] px-5 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <h2 className="truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
+                {severity && <SeverityPill level={severity.label} />}
+                <StagePill stage={stage} />
+              </div>
               {stage !== 'resolved' && (
-                <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex shrink-0 items-center">
                   <Tooltip>
                     <TooltipTrigger
                       type="button"
                       onClick={() => onOpenMergeStudio?.(conflict)}
-                      className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
+                      className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
                     >
                       <GitMerge className="size-3.5" />
                       Open in Merge Studio
@@ -886,12 +871,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </Tooltip>
                 </div>
               )}
-              <div className="ml-auto flex items-center gap-2">
-                {footerNote && <span className="mr-1 text-right text-[11px] leading-snug text-slate-400">{footerNote}</span>}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {footerNote && <span className="mr-1 hidden text-right text-[10px] leading-snug text-slate-400 xl:block">{footerNote}</span>}
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="inline-flex h-9 items-center rounded-full px-4 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white"
+                  className="inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white"
                 >
                   Back to list
                 </button>
