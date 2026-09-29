@@ -204,12 +204,18 @@ function HistoryNavButtons() {
     'flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35'
   return (
     <div className="flex shrink-0 items-center">
-      <button type="button" title="Back" aria-label="Back" disabled={!canGoBack} onClick={() => navigate(-1)} className={buttonClass}>
-        <ChevronLeft className="size-4" />
-      </button>
-      <button type="button" title="Forward" aria-label="Forward" disabled={!canGoForward} onClick={() => navigate(1)} className={buttonClass}>
-        <ChevronRight className="size-4" />
-      </button>
+      <Tooltip>
+        <TooltipTrigger type="button" aria-label="Back" disabled={!canGoBack} onClick={() => navigate(-1)} className={buttonClass}>
+          <ChevronLeft className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Back</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger type="button" aria-label="Forward" disabled={!canGoForward} onClick={() => navigate(1)} className={buttonClass}>
+          <ChevronRight className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Forward</TooltipContent>
+      </Tooltip>
     </div>
   )
 }

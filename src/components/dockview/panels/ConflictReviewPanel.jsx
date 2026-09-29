@@ -88,6 +88,8 @@ const TABS = [
 ]
 
 const REVIEW_INFO_GRID = 'grid items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
+const REVIEW_GUTTER = 'gap-2'
+const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
 const REVIEW_DETAIL_CARD = 'rounded-2xl bg-white/[0.03] p-4'
 const REVIEW_DETAIL_COPY = 'text-[13px] leading-5 text-slate-200'
@@ -471,7 +473,7 @@ function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
   const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
   return (
-    <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
+    <div className={cn('min-w-0 p-3', REVIEW_CARD)}>
       <ol
         aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
         className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)] items-center gap-x-0"
@@ -837,9 +839,9 @@ function HistoryCheckpointTimeline({ workspace }) {
   }
 
   return (
-    <div className="flex h-full min-h-[280px] min-w-0 gap-3">
-      <section aria-label="Project checkpoints" className="flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden rounded-xl bg-white/[0.025]">
-        <div className="flex shrink-0 items-center gap-1.5 px-3 py-2.5">
+    <div className={cn('flex h-full min-h-[280px] min-w-0', REVIEW_GUTTER)}>
+      <section aria-label="Project checkpoints" className={cn('flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden', REVIEW_CARD)}>
+        <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
           <span className="text-xs font-medium text-slate-300">Checkpoints</span>
           <span className="ml-auto text-[10px] tabular-nums text-slate-500">{entries.length}</span>
@@ -884,10 +886,10 @@ function HistoryCheckpointTimeline({ workspace }) {
         </div>
       </section>
 
-      <section aria-label="Checkpoint snapshot diff" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.025]">
+      <section aria-label="Checkpoint snapshot diff" className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', REVIEW_CARD)}>
         {selected ? (
           <>
-            <div className="flex shrink-0 items-start gap-3 px-3 py-2.5">
+            <div className="flex shrink-0 items-start gap-3 px-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-slate-200">{selected.label}</p>
                 <p className="mt-1 truncate text-[10px] text-slate-500">
@@ -1095,8 +1097,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
               </div>
 
-              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
-                <div className="scroll-fade-bottom min-h-0 min-w-0 overflow-auto px-5 pt-4 pb-4" role="tabpanel">
+              <div className={cn('grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] p-2', REVIEW_GUTTER)}>
+                <div className="scroll-fade-bottom min-h-0 min-w-0 overflow-auto" role="tabpanel">
                     {tab === 'overview' && (
                       <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                     )}
@@ -1107,12 +1109,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
 
                 {/* Sidebar begins level with the main content beneath the shared tab bar. */}
-                <div className="flex min-h-0 min-w-0 flex-col gap-2.5 overflow-hidden px-2.5 pt-3 pb-2.5">
+                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
                   <StatusCard conflict={conflict} />
-                  <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
+                  <div className={cn('min-w-0 p-3', REVIEW_CARD)}>
                     <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                   </div>
-                  <div className="flex min-h-0 flex-1 flex-col rounded-xl bg-white/[0.03] p-3">
+                  <div className={cn('flex min-h-0 flex-1 flex-col p-3', REVIEW_CARD)}>
                     <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
                     <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                   </div>

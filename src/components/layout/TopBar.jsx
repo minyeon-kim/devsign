@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
@@ -61,24 +62,37 @@ function InboxButton({ open, onToggle }) {
   const unreadCount = notifications.filter((n) => n.unread).length
 
   return (
-    <button
-      type="button"
-      title="Inbox"
-      aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
-      aria-expanded={open}
-      onClick={onToggle}
-      className={cn(
-        'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-        open && 'bg-emerald-400/20 text-emerald-300'
-      )}
-    >
-      <Bell className="size-4" />
-      {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
-          {unreadCount}
-        </span>
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(
+          'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+          open && 'bg-emerald-400/20 text-emerald-300'
+        )}
+      >
+        <Bell className="size-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+            {unreadCount}
+          </span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent>Inbox{unreadCount ? ` · ${unreadCount} unread` : ''}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function ActionTooltip({ label, children }) {
+  return (
+    <div className="group/action-tooltip relative flex shrink-0">
+      {children}
+      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-popover px-3 py-1.5 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/action-tooltip:opacity-100 group-focus-within/action-tooltip:opacity-100">
+        {label}
+      </span>
+    </div>
   )
 }
 
@@ -126,8 +140,12 @@ function TopBar({ project, onOpenPalette }) {
           </span>
         </div>
 
-        <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
-        <MergeStudioMenu standalone borderless />
+        <ActionTooltip label="Share project">
+          <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
+        </ActionTooltip>
+        <ActionTooltip label="Open Merge Studio">
+          <MergeStudioMenu standalone borderless />
+        </ActionTooltip>
         <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
       </div>
 

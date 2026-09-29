@@ -48,7 +48,7 @@ function UserPresence() {
   }
 
   return (
-    <AvatarGroup className="flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background">
+    <AvatarGroup className="flex w-max flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-1">
       {/* Clicking a teammate's avatar directly toggles following their view —
           no popover in the way, per the Follow Me interaction spec. */}
       <Popover>
@@ -143,8 +143,9 @@ function UserPresence() {
             <Tooltip key={member.id}>
               <TooltipTrigger
                 onClick={() => followMember(member.id)}
+                data-following={active || undefined}
                 className={cn(
-                  'relative z-30 size-5 rounded-full transition-transform hover:scale-105',
+                  'relative z-30 size-5 rounded-full ring-2 ring-background transition-transform hover:scale-105',
                   active && 'ring-2 ring-primary ring-offset-1 ring-offset-card'
                 )}
               >
@@ -172,7 +173,7 @@ function UserPresence() {
           <Tooltip>
             <TooltipTrigger
               aria-label={`${teamMembers.length - 2} more teammates`}
-              className="relative z-10 flex size-5 items-center justify-center rounded-full bg-white/[0.1] text-[9px] font-medium text-slate-300"
+              className="relative z-20 flex size-5 items-center justify-center rounded-full bg-white/[0.1] text-[9px] font-medium text-slate-300"
             >
               +{teamMembers.length - 2}
             </TooltipTrigger>
