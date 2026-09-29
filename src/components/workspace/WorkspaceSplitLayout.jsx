@@ -260,6 +260,10 @@ function WorkspaceSplitLayout() {
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} />
   }
 
+  // One 12px grid: the frame's inset (from the activity bar, the view's
+  // edges and the bottom panel), the gutters between panes, and the top
+  // bar's pills (top-3, 40px tall — so panes start 12px below them) all
+  // share it.
   return (
     <div className="absolute inset-0 bg-background px-3 pt-16 pb-3">
       <div ref={rootRef} className="relative isolate flex size-full min-w-0">
@@ -361,6 +365,7 @@ function SplitNode({ node, dockApi, store, renderNode }) {
                 <SplitHandle
                   label="Resize panes"
                   orientation={row ? 'vertical' : 'horizontal'}
+                  className={row ? 'w-3' : 'h-3'}
                   onResizeStart={() => startResize(node.children.indexOf(prev), index)}
                   onResize={resize}
                   onResizeEnd={() => (drag.current = null)}
@@ -371,7 +376,7 @@ function SplitNode({ node, dockApi, store, renderNode }) {
                   }}
                 />
               ) : (
-                <span className={row ? 'w-2 shrink-0' : 'h-2 shrink-0'} />
+                <span className={row ? 'w-3 shrink-0' : 'h-3 shrink-0'} />
               ))}
             {isMinimized(child) ? (
               renderNode(child, node.dir)

@@ -32,7 +32,7 @@ function ProjectTitle({ project }) {
   return (
     <div
       className={cn(
-        'absolute top-3 left-4 z-40 flex h-10 max-w-[320px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        'absolute top-3 left-3 z-40 flex h-10 max-w-[320px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
         FLOATING_PILL
       )}
     >
@@ -109,7 +109,7 @@ function TopBar({ project, onOpenPalette }) {
           (Files & Layers, views, layout, Inspect) live in the command
           palette (⌘K, the search field) and each window's `+` — the only
           place Preview opens from. */}
-      <div className="absolute top-3 right-4 z-40 flex items-center gap-2">
+      <div className="absolute top-3 right-3 z-40 flex items-center gap-2">
         <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
           <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
           <PillDivider />

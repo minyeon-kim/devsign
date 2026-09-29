@@ -145,7 +145,7 @@ function ConflictPanel() {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-1.5 pr-2 pl-4" onClick={(event) => event.stopPropagation()}>
+                    <td className="w-0 py-1.5 pr-2 pl-4" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -181,14 +181,18 @@ function ConflictPanel() {
                       </p>
                       </div>
                     </td>
+                    {/* One line, so every row's status sits on the same center
+                        line as its badge, avatars and Review button. */}
                     <td className="w-0 px-3 py-1.5 whitespace-nowrap">
                       <span className="flex items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
+                        {needsReviewFrom(conflict) && (
+                          <span className="ml-1 inline-flex h-5 items-center rounded-full bg-sky-400/10 px-2 text-[10.5px] font-medium text-sky-300">
+                            Needs your review
+                          </span>
+                        )}
                       </span>
-                      {needsReviewFrom(conflict) && (
-                        <span className="block text-[11px] leading-4 font-medium text-sky-300">Needs your review</span>
-                      )}
                     </td>
                     <td className="w-0 py-1.5 pr-3 pl-1 whitespace-nowrap">
                       {reviewers.length ? (
@@ -219,10 +223,15 @@ function ConflictPanel() {
                     </td>
                   </tr>
                   {expanded && (
+                    // Lined up under the row's own columns: the diff spans
+                    // Issue → Reviewers; the checkbox, Severity and Review
+                    // columns stay clear (the row's Review button is right
+                    // above).
                     <tr className="border-b border-border/60 bg-white/[0.015]">
                       <td />
-                      <td colSpan={5} className="px-3 pt-1 pb-4">
-                        <MiniDiff conflict={conflict} onOpenReview={() => openConflictReview(conflict.id)} />
+                      <td />
+                      <td colSpan={3} className="px-3 pt-0.5 pb-3">
+                        <MiniDiff conflict={conflict} />
                       </td>
                     </tr>
                   )}
@@ -276,22 +285,18 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 // A low-risk row's expansion: the proposed change as a compact inline diff,
 // so what's being batch-approved can be checked in place. Capped in height
 // (it scrolls past that) with long lines ellipsized — the full diff is in
-// the review window.
-function MiniDiff({ conflict, onOpenReview }) {
+// the review window. `w-0 min-w-full` keeps long lines from widening the
+// table: it fills its cell without adding to the column widths.
+function MiniDiff({ conflict }) {
   const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
   return (
-    <div className="flex max-w-3xl items-start gap-4">
-      <div className="max-h-32 min-w-0 flex-1 overflow-y-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
-        {rows.map((row, i) => (
-          <div key={i} className={cn('flex px-3', DIFF_TONES[row.kind])} title={row.text}>
-            <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre">{row.text || ' '}</span>
-          </div>
-        ))}
-      </div>
-      <button type="button" onClick={onOpenReview} className={REVIEW_CTA}>
-        Review
-      </button>
+    <div className="max-h-32 w-0 min-w-full overflow-y-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
+      {rows.map((row, i) => (
+        <div key={i} className={cn('flex px-3', DIFF_TONES[row.kind])} title={row.text}>
+          <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre">{row.text || ' '}</span>
+        </div>
+      ))}
     </div>
   )
 }

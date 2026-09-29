@@ -73,7 +73,7 @@ function InspectorSidebar() {
     // covers any pill (its toggle is the top bar's Inspect button).
     <div
       className={cn(
-        'absolute top-16 right-4 bottom-[76px] z-40 flex w-80 max-w-[calc(100%-6rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        'absolute top-16 right-3 bottom-[76px] z-40 flex w-80 max-w-[calc(100%-6rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
         PANEL_RADIUS,
         FLOATING_PANEL
       )}
