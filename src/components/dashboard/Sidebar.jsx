@@ -259,7 +259,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
         <aside
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
           style={{ width }}
-          className="relative flex h-full flex-col border-r border-white/[0.04] bg-[#0B0B0E] pb-2"
+          className="relative flex h-full flex-col bg-[#0B0B0E] pb-2"
         >
           <SplitHandle
             label="Resize sidebar"

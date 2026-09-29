@@ -1,3 +1,4 @@
+import './CanvasToolbar.css'
 import { useContext, useEffect, useRef, useState } from 'react'
 import {
   FileImage,
@@ -21,16 +22,13 @@ import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
+import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
-const MIN_ZOOM = 25
-const MAX_ZOOM = 400
-const ZOOM_STEP = 10
 
 const toolIcons = {
   MousePointer2,
@@ -76,16 +74,17 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
   return (
     <div
       data-canvas-chrome
+      style={{ borderRadius: 9999, '--ds-button-radius': '9999px' }}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
-      className="pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/95 p-0.5 shadow-xl backdrop-blur-sm"
+      className="canvas-floating-toolbar ds-canvas-toolbar ds-pill pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/95 p-0.5 shadow-xl backdrop-blur-sm"
     >
       {compact ? (
         <>
           <span
             title={`Current tool: ${activeTool.label}`}
             aria-label={`Current tool: ${activeTool.label}`}
-            className="flex size-6 items-center justify-center rounded-full bg-emerald-400 text-slate-950"
+            className="canvas-toolbar-tool ds-primary-cta ds-pill flex size-8 items-center justify-center rounded-full"
           >
             {ActiveIcon && <ActiveIcon className="size-3.5" />}
           </span>
@@ -94,7 +93,7 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
               type="button"
               title="Choose canvas tool"
               aria-label="Choose canvas tool"
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="canvas-toolbar-tool ds-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Ellipsis className="size-3.5" />
             </DropdownMenuTrigger>
@@ -120,10 +119,11 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
             key={t.id}
             type="button"
             title={t.label}
+            style={{ borderRadius: 9999 }}
             onClick={() => onSelectTool(t.id)}
             className={cn(
-              'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              active && 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
+              'canvas-toolbar-tool ds-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              active && 'ds-primary-cta'
             )}
           >
             {Icon && <Icon className="size-3.5" />}
@@ -252,7 +252,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
       style={{ left: pending.screenLeft, top: pending.screenTop }}
     >
       <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-        <MessageSquarePlus className="size-3.5 text-emerald-300" />
+        <MessageSquarePlus className="size-3.5 text-primary" />
         New comment
       </div>
       <textarea
@@ -267,7 +267,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
         }}
         placeholder="Leave a comment..."
         rows={2}
-        className="w-full resize-none rounded-lg border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-400"
+        className="w-full resize-none rounded-lg border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
       />
       <div className="mt-1.5 flex justify-end gap-1.5">
         <button
@@ -281,7 +281,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
           type="button"
           onClick={onSubmit}
           disabled={!value.trim()}
-          className="rounded-full bg-emerald-400 px-2.5 py-1 text-[11px] font-medium text-slate-950 transition-colors hover:bg-emerald-300 disabled:opacity-40"
+          className="ds-primary-cta rounded-md px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
         >
           Comment
         </button>
@@ -347,7 +347,7 @@ function PropertyBar({ layer, edit, onChange }) {
   return (
     <div
       onClick={(event) => event.stopPropagation()}
-      className="pointer-events-auto absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-card/95 py-1 pr-1.5 pl-3 font-sans text-xs shadow-xl backdrop-blur-sm"
+      className="canvas-floating-toolbar pointer-events-auto absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-card/95 py-1 pr-1.5 pl-3 font-sans text-xs shadow-xl backdrop-blur-sm"
     >
       <span className="max-w-32 truncate font-medium text-foreground">{layer.name}</span>
       {canFill && (
@@ -514,7 +514,7 @@ function CanvasPanel() {
   // Zoom around a point of the viewport (the pointer, or its center).
   function zoomAt(nextZoom, cx, cy) {
     setView((v) => {
-      const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom(v.zoom)))
+      const z = Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, nextZoom(v.zoom)))
       const k = z / v.zoom
       return { zoom: Math.round(z), x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
     })
@@ -659,29 +659,8 @@ function CanvasPanel() {
 
           <div className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-1.5">
             <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} compact={compactToolbar} />
-            <div
-              data-canvas-chrome
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/90 px-1 py-0.5 text-[10px] shadow-lg backdrop-blur-sm"
-            >
-              <button
-                type="button"
-                title="Zoom out"
-                onClick={() => zoomBy(-ZOOM_STEP)}
-                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Minus className="size-3" />
-              </button>
-              <span className="w-8 text-center tabular-nums text-foreground">{zoom}%</span>
-              <button
-                type="button"
-                title="Zoom in"
-                onClick={() => zoomBy(ZOOM_STEP)}
-                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Plus className="size-3" />
-              </button>
+            <div className="pointer-events-auto">
+              <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
             </div>
           </div>
         </div>

@@ -24,7 +24,7 @@ export const COUNT_BADGE = 'inline-flex h-5 min-w-5 shrink-0 items-center justif
 // Category tabs — one style for the Inbox filters (All / Approvals / …), the
 // Merge List's Files / Layers switch and the Block Deck's tabs: small
 // left-aligned text pills; the active one is a soft fill (no outline).
-export const CATEGORY_TAB = 'inline-flex h-5 shrink-0 items-center justify-center rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors'
+export const CATEGORY_TAB = 'inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors'
 export const CATEGORY_TAB_ACTIVE = 'bg-white/[0.08] text-[#FFFFFF]'
 export const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
 // The row those tabs sit in: directly under the panel title — no divider
@@ -81,7 +81,7 @@ export const GHOST_BUTTON = 'bg-white/[0.05] text-slate-200 transition-colors ho
 // tints, warnings, destructive) and design content on the artboards are
 // separate and unaffected.
 // Primary action (solid mint, dark text for contrast).
-export const ACCENT_CTA = 'bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300'
+export const ACCENT_CTA = 'ds-primary-cta'
 // Soft tint for active pills / count badges / tags.
 export const ACCENT_SOFT = 'bg-emerald-400/15 text-emerald-300'
 // Solid count badge on a highlighted control.

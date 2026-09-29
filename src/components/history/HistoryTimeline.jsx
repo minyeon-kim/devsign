@@ -25,6 +25,7 @@ function HistoryTimeline({
   onCompareLatestChange,
   onRestore,
   isCurrent,
+  compact = false,
 }) {
   const count = entries.length
   const found = entries.findIndex((e) => e.id === selectedId)
@@ -41,7 +42,10 @@ function HistoryTimeline({
     <div
       role="toolbar"
       aria-label="History playback"
-      className="flex shrink-0 items-center gap-3 rounded-2xl bg-[#161618] px-3 py-2.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.07]"
+      className={cn(
+        'flex shrink-0 items-center bg-transparent',
+        compact ? 'w-full flex-nowrap gap-2 px-2.5 py-1.5' : 'gap-3 px-3 py-2.5'
+      )}
     >
       <button
         type="button"
@@ -49,13 +53,26 @@ function HistoryTimeline({
         disabled={count < 2}
         aria-label={playing ? 'Pause playback' : 'Play history'}
         title={playing ? 'Pause' : 'Play history'}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 transition-colors hover:bg-slate-200 disabled:opacity-35"
+        className={cn('flex shrink-0 items-center justify-center rounded-full bg-white text-slate-950 transition-colors hover:bg-slate-200 disabled:opacity-35', compact ? 'size-7' : 'size-9')}
       >
         {playing ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}
       </button>
 
+      {/* Keep the step indicator beside playback for quick, precise navigation. */}
+      <div className="flex shrink-0 items-center rounded-full bg-white/[0.04] p-0.5">
+        <button type="button" aria-label="Previous version" title="Previous version (←)" disabled={index <= 0} onClick={() => go(index - 1)} className={cn(STEP_BUTTON, compact && 'size-5')}>
+          <ChevronLeft className="size-4" />
+        </button>
+        <span className={cn('text-center text-slate-500 tabular-nums', compact ? 'min-w-9 text-[10px]' : 'min-w-[64px] text-[12px]')}>
+          <span className="font-semibold text-white">{index + 1}</span> / {count}
+        </span>
+        <button type="button" aria-label="Next version" title="Next version (→)" disabled={index >= count - 1} onClick={() => go(index + 1)} className={cn(STEP_BUTTON, compact && 'size-5')}>
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+
       {/* The slider */}
-      <div className="group/slider relative h-9 min-w-0 flex-1" title={selected ? `${selected.timestamp} · ${selected.label}` : undefined}>
+      <div className={cn('group/slider relative min-w-0 flex-1', compact ? 'h-6' : 'h-9')} title={selected ? `${selected.timestamp} · ${selected.label}` : undefined}>
         <div className="absolute inset-x-2 top-1/2 h-2 -translate-y-1/2 rounded-full bg-white/[0.08]">
           <div
             className={cn('h-full rounded-full bg-emerald-400/70', !playing && 'transition-[width] duration-150')}
@@ -95,22 +112,9 @@ function HistoryTimeline({
         />
       </div>
 
-      {/* ‹ 21 / 32 › */}
-      <div className="flex shrink-0 items-center rounded-full bg-white/[0.04] p-0.5">
-        <button type="button" aria-label="Previous version" title="Previous version (←)" disabled={index <= 0} onClick={() => go(index - 1)} className={STEP_BUTTON}>
-          <ChevronLeft className="size-4" />
-        </button>
-        <span className="min-w-[64px] text-center text-[12px] text-slate-500 tabular-nums">
-          <span className="font-semibold text-white">{index + 1}</span> / {count}
-        </span>
-        <button type="button" aria-label="Next version" title="Next version (→)" disabled={index >= count - 1} onClick={() => go(index + 1)} className={STEP_BUTTON}>
-          <ChevronRight className="size-4" />
-        </button>
-      </div>
+      {!compact && <span className="h-6 w-px shrink-0 bg-white/[0.08]" />}
 
-      <span className="h-6 w-px shrink-0 bg-white/[0.08]" />
-
-      <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[12px] font-medium text-slate-300 select-none">
+      <label className={cn('flex shrink-0 cursor-pointer items-center whitespace-nowrap font-medium text-slate-300 select-none', compact ? 'gap-1 text-[10px]' : 'gap-2 text-[12px]')}>
         Compare latest
         <button
           type="button"
@@ -133,14 +137,16 @@ function HistoryTimeline({
         type="button"
         onClick={onRestore}
         disabled={isCurrent}
+        title={isCurrent ? 'Current version' : 'Restore to this checkpoint'}
         className={cn(
-          'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold',
+          'ds-pill inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold',
+          compact ? 'h-7 px-2.5 text-[11px]' : 'h-9 px-4 text-[13px]',
           ACCENT_CTA,
           'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
         )}
       >
         <RotateCcw className="size-3.5" />
-        {isCurrent ? 'Current version' : 'Restore to here'}
+        {compact ? (isCurrent ? 'Current' : 'Restore') : isCurrent ? 'Current version' : 'Restore to here'}
       </button>
     </div>
   )

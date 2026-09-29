@@ -20,7 +20,7 @@ function PreviewSwatch({ node }) {
     content = <div className="size-10 rounded-full bg-muted-foreground/30" />
   } else if (node.type === 'button') {
     content = (
-      <div className="flex h-9 items-center justify-center rounded-md bg-gradient-to-r from-emerald-400 to-teal-400 px-4 text-xs font-medium text-slate-950">
+      <div className="ds-primary-cta flex h-9 items-center justify-center rounded-md px-4 text-xs font-medium">
         {node.label ?? 'Button'}
       </div>
     )

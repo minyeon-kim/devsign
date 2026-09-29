@@ -1,0 +1,36 @@
+/* Both AI composers attach this class directly to their submit button. */
+button.ai-chat-submit {
+  border-radius: 9999px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background-color: #0E201C !important;
+  background-image: none !important;
+  color: #D1FAE5 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+button.ai-chat-submit:hover {
+  filter: none !important;
+}
+button.ai-chat-submit svg {
+  color: #D1FAE5 !important;
+}
+
+button.ai-chat-submit::before,
+button.ai-chat-submit::after {
+  content: none !important;
+}
+button.ai-chat-submit:focus-visible {
+  outline: 2px solid #5EEAB5;
+  outline-offset: 3px;
+}

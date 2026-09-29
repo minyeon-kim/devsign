@@ -553,11 +553,13 @@ export function WorkspaceProvider({ children, projectId }) {
       activeFileId,
       fileId: activeFileId,
       lines: fileOverrides[activeFileId] ?? files.find((f) => f.id === activeFileId)?.lines ?? [],
+      activePageId,
+      prototypeEdits,
       previewProps,
       conflicts,
       selectedLayerId,
     }),
-    [activeFileId, fileOverrides, files, previewProps, conflicts, selectedLayerId]
+    [activeFileId, fileOverrides, files, activePageId, prototypeEdits, previewProps, conflicts, selectedLayerId]
   )
 
   // One final commit operation for both UI entry points. Approval never calls it.
@@ -591,11 +593,10 @@ export function WorkspaceProvider({ children, projectId }) {
     const output = { savedAt: Date.now(), files: finalFiles, design, sources: draft.assemblySources ?? {}, previewProps: nextPreviewProps }
     setMergedBaseline((prev) => ({ ...prev, [item?.id ?? conflictId]: output }))
     setFileOverrides((prev) => ({ ...prev, ...finalFiles }))
-    if (design) setPrototypeEdits((prev) => {
-      const next = { ...prev }
-      for (const [layerId, override] of Object.entries(design.overrides)) next[layerId] = { merged: override }
-      return next
-    })
+    const nextPrototypeEdits = design
+      ? { ...prototypeEdits, ...Object.fromEntries(Object.entries(design.overrides).map(([layerId, override]) => [layerId, { merged: override }])) }
+      : prototypeEdits
+    if (design) setPrototypeEdits(nextPrototypeEdits)
     setPreviewProps(nextPreviewProps)
     setPreviewVersion((v) => v + 1)
     setConflicts(nextConflicts)
@@ -604,7 +605,7 @@ export function WorkspaceProvider({ children, projectId }) {
     const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
     recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
       timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap((c) => c.reviewers) : item.reviewers).map((r) => r.id))],
-      snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps } })
+      snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps, prototypeEdits: nextPrototypeEdits, activePageId } })
     for (const c of related) {
       logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
       const update = updateFromConflict(c, projectId)
@@ -613,7 +614,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!related.length) logEvent({ kind: 'merge', projectId, actorId: currentUser.id, title: item.title })
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
     return true
-  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits])
+  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits])
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
 
@@ -806,6 +807,8 @@ export function WorkspaceProvider({ children, projectId }) {
       setFileOverrides((prev) => ({ ...prev, [snapshot.fileId]: snapshot.lines }))
       setActiveFileIdState(snapshot.activeFileId)
       setPreviewProps(snapshot.previewProps)
+      if (snapshot.prototypeEdits) setPrototypeEdits(snapshot.prototypeEdits)
+      if (snapshot.activePageId) setActivePageId(snapshot.activePageId)
       setPreviewVersion((v) => v + 1)
       // Conflict points are review records, not code state: restore the
       // ones this project's list and the snapshot share (e.g. a conflict an
@@ -835,7 +838,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return restoredId
     },
-    [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setChatMessages]
+    [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setPrototypeEdits, setActivePageId, setChatMessages]
   )
 
   // Does a scenario's change fall inside the request's target? The target
@@ -973,6 +976,8 @@ export function WorkspaceProvider({ children, projectId }) {
             activeFileId: scenario.fileId,
             fileId: scenario.fileId,
             lines: scenario.lines,
+            activePageId,
+            prototypeEdits,
             previewProps: nextPreviewProps,
             conflicts: nextConflicts,
             selectedLayerId,
@@ -983,7 +988,7 @@ export function WorkspaceProvider({ children, projectId }) {
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appendTerminalLines, conflicts, fileOverrides, previewProps, projectId, recordHistory, selectedLayerId, setConflicts]
+    [appendTerminalLines, conflicts, fileOverrides, previewProps, activePageId, prototypeEdits, projectId, recordHistory, selectedLayerId, setConflicts]
   )
 
   const getFileLines = useCallback(

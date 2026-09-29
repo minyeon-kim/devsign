@@ -26,25 +26,15 @@ const MIN_CANVAS = 220
 // panel surface with a hairline above; its tab row uses the studio's pill
 // category tabs. Conflict Points sits with the Terminal and Console like
 // a Problems tab, its open count badged on the tab. Drag the top edge to
-// resize; the single chevron opens to the list's content height (capped
-// to leave canvas space) or collapses it down to just its tab strip.
+// resize; switching tabs preserves the user's height, and content scrolls
+// inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel() {
-  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => TABS.map((t) => t.id))
   const draggedTab = useRef(null)
-  const [contentHeight, setContentHeight] = useState(null)
   const [availableHeight, setAvailableHeight] = useState(480)
-  const manuallySized = useRef(false)
-  const previousMode = useRef(null)
-  const mode = `${tab}:${open}:${reviewConflictId ? 'review' : 'list'}`
-  useLayoutEffect(() => {
-    if (previousMode.current !== mode) {
-      previousMode.current = mode
-      manuallySized.current = false
-    }
-  }, [mode])
 
   useLayoutEffect(() => {
     const parent = rootRef.current?.parentElement
@@ -57,14 +47,8 @@ function WorkspaceBottomPanel() {
   }, [])
 
   useLayoutEffect(() => {
-    if (tab !== 'conflict' || !open || contentHeight == null || manuallySized.current) return
-    const workspaceHeight = rootRef.current?.parentElement?.clientHeight ?? availableHeight
-    const desired = reviewConflictId
-      ? Math.round(workspaceHeight * 0.6)
-      : STRIP_HEIGHT + contentHeight + 1
-    const fitted = Math.min(availableHeight, Math.max(MIN_HEIGHT, desired))
-    if (height !== fitted) setBottomPanel({ height: fitted })
-  }, [tab, open, reviewConflictId, contentHeight, availableHeight, height, setBottomPanel])
+    if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
+  }, [open, height, availableHeight, setBottomPanel])
   const { open: openConflicts, needsMyReview } = conflictCounts(conflicts)
 
   function maxHeight() {
@@ -84,8 +68,6 @@ function WorkspaceBottomPanel() {
     const startY = event.clientY
     const startHeight = open ? height : STRIP_HEIGHT
     const limit = maxHeight()
-    previousMode.current = `${tab}:true`
-    manuallySized.current = true
     document.body.style.cursor = 'row-resize'
 
     function onMove(m) {
@@ -166,7 +148,7 @@ function WorkspaceBottomPanel() {
               setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
             }}
             onClick={() => pickTab(id)}
-            className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            className={cn(CATEGORY_TAB, 'h-8 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             <Icon className="size-3.5" />
             {label}
@@ -186,7 +168,7 @@ function WorkspaceBottomPanel() {
           <button
             type="button"
             onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
-            className="ml-1 inline-flex h-6 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
+            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
           >
             <span className="size-1.5 rounded-full bg-emerald-400" />
             Needs your review · {needsMyReview}
@@ -196,7 +178,7 @@ function WorkspaceBottomPanel() {
 
       {open && (
         <div role="tabpanel" aria-label={active.label} className="min-h-0 flex-1 overflow-hidden">
-          <Panel onContentHeightChange={tab === 'conflict' ? setContentHeight : undefined} />
+          <Panel />
         </div>
       )}
     </section>

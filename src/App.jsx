@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import LocalCursor from '@/components/collab/LocalCursor'
+import ConditionalScrollFade from '@/components/layout/ConditionalScrollFade'
 import { ConflictStoreProvider } from '@/state/ConflictStore'
 import DashboardPage from '@/pages/DashboardPage'
 import ActivityPage from '@/pages/ActivityPage'
@@ -30,6 +31,7 @@ function App() {
           the Dashboard and each project's Workspace share one state. */}
       <ConflictStoreProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <ConditionalScrollFade />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />

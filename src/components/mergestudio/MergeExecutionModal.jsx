@@ -626,7 +626,7 @@ function CheckStep({ item, resolutions, summary, onResolveDiff, onEditCode }) {
                     <button
                       type="button"
                       onClick={() => setConflictOpen(true)}
-                      className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-emerald-400 pr-2.5 pl-3.5 text-xs font-semibold text-slate-950 shadow-md shadow-emerald-500/25 transition-colors hover:bg-emerald-300"
+                      className="flex h-8 shrink-0 items-center gap-1 rounded-full ds-primary-cta pr-2.5 pl-3.5 text-xs font-semibold text-slate-950 shadow-md shadow-emerald-500/25 transition-colors hover:bg-emerald-300"
                     >
                       Resolve
                       <ArrowRight className="size-3.5" />
@@ -1299,7 +1299,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             ))}
           </div>}
           {item.tag === 'In Review' && (
-            <button type="button" onClick={() => { if (onFinalMerge()) onClose() }} className="mb-4 rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950">
+            <button type="button" onClick={() => { if (onFinalMerge()) onClose() }} className="mb-4 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
               Merge approved changes
             </button>
           )}
@@ -1386,7 +1386,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-8 items-center justify-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950"
+              className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
             >
               Done
             </button>
@@ -1449,7 +1449,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                     setProgress(0)
                     setRun('progress')
                   }}
-                  className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                  className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
                   <GitPullRequest className="size-4" />
                   Open PR &amp; Request Review

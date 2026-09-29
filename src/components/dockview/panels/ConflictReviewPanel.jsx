@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   Bell,
   Bot,
@@ -39,6 +39,8 @@ import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
 import { historyMeta } from '@/lib/historyMeta'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
+import HistoryTimeline from '@/components/history/HistoryTimeline'
+import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
@@ -88,8 +90,9 @@ const TABS = [
 ]
 
 const REVIEW_INFO_GRID = 'grid items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
-const REVIEW_GUTTER = 'gap-2'
+const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
+const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
 const REVIEW_DETAIL_CARD = 'rounded-2xl bg-white/[0.03] p-4'
 const REVIEW_DETAIL_COPY = 'text-[13px] leading-5 text-slate-200'
@@ -473,7 +476,7 @@ function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
   const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
   return (
-    <div className={cn('min-w-0 p-3', REVIEW_CARD)}>
+    <div className={cn('min-w-0', REVIEW_CONTEXT_CARD)}>
       <ol
         aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
         className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)] items-center gap-x-0"
@@ -496,7 +499,7 @@ function StatusCard({ conflict }) {
         })}
       </ol>
       {conflict.reviewStage === 'in_review' && status.lines.length > 0 && (
-        <ul className="mt-1.5 space-y-1">
+        <ul className="mt-2 space-y-1">
           {status.lines.map((line) => (
             <li key={line} className="text-xs leading-4 text-slate-300">{line}</li>
           ))}
@@ -511,6 +514,7 @@ const PRIMARY_BUTTON = cn(
   ACCENT_CTA,
   'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
 )
+const REQUEST_REVIEW_BUTTON = 'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-medium whitespace-nowrap ds-review-cta disabled:opacity-45'
 
 const iconActionClass =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -548,7 +552,7 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
 
   return (
     <div>
-      <div className={cn(PANEL_LABEL, 'justify-between')}>
+      <div className={cn(PANEL_LABEL, 'ds-review-context-heading justify-between')}>
         <span>Reviewers</span>
         <span className="flex items-center gap-1">
         {canRemind && pending.length > 1 && (
@@ -823,31 +827,58 @@ function relativeCheckpointTime(timestamp) {
 function HistoryCheckpointTimeline({ workspace }) {
   const entries = workspace?.historyEntries ?? EMPTY_HISTORY
   const activeId = workspace?.activeHistoryId
+  const timeline = useMemo(() => entries.filter((entry) => !entry.archived), [entries])
   const [selectedId, setSelectedId] = useState(null)
   const [rollbackId, setRollbackId] = useState(null)
-  const active = entries.find((entry) => entry.id === activeId) ?? entries.at(-1) ?? null
-  const resolvedSelectedId = entries.some((entry) => entry.id === selectedId) ? selectedId : active?.id
+  const [compareLatest, setCompareLatest] = useState(true)
+  const [playing, setPlaying] = useState(false)
+  const [historyView, setHistoryView] = useState('code')
+  const active = entries.find((entry) => entry.id === activeId) ?? timeline.at(-1) ?? null
+  const resolvedSelectedId = timeline.some((entry) => entry.id === selectedId) ? selectedId : active?.id
   const selected = entries.find((entry) => entry.id === resolvedSelectedId) ?? null
-  const rows = selected && active
-    ? selected.id === active.id
-      ? (selected.snapshot?.lines ?? []).map((text) => ({ kind: 'same', text }))
-      : diffLines(active.snapshot?.lines ?? [], selected.snapshot?.lines ?? [])
-    : []
+  const timelineIndex = timeline.findIndex((entry) => entry.id === resolvedSelectedId)
+  const rows = useMemo(() => {
+    if (!selected) return []
+    const versionLines = selected.snapshot?.lines ?? []
+    if (!compareLatest || !active || selected.id === active.id) return versionLines.map((text) => ({ kind: 'same', text }))
+    return diffLines(active.snapshot?.lines ?? [], versionLines)
+  }, [selected, active, compareLatest])
+
+  useEffect(() => {
+    if (!playing) return undefined
+    const timer = window.setTimeout(() => {
+      const next = timeline[timelineIndex + 1]
+      if (next) setSelectedId(next.id)
+      else setPlaying(false)
+    }, 900)
+    return () => window.clearTimeout(timer)
+  }, [playing, timeline, timelineIndex])
+
+  function selectVersion(id) {
+    setPlaying(false)
+    setSelectedId(id)
+  }
+
+  function togglePlay() {
+    if (!playing && timelineIndex >= timeline.length - 1 && timeline[0]) setSelectedId(timeline[0].id)
+    setPlaying((current) => !current)
+  }
 
   if (entries.length === 0) {
     return <EmptyNote>No checkpoints have been saved for this project yet.</EmptyNote>
   }
 
   return (
-    <div className={cn('flex h-full min-h-[280px] min-w-0', REVIEW_GUTTER)}>
-      <section aria-label="Project checkpoints" className={cn('flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden', REVIEW_CARD)}>
-        <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
-          <History className="size-3.5 text-slate-500" />
-          <span className="text-xs font-medium text-slate-300">Checkpoints</span>
-          <span className="ml-auto text-[10px] tabular-nums text-slate-500">{entries.length}</span>
-        </div>
-        <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
-          {[...entries].reverse().map((entry) => {
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
+      <div className={cn('flex min-h-0 min-w-0 flex-1', REVIEW_GUTTER)}>
+        <section aria-label="Project checkpoints" className={cn('flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden', REVIEW_CARD)}>
+          <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
+            <History className="size-3.5 text-slate-500" />
+            <span className="text-xs font-medium text-slate-300">Checkpoints</span>
+            <span className="ml-auto text-[10px] tabular-nums text-slate-500">{timeline.length}</span>
+          </div>
+          <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+          {[...timeline].reverse().map((entry) => {
             const person = allPeople.find((candidate) => candidate.id === entry.actorId)
             const author = entry.actorLabel ?? person?.name ?? 'Workspace'
             const isCurrent = entry.id === activeId
@@ -857,7 +888,7 @@ function HistoryCheckpointTimeline({ workspace }) {
                 key={entry.id}
                 type="button"
                 aria-pressed={entry.id === resolvedSelectedId}
-                onClick={() => setSelectedId(entry.id)}
+                onClick={() => selectVersion(entry.id)}
                 className={cn(
                   'flex w-full min-w-0 flex-col gap-1.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.045]',
                   entry.id === resolvedSelectedId && 'bg-white/[0.06]'
@@ -883,11 +914,11 @@ function HistoryCheckpointTimeline({ workspace }) {
               </button>
             )
           })}
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <section aria-label="Checkpoint snapshot diff" className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', REVIEW_CARD)}>
-        {selected ? (
+        <section aria-label="Checkpoint version comparison" className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', REVIEW_CARD)}>
+          {selected ? (
           <>
             <div className="flex shrink-0 items-start gap-3 px-3 py-3">
               <div className="min-w-0 flex-1">
@@ -897,24 +928,64 @@ function HistoryCheckpointTimeline({ workspace }) {
                   {selected.snapshot?.fileId ? ` · ${workspace.getFileName(selected.snapshot.fileId)}` : ''}
                 </p>
               </div>
-              {selected.id !== activeId && !selected.archived && (
-                <button type="button" onClick={() => setRollbackId(selected.id)} className={cn('inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-medium', GHOST_BUTTON)}>
-                  <RotateCcw className="size-3" />
-                  Roll back
-                </button>
-              )}
+              <div className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Checkpoint view">
+                {[
+                  ['code', Code2, 'Code'],
+                  ['preview', Eye, 'Preview'],
+                ].map(([id, Icon, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={historyView === id}
+                    onClick={() => setHistoryView(id)}
+                    className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-medium transition-colors', historyView === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200')}
+                  >
+                    <Icon className="size-3" />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto border-t border-white/[0.05] py-1.5 font-mono text-[10px] leading-relaxed">
-              {rows.length === 0 ? <p className="px-3 py-3 text-slate-500">No file snapshot is available for this checkpoint.</p> : rows.map((row, index) => (
-                <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
-                  <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
-                  <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-                </div>
-              ))}
+            {historyView === 'code' ? (
+              <div className="min-h-0 flex-1 overflow-auto border-t border-white/[0.05] py-1.5 font-mono text-[10px] leading-relaxed">
+                {rows.length === 0 ? <p className="px-3 py-3 text-slate-500">No file snapshot is available for this checkpoint.</p> : rows.map((row, index) => (
+                  <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
+                    <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
+                    <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-hidden border-t border-white/[0.05]">
+                <PreviewPanelContent
+                  key={`history-preview-${selected.id}`}
+                  previewProps={selected.snapshot.previewProps}
+                  prototypeEdits={selected.snapshot.prototypeEdits}
+                  activePageId={selected.snapshot.activePageId}
+                  showZoomControl
+                  caption={<span className="text-emerald-300">{selected.id === activeId ? 'Current checkpoint' : 'Selected checkpoint'}</span>}
+                />
+              </div>
+            )}
+            <div className="shrink-0 border-t border-white/[0.06] p-2">
+              <HistoryTimeline
+                compact
+                entries={timeline}
+                selectedId={resolvedSelectedId}
+                onSelect={selectVersion}
+                playing={playing}
+                onTogglePlay={togglePlay}
+                compareLatest={compareLatest}
+                onCompareLatestChange={setCompareLatest}
+                onRestore={() => selected && setRollbackId(selected.id)}
+                isCurrent={selected?.id === activeId}
+              />
             </div>
           </>
-        ) : <p className="p-3 text-xs text-slate-500">Select a checkpoint to inspect its file snapshot.</p>}
-      </section>
+          ) : <p className="p-3 text-xs text-slate-500">Select a checkpoint to inspect its file snapshot.</p>}
+        </section>
+      </div>
       <RollbackCheckpointModal
         entryId={rollbackId}
         onOpenChange={(open) => !open && setRollbackId(null)}
@@ -1004,7 +1075,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   if (conflict) {
     if (stage === 'detected') {
       primary = (
-        <button type="button" disabled={!conflict.reviewers.length} onClick={handleRequestReview} className={PRIMARY_BUTTON}>
+        <button type="button" disabled={!conflict.reviewers.length} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}>
           Request review
         </button>
       )
@@ -1063,7 +1134,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   onClick={() => onOpenChange(false)}
                   title="Back to list"
                   aria-label="Back to list"
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                 >
                   <ArrowLeft className="size-4" />
                 </button>
@@ -1097,7 +1168,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
               </div>
 
-              <div className={cn('grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] p-2', REVIEW_GUTTER)}>
+              <div className={cn('grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] p-3', REVIEW_GUTTER)}>
                 <div className="scroll-fade-bottom min-h-0 min-w-0 overflow-auto" role="tabpanel">
                     {tab === 'overview' && (
                       <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
@@ -1111,11 +1182,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {/* Sidebar begins level with the main content beneath the shared tab bar. */}
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
                   <StatusCard conflict={conflict} />
-                  <div className={cn('min-w-0 p-3', REVIEW_CARD)}>
+                  <div className={cn('scroll-fade-bottom min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
                     <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                   </div>
-                  <div className={cn('flex min-h-0 flex-1 flex-col p-3', REVIEW_CARD)}>
-                    <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
+                  <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
+                    <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>Comments</p>
                     <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                   </div>
                 </div>

@@ -97,7 +97,7 @@ function WorkspacePage() {
     // Below it, outside that overlay area, sits the docked bottom panel
     // (Terminal / Console / Conflict Points), so it never floats over the
     // canvas and the bottom-row chrome (save status, zoom) sits just above it.
-    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+    <div className="ds-workspace flex h-full flex-col overflow-hidden bg-background text-foreground">
       <div className="@container relative min-h-0 flex-1 overflow-hidden">
         {inMergeStudio ? (
           // MergeStudioView/MergeStudioWorkspace size themselves with

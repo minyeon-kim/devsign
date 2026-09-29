@@ -68,6 +68,25 @@
 }
 
 :root {
+    --ds-bg-base: #0A0A0A;
+    --ds-surface-card: #121212;
+    --ds-surface-raised: #1B1B1D;
+    --ds-border-subtle: rgb(255 255 255 / 8%);
+    --ds-control-height: 32px;
+    --ds-chat-submit-radius: 50%;
+    --ds-primary: #5EEAB5;
+    --ds-primary-foreground: #0A0A0A;
+    --ds-primary-violet: #8B5CF6;
+    --ds-chat-action-bg: #0E201C;
+    --ds-chat-action-fg: #D1FAE5;
+    --ds-review-action-bg: #5EEAB5;
+    --ds-review-action-fg: #0A0A0A;
+    --ds-gutter-layout: 12px;
+    --ds-padding-card: 16px;
+    --ds-padding-row-compact: 12px;
+    --ds-radius-md: 8px;
+    --ds-radius-card: 12px;
+    --ds-radius-pill: 9999px;
     --background: oklch(1 0 0);
     /* The infinite canvas (Workspace + Merge Studio) — a soft gray so the
        white panels float above it. */
@@ -77,8 +96,8 @@
     --card-foreground: oklch(0.141 0.005 285.823);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.52 0.22 270);
-    --primary-foreground: oklch(0.985 0 0);
+    --primary: var(--ds-primary);
+    --primary-foreground: var(--ds-primary-foreground);
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
     --muted: oklch(0.967 0.001 286.375);
@@ -88,7 +107,7 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.92 0.004 286.32);
     --input: oklch(0.92 0.004 286.32);
-    --ring: oklch(0.55 0.225 270);
+    --ring: var(--ds-primary);
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
@@ -97,12 +116,12 @@
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.52 0.22 270);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: var(--ds-primary);
+    --sidebar-primary-foreground: var(--ds-primary-foreground);
     --sidebar-accent: oklch(0.967 0.001 286.375);
     --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
     --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.55 0.225 270);
+    --sidebar-ring: var(--ds-primary);
 }
 
 .dark {
@@ -112,46 +131,86 @@
        dialogs, Merge Studio's panels — shares one surface tone (--card =
        --popover = --sidebar), so nothing reads as a lighter, muddier gray
        box. Hover/selected fills (--muted) sit one step above that. */
-    --background: oklch(0.115 0.004 285.8);
+    --background: var(--ds-bg-base);
     /* The infinite canvas behind the Workspace and Merge Studio windows —
        exactly one shade above the surface tone (--card / --sidebar), so
        navigation and panels (layer 0) read as a darker frame around a
        slightly lifted canvas (layer 1) instead of a flat, muddy void. */
-    --canvas: oklch(0.185 0.005 285.85);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.15 0.005 285.85);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.15 0.005 285.85);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.6 0.225 270);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.24 0.006 286);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.24 0.006 286);
-    --muted-foreground: oklch(0.705 0.015 286.067);
-    --accent: oklch(0.24 0.006 286);
-    --accent-foreground: oklch(0.985 0 0);
+    --canvas: var(--ds-bg-base);
+    --foreground: #FAFAFA;
+    --card: var(--ds-surface-card);
+    --card-foreground: #FAFAFA;
+    --popover: var(--ds-surface-card);
+    --popover-foreground: #FAFAFA;
+    --primary: var(--ds-primary);
+    --primary-foreground: var(--ds-primary-foreground);
+    --secondary: var(--ds-surface-raised);
+    --secondary-foreground: #FAFAFA;
+    --muted: var(--ds-surface-raised);
+    --muted-foreground: #A1A1AA;
+    --accent: var(--ds-surface-raised);
+    --accent-foreground: #FAFAFA;
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.6 0.23 270);
+    --border: var(--ds-border-subtle);
+    --input: var(--ds-border-subtle);
+    --ring: var(--ds-primary);
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.15 0.005 285.85);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.6 0.225 270);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.24 0.006 286);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.6 0.23 270);
+    --sidebar: var(--ds-surface-card);
+    --sidebar-foreground: #FAFAFA;
+    --sidebar-primary: var(--ds-primary);
+    --sidebar-primary-foreground: var(--ds-primary-foreground);
+    --sidebar-accent: var(--ds-surface-raised);
+    --sidebar-accent-foreground: #FAFAFA;
+    --sidebar-border: var(--ds-border-subtle);
+    --sidebar-ring: var(--ds-primary);
     /* Lets native UI (scrollbars, form controls) default to their dark
        rendering everywhere, as a fallback under the explicit scrollbar
        styling below (e.g. Firefox honors this for scrollbar track color). */
     color-scheme: dark;
+}
+
+@layer components {
+  .ds-primary-cta {
+    border: none !important;
+    border-radius: var(--ds-button-radius, var(--ds-radius-md)) !important;
+    background-color: var(--ds-primary) !important;
+    background-image: none !important;
+    color: var(--ds-primary-foreground) !important;
+    font-weight: 500 !important;
+    transition: filter 150ms ease, opacity 150ms ease;
+  }
+  .ds-primary-cta:hover { filter: brightness(1.06); }
+  .ds-primary-cta:disabled { filter: none; opacity: 0.45; }
+  .ds-ghost-action {
+    border: 1px solid var(--ds-border-subtle);
+    background: var(--ds-surface-card);
+    transition: background-color 150ms ease;
+  }
+  .ds-ghost-action:hover { background: var(--ds-surface-raised); }
+  .ds-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-pill);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .ds-chat-user-bubble {
+    background: var(--ds-chat-action-bg);
+    color: var(--ds-chat-action-fg);
+  }
+  .ds-review-cta {
+    border: none !important;
+    background-color: var(--ds-review-action-bg) !important;
+    color: var(--ds-review-action-fg) !important;
+    background-image: none !important;
+  }
 }
 
 @layer base {
@@ -173,8 +232,6 @@
 
 @layer utilities {
   .scroll-fade-bottom {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
     scrollbar-width: none;
     -ms-overflow-style: none;
 
@@ -182,12 +239,24 @@
       display: none;
     }
   }
+  .scroll-fade-bottom[data-scroll-before='true'][data-scroll-after='true'] {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  }
+  .scroll-fade-bottom[data-scroll-before='true']:not([data-scroll-after='true']) {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
+  }
+  .scroll-fade-bottom[data-scroll-after='true']:not([data-scroll-before='true']) {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+  }
 }
 
-/* Dockview theme wired to our design tokens (violet/zinc dark IDE look). */
+/* Dockview theme wired to our shared mint/zinc dark IDE tokens. */
 .dockview-theme-devsign {
   --dv-tabs-and-actions-container-font-size: 12px;
-  --dv-tabs-and-actions-container-height: 36px;
+  --dv-tabs-and-actions-container-height: 32px;
   --dv-border-radius: 0px;
   --dv-tab-border-radius: 0px;
   --dv-sash-border-radius: 0px;
@@ -258,4 +327,61 @@
    cascade over a plain `cursor: none` on `body`. */
 * {
   cursor: none !important;
+}
+
+/* Compact workspace chrome only; content rows and canvas art stay intrinsic. */
+.ds-workspace :is(button, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, [role="tab"]):is(
+  [class~="h-5"], [class~="h-6"], [class~="h-7"], [class~="h-8"], [class~="h-9"], [class~="h-10"],
+  [class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]
+) {
+  height: var(--ds-control-height);
+  min-height: var(--ds-control-height);
+}
+.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]) {
+  width: var(--ds-control-height);
+  min-width: var(--ds-control-height);
+}
+.ds-primary-cta, .ds-review-cta {
+  height: var(--ds-control-height);
+  min-height: var(--ds-control-height);
+}
+/* Fixed geometry and colors override button variants and utility classes. */
+.ds-chat-submit {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  background-color: #0E201C !important;
+  background-image: none !important;
+  color: #D1FAE5 !important;
+  transition: filter 150ms ease;
+}
+.ds-chat-submit:hover { filter: none; }
+
+/* Portal surfaces keep the same opaque dark treatment across callers. */
+[data-slot="tooltip-content"], [data-slot="popover-content"] {
+  background-color: var(--ds-surface-card) !important;
+  background-image: none !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--ds-border-subtle) !important;
+  backdrop-filter: none;
+}
+
+/* Shape exceptions must win over the shared primary CTA radius. */
+.ds-pill, .ds-canvas-toolbar, .ds-canvas-toolbar button {
+  border-radius: 9999px !important;
+}
+.ds-review-context {
+  padding: var(--ds-padding-row-compact);
+}
+.ds-review-context-heading {
+  height: var(--ds-control-height);
+  margin-top: 0;
+  margin-bottom: 8px;
 }

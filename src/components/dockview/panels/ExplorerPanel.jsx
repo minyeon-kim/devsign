@@ -80,7 +80,7 @@ function ImportMenu() {
             <button
               type="submit"
               disabled={!figmaUrl.trim()}
-              className="h-8 shrink-0 rounded-full bg-emerald-400 px-3 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:bg-white/[0.06] disabled:text-muted-foreground"
+              className="ds-primary-cta h-8 shrink-0 rounded-md px-3 text-xs font-medium disabled:opacity-45"
             >
               Link
             </button>

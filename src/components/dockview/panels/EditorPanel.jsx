@@ -113,13 +113,13 @@ function LineCommentThread({ lineComments, value, onChange, onSubmit, onClose })
             }
           }}
           placeholder="Reply..."
-          className="h-7 flex-1 rounded-full border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-400"
+          className="h-7 flex-1 rounded-full border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary"
         />
         <button
           type="button"
           onClick={onSubmit}
           disabled={!value.trim()}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40"
+          className="ds-primary-cta flex size-7 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
         >
           <Send className="size-3.5" />
         </button>

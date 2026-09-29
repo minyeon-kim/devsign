@@ -1,3 +1,4 @@
+import '@/components/chat/ChatSubmitButton.css'
 import { useEffect, useRef, useState } from 'react'
 import {
   Braces,
@@ -21,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { ACCENT_CTA } from '@/components/mergestudio/floatingStyles'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -207,7 +209,7 @@ function ResultCard({ result }) {
               <Button
                 type="button"
                 size="xs"
-                className="h-6 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-2.5 text-[10px] font-semibold text-slate-950"
+                className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
                 onClick={() => {
                   setBottomPanel({ tab: 'conflict', open: true })
                   openConflictReview(result.reviewItems[0].conflictId)
@@ -337,7 +339,7 @@ function ChatConversation() {
               className={cn(
                 'max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
                 message.role === 'user'
-                  ? 'bg-[#0E1F1B] text-[#D1FAE5]'
+                  ? 'ds-chat-user-bubble'
                   : 'bg-slate-800/80 text-slate-200'
               )}
             >
@@ -398,7 +400,7 @@ function ChatConversation() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-emerald-400/35 focus-within:ring-2 focus-within:ring-emerald-400/15 focus-within:shadow-[0_0_18px_-8px_rgba(52,211,153,0.35)]">
+        <div className="rounded-2xl border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/15 ">
           <div className="flex min-w-0 items-center px-3 pt-2">
             <TargetChip
               target={target}
@@ -454,18 +456,20 @@ function ChatConversation() {
                   checked={autoMode}
                   onCheckedChange={setAutoMode}
                   size="sm"
-                  className="data-checked:bg-emerald-400 data-unchecked:bg-white/15"
+                  className="data-checked:bg-primary data-unchecked:bg-white/15"
                 />
               </label>
               <Button
                 type="button"
                 size="icon"
+                variant="ghost"
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !target}
                 title={target ? 'Send' : 'Choose a target first'}
-                className="size-8 rounded-full bg-[#0E201C] text-[#D1FAE5] shadow-[0_0_12px_-4px_rgba(52,211,153,0.22)] hover:bg-[#15302A] disabled:bg-white/[0.06] disabled:text-slate-500"
+                style={{ borderRadius: '9999px', width: 40, height: 40, backgroundColor: '#0E201C', color: '#D1FAE5' }}
+                className="ai-chat-submit ds-chat-submit"
               >
-                <ArrowUp className="size-3.5" />
+                <ArrowUp className="size-5" />
               </Button>
             </div>
           </div>

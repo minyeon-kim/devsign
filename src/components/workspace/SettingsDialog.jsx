@@ -18,7 +18,7 @@ export default function SettingsDialog({ open, onOpenChange }) {
             id="app-language"
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
-            className="h-10 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="h-10 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <option value="en" translate="no">English</option>
             <option value="ko" translate="no">한국어 (Korean)</option>

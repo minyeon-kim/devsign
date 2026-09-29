@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -37,8 +37,7 @@ const FILTERS = [
   { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
 ]
 
-function ConflictPanel({ onContentHeightChange }) {
-  const contentRef = useRef(null)
+function ConflictPanel() {
   const navigate = useNavigate()
   const { projectId, conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
     updateConflict, approveConflict, requestChanges, resolveConflict } =
@@ -55,30 +54,6 @@ function ConflictPanel({ onContentHeightChange }) {
   // Only what's still batchable stays selected (e.g. after a review moves on).
   const selection = selected.filter((id) => batchable.some((c) => c.id === id))
   const allSelected = batchable.length > 0 && selection.length === batchable.length
-
-  useLayoutEffect(() => {
-    if (!onContentHeightChange) return
-    if (reviewConflict) {
-      // Give the review workspace room for its diff, reviewer controls, and
-      // comments; WorkspaceBottomPanel caps this to the available canvas area.
-      onContentHeightChange(440)
-      return
-    }
-    const root = contentRef.current
-    const filters = root?.querySelector('[aria-label="Filter conflicts"]')
-    const table = root?.querySelector('table')
-    const batch = root?.querySelector('[data-batch-actions]')
-    const measure = () => {
-      const scroller = table?.parentElement
-      const scrollbar = scroller ? scroller.offsetHeight - scroller.clientHeight : 0
-      onContentHeightChange(Math.ceil((filters?.getBoundingClientRect().height ?? 0) +
-        (table?.getBoundingClientRect().height ?? 112) + (batch ? batch.getBoundingClientRect().height + 12 : 0) + scrollbar))
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    for (const element of [root, filters, table, batch]) if (element) observer.observe(element)
-    return () => observer.disconnect()
-  }, [onContentHeightChange, reviewConflict, conflicts.length, visible.length, expandedId, selection.length])
 
   function toggle(id) {
     setSelected(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id])
@@ -100,7 +75,7 @@ function ConflictPanel({ onContentHeightChange }) {
 
   if (reviewConflict) {
     return (
-      <div ref={contentRef} className="h-full min-h-0 min-w-0 bg-card">
+      <div className="h-full min-h-0 min-w-0 bg-card">
         <ConflictReviewPanel
           conflict={reviewConflict}
           onOpenChange={(open) => !open && openConflictReview(null)}
@@ -120,7 +95,7 @@ function ConflictPanel({ onContentHeightChange }) {
   }
 
   return (
-    <div ref={contentRef} className="flex h-full min-w-0 flex-col bg-card">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-card">
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
@@ -319,7 +294,7 @@ function ConflictPanel({ onContentHeightChange }) {
               <button
                 type="button"
                 onClick={approveSelected}
-                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-400 px-3 font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                className="ds-primary-cta inline-flex h-7 items-center gap-1.5 rounded-md px-3 font-medium"
               >
                 <CheckCheck className="size-3.5" />
                 Batch Approve Selected

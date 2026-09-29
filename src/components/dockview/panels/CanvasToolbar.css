@@ -1,0 +1,14 @@
+/* Match the primary CTA's layer so this more specific shape wins even
+   when an active tool receives its own !important radius. */
+@layer components {
+  .canvas-floating-toolbar {
+    --ds-button-radius: 9999px;
+    border-radius: 9999px !important;
+    overflow: hidden;
+  }
+
+  .canvas-floating-toolbar button,
+  .canvas-floating-toolbar .canvas-toolbar-tool {
+    border-radius: 9999px !important;
+  }
+}

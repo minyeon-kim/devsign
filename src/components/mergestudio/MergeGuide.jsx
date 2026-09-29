@@ -12,41 +12,41 @@ import { cn } from 'cn'
 export const GUIDE_STEPS = [
   {
     title: 'Explore the Merge List',
-    body: 'Items are grouped by status — open one to see its files and layers, or narrow the list with the Status, Conflict and Due filters.',
+    body: 'Filter by status, conflict or due date.',
     targets: [
       { id: 'merge-list', side: 'right', round: 'rounded-[20px]' },
-      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List to browse merge items by status and filter by Status, Conflict or Due.' },
+      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List to browse and filter items.' },
     ],
   },
   {
     title: 'Open a merge item',
-    body: 'Click an item to open its comparison canvas — or use the Add files button next to the search to start one from your open files.',
+    body: 'Open an item, or add files to start a merge.',
     targets: [
       { id: 'merge-items', side: 'right', round: 'rounded-xl' },
       // While an item's Files / Layers view is pushed in, the list is hidden.
-      { id: 'merge-list', side: 'right', round: 'rounded-[20px]', body: 'Use Back to Merge List, then click an item — or add your open files as a new one.' },
-      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the Merge List and click an item — or add your open files as a new one.' },
+      { id: 'merge-list', side: 'right', round: 'rounded-[20px]', body: 'Go back to the list, then open an item or add files.' },
+      { id: 'merge-list-toggle', side: 'bottom', round: 'rounded-full', body: 'Open the list, then choose an item or add files.' },
     ],
   },
   {
     title: 'Step through drifts',
-    body: 'Click the drift counter’s ‹ › arrows to step from one visual change to the next.',
+    body: 'Use ‹ › to review each visual change.',
     targets: [
       { id: 'drift-nav', side: 'bottom', round: 'rounded-full' },
-      { id: 'merge-cta', side: 'bottom', round: 'rounded-full', body: 'This item has a single drift — click any element on the canvas to inspect it.' },
+      { id: 'merge-cta', side: 'bottom', round: 'rounded-full', body: 'Select a canvas element to inspect the change.' },
     ],
   },
   {
-    title: 'Edit & bind in the Block Deck',
-    body: 'Open a drift in Compare to see its properties right there — keep Original or take Current for each — or switch to Assemble to fine-tune styles and tokens.',
+    title: 'Review in the Block Deck',
+    body: 'Compare Original and Current. Use Assemble to edit styles and tokens.',
     // Anchored down in the drift list, so the card clears the pager /
     // Merge Changes row that runs across the top of the canvas.
     targets: [{ id: 'block-deck', side: 'left', round: 'rounded-[20px]', anchor: 170 }],
-    fallback: 'Click any element on the canvas to open the Block Deck, then review its properties and tokens there.',
+    fallback: 'Select a canvas element to review its properties.',
   },
   {
     title: 'Finish the merge',
-    body: 'When every drift is settled, click Merge Changes to complete the workflow.',
+    body: 'Resolve every drift, then click Merge Changes.',
     targets: [{ id: 'merge-cta', side: 'bottom', round: 'rounded-full' }],
   },
 ]
@@ -140,7 +140,7 @@ function MergeGuide({ containerRef, step, onSkip }) {
         className={cn(
           // Hidden (not faded) until the first measurement, so it never
           // flashes at the container's top-left corner.
-          'absolute z-50 rounded-2xl border border-slate-300 bg-slate-100 p-4 text-slate-900 shadow-none',
+          'absolute z-50 rounded-2xl border border-[color:var(--ds-border-subtle)] bg-[#121212] p-4 text-[#FAFAFA] shadow-none',
           !layout && 'invisible'
         )}
         style={{ width: CARD_W, left: layout?.x ?? 0, top: layout?.y ?? 0 }}
@@ -149,7 +149,7 @@ function MergeGuide({ containerRef, step, onSkip }) {
           <span
             aria-hidden
             className={cn(
-              'absolute size-3 rotate-45 border-slate-300 bg-slate-100',
+              'absolute size-3 rotate-45 border-[color:var(--ds-border-subtle)] bg-[#121212]',
               layout.side === 'right' && 'border-b border-l',
               layout.side === 'left' && 'border-t border-r',
               layout.side === 'bottom' && 'border-t border-l'
@@ -161,16 +161,16 @@ function MergeGuide({ containerRef, step, onSkip }) {
           <span className="text-[11px] font-medium text-slate-500 tabular-nums">
             Step {step} of {GUIDE_STEPS.length}
           </span>
-          <button type="button" onClick={onSkip} className="inline-flex items-center justify-center rounded-full px-2 h-5 text-[11px] font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-800">
+          <button type="button" onClick={onSkip} className="inline-flex items-center justify-center rounded-full px-2 h-8 text-[11px] font-medium text-slate-400 hover:bg-white/5 hover:text-white">
             Skip guide
           </button>
         </div>
         <p className="mt-1.5 text-sm font-semibold">{cfg.title}</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">{body}</p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">{body}</p>
         <div className="mt-3.5 flex items-center gap-2">
           <div className="flex flex-1 items-center gap-1">
             {GUIDE_STEPS.map((_, i) => (
-              <span key={i} className={cn('h-1.5 rounded-full transition-all', i + 1 === step ? 'w-4 bg-slate-700' : i + 1 < step ? 'w-1.5 bg-slate-500' : 'w-1.5 bg-slate-300')} />
+              <span key={i} className={cn('h-1.5 rounded-full transition-all', i + 1 === step ? 'w-4 bg-primary' : i + 1 < step ? 'w-1.5 bg-slate-500' : 'w-1.5 bg-white/15')} />
             ))}
           </div>
         </div>

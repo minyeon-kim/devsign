@@ -1,3 +1,4 @@
+import '@/components/chat/ChatSubmitButton.css'
 import { useRef, useState } from 'react'
 import { ArrowUp, ImagePlus, Mic, Sparkles, Square, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -44,7 +45,7 @@ function MergeAiBar() {
     <form
       onSubmit={submit}
       data-ai-bar
-      className="fixed bottom-5 left-1/2 z-40 w-[min(680px,calc(100vw-4rem))] -translate-x-1/2 rounded-3xl border border-emerald-400/40 bg-card/95 p-3 shadow-2xl shadow-emerald-500/10 backdrop-blur-md focus-within:border-emerald-400"
+      className="fixed bottom-5 left-1/2 z-40 w-[min(680px,calc(100vw-4rem))] -translate-x-1/2 rounded-3xl border border-emerald-400/40 bg-card p-3 focus-within:border-emerald-400"
     >
       {images.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
@@ -122,9 +123,10 @@ function MergeAiBar() {
           type="submit"
           disabled={!input.trim() && images.length === 0}
           title="Send"
-          className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+          style={{ borderRadius: '9999px', width: 40, height: 40, backgroundColor: '#0E201C', color: '#D1FAE5' }}
+          className="ai-chat-submit ds-chat-submit ml-auto flex shrink-0 items-center justify-center"
         >
-          <ArrowUp className="size-4.5" />
+          <ArrowUp className="size-5" />
         </button>
       </div>
     </form>

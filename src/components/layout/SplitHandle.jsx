@@ -60,7 +60,7 @@ function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, clas
         className={cn(
           'absolute rounded-full transition-colors',
           vertical ? 'inset-y-2 left-1/2 w-px -translate-x-1/2' : 'inset-x-2 top-1/2 h-px -translate-y-1/2',
-          dragging ? 'bg-emerald-400/70' : 'bg-transparent group-hover:bg-white/20 group-focus-visible:bg-emerald-400/70'
+          dragging ? 'bg-primary/70' : 'bg-transparent group-hover:bg-white/20 group-focus-visible:bg-primary/70'
         )}
       />
     </div>

@@ -29,7 +29,7 @@ function ProjectTitle({ project }) {
   return (
     <div
       className={cn(
-        'absolute top-2 left-2 z-40 flex h-10 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        'absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
         FLOATING_PILL,
         'border-0'
       )}
@@ -37,7 +37,7 @@ function ProjectTitle({ project }) {
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}
-        className="min-w-0 truncate rounded-md px-1 py-1 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+        className="min-w-0 truncate rounded-md px-1 py-1 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
       >
         {project?.name}
       </Link>
@@ -45,7 +45,7 @@ function ProjectTitle({ project }) {
       <Link
         to={`/projects/${project?.id}/workspace`}
         title="Open workspace"
-        className="shrink-0 rounded-md px-1 py-1 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-300/50"
+        className="shrink-0 rounded-md px-1 py-1 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
       >
         Workspace
       </Link>
@@ -89,7 +89,7 @@ function ActionTooltip({ label, children }) {
   return (
     <div className="group/action-tooltip relative flex shrink-0">
       {children}
-      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-popover px-3 py-1.5 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/action-tooltip:opacity-100 group-focus-within/action-tooltip:opacity-100">
+      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-[#121212] px-3 py-1.5 text-xs text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/action-tooltip:opacity-100 group-focus-within/action-tooltip:opacity-100">
         {label}
       </span>
     </div>
@@ -134,7 +134,7 @@ function TopBar({ project, onOpenPalette }) {
           palette (⌘K, the search field) and each window's `+` — the only
           place Preview opens from. */}
       <div className="absolute top-2 right-4 z-40 flex items-center gap-2">
-        <div className={cn('flex h-10 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0')}>
+        <div className={cn('flex h-8 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0')}>
           <span className={PRESENCE_STACK}>
             <UserPresence />
           </span>

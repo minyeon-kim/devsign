@@ -152,7 +152,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             onClick={handleRestore}
             disabled={isCurrent}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
+              'ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
               ACCENT_CTA,
               'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
             )}
@@ -202,6 +202,8 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           <PreviewPanelContent
             key={canvasSide === 'latest' && showDiff ? 'latest' : entry.id}
             previewProps={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.previewProps}
+            prototypeEdits={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.prototypeEdits}
+            activePageId={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.activePageId}
             caption={
               showDiff ? (
                 <span className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Canvas version">
