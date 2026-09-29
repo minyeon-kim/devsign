@@ -81,7 +81,12 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   const navigate = useNavigate()
 
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pt-3 pb-2">
+    <div
+      className={cn(
+        'flex h-full w-12 shrink-0 flex-col gap-1 pt-3 pb-2 transition-colors duration-300 ease-out',
+        drawer ? 'bg-[#0B0B0E]' : 'bg-[#050506]'
+      )}
+    >
       <div className="flex h-9 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <DropdownMenuTrigger
@@ -240,7 +245,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
         <aside
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
           style={{ width }}
-          className="relative flex h-full flex-col border-x border-white/[0.06] bg-sidebar pb-2"
+          className="relative flex h-full flex-col border-r border-white/[0.04] bg-[#0B0B0E] pb-2"
         >
           <SplitHandle
             label="Resize sidebar"

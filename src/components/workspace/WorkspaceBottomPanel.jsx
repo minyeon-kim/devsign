@@ -104,7 +104,12 @@ function WorkspaceBottomPanel() {
       ref={rootRef}
       aria-label="Bottom panel"
       style={{ height: open ? height : STRIP_HEIGHT }}
-      className="relative mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]"
+      className={cn(
+        'relative flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        open
+          ? 'mx-3 mb-2 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
+          : 'rounded-none border-transparent bg-[#050506] shadow-none'
+      )}
     >
       {/* Resize handle along the top edge. */}
       <div
