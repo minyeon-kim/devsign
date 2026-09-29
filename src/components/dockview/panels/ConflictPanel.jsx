@@ -12,9 +12,9 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
 const severityConfig = {
-  high: { label: 'High', icon: TriangleAlert, className: 'bg-destructive/15 text-destructive' },
-  medium: { label: 'Medium', icon: CircleAlert, className: 'bg-amber-500/15 text-amber-500' },
-  low: { label: 'Low', icon: Info, className: 'bg-sky-500/15 text-sky-500' },
+  high: { label: 'High', icon: TriangleAlert, className: 'border-rose-400/30 bg-rose-400/15 text-rose-200' },
+  medium: { label: 'Medium', icon: CircleAlert, className: 'border-amber-400/30 bg-amber-400/15 text-amber-200' },
+  low: { label: 'Low', icon: Info, className: 'border-sky-400/30 bg-sky-400/15 text-sky-200' },
 }
 
 // The bottom panel's Conflict Points tab: the one place a project's
@@ -187,20 +187,20 @@ function ConflictPanel({ onContentHeightChange }) {
                       />
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap">
-                      <Badge className={cn('gap-1 border-transparent', severity.className)}>
+                      <Badge className={cn('gap-1 rounded-full border', severity.className)}>
                         <SeverityIcon className="size-3" />
                         {severity.label}
                       </Badge>
                     </td>
                     <td className="min-w-0 px-3 py-4">
                       <div className="min-w-0 space-y-1">
-                        <p className="line-clamp-2 leading-5 font-medium break-words text-foreground">{conflict.title}</p>
-                        <p className="flex min-w-0 items-start gap-1 text-[11px] leading-4 text-muted-foreground">
+                        <p className="line-clamp-2 leading-5 font-medium break-words text-white">{conflict.title}</p>
+                        <p className="flex min-w-0 items-start gap-1 text-xs leading-4 text-slate-400">
                           <FileCode2 className="mt-0.5 size-3 shrink-0" />
                           <span className="line-clamp-2 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
                         </p>
                         {conflict.message && (
-                          <p className="line-clamp-2 text-[11px] leading-4 break-words text-foreground/60" title={conflict.message}>
+                          <p className="line-clamp-2 text-xs leading-4 break-words text-slate-400" title={conflict.message}>
                             {conflict.message}
                           </p>
                         )}

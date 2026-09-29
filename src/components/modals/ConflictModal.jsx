@@ -73,9 +73,9 @@ import {
 // and the single primary action in the footer.
 
 const severityConfig = {
-  high: { label: 'High', icon: TriangleAlert, className: 'bg-destructive/15 text-destructive' },
-  medium: { label: 'Medium', icon: CircleAlert, className: 'bg-amber-500/15 text-amber-400' },
-  low: { label: 'Low', icon: Info, className: 'bg-sky-500/15 text-sky-400' },
+  high: { label: 'High', icon: TriangleAlert, className: 'border border-rose-400/30 bg-rose-400/15 text-rose-200' },
+  medium: { label: 'Medium', icon: CircleAlert, className: 'border border-amber-400/30 bg-amber-400/15 text-amber-200' },
+  low: { label: 'Low', icon: Info, className: 'border border-sky-400/30 bg-sky-400/15 text-sky-200' },
 }
 
 const REVIEWER_STATUS = {
@@ -158,7 +158,7 @@ function ComparisonTable({ fields }) {
 
 function Section({ label, children }) {
   return (
-    <div>
+    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
       <p className={cn(PANEL_LABEL, 'mb-3')}>{label}</p>
       {children}
     </div>
@@ -337,7 +337,7 @@ function DiffTab({ conflict }) {
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
       {conflict.branches && (
         <div className="flex items-center gap-2 text-xs">
           <GitBranch className="size-3.5 shrink-0 text-slate-500" />
@@ -823,7 +823,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             <div
               {...handleProps}
               title="Drag to move"
-              className="flex shrink-0 cursor-grab touch-none items-start gap-3 px-8 pt-6 pb-5 select-none active:cursor-grabbing"
+              className="flex shrink-0 cursor-grab touch-none items-start gap-3 border-b border-white/[0.07] bg-white/[0.02] px-8 pt-6 pb-5 select-none active:cursor-grabbing"
             >
               <div className="min-w-0 flex-1">
                 <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
@@ -907,8 +907,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   ~30% so the content under review (left, ~70%) gets the room. */}
               <div className="flex w-[30%] min-w-[280px] shrink-0 flex-col gap-7 overflow-hidden bg-white/[0.015] px-6 pt-6 pb-6">
                 <StatusCard conflict={conflict} />
-                <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
-                <div className="flex min-h-0 flex-1 flex-col">
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                   <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
                   <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                 </div>
