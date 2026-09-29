@@ -106,34 +106,25 @@ function PersonAvatar({ person }) {
 
 // ─── Stage progress ────────────────────────────────────────────────────
 
-// A slim progress line instead of a full stepper: four hairline segments
-// (done / current / to do) and the stage as text.
-function StageProgress({ stage }) {
-  const currentIndex = Math.max(
+// Where the review is, as one compact pill: the stage's dot, its name and
+// the step count ("In review · 2/4") — no full-width progress line.
+function StagePill({ stage }) {
+  const index = Math.max(
     0,
     REVIEW_STAGES.findIndex((s) => s.id === stage)
   )
-  const allDone = stage === 'resolved'
-
   return (
-    <div className="flex items-center gap-3 px-5 pb-3" aria-label="Review progress">
-      <ol className="flex flex-1 items-center gap-1">
-        {REVIEW_STAGES.map((s, i) => (
-          <li
-            key={s.id}
-            title={s.label}
-            aria-current={i === currentIndex && !allDone ? 'step' : undefined}
-            className={cn(
-              'h-1 flex-1 rounded-full',
-              i < currentIndex || allDone ? 'bg-emerald-400/70' : i === currentIndex ? 'bg-emerald-400/35' : 'bg-white/[0.08]'
-            )}
-          />
-        ))}
-      </ol>
-      <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">
-        <span className="font-medium text-slate-200">{REVIEW_STAGES[currentIndex]?.label}</span> · {currentIndex + 1}/{REVIEW_STAGES.length}
+    <span
+      title="Review status"
+      aria-label={`Review status: ${STAGE_LABEL[stage]}, step ${index + 1} of ${REVIEW_STAGES.length}`}
+      className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[10px] font-semibold text-slate-200"
+    >
+      <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[stage])} />
+      {STAGE_LABEL[stage]}
+      <span className="font-medium text-slate-500 tabular-nums">
+        {index + 1}/{REVIEW_STAGES.length}
       </span>
-    </div>
+    </span>
   )
 }
 
@@ -143,7 +134,7 @@ function StageProgress({ stage }) {
 function ComparisonTable({ fields }) {
   return (
     <div className="overflow-hidden rounded-xl bg-white/[0.03]">
-      <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2.5 text-[11px] font-medium text-slate-500">
+      <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-5 py-3 text-[11px] font-medium text-slate-500">
         <span>Property</span>
         <span className="flex items-center gap-1.5 text-emerald-300/80">
           <Palette className="size-3" />
@@ -155,7 +146,7 @@ function ComparisonTable({ fields }) {
         </span>
       </div>
       {fields.map((f) => (
-        <div key={f.label} className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2.5 text-xs">
+        <div key={f.label} className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-5 py-3 text-xs">
           <span className="text-slate-400">{f.label}</span>
           <span className="font-medium text-white">{f.expected}</span>
           <span className="font-medium text-red-300">{f.current}</span>
@@ -168,7 +159,7 @@ function ComparisonTable({ fields }) {
 function Section({ label, children }) {
   return (
     <div>
-      <p className={PANEL_LABEL}>{label}</p>
+      <p className={cn(PANEL_LABEL, 'mb-3')}>{label}</p>
       {children}
     </div>
   )
@@ -191,7 +182,7 @@ function Provenance({ conflict }) {
   if (!changedBy && !detectedBy && !impactRows.length) return null
 
   return (
-    <div className="grid gap-x-4 gap-y-2 rounded-xl bg-white/[0.03] px-4 py-3 text-xs sm:grid-cols-[96px_1fr]">
+    <div className="grid gap-x-5 gap-y-3 rounded-xl bg-white/[0.03] px-5 py-4 text-xs sm:grid-cols-[96px_1fr]">
       {changedBy && (
         <>
           <span className="text-slate-500">Changed by</span>
@@ -240,12 +231,12 @@ function SuggestionCard({ conflict, onViewDiff }) {
   ].filter(([, text]) => text)
 
   return (
-    <div className="rounded-xl bg-emerald-400/[0.06] p-4">
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+    <div className="rounded-xl bg-emerald-400/[0.06] p-5">
+      <p className="mb-4 flex items-center gap-1.5 text-xs font-medium text-emerald-300">
         <Sparkles className="size-3.5" />
         AI suggestion
       </p>
-      <dl className="space-y-2.5">
+      <dl className="space-y-4">
         {rows.map(([label, text]) => (
           <div key={label}>
             <dt className="text-[11px] text-slate-500">{label}</dt>
@@ -266,7 +257,7 @@ function SuggestionCard({ conflict, onViewDiff }) {
           </div>
         )}
       </dl>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
         {onViewDiff && (
           <button
             type="button"
@@ -287,7 +278,7 @@ function OverviewTab({ conflict, onViewDiff }) {
   const fields = conflict.comparisonFields ?? []
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-10">
       {conflict.reviewStage === 'resolved' && (
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
           <Check className="size-3.5" strokeWidth={2.5} />
@@ -306,7 +297,7 @@ function OverviewTab({ conflict, onViewDiff }) {
         <Section label="Before and after">
           <ChangePreview preview={conflict.preview} />
           {conflict.uxNote && (
-            <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
+            <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
               <Eye className="mt-0.5 size-3.5 shrink-0" />
               {conflict.uxNote}
             </p>
@@ -579,12 +570,13 @@ function CommentThread({ conflict, workspace }) {
     return <p className="text-xs text-slate-500">Open the project's workspace to see and reply to its thread.</p>
   }
 
-  const linked = workspace.comments.filter((c) => c.id === conflict.linkedCommentId)
+  // The conflict's seeded linked comment, plus everything posted here.
+  const linked = workspace.comments.filter((c) => c.id === conflict.linkedCommentId || c.target?.conflictId === conflict.id)
 
   function handleSend(event) {
     event.preventDefault()
     if (!draft.trim()) return
-    workspace.addComment(draft)
+    workspace.addComment(draft, { conflictId: conflict.id })
     setDraft('')
   }
 
@@ -831,11 +823,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             <div
               {...handleProps}
               title="Drag to move"
-              className="flex shrink-0 cursor-grab touch-none items-start gap-3 px-5 pt-4 pb-4 select-none active:cursor-grabbing"
+              className="flex shrink-0 cursor-grab touch-none items-start gap-3 px-8 pt-6 pb-5 select-none active:cursor-grabbing"
             >
               <div className="min-w-0 flex-1">
                 <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                   {severity && (
                     <span
                       title="Risk"
@@ -845,13 +837,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {severity.label} risk
                     </span>
                   )}
-                  <span
-                    title="Status"
-                    className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[10px] font-semibold text-slate-200"
-                  >
-                    <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[stage])} />
-                    {STAGE_LABEL[stage]}
-                  </span>
+                  <StagePill stage={stage} />
                   <DialogDescription className="ml-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
                     <FileCode2 className="size-3.5 shrink-0" />
                     <span className="truncate font-mono text-slate-400">
@@ -873,12 +859,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </button>
             </div>
 
-            <StageProgress stage={stage} />
-
             <div className="flex min-h-0 flex-1 border-t border-white/[0.06]">
               {/* Left: what's in conflict */}
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center gap-1 px-5 pt-4 pb-3" role="tablist" aria-label="Conflict details">
+                <div className="flex shrink-0 items-center gap-1 px-8 pt-5 pb-5" role="tablist" aria-label="Conflict details">
                   {TABS.map(([id, label]) => (
                     <button
                       key={id}
@@ -892,7 +876,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </button>
                   ))}
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto px-5 pb-5" role="tabpanel">
+                <div className="min-h-0 flex-1 overflow-auto px-8 pb-8" role="tabpanel">
                   {tab === 'overview' && (
                     <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                   )}
@@ -921,7 +905,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
               {/* Right: the review — status, reviewers, comments — kept to
                   ~30% so the content under review (left, ~70%) gets the room. */}
-              <div className="flex w-[30%] min-w-[260px] shrink-0 flex-col gap-4 overflow-hidden bg-white/[0.015] px-4 pt-4 pb-5">
+              <div className="flex w-[30%] min-w-[280px] shrink-0 flex-col gap-7 overflow-hidden bg-white/[0.015] px-6 pt-6 pb-6">
                 <StatusCard conflict={conflict} />
                 <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -931,7 +915,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-5 py-3.5">
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-8 py-4">
               {stage !== 'resolved' && (
                 <div className="flex min-w-0 items-center gap-2.5">
                   <button

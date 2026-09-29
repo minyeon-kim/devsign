@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { toast } from 'sonner'
-import { Check, CheckCheck, ChevronRight, CircleAlert, CircleCheck, FileCode2, Info, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleAlert, CircleCheck, FileCode2, Info, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -111,10 +111,10 @@ function ConflictPanel() {
                   />
                 </th>
                 <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Severity</th>
-                <th className="w-full px-3 py-2 font-medium">Issue</th>
+                <th className="w-0 px-3 py-2 font-medium">Issue</th>
                 <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Status</th>
                 <th className="w-0 py-2 pr-3 pl-1 font-medium whitespace-nowrap">Reviewers</th>
-                <th className="w-0 py-2 pr-6 pl-3" />
+                <th className="w-full py-2 pr-6 pl-3" />
               </tr>
             </thead>
             <tbody>
@@ -163,9 +163,12 @@ function ConflictPanel() {
                         {severity.label}
                       </Badge>
                     </td>
-                    {/* Issue takes the slack (max-w-0 lets it truncate), so
-                        Status and Reviewers sit snug beside each other. */}
-                    <td className="w-full max-w-0 px-3 py-1.5">
+                    {/* Issue is a fixed, comfortable width (its text truncates)
+                        with Status and Reviewers right after it; the spare
+                        width goes before the Review CTA instead of opening a
+                        gap in the middle of the row. */}
+                    <td className="w-0 px-3 py-1.5">
+                      <div className="w-[clamp(240px,34vw,480px)]">
                       <p className="truncate leading-5 font-medium text-foreground">{conflict.title}</p>
                       <p className="flex min-w-0 items-center gap-1 text-[11px] leading-4 text-muted-foreground">
                         <FileCode2 className="size-3 shrink-0" />
@@ -176,6 +179,7 @@ function ConflictPanel() {
                           </span>
                         )}
                       </p>
+                      </div>
                     </td>
                     <td className="w-0 px-3 py-1.5 whitespace-nowrap">
                       <span className="flex items-center gap-1.5 text-foreground/80">
@@ -201,7 +205,7 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="w-0 py-1.5 pr-6 pl-3 text-right">
+                    <td className="w-full py-1.5 pr-6 pl-3 text-right">
                       <button
                         type="button"
                         onClick={(event) => {
@@ -211,7 +215,6 @@ function ConflictPanel() {
                         className={REVIEW_CTA}
                       >
                         Review
-                        <ChevronRight className="size-3.5" strokeWidth={2.5} />
                       </button>
                     </td>
                   </tr>
@@ -261,7 +264,7 @@ function ConflictPanel() {
 // The row's primary action: a filled accent pill (the studio's one accent),
 // so "Review" reads as the thing to do next rather than a passing link.
 const REVIEW_CTA =
-  'inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-emerald-400 pr-2 pl-3 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
+  'inline-flex h-7 shrink-0 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
 
 const DIFF_TONES = {
   same: 'text-slate-400',
@@ -271,26 +274,23 @@ const DIFF_TONES = {
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
 // A low-risk row's expansion: the proposed change as a compact inline diff,
-// so what's being batch-approved can be checked in place.
+// so what's being batch-approved can be checked in place. Capped in height
+// (it scrolls past that) with long lines ellipsized — the full diff is in
+// the review window.
 function MiniDiff({ conflict, onOpenReview }) {
   const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
   return (
-    <div className="flex items-start gap-4">
-      <div className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-black/25 py-2.5 font-mono text-[11px] leading-6">
+    <div className="flex max-w-3xl items-start gap-4">
+      <div className="max-h-32 min-w-0 flex-1 overflow-y-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5 [scrollbar-width:thin]">
         {rows.map((row, i) => (
-          <div key={i} className={cn('flex px-3 whitespace-pre', DIFF_TONES[row.kind])}>
+          <div key={i} className={cn('flex px-3', DIFF_TONES[row.kind])} title={row.text}>
             <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-            <span>{row.text || ' '}</span>
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre">{row.text || ' '}</span>
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onOpenReview}
-        className={REVIEW_CTA}
-      >
-        Open review
-        <ChevronRight className="size-3.5" strokeWidth={2.5} />
+      <button type="button" onClick={onOpenReview} className={REVIEW_CTA}>
+        Review
       </button>
     </div>
   )
