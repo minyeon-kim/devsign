@@ -5,7 +5,7 @@ function VersionHistoryPanel() {
   return (
     <div className="flex h-full flex-col bg-card">
       <div className="flex h-9 shrink-0 items-center gap-1.5 border-b px-3 text-xs font-medium">
-        <HistoryIcon className="size-3.5 text-primary" />
+        <HistoryIcon className="size-3.5 text-emerald-300" />
         Version History
       </div>
 

@@ -37,7 +37,7 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
         className={cn(
           'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full transition-opacity hover:text-foreground',
           pinCount > 0 || isPinOpen
-            ? 'text-primary opacity-100'
+            ? 'text-emerald-300 opacity-100'
             : 'text-muted-foreground opacity-0 group-hover:opacity-100'
         )}
       >
@@ -58,7 +58,7 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
         )}
       </span>
       {pinCount > 0 && (
-        <span className="mt-0.5 shrink-0 rounded-full bg-primary/15 px-1.5 text-[9px] leading-4 font-medium text-primary">
+        <span className="mt-0.5 shrink-0 rounded-full bg-emerald-400/15 px-1.5 text-[9px] leading-4 font-medium text-emerald-200">
           {pinCount}
         </span>
       )}
@@ -113,13 +113,13 @@ function LineCommentThread({ lineComments, value, onChange, onSubmit, onClose })
             }
           }}
           placeholder="Reply..."
-          className="h-7 flex-1 rounded-full border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary"
+          className="h-7 flex-1 rounded-full border bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-emerald-400"
         />
         <button
           type="button"
           onClick={onSubmit}
           disabled={!value.trim()}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40"
         >
           <Send className="size-3.5" />
         </button>
@@ -316,8 +316,8 @@ function EditorPanel() {
             <div className="flex shrink-0 items-center gap-3">
               {isEditing ? (
                 <>
-                  <span className="flex items-center gap-1 text-primary">
-                    <span className="size-1.5 rounded-full bg-primary" />
+                  <span className="flex items-center gap-1 text-emerald-300">
+                    <span className="size-1.5 rounded-full bg-emerald-300" />
                     Editing
                   </span>
                   <button
@@ -331,7 +331,7 @@ function EditorPanel() {
                   <button
                     type="button"
                     onClick={saveEditing}
-                    className="flex items-center gap-1 rounded text-primary hover:text-primary/80"
+                    className="flex items-center gap-1 rounded text-emerald-300 hover:text-emerald-200"
                   >
                     <Save className="size-3" />
                     Done

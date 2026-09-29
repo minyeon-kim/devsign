@@ -80,7 +80,7 @@ function CanvasToolbar({ tool, onSelectTool }) {
             onClick={() => onSelectTool(t.id)}
             className={cn(
               'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              active && 'bg-primary text-primary-foreground hover:bg-primary/90'
+              active && 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
             )}
           >
             {Icon && <Icon className="size-4" />}
@@ -118,7 +118,7 @@ function PageTabs({ activePageId, onSelectPage }) {
                 : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
             )}
           >
-            <FileImage className={cn('size-3.5 shrink-0', active ? 'text-primary' : '')} />
+            <FileImage className={cn('size-3.5 shrink-0', active ? 'text-emerald-300' : '')} />
             {page.name}
           </button>
         )
@@ -168,7 +168,7 @@ function CommentPin({ comment, open, onToggle }) {
       <span
         className={cn(
           'flex size-6 items-center justify-center rounded-full rounded-bl-sm text-white shadow-lg ring-2 ring-background',
-          author?.colorClass ?? 'bg-primary'
+          author?.colorClass ?? 'bg-emerald-500'
         )}
       >
         <MessageCircle className="size-3.5" />
@@ -209,7 +209,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
       style={{ left: pending.screenLeft, top: pending.screenTop }}
     >
       <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-        <MessageSquarePlus className="size-3.5 text-primary" />
+        <MessageSquarePlus className="size-3.5 text-emerald-300" />
         New comment
       </div>
       <textarea
@@ -224,7 +224,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
         }}
         placeholder="Leave a comment..."
         rows={2}
-        className="w-full resize-none rounded-lg border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+        className="w-full resize-none rounded-lg border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-400"
       />
       <div className="mt-1.5 flex justify-end gap-1.5">
         <button
@@ -238,7 +238,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
           type="button"
           onClick={onSubmit}
           disabled={!value.trim()}
-          className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-40"
+          className="rounded-full bg-emerald-400 px-2.5 py-1 text-[11px] font-medium text-slate-950 transition-colors hover:bg-emerald-300 disabled:opacity-40"
         >
           Comment
         </button>

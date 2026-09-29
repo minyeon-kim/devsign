@@ -294,7 +294,7 @@ function ChatConversation() {
               className={cn(
                 'max-w-[95%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
                 message.role === 'user'
-                  ? 'bg-gradient-to-br from-emerald-400/20 to-teal-400/10 text-emerald-50'
+                  ? 'bg-gradient-to-br from-emerald-300/20 to-teal-300/10 text-emerald-50'
                   : 'bg-slate-800/80 text-slate-200'
               )}
             >

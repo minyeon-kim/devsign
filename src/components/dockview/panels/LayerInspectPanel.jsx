@@ -20,7 +20,7 @@ function PreviewSwatch({ node }) {
     content = <div className="size-10 rounded-full bg-muted-foreground/30" />
   } else if (node.type === 'button') {
     content = (
-      <div className="flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground">
+      <div className="flex h-9 items-center justify-center rounded-md bg-gradient-to-r from-emerald-400 to-teal-400 px-4 text-xs font-medium text-slate-950">
         {node.label ?? 'Button'}
       </div>
     )
@@ -88,7 +88,7 @@ function LayerInspectPanel({ params }) {
       </div>
 
       <div className="mb-4 flex items-center gap-2">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300">
           <Icon className="size-4" />
         </span>
         <div className="min-w-0">

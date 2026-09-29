@@ -157,7 +157,7 @@ function ExplorerPanel() {
                 if (e.key === 'Enter') commitRename(file.id)
                 if (e.key === 'Escape') setRenamingId(null)
               }}
-              className="w-full truncate rounded-sm bg-transparent px-1 text-xs text-foreground outline-none ring-1 ring-primary/50"
+              className="w-full truncate rounded-sm bg-transparent px-1 text-xs text-foreground outline-none ring-1 ring-emerald-400/60"
             />
           </div>
         )
@@ -173,7 +173,7 @@ function ExplorerPanel() {
           style={{ paddingLeft: 12 + depth * 16 }}
           className={cn(
             'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left transition-colors hover:bg-muted hover:text-foreground',
-            active && 'bg-primary/10 text-primary'
+            active && 'bg-emerald-400/10 text-emerald-200'
           )}
         >
           <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />

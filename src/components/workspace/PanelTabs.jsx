@@ -46,7 +46,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       return {
         key: page.id,
         label: page.name,
-        icon: <FileImage className={cn('size-3.5 shrink-0', active && 'text-primary')} />,
+        icon: <FileImage className={cn('size-3.5 shrink-0', active && 'text-emerald-300')} />,
         active,
         select: () => workspace.setActivePageId(page.id),
         close: workspace.activePageId === page.id ? closeView : null,

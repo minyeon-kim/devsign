@@ -20,10 +20,10 @@ function LayerRow({ id, name, kind, depth, selected, onSelect }) {
       style={{ paddingLeft: 8 + depth * 16 }}
       className={cn(
         'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-xs transition-colors hover:bg-muted hover:text-foreground',
-        selected ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+        selected ? 'bg-emerald-400/10 text-emerald-200' : 'text-muted-foreground'
       )}
     >
-      <Icon className={cn('size-3.5 shrink-0', selected ? 'text-primary' : 'text-muted-foreground/80')} />
+      <Icon className={cn('size-3.5 shrink-0', selected ? 'text-emerald-300' : 'text-muted-foreground/80')} />
       <span className="truncate">{name}</span>
     </button>
   )
