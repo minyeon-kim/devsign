@@ -14,7 +14,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function Section({ title, action, children }) {
   return (
-    <section className="rounded-2xl bg-white/[0.03] p-5">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[13px] font-semibold text-white">{title}</h2>
         {action}
@@ -41,7 +41,7 @@ function Stat({ label, value, hint, title, tone, onClick }) {
       type="button"
       onClick={onClick}
       title={title}
-      className="rounded-2xl bg-white/[0.03] p-4 text-left transition-colors hover:bg-white/[0.05]"
+      className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
     >
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn('mt-1.5 text-[22px] font-semibold tabular-nums', tone ?? 'text-white')}>{value}</p>
@@ -152,7 +152,7 @@ function ProjectOverviewPage() {
           <Stat
             label="Needs your review"
             value={counts.needsMyReview}
-            tone={counts.needsMyReview ? 'text-sky-300' : undefined}
+            tone={counts.needsMyReview ? 'text-emerald-300' : undefined}
             hint="You're a required reviewer"
             onClick={() => openList('mine')}
           />

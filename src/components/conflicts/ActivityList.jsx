@@ -48,7 +48,7 @@ function ActivityList({ projectId, limit = 6, onOpenConflict }) {
             key={a.id}
             className={cn(
               'flex items-center gap-3 rounded-lg px-2 py-2 text-xs',
-              actionNeeded && 'bg-sky-400/[0.06] shadow-[inset_2px_0_0_0_rgb(56_189_248)]'
+              actionNeeded && 'bg-emerald-400/[0.06]'
             )}
           >
             <span
@@ -64,7 +64,7 @@ function ActivityList({ projectId, limit = 6, onOpenConflict }) {
                 <span className="font-medium text-slate-200">{a.actorName}</span> {a.action}{' '}
                 <span className="text-slate-200">{a.target}</span>
               </span>
-              {actionNeeded && <span className="text-[11px] font-medium text-sky-300">Needs your review</span>}
+              {actionNeeded && <span className="text-[11px] font-medium text-emerald-300">Needs your review</span>}
             </span>
             {conflict && onOpenConflict && (
               <button
@@ -72,7 +72,7 @@ function ActivityList({ projectId, limit = 6, onOpenConflict }) {
                 onClick={() => onOpenConflict(conflict)}
                 className={cn(
                   'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  actionNeeded ? 'bg-sky-400/15 text-sky-200 hover:bg-sky-400/25' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
+                  actionNeeded ? 'bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
                 )}
               >
                 {actionNeeded ? 'Review' : 'Open'}

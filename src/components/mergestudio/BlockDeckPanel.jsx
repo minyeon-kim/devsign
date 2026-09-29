@@ -1519,7 +1519,7 @@ function BlockDeckPanel({
         <button
           type="button"
           onClick={onMerge}
-          className="flex h-5 w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-3 text-[11px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
+          className="flex h-7 w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
         >
           Merge Changes
         </button>
