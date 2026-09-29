@@ -33,6 +33,7 @@ const components = {
   navigator: NavigatorPanel,
 }
 
+const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
 const ZONE_LABEL = { left: 'left', right: 'right', above: 'up', below: 'down' }
 const DRAG_THRESHOLD = 5
@@ -95,9 +96,11 @@ function zoneRect(rect, zone) {
 }
 
 // The Workspace as a focused split-pane frame (Cursor / VS Code style)
-// instead of an infinite canvas of floating windows: the Code Editor on the
-// left, the hi-fi Canvas (with Preview and AI Chat as its tabs) on the
-// right — and the Files / Layers navigator as a pane before them. Every
+// instead of an infinite canvas of floating windows. Code Editor, Canvas
+// and AI Chat are equal, independent tabs — none is a fixed pane; each can
+// be closed, dragged and split, and reopened from any `+` (Preview only
+// opens from there) — with the Files / Layers / Assets navigator as a pane
+// at the far right. Every
 // pane, the navigator and AI Chat included, can be resized, dragged and
 // docked into any side of any other. Panes split both ways: side by side and stacked, as a tree
 // (floatingDockApi's `layout`), with draggable splitters between them.
@@ -131,31 +134,47 @@ function WorkspaceSplitLayout() {
 
   // The navigator (Files / Layers / Assets) is an ordinary pane, kept in
   // step with `filesWindow.open`: opening it (palette, `+`, …) docks it at
-  // the far left — a slim share — and closing its window closes it.
+  // the far right of the frame — a slim share, opposite the activity bar —
+  // and closing its window closes it.
   useEffect(() => {
     const panel = dockApi.getPanel(panelById.navigator.id)
     if (filesWindow.open && !panel) {
-      const first = firstLeaf(store.layout)
-      const anchor = first && store.groups[first.id]?.activeId
-      addDockPanel(dockApi, panelById.navigator, {
-        position: anchor ? { direction: 'left', referencePanel: anchor } : undefined,
-        share: 0.3,
-      })
+      addDockPanel(dockApi, panelById.navigator, { share: 0.24 })
     } else if (!filesWindow.open && panel) {
       panel.api.close()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filesWindow.open, dockApi])
 
+  // Context-aware navigator: whenever focus moves to a Code Editor tab it
+  // shows Files; to a Canvas tab, Layers (or Assets, if that's already up).
+  // Focus is the frontmost window and its active tab — clicking into the
+  // navigator itself counts too, so picking a view there sticks until
+  // focus goes back to an editor or canvas.
   const hadNavigator = useRef(false)
+  const focusKey = useRef(null)
+  const filesTab = useRef(filesWindow.tab)
+  filesTab.current = filesWindow.tab
   useEffect(() => {
-    const disposable = dockApi.onDidLayoutChange(() => {
+    function sync() {
       const has = !!dockApi.getPanel(panelById.navigator.id)
       if (hadNavigator.current && !has) setFilesWindow({ open: false })
       hadNavigator.current = has
-    })
+
+      const top = Object.values(store.groups)
+        .filter((g) => g.open && !g.minimized && g.panelIds.length)
+        .sort((a, b) => b.z - a.z)[0]
+      const key = top ? `${top.id}:${top.activeId}` : null
+      if (key === focusKey.current) return
+      focusKey.current = key
+      const focused = top && store.panels[top.activeId]?.component
+      if (focused === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
+      if (focused === 'canvas' && filesTab.current === 'files') setFilesWindow({ tab: 'layers' })
+    }
+    sync()
+    const disposable = dockApi.onDidLayoutChange(sync)
     return () => disposable.dispose()
-  }, [dockApi, setFilesWindow])
+  }, [dockApi, store, setFilesWindow])
 
   // Drag a window by its header — or one of its tabs — past a small
   // threshold, then track the pane under the pointer and the zone on it;
@@ -240,7 +259,9 @@ function WorkspaceSplitLayout() {
   return (
     <div className="absolute inset-0 bg-background px-3 pt-16 pb-3">
       <div ref={rootRef} className="relative isolate flex size-full min-w-0">
-        <div className="flex min-w-0 flex-1">{store.layout && renderNode(store.layout, 'row')}</div>
+        <div className="flex min-w-0 flex-1">
+          {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}
+        </div>
 
         {/* Where a dragged window would dock. */}
         {/* Where a dragged window / tab would land: a split (a half of
@@ -258,6 +279,31 @@ function WorkspaceSplitLayout() {
             </span>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// Every view closed: a quiet placeholder to reopen one.
+function EmptyFrame({ dockApi }) {
+  return (
+    <div className={cn('flex size-full flex-col items-center justify-center gap-3', PANEL_RADIUS, FLOATING_PANEL)}>
+      <p className="text-[13px] text-slate-500">No views open</p>
+      <div className="flex gap-1.5">
+        {EMPTY_VIEWS.map((def) => {
+          const Icon = PANEL_ICONS[def.iconName]
+          return (
+            <button
+              key={def.id}
+              type="button"
+              onClick={() => addDockPanel(dockApi, def)}
+              className="flex h-8 items-center gap-2 rounded-full px-3 text-xs text-slate-300 ring-1 ring-white/10 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              {Icon && <Icon className="size-3.5" />}
+              {def.title}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -339,11 +385,6 @@ function SplitNode({ node, dockApi, store, renderNode }) {
       })}
     </div>
   )
-}
-
-function firstLeaf(node) {
-  if (!node) return null
-  return node.type === 'leaf' ? node : firstLeaf(node.children[0])
 }
 
 export default WorkspaceSplitLayout

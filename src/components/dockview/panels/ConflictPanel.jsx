@@ -141,11 +141,11 @@ function ConflictPanel() {
                     aria-expanded={expandable ? expanded : undefined}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
-                      'group animate-in cursor-pointer border-b border-border/60 align-top fade-in slide-in-from-top-1 duration-300 last:border-0 hover:bg-muted/40 aria-selected:bg-muted/60',
+                      'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 last:border-0 hover:bg-muted/40 aria-selected:bg-muted/60',
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-3.5 pr-0 pl-3" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-1.5 pr-0 pl-3" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -157,32 +157,34 @@ function ConflictPanel() {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="px-3 py-3.5">
+                    <td className="px-3 py-1.5">
                       <Badge className={cn('gap-1 border-transparent', severity.className)}>
                         <SeverityIcon className="size-3" />
                         {severity.label}
                       </Badge>
                     </td>
-                    <td className="max-w-72 px-3 py-3.5">
-                      <p className="truncate font-medium text-foreground">{conflict.title}</p>
-                      <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                    <td className="max-w-72 px-3 py-1.5">
+                      <p className="truncate leading-5 font-medium text-foreground">{conflict.title}</p>
+                      <p className="flex min-w-0 items-center gap-1 text-[11px] leading-4 text-muted-foreground">
                         <FileCode2 className="size-3 shrink-0" />
-                        <span className="truncate">{conflict.file}</span>
+                        <span className="shrink-0 font-mono">{conflict.file}</span>
+                        {conflict.message && (
+                          <span className="truncate text-foreground/60" title={conflict.message}>
+                            · {conflict.message}
+                          </span>
+                        )}
                       </p>
-                      {conflict.message && (
-                        <p className="mt-1.5 line-clamp-1 leading-relaxed text-foreground/70">{conflict.message}</p>
-                      )}
                     </td>
-                    <td className="px-3 py-3.5 whitespace-nowrap">
+                    <td className="px-3 py-1.5 whitespace-nowrap">
                       <span className="flex items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                       </span>
                       {needsReviewFrom(conflict) && (
-                        <span className="mt-1 block text-[11px] font-medium text-sky-300">Needs your review</span>
+                        <span className="block text-[11px] leading-4 font-medium text-sky-300">Needs your review</span>
                       )}
                     </td>
-                    <td className="px-3 py-3.5">
+                    <td className="px-3 py-1.5">
                       {reviewers.length ? (
                         <div className="flex -space-x-1.5">
                           {reviewers.map((person) => (
@@ -197,7 +199,7 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="py-3.5 pr-3 pl-1 text-right">
+                    <td className="py-1.5 pr-3 pl-1 text-right">
                       <button
                         type="button"
                         onClick={(event) => {
@@ -308,8 +310,10 @@ function Checkbox({ checked, disabled, label, onChange }) {
       disabled={disabled}
       onClick={onChange}
       className={cn(
-        'flex size-4 items-center justify-center rounded-[5px] transition-colors disabled:cursor-not-allowed disabled:opacity-30',
-        checked ? 'bg-emerald-400 text-slate-950' : 'ring-1 ring-white/25 hover:ring-white/50'
+        'flex size-4 items-center justify-center rounded-[5px] transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        checked
+          ? 'bg-emerald-400 text-slate-950'
+          : 'bg-white/[0.06] ring-[1.5px] ring-slate-300/70 ring-inset hover:bg-white/[0.1] hover:ring-white'
       )}
     >
       {checked && <Check className="size-3" strokeWidth={3} />}

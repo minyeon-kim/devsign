@@ -7,7 +7,6 @@ import {
   GitMerge,
   Layers,
   LayoutGrid,
-  Monitor,
   PanelBottom,
   ScanEye,
   ScrollText,
@@ -22,7 +21,8 @@ import { layoutPresets } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Every command the palette offers, by section. Windows open as a tab of
-// their window (or focus it); Files / Layers /
+// their window (or focus it) — Preview isn't one: it only opens from a
+// pane's `+`; Files / Layers /
 // Assets open the navigator pane; Terminal / Console / Conflict Points the
 // docked bottom panel.
 function useCommands() {
@@ -33,7 +33,6 @@ function useCommands() {
   const windowViews = [
     { def: panelById.editor, label: 'Code Editor', icon: FileCode },
     { def: panelById.canvas, label: 'Canvas', icon: AppWindow },
-    { def: panelById.preview, label: 'Preview', icon: Monitor, keywords: 'preview browser' },
     { def: panelById.chat, label: 'AI Chat', icon: Sparkles, keywords: 'ask devsign agent assistant' },
   ]
   const navigatorViews = [
@@ -90,7 +89,7 @@ function useCommands() {
       icon: PanelBottom,
       run: () => setBottomPanel({ open: !bottomPanel.open }),
     },
-    ...layoutPresets.map((preset) => ({
+    ...layoutPresets.filter((preset) => preset.id !== 'split-preview').map((preset) => ({
       id: `layout-${preset.id}`,
       section: 'Layout',
       label: `Layout: ${preset.label}`,

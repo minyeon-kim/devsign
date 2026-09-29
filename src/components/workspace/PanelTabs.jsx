@@ -17,11 +17,14 @@ const NAVIGATOR_TABS = [
 // active one and it's that panel's current item. Pressing a tab selects it
 // and starts a drag (drop on a pane's edge to split, its middle to move
 // it there — see WorkspaceSplitLayout); dragging a file or page tab moves
-// its whole panel (the editor, the canvas).
+// its whole panel (the editor, the canvas). Every view is an equal,
+// closeable tab: the editor's last file tab and the canvas's active page
+// tab close that view itself (reopen it from a `+`).
 function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
   const workspace = useWorkspace()
   const panelActive = group.activeId === pid
   const activate = () => dockApi.setActiveTab(group.id, pid)
+  const closeView = () => dockApi.getPanel(pid)?.api.close()
 
   let items
   if (panel.component === 'editor') {
@@ -34,7 +37,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: <Icon className={cn('size-3.5 shrink-0', colorClass)} />,
         active: panelActive && workspace.activeFileId === fileId,
         select: () => workspace.setActiveFileId(fileId),
-        close: workspace.openFileIds.length > 1 ? () => workspace.closeFileTab(fileId) : null,
+        close: workspace.openFileIds.length > 1 ? () => workspace.closeFileTab(fileId) : closeView,
       }
     })
   } else if (panel.component === 'canvas') {
@@ -46,6 +49,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: <FileImage className={cn('size-3.5 shrink-0', active && 'text-primary')} />,
         active,
         select: () => workspace.setActivePageId(page.id),
+        close: workspace.activePageId === page.id ? closeView : null,
+        closeLabel: 'Close Canvas',
       }
     })
   } else if (panel.component === 'navigator') {
@@ -65,7 +70,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: Icon && <Icon className="size-3.5 shrink-0" />,
         active: panelActive,
         select: () => {},
-        close: () => dockApi.getPanel(pid)?.api.close(),
+        close: closeView,
       },
     ]
   }
@@ -99,8 +104,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       {item.close && (
         <button
           type="button"
-          aria-label={`Close ${item.label}`}
-          title="Close"
+          aria-label={item.closeLabel ?? `Close ${item.label}`}
+          title={item.closeLabel ?? 'Close'}
           onClick={item.close}
           className={cn(
             'mr-1.5 flex size-4 items-center justify-center rounded-full text-slate-500 transition-opacity hover:bg-white/10 hover:text-white',

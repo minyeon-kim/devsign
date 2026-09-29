@@ -5,13 +5,9 @@ import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
-import { openOrFocusPanel } from '@/components/dockview/DockLayout'
 import WorkspaceSplitLayout from '@/components/workspace/WorkspaceSplitLayout'
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { panelDefinitions } from '@/data/mockData'
-
-const previewDef = panelDefinitions.find((def) => def.id === 'preview')
 
 // Project resolution + WorkspaceProvider now live in ProjectLayout (the
 // parent route), shared with ArchivePage — this component just consumes
@@ -21,10 +17,7 @@ function WorkspacePage() {
   const location = useLocation()
   const navigate = useNavigate()
   const {
-    dockApi,
     activeView,
-    mergePreviewOpen,
-    setMergePreviewOpen,
     openMergeStudio,
     exitMergeStudio,
     mergeItems,
@@ -35,18 +28,7 @@ function WorkspacePage() {
     focusChange,
     openConflictReview,
   } = useWorkspace()
-  const [previewOpen, setPreviewOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
-
-  useEffect(() => {
-    if (!dockApi) return
-
-    const syncPreviewOpen = () => setPreviewOpen(!!dockApi.getPanel(previewDef.id))
-    syncPreviewOpen()
-
-    const disposable = dockApi.onDidLayoutChange(syncPreviewOpen)
-    return () => disposable.dispose()
-  }, [dockApi])
 
   // Arriving with an intent in router state:
   //  · `openMergeStudio` (a Conflict Point's "Open in Merge Studio") — Merge
@@ -100,22 +82,6 @@ function WorkspacePage() {
     openConflictReview,
   ])
 
-  function togglePreview() {
-    // In Merge Studio the header Preview button opens the responsive preview.
-    if (activeView === 'mergeStudio') {
-      setMergePreviewOpen((v) => !v)
-      return
-    }
-    if (!dockApi) return
-    const panel = dockApi.getPanel(previewDef.id)
-    if (panel) {
-      panel.api.close()
-      return
-    }
-
-    openOrFocusPanel(dockApi, previewDef)
-  }
-
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
@@ -147,12 +113,7 @@ function WorkspacePage() {
           <WorkspaceSplitLayout />
         )}
 
-        <TopBar
-          project={project}
-          previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
-          onTogglePreview={togglePreview}
-          onOpenPalette={() => setPaletteOpen(true)}
-        />
+        <TopBar project={project} onOpenPalette={() => setPaletteOpen(true)} />
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
 

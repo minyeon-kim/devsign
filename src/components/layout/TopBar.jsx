@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, Play } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -72,7 +72,7 @@ function InboxButton({ open, onToggle }) {
   )
 }
 
-function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
+function TopBar({ project, onOpenPalette }) {
   const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, setBottomPanel } = useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
@@ -105,10 +105,10 @@ function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
 
       {/* The action cluster, built exactly like Merge Studio's header:
           separate floating pieces rather than one long bar — the people
-          pill (Inbox + teammates), Share, Merge Studio, and Preview as an
-          icon-only floating action. The view tools (Files & Layers, views,
-          layout, Inspect) live in the command palette (⌘K, the search
-          field) and each window's `+` instead. */}
+          pill (Inbox + teammates), Share and Merge Studio. The view tools
+          (Files & Layers, views, layout, Inspect) live in the command
+          palette (⌘K, the search field) and each window's `+` — the only
+          place Preview opens from. */}
       <div className="absolute top-3 right-4 z-40 flex items-center gap-2">
         <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
           <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
@@ -120,20 +120,6 @@ function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
 
         <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} />
         <MergeStudioMenu standalone />
-        <button
-          type="button"
-          onClick={onTogglePreview}
-          title={previewOpen ? 'Close preview' : 'Preview'}
-          aria-label="Preview"
-          aria-pressed={previewOpen}
-          className={cn(
-            'flex size-10 items-center justify-center rounded-full transition-colors',
-            FLOATING_PILL,
-            previewOpen ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-muted'
-          )}
-        >
-          <Play className="size-4 translate-x-px" />
-        </button>
       </div>
 
       {inboxOpen && (

@@ -69,7 +69,14 @@ export function openOrFocusPanel(dockApi, def) {
 
   // That whole family is closed — fall back to a sensible spot relative to
   // whatever's still open, roughly matching buildInitialLayout's shape.
-  const anchor = dockApi.getPanel(panelById.editor.id) ?? dockApi.panels[0]
+  // The navigator isn't an anchor: a view opened beside it goes on its
+  // left, keeping the navigator at the far right.
+  const navigator = dockApi.getPanel(panelById.navigator.id)
+  const anchor = dockApi.getPanel(panelById.editor.id) ?? dockApi.panels.find((p) => p.id !== panelById.navigator.id)
+  if (!anchor && navigator && def.group !== 'sidebar') {
+    addDockPanel(dockApi, def, { position: { direction: 'left', referencePanel: navigator.id }, share: 0.75 })
+    return
+  }
   const direction = def.group === 'bottom' ? 'below' : def.group === 'sidebar' ? 'left' : 'above'
   addDockPanel(dockApi, def, {
     position: anchor ? { direction, referencePanel: anchor.id } : undefined,
@@ -85,17 +92,16 @@ export function buildInitialLayout(api) {
   addDockPanel(api, panelById.editor)
 
   // No Explorer/Layers windows here: both are tabs of the navigator pane
-  // (NavigatorPanel), which WorkspaceSplitLayout docks at the left.
+  // (NavigatorPanel), which WorkspaceSplitLayout docks at the far right.
 
-  // Canvas sits beside the editor. 620px (not 460) so the canvas surface
-  // keeps a usable width beside its built-in Layers drawer. Preview isn't
-  // a default tab — it's opened on demand from a pane's `+` menu.
+  // Canvas and AI Chat are independent tabs like the editor — any of them
+  // can be closed, dragged out or split, and reopened from a `+`. They
+  // start in the pane beside the editor. Preview is never a default tab —
+  // it only opens from a pane's `+` menu.
   addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.editor.id },
     initialWidth: 620,
   })
-  // The AI chat is a pane like the others (no floating widget): a tab
-  // beside Canvas, ready to drag out into a split.
   addDockPanel(api, panelById.chat, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
   })

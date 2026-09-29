@@ -54,8 +54,10 @@ function replaceChild(root, parent, oldNode, newNode) {
 }
 
 // `share`: how much of the reference cell the new one takes (half by
-// default; e.g. a sidebar asks for less).
-function insertLeaf(root, id, refId, direction, share = 0.5) {
+// default; e.g. a sidebar asks for less). With no reference the new cell
+// goes at the far right of the top-level row; a `share` there is its part
+// of the whole row.
+function insertLeaf(root, id, refId, direction, share) {
   const leaf = { type: 'leaf', id }
   if (!root) return leaf
   const dir = direction === 'above' || direction === 'below' ? 'col' : 'row'
@@ -64,12 +66,15 @@ function insertLeaf(root, id, refId, direction, share = 0.5) {
   if (!hit) {
     // No reference: along the top-level row.
     if (root.type === 'split' && root.dir === 'row') {
+      const sum = root.sizes.reduce((a, b) => a + b, 0)
       root.children.push(leaf)
-      root.sizes.push(Math.max(...root.sizes, 1) / 2)
+      root.sizes.push(share != null ? (sum * share) / (1 - share) : Math.max(...root.sizes, 1) / 2)
       return root
     }
-    return { type: 'split', id: `split-${++splitSeq}`, dir: 'row', children: [root, leaf], sizes: [2, 1] }
+    const sizes = share != null ? [1 - share, share] : [2, 1]
+    return { type: 'split', id: `split-${++splitSeq}`, dir: 'row', children: [root, leaf], sizes }
   }
+  share ??= 0.5
   const { parent, node } = hit
   if (parent && parent.dir === dir) {
     const i = parent.children.indexOf(node)
