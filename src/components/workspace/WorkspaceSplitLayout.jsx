@@ -34,10 +34,11 @@ const components = {
 }
 
 const MIN_PANE = 200
+const ZONE_LABEL = { left: 'left', right: 'right', above: 'up', below: 'down' }
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
 // it rather than into it as a tab.
-const EDGE = 0.28
+const EDGE = 0.2
 
 // A minimized window: a slim strip keeping its place — its icon and name
 // (running vertically in a row, across in a stack); click to bring it back.
@@ -172,11 +173,15 @@ function WorkspaceSplitLayout() {
       moved = true
       document.body.style.cursor = 'grabbing'
       document.body.style.userSelect = 'none'
-      const leaf = document.elementFromPoint(m.clientX, m.clientY)?.closest('[data-leaf]')
+      const under = document.elementFromPoint(m.clientX, m.clientY)
+      const leaf = under?.closest('[data-leaf]')
       const target = leaf?.getAttribute('data-leaf')
       const root = rootRef.current?.getBoundingClientRect()
+      // Over a window's tab bar: merge into it as a tab. Over its body:
+      // an edge splits, the middle also merges.
+      const header = under?.closest('[data-window-header]')
       const r = leaf?.getBoundingClientRect()
-      const zone = r && dropZone(r, m.clientX, m.clientY)
+      const zone = header ? 'center' : r && dropZone(r, m.clientX, m.clientY)
       const own = target === groupId
       const allowed =
         leaf && target && root && (!own || (panelId && zone !== 'center' && store.groups[groupId]?.panelIds.length > 1))
@@ -185,9 +190,17 @@ function WorkspaceSplitLayout() {
         setDock({ groupId, target: null })
         return
       }
-      const z = zoneRect({ left: r.left, top: r.top, width: r.width, height: r.height }, zone)
+      const z = header
+        ? header.getBoundingClientRect()
+        : zoneRect({ left: r.left, top: r.top, width: r.width, height: r.height }, zone)
       current = { target, zone }
-      setDock({ groupId, target, zone, rect: { left: z.left - root.left, top: z.top - root.top, width: z.width, height: z.height } })
+      setDock({
+        groupId,
+        target,
+        zone,
+        onHeader: !!header,
+        rect: { left: z.left - root.left, top: z.top - root.top, width: z.width, height: z.height },
+      })
     }
     function onUp() {
       window.removeEventListener('pointermove', onMove)
@@ -230,11 +243,20 @@ function WorkspaceSplitLayout() {
         <div className="flex min-w-0 flex-1">{store.layout && renderNode(store.layout, 'row')}</div>
 
         {/* Where a dragged window would dock. */}
+        {/* Where a dragged window / tab would land: a split (a half of
+            the pane) or a merge (its tab bar / whole body), labeled. */}
         {dock?.rect && (
           <div
-            className="pointer-events-none absolute z-[600] rounded-2xl bg-emerald-400/10 ring-2 ring-emerald-400/60 transition-all duration-100"
+            className={cn(
+              'pointer-events-none absolute z-[600] flex items-center justify-center bg-emerald-400/10 ring-2 ring-emerald-400/60 transition-all duration-100',
+              dock.onHeader ? 'rounded-t-[20px]' : 'rounded-2xl'
+            )}
             style={dock.rect}
-          />
+          >
+            <span className="rounded-full bg-emerald-400 px-2.5 py-1 text-[11px] font-semibold text-slate-950 shadow-lg">
+              {dock.zone === 'center' ? 'Merge as tab' : `Split ${ZONE_LABEL[dock.zone]}`}
+            </span>
+          </div>
         )}
       </div>
     </div>

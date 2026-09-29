@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { toast } from 'sonner'
 import { Check, CheckCheck, ChevronRight, CircleAlert, CircleCheck, FileCode2, Info, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { allPeople } from '@/data/mockData'
+import { allPeople, currentUser } from '@/data/mockData'
 import { STAGE_DOT_CLASS, STAGE_LABEL, isOpen, sortOpenFirst } from '@/lib/conflicts'
+import { diffLines } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
@@ -26,6 +27,9 @@ function ConflictPanel() {
   const { conflicts, reviewConflictId, openConflictReview, batchApproveConflicts } = useWorkspace()
   const openCount = conflicts.filter(isOpen).length
   const [selected, setSelected] = useState([])
+  // The low-risk row expanded to its mini diff (a click on a low-risk row
+  // shows what it changes, for checking before batch-approving).
+  const [expandedId, setExpandedId] = useState(null)
   const batchable = conflicts.filter(canBatchApprove)
   // Only what's still batchable stays selected (e.g. after a review moves on).
   const selection = selected.filter((id) => batchable.some((c) => c.id === id))
@@ -36,9 +40,17 @@ function ConflictPanel() {
   }
 
   function approveSelected() {
-    const count = batchApproveConflicts(selection)
+    const { approved, waiting } = batchApproveConflicts(selection)
     setSelected([])
-    if (count) toast(`${count} low-risk conflict${count === 1 ? '' : 's'} approved`, { description: 'Resolve each to apply its change.' })
+    if (approved + waiting === 0) return
+    toast(`Approved ${approved + waiting} as ${currentUser.name}`, {
+      description: [
+        approved && `${approved} ready to resolve`,
+        waiting && `${waiting} still waiting on other reviewers`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    })
   }
 
   return (
@@ -78,10 +90,13 @@ function ConflictPanel() {
                   .map((r) => allPeople.find((p) => p.id === r.id))
                   .filter(Boolean)
 
+                const expandable = conflict.severity === 'low' && !!conflict.diff
+                const expanded = expandable && expandedId === conflict.id
                 return (
+                  <Fragment key={conflict.id}>
                   <tr
-                    key={conflict.id}
-                    onClick={() => openConflictReview(conflict.id)}
+                    onClick={() => (expandable ? setExpandedId(expanded ? null : conflict.id) : openConflictReview(conflict.id))}
+                    aria-expanded={expandable ? expanded : undefined}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
                       'group animate-in cursor-pointer border-b border-border/60 align-top fade-in slide-in-from-top-1 duration-300 last:border-0 hover:bg-muted/40 aria-selected:bg-muted/60',
@@ -151,6 +166,15 @@ function ConflictPanel() {
                       </button>
                     </td>
                   </tr>
+                  {expanded && (
+                    <tr className="border-b border-border/60 bg-white/[0.015]">
+                      <td />
+                      <td colSpan={5} className="px-3 pt-1 pb-3">
+                        <MiniDiff conflict={conflict} onOpenReview={() => openConflictReview(conflict.id)} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
             </tbody>
@@ -181,6 +205,39 @@ function ConflictPanel() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+const DIFF_TONES = {
+  same: 'text-slate-400',
+  add: 'bg-emerald-400/[0.08] text-emerald-300',
+  remove: 'bg-destructive/[0.08] text-red-300',
+}
+const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
+
+// A low-risk row's expansion: the proposed change as a compact inline diff,
+// so what's being batch-approved can be checked in place.
+function MiniDiff({ conflict, onOpenReview }) {
+  const rows = diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])
+  return (
+    <div className="flex items-start gap-3">
+      <div className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
+        {rows.map((row, i) => (
+          <div key={i} className={cn('flex px-3 whitespace-pre', DIFF_TONES[row.kind])}>
+            <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
+            <span>{row.text || ' '}</span>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onOpenReview}
+        className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        Open review
+        <ChevronRight className="size-3" />
+      </button>
     </div>
   )
 }

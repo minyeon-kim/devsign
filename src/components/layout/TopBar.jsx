@@ -73,7 +73,7 @@ function InboxButton({ open, onToggle }) {
 }
 
 function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
-  const { activeView, requestMergeFocus, openMergeStudio } = useWorkspace()
+  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, setBottomPanel } = useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
 
@@ -138,9 +138,16 @@ function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
 
       {inboxOpen && (
         <MergeInboxDrawer
-          // Inbox items point at Merge Studio targets: jump there, focused.
+          // Inbox items point at a Conflict Point (open its review window,
+          // with the Conflict Points tab up behind it) or at a Merge Studio
+          // target (jump there, focused).
           onJump={(n) => {
             setInboxOpen(false)
+            if (n.target.conflictId) {
+              setBottomPanel({ tab: 'conflict', open: true })
+              openConflictReview(n.target.conflictId)
+              return
+            }
             requestMergeFocus({ ...n.target, pulse: true })
             openMergeStudio()
           }}

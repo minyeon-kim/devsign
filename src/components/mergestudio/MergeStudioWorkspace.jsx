@@ -97,6 +97,9 @@ function MergeStudioWorkspace({ item }) {
     setMergePreviewOpen,
     setMergeCta,
     mergeListCollapsed,
+    exitMergeStudio,
+    openConflictReview,
+    setBottomPanel,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -754,7 +757,20 @@ function MergeStudioWorkspace({ item }) {
         />
       )}
       {mergeDrawer === 'inbox' && (
-        <MergeInboxDrawer onJump={(n) => requestMergeFocus({ ...n.target, pulse: true })} onClose={() => setMergeDrawer(null)} />
+        <MergeInboxDrawer
+          onJump={(n) => {
+            // A Conflict Point item: back to the Workspace, its review open.
+            if (n.target.conflictId) {
+              setMergeDrawer(null)
+              exitMergeStudio()
+              setBottomPanel({ tab: 'conflict', open: true })
+              openConflictReview(n.target.conflictId)
+              return
+            }
+            requestMergeFocus({ ...n.target, pulse: true })
+          }}
+          onClose={() => setMergeDrawer(null)}
+        />
       )}
 
       <MergeAiBar />

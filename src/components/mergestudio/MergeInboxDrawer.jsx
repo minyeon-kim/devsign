@@ -117,7 +117,10 @@ function InboxItem({ n, onJump }) {
 
   return (
     <div className={cn('group', isEvent ? 'py-3.5' : 'py-5')}>
-      <button type="button" title={`Jump to ${n.target.label} on the canvas`} onClick={jump} className="flex w-full items-start gap-3 text-left">
+      <button
+        type="button"
+        title={n.target.conflictId ? `Open the review of ${n.target.label}` : `Jump to ${n.target.label} on the canvas`}
+        onClick={jump} className="flex w-full items-start gap-3 text-left">
         {/* Fixed avatar slot so every text column lines up. */}
         <span className="flex w-8 shrink-0 justify-center">
           <Person id={n.authorId} size={isEvent ? 'sm' : 'default'} />

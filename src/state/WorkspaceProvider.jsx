@@ -4,6 +4,7 @@ import {
   aiEditScenarios,
   canvasPages,
   conflictChecklist,
+  conflictNotifications,
   designSystemUpdates,
   referenceDocs as staticReferenceDocs,
   comments as seedComments,
@@ -166,7 +167,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio collaboration: which right-hand drawer is open, the inbox,
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
-  const [notifications, setNotifications] = useState(seedMergeNotifications)
+  // Merge Studio's feed plus this project's Conflict Points items.
+  const [notifications, setNotifications] = useState(() => [
+    ...conflictNotifications.filter((n) => n.projectId === projectId),
+    ...seedMergeNotifications,
+  ])
   const [mergeFocus, setMergeFocus] = useState(null)
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
@@ -516,30 +521,34 @@ export function WorkspaceProvider({ children, projectId }) {
     [appendTerminalLines, conflicts, currentSnapshot, previewProps, projectId, recordHistory]
   )
 
-  // Batch approval (the Conflict Points list): low-risk, open conflicts
-  // move to Approved in one go, every reviewer signing off (with you as
-  // the reviewer when none was assigned). Resolving stays a separate,
-  // per-conflict step. Returns how many were approved.
+  // Batch approval (the Conflict Points list): your sign-off on several
+  // low-risk, open conflicts at once — you only ever approve as yourself
+  // (added as a reviewer where you weren't one). A conflict whose every
+  // reviewer has now approved moves to Approved; the rest wait In Review on
+  // their other reviewers. Resolving stays a separate, per-conflict step.
+  // Returns { approved, waiting } counts.
   const batchApproveConflicts = useCallback(
     (conflictIds) => {
-      const ids = new Set(
-        conflicts.filter((c) => conflictIds.includes(c.id) && c.severity === 'low' && c.reviewStage !== 'resolved').map((c) => c.id)
+      const targets = conflicts.filter(
+        (c) => conflictIds.includes(c.id) && c.severity === 'low' && c.reviewStage !== 'resolved'
       )
-      if (ids.size === 0) return 0
-      setConflicts((prev) =>
-        prev.map((c) => {
-          if (!ids.has(c.id)) return c
-          const reviewers = c.reviewers.length ? c.reviewers : [{ id: currentUser.id, status: 'pending' }]
-          return {
-            ...c,
-            reviewStage: 'approved',
-            diffInspected: true,
-            reviewers: reviewers.map((r) => ({ ...r, status: 'approved' })),
-          }
+      if (targets.length === 0) return { approved: 0, waiting: 0 }
+      const next = new Map(
+        targets.map((c) => {
+          const reviewers = c.reviewers.some((r) => r.id === currentUser.id)
+            ? c.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'approved' } : r))
+            : [...c.reviewers, { id: currentUser.id, status: 'approved' }]
+          const updated = { ...c, reviewers, diffInspected: true }
+          return [c.id, { ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }]
         })
       )
-      appendTerminalLines([`$ devsign review approve --batch (${ids.size})`, `✓ ${ids.size} low-risk conflict${ids.size === 1 ? '' : 's'} approved`])
-      return ids.size
+      setConflicts((prev) => prev.map((c) => next.get(c.id) ?? c))
+      const approved = [...next.values()].filter((c) => c.reviewStage === 'approved').length
+      appendTerminalLines([
+        `$ devsign review approve --as ${currentUser.id} --batch (${next.size})`,
+        `✓ signed off on ${next.size} low-risk conflict${next.size === 1 ? '' : 's'}`,
+      ])
+      return { approved, waiting: next.size - approved }
     },
     [appendTerminalLines, conflicts]
   )

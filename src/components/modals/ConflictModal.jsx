@@ -95,6 +95,8 @@ function PersonAvatar({ person }) {
 
 // ─── Stage progress ────────────────────────────────────────────────────
 
+// A slim progress line instead of a full stepper: four hairline segments
+// (done / current / to do) and the stage as text.
 function StageProgress({ stage }) {
   const currentIndex = Math.max(
     0,
@@ -103,39 +105,24 @@ function StageProgress({ stage }) {
   const allDone = stage === 'resolved'
 
   return (
-    <ol className="flex items-center gap-2 px-5 pb-4" aria-label="Review progress">
-      {REVIEW_STAGES.map((s, i) => {
-        const done = i < currentIndex || allDone
-        const active = i === currentIndex && !allDone
-        return (
-          <li key={s.id} className="flex min-w-0 flex-1 items-center gap-2" aria-current={active ? 'step' : undefined}>
-            <span
-              className={cn(
-                'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums',
-                done && 'bg-emerald-400 text-slate-950',
-                active && 'bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-400/60',
-                !done && !active && 'bg-white/[0.06] text-slate-500'
-              )}
-            >
-              {done ? <Check className="size-3" strokeWidth={3} /> : i + 1}
-            </span>
-            <span
-              className={cn(
-                'truncate text-xs',
-                active ? 'font-semibold text-white' : done ? 'text-slate-300' : 'text-slate-500'
-              )}
-            >
-              {s.label}
-            </span>
-            {i < REVIEW_STAGES.length - 1 && (
-              <span
-                className={cn('h-px min-w-3 flex-1 rounded-full', i < currentIndex || allDone ? 'bg-emerald-400/50' : 'bg-white/10')}
-              />
+    <div className="flex items-center gap-3 px-5 pb-3" aria-label="Review progress">
+      <ol className="flex flex-1 items-center gap-1">
+        {REVIEW_STAGES.map((s, i) => (
+          <li
+            key={s.id}
+            title={s.label}
+            aria-current={i === currentIndex && !allDone ? 'step' : undefined}
+            className={cn(
+              'h-1 flex-1 rounded-full',
+              i < currentIndex || allDone ? 'bg-emerald-400/70' : i === currentIndex ? 'bg-emerald-400/35' : 'bg-white/[0.08]'
             )}
-          </li>
-        )
-      })}
-    </ol>
+          />
+        ))}
+      </ol>
+      <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">
+        <span className="font-medium text-slate-200">{REVIEW_STAGES[currentIndex]?.label}</span> · {currentIndex + 1}/{REVIEW_STAGES.length}
+      </span>
+    </div>
   )
 }
 
@@ -346,12 +333,13 @@ const iconActionClass =
 // resolved — a new reviewer on an Approved conflict sends it back to In
 // Review, since everyone has to sign off; removing is open before review
 // starts, and in review for anyone who hasn't approved (never the last
-// one). Approve / request changes are the in-review actions, and anyone
-// still pending can be reminded.
+// one). Approve / request changes are the in-review actions — and only on
+// your own row (you sign off for yourself; everyone else's status is just
+// shown) — and anyone else still pending can be reminded.
 function ReviewersSection({ conflict, onUpdate }) {
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
-  const pending = reviewers.filter((r) => r.status !== 'approved')
+  const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== currentUser.id)
   const canRemind = reviewStage === 'in_review' || reviewStage === 'detected'
 
   function setReviewers(next, patch = {}) {
@@ -440,7 +428,7 @@ function ReviewersSection({ conflict, onUpdate }) {
                 <span className={cn('shrink-0 text-[11px]', status.className)}>
                   {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
-                {canRemind && reviewer.status !== 'approved' && (
+                {canRemind && reviewer.status !== 'approved' && reviewer.id !== currentUser.id && (
                   <button
                     type="button"
                     aria-label={`Remind ${person.name}`}
@@ -451,7 +439,7 @@ function ReviewersSection({ conflict, onUpdate }) {
                     <Bell className="size-3.5" />
                   </button>
                 )}
-                {reviewStage === 'in_review' && (
+                {reviewStage === 'in_review' && reviewer.id === currentUser.id && (
                   <span className="flex shrink-0 items-center">
                     <button
                       type="button"
@@ -682,7 +670,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
         showCloseButton={false}
         style={dragStyle}
         className={cn(
-          'flex h-[min(720px,88vh)] w-full max-w-[920px] flex-col gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[920px]',
+          'flex h-[min(720px,88vh)] w-full max-w-[1040px] flex-col gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[1040px]',
           PANEL_RADIUS,
           FLOATING_PANEL
         )}
@@ -779,8 +767,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                 </div>
               </div>
 
-              {/* Right: the review — next step, reviewers, comments. */}
-              <div className="flex w-[320px] shrink-0 flex-col gap-5 overflow-hidden bg-white/[0.015] px-5 pt-4 pb-5">
+              {/* Right: the review — next step, reviewers, comments — kept to
+                  ~30% so the content under review (left, ~70%) gets the room. */}
+              <div className="flex w-[30%] min-w-[260px] shrink-0 flex-col gap-4 overflow-hidden bg-white/[0.015] px-4 pt-4 pb-5">
                 <NextStepCard step={step} onViewDiff={() => openTab('diff')} />
                 <ReviewersSection conflict={conflict} onUpdate={update} />
                 <div className="flex min-h-0 flex-1 flex-col">

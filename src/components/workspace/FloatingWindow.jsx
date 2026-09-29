@@ -115,6 +115,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       ) : (
         <div
           onPointerDown={beginDrag}
+          data-window-header={docked ? group.id : undefined}
           className="flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
         >
           {docked ? (

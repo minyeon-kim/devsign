@@ -2382,6 +2382,42 @@ export const seedMergeNotifications = [
   },
 ]
 
+// Inbox items about a project's Conflict Points (seeded into that
+// project's Inbox only). Clicking one opens the conflict's review window.
+export const conflictNotifications = [
+  {
+    id: 'n-cc-11',
+    projectId: 'checkout-redesign',
+    kind: 'approval',
+    authorId: 'james',
+    text: 'requested your approval on Button / Height',
+    timeLabel: '8m ago',
+    unread: true,
+    target: { conflictId: 'cc-11', label: 'Button / Height' },
+  },
+  {
+    id: 'n-cc-9',
+    projectId: 'checkout-redesign',
+    kind: 'comment',
+    authorId: 'min',
+    text: 'Can you take a look at the payment label spacing before we ship?',
+    timeLabel: '35m ago',
+    unread: true,
+    target: { conflictId: 'cc-9', label: 'Label / Letter spacing' },
+    replies: [],
+  },
+  {
+    id: 'n-cc-8',
+    projectId: 'checkout-redesign',
+    kind: 'feedback',
+    authorId: 'jane',
+    text: 'AI: divider color drifts from the border token in OrderSummary.jsx',
+    timeLabel: '2h ago',
+    unread: false,
+    target: { conflictId: 'cc-8', label: 'Divider / Color' },
+  },
+]
+
 // Arrives a few seconds after entering Merge Studio to demo live feedback.
 export const liveMergeNotification = {
   id: 'n-live',
