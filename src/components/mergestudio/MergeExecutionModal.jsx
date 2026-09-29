@@ -29,7 +29,7 @@ import ConflictResolver from '@/components/mergestudio/ConflictResolutionModal'
 import { codeOverrides, workspaceCodeEdits } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
+import { diffEffect, frameWithLayers, isCustomResolution } from '@/components/mergestudio/mergeEffects'
 import { SOURCE_LABELS, componentOf, finalRowsFor, reviewSignature, reviewStatus } from '@/components/mergestudio/finalValues'
 
 // Submitting ends at the review request — merging (and any deploy) only
@@ -225,7 +225,8 @@ function SourceBadge({ source, propLabel }) {
 
 function DriftReviewSection({ item, drifts, review, frame, resolutions, assemblies, assemblySources, onResolveDiff, onActiveChange, onSetReviewMark, onEditInAssemble, initialDriftId }) {
   const { requestMergeFocus } = useWorkspace()
-  const [index, setIndex] = useState(() => Math.max(0, drifts.findIndex((d) => d.id === initialDriftId)))
+  const [activeId, setActiveId] = useState(initialDriftId ?? drifts[0]?.id)
+  const index = Math.max(0, drifts.findIndex((d) => d.id === activeId))
   // The item being reviewed drives the preview's spotlight.
   useEffect(() => {
     onActiveChange?.(drifts[index] ?? null)
@@ -243,7 +244,7 @@ function DriftReviewSection({ item, drifts, review, frame, resolutions, assembli
 
   function goTo(i) {
     const next = Math.min(Math.max(i, 0), drifts.length - 1)
-    setIndex(next)
+    setActiveId(drifts[next].id)
     focusDrift(drifts[next])
   }
 
@@ -659,7 +660,7 @@ function buildReviewModel({ item, resolutions, annotations, preset, assemblies, 
     if (!t) return null
     const out = []
     for (let n = t.line; n < t.line + (t.span ?? 1); n++) {
-      out.push(manualCode[`${t.fileId}:${n}`] ?? getFileLines(t.fileId)[n - 1] ?? '')
+      out.push(manualCode[`${t.fileId}:${n}`] ?? codeMergeVariants[item.id]?.[t.fileId]?.find((d) => d.line === n)?.incoming ?? getFileLines(t.fileId)[n - 1] ?? '')
     }
     return out
   }

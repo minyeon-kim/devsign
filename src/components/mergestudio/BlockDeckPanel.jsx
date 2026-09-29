@@ -543,7 +543,7 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
           <div className={ROW}>
             <div className={SPAN2}>
               <ColorField
-                value={a.fillColor ?? fillToken?.token}
+                value={a.fillColor ?? fillToken?.hex}
                 swatchHex={a.fillColor ?? fillToken?.hex}
                 swatchClass={!a.fillColor && fillToken ? fillToken.swatch : undefined}
                 placeholder={`${d.fill ?? 'Default'} · HEX or token`}
@@ -558,7 +558,7 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
               <button
                 key={f.id}
                 type="button"
-                title={`${f.label} · ${f.token}`}
+                title={f.label}
                 onClick={() => onChange({ fill: f.id, fillColor: undefined })}
                 className={cn('size-5 rounded-[4px] transition-transform hover:scale-110', f.swatch, a.fill === f.id && !a.fillColor && 'ring-2 ring-white ring-offset-1 ring-offset-slate-900')}
               />

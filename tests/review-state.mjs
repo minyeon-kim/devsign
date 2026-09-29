@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 
 // Vite resolves the application's existing aliases; no test dependency or browser data is needed.
-const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
   const { readDemo, writeDemo, resetDemo, DEMO_PREFIX, signature } = await server.ssrLoadModule('/src/lib/demoStorage.js')
   globalThis.localStorage = new class {
@@ -58,6 +58,21 @@ try {
   assert.equal(buildDrifts(item, null).length, 0)
   designMergeVariants[item.id] = { layerDiffs: { card: [diff, { ...diff, id: 'card-padding' }] } }
   assert.equal(buildDrifts(item, { layers: [{ id: 'card', name: 'Card' }] }).length, 1)
+  const { createElement } = await import('react')
+  const { renderToString } = await import('react-dom/server')
+  const { MemoryRouter } = await import('react-router-dom')
+  const { ConflictStoreProvider } = await server.ssrLoadModule('/src/state/ConflictStore.jsx')
+  const { WorkspaceProvider } = await server.ssrLoadModule('/src/state/WorkspaceProvider.jsx')
+  const { default: Studio } = await server.ssrLoadModule('/src/components/mergestudio/MergeStudioWorkspace.jsx')
+  const { mergeListItems } = await server.ssrLoadModule('/src/data/mockData.js')
+  const html = renderToString(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
+    createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Studio, { item: mergeListItems.find((m) => m.id === 'merge-checkout-cta') })))))
+  assert.ok(html.includes('Place order'))
+  const { default: PanelTabs } = await server.ssrLoadModule('/src/components/workspace/PanelTabs.jsx')
+  const tabs = renderToString(createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId: 'checkout-redesign' },
+    createElement(PanelTabs, { pid: 'navigator', panel: { component: 'navigator' }, group: { id: 'nav', activeId: 'navigator' }, dockApi: {} }))))
+  for (const label of ['Files', 'Layers', 'Assets']) assert.ok(tabs.includes(`aria-label="${label}"`))
+  assert.ok(!tabs.includes('Close sidebar'))
   console.log('Passed: versioned persistence/reset, merge guards, provenance, review invalidation, stable IDs and item counts.')
 } finally {
   await server.close()

@@ -1,6 +1,6 @@
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
-import { codeMergeVariants } from '@/data/mockData'
+import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -168,7 +168,7 @@ export function WorkspaceProvider({ children, projectId }) {
         else delete next[layerId]
         return next
       }),
-    []
+    [setAssetAssemblies]
   )
   const [chatMessages, setChatMessages] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
@@ -237,7 +237,7 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     mergeDrafts.current[id] = draft
     writeDemo(`project:${projectId}:mergeDrafts`, mergeDrafts.current)
-  }, [projectId, setConflicts])
+  }, [projectId, setConflicts, setMergeItems])
   // Baseline moves only in the shared final merge operation, never on AI edits.
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
@@ -288,7 +288,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setNotifications((prev) => (prev.some((n) => n.id === liveMergeNotification.id) ? prev : [liveMergeNotification, ...prev]))
     }, 9000)
     return () => clearTimeout(timer)
-  }, [activeView])
+  }, [activeView, setNotifications])
 
   // Each teammate's simulated timeline for this project (its own when the
   // project has one, else their default).
@@ -334,7 +334,7 @@ export function WorkspaceProvider({ children, projectId }) {
 
   const updateMergeItem = useCallback((id, patch) => {
     setMergeItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
-  }, [])
+  }, [setMergeItems])
 
   const requestMergeFocus = useCallback((target) => {
     setSelectedMergeItemId(target.itemId)
@@ -343,15 +343,15 @@ export function WorkspaceProvider({ children, projectId }) {
     // identical nonce, so the second one's "already handled" guard in
     // MergeStudioWorkspace would silently swallow it.
     setMergeFocus({ target, nonce: nextId('focus') })
-  }, [])
+  }, [setSelectedMergeItemId])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)))
-  }, [])
+  }, [setNotifications])
 
   const markAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
-  }, [])
+  }, [setNotifications])
 
   const replyToNotification = useCallback(
     (id, text) => {
@@ -363,7 +363,7 @@ export function WorkspaceProvider({ children, projectId }) {
         )
       )
     },
-    []
+    [setNotifications]
   )
 
   // "Start New with Current Work" — snapshots whatever's open in the editor
@@ -393,7 +393,7 @@ export function WorkspaceProvider({ children, projectId }) {
     ])
     setSelectedMergeItemId(id)
     setActiveView('mergeStudio')
-  }, [activePageId])
+  }, [activePageId, setSelectedMergeItemId, setMergeItems])
 
   const appendTerminalLines = useCallback((lines, stagger = 140) => {
     lines.forEach((text, i) => {
@@ -487,7 +487,7 @@ export function WorkspaceProvider({ children, projectId }) {
       if (line) setCodeFlash({ fileId: proto.id, line, nonce: nextId('flash') })
       setPreviewVersion((v) => v + 1)
     },
-    [prototypeEdits]
+    [prototypeEdits, setPrototypeEdits]
   )
 
   const startFollowMe = useCallback(() => {
@@ -538,7 +538,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setHistoryEntries((prev) => [...prev, { archived: false, id, ...entry, snapshot }])
     setActiveHistoryId(id)
     return id
-  }, [])
+  }, [setHistoryEntries, setActiveHistoryId])
 
   // The current workspace as a History snapshot (what rollback restores).
   const currentSnapshot = useCallback(
@@ -606,7 +606,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!related.length) logEvent({ kind: 'merge', projectId, actorId: currentUser.id, title: item.title })
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
     return true
-  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines])
+  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits])
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
 
@@ -688,7 +688,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setGeneratedDocs((prev) => [...prev.filter((d) => d.id !== docIdFor(update)), docForUpdate(documented)])
       appendTerminalLines([`$ devsign docs generate "${update.title}"`, '✓ reference doc created'])
     },
-    [dsUpdates, appendTerminalLines]
+    [dsUpdates, appendTerminalLines, setDsUpdates, setGeneratedDocs]
   )
 
   // Pipeline step 3: record it in History as a version of the project.
@@ -706,7 +706,7 @@ export function WorkspaceProvider({ children, projectId }) {
       )
       appendTerminalLines([`$ devsign history record "${update.title}"`, '✓ archived to history'])
     },
-    [dsUpdates, recordHistory, currentSnapshot, appendTerminalLines]
+    [dsUpdates, recordHistory, currentSnapshot, appendTerminalLines, setDsUpdates]
   )
 
   // Import: code files are read as text and added to the project's file
@@ -744,7 +744,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return { code: code.length, design: design.length }
     },
-    [appendTerminalLines]
+    [appendTerminalLines, setImportedAssets, setImportedFiles]
   )
 
   const importFigmaLink = useCallback(
@@ -754,7 +754,7 @@ export function WorkspaceProvider({ children, projectId }) {
       appendTerminalLines([`$ devsign import --figma ${url}`, `✓ linked "${name}" from Figma`])
       return name
     },
-    [appendTerminalLines]
+    [appendTerminalLines, setImportedAssets]
   )
 
   const allReferenceDocs = useMemo(() => [...staticReferenceDocs, ...generatedDocs], [generatedDocs])
@@ -774,14 +774,14 @@ export function WorkspaceProvider({ children, projectId }) {
         prev.map((entry) => (entry.id === entryId ? { ...entry, archived: true } : entry))
       )
     },
-    [activeHistoryId]
+    [activeHistoryId, setHistoryEntries]
   )
 
   const restoreHistoryEntry = useCallback((entryId) => {
     setHistoryEntries((prev) =>
       prev.map((entry) => (entry.id === entryId ? { ...entry, archived: false } : entry))
     )
-  }, [])
+  }, [setHistoryEntries])
 
   // Roll back to a checkpoint. Files, preview and canvas selection always
   // go back; `conflicts` (the Conflict Points' review state) and
@@ -828,7 +828,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return restoredId
     },
-    [historyEntries, appendTerminalLines, recordHistory, setConflicts]
+    [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setChatMessages]
   )
 
   // Does a scenario's change fall inside the request's target? The target
@@ -999,7 +999,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setFileNameOverrides((prev) => ({ ...prev, [fileId]: trimmed }))
       appendTerminalLines([`$ mv "${getFileName(fileId)}" "${trimmed}"`])
     },
-    [appendTerminalLines, getFileName]
+    [appendTerminalLines, getFileName, setFileNameOverrides]
   )
 
   // Committed from the editor's edit mode (see EditorPanel) — a plain
@@ -1008,6 +1008,20 @@ export function WorkspaceProvider({ children, projectId }) {
   // content exactly like they do on AI-generated content.
   const updateFileContent = useCallback(
     (fileId, lines, { live = false } = {}) => {
+      const before = fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? []
+      if (!live && signature(before) === signature(lines)) return
+      if (!live) {
+        const changedLines = new Set(Array.from({ length: Math.max(before.length, lines.length) }, (_, i) => i + 1).filter((n) => before[n - 1] !== lines[n - 1]))
+        const affected = conflicts.filter((c) => {
+          const span = designMergeVariants[c.mergeItemId]?.layerCodeMap?.[c.layerId]
+          const start = span?.line ?? c.line
+          return (span?.fileId ?? c.fileId) === fileId && (!start || Array.from({ length: span?.span ?? 1 }, (_, i) => start + i).some((n) => changedLines.has(n)))
+        })
+        const ids = new Set(affected.map((c) => c.id))
+        setConflicts((prev) => prev.map((c) => ids.has(c.id) ? { ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected', reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) } : c))
+        for (const c of affected) if (c.mergeItemId) updateMergeItem(c.mergeItemId, { tag: 'In Review' })
+        setDraftChanges((prev) => ({ ...prev, [fileId]: { title: 'Code edited' } }))
+      }
       // Code → canvas: a prototype file is parsed back into the canvas
       // model rather than stored as text.
       if (prototypeFile(fileId)) {
@@ -1020,7 +1034,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setPreviewVersion((v) => v + 1)
       if (!live) appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
     },
-    [appendTerminalLines, getFileName]
+    [appendTerminalLines, getFileName, setPrototypeEdits, setFileOverrides, fileOverrides, files, conflicts, setConflicts, updateMergeItem, setDraftChanges]
   )
 
   const setCommentStatus = useCallback((commentId, status) => {

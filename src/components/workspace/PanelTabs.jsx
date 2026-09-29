@@ -17,10 +17,9 @@ const NAVIGATOR_TABS = [
 // active one and it's that panel's current item. Pressing a tab selects it
 // and starts a drag (drop on a pane's edge to split, its middle to move
 // it there — see WorkspaceSplitLayout); dragging a file or page tab moves
-// its whole panel (the editor, the canvas). Every view is an equal,
-// closeable tab: the editor's last file tab and the canvas's active page
-// tab close that view itself (reopen it from a `+`), as does the
-// navigator's active tab. Panes have no window controls of their own.
+// its whole panel (the editor, the canvas). The editor's last file tab
+// and the canvas's active page tab close their view (reopen from `+`).
+// Navigator tabs are permanent navigation choices without close controls.
 function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
   const workspace = useWorkspace()
   const panelActive = group.activeId === pid
@@ -61,8 +60,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       icon: <Icon className="size-3.5 shrink-0" />,
       active: panelActive && workspace.filesWindow.tab === id,
       select: () => workspace.setFilesWindow({ tab: id }),
-      close: workspace.filesWindow.tab === id ? closeView : null,
-      closeLabel: 'Close sidebar',
+      close: null,
     }))
   } else {
     const Icon = PANEL_ICONS[panel.params?.iconName]
@@ -82,13 +80,15 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
     <span
       key={item.key}
       className={cn(
-        'group/tab flex h-7 shrink-0 items-center rounded-full text-xs transition-colors',
+        'group/tab flex h-7 items-center rounded-full text-xs transition-colors',
+        panel.component === 'navigator' ? 'min-w-0 flex-1' : 'shrink-0',
         item.active ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
       )}
     >
       <button
         type="button"
-        title="Drag to split or move"
+        title={`${item.label} · Drag to split or move`}
+        aria-label={item.label}
         onPointerDown={(event) => {
           if (event.button !== 0) return
           item.select()
@@ -99,9 +99,9 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
           item.select()
           activate()
         }}
-        className={cn('flex h-full items-center gap-1.5 pl-3', item.close ? 'pr-1.5' : 'pr-3')}
+        className={cn('flex h-full items-center', panel.component === 'navigator' ? 'min-w-0 w-full justify-center gap-1 px-2' : ['gap-1.5 pl-3', item.close ? 'pr-1.5' : 'pr-3'])}
       >
-        {item.icon}
+        {panel.component === 'navigator' ? <span className="shrink-0 @max-[260px]/nav:hidden">{item.icon}</span> : item.icon}
         <span className="max-w-[160px] truncate">{item.label}</span>
       </button>
       {item.close && (

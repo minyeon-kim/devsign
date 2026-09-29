@@ -88,6 +88,7 @@ const DECK_RESERVE = DECK_WIDTH + 32
 function MergeStudioWorkspace({ item }) {
   const {
     setActiveFileId,
+    getFileLines,
     setActivePageId,
     updateMergeItem,
     mergeDrawer,
@@ -573,7 +574,7 @@ function MergeStudioWorkspace({ item }) {
     }
     setMergeCta({ merged: mergedNow, count: ctaCount, open: () => openWizardRef.current?.() })
     return () => setMergeCta(null)
-  }, [item?.id, mergedNow, ctaCount, setMergeCta])
+  }, [item, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckCollapsed && !deckFloating ? DECK_RESERVE : 0
   // The wizard docks right too (same side as the Block Deck) but floats as
@@ -794,7 +795,7 @@ function MergeStudioWorkspace({ item }) {
           // "In Review" in the Merge List until it's approved (merging and
           // deploying happen after approval, outside this flow).
           onComplete={(reviewerIds) => {
-            updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => ({ id, status: 'pending' })), updatedLabel: 'Just now' })
+            updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
             for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
               const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
               updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
