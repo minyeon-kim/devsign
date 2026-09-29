@@ -274,8 +274,6 @@ function SuggestionCard({ conflict, onViewDiff }) {
 }
 
 function OverviewTab({ conflict, onViewDiff }) {
-  const fields = conflict.comparisonFields ?? []
-
   return (
     <div className="space-y-10">
       {conflict.reviewStage === 'resolved' && (
@@ -291,33 +289,16 @@ function OverviewTab({ conflict, onViewDiff }) {
         </p>
       )}
       {(conflict.message || conflict.riskReason) && (
-        <div className="space-y-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+        <div className="space-y-5 px-1">
           {conflict.message && <p className="text-[13px] leading-relaxed text-slate-200">{conflict.message}</p>}
           {conflict.riskReason && (
-            <div className={cn(conflict.message && 'border-t border-white/[0.07] pt-4')}>
+            <div>
               <p className={cn(PANEL_LABEL, 'mb-2')}>Why review is needed</p>
               <p className="text-[13px] leading-relaxed text-slate-300">{conflict.riskReason}</p>
             </div>
           )}
         </div>
       )}
-
-      {conflict.preview && (
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
-          <ChangePreview preview={conflict.preview} />
-          {conflict.uxNote && (
-            <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
-              <Eye className="mt-0.5 size-3.5 shrink-0" />
-              {conflict.uxNote}
-            </p>
-          )}
-        </div>
-      )}
-
-      <Section label="What changed">
-        {fields.length ? <ComparisonTable fields={fields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
-        {!conflict.preview && conflict.uxNote && <p className="mt-2 text-xs text-amber-200/90">{conflict.uxNote}</p>}
-      </Section>
 
       <Provenance conflict={conflict} />
 
@@ -336,7 +317,9 @@ const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 // The proposed change as an inline diff — review only. Nothing here is
 // applied: the fix reaches the workspace when the change is merged.
 function DiffTab({ conflict }) {
-  if (!conflict.branches && !conflict.diff && !conflict.suggestion) return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+  if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
+    return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+  }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
 
   return (
@@ -351,6 +334,21 @@ function DiffTab({ conflict }) {
           {conflict.suggestionReason && <p className="mt-1 text-xs leading-relaxed text-slate-400">{conflict.suggestionReason}</p>}
         </div>
       )}
+      {conflict.preview && (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+          <p className={cn(PANEL_LABEL, 'mb-3')}>Before and after</p>
+          <ChangePreview preview={conflict.preview} />
+          {conflict.uxNote && (
+            <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
+              <Eye className="mt-0.5 size-3.5 shrink-0" />
+              {conflict.uxNote}
+            </p>
+          )}
+        </div>
+      )}
+      <Section label="What changed">
+        {conflict.comparisonFields?.length ? <ComparisonTable fields={conflict.comparisonFields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
+      </Section>
       {conflict.branches && (
         <div className="flex items-center gap-2 text-xs">
           <GitBranch className="size-3.5 shrink-0 text-slate-500" />
