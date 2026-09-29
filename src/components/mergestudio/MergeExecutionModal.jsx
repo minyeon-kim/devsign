@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
+  Blocks,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -29,6 +30,7 @@ import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
+import { SOURCE_LABELS, componentOf, finalRowsFor, reviewSignature, reviewStatus } from '@/components/mergestudio/finalValues'
 
 // Submitting ends at the review request — merging (and any deploy) only
 // happens after the PR is approved, outside this flow.
@@ -174,30 +176,63 @@ const scopeMeta = {
   design: { label: 'Design', icon: Palette, className: 'bg-emerald-400 text-slate-950', idle: 'text-emerald-300 ring-1 ring-emerald-400/40' },
 }
 
-// ----- Step 1: Check ---------------------------------------------------
-// The step-review walkthrough: `< >` through every drift one at a time
-// (design property diffs, then raw code-line diffs — the exact same list
-// the canvas's own pager uses, via `buildDrifts`). Selecting a drift here
-// pans the canvas live to it (no `noPan` — unlike the canvas's own pager,
-// the point here *is* to watch the element move into view while your
-// attention is on this modal) and highlights it there in real time.
-// "Mark Resolved" accepts Incoming for any undecided property and advances
-// to the next un-resolved drift automatically.
-function DriftReviewSection({ item, resolutions, onResolveDiff, onActiveChange }) {
+// ----- Preview: review changes -----------------------------------------
+// The item-by-item review walkthrough inside Preview: `< >` through every
+// review item one at a time (one per changed element or code line — the
+// same list the canvas's own pager uses, via `buildDrifts`; an element
+// with several changed properties is still one item). Selecting an item
+// pans the canvas live to it and highlights it there.
+//
+// Each design item shows its properties as Original | Current | Final,
+// with where the Final value comes from (see finalValues.js), plus any
+// Design System component behind it. The candidate buttons still pick
+// Original or Current, exactly as before; "Edit in Assemble" hands the
+// element to the Block Deck for anything else.
+//
+// "Mark as reviewed" only records that the user looked at this item's
+// final result: it changes no design value or code, adopts no candidate,
+// and doesn't touch Check's conflict resolution. A review holds only while
+// the item's result is unchanged; any later change reopens it ("Changed
+// since review").
+
+const SOURCE_TONE = {
+  original: 'bg-white/[0.06] text-slate-300',
+  current: 'bg-sky-400/10 text-sky-300',
+  custom: 'bg-emerald-400/10 text-emerald-300',
+  designSystem: 'bg-violet-400/10 text-violet-300',
+}
+
+// The design-system token that's relevant to a property, when the
+// component recorded one (e.g. radius.full for Corner Radius).
+function tokenFor(source, propLabel) {
+  if (source.token) return source.token
+  const prefix = /radius/i.test(propLabel) ? 'radius.' : /color|background/i.test(propLabel) ? 'color.' : null
+  return prefix ? source.tokens?.find((t) => t.startsWith(prefix)) : undefined
+}
+
+function SourceBadge({ source, propLabel }) {
+  const detail =
+    source.kind === 'designSystem'
+      ? [source.component, tokenFor(source, propLabel)].filter(Boolean).join(' · ')
+      : source.kind === 'current' && source.defaulted
+        ? 'not chosen'
+        : source.detail
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className={cn('shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium', SOURCE_TONE[source.kind])}>{SOURCE_LABELS[source.kind]}</span>
+      {detail && <span className="min-w-0 truncate text-[11px] text-slate-500">{detail}</span>}
+    </span>
+  )
+}
+
+function DriftReviewSection({ item, drifts, review, frame, resolutions, assemblies, assemblySources, onResolveDiff, onActiveChange, onSetReviewMark, onEditInAssemble, initialDriftId }) {
   const { requestMergeFocus } = useWorkspace()
-  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
-  const drifts = useMemo(() => buildDrifts(item, frame), [item, frame])
-  const [index, setIndex] = useState(0)
-  // The drift being reviewed drives the staging preview's spotlight.
+  const [index, setIndex] = useState(() => Math.max(0, drifts.findIndex((d) => d.id === initialDriftId)))
+  // The item being reviewed drives the preview's spotlight.
   useEffect(() => {
     onActiveChange?.(drifts[index] ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, drifts])
-  const [resolvedIds, setResolvedIds] = useState(() => new Set())
-
-  const isDriftResolved = (d) =>
-    resolvedIds.has(d.id) || (d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`]))
-  const resolvedCount = drifts.filter(isDriftResolved).length
 
   function focusDrift(d) {
     requestMergeFocus({
@@ -216,44 +251,38 @@ function DriftReviewSection({ item, resolutions, onResolveDiff, onActiveChange }
 
   // No auto-focus on mount: opening the wizard (or reaching this step) must
   // leave the canvas exactly where the user put it. The canvas only moves
-  // when they explicitly step through drifts with < >.
-
-  function markResolved(d) {
-    if (d.kind === 'design') {
-      for (const diff of d.diffs) {
-        if (!resolutions[`${d.layerId}:${diff.id}`]) onResolveDiff(d.layerId, diff.id, 'B')
-      }
-    }
-    setResolvedIds((prev) => new Set(prev).add(d.id))
-    const nextUnresolved = drifts.findIndex((x, i) => i > index && !isDriftResolved(x))
-    if (nextUnresolved >= 0) goTo(nextUnresolved)
-    else if (index < drifts.length - 1) goTo(index + 1)
-  }
+  // when they explicitly step through items with < >.
 
   if (!drifts.length) return null
   const d = drifts[index]
-  const resolved = isDriftResolved(d)
+  const status = review.statusOf(d)
+  const rows = d.kind === 'design' ? review.rowsFor(d) : []
+  const component = d.kind === 'design' ? componentOf(assemblies[d.layerId], assemblySources[d.layerId]) : null
+  const canAssemble = d.kind === 'design' && frame?.layers.some((l) => l.id === d.layerId)
 
   return (
     <section>
-      {/* Flat: a label row, the drift's title with its pager, then one
+      {/* Flat: a label row, the item's title with its pager, then one
           hairline-divided row per property — no card, no inner boxes. */}
       <div className="mb-3 flex items-center gap-2">
-        <p className="text-xs font-medium text-slate-300">Review drifts</p>
-        <span className={cn('ml-auto text-xs tabular-nums', resolvedCount === drifts.length ? 'font-medium text-emerald-300' : 'text-slate-400')}>
-          {resolvedCount}/{drifts.length} resolved
+        <p className="text-xs font-medium text-slate-300">Review changes</p>
+        <span className={cn('ml-auto text-xs tabular-nums', review.reviewedCount === drifts.length ? 'font-medium text-emerald-300' : 'text-slate-400')}>
+          {review.reviewedCount === drifts.length ? 'All changes reviewed' : `${review.reviewedCount} of ${drifts.length} reviewed`}
         </span>
       </div>
 
       <div className="flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-white">{d.label}</p>
-        <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+        <p className="min-w-0 truncate text-[15px] font-semibold text-white">{d.label}</p>
+        {status === 'stale' && (
+          <span className="shrink-0 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">Changed since review</span>
+        )}
+        <span className="ml-auto shrink-0 text-xs text-slate-500 tabular-nums">
           {index + 1} of {drifts.length}
         </span>
         <div className="flex shrink-0 items-center">
           <button
             type="button"
-            title="Previous drift"
+            title="Previous change"
             onClick={() => goTo(index - 1)}
             disabled={index === 0}
             className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
@@ -262,7 +291,7 @@ function DriftReviewSection({ item, resolutions, onResolveDiff, onActiveChange }
           </button>
           <button
             type="button"
-            title="Next drift"
+            title="Next change"
             onClick={() => goTo(index + 1)}
             disabled={index === drifts.length - 1}
             className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
@@ -273,56 +302,100 @@ function DriftReviewSection({ item, resolutions, onResolveDiff, onActiveChange }
       </div>
 
       {d.kind === 'design' ? (
-        <ul className="mt-2 divide-y divide-white/[0.06]">
-          {d.diffs.map((diff) => {
-            const side = resolutions[`${d.layerId}:${diff.id}`]
-            const choice = (id, text) => (
-              <button
-                type="button"
-                aria-pressed={side === id}
-                onClick={() => onResolveDiff(d.layerId, diff.id, id)}
-                className={cn(
-                  'h-7 min-w-0 truncate rounded-full px-3 text-[13px] transition-colors',
-                  side === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
-                )}
-              >
-                {text}
-              </button>
-            )
-            return (
-              <li key={diff.id} className="flex items-center gap-2 py-2">
-                <span className="w-28 shrink-0 truncate text-[13px] text-slate-400">{diff.label}</span>
-                <span className="flex min-w-0 flex-1 items-center gap-1">
-                  {choice('A', `Original · ${diff.optionA}`)}
-                  {choice('B', `Current · ${diff.optionB}`)}
-                </span>
-                {isCustomResolution(side) && <span className="shrink-0 truncate text-[13px] font-medium text-emerald-300">Edited · {side.custom}</span>}
-              </li>
-            )
-          })}
-        </ul>
+        <>
+          {component && (
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-slate-400">
+              <span className={cn('rounded-full px-1.5 py-px text-[10px] font-medium', SOURCE_TONE.designSystem)}>Design system</span>
+              {component.replaced ? 'Replaced with' : 'Styled with'}
+              <span className="font-medium text-slate-200">{component.name}</span>
+              {component.tokens.length > 0 && <span className="text-slate-500">· {component.tokens.join(', ')}</span>}
+            </p>
+          )}
+          <table className="mt-2 w-full table-fixed text-[13px]">
+            <thead>
+              <tr className="text-left text-[11px] text-slate-500">
+                <th className="w-[26%] pb-1 font-medium">Property</th>
+                <th className="w-[22%] pb-1 font-medium">Original</th>
+                <th className="w-[22%] pb-1 font-medium">Current</th>
+                <th className="pb-1 font-medium">Final</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.06]">
+              {rows.map((row) => {
+                const side = resolutions[`${d.layerId}:${row.id}`]
+                const choice = (id, text) => (
+                  <button
+                    type="button"
+                    aria-pressed={side === id}
+                    title={id === 'A' ? 'Keep the Original value' : 'Adopt the Current value'}
+                    onClick={() => onResolveDiff(d.layerId, row.id, id)}
+                    className={cn(
+                      'h-7 max-w-full truncate rounded-full px-2.5 text-[12.5px] transition-colors',
+                      side === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                    )}
+                  >
+                    {text}
+                  </button>
+                )
+                return (
+                  <tr key={row.id} className="align-middle">
+                    <td className="truncate py-2 pr-2 text-slate-400">{row.label}</td>
+                    <td className="py-2 pr-1">{choice('A', row.original)}</td>
+                    <td className="py-2 pr-1">{choice('B', row.current)}</td>
+                    <td className="py-2">
+                      <span className="block truncate font-medium text-white">{row.final}</span>
+                      <SourceBadge source={row.source} propLabel={row.label} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </>
       ) : (
         <p className="mt-2 text-[13px] text-slate-400">
-          {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — reviewed in the code output below.
+          {openFiles.find((f) => f.id === d.fileId)?.name} · line {d.line} — its final code is in the output below.
         </p>
       )}
 
-      <div className="mt-3 flex justify-end">
-        {resolved ? (
-          <span className="flex h-8 items-center gap-1.5 text-[13px] font-medium text-emerald-300">
-            <Check className="size-4" />
-            Resolved
-          </span>
-        ) : (
+      <div className="mt-3 flex items-center gap-2">
+        {canAssemble && (
           <button
             type="button"
-            onClick={() => markResolved(d)}
-            className="flex h-8 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-[13px] font-medium text-slate-100 transition-colors hover:bg-white/[0.12]"
+            onClick={() => onEditInAssemble?.({ layerId: d.layerId, driftId: d.id })}
+            title="Select this element in the Block Deck's Assemble tab to change its final result"
+            className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
-            <Check className="size-4" />
-            Mark resolved
+            <Blocks className="size-4 text-slate-500" />
+            Edit in Assemble
           </button>
         )}
+        <div className="ml-auto flex items-center gap-1">
+          {status === 'reviewed' ? (
+            <>
+              <span className="flex h-8 items-center gap-1.5 px-2 text-[13px] font-medium text-emerald-300">
+                <Check className="size-4" />
+                Reviewed
+              </span>
+              <button
+                type="button"
+                onClick={() => onSetReviewMark(d.id, null)}
+                className="flex h-8 items-center rounded-full px-3 text-[12px] text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200"
+              >
+                Mark as unreviewed
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onSetReviewMark(d.id, review.signatureOf(d))}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-[13px] font-medium text-slate-100 transition-colors hover:bg-white/[0.12]"
+            >
+              <Check className="size-4" />
+              Mark as reviewed
+            </button>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -570,6 +643,50 @@ function CheckStep({ item, resolutions, summary }) {
 }
 
 // ----- Step 2: Preview -------------------------------------------------
+// Everything Preview's review needs, computed once from the studio's live
+// state (shared with the wizard footer's "not yet reviewed" count): the
+// review items, each design item's Original | Current | Final rows, and
+// each item's review status against the recorded marks.
+function buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }) {
+  const baseFrame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+  const drifts = buildDrifts(item, baseFrame)
+  const frame = item.hasDesign ? frameWithLayers(baseFrame, extraLayers) : null
+  const codeOv = codeOverrides(item.id, frame, manualCode, getFileLines)
+  const codeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+  const aiEffectsFor = (layerId) => annotations.filter((a) => a.effect && (a.targets ?? []).includes(layerId)).map((a) => a.effect)
+  const aiLineFor = (fileId, line) => annotations.find((a) => a.status === 'done' && a.fileId === fileId && a.line === line)?.summary ?? null
+  const layerCodeLines = (layerId) => {
+    const t = codeMap[layerId]
+    if (!t) return null
+    const out = {}
+    for (let n = t.line; n < t.line + (t.span ?? 1); n++) {
+      const v = manualCode[`${t.fileId}:${n}`]
+      if (v !== undefined) out[n] = v
+    }
+    return out
+  }
+  const ctx = { resolutions, assemblies, assemblySources, codeOverrides: codeOv, aiEffectsFor, aiLineFor, layerCodeLines, preset, manualCode }
+  const statusOf = (d) => reviewStatus(d, reviewMarks, ctx)
+  return {
+    drifts,
+    frame,
+    rowsFor: (d) =>
+      finalRowsFor({
+        layerId: d.layerId,
+        diffs: d.diffs,
+        resolutions,
+        assembly: assemblies[d.layerId],
+        sources: assemblySources[d.layerId],
+        aiEffects: aiEffectsFor(d.layerId),
+        codeOverride: codeOv[d.layerId],
+        preset,
+      }),
+    statusOf,
+    signatureOf: (d) => reviewSignature(d, ctx),
+    reviewedCount: drifts.filter((d) => statusOf(d) === 'reviewed').length,
+  }
+}
+
 function mergeEffect(prev = {}, e) {
   return {
     ...prev,
@@ -581,37 +698,31 @@ function mergeEffect(prev = {}, e) {
   }
 }
 
-// Component macro zoom: renders the frame at full resolution, then crops
-// and scales it onto one element (with a little surrounding context), so
-// its exact padding / radius / spacing can be inspected. The crop is
-// measured from where the element actually renders (offsets are in frame
-// units, unaffected by the zoom transform), so size changes are framed
-// correctly. Glides between elements as the drift changes.
+// Component macro zoom, as a pair: Original Design and the Merged result
+// rendered at full resolution, then cropped onto the same element in each.
+// Both panels share ONE scale — the largest that still fits the bigger of
+// the two elements (plus padding) — and the same alignment (element
+// centered), so a real size difference stays visible on screen: a 256px-
+// wide result reads wider than a 240px original instead of each being
+// fitted to its own panel. Boxes are measured where the element actually
+// renders (frame units, unaffected by the zoom transform). Glides between
+// elements as the reviewed item changes.
 const ZOOM_H = 176
-const ZOOM_PAD = 20
+const ZOOM_PAD = 28
 const ZOOM_MAX = 4
+// Gap between the element's edge and its marker, so the marker never sits
+// on (and hides) the corners or outline being compared.
+const MARK_GAP = 5
 
-function MacroZoom({ frame, layerId, overrideFor, label, emphasized, height = ZOOM_H }) {
-  const viewRef = useRef(null)
-  const frameRef = useRef(null)
-  const [view, setView] = useState(null)
-  useLayoutEffect(() => {
-    const vp = viewRef.current
-    const el = frameRef.current?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`)
-    if (!vp || !el) return
-    const box = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }
-    const W = vp.clientWidth
-    const k = Math.min(W / (box.w + ZOOM_PAD * 2), height / (box.h + ZOOM_PAD * 2), ZOOM_MAX)
-    const next = { k, tx: W / 2 - (box.x + box.w / 2) * k, ty: height / 2 - (box.y + box.h / 2) * k, box }
-    if (!view || ['k', 'tx', 'ty'].some((key) => Math.abs(view[key] - next[key]) > 0.01) || ['w', 'h'].some((key) => view.box[key] !== next.box[key])) setView(next)
-  })
+function measureLayer(frameEl, layerId) {
+  const el = frameEl?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`)
+  return el ? { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight } : null
+}
 
+function ZoomPanel({ label, emphasized, frame, overrideFor, height, viewRef, frameRef, view }) {
   return (
     <figure className="min-w-0">
-      <figcaption className="mb-2 flex items-center gap-2 text-xs">
-        <span className={cn('font-medium', emphasized ? 'text-white' : 'text-slate-400')}>{label}</span>
-        {view && <span className="ml-auto text-[11px] text-slate-500 tabular-nums">{view.k.toFixed(1)}×</span>}
-      </figcaption>
+      <figcaption className={cn('mb-2 text-xs font-medium', emphasized ? 'text-white' : 'text-slate-400')}>{label}</figcaption>
       <div ref={viewRef} className="relative overflow-hidden rounded-lg bg-white" style={{ height }}>
         <div
           ref={frameRef}
@@ -622,12 +733,18 @@ function MacroZoom({ frame, layerId, overrideFor, label, emphasized, height = ZO
             <StaticLayer key={layer.id} layer={layer} override={overrideFor(layer)} onSelect={() => {}} />
           ))}
         </div>
-        {/* The element's exact bounds, as a thin mint outline. */}
+        {/* The element's bounds, marked a few px outside its edge (dashed)
+            so its real corners and outline stay fully visible. */}
         {view && (
           <div
             aria-hidden
-            className="pointer-events-none absolute rounded-[2px] ring-1 ring-emerald-500/80 transition-all duration-300 ease-out"
-            style={{ left: view.tx + view.box.x * view.k - 2, top: view.ty + view.box.y * view.k - 2, width: view.box.w * view.k + 4, height: view.box.h * view.k + 4 }}
+            className="pointer-events-none absolute rounded-[4px] border border-dashed border-emerald-500/70 transition-all duration-300 ease-out"
+            style={{
+              left: view.tx + view.box.x * view.k - MARK_GAP,
+              top: view.ty + view.box.y * view.k - MARK_GAP,
+              width: view.box.w * view.k + MARK_GAP * 2,
+              height: view.box.h * view.k + MARK_GAP * 2,
+            }}
           />
         )}
       </div>
@@ -635,10 +752,48 @@ function MacroZoom({ frame, layerId, overrideFor, label, emphasized, height = ZO
   )
 }
 
+function MacroZoomPair({ frame, layerId, originalOverride, mergedOverride, stacked, height = ZOOM_H }) {
+  const aView = useRef(null)
+  const aFrame = useRef(null)
+  const bView = useRef(null)
+  const bFrame = useRef(null)
+  const [views, setViews] = useState(null)
+  useLayoutEffect(() => {
+    const boxA = measureLayer(aFrame.current, layerId)
+    const boxB = measureLayer(bFrame.current, layerId)
+    const W = aView.current?.clientWidth
+    if (!boxA || !boxB || !W) return
+    // One shared scale that fits the larger element on both axes.
+    const k = Math.min(
+      W / (Math.max(boxA.w, boxB.w) + ZOOM_PAD * 2),
+      height / (Math.max(boxA.h, boxB.h) + ZOOM_PAD * 2),
+      ZOOM_MAX
+    )
+    const place = (box) => ({ k, tx: W / 2 - (box.x + box.w / 2) * k, ty: height / 2 - (box.y + box.h / 2) * k, box })
+    const next = { k, a: place(boxA), b: place(boxB) }
+    const same = (p, q) => p && ['k', 'tx', 'ty'].every((key) => Math.abs(p[key] - q[key]) < 0.01) && ['w', 'h'].every((key) => p.box[key] === q.box[key])
+    if (!views || !same(views.a, next.a) || !same(views.b, next.b)) setViews(next)
+  })
+
+  return (
+    <div>
+      <div className={cn('grid gap-3', stacked ? 'grid-cols-1' : 'grid-cols-2')}>
+        <ZoomPanel label="Original Design" frame={frame} overrideFor={originalOverride} height={height} viewRef={aView} frameRef={aFrame} view={views?.a} />
+        <ZoomPanel label="Merged result" emphasized frame={frame} overrideFor={mergedOverride} height={height} viewRef={bView} frameRef={bFrame} view={views?.b} />
+      </div>
+      {views && (
+        <p className="mt-2 text-[11px] text-slate-500 tabular-nums">
+          Both at {views.k.toFixed(2)}× · {views.a.box.w}×{views.a.box.h} → {views.b.box.w}×{views.b.box.h}px
+        </p>
+      )}
+    </div>
+  )
+}
+
 // Staging view of the combined result: the Current Implementation with every
 // resolved option and applied AI edit baked in, next to the merged code
 // (incoming lines + AI edits, with hand-edited lines taking precedence).
-function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, extraLayers = [], manualCode = {}, onResolveDiff }) {
+function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, assemblySources = {}, extraLayers = [], manualCode = {}, onResolveDiff, review, onSetReviewMark, onEditInAssemble, initialDriftId }) {
   const { getFileLines } = useWorkspace()
   const files = openFiles.filter((f) => item.fileIds?.includes(f.id))
   const [fileId, setFileId] = useState(files[0]?.id)
@@ -722,8 +877,21 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
 
   return (
     <div className="space-y-7">
-      {/* Drift-by-drift review sits with the preview it changes. */}
-      <DriftReviewSection item={item} resolutions={resolutions} onResolveDiff={onResolveDiff} onActiveChange={setSpot} />
+      {/* Item-by-item review sits with the preview it changes. */}
+      <DriftReviewSection
+        item={item}
+        drifts={review.drifts}
+        review={review}
+        frame={frame}
+        resolutions={resolutions}
+        assemblies={assemblies}
+        assemblySources={assemblySources}
+        onResolveDiff={onResolveDiff}
+        onActiveChange={setSpot}
+        onSetReviewMark={onSetReviewMark}
+        onEditInAssemble={onEditInAssemble}
+        initialDriftId={initialDriftId}
+      />
 
       {/* Staging preview: a plain heading (no banner), then the two outputs
           side by side, captioned lightly — no competing borders. */}
@@ -731,7 +899,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
         <div className="mb-4 flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold text-white">Staging preview</p>
-            <p className="mt-0.5 text-[13px] text-slate-400">The combined result that will be merged.</p>
+            <p className="mt-0.5 text-[13px] text-slate-400">Review the final result before merging.</p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs font-medium text-emerald-300">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -739,8 +907,9 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
           </span>
         </div>
 
-        {/* Component macro zoom: the drift's element, cropped and scaled
-            up, Original Design next to the merged result. */}
+        {/* Component macro zoom: the reviewed element, cropped and scaled
+            up, Original Design next to the Merged result — at one shared
+            scale (see MacroZoomPair). */}
         {frame && spotLayer ? (
           <div className="mb-6">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-slate-300">
@@ -748,11 +917,15 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
               {spotLayer.name}
             </p>
             {/* Wide elements (bars, headings) stack the two panels so each
-                gets the full width instead of shrinking below 1×. */}
-            <div className={cn('grid gap-3', wideSpot ? 'grid-cols-1' : 'grid-cols-2')}>
-              <MacroZoom frame={frame} layerId={spotLayer.id} overrideFor={originalOverride} label="Original Design" height={wideSpot ? 112 : ZOOM_H} />
-              <MacroZoom frame={frame} layerId={spotLayer.id} overrideFor={mergedOverride} label="Merged result" emphasized height={wideSpot ? 112 : ZOOM_H} />
-            </div>
+                gets the full width; the shared scale applies either way. */}
+            <MacroZoomPair
+              frame={frame}
+              layerId={spotLayer.id}
+              originalOverride={originalOverride}
+              mergedOverride={mergedOverride}
+              stacked={wideSpot}
+              height={wideSpot ? 124 : ZOOM_H}
+            />
           </div>
         ) : (
           frame && <p className="mb-6 text-[13px] text-slate-400">This drift has no design element — its change is in the code below.</p>
@@ -975,8 +1148,14 @@ const DISPLAY_STEPS = [{ id: 'compare', label: 'Compare' }, ...WIZARD_STEPS]
 // The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
 // only while open (the parent mounts it per click), so every session starts
 // fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, extraLayers, manualCode = {}, onResolveDiff, initialStep = 0, onStepChange, onClose, onComplete }) {
+function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, reviewMarks = {}, onSetReviewMark, onEditInAssemble, initialDriftId, initialStep = 0, onStepChange, onClose, onComplete }) {
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
+  const { getFileLines } = useWorkspace()
+  const review = useMemo(
+    () => buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }),
+    [item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines]
+  )
+  const unreviewedCount = review.drifts.length - review.reviewedCount
   const branch = `merge/${slugify(item.title)}`
   const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
@@ -1118,7 +1297,23 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           {run === 'idle' && step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} />}
-          {run === 'idle' && step === 1 && <PreviewStep item={item} resolutions={resolutions} annotations={annotations} preset={preset} assemblies={assemblies} extraLayers={extraLayers} manualCode={manualCode} onResolveDiff={onResolveDiff} />}
+          {run === 'idle' && step === 1 && (
+            <PreviewStep
+              item={item}
+              resolutions={resolutions}
+              annotations={annotations}
+              preset={preset}
+              assemblies={assemblies}
+              assemblySources={assemblySources}
+              extraLayers={extraLayers}
+              manualCode={manualCode}
+              onResolveDiff={onResolveDiff}
+              review={review}
+              onSetReviewMark={onSetReviewMark}
+              onEditInAssemble={onEditInAssemble}
+              initialDriftId={initialDriftId}
+            />
+          )}
 
           {run === 'idle' && step === 2 && (
             <div className="space-y-7">
@@ -1193,6 +1388,16 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
               {step === 2 && !reviewValid ? (
                 <span className="mr-auto text-[13px] text-amber-500">
                   {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
+                </span>
+              ) : step === 1 && review.drifts.length > 0 ? (
+                // Preview never blocks moving on (the existing policy) — it
+                // just says plainly how much is left to look at. Continuing
+                // opens the Review step; nothing is merged until the PR
+                // there is opened and approved.
+                <span className={cn('mr-auto text-[13px] tabular-nums', unreviewedCount ? 'text-amber-300' : 'text-emerald-300')}>
+                  {unreviewedCount
+                    ? `${unreviewedCount} of ${review.drifts.length} change${review.drifts.length === 1 ? '' : 's'} not yet reviewed`
+                    : 'All changes reviewed'}
                 </span>
               ) : (
                 <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
