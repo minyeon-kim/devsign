@@ -9,7 +9,8 @@ import {
   PANEL_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
-import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
+import { WindowHeaderSlotContext, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
+import PanelTabs from '@/components/workspace/PanelTabs'
 import AddViewMenu from '@/components/workspace/AddViewMenu'
 
 const DRAG_THRESHOLD = 4
@@ -47,7 +48,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
   const isMaximized = activeHandle?.api.isMaximized() ?? false
 
   function beginDrag(e) {
-    if (e.button !== 0 || e.target.closest('button, input, [role="tablist"] *')) return
+    if (e.button !== 0 || e.target.closest('button, input, [role="tablist"] *, [role="dialog"]')) return
     if (docked) {
       onDockDragStart?.({ groupId: group.id }, e)
       return
@@ -116,6 +117,28 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
           onPointerDown={beginDrag}
           className="flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
         >
+          {docked ? (
+            // The real tabs — open files, canvas pages, the navigator's
+            // views, other views by name (PanelTabs) — then `+` right after
+            // the last one.
+            <>
+              <div className="flex min-w-0 shrink items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+                {group.panelIds.map((pid) =>
+                  panelsById[pid] ? (
+                    <PanelTabs
+                      key={pid}
+                      pid={pid}
+                      panel={panelsById[pid]}
+                      group={group}
+                      dockApi={dockApi}
+                      onDragStart={onDockDragStart}
+                    />
+                  ) : null
+                )}
+              </div>
+              <AddViewMenu group={group} dockApi={dockApi} />
+            </>
+          ) : (
           <div className="flex shrink-0 items-center gap-1">
             {group.panelIds.map((pid) => {
               const p = panelsById[pid]
@@ -137,12 +160,12 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
               )
             })}
           </div>
+          )}
           <div
             ref={setHeaderSlot}
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
           <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-            {docked && <AddViewMenu group={group} dockApi={dockApi} />}
             {docked && !isMaximized && (
               <button
                 type="button"
@@ -178,7 +201,9 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
 
       <div className="min-h-0 flex-1 overflow-hidden bg-card">
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
-          {ActiveContent && <ActiveContent params={activePanel.params} />}
+          <WindowTabsContext.Provider value={docked}>
+            {ActiveContent && <ActiveContent params={activePanel.params} />}
+          </WindowTabsContext.Provider>
         </WindowHeaderSlotContext.Provider>
       </div>
 

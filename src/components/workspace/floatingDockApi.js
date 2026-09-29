@@ -53,7 +53,9 @@ function replaceChild(root, parent, oldNode, newNode) {
   return root
 }
 
-function insertLeaf(root, id, refId, direction) {
+// `share`: how much of the reference cell the new one takes (half by
+// default; e.g. a sidebar asks for less).
+function insertLeaf(root, id, refId, direction, share = 0.5) {
   const leaf = { type: 'leaf', id }
   if (!root) return leaf
   const dir = direction === 'above' || direction === 'below' ? 'col' : 'row'
@@ -71,13 +73,19 @@ function insertLeaf(root, id, refId, direction) {
   const { parent, node } = hit
   if (parent && parent.dir === dir) {
     const i = parent.children.indexOf(node)
-    const half = parent.sizes[i] / 2
-    parent.sizes[i] = half
+    const taken = parent.sizes[i] * share
+    parent.sizes[i] -= taken
     parent.children.splice(before ? i : i + 1, 0, leaf)
-    parent.sizes.splice(before ? i : i + 1, 0, half)
+    parent.sizes.splice(before ? i : i + 1, 0, taken)
     return root
   }
-  const split = { type: 'split', id: `split-${++splitSeq}`, dir, children: before ? [leaf, node] : [node, leaf], sizes: [1, 1] }
+  const split = {
+    type: 'split',
+    id: `split-${++splitSeq}`,
+    dir,
+    children: before ? [leaf, node] : [node, leaf],
+    sizes: before ? [share, 1 - share] : [1 - share, share],
+  }
   return replaceChild(root, parent, node, split)
 }
 
@@ -297,7 +305,7 @@ export function useFloatingDockApi() {
       }
     }
 
-    store.layout = insertLeaf(store.layout, id, ref?.id, ref ? options.direction ?? 'below' : undefined)
+    store.layout = insertLeaf(store.layout, id, ref?.id, ref ? options.direction ?? 'below' : undefined, options.share)
     store.groups[id] = {
       id,
       x,
@@ -316,7 +324,7 @@ export function useFloatingDockApi() {
     return makeGroupHandle(id)
   }
 
-  function addPanel({ id, component, title, params, position = {}, initialWidth, initialHeight }) {
+  function addPanel({ id, component, title, params, position = {}, initialWidth, initialHeight, share }) {
     let groupId
     if (position.referenceGroup) {
       groupId = position.referenceGroup.id ?? position.referenceGroup
@@ -330,6 +338,7 @@ export function useFloatingDockApi() {
         referencePanel: isRelative ? position.referencePanel : undefined,
         initialWidth,
         initialHeight,
+        share,
       })
       groupId = group.id
     }

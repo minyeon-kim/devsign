@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { Check, Copy, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
@@ -7,7 +7,7 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import { RemoteCaretsOnLine, useRemoteCaretLines } from '@/components/collab/RemoteCarets'
-import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
+import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 
 const languageLabels = {
   jsx: 'JavaScript JSX',
@@ -150,6 +150,7 @@ function EditorPanel() {
     getViewersForFile,
     codeFlash,
   } = useWorkspace()
+  const tabsInHeader = useContext(WindowTabsContext)
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
   const [copied, setCopied] = useState(false)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
@@ -268,6 +269,8 @@ function EditorPanel() {
       {/* The open files' tabs sit on the window's title line, right after
           "Code Editor" (see WindowHeaderSlot) — only the ones you've opened;
           every file is in the file tree (the Files pane), not repeated here. */}
+      {/* In a docked window the header draws these tabs itself (PanelTabs). */}
+      {!tabsInHeader && (
       <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
         <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
         {openFileIds.map((fileId) => {
@@ -304,6 +307,7 @@ function EditorPanel() {
           )
         })}
       </WindowHeaderPortal>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

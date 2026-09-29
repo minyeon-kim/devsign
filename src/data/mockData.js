@@ -1791,6 +1791,7 @@ export const versionHistoryLog = [
 // landed it inside the bottom Terminal group, since Terminal is the first
 // panel ever added in buildInitialLayout).
 export const panelDefinitions = [
+  { id: 'navigator', title: 'Files', component: 'navigator', iconName: 'Folder', group: 'sidebar' },
   { id: 'explorer', title: 'Explorer', component: 'explorer', iconName: 'Folder', group: 'sidebar' },
   { id: 'layers', title: 'Layers', component: 'layers', iconName: 'Layers', group: 'sidebar' },
   { id: 'assets', title: 'Assets', component: 'assets', iconName: 'Component', group: 'sidebar' },

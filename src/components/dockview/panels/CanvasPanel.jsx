@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import {
   FileImage,
   Frame as FrameIcon,
@@ -18,10 +18,10 @@ import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
-import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
+import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 
-const MIN_ZOOM = 50
-const MAX_ZOOM = 200
+const MIN_ZOOM = 25
+const MAX_ZOOM = 400
 const ZOOM_STEP = 10
 
 const toolIcons = {
@@ -64,7 +64,9 @@ function openLayerInspectTab(dockApi, node) {
 function CanvasToolbar({ tool, onSelectTool }) {
   return (
     <div
+      data-canvas-chrome
       onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       className="pointer-events-auto absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-full border bg-card/95 p-1 shadow-xl backdrop-blur-sm"
     >
       {canvasTools.map((t) => {
@@ -95,6 +97,8 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // files.
 // (The layer tree opens from the window's `+` or the command palette.)
 function PageTabs({ activePageId, onSelectPage }) {
+  // In a docked window the header draws the page tabs itself (PanelTabs).
+  if (useContext(WindowTabsContext)) return null
   // On the window's title line (see WindowHeaderSlot), right after "Canvas".
   return (
     <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2">
@@ -350,7 +354,13 @@ function PropertyBar({ layer, edit, onChange }) {
 }
 
 function CanvasPanel() {
-  const [zoom, setZoom] = useState(100)
+  // The infinite canvas's viewport: pan offset (px) and zoom (%).
+  const [view, setView] = useState({ x: 0, y: 0, zoom: 100 })
+  const zoom = view.zoom
+  const [panning, setPanning] = useState(false)
+  // Set when a press turned into a pan, so the click that ends it doesn't
+  // also select / deselect.
+  const panMoved = useRef(false)
   const [pendingComment, setPendingComment] = useState(null)
   const [pendingDraft, setPendingDraft] = useState('')
   const [openPinId, setOpenPinId] = useState(null)
@@ -413,6 +423,71 @@ function CanvasPanel() {
     setOpenPinId(null)
   }
 
+  // Pan: drag the empty grid (Move tool), anywhere with the Hand tool, or
+  // with the middle button whatever the tool. Floating controls stop their
+  // own presses, so using them never pans.
+  function handlePointerDown(event) {
+    const onEmpty = event.target === scrollRef.current || event.target === surfaceRef.current
+    const middle = event.button === 1
+    const handTool = canvasTool === 'hand' && event.button === 0
+    if (!middle && !handTool && !(event.button === 0 && onEmpty && !commentMode)) return
+    if (middle || handTool) event.preventDefault()
+    const start = { px: event.clientX, py: event.clientY, x: view.x, y: view.y }
+    panMoved.current = false
+    function onMove(m) {
+      const dx = m.clientX - start.px
+      const dy = m.clientY - start.py
+      if (!panMoved.current && Math.hypot(dx, dy) < 3) return
+      panMoved.current = true
+      setPanning(true)
+      setView((v) => ({ ...v, x: start.x + dx, y: start.y + dy }))
+    }
+    function onUp() {
+      setPanning(false)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // Zoom around a point of the viewport (the pointer, or its center).
+  function zoomAt(nextZoom, cx, cy) {
+    setView((v) => {
+      const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom(v.zoom)))
+      const k = z / v.zoom
+      return { zoom: Math.round(z), x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
+    })
+  }
+
+  function zoomBy(step) {
+    const rect = scrollRef.current?.getBoundingClientRect()
+    zoomAt((z) => z + step, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2)
+  }
+
+  // The scroll wheel zooms at the pointer (non-passive, to keep the page
+  // from scrolling).
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    function onWheel(event) {
+      if (event.target.closest?.('[data-canvas-chrome]')) return
+      event.preventDefault()
+      const rect = el.getBoundingClientRect()
+      zoomAt((z) => z * Math.exp(-event.deltaY * 0.0015), event.clientX - rect.left, event.clientY - rect.top)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // A press that panned (or any click with the Hand tool) doesn't select.
+  function handleClickCapture(event) {
+    if (panMoved.current || canvasTool === 'hand') {
+      panMoved.current = false
+      event.stopPropagation()
+    }
+  }
+
   function handleSurfaceClick(event) {
     if (commentMode) {
       const surfaceRect = surfaceRef.current?.getBoundingClientRect()
@@ -462,18 +537,21 @@ function CanvasPanel() {
           ref={scrollRef}
           data-cursor-zone="canvas"
           data-cursor-tool={canvasTool}
+          onPointerDown={handlePointerDown}
+          onClickCapture={handleClickCapture}
           onClick={handleSurfaceClick}
-          className="relative min-h-0 min-w-0 flex-1 overflow-auto"
+          className={cn('relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden', panning && 'cursor-grabbing')}
           style={{
             backgroundImage:
               'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
-            backgroundSize: '18px 18px',
+            backgroundSize: `${18 * (zoom / 100)}px ${18 * (zoom / 100)}px`,
+            backgroundPosition: `${view.x}px ${view.y}px`,
           }}
         >
           <div
             ref={surfaceRef}
-            className="relative min-h-full min-w-full p-16"
-            style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
+            className="absolute top-0 left-0 min-h-full min-w-full p-16"
+            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${zoom / 100})`, transformOrigin: 'top left' }}
           >
             {activePage?.frames.map((frame) => (
               <CanvasFrame
@@ -521,12 +599,15 @@ function CanvasPanel() {
           )}
 
           <div
+            data-canvas-chrome
             onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full border bg-card/90 px-1.5 py-1 text-xs shadow-lg backdrop-blur-sm"
           >
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
+              title="Zoom out"
+              onClick={() => zoomBy(-ZOOM_STEP)}
               className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Minus className="size-3.5" />
@@ -534,7 +615,8 @@ function CanvasPanel() {
             <span className="w-10 text-center tabular-nums text-foreground">{zoom}%</span>
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
+              title="Zoom in"
+              onClick={() => zoomBy(ZOOM_STEP)}
               className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Plus className="size-3.5" />

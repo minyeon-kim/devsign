@@ -1,37 +1,17 @@
 import { useState } from 'react'
-import {
-  AppWindow,
-  Component,
-  FileCode,
-  Files,
-  Layers,
-  LayoutGrid,
-  Monitor,
-  Plus,
-  ScrollText,
-  Sparkles,
-  SquareTerminal,
-} from 'lucide-react'
+import { AppWindow, FileCode, Files, Monitor, Plus, ScrollText, Sparkles, SquareTerminal } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { addDockPanel, panelById } from '@/components/dockview/DockLayout'
-import CommandModal from '@/components/layout/CommandModal'
-import { applyLayoutPreset } from '@/components/layout/LayoutMenu'
-import { layoutPresets } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-// Views that open as windows, and the navigator's (Files / Layers /
-// Assets), which open its pane at the left instead.
-const WINDOW_VIEWS = [
+const VIEWS = [
   { def: panelById.editor, label: 'Code Editor', icon: FileCode },
   { def: panelById.canvas, label: 'Canvas', icon: AppWindow },
-  { def: panelById.preview, label: 'Browser', icon: Monitor, keywords: 'preview' },
-  { def: panelById.chat, label: 'AI Chat', icon: Sparkles, keywords: 'ask devsign agent assistant' },
+  { def: panelById.preview, label: 'Browser', icon: Monitor },
+  { def: panelById.chat, label: 'AI Chat', icon: Sparkles },
   { def: panelById.terminal, label: 'Terminal', icon: SquareTerminal },
-  { def: panelById.console, label: 'Console', icon: ScrollText, keywords: 'logs' },
-]
-const NAVIGATOR_VIEWS = [
-  { tab: 'files', label: 'Files', icon: Files, keywords: 'explorer tree' },
-  { tab: 'layers', label: 'Layers', icon: Layers },
-  { tab: 'assets', label: 'Assets', icon: Component },
+  { def: panelById.console, label: 'Console', icon: ScrollText },
+  { def: panelById.navigator, label: 'Files', icon: Files },
 ]
 
 // Opens `def` as a tab of window `group` — or brings it forward if it's
@@ -47,64 +27,47 @@ function openHere(dockApi, group, def) {
   addDockPanel(dockApi, def, { position: { referenceGroup: group.id } })
 }
 
-// The `+` in a window's header (Cursor style): a centered command modal to
-// open another view — Code Editor, Canvas, Browser, AI Chat, Terminal, … —
-// as a tab of this window, bring up the navigator, or apply a split layout.
-// Splitting a view off into its own pane is done by dragging its tab.
+// The `+` right after a window's last tab (Cursor style): a small,
+// non-blocking popover anchored under it listing the views to open here
+// as a tab — Code Editor, Canvas, Browser, AI Chat, Terminal, Console,
+// Files. To give a view its own pane, drag its tab to a pane's edge.
 function AddViewMenu({ group, dockApi }) {
-  const { setFilesWindow, setBottomPanel } = useWorkspace()
+  const { setFilesWindow } = useWorkspace()
   const [open, setOpen] = useState(false)
-  const here = new Set(group.panelIds)
 
-  const commands = [
-    ...WINDOW_VIEWS.map(({ def, label, icon, keywords }) => ({
-      id: `view-${def.id}`,
-      section: 'Open in this pane',
-      label,
-      hint: here.has(def.id) ? 'Open' : dockApi.getPanel(def.id) ? 'Move here' : undefined,
-      icon,
-      keywords,
-      run: () => openHere(dockApi, group, def),
-    })),
-    ...NAVIGATOR_VIEWS.map(({ tab, label, icon, keywords }) => ({
-      id: `nav-${tab}`,
-      section: 'Navigator',
-      label,
-      hint: 'Sidebar',
-      icon,
-      keywords,
-      run: () => setFilesWindow({ open: true, tab }),
-    })),
-    ...layoutPresets.map((preset) => ({
-      id: `layout-${preset.id}`,
-      section: 'Split layouts',
-      label: preset.label,
-      icon: LayoutGrid,
-      keywords: preset.description,
-      run: () => applyLayoutPreset(dockApi, preset.id, { showTerminal: () => setBottomPanel({ tab: 'terminal', open: true }) }),
-    })),
-  ]
+  function pick(def) {
+    openHere(dockApi, group, def)
+    if (def.id === panelById.navigator.id) setFilesWindow({ open: true })
+    setOpen(false)
+  }
 
   return (
-    <>
-      <button
-        type="button"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         title="Open a view"
         aria-label="Open a view"
-        aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
-        className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white data-[popup-open]:bg-white/[0.08] data-[popup-open]:text-white"
       >
         <Plus className="size-3.5" />
-      </button>
-      <CommandModal
-        open={open}
-        onOpenChange={setOpen}
-        commands={commands}
-        title="Open a view"
-        placeholder="Open a view in this pane…"
-      />
-    </>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={6} className="w-48 gap-0 rounded-xl p-1">
+        {VIEWS.map(({ def, label, icon: Icon }) => {
+          const here = group.panelIds.includes(def.id)
+          return (
+            <button
+              key={def.id}
+              type="button"
+              onClick={() => pick(def)}
+              className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <Icon className="size-4 shrink-0 text-slate-400" />
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {here && <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Open here" />}
+            </button>
+          )
+        })}
+      </PopoverContent>
+    </Popover>
   )
 }
 

@@ -126,9 +126,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // and its expanded height (dragged from its top edge).
   const [bottomPanel, setBottomPanelState] = useState({ tab: 'terminal', open: true, height: 240 })
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
-  // The floating Files / Layers window (FilesLayersWindow): open or not,
-  // and which tab it shows.
-  // Open from the start: the file tree lives in the left sidebar pane.
+  // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
+  // not, and which tab it shows. Open from the start, at the left: the
+  // file tree is where files are opened.
   const [filesWindow, setFilesWindowState] = useState({ open: true, tab: 'files' })
   const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
   const [chatMessages, setChatMessages] = useState(initialChatMessages)

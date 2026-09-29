@@ -9,6 +9,11 @@ import { createPortal } from 'react-dom'
 // place as its own row.
 export const WindowHeaderSlotContext = createContext(null)
 
+// True inside a docked window, whose header draws every panel's own tabs
+// (the editor's open files, the canvas's pages — see PanelTabs); those
+// panels then skip rendering their tab row themselves.
+export const WindowTabsContext = createContext(false)
+
 export function WindowHeaderPortal({ children, fallbackClassName }) {
   const slot = useContext(WindowHeaderSlotContext)
   if (slot) return createPortal(children, slot)

@@ -38,7 +38,7 @@ const icons = {
 }
 
 // Explorer/Layers no longer mount this at all — they're tabs of the
-// floating Files / Layers window now (see FilesLayersWindow), not panels
+// navigator pane now (see NavigatorPanel), not panels
 // with a tab strip to render a CustomTab into. Every panel that has a header (Editor,
 // Terminal, Preview, Conflict, ...) gets the full maximize/close treatment
 // below.

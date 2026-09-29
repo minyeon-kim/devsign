@@ -10,9 +10,9 @@ import LayerInspectPanel from '@/components/dockview/panels/LayerInspectPanel'
 import ChatPanel from '@/components/dockview/panels/ChatPanel'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
-import { buildInitialLayout } from '@/components/dockview/DockLayout'
+import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
+import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/DockLayout'
 import SplitHandle from '@/components/layout/SplitHandle'
-import FilesLayersWindow from '@/components/workspace/FilesLayersWindow'
 import FloatingWindow from '@/components/workspace/FloatingWindow'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
 import { useFloatingDockApi } from '@/components/workspace/floatingDockApi'
@@ -30,9 +30,9 @@ const components = {
   chat: ChatPanel,
   terminal: TerminalPanel,
   console: ConsolePanel,
+  navigator: NavigatorPanel,
 }
 
-const FILES_WIDTH = 280
 const MIN_PANE = 200
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
@@ -95,9 +95,10 @@ function zoneRect(rect, zone) {
 
 // The Workspace as a focused split-pane frame (Cursor / VS Code style)
 // instead of an infinite canvas of floating windows: the Code Editor on the
-// left, the hi-fi Canvas (with Preview as its tab) on the right — and the
-// Files / Layers navigator as a pane before them when it's open. Nothing
-// pans. Panes split both ways: side by side and stacked, as a tree
+// left, the hi-fi Canvas (with Preview and AI Chat as its tabs) on the
+// right — and the Files / Layers navigator as a pane before them. Every
+// pane, the navigator and AI Chat included, can be resized, dragged and
+// docked into any side of any other. Panes split both ways: side by side and stacked, as a tree
 // (floatingDockApi's `layout`), with draggable splitters between them.
 // Drag a window by its header — or a single tab — onto a pane to dock it
 // beside it (drop near an edge) or into it as a tab (drop in the middle);
@@ -109,9 +110,8 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout() {
-  const { setDockApi, filesWindow } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow } = useWorkspace()
   const { dockApi, store } = useFloatingDockApi()
-  const [filesWidth, setFilesWidth] = useState(FILES_WIDTH)
   const [dock, setDock] = useState(null) // { groupId, target, zone, rect } while dragging a window
   const rootRef = useRef(null)
   const didInit = useRef(false)
@@ -127,6 +127,34 @@ function WorkspaceSplitLayout() {
     didInit.current = true
     buildInitialLayout(dockApi)
   }, [dockApi])
+
+  // The navigator (Files / Layers / Assets) is an ordinary pane, kept in
+  // step with `filesWindow.open`: opening it (palette, `+`, …) docks it at
+  // the far left — a slim share — and closing its window closes it.
+  useEffect(() => {
+    const panel = dockApi.getPanel(panelById.navigator.id)
+    if (filesWindow.open && !panel) {
+      const first = firstLeaf(store.layout)
+      const anchor = first && store.groups[first.id]?.activeId
+      addDockPanel(dockApi, panelById.navigator, {
+        position: anchor ? { direction: 'left', referencePanel: anchor } : undefined,
+        share: 0.3,
+      })
+    } else if (!filesWindow.open && panel) {
+      panel.api.close()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filesWindow.open, dockApi])
+
+  const hadNavigator = useRef(false)
+  useEffect(() => {
+    const disposable = dockApi.onDidLayoutChange(() => {
+      const has = !!dockApi.getPanel(panelById.navigator.id)
+      if (hadNavigator.current && !has) setFilesWindow({ open: false })
+      hadNavigator.current = has
+    })
+    return () => disposable.dispose()
+  }, [dockApi, setFilesWindow])
 
   // Drag a window by its header — or one of its tabs — past a small
   // threshold, then track the pane under the pointer and the zone on it;
@@ -199,14 +227,6 @@ function WorkspaceSplitLayout() {
   return (
     <div className="absolute inset-0 bg-background px-3 pt-16 pb-3">
       <div ref={rootRef} className="relative isolate flex size-full min-w-0">
-        {filesWindow.open && (
-          <>
-            <div className="flex shrink-0" style={{ width: filesWidth }}>
-              <FilesLayersWindow docked />
-            </div>
-            <FilesSplitter width={filesWidth} onChange={setFilesWidth} />
-          </>
-        )}
         <div className="flex min-w-0 flex-1">{store.layout && renderNode(store.layout, 'row')}</div>
 
         {/* Where a dragged window would dock. */}
@@ -221,19 +241,6 @@ function WorkspaceSplitLayout() {
   )
 }
 
-function FilesSplitter({ width, onChange }) {
-  const start = useRef(width)
-  const clamp = (w) => Math.max(200, Math.min(480, w))
-  return (
-    <SplitHandle
-      label="Resize navigator"
-      onResizeStart={() => (start.current = width)}
-      onResize={(dx) => onChange(clamp(start.current + dx))}
-      onStep={(d) => onChange(clamp(width + d))}
-    />
-  )
-}
-
 // One split of the tree: its children side by side ('row') or stacked
 // ('col'), with a splitter between each neighboring pair.
 function SplitNode({ node, dockApi, store, renderNode }) {
@@ -242,6 +249,9 @@ function SplitNode({ node, dockApi, store, renderNode }) {
   const row = node.dir === 'row'
   const isMinimized = (child) => child.type === 'leaf' && store.groups[child.id]?.minimized
   const visible = node.children.filter((child) => child.type === 'split' || (store.groups[child.id]?.open && store.groups[child.id]?.panelIds.length))
+  // Weights as shares of the row / column (flex-grow values that sum
+  // below 1 would leave part of it empty).
+  const total = visible.reduce((sum, child) => sum + (isMinimized(child) ? 0 : (node.sizes[node.children.indexOf(child)] ?? 1)), 0) || 1
 
   // Start of a splitter drag: every child's measured size becomes its
   // weight (so nothing else jumps), then the pair on either side trades.
@@ -297,7 +307,7 @@ function SplitNode({ node, dockApi, store, renderNode }) {
               <div
                 data-split-child={index}
                 className="flex min-h-0 min-w-0"
-                style={{ flex: `${node.sizes[index] ?? 1} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
+                style={{ flex: `${((node.sizes[index] ?? 1) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
               >
                 {renderNode(child, node.dir)}
               </div>
@@ -307,6 +317,11 @@ function SplitNode({ node, dockApi, store, renderNode }) {
       })}
     </div>
   )
+}
+
+function firstLeaf(node) {
+  if (!node) return null
+  return node.type === 'leaf' ? node : firstLeaf(node.children[0])
 }
 
 export default WorkspaceSplitLayout
