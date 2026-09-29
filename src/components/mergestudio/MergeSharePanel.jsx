@@ -37,7 +37,7 @@ function RoleMenu({ value, options, onChange }) {
   )
 }
 
-function MergeShareButton({ item, title = item?.title, link: linkProp, inline = false }) {
+function MergeShareButton({ item, title = item?.title, link: linkProp, inline = false, borderless = false }) {
   const [roles, setRoles] = useState(() => Object.fromEntries(teamMembers.map((m) => [m.id, 'Can edit'])))
   const [linkAccess, setLinkAccess] = useState('Restricted')
   const [copied, setCopied] = useState(false)
@@ -55,7 +55,7 @@ function MergeShareButton({ item, title = item?.title, link: linkProp, inline = 
         className={
           inline
             ? 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
-            : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)
+            : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL, borderless && 'border-0')
         }
       >
         <Share2 className={inline ? 'size-3.5' : 'size-4'} />

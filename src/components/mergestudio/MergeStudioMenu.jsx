@@ -12,7 +12,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // (base-ui), so no extra open-state or click-outside wiring is needed here.
 // `standalone` renders the trigger as its own floating pill (the
 // Workspace header's separate pieces) instead of a control inside a pill.
-function MergeStudioMenu({ standalone = false }) {
+function MergeStudioMenu({ standalone = false, borderless = false }) {
   const { openMergeStudio, startMergeFromOpenFiles } = useWorkspace()
 
   return (
@@ -22,7 +22,7 @@ function MergeStudioMenu({ standalone = false }) {
       <PopoverTrigger
         className={
           standalone
-            ? cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)
+            ? cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL, borderless && 'border-0')
             : 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
         }
       >
