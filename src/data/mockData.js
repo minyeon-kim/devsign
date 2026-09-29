@@ -226,18 +226,21 @@ export const conflictChecklist = [
     impact: { components: ['Card'], files: ['src/components/ui/Card.jsx'] },
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Cards look slightly sharper than the rest of the design system.',
-    preview: { kind: 'card', before: { radius: 8 }, after: { radius: 12 } },
+    preview: {
+      kind: 'card',
+      content: { title: 'Card.jsx', detail: 'bg-card · p-4' },
+      before: { radius: 8 },
+      after: { radius: 12 },
+    },
     message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
     branches: { local: 'Card.jsx', remote: 'Card · Default (Figma)' },
     suggestion: 'Use the radius-lg token on the card container instead of rounded-lg.',
     previewPrompt: 'Match the card radius to the design system',
     reviewers: [{ id: 'min', status: 'pending' }],
-    comparisonFields: [
-      { label: 'Radius', expected: '12px (radius/lg)', current: '8px (rounded-lg)' },
-    ],
+    comparisonFields: [{ label: 'Radius', expected: '12px (custom)', current: '8px (rounded-lg)' }],
     diff: {
       before: ['<div className="rounded-lg border bg-card p-4">'],
-      after: ['<div className="rounded-[var(--radius-lg)] border bg-card p-4">'],
+      after: ['<div className="rounded-[12px] border bg-card p-4">'],
     },
   },
   {

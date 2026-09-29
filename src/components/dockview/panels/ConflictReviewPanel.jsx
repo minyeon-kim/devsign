@@ -3,13 +3,13 @@ import {
   Bell,
   Bot,
   Check,
+  Clock3,
   Code2,
   Eye,
   FileCode2,
   FlaskConical,
-  GitBranch,
   GitMerge,
-  Palette,
+  History,
   Plus,
   RotateCcw,
   Send,
@@ -33,13 +33,13 @@ import {
   STAGE_LABEL,
   approvalStatus,
   needsReviewFrom,
-  nextActionFor,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
+import { historyMeta } from '@/lib/historyMeta'
+import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import { useNavigate } from 'react-router-dom'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
@@ -129,34 +129,16 @@ function StagePill({ stage }) {
 // Expected (design system) vs current (code), as one aligned table.
 function ComparisonTable({ fields }) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white/[0.03]">
-      <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-5 py-3 text-[11px] font-medium text-slate-500">
-        <span>Property</span>
-        <span className="flex items-center gap-1.5 text-emerald-300/80">
-          <Palette className="size-3" />
-          Design
-        </span>
-        <span className="flex items-center gap-1.5 text-red-300/80">
-          <Code2 className="size-3" />
-          Code before
-        </span>
-      </div>
-      {fields.map((f) => (
-        <div key={f.label} className="grid grid-cols-[1fr_1fr_1fr] gap-3 px-5 py-3 text-xs">
-          <span className="text-slate-400">{f.label}</span>
-          <span className="font-medium text-white">{f.expected}</span>
-          <span className="font-medium text-red-300">{f.current}</span>
+    <div className="space-y-1.5">
+      {fields.map((field) => (
+        <div key={field.label} className="space-y-1.5">
+          <p className="text-[11px] text-slate-500">{field.label}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300">{field.current}</span>
+            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200">{field.expected}</span>
+          </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function Section({ label, children }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-      <p className={cn(PANEL_LABEL, 'mb-3')}>{label}</p>
-      {children}
     </div>
   )
 }
@@ -311,6 +293,29 @@ const DIFF_TONES = {
 }
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
+function CodeDiffColumns({ rows }) {
+  const columns = [
+    { id: 'before', label: 'Before', kinds: new Set(['same', 'remove']) },
+    { id: 'after', label: 'After', kinds: new Set(['same', 'add']) },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {columns.map((column) => (
+        <div key={column.id} role="group" aria-label={`${column.label} code`} className="min-w-0 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11px] leading-relaxed">
+          <span className="sr-only">{column.label}</span>
+          {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
+            <div key={`${row.kind}-${index}`} className={cn('flex px-2 whitespace-pre', DIFF_TONES[row.kind])}>
+              <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
+              <span>{row.text || ' '}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // The proposed change as an inline diff — review only. Nothing here is
 // applied: the fix reaches the workspace when the change is merged.
 function DiffTab({ conflict }) {
@@ -318,64 +323,86 @@ function DiffTab({ conflict }) {
     return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
+  const pairedPreview = conflict.preview && conflict.preview.kind !== 'divider' && conflict.comparisonFields?.length > 0
 
   return (
-    <div className="space-y-3">
-      {conflict.suggestion && (
-        <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
-            <Sparkles className="size-3.5" />
-            AI suggestion being reviewed
-          </p>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-200">{conflict.suggestion}</p>
-          {conflict.suggestionReason && <p className="mt-1 text-xs leading-relaxed text-slate-400">{conflict.suggestionReason}</p>}
-        </div>
-      )}
-      {conflict.preview && (
-        <div className="rounded-xl bg-white/[0.025] p-4">
-          <p className={cn(PANEL_LABEL, 'mb-3')}>Before and after</p>
-          <ChangePreview preview={conflict.preview} />
-          {conflict.uxNote && (
-            <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
-              <Eye className="mt-0.5 size-3.5 shrink-0" />
-              {conflict.uxNote}
-            </p>
-          )}
-        </div>
-      )}
-      <Section label="What changed">
-        {conflict.comparisonFields?.length ? <ComparisonTable fields={conflict.comparisonFields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
-      </Section>
-      {conflict.branches && (
-        <div className="flex items-center gap-2 text-xs">
-          <GitBranch className="size-3.5 shrink-0 text-slate-500" />
-          <span className="rounded-md bg-white/[0.05] px-2 py-0.5 font-medium text-slate-200">{conflict.branches.local}</span>
-          <span className="text-slate-500">vs</span>
-          <span className="rounded-md bg-white/[0.05] px-2 py-0.5 font-medium text-slate-200">{conflict.branches.remote}</span>
-        </div>
-      )}
-      {conflict.diff && (
-        <div>
-          <p className={cn(PANEL_LABEL, 'justify-between')}>
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-emerald-300" />
-              Proposed change
-            </span>
-            <span className="font-mono text-[10.5px] font-normal">{conflict.file}</span>
-          </p>
-          <div className="overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11.5px] leading-relaxed">
-            {rows.map((row, i) => (
-              <div key={i} className={cn('flex px-3 whitespace-pre', DIFF_TONES[row.kind])}>
-                <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-                <span>{row.text || ' '}</span>
+    <div className="space-y-2">
+      {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
+        <section className="rounded-xl bg-white/[0.025] p-3">
+          <div className="flex flex-col gap-3">
+            {conflict.suggestion && (
+              <div className="rounded-xl bg-emerald-400/[0.07] px-3 py-2">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200">
+                  <Sparkles className="size-3.5" />
+                  AI suggestion
+                </p>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-200">{conflict.suggestion}</p>
+                {conflict.suggestionReason && <p className="mt-1 text-xs leading-relaxed text-slate-400">{conflict.suggestionReason}</p>}
               </div>
-            ))}
+            )}
+            {pairedPreview ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { side: 'before', tone: 'text-red-300', value: (field) => field.current },
+                  { side: 'after', tone: 'text-emerald-200', value: (field) => field.expected },
+                ].map(({ side, tone, value }) => (
+                  <div key={side} className="min-w-0">
+                    <ChangePreview preview={conflict.preview} side={side} />
+                    <dl className="mt-0.5 space-y-0.5">
+                      {conflict.comparisonFields.map((field) => (
+                        <div key={field.label} className="flex min-w-0 items-center justify-center gap-1.5 text-xs">
+                          <dt className="truncate text-[10px] text-slate-500">{field.label}</dt>
+                          <dd className={cn('shrink-0 font-medium', tone)}>{value(field)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {(side === 'before' ? conflict.branches?.local : conflict.branches?.remote) && (
+                      <p className="mt-1 flex min-w-0 items-center justify-center gap-1 truncate text-[10px] text-slate-500" title={side === 'before' ? conflict.branches.local : conflict.branches.remote}>
+                        <FileCode2 className="size-3 shrink-0" />
+                        <span className="truncate">{side === 'before' ? conflict.branches.local : conflict.branches.remote}</span>
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : conflict.preview && (
+              <div className="min-w-0">
+                <ChangePreview preview={conflict.preview} />
+              </div>
+            )}
+            {!pairedPreview && conflict.comparisonFields?.length > 0 && (
+              <div className="min-w-0">
+                <ComparisonTable fields={conflict.comparisonFields} />
+              </div>
+            )}
+            {!pairedPreview && conflict.branches && (
+              <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-500">
+                {[conflict.branches.local, conflict.branches.remote].map((source, index) => (
+                  <p key={index} className="flex min-w-0 items-center gap-1" title={source}>
+                    <FileCode2 className="size-3 shrink-0" />
+                    <span className="truncate">{source}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+            {conflict.diff && (
+              <div className="min-w-0">
+                <p className={cn(PANEL_LABEL, 'mb-2 justify-between')}>
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-emerald-300" />
+                    Proposed change
+                  </span>
+                  <span className="font-mono text-[10.5px] font-normal">{conflict.file}</span>
+                </p>
+                <CodeDiffColumns rows={rows} />
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <Eye className="size-3" />
+                  Preview only — applied when the change is merged, after every required reviewer approves.
+                </p>
+              </div>
+            )}
           </div>
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <Eye className="size-3" />
-            Preview only — applied when the change is merged, after every required reviewer approves.
-          </p>
-        </div>
+        </section>
       )}
     </div>
   )
@@ -383,12 +410,11 @@ function DiffTab({ conflict }) {
 
 // ─── Right: the review ─────────────────────────────────────────────────
 
-const STATUS_TONE = {
-  action: 'bg-sky-400/[0.08]',
-  waiting: 'bg-white/[0.04]',
-  ready: 'border border-emerald-400/25 bg-emerald-400/[0.12]',
-  done: 'border border-emerald-400/25 bg-emerald-400/[0.12]',
-  idle: 'bg-white/[0.04]',
+const REVIEW_STATUS_LABEL = {
+  detected: 'Detected',
+  in_review: 'In review',
+  approved: 'Pending merge',
+  resolved: 'Merged',
 }
 
 // Where the review stands, in plain lines from the actual required
@@ -397,24 +423,40 @@ const STATUS_TONE = {
 // button once there's nothing left for you to do.
 function StatusCard({ conflict }) {
   const status = approvalStatus(conflict)
-  const next = nextActionFor(conflict)
+  const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
   return (
-    <div className={cn('min-w-0 rounded-xl p-3', STATUS_TONE[status.tone])}>
-      <p className="text-[11px] font-medium text-slate-500">Status</p>
-      <ul className="mt-1 space-y-0.5">
-        {status.lines.map((line) => (
-          <li key={line} className="flex items-center gap-1.5 text-[13px] font-semibold text-white">
-            {(line.startsWith('Approved') || line.startsWith('All required') || line === 'Merged') && (
-              <Check className="size-3.5 text-emerald-300" strokeWidth={2.5} />
-            )}
-            {line}
-          </li>
-        ))}
-      </ul>
-      {conflict.reviewStage !== 'resolved' && (
-        <p className={cn('mt-1.5 text-[11px]', next.mine ? 'text-sky-300' : 'text-slate-400')}>
-          Next: {next.mine ? 'your review' : next.label}
-        </p>
+    <div className="min-w-0 px-1 py-0">
+      <ol
+        aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
+        className="mt-2 grid w-full min-w-0 grid-cols-4 items-center rounded-full bg-[#08090b]/70 p-1"
+      >
+        {REVIEW_STAGES.map((step, index) => {
+          const complete = index < currentStep || conflict.reviewStage === 'resolved'
+          const current = index === currentStep
+          return (
+            <Fragment key={step.id}>
+              <li aria-current={current ? 'step' : undefined} className="relative flex min-w-0 items-center justify-center px-1">
+                {index > 0 && <span aria-hidden="true" className="absolute left-0 text-[9px] text-slate-600">→</span>}
+                <span
+                  title={step.label}
+                  className={cn(
+                    'max-w-full truncate rounded-full px-1.5 py-1 text-[9px] leading-none font-medium whitespace-nowrap',
+                    current ? 'bg-emerald-300 font-semibold text-[#050506]' : complete ? 'text-slate-400' : 'text-slate-500'
+                  )}
+                >
+                  {REVIEW_STATUS_LABEL[step.id] === 'Pending merge' ? 'Approved' : step.label}
+                </span>
+              </li>
+            </Fragment>
+          )
+        })}
+      </ol>
+      {conflict.reviewStage === 'in_review' && status.lines.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {status.lines.map((line) => (
+            <li key={line} className="text-xs font-medium leading-4 text-slate-200">{line}</li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -633,6 +675,142 @@ function CommentThread({ conflict, workspace }) {
   )
 }
 
+const EMPTY_HISTORY = []
+
+function relativeCheckpointTime(timestamp) {
+  if (!timestamp) return 'Saved checkpoint'
+  if (/^(just now|today|yesterday|last week|\d+\s*(?:m|h|d|w|mo|y) ago)/i.test(timestamp)) {
+    return timestamp.split(',')[0]
+  }
+  const now = new Date()
+  const weekday = timestamp.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s+(\d{1,2}:\d{2}\s*[AP]M)$/i)
+  let date = null
+  if (weekday) {
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const targetDay = weekdays.findIndex((day) => day.toLowerCase() === weekday[1].toLowerCase())
+    const daysAgo = (now.getDay() - targetDay + 7) % 7 || 7
+    date = new Date(now)
+    date.setDate(now.getDate() - daysAgo)
+    const time = new Date(`Jan 1, 2000 ${weekday[2]}`)
+    date.setHours(time.getHours(), time.getMinutes(), 0, 0)
+  } else {
+    date = new Date(`${timestamp}, ${now.getFullYear()}`)
+    if (Number.isNaN(date.getTime())) return timestamp
+    if (date > now) date.setFullYear(date.getFullYear() - 1)
+  }
+  const days = Math.max(0, Math.floor((now - date) / 86_400_000))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+  if (days < 365) return `${Math.floor(days / 30)} months ago`
+  return `${Math.floor(days / 365)} years ago`
+}
+
+function HistoryCheckpointTimeline({ workspace }) {
+  const entries = workspace?.historyEntries ?? EMPTY_HISTORY
+  const activeId = workspace?.activeHistoryId
+  const [selectedId, setSelectedId] = useState(null)
+  const [rollbackId, setRollbackId] = useState(null)
+  const active = entries.find((entry) => entry.id === activeId) ?? entries.at(-1) ?? null
+  const resolvedSelectedId = entries.some((entry) => entry.id === selectedId) ? selectedId : active?.id
+  const selected = entries.find((entry) => entry.id === resolvedSelectedId) ?? null
+  const rows = selected && active
+    ? selected.id === active.id
+      ? (selected.snapshot?.lines ?? []).map((text) => ({ kind: 'same', text }))
+      : diffLines(active.snapshot?.lines ?? [], selected.snapshot?.lines ?? [])
+    : []
+
+  if (entries.length === 0) {
+    return <EmptyNote>No checkpoints have been saved for this project yet.</EmptyNote>
+  }
+
+  return (
+    <div className="flex h-full min-h-[280px] min-w-0 gap-3">
+      <section aria-label="Project checkpoints" className="flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden rounded-xl bg-white/[0.025]">
+        <div className="flex shrink-0 items-center gap-1.5 px-3 py-2.5">
+          <History className="size-3.5 text-slate-500" />
+          <span className="text-xs font-medium text-slate-300">Checkpoints</span>
+          <span className="ml-auto text-[10px] tabular-nums text-slate-500">{entries.length}</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+          {[...entries].reverse().map((entry) => {
+            const person = allPeople.find((candidate) => candidate.id === entry.actorId)
+            const author = entry.actorLabel ?? person?.name ?? 'Workspace'
+            const isCurrent = entry.id === activeId
+            const isRestored = Boolean(entry.restoredFrom || entry.kind === 'rollback' || /^(restored|rolled back)/i.test(entry.label))
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                aria-pressed={entry.id === resolvedSelectedId}
+                onClick={() => setSelectedId(entry.id)}
+                className={cn(
+                  'flex w-full min-w-0 flex-col gap-1.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.045]',
+                  entry.id === resolvedSelectedId && 'bg-white/[0.06]'
+                )}
+              >
+                <span className="flex w-full min-w-0 items-start gap-2">
+                  <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', isCurrent ? 'bg-emerald-300' : isRestored ? 'bg-amber-300' : 'bg-slate-600')} />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-200" title={entry.label}>{entry.label}</span>
+                  {isCurrent && <span className="shrink-0 rounded-full bg-emerald-400/10 px-1.5 py-0.5 text-[9px] text-emerald-300">Current</span>}
+                  {!isCurrent && isRestored && <span className="shrink-0 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] text-amber-200">Restored</span>}
+                  {!isCurrent && entry.archived && <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-slate-400">Archived</span>}
+                </span>
+                <span className="flex min-w-0 items-center gap-1.5 pl-3.5">
+                  {person ? <PersonAvatar person={person} /> : (
+                    <Avatar size="sm"><AvatarFallback className="bg-emerald-400/15 text-[9px] font-medium text-emerald-200">{author.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{author}</span>
+                  <span className="flex shrink-0 items-center gap-1 text-[10px] text-slate-500">
+                    <Clock3 className="size-3" />
+                    {relativeCheckpointTime(entry.timestamp)}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section aria-label="Checkpoint snapshot diff" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.025]">
+        {selected ? (
+          <>
+            <div className="flex shrink-0 items-start gap-3 px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-slate-200">{selected.label}</p>
+                <p className="mt-1 truncate text-[10px] text-slate-500">
+                  {relativeCheckpointTime(selected.timestamp)}{historyMeta(selected) ? ` · ${historyMeta(selected)}` : ''}
+                  {selected.snapshot?.fileId ? ` · ${workspace.getFileName(selected.snapshot.fileId)}` : ''}
+                </p>
+              </div>
+              {selected.id !== activeId && !selected.archived && (
+                <button type="button" onClick={() => setRollbackId(selected.id)} className={cn('inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-medium', GHOST_BUTTON)}>
+                  <RotateCcw className="size-3" />
+                  Roll back
+                </button>
+              )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto border-t border-white/[0.05] py-1.5 font-mono text-[10px] leading-relaxed">
+              {rows.length === 0 ? <p className="px-3 py-3 text-slate-500">No file snapshot is available for this checkpoint.</p> : rows.map((row, index) => (
+                <div key={`${row.kind}-${index}`} className={cn('flex min-w-max px-3 whitespace-pre', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
+                  <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
+                  <span>{row.text || ' '}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : <p className="p-3 text-xs text-slate-500">Select a checkpoint to inspect its file snapshot.</p>}
+      </section>
+      <RollbackCheckpointModal
+        entryId={rollbackId}
+        onOpenChange={(open) => !open && setRollbackId(null)}
+        onDone={(_entry, restoredId) => setSelectedId(restoredId)}
+      />
+    </div>
+  )
+}
+
 // ─── Inline review view ────────────────────────────────────────────────
 //
 // `onUpdate(id, patch)` applies review edits (stage, reviewers) to
@@ -641,7 +819,6 @@ function CommentThread({ conflict, workspace }) {
 // an Approved conflict — the only step that applies the change.
 function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
-  const navigate = useNavigate()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
 
@@ -765,25 +942,29 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            {/* Compact context row; title and review actions share the bottom bar. */}
-            <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1">
-                    <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
-                    <span className="truncate font-mono text-slate-300">
-                      {conflict.file}
-                      {conflict.line ? `:${conflict.line}` : ''}
-                    </span>
+            {/* Primary header combines the issue identity and file context. */}
+            <div className="flex min-h-11 shrink-0 items-center justify-between gap-4 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <h2 className="truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
+                {severity && <SeverityPill level={severity.label} />}
+                <StagePill stage={stage} />
+              </div>
+              <div className="flex min-w-0 max-w-[52%] flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-slate-500">
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                  <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
+                  <span className="truncate font-mono text-slate-300">
+                    {conflict.file}
+                    {conflict.line ? `:${conflict.line}` : ''}
                   </span>
-                  {conflict.projectName && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Project · {conflict.projectName}</span>}
-                  {conflict.detectedAt && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Detected · {conflict.detectedAt}</span>}
-                </div>
+                </span>
+                {conflict.projectName && <span className="text-slate-500">Project · <span className="text-slate-400">{conflict.projectName}</span></span>}
+                {conflict.detectedAt && <span className="text-slate-500">Detected · <span className="text-slate-400">{conflict.detectedAt}</span></span>}
+              </div>
             </div>
 
-            <div className="flex min-h-0 flex-1">
-              {/* Left: what's in conflict */}
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center gap-1 px-5 pt-2 pb-2" role="tablist" aria-label="Conflict details">
+            <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(240px,1fr)]">
+              <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="flex shrink-0 items-center gap-1 border-b border-white/[0.07] px-5 py-1.5" role="tablist" aria-label="Conflict details">
                   {TABS.map(([id, label]) => (
                     <button
                       key={id}
@@ -796,49 +977,22 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {label}
                     </button>
                   ))}
-                </div>
-                <div className="min-h-0 flex-1 overflow-auto px-5 pb-3" role="tabpanel">
+            </div>
+
+                <div className="min-h-0 flex-1 overflow-auto px-5 pt-5 pb-3" role="tabpanel">
                   {tab === 'overview' && (
                     <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                   )}
                   {tab === 'diff' && <DiffTab conflict={conflict} />}
-                  {/* History lives in one place — the project's History menu
-                      (checkpoints with rollback) — so this tab points there. */}
                   {tab === 'history' && (
-                    <div className="max-w-3xl space-y-3">
-                      <p className="text-xs text-slate-400">Project checkpoints and rollbacks</p>
-                      {workspace?.historyEntries?.length > 0 ? (
-                        <div className="flex items-center gap-3 rounded-xl bg-white/[0.035] px-4 py-3">
-                          <span className="relative flex size-2 shrink-0">
-                            <span className="absolute inset-0 rounded-full bg-emerald-300/30" />
-                            <span className="relative m-auto size-1 rounded-full bg-emerald-300" />
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-200">{workspace.historyEntries[workspace.historyEntries.length - 1].label}</span>
-                          <span className="shrink-0 text-[11px] text-slate-500">{workspace.historyEntries[workspace.historyEntries.length - 1].timestamp}</span>
-                        </div>
-                      ) : (
-                        <p className="rounded-xl bg-white/[0.03] px-4 py-3 text-xs text-slate-500">No checkpoints recorded yet.</p>
-                      )}
-                      {workspace && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onOpenChange(false)
-                            navigate(`/projects/${workspace.projectId}/history`)
-                          }}
-                          className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium', GHOST_BUTTON)}
-                        >
-                          Open History
-                        </button>
-                      )}
-                    </div>
+                    <HistoryCheckpointTimeline workspace={workspace} />
                   )}
                 </div>
               </div>
 
               {/* Right: the review — status, reviewers, comments — kept to
-                  ~30% so the content under review (left, ~70%) gets the room. */}
-              <div className="flex w-[34%] min-w-[300px] shrink-0 flex-col gap-2 overflow-hidden bg-white/[0.015] px-4 py-3">
+                  a slim column beside the left workspace from the top edge. */}
+              <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden bg-white/[0.015] px-3 py-3">
                 <StatusCard conflict={conflict} />
                 <div className="min-w-0 rounded-xl bg-white/[0.03] p-3">
                   <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
@@ -851,11 +1005,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
 
             <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] bg-white/[0.02] px-5 py-2.5">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <h2 className="truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
-                {severity && <SeverityPill level={severity.label} />}
-                <StagePill stage={stage} />
-              </div>
+              <div className="min-w-0 flex-1" />
               {stage !== 'resolved' && (
                 <div className="flex shrink-0 items-center">
                   <Tooltip>

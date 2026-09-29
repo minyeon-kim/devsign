@@ -173,7 +173,7 @@ function WorkspaceBottomPanel() {
             {id === 'conflict' && openConflicts > 0 && (
               <span
                 title={`${openConflicts} open`}
-                className="rounded-full bg-white/[0.08] px-1.5 text-[10px] leading-4 font-semibold text-slate-300 tabular-nums"
+                className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[10px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
               >
                 {openConflicts}
               </span>
