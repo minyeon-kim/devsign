@@ -1,20 +1,11 @@
 import { ChevronRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
 import { RISK_LABEL, STAGE_DOT_CLASS, STAGE_LABEL, nextActionFor } from '@/lib/conflicts'
-
-const RISK_CLASS = {
-  high: 'bg-destructive/15 text-red-300',
-  medium: 'bg-amber-500/15 text-amber-300',
-  low: 'bg-sky-500/15 text-sky-300',
-}
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 
 export function RiskBadge({ severity }) {
   if (!severity) return null
-  return (
-    <span className={cn('inline-flex h-5 shrink-0 items-center rounded-full px-1.5 text-[10px] font-semibold', RISK_CLASS[severity])}>
-      {RISK_LABEL[severity]} risk
-    </span>
-  )
+  return <SeverityPill level={RISK_LABEL[severity]} />
 }
 
 // One Conflict Point as a list row (Dashboard queue, project overview):
@@ -45,7 +36,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
           <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
           {STAGE_LABEL[conflict.reviewStage]}
         </span>
-        <span className={cn('text-[11px]', next.mine ? 'font-medium text-sky-300' : 'text-slate-500')}>{next.label}</span>
+        <span className={cn('text-[11px]', next.mine ? 'font-medium text-emerald-300' : 'text-slate-500')}>{next.label}</span>
       </span>
       <ChevronRight className="size-3.5 shrink-0 text-slate-600 transition-colors group-hover:text-slate-300" />
     </button>

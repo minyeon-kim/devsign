@@ -1,20 +1,20 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleAlert, CircleCheck, FileCode2, Info, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, FileCode2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { allPeople, currentUser } from '@/data/mockData'
 import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
+import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { diffLines } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
 const severityConfig = {
-  high: { label: 'High', icon: TriangleAlert, className: 'border-rose-400/30 bg-rose-400/15 text-rose-200' },
-  medium: { label: 'Medium', icon: CircleAlert, className: 'border-amber-400/30 bg-amber-400/15 text-amber-200' },
-  low: { label: 'Low', icon: Info, className: 'border-sky-400/30 bg-sky-400/15 text-sky-200' },
+  high: { label: 'High' },
+  medium: { label: 'Medium' },
+  low: { label: 'Low' },
 }
 
 // The bottom panel's Conflict Points tab: the one place a project's
@@ -104,7 +104,7 @@ function ConflictPanel({ onContentHeightChange }) {
               className={cn(CATEGORY_TAB, 'h-6 gap-1.5 px-2.5 text-[11px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
               {f.label}
-              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-sky-300' : 'text-slate-500')}>
+              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
                 {counts[f.count]}
               </span>
             </button>
@@ -156,7 +156,6 @@ function ConflictPanel({ onContentHeightChange }) {
               )}
               {visible.map((conflict) => {
                 const severity = severityConfig[conflict.severity] ?? severityConfig.medium
-                const SeverityIcon = severity.icon
                 const reviewers = conflict.reviewers
                   .map((r) => allPeople.find((p) => p.id === r.id))
                   .filter(Boolean)
@@ -187,10 +186,7 @@ function ConflictPanel({ onContentHeightChange }) {
                       />
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap">
-                      <Badge className={cn('gap-1 rounded-full border', severity.className)}>
-                        <SeverityIcon className="size-3" />
-                        {severity.label}
-                      </Badge>
+                      <SeverityPill level={severity.label} />
                     </td>
                     <td className="min-w-0 px-3 py-4">
                       <div className="min-w-0 space-y-1">
@@ -212,7 +208,7 @@ function ConflictPanel({ onContentHeightChange }) {
                         <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                         {needsReviewFrom(conflict) && (
-                          <span className="inline-flex h-5 items-center rounded-full bg-sky-400/10 px-2 text-[10.5px] font-medium text-sky-300">
+                            <span className="inline-flex h-5 items-center rounded-full bg-emerald-400/10 px-2 text-[10.5px] font-medium text-emerald-300">
                             Needs your review
                           </span>
                         )}

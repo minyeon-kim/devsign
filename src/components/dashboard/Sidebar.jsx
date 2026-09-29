@@ -81,8 +81,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   const navigate = useNavigate()
 
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
-      <div className="mb-1 flex h-14 shrink-0 items-center">
+    <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pt-3 pb-2">
+      <div className="flex h-9 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <DropdownMenuTrigger
             type="button"
