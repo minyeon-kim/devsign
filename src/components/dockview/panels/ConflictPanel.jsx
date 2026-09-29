@@ -102,7 +102,7 @@ function ConflictPanel() {
           <table className="w-full min-w-[620px] border-collapse text-xs">
             <thead className="sticky top-0 bg-card">
               <tr className="border-b text-left text-[11px] text-muted-foreground">
-                <th className="w-0 py-2 pr-0 pl-3">
+                <th className="w-0 py-2 pr-2 pl-4">
                   <Checkbox
                     checked={allSelected}
                     disabled={batchable.length === 0}
@@ -110,11 +110,11 @@ function ConflictPanel() {
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
                 </th>
-                <th className="px-3 py-2 font-medium">Severity</th>
-                <th className="px-3 py-2 font-medium">Issue</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Reviewers</th>
-                <th className="w-0 px-3 py-2" />
+                <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Severity</th>
+                <th className="w-full px-3 py-2 font-medium">Issue</th>
+                <th className="w-0 px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                <th className="w-0 py-2 pr-3 pl-1 font-medium whitespace-nowrap">Reviewers</th>
+                <th className="w-0 py-2 pr-6 pl-3" />
               </tr>
             </thead>
             <tbody>
@@ -145,7 +145,7 @@ function ConflictPanel() {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-1.5 pr-0 pl-3" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-1.5 pr-2 pl-4" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -157,25 +157,27 @@ function ConflictPanel() {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="w-0 px-3 py-1.5 whitespace-nowrap">
                       <Badge className={cn('gap-1 border-transparent', severity.className)}>
                         <SeverityIcon className="size-3" />
                         {severity.label}
                       </Badge>
                     </td>
-                    <td className="max-w-72 px-3 py-1.5">
+                    {/* Issue takes the slack (max-w-0 lets it truncate), so
+                        Status and Reviewers sit snug beside each other. */}
+                    <td className="w-full max-w-0 px-3 py-1.5">
                       <p className="truncate leading-5 font-medium text-foreground">{conflict.title}</p>
                       <p className="flex min-w-0 items-center gap-1 text-[11px] leading-4 text-muted-foreground">
                         <FileCode2 className="size-3 shrink-0" />
-                        <span className="shrink-0 font-mono">{conflict.file}</span>
+                        <span className="max-w-[70%] shrink-0 truncate font-mono">{conflict.file}</span>
                         {conflict.message && (
-                          <span className="truncate text-foreground/60" title={conflict.message}>
+                          <span className="min-w-0 truncate text-foreground/60" title={conflict.message}>
                             · {conflict.message}
                           </span>
                         )}
                       </p>
                     </td>
-                    <td className="px-3 py-1.5 whitespace-nowrap">
+                    <td className="w-0 px-3 py-1.5 whitespace-nowrap">
                       <span className="flex items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
@@ -184,7 +186,7 @@ function ConflictPanel() {
                         <span className="block text-[11px] leading-4 font-medium text-sky-300">Needs your review</span>
                       )}
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="w-0 py-1.5 pr-3 pl-1 whitespace-nowrap">
                       {reviewers.length ? (
                         <div className="flex -space-x-1.5">
                           {reviewers.map((person) => (
@@ -199,7 +201,7 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="py-1.5 pr-3 pl-1 text-right">
+                    <td className="w-0 py-1.5 pr-6 pl-3 text-right">
                       <button
                         type="button"
                         onClick={(event) => {

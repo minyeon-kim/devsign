@@ -1059,7 +1059,7 @@ function TokenBindingSection({ spec }) {
 // its token binding / an AI recommendation (when it has no drift), its
 // content copy (the Text card, bound to copy.json), its shape / size /
 // style, and AI style suggestions. Drift is resolved in Compare.
-function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, ...suggestionProps }) {
+export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, ...suggestionProps }) {
   return (
     <DeckScroll>
       {selectedLayer && !diffs?.length && (
@@ -1126,13 +1126,14 @@ const LIB_ICON = 'w-7 text-slate-500 hover:bg-white/[0.08] hover:text-white'
 // place it) · name + what the action does · one fixed action column on the
 // right, identical on every row — a 72px slot for the contextual Replace /
 // Insert (empty when there's none) and the "+" Add icon — so the buttons
-// line up down the whole list.
+// line up down the whole list. An action whose handler isn't passed (the
+// Workspace's browse-only Library) isn't shown.
 function LibraryRow({ def, mode, target, onApply, onInsert, onAdd, onDrag }) {
   return (
     <div className="group/lib flex items-center gap-3 px-3 py-2 transition-colors hover:bg-white/[0.03]">
       <div
-        title="Drag onto the canvas to place"
-        className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
+        title={onDrag ? 'Drag onto the canvas to place' : undefined}
+        className={cn('shrink-0', onDrag && 'cursor-grab touch-none active:cursor-grabbing')}
         onPointerDown={(e) => {
           if (e.button !== 0 || !onDrag) return
           e.preventDefault()
@@ -1149,20 +1150,22 @@ function LibraryRow({ def, mode, target, onApply, onInsert, onAdd, onDrag }) {
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         <span className="flex w-[72px] justify-end">
-          {mode === 'replace' && (
+          {mode === 'replace' && onApply && (
             <button type="button" onClick={() => onApply(def)} className={cn(LIB_ACTION, LIB_TEXT)}>
               Replace
             </button>
           )}
-          {mode === 'insert' && (
+          {mode === 'insert' && onInsert && (
             <button type="button" onClick={() => onInsert(def)} className={cn(LIB_ACTION, LIB_TEXT)}>
               Insert
             </button>
           )}
         </span>
-        <button type="button" onClick={() => onAdd(def)} title="Add to canvas" aria-label={`Add ${def.name} to canvas`} className={cn(LIB_ACTION, LIB_ICON)}>
-          <Plus className="size-4" />
-        </button>
+        {onAdd && (
+          <button type="button" onClick={() => onAdd(def)} title="Add to canvas" aria-label={`Add ${def.name} to canvas`} className={cn(LIB_ACTION, LIB_ICON)}>
+            <Plus className="size-4" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1207,7 +1210,7 @@ function CategoryMenu({ categories, counts, value, onChange }) {
 //     replace / insert). Selecting another element re-filters and resets
 //     the view; if nothing fits, the tab says so and shows everything.
 // Search + a compact category menu narrow any of these.
-function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
+export function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [showAll, setShowAll] = useState(false)

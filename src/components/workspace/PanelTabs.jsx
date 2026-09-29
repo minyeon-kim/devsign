@@ -19,7 +19,8 @@ const NAVIGATOR_TABS = [
 // it there — see WorkspaceSplitLayout); dragging a file or page tab moves
 // its whole panel (the editor, the canvas). Every view is an equal,
 // closeable tab: the editor's last file tab and the canvas's active page
-// tab close that view itself (reopen it from a `+`).
+// tab close that view itself (reopen it from a `+`), as does the
+// navigator's active tab. Panes have no window controls of their own.
 function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
   const workspace = useWorkspace()
   const panelActive = group.activeId === pid
@@ -60,6 +61,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       icon: <Icon className="size-3.5 shrink-0" />,
       active: panelActive && workspace.filesWindow.tab === id,
       select: () => workspace.setFilesWindow({ tab: id }),
+      close: workspace.filesWindow.tab === id ? closeView : null,
+      closeLabel: 'Close sidebar',
     }))
   } else {
     const Icon = PANEL_ICONS[panel.params?.iconName]

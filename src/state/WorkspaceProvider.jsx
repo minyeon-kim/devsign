@@ -153,6 +153,20 @@ export function WorkspaceProvider({ children, projectId }) {
   // file tree is where files are opened.
   const [filesWindow, setFilesWindowState] = useState({ open: true, tab: 'files' })
   const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
+  // Assemble edits made from the navigator's Assets view (Block Deck's
+  // Assemble, outside Merge Studio): { [layerId]: assembly }. Kept here so
+  // they survive switching navigator tabs; `null` resets a layer.
+  const [assetAssemblies, setAssetAssemblies] = useState({})
+  const assembleAsset = useCallback(
+    (layerId, patch) =>
+      setAssetAssemblies((prev) => {
+        const next = { ...prev }
+        if (patch) next[layerId] = { ...prev[layerId], ...patch }
+        else delete next[layerId]
+        return next
+      }),
+    []
+  )
   const [chatMessages, setChatMessages] = useState(initialChatMessages)
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
@@ -1053,6 +1067,8 @@ export function WorkspaceProvider({ children, projectId }) {
     setBottomPanel,
     filesWindow,
     setFilesWindow,
+    assetAssemblies,
+    assembleAsset,
     openConflictReview: setReviewConflictId,
     focusChange,
     chatDraft,

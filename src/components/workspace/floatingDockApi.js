@@ -376,8 +376,12 @@ export function useFloatingDockApi() {
     notify()
   }
 
+  // A window the user pointed at (or picked a tab in) — unlike a
+  // programmatic setActive, which only raises it. `store.focusedGroupId`
+  // is what context-aware chrome (the navigator's auto-switch) follows.
   function focusGroup(groupId) {
     bringGroupToFront(groupId)
+    store.focusedGroupId = groupId
     notify()
   }
 
@@ -468,6 +472,7 @@ export function useFloatingDockApi() {
     const g = store.groups[groupId]
     if (!g || !g.panelIds.includes(panelId)) return
     g.activeId = panelId
+    store.focusedGroupId = groupId
     notify()
   }
 

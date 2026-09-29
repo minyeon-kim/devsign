@@ -769,7 +769,7 @@ export const layoutPresets = [
   {
     id: 'default',
     label: 'Default',
-    description: 'Code Editor, Canvas & AI Chat, with Files on the right',
+    description: 'AI Chat & Code Editor, Canvas & Preview, with Files on the right',
     iconName: 'LayoutGrid',
   },
   {

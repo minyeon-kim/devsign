@@ -87,26 +87,27 @@ export function openOrFocusPanel(dockApi, def) {
 
 export function buildInitialLayout(api) {
   // Terminal, Console and Conflict Points aren't floating windows anymore —
-  // they live in the workspace's docked bottom panel (WorkspaceBottomPanel)
-  // — so the layout starts from the editor.
-  addDockPanel(api, panelById.editor)
-
-  // No Explorer/Layers windows here: both are tabs of the navigator pane
-  // (NavigatorPanel), which WorkspaceSplitLayout docks at the far right.
-
-  // Canvas and AI Chat are independent tabs like the editor — any of them
-  // can be closed, dragged out or split, and reopened from a `+`. They
-  // start in the pane beside the editor. Preview is never a default tab —
-  // it only opens from a pane's `+` menu.
+  // they live in the workspace's docked bottom panel (WorkspaceBottomPanel).
+  // No Explorer/Layers windows here either: both are tabs of the navigator
+  // pane (NavigatorPanel), which WorkspaceSplitLayout docks at the far right.
+  //
+  // Every view is an independent tab (close, drag, split, reopen from a
+  // `+`). The default split: AI Chat up front on the left with the code
+  // file beside it as an inactive tab; the Canvas up front in the center
+  // with Preview beside it.
+  addDockPanel(api, panelById.chat)
+  addDockPanel(api, panelById.editor, {
+    position: { direction: 'within', referencePanel: panelById.chat.id },
+  })
   addDockPanel(api, panelById.canvas, {
-    position: { direction: 'right', referencePanel: panelById.editor.id },
+    position: { direction: 'right', referencePanel: panelById.chat.id },
     initialWidth: 620,
   })
-  addDockPanel(api, panelById.chat, {
+  addDockPanel(api, panelById.preview, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
   })
 
-  api.getPanel(panelById.editor.id)?.api.setActive()
+  api.getPanel(panelById.chat.id)?.api.setActive()
   api.getPanel(panelById.canvas.id)?.api.setActive()
 }
 

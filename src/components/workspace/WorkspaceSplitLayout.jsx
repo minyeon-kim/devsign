@@ -35,6 +35,8 @@ const components = {
 
 const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
+// The navigator's default width, in px.
+const NAVIGATOR_W = 304
 const ZONE_LABEL = { left: 'left', right: 'right', above: 'up', below: 'down' }
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
@@ -96,11 +98,10 @@ function zoneRect(rect, zone) {
 }
 
 // The Workspace as a focused split-pane frame (Cursor / VS Code style)
-// instead of an infinite canvas of floating windows. Code Editor, Canvas
-// and AI Chat are equal, independent tabs — none is a fixed pane; each can
-// be closed, dragged and split, and reopened from any `+` (Preview only
-// opens from there) — with the Files / Layers / Assets navigator as a pane
-// at the far right. Every
+// instead of an infinite canvas of floating windows. Code Editor, Canvas,
+// Preview and AI Chat are equal, independent tabs — none is a fixed pane;
+// each can be closed, dragged and split, and reopened from any `+` — with
+// the Files / Layers / Assets navigator as a pane at the far right. Every
 // pane, the navigator and AI Chat included, can be resized, dragged and
 // docked into any side of any other. Panes split both ways: side by side and stacked, as a tree
 // (floatingDockApi's `layout`), with draggable splitters between them.
@@ -134,12 +135,14 @@ function WorkspaceSplitLayout() {
 
   // The navigator (Files / Layers / Assets) is an ordinary pane, kept in
   // step with `filesWindow.open`: opening it (palette, `+`, …) docks it at
-  // the far right of the frame — a slim share, opposite the activity bar —
-  // and closing its window closes it.
+  // the far right of the frame — a compact ~NAVIGATOR_W column, opposite
+  // the activity bar — and closing its window closes it.
   useEffect(() => {
     const panel = dockApi.getPanel(panelById.navigator.id)
     if (filesWindow.open && !panel) {
-      addDockPanel(dockApi, panelById.navigator, { share: 0.24 })
+      const width = rootRef.current?.clientWidth
+      const share = width ? Math.min(0.3, NAVIGATOR_W / width) : 0.2
+      addDockPanel(dockApi, panelById.navigator, { share })
     } else if (!filesWindow.open && panel) {
       panel.api.close()
     }
@@ -148,7 +151,9 @@ function WorkspaceSplitLayout() {
 
   // Context-aware navigator: whenever focus moves to a Code Editor tab it
   // shows Files; to a Canvas tab, Layers (or Assets, if that's already up).
-  // Focus is the frontmost window and its active tab — clicking into the
+  // Focus is the window the user last clicked into (or picked a tab in)
+  // and its active tab — not one raised in code, e.g. the editor that
+  // canvas→code sync brings forward on a layer click. Clicking into the
   // navigator itself counts too, so picking a view there sticks until
   // focus goes back to an editor or canvas.
   const hadNavigator = useRef(false)
@@ -161,15 +166,14 @@ function WorkspaceSplitLayout() {
       if (hadNavigator.current && !has) setFilesWindow({ open: false })
       hadNavigator.current = has
 
-      const top = Object.values(store.groups)
-        .filter((g) => g.open && !g.minimized && g.panelIds.length)
-        .sort((a, b) => b.z - a.z)[0]
+      const focused = store.groups[store.focusedGroupId]
+      const top = focused?.open && focused.panelIds.length ? focused : null
       const key = top ? `${top.id}:${top.activeId}` : null
       if (key === focusKey.current) return
       focusKey.current = key
-      const focused = top && store.panels[top.activeId]?.component
-      if (focused === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
-      if (focused === 'canvas' && filesTab.current === 'files') setFilesWindow({ tab: 'layers' })
+      const component = top && store.panels[top.activeId]?.component
+      if (component === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
+      if (component === 'canvas' && filesTab.current === 'files') setFilesWindow({ tab: 'layers' })
     }
     sync()
     const disposable = dockApi.onDidLayoutChange(sync)

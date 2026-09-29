@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Maximize2, Minimize2, Minus, X } from 'lucide-react'
+import { Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
 import {
   CATEGORY_TAB,
@@ -32,8 +32,9 @@ const DRAG_THRESHOLD = 4
 // the window fills its pane instead of floating at x/y — no corner resize
 // (the splitters between panes do that); dragging its header hands off to
 // `onDockDragStart` (drop it beside / into another pane), and so does
-// dragging one of its tabs (just that tab moves) — and its header gains the
-// `+` view menu and a minimize control beside maximize / close.
+// dragging one of its tabs (just that tab moves) — and its header holds
+// only its tabs (each closes itself) and the `+` view menu: no window
+// controls.
 function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
@@ -166,37 +167,43 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             ref={setHeaderSlot}
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
-          <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
-            {docked && !isMaximized && (
+          {docked ? (
+            // Docked panes carry no window controls — each tab closes
+            // itself. The one exception: a maximized pane (Layout: Focus
+            // Editor) needs a way back.
+            isMaximized && (
               <button
                 type="button"
-                title="Minimize"
-                aria-label="Minimize"
-                onClick={() => dockApi.minimizeGroup(group.id, true)}
+                title="Restore"
+                aria-label="Restore"
+                onClick={() => activeHandle?.api.exitMaximized()}
+                className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                <Minimize2 className="size-3.5" />
+              </button>
+            )
+          ) : (
+            <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+              <button
+                type="button"
+                title={isMaximized ? 'Restore' : 'Maximize'}
+                aria-label={isMaximized ? 'Restore' : 'Maximize'}
+                onClick={() => (isMaximized ? activeHandle?.api.exitMaximized() : activeHandle?.api.maximize())}
                 className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
-                <Minus className="size-3.5" />
+                {isMaximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
               </button>
-            )}
-            <button
-              type="button"
-              title={isMaximized ? 'Restore' : 'Maximize'}
-              aria-label={isMaximized ? 'Restore' : 'Maximize'}
-              onClick={() => (isMaximized ? activeHandle?.api.exitMaximized() : activeHandle?.api.maximize())}
-              className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
-            >
-              {isMaximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-            </button>
-            <button
-              type="button"
-              title="Close"
-              aria-label="Close"
-              onClick={() => activeHandle?.api.close()}
-              className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-destructive/15 hover:text-destructive"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
+              <button
+                type="button"
+                title="Close"
+                aria-label="Close"
+                onClick={() => activeHandle?.api.close()}
+                className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-destructive/15 hover:text-destructive"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
