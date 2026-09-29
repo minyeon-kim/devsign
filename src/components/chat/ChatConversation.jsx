@@ -141,40 +141,49 @@ function ResultCard({ result }) {
   const first = result.changes?.[0]
 
   return (
-    <div className="mt-1.5 w-[85%] rounded-2xl border bg-background px-3 py-2.5 text-xs">
-      <p className={cn('flex items-center gap-1.5 text-[11px] font-semibold', status.className)}>
-        <StatusIcon className="size-3.5" />
-        {status.label}
-        {result.target && <span className="truncate font-normal text-muted-foreground">· {result.target.label}</span>}
-      </p>
+    <div className="mt-2 w-[92%] rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-xs">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06]', status.className)}>
+          <StatusIcon className="size-3.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-semibold text-slate-100">{changed ? result.title : status.label}</p>
+          {result.target && <p className="truncate text-[10px] text-slate-500">{result.target.label}</p>}
+        </div>
+        <span className={cn('shrink-0 text-[10px] font-medium', status.className)}>{status.label}</span>
+      </div>
       {changed && (
         <>
-          <p className="mt-1 font-medium text-foreground">{result.title}</p>
-          <p className="mt-1 text-[11px] text-amber-300">Draft changes · Not merged</p>
-          <ul className="mt-1.5 space-y-1">
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">Draft · not merged</span>
+            <span className="text-[10px] text-slate-500">
+              {plural(result.fileCount, 'file')} · {plural(result.elementCount, 'element')}
+            </span>
+          </div>
+          <ul className="mt-2 space-y-1">
             {result.changes.map((c, i) => (
-              <li key={i} className="text-[11px] text-foreground/80">
-                <span className="font-mono text-muted-foreground">
-                  {c.fileName}
-                  {c.line ? `:${c.line}` : ''}
-                </span>{' '}
-                {c.summary}
+              <li key={i} className="flex min-w-0 items-baseline gap-1.5 text-[11px] leading-4 text-slate-300">
+                <span className="size-1 shrink-0 rounded-full bg-emerald-300/80" />
+                <span className="min-w-0 truncate">{c.summary}</span>
+                <span className="shrink-0 truncate font-mono text-[10px] text-slate-500">
+                  {c.fileName}{c.line ? `:${c.line}` : ''}
+                </span>
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
-            {plural(result.fileCount, 'file')} · {plural(result.elementCount, 'element')} ·{' '}
-            <span className={cn(result.reviewItems.length > 0 && 'text-sky-400')}>
-              {plural(result.reviewItems.length, 'review item')}
-            </span>
-          </p>
+          {result.reviewItems.length > 0 && (
+            <p className="mt-2 text-[10px] font-medium text-emerald-300">
+              {plural(result.reviewItems.length, 'change')} ready for review
+            </p>
+          )}
           {result.note && <p className="mt-1 text-[11px] text-amber-400/90">{result.note}</p>}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {first && (
               <Button
                 type="button"
                 size="xs"
                 variant="outline"
+                className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
                 onClick={() => focusChange({ fileId: first.fileId, line: first.line, layerId: result.target?.layerId })}
               >
                 View changes
@@ -184,6 +193,7 @@ function ResultCard({ result }) {
               <Button
                 type="button"
                 size="xs"
+                className="h-6 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-2.5 text-[10px] font-semibold text-slate-950"
                 onClick={() => {
                   setBottomPanel({ tab: 'conflict', open: true })
                   openConflictReview(result.reviewItems[0].conflictId)
