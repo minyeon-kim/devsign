@@ -1362,11 +1362,20 @@ function BlockDeckPanel({
   onTabSwitch,
   collapsed = false,
   onCollapse,
+  tabRequest,
 }) {
   const [tab, setTab] = useState('compare')
   function switchTab(next) {
     setTab(next)
     onTabSwitch?.()
+  }
+  // A tab asked for from outside (e.g. Preview's "Edit in Assemble"); the
+  // nonce lets the same tab be requested again. Applied during render
+  // (React's "adjust state on prop change" pattern), not in an effect.
+  const [seenTabRequest, setSeenTabRequest] = useState(null)
+  if (tabRequest?.tab && tabRequest.nonce !== seenTabRequest) {
+    setSeenTabRequest(tabRequest.nonce)
+    setTab(tabRequest.tab)
   }
   const [pos, setPos] = useState(null)
   // Collapsing is controlled by MergeStudioWorkspace: collapsed, the deck

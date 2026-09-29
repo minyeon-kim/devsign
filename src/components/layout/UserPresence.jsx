@@ -21,11 +21,20 @@ function UserPresence() {
   const {
     followingMe,
     followedMemberId,
-    remoteViewportIndex,
     startFollowMe,
     cancelFollowMe,
     followMember,
+    memberViewports,
+    workspaceFiles: files,
   } = useWorkspace()
+
+  // Each teammate's current screen / file / element — from this project's
+  // simulated collaboration timeline (mock data, not a live connection).
+  function contextFor(member) {
+    const viewport = memberViewports.find((m) => m.member.id === member.id)?.viewport
+    if (!viewport) return null
+    return { label: viewport.label, file: files.find((f) => f.id === viewport.fileId)?.name }
+  }
 
   function toggleFollowMe() {
     if (followingMe) {
@@ -42,7 +51,7 @@ function UserPresence() {
       <AvatarGroup size="sm">
         {teamMembers.map((member) => {
           const active = followedMemberId === member.id
-          const currentView = member.viewportSequence?.[remoteViewportIndex[member.id] ?? 0]
+          const currentView = contextFor(member)
           return (
             <Tooltip key={member.id}>
               <TooltipTrigger
@@ -64,10 +73,9 @@ function UserPresence() {
               <TooltipContent side="bottom" className="flex-col items-start gap-0.5">
                 <p className="font-medium">
                   {active ? `Following ${member.name}` : member.name}
+                  {currentView && <span className="font-normal"> · {currentView.label}</span>}
                 </p>
-                {currentView && (
-                  <p className="text-background/70">{currentView.label}</p>
-                )}
+                {currentView?.file && <p className="font-mono text-background/70">{currentView.file}</p>}
               </TooltipContent>
             </Tooltip>
           )
@@ -116,8 +124,7 @@ function UserPresence() {
           <div className="flex flex-col gap-0.5 p-1.5">
             {teamMembers.map((member) => {
               const active = followedMemberId === member.id
-              const currentView =
-                member.viewportSequence?.[remoteViewportIndex[member.id] ?? 0]
+              const currentView = contextFor(member)
               return (
                 <button
                   key={member.id}
@@ -138,9 +145,12 @@ function UserPresence() {
                   </Avatar>
                   <span className="min-w-0 flex-1">
                     <div className="text-sm font-medium">{member.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className="truncate text-xs text-muted-foreground" title={currentView?.label}>
                       {currentView?.label ?? member.role}
                     </div>
+                    {currentView?.file && (
+                      <div className="truncate font-mono text-[10.5px] text-muted-foreground/70">{currentView.file}</div>
+                    )}
                   </span>
                   {active && (
                     <span className="shrink-0 text-[10px] font-medium text-primary">
@@ -151,6 +161,9 @@ function UserPresence() {
               )
             })}
           </div>
+          <p className="border-t px-3 py-2 text-[10.5px] text-muted-foreground">
+            Teammate activity is simulated in this prototype.
+          </p>
         </PopoverContent>
       </Popover>
     </div>

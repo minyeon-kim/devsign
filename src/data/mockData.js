@@ -24,7 +24,10 @@ export const currentUser = {
 // `viewportSequence` is the mock "what am I looking at" timeline used by the
 // Follow Me interaction — WorkspaceProvider cycles each member through their
 // sequence on a timer, and if you're following that member, your own
-// activeFileId/selectedLayerId are mirrored to match theirs.
+// activeFileId/selectedLayerId are mirrored to match theirs. Each entry says
+// what they're doing (`status`) to which file / element. It's simulated
+// collaboration data, not a live connection. `projectViewportSequences`
+// overrides it for projects with their own content (see below).
 export const teamMembers = [
   {
     id: 'james',
@@ -36,31 +39,58 @@ export const teamMembers = [
     email: 'james@devsign.app',
     online: true,
     viewportSequence: [
-      { fileId: 'app', layerId: 'primary-button', label: 'Reviewing the Continue button spacing' },
-      { fileId: 'theme', layerId: null, label: 'Tweaking the accent color token' },
-      { fileId: 'app', layerId: 'hero-card', label: 'Inspecting the hero card layout' },
+      { fileId: 'app', layerId: 'primary-button', status: 'Reviewing', label: 'Reviewing the Continue button spacing' },
+      { fileId: 'theme', layerId: null, status: 'Editing', label: 'Tweaking the accent color token' },
+      { fileId: 'app', layerId: 'hero-card', status: 'Viewing', label: 'Inspecting the hero card layout' },
     ],
   },
   {
     id: 'min',
     name: 'Min',
-    role: 'PM',
+    role: 'Designer',
     initials: 'MI',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
     email: 'min@devsign.app',
     online: true,
     viewportSequence: [
-      { fileId: 'tokens', layerId: null, label: 'Checking the design tokens' },
-      { fileId: 'app', layerId: 'card-title', label: 'Reading the card title copy' },
-      { fileId: 'app', layerId: 'frame-1', label: 'Looking at the mobile frame' },
+      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Checking the design tokens' },
+      { fileId: 'app', layerId: 'card-title', status: 'Editing', label: 'Reading the card title copy' },
+      { fileId: 'app', layerId: 'frame-1', status: 'Viewing', label: 'Looking at the mobile frame' },
     ],
   },
 ]
 
+// Per-project collaboration timelines (same shape as `viewportSequence`),
+// so a teammate's "what they're on" matches that project's own screens and
+// files. Projects without an entry use each member's default sequence.
+export const projectViewportSequences = {
+  'checkout-redesign': {
+    james: [
+      { fileId: 'app', layerId: 'place-order', status: 'Editing', label: 'Editing Place order button in Checkout' },
+      { fileId: 'tokens', layerId: null, status: 'Editing', label: 'Editing button sizes in tokens.json' },
+      { fileId: 'app', layerId: 'order-summary', status: 'Reviewing', label: 'Reviewing Order summary in Checkout' },
+    ],
+    min: [
+      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Reviewing color tokens in tokens.json' },
+      { fileId: 'app', layerId: 'order-summary', status: 'Editing', label: 'Editing Order summary card in Checkout' },
+      { fileId: 'app', layerId: 'frame-checkout', status: 'Viewing', label: 'Viewing the Checkout payment screen' },
+    ],
+  },
+}
+
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
 export const allPeople = [currentUser, ...teamMembers]
+
+// Project-scoped seed data: when a list has entries tagged with this
+// project's id, the project uses those only (its own consistent scenario);
+// otherwise it falls back to the untagged, shared entries. Used for canvas
+// pages, Merge Studio items and AI edit scenarios.
+export function forProject(list, projectId) {
+  const own = list.filter((x) => x.projectId === projectId)
+  return own.length ? own : list.filter((x) => !x.projectId)
+}
 
 // Backs the Team page's "Teams" column — which team(s) each person belongs
 // to, distinct from the project membership below. `memberIds` resolve
@@ -81,16 +111,13 @@ export const projects = [
   {
     id: 'checkout-redesign',
     name: 'Checkout Redesign',
-    description: 'New multi-step checkout flow with saved payment methods.',
+    description: 'Multi-step checkout with saved payment methods — aligning the payment step and its Place order button with the design system.',
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'james', 'min'],
     updatedAtLabel: '2h ago',
-    conflicts: 2,
-    pendingMerges: 1,
     filesCount: 3,
     thumbnailType: 'checkout',
     activityCount: 12,
-    syncProgress: 72,
   },
   {
     id: 'design-system-v2',
@@ -99,12 +126,9 @@ export const projects = [
     ownerId: 'james',
     memberIds: ['james', currentUser.id],
     updatedAtLabel: 'Yesterday',
-    conflicts: 3,
-    pendingMerges: 1,
     filesCount: 12,
     thumbnailType: 'design-system',
     activityCount: 9,
-    syncProgress: 61,
   },
   {
     id: 'onboarding-flow',
@@ -113,12 +137,9 @@ export const projects = [
     ownerId: 'min',
     memberIds: ['min', currentUser.id, 'james'],
     updatedAtLabel: '3 days ago',
-    conflicts: 1,
-    pendingMerges: 0,
     filesCount: 5,
     thumbnailType: 'onboarding',
     activityCount: 8,
-    syncProgress: 88,
   },
   {
     id: 'mobile-nav-revamp',
@@ -127,12 +148,9 @@ export const projects = [
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'min'],
     updatedAtLabel: '1 week ago',
-    conflicts: 1,
-    pendingMerges: 1,
     filesCount: 4,
     thumbnailType: 'mobile-nav',
     activityCount: 6,
-    syncProgress: 84,
   },
   {
     id: 'marketing-site-refresh',
@@ -141,12 +159,9 @@ export const projects = [
     ownerId: 'james',
     memberIds: ['james'],
     updatedAtLabel: '2 weeks ago',
-    conflicts: 0,
-    pendingMerges: 0,
     filesCount: 6,
     thumbnailType: 'marketing',
     activityCount: 4,
-    syncProgress: 100,
   },
 ]
 
@@ -171,6 +186,11 @@ export const conflictChecklist = [
     timestamp: '2h ago',
     resolved: false,
     severity: 'medium',
+    riskReason: 'Medium: the shared Button component — a height change reaches every screen that uses it.',
+    impact: { components: ['Button'], files: ['src/components/ui/Button.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Buttons render 4px shorter than the design system’s medium size.',
+    preview: { kind: 'button', label: 'Continue', before: { height: 36, background: '#6366f1' }, after: { height: 40, background: '#6366f1' } },
     message: 'Button height in code (36px) drifts from the design system token (40px).',
     branches: { local: 'Button.jsx', remote: 'Button · Size/MD (Figma)' },
     suggestion: 'Swap the hard-coded h-9 for the size token so the button follows the design system height.',
@@ -192,11 +212,14 @@ export const conflictChecklist = [
     id: 'cc-2',
     token: 'Merge conflict · DesignCanvas.jsx',
     file: 'src/components/DesignCanvas.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
+    projectId: 'design-system-v2',
+    projectName: 'Design System v2',
     timestamp: '4h ago',
     resolved: true,
     severity: 'high',
+    riskReason: 'High: a merge conflict — both branches edited the same lines, so one side’s change could be lost.',
+    impact: { components: ['DesignCanvas'], files: ['src/components/DesignCanvas.jsx'] },
+    uxNote: 'Without the merged version, frames either lose their selection handler or their stable key.',
     message: 'Merge conflict between local and remote branch (lines 9-14).',
     branches: { local: 'feature/canvas-frames', remote: 'main' },
     linkedCommentId: 'comment-1',
@@ -231,6 +254,11 @@ export const conflictChecklist = [
     timestamp: 'Yesterday',
     resolved: false,
     severity: 'low',
+    riskReason: 'Low: a corner radius on the Card container; no layout or behavior change.',
+    impact: { components: ['Card'], files: ['src/components/ui/Card.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Cards look slightly sharper than the rest of the design system.',
+    preview: { kind: 'card', before: { radius: 8 }, after: { radius: 12 } },
     message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
     branches: { local: 'Card.jsx', remote: 'Card · Default (Figma)' },
     suggestion: 'Use the radius-lg token on the card container instead of rounded-lg.',
@@ -253,6 +281,11 @@ export const conflictChecklist = [
     timestamp: 'Yesterday',
     resolved: false,
     severity: 'medium',
+    riskReason: 'Medium: the tab bar icons appear on every mobile screen.',
+    impact: { components: ['BottomNav'], files: ['src/components/nav/BottomNav.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.',
+    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
     message: 'Nav icons render at 20px in code but 24px in the redesigned nav frame.',
     branches: { local: 'BottomNav.jsx', remote: 'Nav · Tab bar (Figma)' },
     suggestion: 'Bump the nav icon size to 24px and keep the 44px hit area.',
@@ -279,6 +312,11 @@ export const conflictChecklist = [
     timestamp: '2 days ago',
     resolved: true,
     severity: 'low',
+    riskReason: 'Low: one color token value; components keep reading the same token.',
+    impact: { files: ['src/styles/tokens.css'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'The primary color is a slightly different shade from the brand color.',
+    preview: { kind: 'swatch', before: { color: '#5B5BD6' }, after: { color: '#5E6AD2' } },
     message: 'Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).',
     branches: { local: 'tokens.css', remote: 'Color · Primary (Figma)' },
     suggestion: 'Point --primary at the brand token instead of the hard-coded hex.',
@@ -301,6 +339,10 @@ export const conflictChecklist = [
     timestamp: '3 days ago',
     resolved: true,
     severity: 'low',
+    riskReason: 'Low: 2px of horizontal padding inside the Input component.',
+    impact: { components: ['Input'], files: ['src/components/ui/Input.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Input text sits 2px closer to the edge than in the design.',
     message: 'Input horizontal padding (10px) differs from the design system (12px).',
     branches: { local: 'Input.jsx', remote: 'Input · Default (Figma)' },
     linkedCommentId: 'comment-2',
@@ -324,6 +366,10 @@ export const conflictChecklist = [
     timestamp: '4 days ago',
     resolved: true,
     severity: 'medium',
+    riskReason: 'Medium: form spacing on the checkout — visible, but no behavior change.',
+    impact: { screens: ['Checkout · Payment step'], components: ['CheckoutForm'], files: ['src/components/checkout/CheckoutForm.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Form fields sit 2px closer together than the 8px spacing scale.',
     message: 'Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.',
     branches: { local: 'CheckoutForm.jsx', remote: 'Checkout · Form (Figma)' },
     suggestion: 'Replace gap-1.5 with gap-2 so the form sits on the 8px scale.',
@@ -350,6 +396,18 @@ export const conflictChecklist = [
     timestamp: '2 hours ago',
     resolved: false,
     severity: 'low',
+    riskReason: 'Low: a divider color on the order summary; no layout or behavior change.',
+    impact: { screens: ['Checkout · Payment step'], components: ['OrderSummary'], files: ['src/components/checkout/OrderSummary.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'The fixed color will not follow theme changes.',
+    // The border token's light / dark values come from this project's tokens.json.
+    preview: {
+      kind: 'divider',
+      themes: [
+        { label: 'Light theme', surface: '#ffffff', before: '#e2e8f0', after: '#e4e4e7' },
+        { label: 'Dark theme', surface: '#18181b', before: '#e2e8f0', after: '#27272a' },
+      ],
+    },
     message: 'The order summary divider uses slate-200 instead of the border token.',
     branches: { local: 'OrderSummary.jsx', remote: 'Checkout · Summary (Figma)' },
     suggestion: 'Use border-border on the divider so it follows the theme.',
@@ -370,6 +428,12 @@ export const conflictChecklist = [
     timestamp: '3 hours ago',
     resolved: false,
     severity: 'low',
+    riskReason: 'Low: letter spacing on payment field labels; no layout or behavior change.',
+    impact: { screens: ['Checkout · Payment step'], components: ['PaymentForm'], files: ['src/components/checkout/PaymentForm.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Field labels read slightly wider-spaced than the rest of the form.',
+    preview: { kind: 'text', label: 'Card number', before: { letterSpacing: '0.025em' }, after: { letterSpacing: 'normal' } },
+    layerId: 'payment-label',
     message: 'Field labels use tracking-wide; the design system label style has normal tracking.',
     branches: { local: 'PaymentForm.jsx', remote: 'Checkout · Payment (Figma)' },
     suggestion: 'Drop tracking-wide from the field labels.',
@@ -390,6 +454,11 @@ export const conflictChecklist = [
     timestamp: 'Yesterday',
     resolved: false,
     severity: 'low',
+    riskReason: 'Low: icon stroke weight on the shipping options; no layout or behavior change.',
+    impact: { screens: ['Checkout · Shipping step'], components: ['ShippingOptions'], files: ['src/components/checkout/ShippingOptions.jsx'] },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote: 'Shipping icons look heavier than the rest of the icon set.',
+    preview: { kind: 'icon', before: { size: 16, stroke: 2.5 }, after: { size: 16, stroke: 2 } },
     message: 'Shipping option icons render at stroke 2.5; the icon set is drawn at 2.',
     branches: { local: 'ShippingOptions.jsx', remote: 'Checkout · Shipping (Figma)' },
     suggestion: 'Use the default stroke width on the shipping icons.',
@@ -401,29 +470,70 @@ export const conflictChecklist = [
       after: ['<Truck className="size-4" />'],
     },
   },
+  // The representative end-to-end scenario: the Checkout payment step's
+  // Place order button. Every surface (Dashboard queue, Workspace file +
+  // canvas, Conflict Point, Merge Studio item, AI scenario, History,
+  // activity) points at this one change.
   {
     id: 'cc-11',
-    token: 'Button / Height',
+    token: 'Place order button · Height & color',
     file: 'src/components/checkout/PlaceOrderButton.jsx',
     projectId: 'checkout-redesign',
     projectName: 'Checkout Redesign',
-    timestamp: 'Yesterday',
+    timestamp: 'Yesterday, 5:20 PM',
     resolved: false,
     severity: 'medium',
-    message: 'The Place order button is 40px tall; the design system primary button is 44px.',
-    branches: { local: 'PlaceOrderButton.jsx', remote: 'Checkout · CTA (Figma)' },
-    suggestion: 'Use the lg button size so the CTA is 44px tall.',
-    previewPrompt: 'Match the place order button height to the design system',
+    message:
+      'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.',
+    riskReason:
+      'Medium: a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.',
+    impact: {
+      screens: ['Checkout · Payment step'],
+      components: ['PlaceOrderButton'],
+      files: ['src/components/checkout/PlaceOrderButton.jsx'],
+    },
+    // Who made the change under review (the code as it is now) and what
+    // flagged it.
+    changedBy: { type: 'person', id: 'james', what: 'Implemented the button in PlaceOrderButton.jsx' },
+    detectedBy: 'Devsign design ↔ code sync',
+    uxNote:
+      'The button is 4px shorter than the design’s large button, and its fixed violet color won’t follow theme changes.',
+    branches: { local: 'PlaceOrderButton.jsx', remote: 'Checkout · Payment step (Figma)' },
+    suggestion: 'Use the lg button size and remove the fixed background so the button uses the primary color token.',
+    suggestionReason: 'The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.',
+    // Only references that exist in this project (its tokens.json).
+    references: [
+      { kind: 'token', label: 'button.height.lg = 44', source: 'src/design/tokens.json' },
+      { kind: 'token', label: 'color.primary', source: 'src/design/tokens.json' },
+    ],
+    expectedResult: 'Place order renders 44px tall in the primary color on the payment step.',
+    previewPrompt: 'Make the Place order button match the checkout design',
     reviewStage: 'in_review',
     reviewers: [
-      { id: 'jane', status: 'approved' },
-      { id: 'james', status: 'pending' },
+      { id: 'jane', status: 'pending' },
+      { id: 'min', status: 'pending' },
     ],
-    comparisonFields: [{ label: 'Height', expected: '44px (size lg)', current: '40px (size default)' }],
-    diff: {
-      before: ['<Button className="w-full">Place order</Button>'],
-      after: ['<Button size="lg" className="w-full">Place order</Button>'],
+    comparisonFields: [
+      { label: 'Height', expected: '44px (button.height.lg)', current: '40px (default size)' },
+      { label: 'Background', expected: 'color.primary (Indigo 500)', current: '#7c3aed (fixed hex)' },
+    ],
+    // What the change looks like, rendered in the Conflict Point Overview.
+    preview: {
+      kind: 'button',
+      label: 'Place order',
+      before: { height: 40, background: '#7c3aed' },
+      after: { height: 44, background: '#6366f1' },
     },
+    diff: {
+      before: ['    <Button className="w-full bg-[#7c3aed]" disabled={isSubmitting} onClick={placeOrder}>'],
+      after: ['    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>'],
+    },
+    // Where it lives in the project's Workspace and Merge Studio.
+    fileId: 'app',
+    line: 8,
+    layerId: 'place-order',
+    mergeItemId: 'merge-checkout-cta',
+    mergeTitle: 'Merged Place order button size and color',
   },
 ]
 
@@ -461,45 +571,94 @@ export const mergeSchedule = [
 // 'comment' | 'file' | 'mention'. `dateGroup` buckets rows into the
 // page's "Today / Yesterday / <date>" sections.
 export const activities = [
+  // Checkout Redesign — the Place order scenario (Conflict Point cc-11).
   {
-    id: 'activity-1',
-    type: 'changes',
-    actorId: currentUser.id,
-    actorName: 'Jisoo',
-    actorInitials: 'JI',
-    actorColorClass: 'bg-rose-500',
-    action: 'pushed new changes',
-    target: 'Checkout / Payment',
+    id: 'activity-co-3',
+    type: 'conflict',
+    actorId: 'james',
+    actorName: 'James',
+    actorInitials: 'JD',
+    actorColorClass: 'bg-sky-500',
+    action: 'requested your review on',
+    target: 'Place order button · Height & color',
+    conflictId: 'cc-11',
+    projectId: 'checkout-redesign',
+    timestamp: '8m ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-co-4',
+    type: 'comment',
+    actorId: 'min',
+    actorName: 'Min',
+    actorInitials: 'MI',
+    actorColorClass: 'bg-emerald-500',
+    action: 'commented on',
+    target: 'Label / Letter spacing',
+    conflictId: 'cc-9',
+    projectId: 'checkout-redesign',
+    timestamp: '35m ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-co-5',
+    type: 'conflict',
+    actorName: 'Devsign',
+    actorInitials: 'DV',
+    actorColorClass: 'bg-violet-500',
+    action: 'flagged a design ↔ code difference on',
+    target: 'Divider / Color',
+    conflictId: 'cc-8',
     projectId: 'checkout-redesign',
     timestamp: '2h ago',
     dateGroup: 'today',
     thumbnailTypes: ['checkout'],
   },
   {
+    id: 'activity-co-2',
+    type: 'conflict',
+    actorName: 'Devsign',
+    actorInitials: 'DV',
+    actorColorClass: 'bg-violet-500',
+    action: 'flagged a design ↔ code difference on',
+    target: 'Place order button · Height & color',
+    conflictId: 'cc-11',
+    projectId: 'checkout-redesign',
+    timestamp: 'Yesterday, 5:20 PM',
+    dateGroup: 'yesterday',
+    thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-co-1',
+    type: 'changes',
+    actorId: 'james',
+    actorName: 'James',
+    actorInitials: 'JD',
+    actorColorClass: 'bg-sky-500',
+    action: 'changed the Place order button background in',
+    target: 'PlaceOrderButton.jsx',
+    projectId: 'checkout-redesign',
+    timestamp: 'Yesterday, 5:02 PM',
+    dateGroup: 'yesterday',
+    thumbnailTypes: ['checkout'],
+  },
+  // Other projects.
+  {
     id: 'activity-2',
     type: 'conflict',
-    actorName: 'Alex',
-    actorInitials: 'AL',
-    actorColorClass: 'bg-amber-500',
-    action: 'resolved a conflict',
-    target: 'Mobile Nav',
+    actorId: 'min',
+    actorName: 'Min',
+    actorInitials: 'MI',
+    actorColorClass: 'bg-emerald-500',
+    action: 'approved',
+    target: 'Nav Icon / Size',
+    conflictId: 'cc-4',
     projectId: 'mobile-nav-revamp',
     timestamp: '4h ago',
     dateGroup: 'today',
     thumbnailTypes: ['mobile-nav'],
-  },
-  {
-    id: 'activity-5',
-    type: 'file',
-    actorName: 'Minji',
-    actorInitials: 'MJ',
-    actorColorClass: 'bg-emerald-500',
-    action: 'added a new file',
-    target: 'Onboarding Flow',
-    projectId: 'onboarding-flow',
-    timestamp: '6h ago',
-    dateGroup: 'today',
-    thumbnailTypes: ['onboarding'],
   },
   {
     id: 'activity-3',
@@ -507,25 +666,13 @@ export const activities = [
     actorName: 'Devsign',
     actorInitials: 'DV',
     actorColorClass: 'bg-violet-500',
-    action: 'Merge completed',
-    target: 'Design System v2',
+    action: 'merged',
+    target: 'Input / Padding',
+    conflictId: 'cc-6',
     projectId: 'design-system-v2',
     timestamp: '8h ago',
     dateGroup: 'today',
     thumbnailTypes: ['design-system'],
-  },
-  {
-    id: 'activity-6',
-    type: 'comment',
-    actorName: 'James',
-    actorInitials: 'JD',
-    actorColorClass: 'bg-sky-500',
-    action: 'commented on a conflict',
-    target: 'Checkout / Payment',
-    projectId: 'checkout-redesign',
-    timestamp: 'Yesterday, 4:10 PM',
-    dateGroup: 'yesterday',
-    thumbnailTypes: ['checkout'],
   },
   {
     id: 'activity-7',
@@ -534,20 +681,35 @@ export const activities = [
     actorName: 'Jane',
     actorInitials: 'JA',
     actorColorClass: 'bg-indigo-500',
-    action: 'pushed new changes',
-    target: 'Design System v2',
+    action: 'pushed new changes to',
+    target: 'Button.jsx',
     projectId: 'design-system-v2',
     timestamp: 'Yesterday, 11:02 AM',
     dateGroup: 'yesterday',
-    thumbnailTypes: ['design-system', 'checkout'],
+    thumbnailTypes: ['design-system'],
+  },
+  {
+    id: 'activity-5',
+    type: 'file',
+    actorId: 'min',
+    actorName: 'Min',
+    actorInitials: 'MI',
+    actorColorClass: 'bg-emerald-500',
+    action: 'added a new file to',
+    target: 'Onboarding Flow',
+    projectId: 'onboarding-flow',
+    timestamp: '2 days ago',
+    dateGroup: 'older',
+    thumbnailTypes: ['onboarding'],
   },
   {
     id: 'activity-8',
     type: 'mention',
-    actorName: 'Min',
-    actorInitials: 'MI',
-    actorColorClass: 'bg-emerald-500',
-    action: 'mentioned you in a comment',
+    actorId: 'james',
+    actorName: 'James',
+    actorInitials: 'JD',
+    actorColorClass: 'bg-sky-500',
+    action: 'mentioned you in a comment on',
     target: 'Marketing Site Refresh',
     projectId: 'marketing-site-refresh',
     timestamp: '3 days ago',
@@ -557,28 +719,16 @@ export const activities = [
   {
     id: 'activity-9',
     type: 'conflict',
-    actorName: 'Alex',
-    actorInitials: 'AL',
-    actorColorClass: 'bg-amber-500',
-    action: 'flagged a new conflict',
-    target: 'Design System v2',
+    actorName: 'Devsign',
+    actorInitials: 'DV',
+    actorColorClass: 'bg-violet-500',
+    action: 'flagged a design ↔ code difference on',
+    target: 'Card / Radius',
+    conflictId: 'cc-3',
     projectId: 'design-system-v2',
     timestamp: '3 days ago',
     dateGroup: 'older',
     thumbnailTypes: ['design-system'],
-  },
-  {
-    id: 'activity-4',
-    type: 'file',
-    actorName: 'Minji',
-    actorInitials: 'MJ',
-    actorColorClass: 'bg-emerald-500',
-    action: 'added a new file',
-    target: 'Marketing Site Refresh',
-    projectId: 'marketing-site-refresh',
-    timestamp: '1 week ago',
-    dateGroup: 'older',
-    thumbnailTypes: ['marketing'],
   },
 ]
 
@@ -663,6 +813,26 @@ export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
 // separate static preview. `dueBucket` drives the sidebar's due-date filter
 // ('overdue' | 'soon' | 'none'); `dueLabel` is just its display text.
 export const mergeListItems = [
+  // Checkout Redesign's item for Conflict Point cc-11 (Open in Merge Studio
+  // lands here). Original Design = the Checkout design (44px, primary);
+  // Current Implementation = PlaceOrderButton.jsx (40px, fixed violet).
+  {
+    id: 'merge-checkout-cta',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-11',
+    title: 'Place order button',
+    subtitle: '2 files · Design + Code',
+    tag: 'Needs Review',
+    updatedLabel: 'Yesterday',
+    fileIds: ['app', 'tokens'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Medium',
+    dueLabel: 'Due tomorrow',
+    dueBucket: 'soon',
+    assigneeId: 'jane',
+  },
   {
     id: 'merge-flowbank',
     title: 'FlowBank - Homepage',
@@ -729,6 +899,24 @@ export const mergeListItems = [
 // layer's generic token binding (via `inspectorSpecsByType`, keyed by
 // layer.type) plus a generic Keep A / Accept B choice.
 export const designMergeVariants = {
+  'merge-checkout-cta': {
+    layerDiffs: {
+      'place-order': [
+        { id: 'po-size', label: 'Height', optionA: '44px', optionB: '40px' },
+        {
+          id: 'po-accent',
+          label: 'Background',
+          optionA: 'Indigo 500',
+          optionB: 'Violet 500',
+          optionAClass: 'bg-indigo-500',
+          optionBClass: 'bg-violet-500',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'place-order': { fileId: 'app', line: 8, span: 3 },
+    },
+  },
   'merge-flowbank': {
     layerDiffs: {
       'hero-heading': [
@@ -853,6 +1041,10 @@ export const designMergeVariants = {
 // not listed render identically on both sides (no diff coloring); a
 // file/item with no entries just shows a plain, un-highlighted comparison.
 export const codeMergeVariants = {
+  // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
+  'merge-checkout-cta': {
+    app: [{ line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
+  },
   'merge-flowbank': {
     app: [
       {
@@ -1044,7 +1236,66 @@ export const openFiles = [
 // name/path/lines differ per project, giving each one its own files to
 // switch between instead of every project showing an identical file list.
 export const projectFileSets = {
-  'checkout-redesign': openFiles,
+  // The Checkout scenario's own files (same four ids as `openFiles`). Line 8
+  // of PlaceOrderButton.jsx is the line Conflict Point cc-11's diff, the
+  // Merge Studio item and the AI fix all refer to.
+  'checkout-redesign': [
+    {
+      ...openFiles[0],
+      name: 'PlaceOrderButton.jsx',
+      path: 'src/components/checkout/PlaceOrderButton.jsx',
+      lines: [
+        "import { Button } from '@/components/ui/button'",
+        "import { useCheckout } from './useCheckout'",
+        '',
+        'export function PlaceOrderButton() {',
+        '  const { placeOrder, isSubmitting } = useCheckout()',
+        '',
+        '  return (',
+        '    <Button className="w-full bg-[#7c3aed]" disabled={isSubmitting} onClick={placeOrder}>',
+        '      Place order',
+        '    </Button>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'theme.css',
+      path: 'src/styles/theme.css',
+      lines: [
+        '/* Checkout theme — every color reads a token, so light / dark follow */',
+        ':root {',
+        '  --primary: oklch(0.52 0.22 270); /* color.primary · Indigo 500 */',
+        '  --border: #e4e4e7;',
+        '  --radius: 0.625rem;',
+        '}',
+        '',
+        '.dark {',
+        '  --primary: oklch(0.6 0.225 270);',
+        '  --border: #27272a;',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'tokens.json',
+      path: 'src/design/tokens.json',
+      lines: [
+        '{',
+        '  "color": {',
+        '    "primary": "#6366f1",',
+        '    "border": { "light": "#e4e4e7", "dark": "#27272a" }',
+        '  },',
+        '  "button": {',
+        '    "height": { "default": 40, "lg": 44 }',
+        '  },',
+        '  "spacing": [4, 8, 12, 16, 24, 32]',
+        '}',
+      ],
+    },
+    openFiles[3],
+  ],
   'design-system-v2': [
     {
       ...openFiles[0],
@@ -1325,6 +1576,13 @@ export const projectFileSets = {
   ],
 }
 
+// The files a Merge Studio item works on: its project's own file set when
+// it has one (so e.g. Checkout's `app` is PlaceOrderButton.jsx), else the
+// shared default set.
+export function mergeFilesFor(item) {
+  return (item?.projectId && projectFileSets[item.projectId]) || openFiles
+}
+
 export const terminalLogLines = [
   '$ npm run dev',
   '  VITE  ready in 88 ms',
@@ -1445,16 +1703,94 @@ export const initialChatMessages = [
 ]
 
 // Each entry is picked by matching the user's chat message against
-// `keywords` (first match wins, `default` is the fallback). Applying a
+// `keywords` (first match wins) among the project's scenarios (see
+// forProject). No match means no change: the chat says so, and nothing is
+// written or recorded in History. `title` names the change for History
+// (never the chat reply); `changes` / `elements` feed the result summary. Applying a
 // scenario swaps the target file's editor content, nudges the mock preview
 // props, streams terminal/HMR log lines, and optionally sends a Conflict
 // Point back to review (`resolvesConflictId`: the fix that conflict's
 // resolve applies) or raises one — this is what powers the AI chat -> editor ->
 // preview -> terminal sync flow.
 export const aiEditScenarios = [
+  // Checkout Redesign (project-scoped, see forProject). The Place order fix
+  // is Conflict Point cc-11's proposed change: applying it here sends cc-11
+  // back to review — it's only merged once its reviewers approve.
+  {
+    id: 'place-order-fix',
+    projectId: 'checkout-redesign',
+    keywords: ['place order', 'order button', 'height', '44', 'match the checkout', 'checkout design', '높이'],
+    title: 'Updated Place order button height and color',
+    reply: 'Updated the Place order button: it now uses the large size (44px) and the primary color token.',
+    target: { fileId: 'app', layerId: 'place-order' },
+    changes: [{ fileId: 'app', line: 8, summary: 'size="lg" and the primary token replace the fixed violet hex' }],
+    elements: ['place-order'],
+    fileId: 'app',
+    lines: [
+      "import { Button } from '@/components/ui/button'",
+      "import { useCheckout } from './useCheckout'",
+      '',
+      'export function PlaceOrderButton() {',
+      '  const { placeOrder, isSubmitting } = useCheckout()',
+      '',
+      '  return (',
+      '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>',
+      '      Place order',
+      '    </Button>',
+      '  )',
+      '}',
+    ],
+    terminalLines: [
+      '$ ai apply-patch PlaceOrderButton.jsx',
+      '  - className="w-full bg-[#7c3aed]"',
+      '  + size="lg" className="w-full"',
+      '[HMR] PlaceOrderButton.jsx updated',
+      '✓ build succeeded in 112ms',
+    ],
+    resolvesConflictId: 'cc-11',
+  },
+  // A request wider than what's in this workspace: only the part that can
+  // be changed is changed, and the result says so (partial).
+  {
+    id: 'all-checkout-buttons',
+    projectId: 'checkout-redesign',
+    keywords: ['all buttons', 'every button', 'all checkout buttons', '모든 버튼'],
+    title: 'Updated Place order button height and color',
+    reply: 'Updated the Place order button. The other checkout buttons are in files that aren’t in this workspace, so they weren’t changed.',
+    partialNote: 'Other checkout buttons live in files that aren’t in this workspace.',
+    target: { fileId: 'app' },
+    changes: [{ fileId: 'app', line: 8, summary: 'size="lg" and the primary token replace the fixed violet hex' }],
+    elements: ['place-order'],
+    fileId: 'app',
+    lines: [
+      "import { Button } from '@/components/ui/button'",
+      "import { useCheckout } from './useCheckout'",
+      '',
+      'export function PlaceOrderButton() {',
+      '  const { placeOrder, isSubmitting } = useCheckout()',
+      '',
+      '  return (',
+      '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>',
+      '      Place order',
+      '    </Button>',
+      '  )',
+      '}',
+    ],
+    terminalLines: [
+      '$ ai apply-patch PlaceOrderButton.jsx',
+      '  + size="lg" className="w-full"',
+      '[HMR] PlaceOrderButton.jsx updated',
+      '! 3 other button files not in this workspace — skipped',
+    ],
+    resolvesConflictId: 'cc-11',
+  },
   {
     id: 'padding-fix',
     keywords: ['padding', '패딩', 'spacing', '간격'],
+    title: 'Updated Continue button padding',
+    target: { fileId: 'app', layerId: 'primary-button' },
+    changes: [{ fileId: 'app', line: 17, summary: 'Button padding set to 12px 24px (px-6 py-3)' }],
+    elements: ['primary-button'],
     reply:
       "Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.",
     fileId: 'app',
@@ -1492,6 +1828,10 @@ export const aiEditScenarios = [
   {
     id: 'button-color',
     keywords: ['color', 'colour', '색상', 'accent', 'blue', '파랑', 'sky'],
+    title: 'Changed primary button color to sky',
+    target: { fileId: 'theme' },
+    changes: [{ fileId: 'theme', line: 14, summary: 'Primary button background set to the sky accent' }],
+    elements: [],
     reply: 'Swapped the primary button to the sky accent token in theme.css.',
     fileId: 'theme',
     lines: [
@@ -1520,39 +1860,6 @@ export const aiEditScenarios = [
       '✓ build succeeded in 96ms',
     ],
     previewProps: { buttonColor: 'sky' },
-  },
-  {
-    id: 'default',
-    keywords: [],
-    reply: "Got it — syncing the canvas, editor and preview now.",
-    fileId: 'app',
-    lines: [
-      "import { useState } from 'react'",
-      "import { Button } from '@/components/ui/button'",
-      '',
-      '// AI sync: canvas, editor and preview are now aligned',
-      'export function DesignCanvas({ frames }) {',
-      '  const [selected, setSelected] = useState(null)',
-      '',
-      '  return (',
-      '    <section className="canvas-root">',
-      '      {frames.map((frame) => (',
-      '        <Frame',
-      '          key={frame.id}',
-      '          data={frame}',
-      '          onSelect={() => setSelected(frame.id)}',
-      '        />',
-      '      ))}',
-      '      <Button onClick={() => setSelected(null)}>Deselect</Button>',
-      '    </section>',
-      '  )',
-      '}',
-    ],
-    terminalLines: [
-      '$ ai sync',
-      '[HMR] DesignCanvas.jsx updated',
-      '✓ build succeeded in 84ms',
-    ],
   },
 ]
 
@@ -1651,6 +1958,46 @@ export const canvasPages = [
           { id: 'feature-card-1', name: 'Feature Card 1', kind: 'component', type: 'card', x: 40, y: 312, width: 124, height: 84 },
           { id: 'feature-card-2', name: 'Feature Card 2', kind: 'component', type: 'card', x: 178, y: 312, width: 124, height: 84 },
           { id: 'feature-card-3', name: 'Feature Card 3', kind: 'component', type: 'card', x: 316, y: 312, width: 124, height: 84 },
+        ],
+      },
+    ],
+  },
+  // Checkout Redesign's own design page (see pagesForProject): the payment
+  // step with the Place order button (Conflict Point cc-11). The design
+  // uses the 44px large button; the code currently renders 40px.
+  {
+    id: 'page-checkout',
+    name: 'Checkout',
+    projectId: 'checkout-redesign',
+    frames: [
+      {
+        id: 'frame-checkout',
+        name: 'Checkout - Payment step',
+        kind: 'frame',
+        x: 80,
+        y: 40,
+        width: 280,
+        height: 560,
+        layers: [
+          { id: 'co-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24 },
+          { id: 'co-title', name: 'Title', kind: 'text', type: 'text', x: 20, y: 40, width: 140, height: 18 },
+          { id: 'co-step', name: 'Step', kind: 'text', type: 'text', x: 20, y: 66, width: 180, height: 10 },
+          { id: 'order-summary', name: 'Order summary', kind: 'component', type: 'card', x: 20, y: 90, width: 240, height: 112 },
+          { id: 'payment-label', name: 'Card number label', kind: 'text', type: 'text', x: 20, y: 224, width: 120, height: 10 },
+          { id: 'card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 240, width: 240, height: 40, label: '1234 5678 9012 3456' },
+          { id: 'shipping-label', name: 'Shipping option', kind: 'text', type: 'text', x: 20, y: 300, width: 200, height: 10 },
+          { id: 'total-text', name: 'Total', kind: 'text', type: 'text', x: 20, y: 468, width: 160, height: 14 },
+          {
+            id: 'place-order',
+            name: 'Place order button',
+            kind: 'component',
+            type: 'button',
+            x: 20,
+            y: 494,
+            width: 240,
+            height: 44,
+            label: 'Place order',
+          },
         ],
       },
     ],
@@ -1840,6 +2187,20 @@ export const comments = [
 // Suggested prompt chips shown above the "Ask Devsign" chat input.
 export const chatSuggestions = [
   {
+    id: 'co-match',
+    projectId: 'checkout-redesign',
+    label: 'Match Place order to design',
+    prompt: 'Make the Place order button match the checkout design',
+    iconName: 'Sparkles',
+  },
+  {
+    id: 'co-explain',
+    projectId: 'checkout-redesign',
+    label: 'Explain',
+    prompt: 'Explain what this component currently does.',
+    iconName: 'MessageCircle',
+  },
+  {
     id: 'explain',
     label: 'Explain',
     prompt: 'Explain what this component currently does.',
@@ -1866,6 +2227,63 @@ export const aiModels = ['Opus 5', 'Sonnet 5 High', 'Sonnet 5', 'Haiku 4.5']
 // prompts/work sessions, each carrying a full workspace snapshot. Clicking
 // one in the UI restores that snapshot (editor + preview + conflicts).
 // Further entries are appended at runtime as the user chats with the AI.
+// Per-project History seeds (same shape as initialHistoryEntries below);
+// projects without an entry use initialHistoryEntries. Titles describe the
+// change itself; `actorId` / `target` / `kind` feed the History detail.
+const checkoutButtonLines = (className) => [
+  "import { Button } from '@/components/ui/button'",
+  "import { useCheckout } from './useCheckout'",
+  '',
+  'export function PlaceOrderButton() {',
+  '  const { placeOrder, isSubmitting } = useCheckout()',
+  '',
+  '  return (',
+  `    <Button className="${className}" disabled={isSubmitting} onClick={placeOrder}>`,
+  '      Place order',
+  '    </Button>',
+  '  )',
+  '}',
+]
+
+export const projectHistorySeeds = {
+  'checkout-redesign': [
+    {
+      id: 'history-co-1',
+      label: 'Added Place order button',
+      kind: 'edit',
+      actorId: 'james',
+      target: 'PlaceOrderButton.jsx',
+      timestamp: 'Mon, 2:10 PM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: checkoutButtonLines('w-full'),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    {
+      id: 'history-co-2',
+      label: 'Changed Place order button background to #7c3aed',
+      kind: 'edit',
+      actorId: 'james',
+      target: 'PlaceOrderButton.jsx · line 8',
+      timestamp: 'Yesterday, 5:02 PM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: checkoutButtonLines('w-full bg-[#7c3aed]'),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+  ],
+}
+
 export const initialHistoryEntries = [
   {
     id: 'history-seed-1',
@@ -2390,10 +2808,10 @@ export const conflictNotifications = [
     projectId: 'checkout-redesign',
     kind: 'approval',
     authorId: 'james',
-    text: 'requested your approval on Button / Height',
+    text: 'requested your review on Place order button · Height & color',
     timeLabel: '8m ago',
     unread: true,
-    target: { conflictId: 'cc-11', label: 'Button / Height' },
+    target: { conflictId: 'cc-11', label: 'Place order button · Height & color' },
   },
   {
     id: 'n-cc-9',

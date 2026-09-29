@@ -1,13 +1,13 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Blocks } from 'lucide-react'
+import { ArrowLeft, Blocks } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
-import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
-import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
+import { ASSEMBLY_FILLS, diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
@@ -100,6 +100,7 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio,
     openConflictReview,
     setBottomPanel,
+    mergeDrafts,
   } = useWorkspace()
   const [historyEvents, setHistoryEvents] = useState(mergeHistoryEvents)
   const [currentHistoryId, setCurrentHistoryId] = useState(mergeHistoryEvents[0].id)
@@ -115,6 +116,18 @@ function MergeStudioWorkspace({ item }) {
   // shadow, alignment, icon), previewed live on Option B and bundled into the
   // merge wizard.
   const [assemblies, setAssemblies] = useState({})
+  // Where each Assemble field came from, recorded by the action that wrote
+  // it (never inferred from values): { [layerId]: { [field]: source } }
+  // with source { kind: 'custom' } for direct edits, or { kind:
+  // 'designSystem', component?, token?, tokens? } for Library components
+  // and design-system fill tokens. Preview's Final column reads it.
+  const [assemblySources, setAssemblySources] = useState({})
+  // Preview's per-item review marks: { [driftId]: signature at review time }.
+  // Lives here (not in the wizard, which remounts per open) so reviews
+  // survive a round trip to Assemble; see finalValues.reviewStatus.
+  const [reviewMarks, setReviewMarks] = useState({})
+  // Asks the Block Deck to switch tabs (e.g. Preview's "Edit in Assemble").
+  const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState([])
   const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
@@ -139,17 +152,34 @@ function MergeStudioWorkspace({ item }) {
   const [listFocus, setListFocus] = useState(null)
   const deferredLive = useDeferredValue(liveCode)
 
+  // Unmerged edits are kept per item (in the project's WorkspaceProvider),
+  // so switching items, going back to the Workspace or arriving from a
+  // Conflict Point's "Open in Merge Studio" picks up where you left off.
+  const draftRef = useRef(null)
+  draftRef.current = { resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode }
+  useEffect(() => {
+    const id = item?.id
+    return () => {
+      // The latest edits on purpose (the ref is data, not a DOM node).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (id) mergeDrafts.current[id] = draftRef.current
+    }
+  }, [item?.id, mergeDrafts])
+
   useEffect(() => {
     if (!item) return
+    const draft = mergeDrafts.current[item.id]
     setSyncSelection(null)
     setAppliedPreset(null)
     setDeckOpen(false)
     setMergeModal(null)
-    setResolutions({})
-    setAssemblies({})
-    setAddedLayers([])
+    setResolutions(draft?.resolutions ?? {})
+    setAssemblies(draft?.assemblies ?? {})
+    setAssemblySources(draft?.assemblySources ?? {})
+    setReviewMarks(draft?.reviewMarks ?? {})
+    setAddedLayers(draft?.addedLayers ?? [])
     setHoverDiff(null)
-    setManualCode({})
+    setManualCode(draft?.manualCode ?? {})
     setLiveCode(null)
     setCodeReveal(null)
     // Uniform initialization: every item starts with a default selected element.
@@ -236,8 +266,64 @@ function MergeStudioWorkspace({ item }) {
     setMergeModal({ annotations, step, preset })
   }
 
+  // Preview's "Edit in Assemble": park the wizard (kept, just not shown),
+  // select the element being reviewed, bring it into view and open the
+  // Block Deck on its Assemble tab — every edit so far stays as it is.
+  // `returnToPreview` reopens the wizard on Preview at the same item, with
+  // the latest edits (and review marks) reflected.
+  function editInAssemble({ layerId, driftId }) {
+    setMergeModal((m) => m && { ...m, parked: true, step: 1, returnDriftId: driftId })
+    setWizardStage('preview')
+    setDeckCollapsed(false)
+    setDeckTabRequest({ tab: 'assemble', nonce: Date.now() })
+    requestMergeFocus({ itemId: item.id, layerId, openDeck: true, label: 'Edit in Assemble' })
+  }
+  function returnToPreview() {
+    setMergeModal((m) => m && { ...m, parked: false, step: 1, annotations: annotationsSnap })
+  }
+  const wizardParked = Boolean(mergeModal?.parked)
+
+  function setReviewMark(driftId, signature) {
+    setReviewMarks((prev) => {
+      const next = { ...prev }
+      if (signature == null) delete next[driftId]
+      else next[driftId] = signature
+      return next
+    })
+  }
+
+  // Records the source of each written Assemble field (see assemblySources).
+  function recordSources(layerId, keys, source, { replace = false } = {}) {
+    setAssemblySources((prev) => {
+      const base = replace ? {} : { ...prev[layerId] }
+      for (const k of keys) base[k] = source
+      return { ...prev, [layerId]: base }
+    })
+  }
+  function dropSources(layerId, keys) {
+    setAssemblySources((prev) => {
+      if (!prev[layerId]) return prev
+      const next = { ...prev }
+      if (!keys) delete next[layerId]
+      else {
+        const s = { ...next[layerId] }
+        for (const k of keys) delete s[k]
+        next[layerId] = s
+      }
+      return next
+    })
+  }
+
+  // A direct Assemble edit: every field it writes is the user's own
+  // (`custom`) — except a fill swatch, which applies a design-system token.
   function assemble(layerId, patch) {
     setAssemblies((prev) => ({ ...prev, [layerId]: { ...prev[layerId], ...patch } }))
+    const keys = Object.keys(patch)
+    recordSources(layerId, keys.filter((k) => k !== 'fill'), { kind: 'custom', detail: 'Assemble' })
+    if (patch.fill) {
+      const token = ASSEMBLY_FILLS.find((f) => f.id === patch.fill)?.token
+      recordSources(layerId, ['fill'], token ? { kind: 'designSystem', token } : { kind: 'custom', detail: 'Assemble' })
+    }
   }
 
   function resetAssembly(layerId) {
@@ -246,6 +332,7 @@ function MergeStudioWorkspace({ item }) {
       delete next[layerId]
       return next
     })
+    dropSources(layerId)
   }
 
   // Code window inline edit: `text === null` drops the manual edit.
@@ -311,15 +398,16 @@ function MergeStudioWorkspace({ item }) {
   function applyComponent(def) {
     if (!selectedLayer) return
     // Replace: the layer takes on the component's role, look and size.
-    setAssemblies((prev) => ({
-      ...prev,
-      [selectedLayer.id]: {
-        ...def.assembly,
-        width: Math.min(def.width, Math.max(40, frame0.width - selectedLayer.x - 8)),
-        height: def.height,
-        ...(def.type !== selectedLayer.type && { asType: def.type, asLabel: def.label, asName: def.name }),
-      },
-    }))
+    const next = {
+      ...def.assembly,
+      width: Math.min(def.width, Math.max(40, frame0.width - selectedLayer.x - 8)),
+      height: def.height,
+      ...(def.type !== selectedLayer.type && { asType: def.type, asLabel: def.label, asName: def.name }),
+    }
+    setAssemblies((prev) => ({ ...prev, [selectedLayer.id]: next }))
+    // Every field now comes from this Library component (the assembly is
+    // replaced wholesale), with its real name and token list.
+    recordSources(selectedLayer.id, Object.keys(next), { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
   }
 
   // Insert: drop a component into the selected container element.
@@ -351,6 +439,7 @@ function MergeStudioWorkspace({ item }) {
     }
     setAddedLayers((prev) => [...prev, layer])
     setAssemblies((prev) => ({ ...prev, [layer.id]: { ...def.assembly } }))
+    recordSources(layer.id, Object.keys(def.assembly ?? {}), { kind: 'designSystem', component: def.name, tokens: def.tokens ?? [] }, { replace: true })
     setSyncSelection({ layerId: layer.id })
     setAppliedPreset(null)
   }
@@ -450,13 +539,16 @@ function MergeStudioWorkspace({ item }) {
           const { dx, dy, width, height, ...rest } = a
           return { ...prev, [selLayer.id]: rest }
         })
+        dropSources(selLayer.id, ['dx', 'dy', 'width', 'height'])
       } else {
         setAssemblies((prev) => ({
           ...prev,
           [selLayer.id]: { ...prev[selLayer.id], dx: g.x - selLayer.x, dy: g.y - selLayer.y, width: g.w, height: g.h },
         }))
+        recordSources(selLayer.id, ['dx', 'dy', 'width', 'height'], { kind: 'custom', detail: 'Moved / resized on canvas' })
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selLayer, selIsAdded]
   )
   const deleteAddedLayer = useCallback(() => {
@@ -467,7 +559,9 @@ function MergeStudioWorkspace({ item }) {
       delete next[selId]
       return next
     })
+    dropSources(selId)
     setSyncSelection(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId, selIsAdded])
   const resetSelectedGeom = useCallback(() => {
     setAssemblies((prev) => {
@@ -480,10 +574,12 @@ function MergeStudioWorkspace({ item }) {
       else delete next[selId]
       return next
     })
+    dropSources(selId, ['dx', 'dy', 'width', 'height'])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId])
   const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
   const copy = copyFile(frame0)
-  const files = item ? [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
+  const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)), ...(copy ? [copy] : [])] : []
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
@@ -513,7 +609,7 @@ function MergeStudioWorkspace({ item }) {
   // when centering a jump-to target, so a target being reviewed is never
   // hidden behind it. Takes whichever of the two reserves more, since both
   // dock to the same edge.
-  const wizardReserve = mergeModal ? WIZARD_RESERVE : 0
+  const wizardReserve = mergeModal && !wizardParked ? WIZARD_RESERVE : 0
   const reserve = Math.max(deckReserve, wizardReserve)
   // Committed manual code plus the in-progress keystrokes: what the canvas,
   // Preview and wizard render the Current Implementation from.
@@ -575,21 +671,35 @@ function MergeStudioWorkspace({ item }) {
           merged={item.tag === 'Merged'}
           inReview={item.tag === 'In Review'}
           headerAction={
-            deckOpen && deckCollapsed ? (
-              <button
-                type="button"
-                data-guide="block-deck"
-                onClick={() => setDeckCollapsed(false)}
-                title="Show Block Deck"
-                className={cn(
-                  'flex h-10 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted animate-in fade-in zoom-in-95 duration-200',
-                  FLOATING_PILL
-                )}
-              >
-                <Blocks className="size-4 text-slate-400" />
-                Block Deck
-              </button>
-            ) : null
+            <>
+              {/* While the wizard is parked for "Edit in Assemble": the way
+                  back to Preview, where the latest edits are reflected. */}
+              {wizardParked && (
+                <button
+                  type="button"
+                  onClick={returnToPreview}
+                  className="flex h-10 items-center gap-2 rounded-full bg-emerald-400 pr-4 pl-3 text-[13px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300 animate-in fade-in zoom-in-95 duration-200"
+                >
+                  <ArrowLeft className="size-4" />
+                  Back to Preview
+                </button>
+              )}
+              {deckOpen && deckCollapsed && (
+                <button
+                  type="button"
+                  data-guide="block-deck"
+                  onClick={() => setDeckCollapsed(false)}
+                  title="Show Block Deck"
+                  className={cn(
+                    'flex h-10 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted animate-in fade-in zoom-in-95 duration-200',
+                    FLOATING_PILL
+                  )}
+                >
+                  <Blocks className="size-4 text-slate-400" />
+                  Block Deck
+                </button>
+              )}
+            </>
           }
           stage={mergeModal ? wizardStage : 'compare'}
           assemblies={assemblies}
@@ -673,6 +783,7 @@ function MergeStudioWorkspace({ item }) {
           onDragComponent={(def) => setPlacing({ def, mode: 'drag' })}
           onInsertComponent={insertComponent}
           onApplyPreset={setAppliedPreset}
+          tabRequest={deckTabRequest}
         />
       )}
 
@@ -684,16 +795,21 @@ function MergeStudioWorkspace({ item }) {
         />
       )}
 
-      {item && mergeModal && (
+      {item && mergeModal && !wizardParked && (
         <MergeExecutionModal
           item={item}
           resolutions={resolutions}
           annotations={mergeModal.annotations}
           preset={mergeModal.preset}
           assemblies={assemblies}
+          assemblySources={assemblySources}
           extraLayers={addedLayers}
           manualCode={manualCode}
           onResolveDiff={resolveDiff}
+          reviewMarks={reviewMarks}
+          onSetReviewMark={setReviewMark}
+          onEditInAssemble={editInAssemble}
+          initialDriftId={mergeModal.returnDriftId}
           initialStep={mergeModal.step}
           onStepChange={setWizardStage}
           onClose={() => {
@@ -709,7 +825,7 @@ function MergeStudioWorkspace({ item }) {
 
       {/* The selected canvas element: bounding box handles to move / resize
           (plus delete for Library-added layers, reset for edited ones). */}
-      {selLayer && frame0 && guidesVisible && !placing && !mergeModal && !mergePreviewOpen && (
+      {selLayer && frame0 && guidesVisible && !placing && (!mergeModal || wizardParked) && !mergePreviewOpen && (
         <LayerTransformHandles
           layerId={selLayer.id}
           frame={frame0}

@@ -1,4 +1,4 @@
-import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { ASSEMBLY_FILLS, assemblyToOverride, diffEffect, frameWithLayers, isCustomResolution, mergeOverride, yieldToExact } from '@/components/mergestudio/mergeEffects'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 
@@ -61,7 +61,7 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
     })
   }
 
-  const files = [...openFiles.filter((f) => item.fileIds?.includes(f.id)), ...extraFiles]
+  const files = [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)), ...extraFiles]
     .map((f) => ({
       id: f.id,
       name: f.name,
@@ -110,7 +110,7 @@ export function buildDrifts(item, frame) {
           kind: 'code',
           fileId,
           line: d.line,
-          label: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
+          label: `${mergeFilesFor(item).find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}`,
         }))
     ),
   ]
@@ -174,7 +174,7 @@ export function itemSeverity(item) {
       source: `${layers.find((l) => l.id === layerId)?.name ?? layerId} · ${diffs.length} change${diffs.length === 1 ? '' : 's'}`,
     })),
     ...Object.entries(codeMergeVariants[item.id] ?? {}).flatMap(([fileId, lines]) =>
-      lines.map((d) => ({ level: 'low', source: `${openFiles.find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}` }))
+      lines.map((d) => ({ level: 'low', source: `${mergeFilesFor(item).find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}` }))
     ),
   ]
   if (!candidates.length) return null

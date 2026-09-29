@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import {
   Bell,
+  Bot,
   Check,
   CircleAlert,
   Code2,
   Eye,
   FileCode2,
+  FlaskConical,
   GitBranch,
   GitMerge,
   Info,
@@ -15,6 +17,7 @@ import {
   Send,
   Sparkles,
   TriangleAlert,
+  User,
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
@@ -27,7 +30,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUser } from '@/data/mockData'
-import { REVIEW_STAGES, allReviewersApproved } from '@/lib/conflicts'
+import {
+  REVIEW_STAGES,
+  STAGE_DOT_CLASS,
+  STAGE_LABEL,
+  approvalStatus,
+  needsReviewFrom,
+  nextActionFor,
+} from '@/lib/conflicts'
+import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
 import { toast } from 'sonner'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
@@ -48,18 +59,18 @@ import {
 // project's ConflictReviewHost) with a shared conflict record (see
 // lib/conflicts).
 //
-// It's a step-by-step review, GitHub-PR style: a conflict moves
-// Pending → In Review → Approved → Resolved, and each step is gated on
-// the one before it — you request review once reviewers are assigned,
-// approve only after the code diff has been inspected and every reviewer
-// has signed off, and resolve only once approved. There is deliberately
-// no one-click "resolve" anywhere else.
-//
+// It's a step-by-step review, GitHub-PR style: Detected → In review →
+// Approved → Merged. The Overview explains the change without code — a
+// before/after preview, what changed, why it needs review, who changed it
+// and what it reaches, and the AI's proposal. Your own sign-off ("Approve
+// change") never merges: the conflict becomes Approved once every required
+// reviewer has approved, and merging is a separate, explicit step.
+
 // Visually it's a Merge Studio floating panel: the same opaque card,
 // 20px radius, borderless content on a 20px inset, pill category tabs,
 // sentence-case group labels and the single mint accent. What to do next
-// lives in one place — the "Next step" card at the top of the review
-// column — instead of being split across a checklist and a footer hint.
+// lives in one place — the Status card at the top of the review column
+// and the single primary action in the footer.
 
 const severityConfig = {
   high: { label: 'High', icon: TriangleAlert, className: 'bg-destructive/15 text-destructive' },
@@ -136,11 +147,11 @@ function ComparisonTable({ fields }) {
         <span>Property</span>
         <span className="flex items-center gap-1.5 text-emerald-300/80">
           <Palette className="size-3" />
-          Design system
+          Design
         </span>
         <span className="flex items-center gap-1.5 text-red-300/80">
           <Code2 className="size-3" />
-          Code
+          Code before
         </span>
       </div>
       {fields.map((f) => (
@@ -154,37 +165,169 @@ function ComparisonTable({ fields }) {
   )
 }
 
-function OverviewTab({ conflict, onPreview }) {
+function Section({ label, children }) {
+  return (
+    <div>
+      <p className={PANEL_LABEL}>{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function personName(id) {
+  if (id === currentUser.id) return 'You'
+  return allPeople.find((p) => p.id === id)?.name ?? id
+}
+
+// Who (or which AI) made the change under review, what flagged it, and the
+// screens / components / files it reaches — only what the record knows.
+function Provenance({ conflict }) {
+  const { changedBy, detectedBy, impact } = conflict
+  const impactRows = [
+    ['Screens', impact?.screens],
+    ['Components', impact?.components],
+    ['Files', impact?.files],
+  ].filter(([, list]) => list?.length)
+  if (!changedBy && !detectedBy && !impactRows.length) return null
+
+  return (
+    <div className="grid gap-x-4 gap-y-2 rounded-xl bg-white/[0.03] px-4 py-3 text-xs sm:grid-cols-[96px_1fr]">
+      {changedBy && (
+        <>
+          <span className="text-slate-500">Changed by</span>
+          <span className="text-slate-200">
+            <span className="inline-flex items-center gap-1 font-medium">
+              {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
+              {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id)}
+            </span>
+            {changedBy.what && <span className="text-slate-400"> · {changedBy.what}</span>}
+          </span>
+        </>
+      )}
+      {detectedBy && (
+        <>
+          <span className="text-slate-500">Detected by</span>
+          <span className="text-slate-300">{detectedBy}</span>
+        </>
+      )}
+      {impactRows.map(([label, list]) => (
+        <Fragment key={label}>
+          <span className="text-slate-500">{label}</span>
+          <span className="flex flex-wrap gap-1">
+            {list.map((item) => (
+              <span
+                key={item}
+                className={cn('rounded-md bg-white/[0.05] px-1.5 py-0.5 text-slate-200', label === 'Files' && 'font-mono text-[11px]')}
+              >
+                {item}
+              </span>
+            ))}
+          </span>
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+// The AI's proposal, split into what it proposes, why, what it's based on
+// (only references that exist in the project) and the expected result.
+// Approving signs off on this proposal; nothing is applied until merge.
+function SuggestionCard({ conflict, onViewDiff }) {
+  const rows = [
+    ['Proposal', conflict.suggestion],
+    ['Why', conflict.suggestionReason],
+    ['Expected result', conflict.expectedResult],
+  ].filter(([, text]) => text)
+
+  return (
+    <div className="rounded-xl bg-emerald-400/[0.06] p-4">
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-emerald-300">
+        <Sparkles className="size-3.5" />
+        AI suggestion
+      </p>
+      <dl className="space-y-2.5">
+        {rows.map(([label, text]) => (
+          <div key={label}>
+            <dt className="text-[11px] text-slate-500">{label}</dt>
+            <dd className="mt-0.5 text-[13px] leading-relaxed text-slate-200">{text}</dd>
+          </div>
+        ))}
+        {conflict.references?.length > 0 && (
+          <div>
+            <dt className="text-[11px] text-slate-500">References</dt>
+            <dd className="mt-1 flex flex-wrap gap-1.5">
+              {conflict.references.map((ref) => (
+                <span key={ref.label} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-slate-200">
+                  <span className="font-mono">{ref.label}</span>
+                  {ref.source && <span className="text-slate-500"> · {ref.source}</span>}
+                </span>
+              ))}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        {onViewDiff && (
+          <button
+            type="button"
+            onClick={onViewDiff}
+            className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium', GHOST_BUTTON)}
+          >
+            <Code2 className="size-3.5" />
+            View code diff
+          </button>
+        )}
+        <p className="text-[11px] text-slate-500">Approving signs off on this proposal. It is applied to the code only when merged.</p>
+      </div>
+    </div>
+  )
+}
+
+function OverviewTab({ conflict, onViewDiff }) {
   const fields = conflict.comparisonFields ?? []
 
   return (
     <div className="space-y-5">
+      {conflict.reviewStage === 'resolved' && (
+        <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
+          <Check className="size-3.5" strokeWidth={2.5} />
+          Merged — the code now matches the proposed change. Values below are as they were before the merge.
+        </p>
+      )}
+      {conflict.reviewStage !== 'resolved' && conflict.changedBy?.type === 'ai' && (
+        <p className="flex items-center gap-1.5 rounded-xl bg-sky-400/[0.07] px-4 py-2.5 text-xs text-sky-200">
+          <Bot className="size-3.5 shrink-0" />
+          Devsign AI already made this change in the workspace. It becomes final only when approved and merged.
+        </p>
+      )}
       {conflict.message && <p className="text-[13px] leading-relaxed text-slate-300">{conflict.message}</p>}
 
-      <div>
-        <p className={PANEL_LABEL}>Design vs. code</p>
-        {fields.length ? <ComparisonTable fields={fields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
-      </div>
-
-      {conflict.suggestion && (
-        <div className="rounded-xl bg-emerald-400/[0.06] p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-emerald-300">
-            <Sparkles className="size-3.5" />
-            AI suggestion
-          </p>
-          <p className="text-[13px] leading-relaxed text-slate-200">{conflict.suggestion}</p>
-          {onPreview && (
-            <button
-              type="button"
-              onClick={onPreview}
-              className={cn('mt-3 inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium', GHOST_BUTTON)}
-            >
-              <Eye className="size-3.5" />
-              Preview change
-            </button>
+      {conflict.preview && (
+        <Section label="Before and after">
+          <ChangePreview preview={conflict.preview} />
+          {conflict.uxNote && (
+            <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-relaxed text-amber-200/90">
+              <Eye className="mt-0.5 size-3.5 shrink-0" />
+              {conflict.uxNote}
+            </p>
           )}
-        </div>
+        </Section>
       )}
+
+      <Section label="What changed">
+        {fields.length ? <ComparisonTable fields={fields} /> : <EmptyNote>No comparison captured yet.</EmptyNote>}
+        {!conflict.preview && conflict.uxNote && <p className="mt-2 text-xs text-amber-200/90">{conflict.uxNote}</p>}
+      </Section>
+
+      {conflict.riskReason && (
+        <Section label="Why review is needed">
+          <p className="text-[13px] leading-relaxed text-slate-300">{conflict.riskReason}</p>
+        </Section>
+      )}
+
+      <Provenance conflict={conflict} />
+
+      {conflict.suggestion && <SuggestionCard conflict={conflict} onViewDiff={onViewDiff} />}
     </div>
   )
 }
@@ -197,8 +340,7 @@ const DIFF_TONES = {
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
 // The proposed change as an inline diff — review only. Nothing here is
-// applied: the fix reaches the workspace when the conflict is resolved,
-// after every reviewer has signed off.
+// applied: the fix reaches the workspace when the change is merged.
 function DiffTab({ conflict }) {
   if (!conflict.branches && !conflict.diff) return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
@@ -232,7 +374,7 @@ function DiffTab({ conflict }) {
           </div>
           <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
             <Eye className="size-3" />
-            Preview only — applied when this conflict is resolved, after every reviewer approves.
+            Preview only — applied when the change is merged, after every required reviewer approves.
           </p>
         </div>
       )}
@@ -242,89 +384,48 @@ function DiffTab({ conflict }) {
 
 // ─── Right: the review ─────────────────────────────────────────────────
 
-// What the primary action does at each stage, what it needs, and whether
-// it's allowed yet. `checks` feed the Next step card.
-function nextStep(conflict) {
-  const { reviewStage, reviewers, diffInspected } = conflict
-  const approved = reviewers.filter((r) => r.status === 'approved').length
-
-  if (reviewStage === 'detected') {
-    return {
-      title: 'Request a review',
-      label: 'Request review',
-      checks: [{ id: 'reviewer', label: 'Assign at least one reviewer', done: reviewers.length > 0 }],
-    }
-  }
-  if (reviewStage === 'in_review') {
-    return {
-      title: 'Collect sign-offs',
-      label: 'Approve',
-      checks: [
-        { id: 'diff', label: 'Inspect the code diff', done: diffInspected },
-        {
-          id: 'approvals',
-          label: `Every reviewer approves (${approved}/${reviewers.length})`,
-          done: allReviewersApproved(conflict),
-        },
-      ],
-    }
-  }
-  if (reviewStage === 'approved') {
-    return {
-      title: 'Ready to resolve',
-      label: 'Resolve conflict',
-      note: 'Every reviewer approved. Resolving applies the change, closes the conflict and saves a History checkpoint.',
-      checks: [],
-    }
-  }
-  return null
+const STATUS_TONE = {
+  action: 'bg-sky-400/[0.08]',
+  waiting: 'bg-white/[0.04]',
+  ready: 'bg-emerald-400/[0.07]',
+  done: 'bg-emerald-400/[0.07]',
+  idle: 'bg-white/[0.04]',
 }
 
-function NextStepCard({ step, onViewDiff }) {
-  if (!step) {
-    return (
-      <div className="rounded-xl bg-emerald-400/[0.06] p-4">
-        <p className="flex items-center gap-1.5 text-[13px] font-semibold text-emerald-300">
-          <Check className="size-4" strokeWidth={2.5} />
-          Resolved
-        </p>
-        <p className="mt-1 text-xs text-slate-400">Reopen it to run the review again.</p>
-      </div>
-    )
-  }
-
+// Where the review stands, in plain lines from the actual required
+// reviewers ("Approved by you", "Waiting for Min", "All required approvals
+// received", "Pending merge", "Merged") — shown instead of a disabled
+// button once there's nothing left for you to do.
+function StatusCard({ conflict }) {
+  const status = approvalStatus(conflict)
+  const next = nextActionFor(conflict)
   return (
-    <div className="rounded-xl bg-white/[0.04] p-4">
-      <p className="text-[11px] font-medium text-slate-500">Next step</p>
-      <p className="mt-0.5 text-[13px] font-semibold text-white">{step.title}</p>
-      {step.note && <p className="mt-1 text-xs text-slate-400">{step.note}</p>}
-      {step.checks.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-2">
-          {step.checks.map((check) => (
-            <li key={check.id} className="flex items-center gap-2 text-xs">
-              <span
-                className={cn(
-                  'flex size-4 shrink-0 items-center justify-center rounded-full',
-                  check.done ? 'bg-emerald-400 text-slate-950' : 'ring-1 ring-white/20'
-                )}
-              >
-                {check.done && <Check className="size-2.5" strokeWidth={3.5} />}
-              </span>
-              <span className={cn('min-w-0 flex-1', check.done ? 'text-slate-400 line-through decoration-slate-600' : 'text-slate-200')}>
-                {check.label}
-              </span>
-              {check.id === 'diff' && !check.done && (
-                <button type="button" onClick={onViewDiff} className="shrink-0 text-[11px] font-medium text-emerald-300 hover:underline">
-                  View diff
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+    <div className={cn('rounded-xl p-4', STATUS_TONE[status.tone])}>
+      <p className="text-[11px] font-medium text-slate-500">Status</p>
+      <ul className="mt-1 space-y-0.5">
+        {status.lines.map((line) => (
+          <li key={line} className="flex items-center gap-1.5 text-[13px] font-semibold text-white">
+            {(line.startsWith('Approved') || line.startsWith('All required') || line === 'Merged') && (
+              <Check className="size-3.5 text-emerald-300" strokeWidth={2.5} />
+            )}
+            {line}
+          </li>
+        ))}
+      </ul>
+      {conflict.reviewStage !== 'resolved' && (
+        <p className={cn('mt-2 text-xs', next.mine ? 'text-sky-300' : 'text-slate-400')}>
+          Next: {next.mine ? 'your review' : next.label}
+        </p>
       )}
     </div>
   )
 }
+
+const PRIMARY_BUTTON = cn(
+  'inline-flex h-9 shrink-0 items-center rounded-full px-5 text-[13px] font-semibold whitespace-nowrap',
+  ACCENT_CTA,
+  'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
+)
 
 const iconActionClass =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -333,10 +434,10 @@ const iconActionClass =
 // resolved — a new reviewer on an Approved conflict sends it back to In
 // Review, since everyone has to sign off; removing is open before review
 // starts, and in review for anyone who hasn't approved (never the last
-// one). Approve / request changes are the in-review actions — and only on
-// your own row (you sign off for yourself; everyone else's status is just
-// shown) — and anyone else still pending can be reminded.
-function ReviewersSection({ conflict, onUpdate }) {
+// one). Your own sign-off is the window's primary action (Approve change /
+// Request changes); everyone else's status is just shown, and anyone still
+// pending can be reminded.
+function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
   const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== currentUser.id)
@@ -344,10 +445,6 @@ function ReviewersSection({ conflict, onUpdate }) {
 
   function setReviewers(next, patch = {}) {
     onUpdate({ reviewers: next, ...patch })
-  }
-
-  function setStatus(id, status) {
-    setReviewers(reviewers.map((r) => (r.id === id ? { ...r, status } : r)))
   }
 
   function assign(person) {
@@ -439,27 +536,18 @@ function ReviewersSection({ conflict, onUpdate }) {
                     <Bell className="size-3.5" />
                   </button>
                 )}
-                {reviewStage === 'in_review' && reviewer.id === currentUser.id && (
-                  <span className="flex shrink-0 items-center">
-                    <button
-                      type="button"
-                      aria-label={`Approve as ${person.name}`}
-                      title="Approve"
-                      onClick={() => setStatus(reviewer.id, 'approved')}
-                      className={cn(iconActionClass, reviewer.status === 'approved' && 'text-emerald-300')}
-                    >
-                      <Check className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Request changes as ${person.name}`}
-                      title="Request changes"
-                      onClick={() => setStatus(reviewer.id, 'changes_requested')}
-                      className={cn(iconActionClass, reviewer.status === 'changes_requested' && 'text-amber-400')}
-                    >
-                      <RotateCcw className="size-3.5" />
-                    </button>
-                  </span>
+                {/* Teammates aren't live: in this prototype their sign-off
+                    is simulated, and labeled as such. */}
+                {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== currentUser.id && onSimulateApproval && (
+                  <button
+                    type="button"
+                    aria-label={`Simulate ${person.name}'s approval (demo)`}
+                    title={`Simulate ${person.name}'s approval (demo — teammates aren't live)`}
+                    onClick={() => onSimulateApproval(reviewer.id)}
+                    className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
+                  >
+                    <FlaskConical className="size-3.5" />
+                  </button>
                 )}
                 {(reviewStage === 'detected' ||
                   (reviewStage === 'in_review' && reviewer.status !== 'approved' && reviewers.length > 1)) && (
@@ -595,10 +683,11 @@ function useDraggable() {
 // canvas stay clear and fully interactive, and the window can be dragged
 // anywhere by its header. Close / Esc / the ✕ close it.
 //
-// `onUpdate(id, patch)` applies review edits (stage, reviewers,
-// diffInspected) to wherever the conflict lives; `onResolve(id)` is the
-// final step (defaults to an onUpdate to 'resolved').
-function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMergeStudio }) {
+// `onUpdate(id, patch)` applies review edits (stage, reviewers) to
+// wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
+// your own sign-off (approving never changes code); `onResolve(id)` merges
+// an Approved conflict — the only step that applies the change.
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
   const navigate = useNavigate()
   const open = Boolean(conflict)
@@ -606,8 +695,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
   const SeverityIcon = severity?.icon
-  const step = conflict && nextStep(conflict)
-  const stepReady = step?.checks.every((c) => c.done)
 
   // The open tab, reset to Overview whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
@@ -621,7 +708,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
     onUpdate?.(conflict.id, patch)
   }
 
-  // Opening the Diff tab is what counts as inspecting it.
   function openTab(value) {
     setTab(value)
     if (value === 'diff' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
@@ -629,39 +715,102 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
     }
   }
 
-  function handleNextStep() {
-    const { reviewStage, reviewers } = conflict
-    if (reviewStage === 'detected') {
-      // A fresh review round: earlier "changes requested" go back to pending.
-      update({
-        reviewStage: 'in_review',
-        reviewers: reviewers.map((r) => (r.status === 'changes_requested' ? { ...r, status: 'pending' } : r)),
-      })
-    } else if (reviewStage === 'in_review') {
-      if (!stepReady) return
-      update({ reviewStage: 'approved' })
-    } else if (reviewStage === 'approved') {
-      if (!allReviewersApproved(conflict)) return
-      if (onResolve) onResolve(conflict.id)
-      else update({ reviewStage: 'resolved' })
-    }
+  function handleRequestReview() {
+    // A fresh review round: earlier "changes requested" go back to pending.
+    update({
+      reviewStage: 'in_review',
+      reviewers: conflict.reviewers.map((r) => (r.status === 'changes_requested' ? { ...r, status: 'pending' } : r)),
+    })
+  }
+
+  function handleApprove() {
+    const next = onApprove?.(conflict.id)
+    if (!next) return
+    const waiting = next.reviewers.filter((r) => r.status === 'pending').length
+    toast(next.reviewStage === 'approved' ? 'All required approvals received' : 'Approved by you', {
+      description:
+        next.reviewStage === 'approved'
+          ? 'Pending merge. Approval does not merge the changes.'
+          : `Waiting for ${waiting} more reviewer${waiting === 1 ? '' : 's'}. Approval does not merge the changes.`,
+    })
+  }
+
+  // Demo only: teammates aren't live, so their sign-off is simulated with
+  // the same rule as a real one (Approved once every reviewer approved).
+  function handleSimulateApproval(reviewerId) {
+    const reviewers = conflict.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'approved' } : r))
+    const allApproved = reviewers.every((r) => r.status === 'approved')
+    update({ reviewers, reviewStage: allApproved ? 'approved' : 'in_review' })
+  }
+
+  function handleMerge() {
+    if (onResolve) onResolve(conflict.id)
+    else update({ reviewStage: 'resolved' })
   }
 
   function handleReopen() {
     update({
       reviewStage: 'detected',
-      // Still looking at the diff counts as having inspected it.
-      diffInspected: tab === 'diff',
+      diffInspected: false,
       reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
     })
   }
 
-  // Review-gated: previewing the AI suggestion only shows its diff (which
-  // counts as inspecting it) — nothing is applied until the conflict is
-  // resolved after every reviewer's sign-off.
-  function handlePreviewChange() {
-    openTab('diff')
+  const stage = conflict?.reviewStage
+  const myReview = conflict ? needsReviewFrom(conflict) : false
+
+  // The one primary action for where the review is — or none, when it's
+  // waiting on someone else (the Status card says who).
+  let primary = null
+  if (conflict) {
+    if (stage === 'detected') {
+      primary = (
+        <button type="button" disabled={!conflict.reviewers.length} onClick={handleRequestReview} className={PRIMARY_BUTTON}>
+          Request review
+        </button>
+      )
+    } else if (stage === 'in_review' && myReview) {
+      primary = (
+        <>
+          <button
+            type="button"
+            onClick={() => onRequestChanges?.(conflict.id)}
+            className={cn('inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-medium whitespace-nowrap', GHOST_BUTTON)}
+          >
+            Request changes
+          </button>
+          <button type="button" onClick={handleApprove} className={PRIMARY_BUTTON}>
+            Approve change
+          </button>
+        </>
+      )
+    } else if (stage === 'approved') {
+      primary = (
+        <button type="button" onClick={handleMerge} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
+          <GitMerge className="size-3.5" />
+          Merge change
+        </button>
+      )
+    } else if (stage === 'resolved') {
+      primary = (
+        <button
+          type="button"
+          onClick={handleReopen}
+          className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
+        >
+          <RotateCcw className="size-3.5" />
+          Reopen
+        </button>
+      )
+    }
   }
+
+  const footerNote =
+    stage === 'in_review' && myReview
+      ? 'Approval does not merge the changes.'
+      : stage === 'approved'
+        ? 'Merging applies the change and saves a History checkpoint.'
+        : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false} disablePointerDismissal>
@@ -670,40 +819,49 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
         showCloseButton={false}
         style={dragStyle}
         className={cn(
-          'flex h-[min(720px,88vh)] w-full max-w-[1040px] flex-col gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[1040px]',
+          'flex h-[min(760px,90vh)] w-full max-w-[1040px] flex-col gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[1040px]',
           PANEL_RADIUS,
           FLOATING_PANEL
         )}
       >
         {conflict && (
           <>
-            {/* Header — the drag handle. */}
+            {/* Header — the drag handle. Risk and processing status are two
+                separate badges: how much it matters vs. where it is. */}
             <div
               {...handleProps}
               title="Drag to move"
               className="flex shrink-0 cursor-grab touch-none items-start gap-3 px-5 pt-4 pb-4 select-none active:cursor-grabbing"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {severity && (
                     <span
-                      className={cn(
-                        'inline-flex h-5 items-center gap-1 rounded-full px-2 text-[10px] font-semibold',
-                        severity.className
-                      )}
+                      title="Risk"
+                      className={cn('inline-flex h-5 items-center gap-1 rounded-full px-2 text-[10px] font-semibold', severity.className)}
                     >
                       <SeverityIcon className="size-3" />
-                      {severity.label}
+                      {severity.label} risk
                     </span>
                   )}
-                  <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
+                  <span
+                    title="Status"
+                    className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[10px] font-semibold text-slate-200"
+                  >
+                    <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[stage])} />
+                    {STAGE_LABEL[stage]}
+                  </span>
+                  <DialogDescription className="ml-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
+                    <FileCode2 className="size-3.5 shrink-0" />
+                    <span className="truncate font-mono text-slate-400">
+                      {conflict.file}
+                      {conflict.line ? `:${conflict.line}` : ''}
+                    </span>
+                    {conflict.projectName && <span className="shrink-0">· {conflict.projectName}</span>}
+                    {conflict.detectedAt && <span className="shrink-0">· {conflict.detectedAt}</span>}
+                  </DialogDescription>
                 </div>
-                <DialogDescription className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-                  <FileCode2 className="size-3.5 shrink-0" />
-                  <span className="truncate font-mono text-slate-400">{conflict.file}</span>
-                  {conflict.projectName && <span className="shrink-0">· {conflict.projectName}</span>}
-                  {conflict.detectedAt && <span className="shrink-0">· {conflict.detectedAt}</span>}
-                </DialogDescription>
               </div>
               <button
                 type="button"
@@ -715,7 +873,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
               </button>
             </div>
 
-            <StageProgress stage={conflict.reviewStage} />
+            <StageProgress stage={stage} />
 
             <div className="flex min-h-0 flex-1 border-t border-white/[0.06]">
               {/* Left: what's in conflict */}
@@ -731,18 +889,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                       className={cn(CATEGORY_TAB, 'gap-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
                     >
                       {label}
-                      {id === 'diff' &&
-                        (conflict.diffInspected ? (
-                          <Check className="size-3 text-emerald-300" strokeWidth={3} />
-                        ) : (
-                          <span className="size-1.5 rounded-full bg-amber-400" aria-label="Not inspected yet" />
-                        ))}
                     </button>
                   ))}
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto px-5 pb-5" role="tabpanel">
                   {tab === 'overview' && (
-                    <OverviewTab conflict={conflict} onPreview={conflict.diff ? handlePreviewChange : null} />
+                    <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                   )}
                   {tab === 'diff' && <DiffTab conflict={conflict} />}
                   {/* History lives in one place — the project's History menu
@@ -767,11 +919,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                 </div>
               </div>
 
-              {/* Right: the review — next step, reviewers, comments — kept to
+              {/* Right: the review — status, reviewers, comments — kept to
                   ~30% so the content under review (left, ~70%) gets the room. */}
               <div className="flex w-[30%] min-w-[260px] shrink-0 flex-col gap-4 overflow-hidden bg-white/[0.015] px-4 pt-4 pb-5">
-                <NextStepCard step={step} onViewDiff={() => openTab('diff')} />
-                <ReviewersSection conflict={conflict} onUpdate={update} />
+                <StatusCard conflict={conflict} />
+                <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
                 <div className="flex min-h-0 flex-1 flex-col">
                   <p className={cn(PANEL_LABEL, 'shrink-0')}>Comments</p>
                   <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
@@ -779,16 +931,24 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 border-t border-white/[0.06] px-5 py-3.5">
-              <button
-                type="button"
-                onClick={() => onOpenMergeStudio?.(conflict)}
-                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
-              >
-                <GitMerge className="size-3.5" />
-                Open in Merge Studio
-              </button>
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-5 py-3.5">
+              {stage !== 'resolved' && (
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onOpenMergeStudio?.(conflict)}
+                    className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
+                  >
+                    <GitMerge className="size-3.5" />
+                    Open in Merge Studio
+                  </button>
+                  <span className="hidden max-w-[200px] text-[11px] leading-snug text-slate-500 xl:block">
+                    Edit or combine elements in Merge Studio before merging.
+                  </span>
+                </div>
+              )}
               <div className="ml-auto flex items-center gap-2">
+                {footerNote && <span className="mr-1 text-right text-[11px] leading-snug text-slate-400">{footerNote}</span>}
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
@@ -796,29 +956,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                 >
                   Close
                 </button>
-                {step ? (
-                  <button
-                    type="button"
-                    disabled={!stepReady}
-                    onClick={handleNextStep}
-                    className={cn(
-                      'inline-flex h-9 items-center rounded-full px-5 text-[13px] font-semibold',
-                      ACCENT_CTA,
-                      'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
-                    )}
-                  >
-                    {step.label}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleReopen}
-                    className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
-                  >
-                    <RotateCcw className="size-3.5" />
-                    Reopen
-                  </button>
-                )}
+                {primary}
               </div>
             </div>
           </>

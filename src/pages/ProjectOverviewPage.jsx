@@ -1,10 +1,13 @@
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronRight, FileCode2, GitMerge, History, Palette, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, Palette, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
-import { activities, allPeople } from '@/data/mockData'
-import { STAGE_DOT_CLASS, STAGE_LABEL, isOpen } from '@/lib/conflicts'
+import { allPeople } from '@/data/mockData'
+import { conflictCounts, isOpen, needsReviewFrom } from '@/lib/conflicts'
+import { historyMeta } from '@/lib/historyMeta'
+import ConflictRow from '@/components/conflicts/ConflictRow'
+import ActivityList from '@/components/conflicts/ActivityList'
 import { DS_STAGES } from '@/lib/designSystemUpdates'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -30,14 +33,20 @@ function SectionLink({ to, state, children }) {
   )
 }
 
-function Stat({ label, value, hint, children }) {
+// A count with what it counts spelled out (`title`), linking to exactly
+// the items it counts.
+function Stat({ label, value, hint, title, tone, onClick }) {
   return (
-    <div className="rounded-2xl bg-white/[0.03] p-4">
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="rounded-2xl bg-white/[0.03] p-4 text-left transition-colors hover:bg-white/[0.05]"
+    >
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1.5 text-[22px] font-semibold text-white tabular-nums">{value}</p>
-      {children}
+      <p className={cn('mt-1.5 text-[22px] font-semibold tabular-nums', tone ?? 'text-white')}>{value}</p>
       {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
-    </div>
+    </button>
   )
 }
 
@@ -61,14 +70,31 @@ function Person({ id }) {
 function ProjectOverviewPage() {
   const { project } = useOutletContext()
   const navigate = useNavigate()
-  const { conflicts, openConflictReview, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel } =
-    useWorkspace()
+  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel } = useWorkspace()
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
 
-  const openConflicts = conflicts.filter(isOpen)
-  const recentActivity = activities.filter((a) => a.projectId === project.id).slice(0, 5)
+  // Everything below counts from the shared conflict store with the same
+  // rules as the Workspace list (lib/conflicts), so the numbers, the list
+  // and the Workspace's filters always agree. Merged items leave the open
+  // list; approved ones stay in it, as "Approved · Pending merge".
+  const counts = conflictCounts(conflicts)
+  const openConflicts = conflicts
+    .filter(isOpen)
+    .sort((a, b) => Number(needsReviewFrom(b)) - Number(needsReviewFrom(a)))
+
+  // A conflict opens in the Workspace: Conflict Points tab, its review
+  // window, and its element and file selected (see WorkspacePage).
+  function openConflict(conflict) {
+    navigate(workspacePath, { state: { openConflictId: conflict.id } })
+  }
+
+  // A stat opens the Workspace's Conflict Points list with the matching filter.
+  function openList(filter) {
+    setBottomPanel({ tab: 'conflict', open: true, conflictFilter: filter })
+    navigate(workspacePath)
+  }
   const recentHistory = [...historyEntries].filter((e) => !e.archived).reverse().slice(0, 3)
   const stageCounts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
 
@@ -113,20 +139,30 @@ function ProjectOverviewPage() {
           </div>
         </header>
 
-        {/* Stats */}
+        {/* Stats — counts of Conflict Points (design ↔ code differences),
+            never a percentage without a basis. */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Design ↔ code sync" value={`${project.syncProgress}%`}>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${project.syncProgress}%` }} />
-            </div>
-          </Stat>
-          <Stat label="Open Conflict Points" value={openConflicts.length} hint={`${conflicts.length - openConflicts.length} resolved`} />
           <Stat
-            label="Design system updates"
-            value={dsUpdates.filter((u) => u.stage !== 'archived').length}
-            hint="in progress"
+            label="Open design ↔ code differences"
+            value={counts.open}
+            hint={counts.highOpen ? `${counts.highOpen} high risk` : 'None high risk'}
+            title="Conflict Points not merged yet"
+            onClick={() => openList('open')}
           />
-          <Stat label="Files" value={project.filesCount} hint={`${project.pendingMerges} pending merge${project.pendingMerges === 1 ? '' : 's'}`} />
+          <Stat
+            label="Needs your review"
+            value={counts.needsMyReview}
+            tone={counts.needsMyReview ? 'text-sky-300' : undefined}
+            hint="You're a required reviewer"
+            onClick={() => openList('mine')}
+          />
+          <Stat
+            label="Approved · Pending merge"
+            value={counts.pendingMerge}
+            hint="All required approvals received"
+            onClick={() => openList('pending_merge')}
+          />
+          <Stat label="Merged" value={counts.merged} hint="Applied to the code" onClick={() => openList('merged')} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -136,10 +172,7 @@ function ProjectOverviewPage() {
               action={
                 <button
                   type="button"
-                  onClick={() => {
-                    setBottomPanel({ tab: 'conflict', open: true })
-                    navigate(workspacePath)
-                  }}
+                  onClick={() => openList('open')}
                   className="flex items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white"
                 >
                   In Workspace
@@ -148,56 +181,18 @@ function ProjectOverviewPage() {
               }
             >
               {openConflicts.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No open Conflict Points — design and code are in sync.</p>
+                <p className="py-4 text-center text-xs text-slate-500">No open Conflict Points.</p>
               ) : (
                 <div className="-mx-2 flex flex-col gap-0.5">
                   {openConflicts.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      // Conflicts are inspected and resolved only in the
-                      // Workspace's Conflict Points tab: go there, open it.
-                      onClick={() => {
-                        setBottomPanel({ tab: 'conflict', open: true })
-                        openConflictReview(c.id)
-                        navigate(workspacePath)
-                      }}
-                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.04]"
-                    >
-                      <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[c.reviewStage])} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-slate-100">{c.title}</span>
-                        <span className="mt-0.5 flex items-center gap-1 font-mono text-[11px] text-slate-500">
-                          <FileCode2 className="size-3 shrink-0" />
-                          <span className="truncate">{c.file}</span>
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[11px] text-slate-500">{STAGE_LABEL[c.reviewStage]}</span>
-                    </button>
+                    <ConflictRow key={c.id} conflict={c} onOpen={openConflict} />
                   ))}
                 </div>
               )}
             </Section>
 
             <Section title="Recent activity" action={<SectionLink to="/activity">All activity</SectionLink>}>
-              {recentActivity.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">Nothing yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {recentActivity.map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 text-xs">
-                      <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white', a.actorColorClass)}>
-                        {a.actorInitials}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-slate-400">
-                        <span className="font-medium text-slate-200">{a.actorName}</span> {a.action}{' '}
-                        <span className="text-slate-200">{a.target}</span>
-                      </span>
-                      <span className="shrink-0 text-[11px] text-slate-500">{a.timestamp}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ActivityList projectId={project.id} onOpenConflict={openConflict} />
             </Section>
           </div>
 
@@ -265,7 +260,12 @@ function ProjectOverviewPage() {
                     className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-slate-300 transition-colors hover:bg-white/[0.04] hover:text-white"
                   >
                     <GitMerge className="size-3.5 shrink-0 text-slate-500" />
-                    <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{entry.label}</span>
+                      <span className="block truncate text-[11px] text-slate-500">
+                        {[historyMeta(entry), entry.timestamp].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
                     {entry.id === activeHistoryId && (
                       <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-px text-[10px] font-semibold text-emerald-300">Current</span>
                     )}

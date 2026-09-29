@@ -5,7 +5,8 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { allPeople, currentUser } from '@/data/mockData'
-import { STAGE_DOT_CLASS, STAGE_LABEL, isOpen, sortOpenFirst } from '@/lib/conflicts'
+import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { diffLines } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -17,15 +18,31 @@ const severityConfig = {
 }
 
 // The bottom panel's Conflict Points tab: the one place a project's
-// conflicts are inspected and resolved (the workspace's `conflicts`).
-// There's deliberately no one-click Resolve here — a row opens the
-// conflict's review window, where resolving is the last step of the
+// conflicts are inspected and merged (the workspace's `conflicts`).
+// There's deliberately no one-click merge here — a row opens the
+// conflict's review window, where merging is the last step of the
 // review (see ConflictModal and the project's single ConflictReviewHost).
 // Low-risk items waiting on review can be checked and approved together
-// from the floating batch bar (resolving each stays its own step).
+// from the floating batch bar (merging each stays its own step).
+//
+// Filters narrow the list with the same rules the counts use (lib/
+// conflicts), so a chip's number is always the rows it shows. The filter
+// lives in the bottom panel's state, so the tab's "Needs your review"
+// shortcut can open the list already filtered.
+const FILTERS = [
+  { id: 'all', label: 'All', test: () => true, count: 'total' },
+  { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c), count: 'needsMyReview' },
+  { id: 'open', label: 'Open', test: isOpen, count: 'open' },
+  { id: 'pending_merge', label: 'Pending merge', test: isPendingMerge, count: 'pendingMerge' },
+  { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
+]
+
 function ConflictPanel() {
-  const { conflicts, reviewConflictId, openConflictReview, batchApproveConflicts } = useWorkspace()
-  const openCount = conflicts.filter(isOpen).length
+  const { conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel } =
+    useWorkspace()
+  const counts = conflictCounts(conflicts)
+  const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
+  const visible = sortOpenFirst(conflicts.filter(filter.test))
   const [selected, setSelected] = useState([])
   // The low-risk row expanded to its mini diff (a click on a low-risk row
   // shows what it changes, for checking before batch-approving).
@@ -57,6 +74,24 @@ function ConflictPanel() {
     <div className="flex h-full flex-col bg-card">
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
+      {conflicts.length > 0 && (
+        <div className="flex shrink-0 items-center gap-1 px-3 pt-2 pb-1" role="group" aria-label="Filter conflicts">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={f.id === filter.id}
+              onClick={() => setBottomPanel({ conflictFilter: f.id })}
+              className={cn(CATEGORY_TAB, 'h-6 gap-1.5 px-2.5 text-[11px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            >
+              {f.label}
+              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-sky-300' : 'text-slate-500')}>
+                {counts[f.count]}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       {conflicts.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
           <CircleCheck className="size-6 text-emerald-500" />
@@ -76,14 +111,21 @@ function ConflictPanel() {
                   />
                 </th>
                 <th className="px-3 py-2 font-medium">Severity</th>
-                <th className="px-3 py-2 font-medium">Issue · {openCount} open</th>
+                <th className="px-3 py-2 font-medium">Issue</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Reviewers</th>
                 <th className="w-0 px-3 py-2" />
               </tr>
             </thead>
             <tbody>
-              {sortOpenFirst(conflicts).map((conflict) => {
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                    {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
+                  </td>
+                </tr>
+              )}
+              {visible.map((conflict) => {
                 const severity = severityConfig[conflict.severity] ?? severityConfig.medium
                 const SeverityIcon = severity.icon
                 const reviewers = conflict.reviewers
@@ -136,6 +178,9 @@ function ConflictPanel() {
                         <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                       </span>
+                      {needsReviewFrom(conflict) && (
+                        <span className="mt-1 block text-[11px] font-medium text-sky-300">Needs your review</span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       {reviewers.length ? (

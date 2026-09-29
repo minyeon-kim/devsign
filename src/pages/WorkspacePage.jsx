@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useLocation, useOutletContext } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
@@ -19,7 +19,22 @@ const previewDef = panelDefinitions.find((def) => def.id === 'preview')
 function WorkspacePage() {
   const { project } = useOutletContext()
   const location = useLocation()
-  const { dockApi, activeView, mergePreviewOpen, setMergePreviewOpen, openMergeStudio } = useWorkspace()
+  const navigate = useNavigate()
+  const {
+    dockApi,
+    activeView,
+    mergePreviewOpen,
+    setMergePreviewOpen,
+    openMergeStudio,
+    exitMergeStudio,
+    mergeItems,
+    setSelectedMergeItemId,
+    requestMergeFocus,
+    conflicts,
+    setBottomPanel,
+    focusChange,
+    openConflictReview,
+  } = useWorkspace()
   const [previewOpen, setPreviewOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -33,13 +48,57 @@ function WorkspacePage() {
     return () => disposable.dispose()
   }, [dockApi])
 
-  // Arriving here from the dashboard's "Open Merge Studio" (on a specific
-  // conflict) carries that intent via router state — jump straight into
-  // Merge Studio instead of leaving the user to find it.
+  // Arriving with an intent in router state:
+  //  · `openMergeStudio` (a Conflict Point's "Open in Merge Studio") — Merge
+  //    Studio on that conflict's item, its element (or line) focused; with
+  //    no linked item nothing is pre-selected (never an unrelated default);
+  //  · `openConflictId` (Dashboard / overview links) — the Conflict Points
+  //    tab, that conflict's review window, and its element and file.
+  // Handled once per navigation (location.key).
+  const handledNav = useRef(null)
   useEffect(() => {
-    if (!location.state?.openMergeStudio) return
-    openMergeStudio()
-  }, [location.state, openMergeStudio])
+    const state = location.state
+    if (!state || handledNav.current === location.key) return
+    handledNav.current = location.key
+    // Consume it, so a later remount (e.g. back from History) doesn't
+    // replay it; Back still returns to where the link was clicked.
+    navigate(location.pathname, { replace: true, state: null })
+    if (state.openMergeStudio) {
+      const item = state.mergeItemId && mergeItems.find((i) => i.id === state.mergeItemId)
+      setSelectedMergeItemId(item ? item.id : null)
+      openMergeStudio()
+      if (item) {
+        requestMergeFocus({
+          itemId: item.id,
+          ...(state.layerId ? { layerId: state.layerId } : { fileId: state.fileId, line: state.line }),
+          openDeck: true,
+        })
+      }
+      return
+    }
+    if (state.openConflictId) {
+      const conflict = conflicts.find((c) => c.id === state.openConflictId)
+      if (!conflict) return
+      exitMergeStudio()
+      setBottomPanel({ open: true, tab: 'conflict' })
+      focusChange(conflict)
+      openConflictReview(conflict.id)
+    }
+  }, [
+    location.key,
+    location.pathname,
+    location.state,
+    navigate,
+    conflicts,
+    mergeItems,
+    openMergeStudio,
+    exitMergeStudio,
+    requestMergeFocus,
+    setSelectedMergeItemId,
+    setBottomPanel,
+    focusChange,
+    openConflictReview,
+  ])
 
   function togglePreview() {
     // In Merge Studio the header Preview button opens the responsive preview.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Code2, Crosshair, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, codeMergeVariants, designMergeVariants, openFiles } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Derives the conflicting blocks for a merge item from its real mock data:
@@ -29,7 +29,7 @@ function buildBlocks(item, getFileLines) {
   }
 
   for (const [fileId, diffs] of Object.entries(codeMergeVariants[item.id] ?? {})) {
-    const file = openFiles.find((f) => f.id === fileId)
+    const file = mergeFilesFor(item).find((f) => f.id === fileId)
     const lines = getFileLines(fileId)
     for (const d of diffs) {
       blocks.push({
@@ -47,7 +47,7 @@ function buildBlocks(item, getFileLines) {
   }
 
   if (!blocks.length) {
-    const file = openFiles.find((f) => item.fileIds?.includes(f.id))
+    const file = mergeFilesFor(item).find((f) => item.fileIds?.includes(f.id))
     const lines = file ? getFileLines(file.id) : []
     // No mock diff data at all for this item — fall back to a realistic,
     // single-property change (a shared button style token) instead of a

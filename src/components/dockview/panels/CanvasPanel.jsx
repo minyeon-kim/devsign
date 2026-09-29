@@ -12,7 +12,7 @@ import {
   Type,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { allPeople, canvasPages, canvasTools, findCanvasTarget, paddingConflict } from '@/data/mockData'
+import { allPeople, canvasTools, findCanvasTarget, paddingConflict } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
@@ -97,13 +97,14 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // files.
 // (The layer tree opens from the window's `+` or the command palette.)
 function PageTabs({ activePageId, onSelectPage }) {
+  const { projectPages } = useWorkspace()
   // In a docked window the header draws the page tabs itself (PanelTabs).
   if (useContext(WindowTabsContext)) return null
   // On the window's title line (see WindowHeaderSlot), right after "Canvas".
   return (
     <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2">
       <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
-      {canvasPages.map((page) => {
+      {projectPages.map((page) => {
         const active = activePageId === page.id
         return (
           <button
@@ -376,6 +377,7 @@ function CanvasPanel() {
     selectCanvasLayer,
     activePageId,
     setActivePageId,
+    projectPages,
     dockApi,
     canvasTool,
     setCanvasTool,
@@ -396,7 +398,7 @@ function CanvasPanel() {
     editPrototypeLayer(layerId, { copy: { [slot]: next } })
     if (!live || value === null) editStart.current.delete(key)
   }
-  const activePage = canvasPages.find((p) => p.id === activePageId) ?? canvasPages[0]
+  const activePage = projectPages.find((p) => p.id === activePageId) ?? projectPages[0]
   const commentMode = canvasTool === 'comment'
   // The selected layer, if it's on the page being shown (a selection made
   // on another page shouldn't keep its property bar up here).
