@@ -33,7 +33,7 @@ function useCommands() {
   const windowViews = [
     { def: panelById.editor, label: 'Code Editor', icon: FileCode },
     { def: panelById.canvas, label: 'Canvas', icon: AppWindow },
-    { def: panelById.preview, label: 'Browser', icon: Monitor, keywords: 'preview' },
+    { def: panelById.preview, label: 'Preview', icon: Monitor, keywords: 'preview browser' },
     { def: panelById.chat, label: 'AI Chat', icon: Sparkles, keywords: 'ask devsign agent assistant' },
   ]
   const navigatorViews = [

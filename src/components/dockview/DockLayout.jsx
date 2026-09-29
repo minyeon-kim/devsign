@@ -87,18 +87,15 @@ export function buildInitialLayout(api) {
   // No Explorer/Layers windows here: both are tabs of the navigator pane
   // (NavigatorPanel), which WorkspaceSplitLayout docks at the left.
 
-  // Canvas sits beside the editor (with Preview as its sibling tab).
-  // 620px (not 460) so the canvas surface keeps a usable width beside
-  // its built-in Layers drawer.
+  // Canvas sits beside the editor. 620px (not 460) so the canvas surface
+  // keeps a usable width beside its built-in Layers drawer. Preview isn't
+  // a default tab — it's opened on demand from a pane's `+` menu.
   addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.editor.id },
     initialWidth: 620,
   })
-  addDockPanel(api, panelById.preview, {
-    position: { direction: 'within', referencePanel: panelById.canvas.id },
-  })
   // The AI chat is a pane like the others (no floating widget): a tab
-  // beside Canvas / Preview, ready to drag out into a split.
+  // beside Canvas, ready to drag out into a split.
   addDockPanel(api, panelById.chat, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
   })

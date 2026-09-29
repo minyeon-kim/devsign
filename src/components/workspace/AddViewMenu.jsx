@@ -7,7 +7,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const VIEWS = [
   { def: panelById.editor, label: 'Code Editor', icon: FileCode },
   { def: panelById.canvas, label: 'Canvas', icon: AppWindow },
-  { def: panelById.preview, label: 'Browser', icon: Monitor },
+  { def: panelById.preview, label: 'Preview', icon: Monitor },
   { def: panelById.chat, label: 'AI Chat', icon: Sparkles },
   { def: panelById.terminal, label: 'Terminal', icon: SquareTerminal },
   { def: panelById.console, label: 'Console', icon: ScrollText },
@@ -29,8 +29,9 @@ function openHere(dockApi, group, def) {
 
 // The `+` right after a window's last tab (Cursor style): a small,
 // non-blocking popover anchored under it listing the views to open here
-// as a tab — Code Editor, Canvas, Browser, AI Chat, Terminal, Console,
-// Files. To give a view its own pane, drag its tab to a pane's edge.
+// as a tab — Code Editor, Canvas, Preview, AI Chat, Terminal, Console,
+// Files. The default tab bar has no Preview tab; this is where one is
+// added as a pane tab. To give a view its own pane, drag its tab to a pane's edge.
 function AddViewMenu({ group, dockApi }) {
   const { setFilesWindow } = useWorkspace()
   const [open, setOpen] = useState(false)
