@@ -293,7 +293,9 @@ function ChatConversation() {
               translate="no"
               className={cn(
                 'max-w-[95%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
-                message.role === 'user' ? 'border border-emerald-400/20 bg-emerald-400/10 text-slate-100' : 'bg-white/[0.03] text-slate-200'
+                message.role === 'user'
+                  ? 'bg-gradient-to-br from-emerald-400/20 to-teal-400/10 text-emerald-50'
+                  : 'bg-slate-800/80 text-slate-200'
               )}
             >
               {message.text}
