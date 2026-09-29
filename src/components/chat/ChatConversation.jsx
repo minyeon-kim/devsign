@@ -329,7 +329,7 @@ function ChatConversation() {
         })}
       </div>
 
-      <div className="shrink-0 space-y-1.5 border-t p-2">
+      <div className="shrink-0 space-y-1.5 p-2">
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-1">
             {attachments.map((file) => (
@@ -344,15 +344,14 @@ function ChatConversation() {
           </div>
         )}
 
-        <div className="flex min-w-0 items-center px-1">
-          <TargetChip
-            target={target}
-            options={options}
-            onPick={(option) => setChatTargetOverride({ key: option.key, selection: key })}
-          />
-        </div>
-
         <div className="rounded-2xl border border-white/10 bg-card focus-within:border-emerald-400/40">
+          <div className="flex min-w-0 items-center px-3 pt-2">
+            <TargetChip
+              target={target}
+              options={options}
+              onPick={(option) => setChatTargetOverride({ key: option.key, selection: key })}
+            />
+          </div>
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
@@ -371,7 +370,7 @@ function ChatConversation() {
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => setCodeBlockMode((v) => !v)}
-                className={cn(codeBlockMode && 'bg-primary/10 text-primary')}
+                className={cn(codeBlockMode && 'bg-emerald-400/10 text-emerald-300')}
               >
                 <Code2 className="size-3.5" />
               </Button>
@@ -397,7 +396,12 @@ function ChatConversation() {
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 Auto
-                <Switch checked={autoMode} onCheckedChange={setAutoMode} size="sm" />
+                <Switch
+                  checked={autoMode}
+                  onCheckedChange={setAutoMode}
+                  size="sm"
+                  className="data-checked:bg-emerald-400 data-unchecked:bg-white/15"
+                />
               </label>
               <Button
                 type="button"
@@ -405,6 +409,7 @@ function ChatConversation() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !target}
                 title={target ? 'Send' : 'Choose a target first'}
+                className="size-8 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 disabled:bg-white/[0.06] disabled:text-slate-500"
               >
                 <Send className="size-3.5" />
               </Button>
