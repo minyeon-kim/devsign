@@ -29,7 +29,7 @@ const MIN_CANVAS = 220
 // resize; the single chevron opens to the list's content height (capped
 // to leave canvas space) or collapses it down to just its tab strip.
 function WorkspaceBottomPanel() {
-  const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => TABS.map((t) => t.id))
@@ -38,7 +38,7 @@ function WorkspaceBottomPanel() {
   const [availableHeight, setAvailableHeight] = useState(480)
   const manuallySized = useRef(false)
   const previousMode = useRef(null)
-  const mode = `${tab}:${open}`
+  const mode = `${tab}:${open}:${reviewConflictId ? 'review' : 'list'}`
   useLayoutEffect(() => {
     if (previousMode.current !== mode) {
       previousMode.current = mode

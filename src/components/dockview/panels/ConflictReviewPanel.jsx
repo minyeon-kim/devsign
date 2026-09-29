@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Bell,
   Bot,
@@ -18,7 +18,6 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
@@ -47,10 +46,8 @@ import {
   CATEGORY_TAB,
   CATEGORY_TAB_ACTIVE,
   CATEGORY_TAB_IDLE,
-  FLOATING_PANEL,
   GHOST_BUTTON,
   PANEL_LABEL,
-  PANEL_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 
 // ─── The one conflict review window ────────────────────────────────────
@@ -636,55 +633,7 @@ function CommentThread({ conflict, workspace }) {
   )
 }
 
-// ─── Draggable window ──────────────────────────────────────────────────
-
-// Lets the window be dragged by its header. The offset is applied on top
-// of the dialog's centering translate, and clamped so the header can't be
-// dragged fully off-screen. It persists while the modal stays mounted, so
-// moving between conflicts keeps the window where you put it.
-function useDraggable() {
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const drag = useRef(null)
-
-  function onPointerDown(event) {
-    if (event.button !== 0 || event.target.closest('button, a, input, textarea, [role=tab]')) return
-    const popup = event.currentTarget.closest('[data-slot=dialog-content]')
-    drag.current = {
-      pointerX: event.clientX,
-      pointerY: event.clientY,
-      offset,
-      rect: popup.getBoundingClientRect(),
-    }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  function onPointerMove(event) {
-    const d = drag.current
-    if (!d) return
-    const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
-    const dx = clamp(event.clientX - d.pointerX, 120 - d.rect.right, window.innerWidth - 120 - d.rect.left)
-    const dy = clamp(event.clientY - d.pointerY, -d.rect.top, window.innerHeight - 56 - d.rect.top)
-    setOffset({ x: d.offset.x + dx, y: d.offset.y + dy })
-  }
-
-  function onPointerUp() {
-    drag.current = null
-  }
-
-  return {
-    // No transition, so the window tracks the pointer 1:1 (open/close
-    // use keyframe animations, which this doesn't affect).
-    style: { translate: `calc(-50% + ${offset.x}px) calc(-50% + ${offset.y}px)`, transition: 'none' },
-    handleProps: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp },
-  }
-}
-
-// ─── The window ────────────────────────────────────────────────────────
-
-// A floating window, not a blocking dialog: non-modal, no backdrop, and
-// clicking the page behind it doesn't dismiss it — the workspace and
-// canvas stay clear and fully interactive, and the window can be dragged
-// anywhere by its header. Close / Esc / the ✕ close it.
+// ─── Inline review view ────────────────────────────────────────────────
 //
 // `onUpdate(id, patch)` applies review edits (stage, reviewers) to
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
@@ -693,8 +642,6 @@ function useDraggable() {
 function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio }) {
   const workspace = useWorkspaceOptional()
   const navigate = useNavigate()
-  const open = Boolean(conflict)
-  const { style: dragStyle, handleProps } = useDraggable()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
 
@@ -815,28 +762,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         : null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false} disablePointerDismissal>
-      <DialogContent
-        overlay={false}
-        showCloseButton={false}
-        style={dragStyle}
-        className={cn(
-          'flex h-[min(760px,90vh)] w-full max-w-[1040px] flex-col gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[1040px]',
-          PANEL_RADIUS,
-          FLOATING_PANEL
-        )}
-      >
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
             {/* Header — the drag handle. Risk and processing status are two
                 separate badges: how much it matters vs. where it is. */}
-            <div
-              {...handleProps}
-              title="Drag to move"
-              className="flex shrink-0 cursor-grab touch-none items-start gap-3 border-b border-white/[0.07] bg-white/[0.02] px-8 pt-6 pb-5 select-none active:cursor-grabbing"
-            >
+            <div className="flex shrink-0 items-start gap-3 border-b border-white/[0.07] bg-white/[0.02] px-6 py-4">
               <div className="min-w-0 flex-1">
-                <DialogTitle className="truncate text-[15px] font-semibold text-white">{conflict.title}</DialogTitle>
+                <h2 className="truncate text-[15px] font-semibold text-white">{conflict.title}</h2>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   {severity && (
                     <span className="inline-flex items-center gap-1.5">
@@ -845,7 +778,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                   <StagePill stage={stage} />
                 </div>
-                <DialogDescription className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500">
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1">
                     <FileCode2 className="size-3.5 shrink-0 text-slate-500" />
                     <span className="truncate font-mono text-slate-300">
@@ -855,11 +788,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </span>
                   {conflict.projectName && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Project · {conflict.projectName}</span>}
                   {conflict.detectedAt && <span className="rounded-md bg-white/[0.035] px-2 py-1 text-slate-400">Detected · {conflict.detectedAt}</span>}
-                </DialogDescription>
+                </div>
               </div>
               <button
                 type="button"
-                aria-label="Close"
+                aria-label="Back to Conflict Points"
                 onClick={() => onOpenChange(false)}
                 className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
               >
@@ -867,10 +800,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </button>
             </div>
 
-            <div className="flex min-h-0 flex-1 border-t border-white/[0.06]">
+            <div className="flex min-h-0 flex-1">
               {/* Left: what's in conflict */}
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center gap-1 px-8 pt-5 pb-5" role="tablist" aria-label="Conflict details">
+                <div className="flex shrink-0 items-center gap-1 px-6 pt-4 pb-4" role="tablist" aria-label="Conflict details">
                   {TABS.map(([id, label]) => (
                     <button
                       key={id}
@@ -884,7 +817,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </button>
                   ))}
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto px-8 pb-8" role="tabpanel">
+                <div className="min-h-0 flex-1 overflow-auto px-6 pb-6" role="tabpanel">
                   {tab === 'overview' && (
                     <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
                   )}
@@ -925,7 +858,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
               {/* Right: the review — status, reviewers, comments — kept to
                   ~30% so the content under review (left, ~70%) gets the room. */}
-              <div className="flex w-[30%] min-w-[280px] shrink-0 flex-col gap-7 overflow-hidden bg-white/[0.015] px-6 pt-6 pb-6">
+              <div className="flex w-[30%] min-w-[250px] shrink-0 flex-col gap-5 overflow-hidden bg-white/[0.015] px-5 pt-5 pb-5">
                 <StatusCard conflict={conflict} />
                 <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
                   <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
@@ -937,7 +870,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-8 py-4">
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.06] px-6 py-3">
               {stage !== 'resolved' && (
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Tooltip>
@@ -960,15 +893,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   onClick={() => onOpenChange(false)}
                   className="inline-flex h-9 items-center rounded-full px-4 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white"
                 >
-                  Close
+                  Back to list
                 </button>
                 {primary}
               </div>
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+    </div>
   )
 }
 

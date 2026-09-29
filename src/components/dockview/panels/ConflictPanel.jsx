@@ -8,6 +8,8 @@ import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, n
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { diffLines } from '@/lib/lineDiff'
+import { useNavigate } from 'react-router-dom'
+import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
@@ -19,9 +21,7 @@ const severityConfig = {
 
 // The bottom panel's Conflict Points tab: the one place a project's
 // conflicts are inspected and merged (the workspace's `conflicts`).
-// There's deliberately no one-click merge here — a row opens the
-// conflict's review window, where merging is the last step of the
-// review (see ConflictModal and the project's single ConflictReviewHost).
+// A row opens its inline review; merging remains the last review step.
 // Low-risk items waiting on review can be checked and approved together
 // from the floating batch bar (merging each stays its own step).
 //
@@ -39,8 +39,11 @@ const FILTERS = [
 
 function ConflictPanel({ onContentHeightChange }) {
   const contentRef = useRef(null)
-  const { conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel } =
+  const navigate = useNavigate()
+  const { projectId, conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
+    updateConflict, approveConflict, requestChanges, resolveConflict } =
     useWorkspace()
+  const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
   const counts = conflictCounts(conflicts)
   const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
   const visible = sortOpenFirst(conflicts.filter(filter.test))
@@ -55,6 +58,12 @@ function ConflictPanel({ onContentHeightChange }) {
 
   useLayoutEffect(() => {
     if (!onContentHeightChange) return
+    if (reviewConflict) {
+      // Give the review workspace room for its diff, reviewer controls, and
+      // comments; WorkspaceBottomPanel caps this to the available canvas area.
+      onContentHeightChange(600)
+      return
+    }
     const root = contentRef.current
     const filters = root?.querySelector('[aria-label="Filter conflicts"]')
     const table = root?.querySelector('table')
@@ -69,7 +78,7 @@ function ConflictPanel({ onContentHeightChange }) {
     const observer = new ResizeObserver(measure)
     for (const element of [root, filters, table, batch]) if (element) observer.observe(element)
     return () => observer.disconnect()
-  }, [onContentHeightChange, conflicts.length, visible.length, expandedId, selection.length])
+  }, [onContentHeightChange, reviewConflict, conflicts.length, visible.length, expandedId, selection.length])
 
   function toggle(id) {
     setSelected(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id])
@@ -87,6 +96,27 @@ function ConflictPanel({ onContentHeightChange }) {
         .filter(Boolean)
         .join(' · '),
     })
+  }
+
+  if (reviewConflict) {
+    return (
+      <div ref={contentRef} className="h-full min-h-0 min-w-0 bg-card">
+        <ConflictReviewPanel
+          conflict={reviewConflict}
+          onOpenChange={(open) => !open && openConflictReview(null)}
+          onUpdate={updateConflict}
+          onApprove={approveConflict}
+          onRequestChanges={requestChanges}
+          onResolve={resolveConflict}
+          onOpenMergeStudio={(conflict) => {
+            openConflictReview(null)
+            navigate(`/projects/${projectId}/workspace`, {
+              state: { openMergeStudio: true, mergeItemId: conflict.mergeItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
+            })
+          }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -165,8 +195,7 @@ function ConflictPanel({ onContentHeightChange }) {
                 return (
                   <Fragment key={conflict.id}>
                   <tr
-                    onClick={() => (expandable ? setExpandedId(expanded ? null : conflict.id) : openConflictReview(conflict.id))}
-                    aria-expanded={expandable ? expanded : undefined}
+                    onClick={() => openConflictReview(conflict.id)}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
                       'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 last:border-0 hover:bg-muted/40 aria-selected:bg-muted/60',
@@ -191,6 +220,18 @@ function ConflictPanel({ onContentHeightChange }) {
                     <td className="min-w-0 px-3 py-4">
                       <div className="min-w-0 space-y-1">
                         <p className="line-clamp-2 leading-5 font-medium break-words text-white">{conflict.title}</p>
+                        {expandable && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setExpandedId(expanded ? null : conflict.id)
+                            }}
+                            className="text-[11px] text-slate-500 transition-colors hover:text-slate-300"
+                          >
+                            {expanded ? 'Hide quick diff' : 'Quick diff'}
+                          </button>
+                        )}
                         <p className="flex min-w-0 items-start gap-1 text-xs leading-4 text-slate-400">
                           <FileCode2 className="mt-0.5 size-3 shrink-0" />
                           <span className="line-clamp-2 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>

@@ -1,6 +1,5 @@
 import { Navigate, Outlet, useParams } from 'react-router-dom'
 import AppShell from '@/components/dashboard/AppShell'
-import ConflictReviewHost from '@/components/workspace/ConflictReviewHost'
 import { WorkspaceProvider } from '@/state/WorkspaceProvider'
 import { projects } from '@/data/mockData'
 
@@ -25,7 +24,6 @@ function ProjectLayout() {
       <AppShell project={project}>
         <Outlet context={{ project }} />
       </AppShell>
-      <ConflictReviewHost />
     </WorkspaceProvider>
   )
 }
