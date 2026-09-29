@@ -104,7 +104,7 @@ function WorkspaceBottomPanel() {
       ref={rootRef}
       aria-label="Bottom panel"
       style={{ height: open ? height : STRIP_HEIGHT }}
-      className="relative flex shrink-0 flex-col border-t border-white/[0.08] bg-card"
+      className="relative mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]"
     >
       {/* Resize handle along the top edge. */}
       <div
@@ -112,7 +112,7 @@ function WorkspaceBottomPanel() {
         role="separator"
         aria-orientation="horizontal"
         aria-label="Resize bottom panel"
-        className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize after:absolute after:inset-x-0 after:top-1 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
+        className="absolute inset-x-4 top-0 z-10 h-1.5 cursor-row-resize rounded-full after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
       />
 
       <div
