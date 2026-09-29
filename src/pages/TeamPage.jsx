@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { Archive, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Download, Lock, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { cn } from 'cn'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'

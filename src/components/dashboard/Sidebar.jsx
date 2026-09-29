@@ -1,7 +1,6 @@
-import DemoTools from '@/components/workspace/DemoTools'
+import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -72,6 +71,7 @@ function ProjectsMark({ project }) {
 //     Conflict Points live only in the Workspace's bottom panel.
 // Settings is pinned to the bottom.
 function ActivityBar({ project, drawer, onToggleDrawer }) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const { pathname } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
@@ -158,12 +158,12 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         )}
       </nav>
 
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="mt-auto flex flex-col gap-1">
-        <DemoTools />
         <RailButton
           label="Settings"
           icon={Settings}
-          onClick={() => toast('Settings', { description: 'Workspace settings' })}
+          onClick={() => setSettingsOpen(true)}
         />
       </div>
     </div>

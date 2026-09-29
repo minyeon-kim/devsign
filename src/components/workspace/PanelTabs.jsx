@@ -1,3 +1,4 @@
+import { orderedTabs } from '@/lib/tabOrder'
 import { Component, FileImage, Files, Layers, X } from 'lucide-react'
 import { cn } from 'cn'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -15,9 +16,8 @@ const NAVIGATOR_TABS = [
 // pages, the navigator's Files / Layers / Assets, and any other view as
 // its own single tab. A tab is active when its panel is the window's
 // active one and it's that panel's current item. Pressing a tab selects it
-// and starts a drag (drop on a pane's edge to split, its middle to move
-// it there — see WorkspaceSplitLayout); dragging a file or page tab moves
-// its whole panel (the editor, the canvas). The editor's last file tab
+// and starts a drag: within its own header it reorders that tab; dropping
+// on another pane docks its panel there (see WorkspaceSplitLayout). The editor's last file tab
 // and the canvas's active page tab close their view (reopen from `+`).
 // Navigator tabs are permanent navigation choices without close controls.
 function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
@@ -76,9 +76,14 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
     ]
   }
 
+  items = orderedTabs(items, workspace.tabOrders?.[panel.component])
+  const reorder = (source, target, after) => workspace.reorderWorkspaceTab(panel.component, source, target, after, items.map((item) => item.key))
+
   return items.map((item) => (
     <span
       key={item.key}
+      data-tab-id={item.key}
+      data-panel-id={pid}
       className={cn(
         'group/tab flex h-7 items-center rounded-full text-xs transition-colors',
         panel.component === 'navigator' ? 'min-w-0 flex-1' : 'shrink-0',
@@ -87,13 +92,22 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
     >
       <button
         type="button"
-        title={`${item.label} · Drag to split or move`}
+        title={`${item.label} · Drag to reorder or move`}
         aria-label={item.label}
         onPointerDown={(event) => {
           if (event.button !== 0) return
+          event.stopPropagation()
           item.select()
           activate()
-          onDragStart?.({ groupId: group.id, panelId: pid }, event)
+          onDragStart?.({ groupId: group.id, panelId: pid, tabId: item.key, reorder }, event)
+        }}
+        onKeyDown={(event) => {
+          if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+          const direction = event.key === 'ArrowRight' ? 1 : -1
+          const target = items[items.indexOf(item) + direction]
+          if (!target) return
+          event.preventDefault()
+          reorder(item.key, target.key, direction > 0)
         }}
         onClick={() => {
           item.select()

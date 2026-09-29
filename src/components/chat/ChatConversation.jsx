@@ -299,6 +299,7 @@ function ChatConversation() {
         {chatMessages.map((message) => (
           <div key={message.id} className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
+              translate="no"
               className={cn(
                 'max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
                 message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'

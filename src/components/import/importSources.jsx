@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { FileArchive, FileCode2, FileSpreadsheet, FolderGit2, Frame, PenTool, Upload } from 'lucide-react'
 import { cn } from 'cn'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'

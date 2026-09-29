@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { ChevronDown, Folder, LayoutGrid, List, Plus, Trash2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'

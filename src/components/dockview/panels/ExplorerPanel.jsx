@@ -1,14 +1,15 @@
+import { buildFileTree } from '@/lib/fileTree'
 import { useRef, useState } from 'react'
-import { Folder, Frame, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Frame, Upload } from 'lucide-react'
 import { cn } from 'cn'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { assetIcon, getFileIconMeta } from '@/lib/fileIcons'
 import { IMPORT_ACCEPT } from '@/lib/importFiles'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function announce({ code, design }) {
-  const parts = [code && `${code} code file${code === 1 ? '' : 's'} added to src`, design && `${design} design file${design === 1 ? '' : 's'} added to Assets`]
+  const parts = [code && `${code} code file${code === 1 ? '' : 's'} added to Files`, design && `${design} design file${design === 1 ? '' : 's'} added to Assets`]
   toast('Imported', { description: parts.filter(Boolean).join(' · ') || 'Nothing to import.' })
 }
 
@@ -96,6 +97,8 @@ function ExplorerPanel() {
   const [renamingId, setRenamingId] = useState(null)
   const [draftName, setDraftName] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [collapsed, setCollapsed] = useState(new Set())
+  const tree = buildFileTree(workspaceFiles, (file) => getFileName(file.id))
 
   function startRename(file) {
     setRenamingId(file.id)
@@ -113,6 +116,74 @@ function ExplorerPanel() {
     if (event.dataTransfer.files?.length) announce(await importFiles(event.dataTransfer.files))
   }
 
+  function renderNodes(nodes, depth = 0) {
+    return nodes.map((node) => {
+      if (node.kind === 'folder') {
+        const expanded = !collapsed.has(node.path)
+        const Icon = expanded ? FolderOpen : Folder
+        const Chevron = expanded ? ChevronDown : ChevronRight
+        return (
+          <div key={node.path} role="treeitem" aria-label={node.name} aria-expanded={expanded} aria-level={depth + 1}>
+            <button type="button" onClick={() => setCollapsed((prev) => {
+              const next = new Set(prev)
+              if (next.has(node.path)) next.delete(node.path)
+              else next.add(node.path)
+              return next
+            })} style={{ paddingLeft: depth * 16 }} className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left hover:bg-muted hover:text-foreground">
+              <Chevron className="size-3 shrink-0" />
+              <Icon className="size-3.5 shrink-0 text-slate-400" />
+              <span className="truncate">{node.name}</span>
+            </button>
+            {expanded && <div role="group">{renderNodes(node.children, depth + 1)}</div>}
+          </div>
+        )
+      }
+      const { file, name } = node
+      const { Icon, colorClass } = getFileIconMeta(name)
+      const active = activeFileId === file.id
+      const isRenaming = renamingId === file.id
+
+      if (isRenaming) {
+        return (
+          <div key={file.id} role="treeitem" aria-level={depth + 1} aria-selected={active} style={{ paddingLeft: 12 + depth * 16 }} className="flex w-full items-center gap-1.5 py-1 pr-2">
+            <Icon className={cn('size-3.5 shrink-0', colorClass)} />
+            <input
+              autoFocus
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onBlur={() => commitRename(file.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename(file.id)
+                if (e.key === 'Escape') setRenamingId(null)
+              }}
+              className="w-full truncate rounded-sm bg-transparent px-1 text-xs text-foreground outline-none ring-1 ring-primary/50"
+            />
+          </div>
+        )
+      }
+
+      return (
+        <button
+          key={file.id} role="treeitem" aria-level={depth + 1} aria-selected={active}
+          type="button"
+          onClick={() => setActiveFileId(file.id)}
+          onDoubleClick={() => startRename(file)}
+          title={`${node.path}${file.imported ? ' · imported' : ''} · Double-click to rename`}
+          style={{ paddingLeft: 12 + depth * 16 }}
+          className={cn(
+            'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left transition-colors hover:bg-muted hover:text-foreground',
+            active && 'bg-primary/10 text-primary'
+          )}
+        >
+          <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />
+          <span className="truncate">{name}</span>
+          {file.imported && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Imported" />}
+        </button>
+      )
+    })
+  }
+
   return (
     <div
       className="relative flex h-full flex-col bg-card"
@@ -126,58 +197,15 @@ function ExplorerPanel() {
       }}
       onDrop={handleDrop}
     >
-      {/* Matches Layers' own h-9 tab-row header; the root folder name on
-          the left, Import on the right as the tree's top-level action. */}
+      {/* Folders below are derived from the project's paths, starting at root. */}
       <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/60 pr-1.5 pl-3 text-xs font-medium text-foreground/70">
         <Folder className="size-3.5" />
-        src
+        <span title="Project root">/</span>
         <ImportMenu />
       </div>
       <div className="flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
-        {workspaceFiles.map((file) => {
-          const name = getFileName(file.id)
-          const { Icon, colorClass } = getFileIconMeta(name)
-          const active = activeFileId === file.id
-          const isRenaming = renamingId === file.id
-
-          if (isRenaming) {
-            return (
-              <div key={file.id} className="flex w-full items-center gap-1.5 py-1 pr-2 pl-6">
-                <Icon className={cn('size-3.5 shrink-0', colorClass)} />
-                <input
-                  autoFocus
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onBlur={() => commitRename(file.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(file.id)
-                    if (e.key === 'Escape') setRenamingId(null)
-                  }}
-                  className="w-full truncate rounded-sm bg-transparent px-1 text-xs text-foreground outline-none ring-1 ring-primary/50"
-                />
-              </div>
-            )
-          }
-
-          return (
-            <button
-              key={file.id}
-              type="button"
-              onClick={() => setActiveFileId(file.id)}
-              onDoubleClick={() => startRename(file)}
-              title={file.imported ? `${file.path} · imported` : 'Double-click to rename'}
-              className={cn(
-                'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-6 text-left transition-colors hover:bg-muted hover:text-foreground',
-                active && 'bg-primary/10 text-primary'
-              )}
-            >
-              <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />
-              <span className="truncate">{name}</span>
-              {file.imported && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Imported" />}
-            </button>
-          )
-        })}
+        <div role="tree" aria-label="Project files">{renderNodes(tree)}</div>
+        {!tree.length && <p className="px-2 py-4">No files yet. Import files to get started.</p>}
 
         {importedAssets.length > 0 && (
           <div className="mt-3">

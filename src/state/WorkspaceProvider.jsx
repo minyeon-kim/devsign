@@ -1,10 +1,11 @@
+import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import {
   aiEditScenarios,
   canvasPages,
@@ -114,6 +115,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // file — from the tree, the canvas, an AI edit, a rollback — joins them.
   const [openFileIds, setOpenFileIds] = useState(() => files.slice(0, 2).map((f) => f.id))
   if (activeFileId && !openFileIds.includes(activeFileId)) setOpenFileIds([...openFileIds, activeFileId])
+  const [tabOrders, setTabOrders] = useState({})
+  const reorderWorkspaceTab = useCallback((kind, source, target, after, ids) => {
+    if (kind === 'editor') setOpenFileIds((prev) => moveTab(prev, source, target, after))
+    else setTabOrders((prev) => ({ ...prev, [kind]: moveTab(ids, source, target, after) }))
+  }, [])
   const [fileOverrides, setFileOverrides] = useDemoState(`project:${projectId}:fileOverrides`, {})
   const [fileNameOverrides, setFileNameOverrides] = useDemoState(`project:${projectId}:fileNameOverrides`, {})
   const [selectedLayerId, setSelectedLayerId] = useState(null)
@@ -723,7 +729,7 @@ export function WorkspaceProvider({ children, projectId }) {
           code.push({
             id: nextId('import'),
             name: file.name,
-            path: `src/imports/${file.name}`,
+            path: file.webkitRelativePath || file.name,
             language: ext,
             iconName: 'FileCode',
             imported: true,
@@ -1085,6 +1091,8 @@ export function WorkspaceProvider({ children, projectId }) {
     activeFileId,
     setActiveFileId,
     openFileIds,
+    tabOrders,
+    reorderWorkspaceTab,
     closeFileTab,
     getFileLines,
     getFileName,

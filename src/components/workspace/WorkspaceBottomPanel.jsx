@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Maximize2, Minimize2, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { moveTab } from '@/lib/tabOrder'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
@@ -25,30 +26,46 @@ const MIN_CANVAS = 220
 // panel surface with a hairline above; its tab row uses the studio's pill
 // category tabs. Conflict Points sits with the Terminal and Console like
 // a Problems tab, its open count badged on the tab. Drag the top edge to
-// resize; maximize fills the view with it (and restores); the chevron (or
-// clicking the active tab) collapses it down to just its tab strip.
+// resize; the single chevron opens to the list's content height (capped
+// to leave canvas space) or collapses it down to just its tab strip.
 function WorkspaceBottomPanel() {
   const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
-  // The height to go back to while maximized (null = not maximized).
-  const [restoreHeight, setRestoreHeight] = useState(null)
+  const [tabOrder, setTabOrder] = useState(() => TABS.map((t) => t.id))
+  const draggedTab = useRef(null)
+  const [contentHeight, setContentHeight] = useState(null)
+  const [availableHeight, setAvailableHeight] = useState(480)
+  const manuallySized = useRef(false)
+  const previousMode = useRef(null)
+  const mode = `${tab}:${open}`
+  useLayoutEffect(() => {
+    if (previousMode.current !== mode) {
+      previousMode.current = mode
+      manuallySized.current = false
+    }
+  }, [mode])
+
+  useLayoutEffect(() => {
+    const parent = rootRef.current?.parentElement
+    if (!parent) return
+    const measure = () => setAvailableHeight(Math.max(MIN_HEIGHT, parent.clientHeight - MIN_CANVAS))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(parent)
+    return () => observer.disconnect()
+  }, [])
+
+  useLayoutEffect(() => {
+    if (tab !== 'conflict' || !open || contentHeight == null || manuallySized.current) return
+    const fitted = Math.min(availableHeight, Math.max(MIN_HEIGHT, STRIP_HEIGHT + contentHeight + 1))
+    if (height !== fitted) setBottomPanel({ height: fitted })
+  }, [tab, open, contentHeight, availableHeight, height, setBottomPanel])
   const { open: openConflicts, needsMyReview } = conflictCounts(conflicts)
 
   function maxHeight() {
     const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
     return Math.max(MIN_HEIGHT, parentHeight - MIN_CANVAS)
-  }
-  const maximized = open && restoreHeight != null
-
-  function toggleMaximize() {
-    if (maximized) {
-      setBottomPanel({ height: restoreHeight, open: true })
-      setRestoreHeight(null)
-    } else {
-      setRestoreHeight(height)
-      setBottomPanel({ height: maxHeight(), open: true })
-    }
   }
   const active = TABS.find((t) => t.id === tab) ?? TABS[0]
 
@@ -63,7 +80,8 @@ function WorkspaceBottomPanel() {
     const startY = event.clientY
     const startHeight = open ? height : STRIP_HEIGHT
     const limit = maxHeight()
-    setRestoreHeight(null)
+    previousMode.current = `${tab}:true`
+    manuallySized.current = true
     document.body.style.cursor = 'row-resize'
 
     function onMove(m) {
@@ -98,12 +116,36 @@ function WorkspaceBottomPanel() {
       />
 
       <div className="flex shrink-0 items-center gap-1 px-3" style={{ height: STRIP_HEIGHT }} role="tablist">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {tabOrder.map((id) => TABS.find((t) => t.id === id)).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             role="tab"
             aria-selected={id === tab}
+            draggable
+            onDragStart={(event) => {
+              draggedTab.current = id
+              event.dataTransfer.effectAllowed = 'move'
+              event.dataTransfer.setData('text/plain', id)
+            }}
+            onDragOver={(event) => { if (draggedTab.current) event.preventDefault() }}
+            onDrop={(event) => {
+              if (!draggedTab.current) return
+              event.preventDefault()
+              const rect = event.currentTarget.getBoundingClientRect()
+              const source = draggedTab.current
+              const after = event.clientX >= rect.left + rect.width / 2
+              setTabOrder((prev) => moveTab(prev, source, id, after))
+            }}
+            onDragEnd={() => { draggedTab.current = null }}
+            onKeyDown={(event) => {
+              if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+              const direction = event.key === 'ArrowRight' ? 1 : -1
+              const target = tabOrder[tabOrder.indexOf(id) + direction]
+              if (!target) return
+              event.preventDefault()
+              setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
+            }}
             onClick={() => pickTab(id)}
             className={cn(CATEGORY_TAB, 'gap-1.5', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
@@ -133,24 +175,11 @@ function WorkspaceBottomPanel() {
         )}
         <button
           type="button"
-          onClick={toggleMaximize}
-          title={maximized ? 'Restore panel size' : 'Maximize panel'}
-          aria-label={maximized ? 'Restore panel size' : 'Maximize panel'}
-          className="ml-auto flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-        >
-          {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            // Collapsing a maximized panel drops the maximize too.
-            setBottomPanel({ open: !open, ...(maximized && { height: restoreHeight }) })
-            setRestoreHeight(null)
-          }}
+          onClick={() => setBottomPanel({ open: !open })}
           title={open ? 'Collapse panel' : 'Expand panel'}
           aria-label={open ? 'Collapse panel' : 'Expand panel'}
           aria-expanded={open}
-          className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+          className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
         >
           {open ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
         </button>
@@ -158,7 +187,7 @@ function WorkspaceBottomPanel() {
 
       {open && (
         <div role="tabpanel" aria-label={active.label} className="min-h-0 flex-1 overflow-hidden">
-          <Panel />
+          <Panel onContentHeightChange={tab === 'conflict' ? setContentHeight : undefined} />
         </div>
       )}
     </section>

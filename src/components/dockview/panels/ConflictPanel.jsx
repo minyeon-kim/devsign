@@ -1,5 +1,5 @@
-import { Fragment, useState } from 'react'
-import { toast } from 'sonner'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleAlert, CircleCheck, FileCode2, Info, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -37,7 +37,8 @@ const FILTERS = [
   { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
 ]
 
-function ConflictPanel() {
+function ConflictPanel({ onContentHeightChange }) {
+  const contentRef = useRef(null)
   const { conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel } =
     useWorkspace()
   const counts = conflictCounts(conflicts)
@@ -51,6 +52,24 @@ function ConflictPanel() {
   // Only what's still batchable stays selected (e.g. after a review moves on).
   const selection = selected.filter((id) => batchable.some((c) => c.id === id))
   const allSelected = batchable.length > 0 && selection.length === batchable.length
+
+  useLayoutEffect(() => {
+    if (!onContentHeightChange) return
+    const root = contentRef.current
+    const filters = root?.querySelector('[aria-label="Filter conflicts"]')
+    const table = root?.querySelector('table')
+    const batch = root?.querySelector('[data-batch-actions]')
+    const measure = () => {
+      const scroller = table?.parentElement
+      const scrollbar = scroller ? scroller.offsetHeight - scroller.clientHeight : 0
+      onContentHeightChange(Math.ceil((filters?.getBoundingClientRect().height ?? 0) +
+        (table?.getBoundingClientRect().height ?? 112) + (batch ? batch.getBoundingClientRect().height + 12 : 0) + scrollbar))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    for (const element of [root, filters, table, batch]) if (element) observer.observe(element)
+    return () => observer.disconnect()
+  }, [onContentHeightChange, conflicts.length, visible.length, expandedId, selection.length])
 
   function toggle(id) {
     setSelected(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id])
@@ -71,7 +90,7 @@ function ConflictPanel() {
   }
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-card">
+    <div ref={contentRef} className="flex h-full min-w-0 flex-col bg-card">
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
@@ -248,7 +267,7 @@ function ConflictPanel() {
           </table>
 
           {selection.length > 0 && (
-            <div className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-2 rounded-full bg-[#1c1c1f] py-1.5 pr-1.5 pl-4 text-xs shadow-[0_12px_32px_-8px_rgba(0,0,0,0.8)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div data-batch-actions className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-2 rounded-full bg-[#1c1c1f] py-1.5 pr-1.5 pl-4 text-xs shadow-[0_12px_32px_-8px_rgba(0,0,0,0.8)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
               <span className="text-slate-300 tabular-nums">
                 <span className="font-semibold text-white">{selection.length}</span> low-risk selected
               </span>

@@ -6,7 +6,7 @@ import { defineConfig } from "vite"
 // https://vite.dev/config/
 export default defineConfig({
   base: "/devsign/",
-  plugins: [react(), tailwindcss()],
+  plugins: [react({ jsxImportSource: "@/i18n" }), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),

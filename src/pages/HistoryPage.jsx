@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'

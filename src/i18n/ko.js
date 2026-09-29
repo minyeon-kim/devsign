@@ -1,0 +1,792 @@
+// UI copy only. Project names, source code and authored content are not catalog keys.
+export const ko = Object.fromEntries(`
+Settings|설정
+Workspace settings|워크스페이스 설정
+App preferences for this browser.|이 브라우저의 앱 환경설정입니다.
+Language|언어
+Applies to the entire app. Code, file paths and your content stay in their original language.|앱 전체에 적용됩니다. 코드, 파일 경로와 사용자 콘텐츠는 원문을 유지합니다.
+Demo|데모
+Local demo data|로컬 데모 데이터
+Local demo tools|로컬 데모 도구
+Reset demo data|데모 데이터 초기화
+Saved only in this browser. Approvals and edits are not synchronized with other users.|이 브라우저에만 저장됩니다. 승인과 편집 내용은 다른 사용자와 동기화되지 않습니다.
+Reset this prototype’s drafts, reviews and history for all projects?|모든 프로젝트의 초안, 검토와 기록을 초기화할까요?
+Local demo could not be saved|로컬 데모를 저장하지 못했습니다
+Storage is unavailable or full. Changes remain in this tab; allow browser storage before refreshing.|저장 공간을 사용할 수 없거나 가득 찼습니다. 변경 내용은 이 탭에 남아 있습니다. 새로고침 전에 브라우저 저장소를 허용하세요.
+Reset failed. Allow access to browser storage and try again.|초기화하지 못했습니다. 브라우저 저장소 접근을 허용한 뒤 다시 시도하세요.
+Close|닫기
+Cancel|취소
+Current|현재
+Files|파일
+Needs your review|내 검토 필요
+Open|열기
+Status|상태
+Preview|미리보기
+All|전체
+History|기록
+Design|디자인
+Done|완료
+Send|보내기
+Review|검토
+Projects|프로젝트
+Rollback here|여기로 되돌리기
+Merged|병합 완료
+Compare latest|최신 버전과 비교
+Merge Studio|머지 스튜디오
+Notifications|알림
+Original Design|원본 디자인
+Restore|복원
+Changes|변경 사항
+Comments|댓글
+risk|위험도
+Docs|문서
+Imported|가져온 항목
+All types|모든 유형
+Import|가져오기
+Back|뒤로
+Fill|채우기
+Radius|모서리 반경
+Resolved|해결됨
+High|높음
+Medium|보통
+Low|낮음
+Reviewers|검토자
+Conflict Points|충돌 지점
+Assets|에셋
+Terminal|터미널
+Console|콘솔
+Following|팔로우 중
+None|없음
+Inbox|받은 알림
+Current Implementation|현재 구현
+Code|코드
+Filter|필터
+Code changes|코드 변경
+Add user|사용자 추가
+Teams|팀
+All projects|모든 프로젝트
+This week|이번 주
+Conflict|충돌
+Comment|댓글
+Conflicts|충돌
+Updated|수정됨
+On this page|이 페이지의 항목
+Draft changes · Not merged|변경 초안 · 병합 전
+Review changes|변경 사항 검토
+Choose a target first|먼저 대상을 선택하세요
+Auto|자동
+You|나
+Before|변경 전
+After|변경 후
+Members|구성원
+View profile|프로필 보기
+All docs|모든 문서
+Design System Updates|디자인 시스템 업데이트
+Archive|보관함
+Restore to History|기록으로 복원
+Bring designs, code and data into|디자인, 코드와 데이터 가져오기
+Delete|삭제
+Approved · Pending merge|승인됨 · 병합 대기
+Forward|앞으로
+Agent checkpoints (History)|에이전트 체크포인트 (기록)
+No comments yet.|아직 댓글이 없습니다.
+Clear selection|선택 해제
+Copied|복사됨
+Copy|복사
+Upload files|파일 업로드
+Width|너비
+Height|높이
+Label|레이블
+Version History|버전 기록
+Checkpoint ·|체크포인트 ·
+Play history|기록 재생
+Version|버전
+Rollback to checkpoint|체크포인트로 되돌리기
+Code files|코드 파일
+Code Editor|코드 편집기
+Canvas|캔버스
+AI Chat|AI 채팅
+Layers|레이어
+Bottom panel|하단 패널
+Stroke|테두리
+Layout|레이아웃
+Workspace|워크스페이스
+Appearance|모양
+Square|사각형
+Rounded|둥근 모서리
+Pill|캡슐형
+Reset|초기화
+Original|원본
+Block Deck|블록 덱
+Resolve all|모두 해결
+Drag to move|드래그하여 이동
+Remove|제거
+Check|확인
+All changes reviewed|모든 변경 사항 검토 완료
+Property|속성
+Edit in Assemble|조합에서 편집
+Review requested|검토 요청됨
+Compare|비교
+Approved|승인됨
+Step|단계
+Write a comment|댓글 작성
+Resize|크기 조절
+In review|검토 중
+In Review|검토 중
+Edited|편집됨
+Edit member|구성원 편집
+Role|역할
+(optional)|(선택 사항)
+(you)|(나)
+Owner|소유자
+Open a view|화면 열기
+Maximize|최대화
+Collapse panel|패널 접기
+Expand panel|패널 펼치기
+Back to dashboard|대시보드로 돌아가기
+Activity overview|활동 개요
+More|더 보기
+Most active projects|활동이 많은 프로젝트
+Stay in sync|최신 소식 받기
+Get notified when there are new conflicts or merges.|새 충돌이나 병합이 발생하면 알림을 받습니다.
+Turn on notifications|알림 켜기
+Merge|병합
+File|파일
+Mention|멘션
+Merges|병합
+Mentions|멘션
+Pipeline|처리 과정
+Doc|문서
+Generate documentation|문서 생성
+Archive to history|기록에 보관
+Changes to the design system are written up as documentation, then recorded in the project's history.|디자인 시스템 변경을 문서로 작성한 뒤 프로젝트 기록에 보관합니다.
+No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 충돌 지점을 해결하면 시작됩니다.
+Spec|명세
+Guide|안내
+Target:|대상:
+Choose what to change|변경할 대상 선택
+Apply the request to|요청 적용 대상
+Select an element on the canvas to target it.|캔버스에서 요청 대상을 선택하세요.
+Partially done|일부 완료
+No changes made|변경 사항 없음
+Failed|실패
+View changes|변경 사항 보기
+Ask Devsign to tweak the design or code...|Devsign에 디자인이나 코드 수정을 요청하세요...
+Nothing yet.|아직 항목이 없습니다.
+Search projects, files, or members...|프로젝트, 파일 또는 구성원 검색...
+No results found.|검색 결과가 없습니다.
+This is a demo — no account was affected.|데모입니다. 실제 계정에는 영향을 주지 않습니다.
+Sign out|로그아웃
+Undo|실행 취소
+Checkpoints|체크포인트
+Archive this checkpoint|이 체크포인트 보관
+No archived checkpoints.|보관된 체크포인트가 없습니다.
+Switch project|프로젝트 전환
+Home · All projects|홈 · 모든 프로젝트
+Select projects|프로젝트 선택
+Deselect all|전체 선택 해제
+Select all|전체 선택
+Last modified|최근 수정일
+Grid view|격자 보기
+List view|목록 보기
+New project|새 프로젝트
+Nothing needs your review.|검토할 항목이 없습니다.
+High risk|높은 위험도
+No open high-risk items.|미해결 고위험 항목이 없습니다.
+Nothing is waiting to be merged.|병합 대기 중인 항목이 없습니다.
+You’re a reviewer|내가 검토자인 항목
+Not assigned to you|나에게 배정되지 않음
+Your queue|내 작업 목록
+Queue|작업 목록
+Home|홈
+Activity|활동
+Team|팀
+Main|주 메뉴
+Close drawer|서랍 닫기
+Resize sidebar|사이드바 크기 조절
+Open a panel from the toolbar, or drag a tab here to dock it.|도구 모음에서 패널을 열거나 여기에 탭을 끌어 놓으세요.
+New comment|새 댓글
+Leave a comment...|댓글 남기기...
+Less radius|반경 줄이기
+More radius|반경 늘리기
+Double-click text to edit|텍스트를 두 번 클릭하여 편집
+Zoom out|축소
+Zoom in|확대
+Write a comment...|댓글 작성...
+Pending merge|병합 대기
+Filter conflicts|충돌 필터
+No conflicts — design and code are in sync.|충돌이 없습니다. 디자인과 코드가 일치합니다.
+Select all low-risk conflicts|낮은 위험도의 충돌 모두 선택
+Severity|위험도
+Issue|항목
+Nothing needs your review right now.|현재 검토할 항목이 없습니다.
+No conflicts in this view.|이 보기에 충돌이 없습니다.
+Only low-risk conflicts waiting on review can be batch-approved|검토 대기 중인 낮은 위험도의 충돌만 일괄 승인할 수 있습니다
+Unassigned|미배정
+low-risk selected|개의 낮은 위험도 항목 선택됨
+Batch Approve Selected|선택 항목 일괄 승인
+Minimap — click to jump|미니맵 · 클릭하여 이동
+Comment on this line|이 줄에 댓글 작성
+Reply...|답글 작성...
+Editing|편집 중
+Saved|저장됨
+Edit|편집
+Import files|파일 가져오기
+Import into this project|이 프로젝트로 가져오기
+Figma (.fig), Illustrator (.ai), SVG and images, or code files (.jsx, .tsx, .css, .json…). You can also drop them onto the file tree.|Figma (.fig), Illustrator (.ai), SVG, 이미지 또는 코드 파일 (.jsx, .tsx, .css, .json 등)을 가져옵니다. 파일 트리에 끌어 놓을 수도 있습니다.
+Link a Figma file|Figma 파일 연결
+Link|연결
+· imported|· 가져옴
+Project root|프로젝트 루트
+Project files|프로젝트 파일
+No files yet. Import files to get started.|파일이 없습니다. 파일을 가져와 시작하세요.
+Design imports|가져온 디자인
+Drop to import|놓아서 가져오기
+This layer no longer exists.|이 레이어는 더 이상 존재하지 않습니다.
+Position & size|위치와 크기
+Synced from|동기화 원본
+Project-wide version changes and activity.|프로젝트 전체의 버전 변경과 활동입니다.
+Select a version to compare it with the current one.|현재 버전과 비교할 버전을 선택하세요.
+This is the current version.|현재 버전입니다.
+The file as it was at this version.|이 버전 당시의 파일입니다.
+Compared with current ·|현재 버전과 비교 ·
+lines|줄
+Restore this version|이 버전 복원
+No code changes between this version and the latest.|이 버전과 최신 버전 사이에 코드 변경이 없습니다.
+Resize code and canvas|코드와 캔버스 크기 조절
+Canvas version|캔버스 버전
+Preview props|미리보기 속성
+History playback|기록 재생
+Pause playback|재생 일시 정지
+Pause|일시 정지
+Previous version|이전 버전
+Previous version (←)|이전 버전 (←)
+Next version|다음 버전
+Next version (→)|다음 버전 (→)
+Current version|현재 버전
+Restore to here|여기까지 복원
+Always|항상
+Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.|작업을 이 체크포인트 당시로 복원하고 새 체크포인트로 저장합니다. 이후 기록은 삭제하지 않습니다.
+Preview ·|미리보기 ·
+vs. current|현재 버전과 비교
+The code is the same as the current version.|현재 버전과 코드가 같습니다.
+What will be rolled back|되돌릴 내용
+Preview & canvas|미리보기와 캔버스
+Agent memory|에이전트 기억
+Nothing to forget — the agent conversation hasn’t moved on since.|이후 에이전트 대화가 없어 지울 내용이 없습니다.
+Database|데이터베이스
+Import a repository's files into this project's file tree.|저장소의 파일을 이 프로젝트의 파일 트리로 가져옵니다.
+Figma design|Figma 디자인
+Link a Figma file; its frames are available from Assets.|Figma 파일을 연결하면 에셋에서 프레임을 사용할 수 있습니다.
+Zip file|ZIP 파일
+Upload a project archive. It's kept with the project's assets.|프로젝트 압축 파일을 업로드합니다. 프로젝트 에셋에 보관됩니다.
+Upload zip|ZIP 업로드
+Spreadsheet|스프레드시트
+CSV and TSV open as data files you can edit; Excel files join Assets.|CSV와 TSV는 편집 가능한 데이터 파일로 열고 Excel 파일은 에셋에 추가합니다.
+Upload spreadsheet|스프레드시트 업로드
+Components, styles and config — added to the file tree and opened.|컴포넌트, 스타일과 설정 파일을 파일 트리에 추가하고 엽니다.
+Upload code|코드 업로드
+Illustrator & images|Illustrator 및 이미지
+Vector and image files for the canvas, kept in Assets.|캔버스에서 사용할 벡터와 이미지 파일을 에셋에 보관합니다.
+Nothing imported yet.|아직 가져온 항목이 없습니다.
+Commands|명령
+No matching commands.|일치하는 명령이 없습니다.
+Tab|탭
+Pane|패널
+Hide Inspector|속성 패널 숨기기
+Show Inspector|속성 패널 표시
+Collapse bottom panel|하단 패널 접기
+Expand bottom panel|하단 패널 펼치기
+Command palette|명령 팔레트
+Open a view or run a command…|화면을 열거나 명령 실행…
+Waiting for followers...|팔로워 대기 중...
+Stop|중지
+Inspect|속성 보기
+Select a frame or shape on the Canvas to inspect its design spec.|캔버스에서 프레임이나 도형을 선택하여 디자인 명세를 확인하세요.
+Design tokens|디자인 토큰
+Fill token|채우기 토큰
+Layout (Auto Layout)|레이아웃 (자동 레이아웃)
+Direction|방향
+Padding|안쪽 여백
+Gap|간격
+Align|정렬
+Size|크기
+Position|위치
+Style|스타일
+Typography|타이포그래피
+Window Layout|창 배치
+Search files, commands...|파일, 명령 검색...
+Follow me|내 화면 공유
+Teammate activity is simulated in this prototype.|이 프로토타입의 팀원 활동은 시뮬레이션입니다.
+Edit custom value|사용자 지정 값 편집
+Set a custom value|사용자 지정 값 설정
+Custom|사용자 지정
+Clear custom value|사용자 지정 값 지우기
+Pick a color|색상 선택
+X position|X 위치
+Y position|Y 위치
+Unlock aspect ratio|비율 고정 해제
+Lock aspect ratio|비율 고정
+Auto layout|자동 레이아웃
+Horizontal|가로
+Vertical|세로
+Gap between items|항목 사이 간격
+Horizontal padding|가로 안쪽 여백
+Vertical padding|세로 안쪽 여백
+Alignment|정렬
+Opacity|불투명도
+Corner radius|모서리 반경
+Square corners (0px)|직각 모서리 (0px)
+Rounded corners (12px)|둥근 모서리 (12px)
+Pill corners (999px)|캡슐형 모서리 (999px)
+Remove fill override|채우기 변경 해제
+Remove stroke|테두리 제거
+Add stroke|테두리 추가
+HEX or token|HEX 또는 토큰
+Stroke width|테두리 두께
+No stroke|테두리 없음
+Effects|효과
+Drop shadow|그림자
+Glow|빛 효과
+Icon|아이콘
+No icon|아이콘 없음
+Leading|앞쪽
+Leading icon|앞쪽 아이콘
+Trailing|뒤쪽
+Trailing icon|뒤쪽 아이콘
+No design tokens found|디자인 토큰이 없습니다
+AI recommends|AI 추천
+Apply recommendation|추천 적용
+No drifts — this item matches the Original Design.|차이가 없습니다. 원본 디자인과 일치합니다.
+drifts resolved|개 차이 해결됨
+design ·|디자인 ·
+Detected drifts|감지된 차이
+Collapse|접기
+Show property diffs|속성 차이 표시
+Not resolved yet|아직 해결되지 않음
+All properties resolved|모든 속성 해결됨
+Incoming|들어오는 변경
+Edit this line directly in the code window.|코드 창에서 이 줄을 직접 편집하세요.
+Open a drift to compare and resolve its properties right here.|차이 항목을 열어 여기서 속성을 비교하고 해결하세요.
+Text|텍스트
+Synced to copy.json|copy.json에 동기화됨
+Dismiss suggestion|추천 닫기
+AI suggestions|AI 추천
+Select a canvas element to preview suggestions on it|캔버스 요소를 선택하여 추천 결과를 미리 보세요
+For|대상
+— click one to preview it live|· 선택하여 실시간으로 미리 보기
+All suggestions dismissed.|모든 추천을 닫았습니다.
+Generate alternatives|대안 생성
+No more alternatives|더 이상 대안이 없습니다
+Token binding|토큰 연결
+Select an element on the canvas to assemble its shape, size and layout.|캔버스 요소를 선택하여 모양, 크기와 레이아웃을 조합하세요.
+Drag onto the canvas to place|캔버스로 끌어 놓아 배치
+Replace|교체
+Insert|삽입
+Add to canvas|캔버스에 추가
+Filter by category|분류별 필터
+Components|컴포넌트
+Search components…|컴포넌트 검색…
+Compatible|호환됨
+Every component|모든 컴포넌트
+Nothing fits|호환되는 항목 없음
+— showing all|· 전체 표시
+All components ·|모든 컴포넌트 ·
+Fits|호환
+Select an element on the canvas to see only the components that fit it — or drag one onto the canvas.|캔버스 요소를 선택하면 호환되는 컴포넌트만 표시됩니다. 컴포넌트를 캔버스로 끌어 놓을 수도 있습니다.
+No components match.|일치하는 컴포넌트가 없습니다.
+No compatible components match this search.|검색과 일치하는 호환 컴포넌트가 없습니다.
+Collapse to the header|헤더만 남기고 접기
+Collapse Block Deck|블록 덱 접기
+This merge item has no design page to compare.|이 병합 항목에는 비교할 디자인 페이지가 없습니다.
+Recommended|추천
+No linked conflict blocks are available. This item cannot be resolved without its source data.|연결된 충돌 블록이 없습니다. 원본 데이터 없이는 이 항목을 해결할 수 없습니다.
+Back to Check|확인으로 돌아가기
+Checks|검사
+Resolve the|해결할 항목:
+Pick a version for each conflicting value — or let AI resolve them all.|각 충돌 값의 버전을 선택하거나 AI로 모두 해결하세요.
+with AI|AI로
+Uses the latest Design System tokens|최신 디자인 시스템 토큰 사용
+Applied|적용됨
+Show on canvas|캔버스에서 보기
+Locate|위치 찾기
+Previous|이전
+Apply resolution|해결 결과 적용
+Next|다음
+No conflicts|충돌 없음
+Reset position & size|위치와 크기 초기화
+Delete (⌫)|삭제 (⌫)
+Listening…|듣는 중…
+Devsign AI is thinking…|Devsign AI가 생각 중입니다…
+Ask AI to merge, restyle, or explain… (attach a screenshot or use voice)|AI에 병합, 스타일 변경 또는 설명을 요청하세요… (스크린샷 첨부 또는 음성 입력)
+Attach image|이미지 첨부
+Stop recording|녹음 중지
+Voice input|음성 입력
+Recording…|녹음 중…
+Committing changes|변경 사항 기록 중
+Opening pull request|풀 리퀘스트 생성 중
+Requesting team reviews|팀 검토 요청 중
+No variant options resolved.|해결된 후보 옵션이 없습니다.
+No code files.|코드 파일이 없습니다.
+AI edits|AI 편집
+No AI edits applied.|적용된 AI 편집이 없습니다.
+What will be merged|병합할 내용
+not applied|적용 전
+No explicit selection. The current implementation will be used.|명시적으로 선택하지 않았습니다. 현재 구현을 사용합니다.
+Changed since review|검토 후 변경됨
+Previous change|이전 변경
+Next change|다음 변경
+Design system|디자인 시스템
+Replaced with|교체한 컴포넌트
+Styled with|스타일 출처
+Final|최종안
+Keep the Original value|원본 값 유지
+Adopt the Current value|현재 값 채택
+— its final code is in the output below.|· 최종 코드는 아래 출력에 표시됩니다.
+Select this element in the Block Deck's Assemble tab to change its final result|최종 결과를 변경하려면 블록 덱의 조합 탭에서 이 요소를 선택하세요
+Reviewed|검토 완료
+Mark as unreviewed|검토 취소
+Mark as reviewed|검토 완료로 표시
+No merge conflicts|병합 충돌 없음
+Conflicting blocks need a version before this merges cleanly.|병합하기 전에 충돌 블록의 버전을 결정해야 합니다.
+They’ll ship the Current Implementation’s value — review them in Preview.|현재 구현의 값을 사용합니다. 미리보기에서 검토하세요.
+All values on the token scale|모든 값이 토큰 규격에 맞음
+WCAG 2.2 AA (2.5.8) target size.|WCAG 2.2 AA (2.5.8) 대상 크기 기준입니다.
+Text sizes ≥ 12px|텍스트 크기 12px 이상
+Text below 12px|12px 미만 텍스트
+No pending AI notes|대기 중인 AI 메모 없음
+Use “Apply with AI” on the canvas to include them.|캔버스에서 ‘AI로 적용’을 눌러 포함하세요.
+Token consistency|토큰 일치도
+Screen impacted|영향받는 화면
+Screens impacted|영향받는 화면
+Breaking change|호환성을 깨뜨리는 변경
+Breaking changes|호환성을 깨뜨리는 변경
+Checks passed|통과한 검사
+Merge impact|병합 영향
+All automated checks pass|모든 자동 검사 통과
+Impact|영향
+Resolve|해결
+Merged result|병합 결과
+Both at|공통 배율
+Staging preview|최종안 미리보기
+Review the final result before merging.|병합 전에 최종 결과를 검토하세요.
+Live|실시간
+This drift has no design element — its change is in the code below.|이 차이에는 디자인 요소가 없습니다. 아래 코드에서 변경을 확인하세요.
+Output files|출력 파일
+Needs at least one reviewer|검토자가 한 명 이상 필요합니다
+Not required|필수 아님
+Add|추가
+Deploys automatically once approved and merged|승인 및 병합 후 자동 배포
+Auto-deploy is off — deploy manually after merge|자동 배포가 꺼져 있습니다. 병합 후 수동으로 배포하세요
+” is open and waiting for approval.|’ 검토가 열려 승인 대기 중입니다.
+Merge changes|변경 사항 병합
+Draft changes · Not merged · Local demo|변경 초안 · 병합 전 · 로컬 데모
+Required approvals · Local demo simulation|필수 승인 · 로컬 데모 시뮬레이션
+Simulate approval|승인 시뮬레이션
+Merge approved changes|승인된 변경 병합
+Generating…|생성 중…
+Generate with AI|AI로 생성
+Commit & PR|커밋 및 PR
+Commit message|커밋 메시지
+PR title|PR 제목
+PR description|PR 설명
+Describe this merge, or use Generate with AI…|병합 내용을 설명하거나 AI로 생성하세요…
+Deploy automatically once approved and merged|승인 및 병합 후 자동 배포
+Assign at least one Code and one Design reviewer.|코드 검토자와 디자인 검토자를 각각 한 명 이상 배정하세요.
+Commit message and PR title are required.|커밋 메시지와 PR 제목이 필요합니다.
+Back to Compare|비교로 돌아가기
+Continue to|다음 단계:
+Open PR & Request Review|PR 생성 및 검토 요청
+Find people…|사람 검색…
+Back to filters|필터로 돌아가기
+Custom due range|마감일 범위 지정
+Clear|지우기
+Assignee|담당자
+Due|마감일
+Custom range…|범위 지정…
+Clear all filters|모든 필터 해제
+Showing|표시 중
+Clear filters|필터 해제
+Explore the Merge List|병합 목록 살펴보기
+Open a merge item|병합 항목 열기
+Step through drifts|차이 항목 순서대로 보기
+Edit & bind in the Block Deck|블록 덱에서 편집 및 연결
+Finish the merge|병합 마무리
+Skip guide|안내 건너뛰기
+Roll back to this version|이 버전으로 되돌리기
+Roll back to this version?|이 버전으로 되돌릴까요?
+Roll back|되돌리기
+Merges, branches and reviews — newest first.|병합, 브랜치와 검토를 최신순으로 표시합니다.
+Unread|읽지 않음
+Add emoji|이모지 추가
+Mark all read|모두 읽음으로 표시
+Filter notifications|알림 필터
+You’re all caught up.|모든 알림을 확인했습니다.
+Nothing here yet.|아직 항목이 없습니다.
+Edited by hand|직접 편집함
+Edit this line|이 줄 편집
+Double-click a line to edit it|줄을 두 번 클릭하여 편집
+View all|전체 보기
+Double-click to edit text|두 번 클릭하여 텍스트 편집
+Double-click any text on this artboard to edit it — synced to copy.json|아트보드의 텍스트를 두 번 클릭하면 편집할 수 있으며 copy.json에 동기화됩니다
+Edit with AI|AI로 편집
+AI Edit|AI 편집
+Apply|적용
+Delete annotation|주석 삭제
+AI is updating design & code…|AI가 디자인과 코드를 수정하고 있습니다…
+Waiting — use Apply with AI|대기 중 · AI로 적용을 사용하세요
+Save|저장
+Version history|버전 기록
+No changes yet — pick or edit values, edit code, assemble blocks, or annotate.|아직 변경이 없습니다. 값을 선택하거나 편집하고, 코드를 수정하거나 블록을 조합하거나 주석을 추가하세요.
+Edits|편집 사항
+Jump to element|요소로 이동
+Undo this change|이 변경 취소
+Incoming from the Current Implementation|현재 구현에서 들어오는 변경
+Incoming changed lines|들어오는 변경된 줄
+Changes log|변경 기록
+Design changes|디자인 변경
+Close preview|미리보기 닫기
+Apply with AI|AI로 적용
+Previous drift|이전 차이
+Drift|차이
+Next drift|다음 차이
+Merge Changes|변경 사항 병합
+Reset view and layout|보기와 레이아웃 초기화
+Hide selection guides|선택 안내선 숨기기
+Show selection guides|선택 안내선 표시
+Selection guides|선택 안내선
+AI is updating…|AI가 수정 중입니다…
+Not applied yet|아직 적용하지 않음
+Needs review|검토 필요
+Needs Review|검토 필요
+In progress|진행 중
+In Progress|진행 중
+Draft|초안
+Other|기타
+No changes yet|아직 변경 사항 없음
+Incoming changes from the Current Implementation|현재 구현에서 들어오는 변경 사항
+Lines edited by hand|직접 편집한 줄
+Show Merge List|병합 목록 표시
+Hide Merge List|병합 목록 숨기기
+Merge List|병합 목록
+Search…|검색…
+Add files — start a merge item from your open files|파일 추가 · 열린 파일로 병합 항목 만들기
+Add files|파일 추가
+No merge items match these filters.|필터와 일치하는 병합 항목이 없습니다.
+Back to Merge List|병합 목록으로 돌아가기
+Mobile|모바일
+Tablet|태블릿
+Desktop|데스크톱
+Device|기기
+Actions|작업
+Rotate (mobile & tablet only)|회전 (모바일과 태블릿만 가능)
+Rotate|회전
+Close preview (Esc)|미리보기 닫기 (Esc)
+This merge item has no design to preview.|이 병합 항목에는 미리 볼 디자인이 없습니다.
+Hover or click an element to inspect it|요소에 마우스를 올리거나 클릭하여 확인하세요
+Share|공유
+General access|일반 접근 권한
+Link copied|링크 복사됨
+Copy link|링크 복사
+Open Saved Merge Work|저장된 병합 작업 열기
+Continue from Merge List|병합 목록에서 계속하기
+Start New with Current Work|현재 작업으로 새로 시작
+Start with currently open files|현재 열린 파일로 시작
+State restored|상태 복원됨
+Back to Preview|미리보기로 돌아가기
+Show Block Deck|블록 덱 표시
+release on an artboard to drop|아트보드 위에서 놓아 배치
+click on an artboard to place|아트보드를 클릭하여 배치
+Esc to cancel|Esc로 취소
+Previous month|이전 달
+Next month|다음 달
+Indigo|인디고
+Violet|바이올렛
+Emerald|에메랄드
+Rose|로즈
+Amber|앰버
+Gradient|그라데이션
+Surface|표면
+Ghost|투명
+Circle|원형
+Solid pill|단색 캡슐형
+Ghost outline|투명 윤곽선
+Compact|간결하게
+Full width|전체 너비
+Icon circle|원형 아이콘
+Overdue|기한 초과
+Due today|오늘 마감
+Due this week|이번 주 마감
+No due date|마감일 없음
+Kept original design|원본 디자인 유지
+Accepted current implementation|현재 구현 채택
+Update this person's details and team assignments.|구성원의 정보와 팀 배정을 수정하세요.
+Invite a new person to your workspace.|워크스페이스에 새 구성원을 초대하세요.
+Name|이름
+Name is required.|이름을 입력하세요.
+Email|이메일
+A valid email is required.|올바른 이메일을 입력하세요.
+e.g. Developer, PM, Designer|예: 개발자, PM, 디자이너
+Save changes|변경 사항 저장
+Pending|대기 중
+Changes requested|변경 요청됨
+Review status|검토 상태
+Code before|변경 전 코드
+Changed by|변경한 사람
+Detected by|감지한 주체
+AI suggestion|AI 제안
+References|참고 자료
+View code diff|코드 차이 보기
+Approving signs off on this proposal. It is applied to the code only when merged.|승인은 이 제안에 동의하는 것입니다. 병합할 때만 코드에 적용됩니다.
+Merged — the code now matches the proposed change. Values below are as they were before the merge.|병합되어 코드에 제안이 적용되었습니다. 아래 값은 병합 전 상태입니다.
+Devsign AI already made this change in the workspace. It becomes final only when approved and merged.|Devsign AI가 워크스페이스에 변경 초안을 적용했습니다. 승인 후 병합해야 최종 확정됩니다.
+Before and after|변경 전후
+What changed|변경 내용
+No comparison captured yet.|아직 비교 정보가 없습니다.
+Why review is needed|검토가 필요한 이유
+No diff captured for this conflict yet.|이 충돌의 코드 차이가 아직 없습니다.
+Proposed change|제안된 변경
+Preview only — applied when the change is merged, after every required reviewer approves.|미리보기입니다. 필수 검토자가 모두 승인한 뒤 병합할 때 적용됩니다.
+Next:|다음:
+your review|내 검토
+Remind all|모두에게 알림
+Assign|배정
+No reviewers yet.|아직 검토자가 없습니다.
+Remind|알림 보내기
+Remove reviewer|검토자 제거
+Open the project's workspace to see and reply to its thread.|프로젝트 워크스페이스에서 대화를 확인하고 답글을 작성하세요.
+All required approvals received|필수 승인 모두 완료
+Approved by you|내가 승인함
+Pending merge. Approval does not merge the changes.|병합 대기 중입니다. 승인만으로 병합되지 않습니다.
+Request review|검토 요청
+Request changes|변경 요청
+Approve change|변경 승인
+Merge change|변경 병합
+Reopen|다시 열기
+Approval does not merge the changes.|승인만으로 변경 사항이 병합되지 않습니다.
+Merging applies the change and saves a History checkpoint.|병합하면 변경을 적용하고 기록에 체크포인트를 저장합니다.
+Risk|위험도
+Conflict details|충돌 상세
+Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 기록에서 확인할 수 있습니다.
+Open History|기록 열기
+Open in Merge Studio|머지 스튜디오에서 열기
+Edit or combine elements in Merge Studio before merging.|병합 전에 머지 스튜디오에서 요소를 편집하거나 조합하세요.
+Create new project|새 프로젝트 만들기
+Set up a new workspace for your team.|팀을 위한 새 워크스페이스를 만드세요.
+Project name|프로젝트 이름
+Project name is required.|프로젝트 이름을 입력하세요.
+A project with this name already exists.|같은 이름의 프로젝트가 이미 있습니다.
+Description|설명
+What's this project for?|어떤 프로젝트인가요?
+Project type|프로젝트 유형
+Creating…|생성 중…
+Create project|프로젝트 만들기
+Editor|편집자
+Create a new team|새 팀 만들기
+Group people together to share projects and access.|프로젝트와 접근 권한을 공유할 사람들을 팀으로 묶으세요.
+Team name|팀 이름
+Team name is required.|팀 이름을 입력하세요.
+Add members by name or email|이름이나 이메일로 구성원 추가
+Reset to default|기본값으로 초기화
+Create team|팀 만들기
+Open here|여기서 열기
+Drag to split or move|드래그하여 분할 또는 이동
+Resize bottom panel|하단 패널 크기 조절
+Needs your review ·|내 검토 필요 ·
+No views open|열린 화면이 없습니다
+Resize panes|패널 크기 조절
+All activities|모든 활동
+What your team is doing across every project. For one project's saved versions, open its Archive → History.|모든 프로젝트의 팀 활동입니다. 프로젝트의 저장된 버전은 보관함 → 기록에서 확인하세요.
+No activity matches this filter.|필터와 일치하는 활동이 없습니다.
+Open in Workspace|워크스페이스에서 열기
+Open Workspace|워크스페이스 열기
+Open design ↔ code differences|디자인 ↔ 코드 차이 열기
+None high risk|고위험 항목 없음
+Conflict Points not merged yet|아직 병합되지 않은 충돌 지점
+Open Conflict Points|충돌 지점 열기
+In Workspace|워크스페이스에서
+No open Conflict Points.|미해결 충돌 지점이 없습니다.
+Recent activity|최근 활동
+All activity|모든 활동
+Design system pipeline|디자인 시스템 처리 과정
+Reference docs|참고 문서
+Recent versions|최근 버전
+Active|활성
+Offline|오프라인
+Member updated|구성원 수정됨
+Member added|구성원 추가됨
+Team members|팀 구성원
+People with access to your projects.|프로젝트에 접근할 수 있는 구성원입니다.
+Search|검색
+Download CSV|CSV 다운로드
+New team|새 팀
+Member|구성원
+Email address|이메일 주소
+No members match your search.|검색과 일치하는 구성원이 없습니다.
+More actions|더 많은 작업
+Permissions|권한
+Assemble|조합
+Library|라이브러리
+Approvals|승인
+Feedback|피드백
+Code review|코드 검토
+Design review|디자인 검토
+Review not requested|검토 요청 전
+Awaiting review|검토 대기
+Just now|방금
+Today|오늘
+Yesterday|어제
+Default|기본값
+default|기본값
+Select|선택
+Deselect|선택 해제
+Approved changes|승인된 변경
+All changes|모든 변경
+Untitled|제목 없음
+Close sidebar|사이드바 닫기
+No reviewers assigned|배정된 검토자 없음
+Your approval is needed|내 승인이 필요합니다
+You requested changes|변경을 요청했습니다
+Review not requested yet|아직 검토를 요청하지 않았습니다
+Merge the approved change|승인된 변경 병합
+Assign reviewers|검토자 배정
+Review and approve|검토 후 승인
+Waiting on changes|변경 대기 중
+Can't merge yet|아직 병합할 수 없습니다
+Every required reviewer has to approve the latest changes first.|먼저 모든 필수 검토자가 최신 변경 사항을 승인해야 합니다.
+Resolve the conflicting blocks in Merge Studio’s Check step first.|먼저 머지 스튜디오의 확인 단계에서 충돌 블록을 해결하세요.
+Unresolved conflict markers remain in the code.|코드에 미해결 충돌 표시가 남아 있습니다.
+This change is already merged.|이미 병합된 변경입니다.
+`.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
+
+Object.assign(ko, {
+  'of': '/', 'file': '파일', 'files': '파일', 'change': '변경', 'changes': '변경',
+  'code': '코드', 'design': '디자인', 'layers': '레이어', 'copy': '복사',
+  'drift': '차이', 'drifts': '차이', 'conflict': '충돌', 'conflicts': '충돌',
+  'element': '요소', 'elements': '요소', 'propert': '속성', 'ies': '',
+  'note': '메모', 'notes': '메모', 'checkpoints': '체크포인트', 's': '',
+  'resolve': '해결', 'resolved': '해결됨', 'reviewed': '검토 완료', 'stale': '검토 후 변경됨',
+  'approved': '승인됨', 'in_review': '검토 중', 'open': '미해결', 'edited': '편집됨',
+  'total ·': '전체 ·', 'latest': '최신', 'selection': '선택', 'compare': '비교',
+  'replace': '교체', 'insert': '삽입', 'edit': '편집', 'all': '전체', 'fit': '맞춤',
+  'auto': '자동', 'left': '왼쪽', 'right': '오른쪽', 'center': '가운데', 'middle': '중앙',
+  'top': '위', 'bottom': '아래', 'above': '위', 'below': '아래', 'horizontal': '가로', 'vertical': '세로',
+  'No one matches “': '검색 결과 없음: “', 'Share “': '공유: “', 'across': '범위',
+  'Any': '전체', 'Due Soon': '마감 임박', 'No Due Date': '마감일 없음',
+  'Has conflicts': '충돌 있음', 'Most conflicts': '충돌 많은 순',
+  'Just Now': '방금', 'Viewer': '뷰어', 'Admin': '관리자', 'Developer': '개발자', 'Designer': '디자이너',
+  'Design System': '디자인 시스템', 'Component': '컴포넌트', 'Buttons': '버튼', 'Inputs': '입력',
+  'Chips': '칩', 'Surfaces': '표면', 'Controls': '컨트롤', 'Navigation': '탐색',
+  'Primary Button': '기본 버튼', 'Secondary Button': '보조 버튼', 'Icon Button': '아이콘 버튼',
+  'Search Field': '검색 필드', 'Text Field': '텍스트 필드', 'Status Chip': '상태 칩', 'Tag': '태그',
+  'Card': '카드', 'Media Card': '미디어 카드', 'Toggle': '토글', 'Avatar': '아바타', 'Tab Bar': '탭 바',
+  'Viewing profile': '프로필 보기', 'Signed out': '로그아웃됨', 'Project created': '프로젝트 생성됨',
+  'Team created': '팀 생성됨', 'Figma file linked': 'Figma 파일 연결됨', 'Nothing to import.': '가져올 항목이 없습니다.',
+  'Restored this version': '이 버전 복원됨', 'Checkpoint archived': '체크포인트 보관됨',
+  'Checkpoint restored to History': '체크포인트를 기록에 복원했습니다', 'Rolled back to checkpoint': '체크포인트로 되돌렸습니다',
+  "Can't archive the entry you're currently on — roll back to a different one first.": '현재 적용 중인 항목은 보관할 수 없습니다. 먼저 다른 체크포인트로 되돌리세요.',
+  'e.g. Alex Kim': '예: 김민수', 'e.g. Checkout Redesign': '예: 결제 화면 리디자인', 'e.g. Design Team': '예: 디자인 팀',
+  'Focus Editor': '편집기 집중', 'Design Review': '디자인 검토', 'Debug': '디버그',
+  'Default workspace': '기본 워크스페이스', 'Balanced layout for everyday work': '일상 작업을 위한 균형 잡힌 배치',
+  'Bring the terminal into focus': '터미널에 집중', 'Loading…': '불러오는 중…', 'Loading...': '불러오는 중...',
+})

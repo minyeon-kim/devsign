@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { Archive, ArchiveRestore, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'

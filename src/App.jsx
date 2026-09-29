@@ -1,3 +1,4 @@
+import LanguageProvider from '@/i18n/LanguageProvider'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
@@ -23,6 +24,7 @@ function ArchiveRedirect() {
 
 function App() {
   return (
+    <LanguageProvider>
     <TooltipProvider>
       {/* Every project's Conflict Points live here, above the routes, so
           the Dashboard and each project's Workspace share one state. */}
@@ -58,6 +60,7 @@ function App() {
       </ConflictStoreProvider>
       <Toaster position="bottom-right" />
     </TooltipProvider>
+    </LanguageProvider>
   )
 }
 

@@ -1,3 +1,4 @@
+import { moveTab } from '@/lib/tabOrder'
 import { useReducer, useRef } from 'react'
 
 // A dockview-shaped facade over a much simpler floating-window model:
@@ -468,6 +469,18 @@ export function useFloatingDockApi() {
     notify()
   }
 
+  function reorderPanel(panelId, targetPanelId, after = false) {
+    const source = store.panels[panelId]
+    const target = store.panels[targetPanelId]
+    if (!source || !target || panelId === targetPanelId) return
+    if (source.groupId !== target.groupId) dockPanel(panelId, target.groupId, 'center')
+    const group = store.groups[target.groupId]
+    group.panelIds = moveTab(group.panelIds, panelId, targetPanelId, after)
+    group.activeId = panelId
+    store.focusedGroupId = group.id
+    notify()
+  }
+
   function setActiveTab(groupId, panelId) {
     const g = store.groups[groupId]
     if (!g || !g.panelIds.includes(panelId)) return
@@ -500,6 +513,7 @@ export function useFloatingDockApi() {
     setSplitSizes,
     dockGroup,
     dockPanel,
+    reorderPanel,
     setActiveTab,
   }).current
 

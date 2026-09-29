@@ -1,6 +1,7 @@
+import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { ChevronDown, File, Folder, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -44,6 +45,7 @@ function searchAll(query) {
 // side columns with symmetric padding keep the pill exactly centered
 // over the content column.
 function DashboardTopBar() {
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
@@ -62,7 +64,7 @@ function DashboardTopBar() {
     // Equal 1fr columns either side of the search pin it to the bar's exact
     // center regardless of how wide the profile cluster on the right is.
     <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
-      <div />
+      <div><SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /></div>
 
       <SearchField
         className="w-full"
@@ -170,7 +172,7 @@ function DashboardTopBar() {
               <UserIcon />
               View profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast('Settings', { description: 'Workspace settings' })}>
+            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />

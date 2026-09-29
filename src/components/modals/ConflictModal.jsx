@@ -40,7 +40,7 @@ import {
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { useNavigate } from 'react-router-dom'
 import {

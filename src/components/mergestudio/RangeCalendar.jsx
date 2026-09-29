@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n/language'
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from 'cn'
@@ -24,6 +25,7 @@ export function dueSummary(due) {
 // (swapped if earlier), a third starts over. Days that have a due item get
 // a dot so the calendar doubles as a quick "what's due when" overview.
 export function RangeCalendar({ range, onChange, markedDays }) {
+  const language = useLanguage()
   const today = startOfDay(new Date())
   const [month, setMonth] = useState(() => {
     const base = range?.from ?? today
@@ -52,7 +54,7 @@ export function RangeCalendar({ range, onChange, markedDays }) {
           <ChevronLeft className="size-3.5" />
         </button>
         <span className="text-xs font-semibold text-foreground">
-          {month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          {month.toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', { month: 'long', year: 'numeric' })}
         </span>
         <button
           type="button"
@@ -64,7 +66,7 @@ export function RangeCalendar({ range, onChange, markedDays }) {
         </button>
       </div>
       <div className="grid grid-cols-7 text-center">
-        {WEEKDAYS.map((d, i) => (
+        {(language === 'ko' ? ['일', '월', '화', '수', '목', '금', '토'] : WEEKDAYS).map((d, i) => (
           <span key={i} className="flex h-6 items-center justify-center text-[10px] font-medium text-muted-foreground">
             {d}
           </span>

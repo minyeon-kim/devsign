@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
-import { toast } from 'sonner'
+import { toast } from '@/i18n/toast'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import SplitHandle from '@/components/layout/SplitHandle'

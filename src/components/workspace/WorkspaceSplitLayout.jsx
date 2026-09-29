@@ -37,7 +37,6 @@ const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
 // The navigator's default width, in px.
 const NAVIGATOR_W = 304
-const ZONE_LABEL = { left: 'left', right: 'right', above: 'up', below: 'down' }
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
 // it rather than into it as a tab.
@@ -185,7 +184,7 @@ function WorkspaceSplitLayout() {
   // dropping docks it there. A tab may also land on an edge of its own
   // window (splitting it off), when there are other tabs to leave behind.
   function startDockDrag(source, event) {
-    const { groupId, panelId } = source
+    const { groupId, panelId, tabId, reorder } = source
     const startX = event.clientX
     const startY = event.clientY
     let current = null
@@ -203,6 +202,17 @@ function WorkspaceSplitLayout() {
       // Over a window's tab bar: merge into it as a tab. Over its body:
       // an edge splits, the middle also merges.
       const header = under?.closest('[data-window-header]')
+      const targetTab = header && under?.closest('[data-tab-id]')
+      const targetPanelId = targetTab?.getAttribute('data-panel-id')
+      const targetTabId = targetTab?.getAttribute('data-tab-id')
+      if (root && targetTab && panelId && tabId && (targetPanelId !== panelId || targetTabId !== tabId)) {
+        const rect = targetTab.getBoundingClientRect()
+        const after = m.clientX >= rect.left + rect.width / 2
+        current = { target, zone: 'center', targetPanelId, targetTabId, after, reorder: true }
+        setDock({ groupId, target, zone: 'center', onHeader: true, reorder: true,
+          rect: { left: (after ? rect.right : rect.left) - root.left - 1, top: rect.top - root.top, width: 2, height: rect.height } })
+        return
+      }
       const r = leaf?.getBoundingClientRect()
       const zone = header ? 'center' : r && dropZone(r, m.clientX, m.clientY)
       const own = target === groupId
@@ -228,15 +238,29 @@ function WorkspaceSplitLayout() {
     function onUp() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       setDock(null)
+      if (moved) {
+        // The pointerup after a drag must not activate the tab underneath it.
+        const suppressClick = (event) => { event.preventDefault(); event.stopPropagation() }
+        window.addEventListener('click', suppressClick, { capture: true, once: true })
+        window.setTimeout(() => window.removeEventListener('click', suppressClick, true), 0)
+      }
       if (!current) return
+      if (current.reorder) {
+        if (current.targetPanelId === panelId) reorder?.(tabId, current.targetTabId, current.after)
+        else dockApi.reorderPanel(panelId, current.targetPanelId, current.after)
+        return
+      }
       if (panelId) dockApi.dockPanel(panelId, current.target, current.zone)
       else dockApi.dockGroup(groupId, current.target, current.zone)
     }
+    function onCancel() { current = null; onUp() }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
   }
 
   function renderNode(node, parentDir) {
@@ -282,9 +306,6 @@ function WorkspaceSplitLayout() {
             )}
             style={dock.rect}
           >
-            <span className="rounded-full bg-emerald-400 px-2.5 py-1 text-[11px] font-semibold text-slate-950 shadow-lg">
-              {dock.zone === 'center' ? 'Merge as tab' : `Split ${ZONE_LABEL[dock.zone]}`}
-            </span>
           </div>
         )}
       </div>
