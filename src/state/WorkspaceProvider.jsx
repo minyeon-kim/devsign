@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import {
   aiEditScenarios,
   canvasPages,
@@ -20,7 +21,7 @@ import {
   teamMembers,
   terminalLogLines as seedTerminalLogLines,
 } from '@/data/mockData'
-import { projectConflictRecords, toConflictRecord } from '@/lib/conflicts'
+import { allReviewersApproved, projectConflictRecords, toConflictRecord } from '@/lib/conflicts'
 import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUpdates'
 import { importKind } from '@/lib/importFiles'
 import {
@@ -338,23 +339,6 @@ export function WorkspaceProvider({ children, projectId }) {
     )
   }, [projectId])
 
-  const resolveConflict = useCallback(
-    (conflictId) => {
-      // Resolved conflicts stay in the list (as Resolved) for the audit
-      // trail; only the review workflow's final step calls this.
-      setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, reviewStage: 'resolved' } : c)))
-      appendTerminalLines(['$ devsign resolve-conflict', '✓ conflict marked resolved'])
-      // A resolved conflict is a design system change: it enters the
-      // Design System Update → Documentation → History pipeline.
-      const conflict = conflicts.find((c) => c.id === conflictId)
-      if (conflict) {
-        const update = updateFromConflict(conflict, projectId)
-        setDsUpdates((prev) => (prev.some((u) => u.id === update.id) ? prev : [update, ...prev]))
-      }
-    },
-    [appendTerminalLines, conflicts, projectId]
-  )
-
   // Review-workflow edits from the conflict modal (stage, reviewers,
   // diff inspected) — everything short of the final resolve.
   const updateConflict = useCallback((conflictId, patch) => {
@@ -479,6 +463,85 @@ export function WorkspaceProvider({ children, projectId }) {
       selectedLayerId,
     }),
     [activeFileId, fileOverrides, files, previewProps, conflicts, selectedLayerId]
+  )
+
+  // The review workflow's final step. Only an Approved conflict whose
+  // every reviewer signed off can be resolved; resolving is when its AI fix
+  // (if Devsign has one for it) is finally applied to the workspace — never
+  // before — and the resolved state is recorded as a History checkpoint.
+  // Resolved conflicts stay in the list (as Resolved) for the audit trail.
+  // Returns whether it resolved.
+  const resolveConflict = useCallback(
+    (conflictId) => {
+      const conflict = conflicts.find((c) => c.id === conflictId)
+      if (!conflict || conflict.reviewStage !== 'approved' || !allReviewersApproved(conflict)) {
+        toast("Can't resolve yet", { description: 'Every reviewer has to approve first.' })
+        return false
+      }
+      const fix = aiEditScenarios.find((sc) => sc.resolvesConflictId === conflictId)
+      const nextConflicts = conflicts.map((c) =>
+        c.id === conflictId ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now' } : c
+      )
+      const nextPreviewProps = fix ? { ...previewProps, ...(fix.previewProps ?? {}) } : previewProps
+      setConflicts(nextConflicts)
+      if (fix) {
+        setFileOverrides((prev) => ({ ...prev, [fix.fileId]: fix.lines }))
+        setActiveFileIdState(fix.fileId)
+        setPreviewProps(nextPreviewProps)
+        setPreviewVersion((v) => v + 1)
+      }
+      const base = currentSnapshot()
+      recordHistory({
+        label: `Resolved conflict · ${conflict.title}`,
+        timestamp: timeLabel(),
+        conflictId,
+        snapshot: {
+          ...base,
+          ...(fix && { activeFileId: fix.fileId, fileId: fix.fileId, lines: fix.lines }),
+          previewProps: nextPreviewProps,
+          conflicts: nextConflicts,
+        },
+      })
+      appendTerminalLines([
+        `$ devsign resolve-conflict "${conflict.title}"`,
+        ...(fix ? ['[HMR] approved fix applied'] : []),
+        '✓ conflict resolved · checkpoint saved to History',
+      ])
+      // A resolved conflict is a design system change: it enters the
+      // Design System Update → Documentation → History pipeline.
+      const update = updateFromConflict(conflict, projectId)
+      setDsUpdates((prev) => (prev.some((u) => u.id === update.id) ? prev : [update, ...prev]))
+      return true
+    },
+    [appendTerminalLines, conflicts, currentSnapshot, previewProps, projectId, recordHistory]
+  )
+
+  // Batch approval (the Conflict Points list): low-risk, open conflicts
+  // move to Approved in one go, every reviewer signing off (with you as
+  // the reviewer when none was assigned). Resolving stays a separate,
+  // per-conflict step. Returns how many were approved.
+  const batchApproveConflicts = useCallback(
+    (conflictIds) => {
+      const ids = new Set(
+        conflicts.filter((c) => conflictIds.includes(c.id) && c.severity === 'low' && c.reviewStage !== 'resolved').map((c) => c.id)
+      )
+      if (ids.size === 0) return 0
+      setConflicts((prev) =>
+        prev.map((c) => {
+          if (!ids.has(c.id)) return c
+          const reviewers = c.reviewers.length ? c.reviewers : [{ id: currentUser.id, status: 'pending' }]
+          return {
+            ...c,
+            reviewStage: 'approved',
+            diffInspected: true,
+            reviewers: reviewers.map((r) => ({ ...r, status: 'approved' })),
+          }
+        })
+      )
+      appendTerminalLines([`$ devsign review approve --batch (${ids.size})`, `✓ ${ids.size} low-risk conflict${ids.size === 1 ? '' : 's'} approved`])
+      return ids.size
+    },
+    [appendTerminalLines, conflicts]
   )
 
   // Pipeline step 2: write the update up as a Reference Doc.
@@ -652,8 +715,18 @@ export function WorkspaceProvider({ children, projectId }) {
 
         const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
         const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
+        // A fix for a conflict point doesn't close it: the conflict goes
+        // (back) into review, and only its reviewers' sign-off resolves it.
         const nextConflicts = scenario.resolvesConflictId
-          ? conflicts.map((c) => (c.id === scenario.resolvesConflictId ? { ...c, reviewStage: 'resolved' } : c))
+          ? conflicts.map((c) =>
+              c.id === scenario.resolvesConflictId && c.reviewStage !== 'resolved'
+                ? {
+                    ...c,
+                    reviewStage: c.reviewers.length ? 'in_review' : c.reviewStage,
+                    reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+                  }
+                : c
+            )
           : conflicts
 
         setFileOverrides(nextFileOverrides)
@@ -793,6 +866,7 @@ export function WorkspaceProvider({ children, projectId }) {
     consoleEntries,
     conflicts,
     resolveConflict,
+    batchApproveConflicts,
     updateConflict,
     reviewConflictId,
     bottomPanel,

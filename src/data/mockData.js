@@ -340,6 +340,91 @@ export const conflictChecklist = [
       after: ['<form className="flex flex-col gap-2">'],
     },
   },
+  // Open low-risk token drift in Checkout — the kind batch approval is for.
+  {
+    id: 'cc-8',
+    token: 'Divider / Color',
+    file: 'src/components/checkout/OrderSummary.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '2 hours ago',
+    resolved: false,
+    severity: 'low',
+    message: 'The order summary divider uses slate-200 instead of the border token.',
+    branches: { local: 'OrderSummary.jsx', remote: 'Checkout · Summary (Figma)' },
+    suggestion: 'Use border-border on the divider so it follows the theme.',
+    previewPrompt: 'Use the border token on the order summary divider',
+    reviewers: [{ id: 'min', status: 'pending' }],
+    comparisonFields: [{ label: 'Divider', expected: 'border (token)', current: 'slate-200' }],
+    diff: {
+      before: ['<hr className="border-slate-200" />'],
+      after: ['<hr className="border-border" />'],
+    },
+  },
+  {
+    id: 'cc-9',
+    token: 'Label / Letter spacing',
+    file: 'src/components/checkout/PaymentForm.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '3 hours ago',
+    resolved: false,
+    severity: 'low',
+    message: 'Field labels use tracking-wide; the design system label style has normal tracking.',
+    branches: { local: 'PaymentForm.jsx', remote: 'Checkout · Payment (Figma)' },
+    suggestion: 'Drop tracking-wide from the field labels.',
+    previewPrompt: 'Remove the extra letter spacing from payment labels',
+    reviewers: [{ id: 'james', status: 'pending' }],
+    comparisonFields: [{ label: 'Tracking', expected: 'normal', current: '0.025em (tracking-wide)' }],
+    diff: {
+      before: ['<label className="text-xs font-medium tracking-wide">'],
+      after: ['<label className="text-xs font-medium">'],
+    },
+  },
+  {
+    id: 'cc-10',
+    token: 'Icon / Stroke width',
+    file: 'src/components/checkout/ShippingOptions.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: 'Yesterday',
+    resolved: false,
+    severity: 'low',
+    message: 'Shipping option icons render at stroke 2.5; the icon set is drawn at 2.',
+    branches: { local: 'ShippingOptions.jsx', remote: 'Checkout · Shipping (Figma)' },
+    suggestion: 'Use the default stroke width on the shipping icons.',
+    previewPrompt: 'Reset the shipping icon stroke width',
+    reviewers: [],
+    comparisonFields: [{ label: 'Stroke', expected: '2', current: '2.5' }],
+    diff: {
+      before: ['<Truck className="size-4" strokeWidth={2.5} />'],
+      after: ['<Truck className="size-4" />'],
+    },
+  },
+  {
+    id: 'cc-11',
+    token: 'Button / Height',
+    file: 'src/components/checkout/PlaceOrderButton.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: 'Yesterday',
+    resolved: false,
+    severity: 'medium',
+    message: 'The Place order button is 40px tall; the design system primary button is 44px.',
+    branches: { local: 'PlaceOrderButton.jsx', remote: 'Checkout · CTA (Figma)' },
+    suggestion: 'Use the lg button size so the CTA is 44px tall.',
+    previewPrompt: 'Match the place order button height to the design system',
+    reviewStage: 'in_review',
+    reviewers: [
+      { id: 'jane', status: 'approved' },
+      { id: 'james', status: 'pending' },
+    ],
+    comparisonFields: [{ label: 'Height', expected: '44px (size lg)', current: '40px (size default)' }],
+    diff: {
+      before: ['<Button className="w-full">Place order</Button>'],
+      after: ['<Button size="lg" className="w-full">Place order</Button>'],
+    },
+  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -1362,15 +1447,16 @@ export const initialChatMessages = [
 // Each entry is picked by matching the user's chat message against
 // `keywords` (first match wins, `default` is the fallback). Applying a
 // scenario swaps the target file's editor content, nudges the mock preview
-// props, streams terminal/HMR log lines, and optionally resolves or raises
-// a Conflict Point entry — this is what powers the AI chat -> editor ->
+// props, streams terminal/HMR log lines, and optionally sends a Conflict
+// Point back to review (`resolvesConflictId`: the fix that conflict's
+// resolve applies) or raises one — this is what powers the AI chat -> editor ->
 // preview -> terminal sync flow.
 export const aiEditScenarios = [
   {
     id: 'padding-fix',
     keywords: ['padding', '패딩', 'spacing', '간격'],
     reply:
-      "Fixed it — the Continue button now uses 12px/24px padding to match the design frame. Padding conflict resolved.",
+      "Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.",
     fileId: 'app',
     lines: [
       "import { useState } from 'react'",

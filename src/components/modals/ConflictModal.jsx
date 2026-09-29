@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import {
+  Bell,
   Check,
   CircleAlert,
   Code2,
@@ -27,6 +28,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUser } from '@/data/mockData'
 import { REVIEW_STAGES, allReviewersApproved } from '@/lib/conflicts'
+import { diffLines } from '@/lib/lineDiff'
+import { toast } from 'sonner'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -138,26 +141,6 @@ function StageProgress({ stage }) {
 
 // ─── Left: what's in conflict ──────────────────────────────────────────
 
-function CodeBlock({ label, lines, tone }) {
-  if (!lines?.length) return null
-  return (
-    <div>
-      <p className={PANEL_LABEL}>
-        <span className={cn('size-1.5 rounded-full', tone === 'current' ? 'bg-destructive' : 'bg-emerald-400')} />
-        {label}
-      </p>
-      <pre
-        className={cn(
-          'overflow-auto rounded-xl p-3 font-mono text-[11.5px] leading-relaxed',
-          tone === 'current' ? 'bg-destructive/[0.07] text-red-300' : 'bg-emerald-400/[0.07] text-emerald-300'
-        )}
-      >
-        {lines.join('\n')}
-      </pre>
-    </div>
-  )
-}
-
 // Expected (design system) vs current (code), as one aligned table.
 function ComparisonTable({ fields }) {
   return (
@@ -219,8 +202,19 @@ function OverviewTab({ conflict, onPreview }) {
   )
 }
 
+const DIFF_TONES = {
+  same: 'text-slate-400',
+  add: 'bg-emerald-400/[0.08] text-emerald-300',
+  remove: 'bg-destructive/[0.08] text-red-300',
+}
+const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
+
+// The proposed change as an inline diff — review only. Nothing here is
+// applied: the fix reaches the workspace when the conflict is resolved,
+// after every reviewer has signed off.
 function DiffTab({ conflict }) {
   if (!conflict.branches && !conflict.diff) return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+  const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
 
   return (
     <div className="space-y-5">
@@ -233,10 +227,27 @@ function DiffTab({ conflict }) {
         </div>
       )}
       {conflict.diff && (
-        <>
-          <CodeBlock label="Current code" lines={conflict.diff.before} tone="current" />
-          <CodeBlock label="Expected (design system)" lines={conflict.diff.after} tone="expected" />
-        </>
+        <div>
+          <p className={cn(PANEL_LABEL, 'justify-between')}>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-emerald-300" />
+              Proposed change
+            </span>
+            <span className="font-mono text-[10.5px] font-normal">{conflict.file}</span>
+          </p>
+          <div className="overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11.5px] leading-relaxed">
+            {rows.map((row, i) => (
+              <div key={i} className={cn('flex px-3 whitespace-pre', DIFF_TONES[row.kind])}>
+                <span className="w-4 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
+                <span>{row.text || ' '}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <Eye className="size-3" />
+            Preview only — applied when this conflict is resolved, after every reviewer approves.
+          </p>
+        </div>
       )}
     </div>
   )
@@ -275,7 +286,7 @@ function nextStep(conflict) {
     return {
       title: 'Ready to resolve',
       label: 'Resolve conflict',
-      note: 'Approved. Resolving applies the change and closes the conflict.',
+      note: 'Every reviewer approved. Resolving applies the change, closes the conflict and saves a History checkpoint.',
       checks: [],
     }
   }
@@ -332,24 +343,54 @@ const iconActionClass =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
 // Reviewers sign off here. Assigning is open until the conflict is
-// resolved, removing only before review starts; approve / request changes
-// are the in-review actions.
+// resolved — a new reviewer on an Approved conflict sends it back to In
+// Review, since everyone has to sign off; removing is open before review
+// starts, and in review for anyone who hasn't approved (never the last
+// one). Approve / request changes are the in-review actions, and anyone
+// still pending can be reminded.
 function ReviewersSection({ conflict, onUpdate }) {
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
+  const pending = reviewers.filter((r) => r.status !== 'approved')
+  const canRemind = reviewStage === 'in_review' || reviewStage === 'detected'
 
-  function setReviewers(next) {
-    onUpdate({ reviewers: next })
+  function setReviewers(next, patch = {}) {
+    onUpdate({ reviewers: next, ...patch })
   }
 
   function setStatus(id, status) {
     setReviewers(reviewers.map((r) => (r.id === id ? { ...r, status } : r)))
   }
 
+  function assign(person) {
+    setReviewers(
+      [...reviewers, { id: person.id, status: 'pending' }],
+      reviewStage === 'approved' ? { reviewStage: 'in_review' } : {}
+    )
+  }
+
+  function remind(ids) {
+    const stamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    setReviewers(reviewers.map((r) => (ids.includes(r.id) ? { ...r, remindedAt: stamp } : r)))
+    const names = ids.map((id) => allPeople.find((p) => p.id === id)?.name).filter(Boolean)
+    toast(`Reminder sent to ${names.join(', ')}`, { description: conflict.title })
+  }
+
   return (
     <div>
       <div className={cn(PANEL_LABEL, 'justify-between')}>
         <span>Reviewers</span>
+        <span className="flex items-center gap-1">
+        {canRemind && pending.length > 1 && (
+          <button
+            type="button"
+            onClick={() => remind(pending.map((r) => r.id))}
+            className="flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            <Bell className="size-3" />
+            Remind all
+          </button>
+        )}
         {reviewStage !== 'resolved' && assignable.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -367,7 +408,7 @@ function ReviewersSection({ conflict, onUpdate }) {
               {assignable.map((person) => (
                 <DropdownMenuItem
                   key={person.id}
-                  onClick={() => setReviewers([...reviewers, { id: person.id, status: 'pending' }])}
+                  onClick={() => assign(person)}
                   className="gap-2"
                 >
                   <PersonAvatar person={person} />
@@ -378,6 +419,7 @@ function ReviewersSection({ conflict, onUpdate }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        </span>
       </div>
 
       {reviewers.length === 0 ? (
@@ -395,7 +437,20 @@ function ReviewersSection({ conflict, onUpdate }) {
                   {person.name}
                   {person.id === currentUser.id && <span className="font-normal text-slate-500"> (you)</span>}
                 </span>
-                <span className={cn('shrink-0 text-[11px]', status.className)}>{status.label}</span>
+                <span className={cn('shrink-0 text-[11px]', status.className)}>
+                  {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
+                </span>
+                {canRemind && reviewer.status !== 'approved' && (
+                  <button
+                    type="button"
+                    aria-label={`Remind ${person.name}`}
+                    title="Remind"
+                    onClick={() => remind([reviewer.id])}
+                    className={iconActionClass}
+                  >
+                    <Bell className="size-3.5" />
+                  </button>
+                )}
                 {reviewStage === 'in_review' && (
                   <span className="flex shrink-0 items-center">
                     <button
@@ -418,7 +473,8 @@ function ReviewersSection({ conflict, onUpdate }) {
                     </button>
                   </span>
                 )}
-                {reviewStage === 'detected' && (
+                {(reviewStage === 'detected' ||
+                  (reviewStage === 'in_review' && reviewer.status !== 'approved' && reviewers.length > 1)) && (
                   <button
                     type="button"
                     aria-label={`Remove ${person.name}`}
@@ -594,8 +650,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
         reviewers: reviewers.map((r) => (r.status === 'changes_requested' ? { ...r, status: 'pending' } : r)),
       })
     } else if (reviewStage === 'in_review') {
+      if (!stepReady) return
       update({ reviewStage: 'approved' })
     } else if (reviewStage === 'approved') {
+      if (!allReviewersApproved(conflict)) return
       if (onResolve) onResolve(conflict.id)
       else update({ reviewStage: 'resolved' })
     }
@@ -610,9 +668,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
     })
   }
 
+  // Review-gated: previewing the AI suggestion only shows its diff (which
+  // counts as inspecting it) — nothing is applied until the conflict is
+  // resolved after every reviewer's sign-off.
   function handlePreviewChange() {
-    if (conflict.previewPrompt) workspace.sendChatMessage(conflict.previewPrompt)
-    onOpenChange(false)
+    openTab('diff')
   }
 
   return (
@@ -694,7 +754,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onResolve, onOpenMerg
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto px-5 pb-5" role="tabpanel">
                   {tab === 'overview' && (
-                    <OverviewTab conflict={conflict} onPreview={workspace ? handlePreviewChange : null} />
+                    <OverviewTab conflict={conflict} onPreview={conflict.diff ? handlePreviewChange : null} />
                   )}
                   {tab === 'diff' && <DiffTab conflict={conflict} />}
                   {/* History lives in one place — the project's History menu
