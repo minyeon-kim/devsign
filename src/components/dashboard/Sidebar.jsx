@@ -91,11 +91,11 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
                 aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
                 title={project ? `${project.name} · Switch project` : 'Projects'}
                 className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
-              />
+              >
+                <ProjectsMark project={project} />
+              </button>
             }
-          >
-            <ProjectsMark project={project} />
-          </DropdownMenuTrigger>
+          />
         </ProjectSwitcher>
       </div>
 

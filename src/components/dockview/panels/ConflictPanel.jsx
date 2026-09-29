@@ -295,10 +295,10 @@ function ConflictPanel({ onContentHeightChange }) {
   )
 }
 
-// The row's primary action: a filled accent pill (the studio's one accent),
-// so "Review" reads as the thing to do next rather than a passing link.
+// The row action stays available without competing with the conflict title,
+// severity, and status hierarchy. Clicking the row still opens the review.
 const REVIEW_CTA =
-  'inline-flex h-9 w-[72px] shrink-0 items-center justify-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold whitespace-nowrap text-slate-950 shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:outline-none'
+  'inline-flex h-8 w-[64px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none'
 
 const DIFF_TONES = {
   same: 'text-slate-400',
