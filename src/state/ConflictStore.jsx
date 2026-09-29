@@ -1,6 +1,7 @@
 import { useDemoState } from '@/state/useDemoState'
 import { createContext, useCallback, useContext, useMemo } from 'react'
 import { allConflictRecords } from '@/lib/conflicts'
+import { projects } from '@/data/mockData'
 
 // App-level store for every project's Conflict Points — the single source
 // of truth the Dashboard, a project's overview and its Workspace (bottom
@@ -19,8 +20,10 @@ function nextEventId() {
 }
 
 export function ConflictStoreProvider({ children }) {
-  const [conflicts, setConflicts] = useDemoState('conflicts', allConflictRecords)
-  const [events, setEvents] = useDemoState('events', [])
+  const [storedConflicts, setConflicts] = useDemoState('conflicts', allConflictRecords)
+  const [storedEvents, setEvents] = useDemoState('events', [])
+  const conflicts = useMemo(() => storedConflicts.filter((c) => projects.some((p) => p.id === c.projectId)), [storedConflicts])
+  const events = useMemo(() => storedEvents.filter((e) => projects.some((p) => p.id === e.projectId)), [storedEvents])
 
   // Replace one project's conflicts (value or updater over that project's
   // list), keeping every other project's — and the overall order — intact.

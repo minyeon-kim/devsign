@@ -247,7 +247,7 @@ function ChatConversation() {
   }, [chatMessages, isAiTyping])
 
   function handleSend(text = input) {
-    if (!text.trim() || !target) return
+    if (!text.trim() || isAiTyping) return
     sendChatMessage(text, target)
     setInput('')
     setAttachments([])
@@ -276,33 +276,14 @@ function ChatConversation() {
     <div className="flex min-h-0 flex-1 flex-col">
       <RollbackCheckpointModal key={rollbackId} entryId={rollbackId} onOpenChange={(open) => !open && setRollbackId(null)} />
 
-      <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
-        {suggestions.map((suggestion) => {
-          const Icon = suggestionIcons[suggestion.iconName]
-          return (
-            <button
-              key={suggestion.id}
-              type="button"
-              disabled={!target}
-              title={target ? undefined : 'Choose a target first'}
-              onClick={() => handleSend(suggestion.prompt)}
-              className="flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-            >
-              {Icon && <Icon className="size-3 text-primary" />}
-              {suggestion.label}
-            </button>
-          )
-        })}
-      </div>
-
       <div ref={listRef} className="flex-1 space-y-2 overflow-auto p-3">
         {chatMessages.map((message) => (
           <div key={message.id} className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
               translate="no"
               className={cn(
-                'max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
-                message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+                'max-w-[95%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
+                message.role === 'user' ? 'border border-emerald-400/20 bg-emerald-400/10 text-slate-100' : 'bg-white/[0.03] text-slate-200'
               )}
             >
               {message.text}
@@ -318,6 +299,24 @@ function ChatConversation() {
           </div>
         ))}
         {isAiTyping && <TypingBubble />}
+      </div>
+
+      <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
+        {suggestions.map((suggestion) => {
+          const Icon = suggestionIcons[suggestion.iconName]
+          return (
+            <button
+              key={suggestion.id}
+              type="button"
+              disabled={isAiTyping}
+              onClick={() => handleSend(suggestion.prompt)}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:border-emerald-400/30 hover:text-white disabled:opacity-50"
+            >
+              {Icon && <Icon className="size-3 text-emerald-300" />}
+              {suggestion.label}
+            </button>
+          )
+        })}
       </div>
 
       <div className="shrink-0 space-y-1.5 border-t p-2">
@@ -343,7 +342,7 @@ function ChatConversation() {
           />
         </div>
 
-        <div className="rounded-3xl border bg-background">
+        <div className="rounded-2xl border border-white/10 bg-card focus-within:border-emerald-400/40">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}

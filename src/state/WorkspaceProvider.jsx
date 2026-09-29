@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from '@/i18n/toast'
 import {
   aiEditScenarios,
+  chatSuggestions,
   canvasPages,
   conflictChecklist,
   conflictNotifications,
@@ -871,6 +872,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed, target }])
       setIsAiTyping(true)
 
+      const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && q.prompt.toLowerCase() === trimmed.toLowerCase())
       const lower = trimmed.toLowerCase()
       const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
       const fits = scenario && scenarioFitsTarget(scenario, target)
@@ -878,6 +880,10 @@ export function WorkspaceProvider({ children, projectId }) {
       window.setTimeout(() => {
         setIsAiTyping(false)
 
+        if (answer) {
+          setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'assistant', text: answer.reply }])
+          return
+        }
         if (!scenario || !fits) {
           const where = target?.label ?? 'the current target'
           const reason = !scenario

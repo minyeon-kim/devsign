@@ -110,8 +110,8 @@ export const teams = [
 export const projects = [
   {
     id: 'checkout-redesign',
-    name: 'Checkout Redesign',
-    description: 'Multi-step checkout with saved payment methods — aligning the payment step and its Place order button with the design system.',
+    name: 'Designer UT · Checkout',
+    description: 'Designer UT: inspect the Place order button, compare design and code, adjust its style, and request a review.',
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'james', 'min'],
     updatedAtLabel: '2h ago',
@@ -121,8 +121,8 @@ export const projects = [
   },
   {
     id: 'design-system-v2',
-    name: 'Design System v2',
-    description: 'Migrating core components to the pill-radius indigo/violet theme.',
+    name: 'Developer UT · Design System',
+    description: 'Developer UT: inspect token drift, compare code, resolve changes, request review, and inspect the saved checkpoint.',
     ownerId: 'james',
     memberIds: ['james', currentUser.id],
     updatedAtLabel: 'Yesterday',
@@ -130,39 +130,7 @@ export const projects = [
     thumbnailType: 'design-system',
     activityCount: 9,
   },
-  {
-    id: 'onboarding-flow',
-    name: 'Onboarding Flow',
-    description: 'First-run experience for new workspace members.',
-    ownerId: 'min',
-    memberIds: ['min', currentUser.id, 'james'],
-    updatedAtLabel: '3 days ago',
-    filesCount: 5,
-    thumbnailType: 'onboarding',
-    activityCount: 8,
-  },
-  {
-    id: 'mobile-nav-revamp',
-    name: 'Mobile Nav Revamp',
-    description: 'Bottom tab bar and gesture navigation for the mobile app.',
-    ownerId: currentUser.id,
-    memberIds: [currentUser.id, 'min'],
-    updatedAtLabel: '1 week ago',
-    filesCount: 4,
-    thumbnailType: 'mobile-nav',
-    activityCount: 6,
-  },
-  {
-    id: 'marketing-site-refresh',
-    name: 'Marketing Site Refresh',
-    description: 'Landing page redesign ahead of the Q4 launch.',
-    ownerId: 'james',
-    memberIds: ['james'],
-    updatedAtLabel: '2 weeks ago',
-    filesCount: 6,
-    thumbnailType: 'marketing',
-    activityCount: 4,
-  },
+
 ]
 
 // Dashboard-only mock data below — none of it is read by the workspace
@@ -2188,38 +2156,12 @@ export const comments = [
 
 // Suggested prompt chips shown above the "Ask Devsign" chat input.
 export const chatSuggestions = [
-  {
-    id: 'co-match',
-    projectId: 'checkout-redesign',
-    label: 'Match Place order to design',
-    prompt: 'Make the Place order button match the checkout design',
-    iconName: 'Sparkles',
-  },
-  {
-    id: 'co-explain',
-    projectId: 'checkout-redesign',
-    label: 'Explain',
-    prompt: 'Explain what this component currently does.',
-    iconName: 'MessageCircle',
-  },
-  {
-    id: 'explain',
-    label: 'Explain',
-    prompt: 'Explain what this component currently does.',
-    iconName: 'MessageCircle',
-  },
-  {
-    id: 'prototype',
-    label: 'Generate Prototype',
-    prompt: 'Generate a prototype variation of this screen.',
-    iconName: 'Sparkles',
-  },
-  {
-    id: 'annotate',
-    label: 'Annotate',
-    prompt: 'Annotate the design with spacing and color notes.',
-    iconName: 'Pin',
-  },
+  { id: 'designer-start', projectId: 'checkout-redesign', label: 'Where should I start?', prompt: 'Where should I start the designer UT?', iconName: 'Sparkles', reply: 'Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.' },
+  { id: 'designer-fix', projectId: 'checkout-redesign', label: 'Match Place order to design', prompt: 'Make the Place order button match the checkout design', iconName: 'Sparkles' },
+  { id: 'designer-review', projectId: 'checkout-redesign', label: 'What happens after my edit?', prompt: 'What happens after my design edit?', iconName: 'MessageCircle', reply: 'Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.' },
+  { id: 'developer-start', projectId: 'design-system-v2', label: 'Guide me through code review', prompt: 'Guide me through the developer UT', iconName: 'Sparkles', reply: 'Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.' },
+  { id: 'developer-impact', projectId: 'design-system-v2', label: 'Why use a shared token?', prompt: 'Why should the button use a shared token?', iconName: 'MessageCircle', reply: 'A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.' },
+  { id: 'developer-history', projectId: 'design-system-v2', label: 'How do I verify and roll back?', prompt: 'How do I verify and roll back the change?', iconName: 'MessageCircle', reply: 'Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.' },
 ]
 
 // Selectable model options for the "Ask Devsign" input bar.
@@ -2895,3 +2837,15 @@ export function registerMergeVariants(itemId, pageId) {
 }
 
 registerMergeVariants('merge-authmodal', 'page-1')
+
+// Keep the UT dataset scoped to the two supported projects, including global feeds.
+const utProjectIds = new Set(projects.map((project) => project.id))
+for (const rows of [conflictChecklist, activities, designSystemUpdates, conflictNotifications]) {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].projectId && !utProjectIds.has(rows[i].projectId)) rows.splice(i, 1)
+    else if (rows[i].projectName) rows[i].projectName = projects.find((p) => p.id === rows[i].projectId)?.name ?? rows[i].projectName
+  }
+}
+for (const id of Object.keys(projectFileSets)) {
+  if (!utProjectIds.has(id)) delete projectFileSets[id]
+}
