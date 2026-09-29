@@ -1366,6 +1366,8 @@ function BlockDeckPanel({
   collapsed = false,
   onCollapse,
   tabRequest,
+  onMerge,
+  changeCounts = {},
 }) {
   const [tab, setTab] = useState('compare')
   function switchTab(next) {
@@ -1474,6 +1476,7 @@ function BlockDeckPanel({
             className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             {label}
+            {changeCounts[id] > 0 && <span className="ml-1 rounded-full bg-white/[0.08] px-1.5 text-[10px] leading-4 text-slate-300">{changeCounts[id]}</span>}
           </button>
         ))}
       </div>
@@ -1512,6 +1515,15 @@ function BlockDeckPanel({
           onApplyPreset={onApplyPreset}
         />
       )}
+      <div className="mt-auto border-t border-white/[0.07] px-5 py-3">
+        <button
+          type="button"
+          onClick={onMerge}
+          className="flex h-5 w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-3 text-[11px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
+        >
+          Merge Changes
+        </button>
+      </div>
       </>
     </div>
   )

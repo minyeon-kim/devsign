@@ -9,6 +9,7 @@ import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
+import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
@@ -759,6 +760,12 @@ function MergeStudioWorkspace({ item }) {
           onInsertComponent={insertComponent}
           onApplyPreset={(preset) => setAppliedPreset(preset ? { ...preset, layerId: deckLayerId } : null)}
           tabRequest={deckTabRequest}
+          onMerge={() => openWizard()}
+          changeCounts={{
+            compare: buildDrifts(item, frame0).length,
+            assemble: Object.keys(assemblies).length,
+            library: addedLayers.length,
+          }}
         />
       )}
 

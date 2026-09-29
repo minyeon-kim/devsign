@@ -1386,7 +1386,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center justify-center rounded-full bg-emerald-400 px-5 h-10 text-sm font-semibold text-slate-950"
+              className="inline-flex h-8 items-center justify-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950"
             >
               Done
             </button>
@@ -1415,7 +1415,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex items-center justify-center gap-1 rounded-full px-4 h-10 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ChevronLeft className="size-4" />
                   Back to Compare
@@ -1425,7 +1425,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   type="button"
                   disabled={busy}
                   onClick={() => setStep((s) => s - 1)}
-                  className="flex items-center justify-center gap-1 rounded-full px-4 h-10 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                  className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                 >
                   <ChevronLeft className="size-4" />
                   Back
@@ -1436,7 +1436,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   type="button"
                   disabled={!canNext}
                   onClick={() => setStep((s) => s + 1)}
-                  className="flex items-center justify-center gap-1.5 rounded-full bg-slate-700 px-4 h-10 text-sm font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+                  className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
                   Continue to {WIZARD_STEPS[step + 1].label}
                   <ArrowRight className="size-4" />
@@ -1449,7 +1449,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                     setProgress(0)
                     setRun('progress')
                   }}
-                  className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-4 h-10 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                  className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
                   <GitPullRequest className="size-4" />
                   Open PR &amp; Request Review

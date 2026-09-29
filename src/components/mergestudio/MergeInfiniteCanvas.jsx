@@ -1561,8 +1561,6 @@ function MergeInfiniteCanvas({
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
-  // Resolved drifts + applied AI notes: the Merge Changes button's count.
-  const mergeCount = resolutionCount + annotations.filter((a) => a.status === 'done').length
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
   const [zoomRowRight, setZoomRowRight] = useState(12)
@@ -2620,7 +2618,7 @@ function MergeInfiniteCanvas({
         <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
-              <div data-guide="drift-nav" className={cn('relative flex items-center gap-1 rounded-full p-1.5 text-sm', FLOATING_PILL)}>
+              <div data-guide="drift-nav" className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2628,7 +2626,7 @@ function MergeInfiniteCanvas({
                     onDriftNav?.()
                   }}
                   title="Previous drift"
-                  className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ChevronLeft className="size-4.5" />
                 </button>
@@ -2645,45 +2643,13 @@ function MergeInfiniteCanvas({
                     onDriftNav?.()
                   }}
                   title="Next drift"
-                  className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ChevronRight className="size-4.5" />
                 </button>
               </div>
             )}
 
-            <button
-              type="button"
-              data-guide="merge-cta"
-              disabled={merged || inReview}
-              onClick={() => onMerge(annotations)}
-              className={cn(
-                'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold shadow-lg transition-all disabled:cursor-default',
-                // Text-only pill: even 20px sides; with the count badge, the
-                // right side tightens to 12px — the same gap the 20px badge
-                // leaves above and below it in the 44px pill.
-                merged || inReview || !mergeCount ? 'px-5' : 'pr-3 pl-5',
-                merged
-                  ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                  : inReview
-                    ? // Waiting on reviewers: a quiet neutral state, not the CTA.
-                      'border border-white/15 bg-card/90 text-slate-200 backdrop-blur-md'
-                  : // The studio's signature CTA: a mint gradient (the brand
-                    // accent's own family — emerald into teal), dark text.
-                    'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-emerald-500/30 hover:brightness-110 disabled:opacity-50'
-              )}
-            >
-              {merged && <Check className="size-4" />}
-              {inReview && !merged && <Eye className="size-4 text-slate-400" />}
-              {merged ? 'Merged' : inReview ? 'In review' : 'Merge Changes'}
-              {!merged && !inReview && mergeCount > 0 && (
-                // Solid white circular count badge (grows into a pill only
-                // for 2-digit counts).
-                <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] leading-none font-bold text-emerald-700 tabular-nums shadow-sm">
-                  {mergeCount}
-                </span>
-              )}
-            </button>
           </div>
         </div>
         )}

@@ -24,7 +24,7 @@ export const COUNT_BADGE = 'inline-flex h-5 min-w-5 shrink-0 items-center justif
 // Category tabs — one style for the Inbox filters (All / Approvals / …), the
 // Merge List's Files / Layers switch and the Block Deck's tabs: small
 // left-aligned text pills; the active one is a soft fill (no outline).
-export const CATEGORY_TAB = 'inline-flex h-7 shrink-0 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors'
+export const CATEGORY_TAB = 'inline-flex h-5 shrink-0 items-center justify-center rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors'
 export const CATEGORY_TAB_ACTIVE = 'bg-white/[0.08] text-[#FFFFFF]'
 export const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
 // The row those tabs sit in: directly under the panel title — no divider
