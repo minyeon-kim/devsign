@@ -1,6 +1,6 @@
 import { moveTab } from '@/lib/tabOrder'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
@@ -115,7 +115,17 @@ function WorkspaceBottomPanel() {
         className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize after:absolute after:inset-x-0 after:top-1 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
       />
 
-      <div className="flex shrink-0 items-center gap-1 px-3" style={{ height: STRIP_HEIGHT }} role="tablist">
+      <div
+        className="flex shrink-0 cursor-pointer items-center gap-1 px-3"
+        style={{ height: STRIP_HEIGHT }}
+        role="tablist"
+        onClick={(event) => {
+          // Tab and action buttons own their click behavior. Empty space in
+          // the strip acts as a quick expand/collapse affordance.
+          if (event.target.closest('button')) return
+          setBottomPanel({ open: !open })
+        }}
+      >
         {tabOrder.map((id) => TABS.find((t) => t.id === id)).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -173,16 +183,6 @@ function WorkspaceBottomPanel() {
             Needs your review · {needsMyReview}
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => setBottomPanel({ open: !open })}
-          title={open ? 'Collapse panel' : 'Expand panel'}
-          aria-label={open ? 'Collapse panel' : 'Expand panel'}
-          aria-expanded={open}
-          className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-        >
-          {open ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
-        </button>
       </div>
 
       {open && (
