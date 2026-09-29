@@ -26,7 +26,9 @@ const TABS = [
 // surface: opaque card, 20px radius, hairline border, soft layered
 // shadow), opened from the header's tools pill or the editor / canvas
 // header buttons, draggable by its title row, and closed with ✕.
-function FilesLayersWindow() {
+// `docked` (the Workspace's split-pane layout): it's the leftmost pane
+// instead, filling it — no dragging; the splitter beside it sizes it.
+function FilesLayersWindow({ docked = false }) {
   const { filesWindow, setFilesWindow } = useWorkspace()
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const drag = useRef(null)
@@ -34,7 +36,7 @@ function FilesLayersWindow() {
   if (!filesWindow.open) return null
 
   function onPointerDown(event) {
-    if (event.button !== 0 || event.target.closest('button, input')) return
+    if (docked || event.button !== 0 || event.target.closest('button, input')) return
     drag.current = { x: event.clientX, y: event.clientY, offset }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -53,9 +55,10 @@ function FilesLayersWindow() {
     <section
       aria-label="Files and layers"
       // No transition, so it tracks the pointer 1:1 while dragged.
-      style={{ translate: `${offset.x}px ${offset.y}px`, transition: 'none' }}
+      style={docked ? undefined : { translate: `${offset.x}px ${offset.y}px`, transition: 'none' }}
       className={cn(
-        'absolute top-16 left-4 z-30 flex h-[min(560px,calc(100%-9rem))] w-[300px] flex-col overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none',
+        'flex flex-col overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none',
+        docked ? 'relative size-full' : 'absolute top-16 left-4 z-30 h-[min(560px,calc(100%-9rem))] w-[300px]',
         PANEL_RADIUS,
         FLOATING_PANEL
       )}
@@ -65,8 +68,11 @@ function FilesLayersWindow() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        title="Drag to move"
-        className="flex h-12 shrink-0 cursor-grab touch-none items-center gap-1 px-3 select-none active:cursor-grabbing"
+        title={docked ? undefined : 'Drag to move'}
+        className={cn(
+          'flex h-11 shrink-0 touch-none items-center gap-1 px-2.5 select-none',
+          !docked && 'cursor-grab active:cursor-grabbing'
+        )}
       >
         <div role="tablist" aria-label="Navigator" className="flex items-center gap-1">
           {TABS.map(({ id, label, icon: Icon }) => (

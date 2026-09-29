@@ -1,10 +1,11 @@
-import { useRef } from 'react'
-import { ChevronDown, ChevronUp, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Maximize2, Minimize2, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
+import { isOpen } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const TABS = [
@@ -22,14 +23,33 @@ const MIN_CANVAS = 220
 // one docked strip under the canvas (VS Code / Merge Studio style), not a
 // window floating over it. It spans the workspace's full width on the
 // panel surface with a hairline above; its tab row uses the studio's pill
-// category tabs. Conflict Points' open count is badged once, on the
-// activity bar's icon (which opens this tab), not repeated here. Drag the
-// top edge to resize; the chevron (or clicking
-// the active tab) collapses it down to just its tab strip.
+// category tabs. Conflict Points sits with the Terminal and Console like
+// a Problems tab, its open count badged on the tab. Drag the top edge to
+// resize; maximize fills the view with it (and restores); the chevron (or
+// clicking the active tab) collapses it down to just its tab strip.
 function WorkspaceBottomPanel() {
-  const { bottomPanel, setBottomPanel } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
+  // The height to go back to while maximized (null = not maximized).
+  const [restoreHeight, setRestoreHeight] = useState(null)
+  const openConflicts = conflicts.filter(isOpen).length
+
+  function maxHeight() {
+    const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
+    return Math.max(MIN_HEIGHT, parentHeight - MIN_CANVAS)
+  }
+  const maximized = open && restoreHeight != null
+
+  function toggleMaximize() {
+    if (maximized) {
+      setBottomPanel({ height: restoreHeight, open: true })
+      setRestoreHeight(null)
+    } else {
+      setRestoreHeight(height)
+      setBottomPanel({ height: maxHeight(), open: true })
+    }
+  }
   const active = TABS.find((t) => t.id === tab) ?? TABS[0]
 
   function pickTab(id) {
@@ -42,12 +62,12 @@ function WorkspaceBottomPanel() {
     event.preventDefault()
     const startY = event.clientY
     const startHeight = open ? height : STRIP_HEIGHT
-    const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
-    const maxHeight = Math.max(MIN_HEIGHT, parentHeight - MIN_CANVAS)
+    const limit = maxHeight()
+    setRestoreHeight(null)
     document.body.style.cursor = 'row-resize'
 
     function onMove(m) {
-      const next = Math.min(maxHeight, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
+      const next = Math.min(limit, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
       setBottomPanel({ height: next, open: true })
     }
     function onUp() {
@@ -89,15 +109,33 @@ function WorkspaceBottomPanel() {
           >
             <Icon className="size-3.5" />
             {label}
+            {id === 'conflict' && openConflicts > 0 && (
+              <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] leading-4 font-semibold text-amber-300 tabular-nums">
+                {openConflicts}
+              </span>
+            )}
           </button>
         ))}
         <button
           type="button"
-          onClick={() => setBottomPanel({ open: !open })}
+          onClick={toggleMaximize}
+          title={maximized ? 'Restore panel size' : 'Maximize panel'}
+          aria-label={maximized ? 'Restore panel size' : 'Maximize panel'}
+          className="ml-auto flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+        >
+          {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            // Collapsing a maximized panel drops the maximize too.
+            setBottomPanel({ open: !open, ...(maximized && { height: restoreHeight }) })
+            setRestoreHeight(null)
+          }}
           title={open ? 'Collapse panel' : 'Expand panel'}
           aria-label={open ? 'Collapse panel' : 'Expand panel'}
           aria-expanded={open}
-          className="ml-auto flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+          className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
         >
           {open ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
         </button>

@@ -78,6 +78,19 @@ export function openOrFocusPanel(dockApi, def) {
   })
 }
 
+// Opens a panel as its own split pane (the command palette's "… in split"),
+// to the right of the main pair — moving it out of whatever window it's a
+// tab of, if it's already open.
+export function openPanelInSplit(dockApi, def) {
+  if (!dockApi) return
+  dockApi.getPanel(def.id)?.api.close()
+  const anchor = dockApi.getPanel(panelById.canvas.id) ?? dockApi.getPanel(panelById.editor.id) ?? dockApi.panels[0]
+  addDockPanel(dockApi, def, {
+    position: anchor ? { direction: 'right', referencePanel: anchor.id } : undefined,
+    initialWidth: 520,
+  })
+}
+
 export function buildInitialLayout(api) {
   // Terminal, Console and Conflict Points aren't floating windows anymore —
   // they live in the workspace's docked bottom panel (WorkspaceBottomPanel)

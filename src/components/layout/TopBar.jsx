@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, FolderTree, Play, ScanEye } from 'lucide-react'
+import { Bell, FolderTree, PanelsTopLeft, Play, ScanEye } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -73,7 +73,7 @@ function InboxButton({ open, onToggle }) {
   )
 }
 
-function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
+function TopBar({ project, previewOpen, onTogglePreview, dockApi, onOpenPalette }) {
   const { activeView, requestMergeFocus, openMergeStudio, inspectorOpen, setInspectorOpen, filesWindow, setFilesWindow } =
     useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
@@ -90,11 +90,20 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
           when the sidebar drawer opens. It keeps 630px clear on each side
           of center (the ~600px action cluster + its 16px inset + a 12px gap)
           and steps aside entirely when the view is too narrow to fit a
-          usable field between the pills, so it never collides with them. */}
+          usable field between the pills, so it never collides with them.
+          It opens the command palette (⌘K) rather than taking text itself. */}
       <SearchField
         className="absolute top-3 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden"
         placeholder="Search files, commands..."
-      />
+        readOnly
+        aria-haspopup="dialog"
+        onClick={onOpenPalette}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpenPalette?.()}
+      >
+        <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md bg-white/[0.06] px-1.5 py-0.5 font-sans text-[10.5px] text-muted-foreground">
+          ⌘K
+        </kbd>
+      </SearchField>
 
       {/* The action cluster, built exactly like Merge Studio's header:
           separate floating pieces rather than one long bar — the people
@@ -122,6 +131,18 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi }) {
             )}
           >
             <FolderTree className="size-4" />
+          </button>
+          {/* Every view — Files, Terminal, Browser, Canvas, … — as a tab,
+              split pane or bottom-panel tab, via the command palette. */}
+          <button
+            type="button"
+            title="Views (⌘K)"
+            aria-label="Views"
+            aria-haspopup="dialog"
+            onClick={onOpenPalette}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+          >
+            <PanelsTopLeft className="size-4" />
           </button>
           <LayoutMenu dockApi={dockApi} />
           <button

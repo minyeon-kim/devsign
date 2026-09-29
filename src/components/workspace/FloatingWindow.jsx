@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Maximize2, Minimize2, X } from 'lucide-react'
+import { Maximize2, Minimize2, Minus, X } from 'lucide-react'
 import { cn } from 'cn'
 import {
   CATEGORY_TAB,
@@ -26,7 +26,11 @@ const DRAG_THRESHOLD = 4
 // its tab ids to `{ component, title, params }`. `components` maps a
 // panel's `component` string to the actual React component, same
 // convention dockview used.
-function FloatingWindow({ group, panelsById, dockApi, components }) {
+// `docked` (the Workspace's split-pane layout, see WorkspaceSplitLayout):
+// the window fills its pane instead of floating at x/y — no dragging or
+// corner resize (the splitters between panes do that) — and gains a
+// minimize control beside maximize / close.
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -40,7 +44,7 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
   const isMaximized = activeHandle?.api.isMaximized() ?? false
 
   function beginDrag(e) {
-    if (e.button !== 0 || e.target.closest('button')) return
+    if (docked || e.button !== 0 || e.target.closest('button')) return
     dockApi.focusGroup(group.id)
     const start = { px: e.clientX, py: e.clientY, gx: group.x, gy: group.y }
     dragRef.current = { moved: false }
@@ -78,7 +82,9 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
 
   const geom = isMaximized
     ? { left: 0, top: 0, width: '100%', height: '100%' }
-    : { left: group.x, top: group.y, width: group.w, height: group.h }
+    : docked
+      ? { position: 'relative', width: '100%', height: '100%' }
+      : { left: group.x, top: group.y, width: group.w, height: group.h }
 
   return (
     <div
@@ -101,7 +107,10 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
       ) : (
         <div
           onPointerDown={beginDrag}
-          className="flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
+          className={cn(
+            'flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-2.5',
+            !docked && 'cursor-grab active:cursor-grabbing'
+          )}
         >
           <div className="flex shrink-0 items-center gap-1">
             {group.panelIds.map((pid) => {
@@ -127,9 +136,21 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
           <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+            {docked && !isMaximized && (
+              <button
+                type="button"
+                title="Minimize"
+                aria-label="Minimize"
+                onClick={() => dockApi.minimizeGroup(group.id, true)}
+                className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                <Minus className="size-3.5" />
+              </button>
+            )}
             <button
               type="button"
               title={isMaximized ? 'Restore' : 'Maximize'}
+              aria-label={isMaximized ? 'Restore' : 'Maximize'}
               onClick={() => (isMaximized ? activeHandle?.api.exitMaximized() : activeHandle?.api.maximize())}
               className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
             >
@@ -138,6 +159,7 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
             <button
               type="button"
               title="Close"
+              aria-label="Close"
               onClick={() => activeHandle?.api.close()}
               className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-destructive/15 hover:text-destructive"
             >
@@ -153,7 +175,7 @@ function FloatingWindow({ group, panelsById, dockApi, components }) {
         </WindowHeaderSlotContext.Provider>
       </div>
 
-      {!isMaximized && (
+      {!isMaximized && !docked && (
         <div
           onPointerDown={beginResize}
           title="Resize"

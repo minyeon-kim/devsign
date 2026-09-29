@@ -4,11 +4,11 @@ import TopBar from '@/components/layout/TopBar'
 import ChatMorphWidget from '@/components/layout/ChatMorphWidget'
 import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
+import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import { openOrFocusPanel } from '@/components/dockview/DockLayout'
-import WorkspaceFloatingCanvas from '@/components/workspace/WorkspaceFloatingCanvas'
+import WorkspaceSplitLayout from '@/components/workspace/WorkspaceSplitLayout'
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
-import FilesLayersWindow from '@/components/workspace/FilesLayersWindow'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelDefinitions } from '@/data/mockData'
 
@@ -22,6 +22,7 @@ function WorkspacePage() {
   const location = useLocation()
   const { dockApi, activeView, mergePreviewOpen, setMergePreviewOpen, openMergeStudio } = useWorkspace()
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     if (!dockApi) return
@@ -60,8 +61,9 @@ function WorkspacePage() {
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
-    // A single full-bleed surface, Merge-Studio style: the canvas (or
-    // Merge Studio itself) fills the view and every other piece of chrome —
+    // A single full-bleed surface: the split-pane frame (Code Editor |
+    // Canvas, see WorkspaceSplitLayout) or Merge Studio fills the view and
+    // every other piece of chrome —
     // top bar, follow-me banner, inspector, chat — is an absolutely
     // positioned overlay on top of it, instead of a flex row/column that carves the viewport into fixed
     // bands. Nothing here pushes the canvas around anymore.
@@ -84,7 +86,7 @@ function WorkspacePage() {
             <MergeStudioView />
           </div>
         ) : (
-          <WorkspaceFloatingCanvas />
+          <WorkspaceSplitLayout />
         )}
 
         <TopBar
@@ -92,9 +94,10 @@ function WorkspacePage() {
           previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
           onTogglePreview={togglePreview}
           dockApi={dockApi}
+          onOpenPalette={() => setPaletteOpen(true)}
         />
         {!inMergeStudio && <FollowMeBanner />}
-        {!inMergeStudio && <FilesLayersWindow />}
+        {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
 
         <InspectorSidebar />
         {!inMergeStudio && <ChatMorphWidget />}

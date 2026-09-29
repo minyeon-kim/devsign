@@ -83,6 +83,7 @@ export function useFloatingDockApi() {
           if (!g) return
           g.activeId = panelId
           g.open = true
+          g.minimized = false
           bringGroupToFront(p.groupId)
           notify()
         },
@@ -271,6 +272,16 @@ export function useFloatingDockApi() {
     notify()
   }
 
+  // The split-pane layout's minimize: the window folds down to a slim
+  // strip (and back), keeping its place and its tabs.
+  function minimizeGroup(groupId, minimized) {
+    const g = store.groups[groupId]
+    if (!g) return
+    g.minimized = minimized
+    if (minimized) g.maximized = false
+    notify()
+  }
+
   function setActiveTab(groupId, panelId) {
     const g = store.groups[groupId]
     if (!g || !g.panelIds.includes(panelId)) return
@@ -295,6 +306,7 @@ export function useFloatingDockApi() {
     moveGroup,
     resizeGroup,
     focusGroup,
+    minimizeGroup,
     setActiveTab,
   }).current
 

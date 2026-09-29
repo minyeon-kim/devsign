@@ -6,7 +6,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const presetIcons = { LayoutGrid, Maximize, Columns2, Rows2 }
 
-function applyLayoutPreset(dockApi, presetId, { showTerminal }) {
+export function applyLayoutPreset(dockApi, presetId, { showTerminal }) {
   if (!dockApi) return
   const editor = dockApi.getPanel(panelById.editor.id)
 
