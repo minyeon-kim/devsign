@@ -27,8 +27,98 @@ export const CANVAS_W = 1850
 export const CANVAS_H = 900
 const CANVAS_MARGIN = 16
 
+// The split-pane layout (WorkspaceSplitLayout) arranges the open groups as
+// a tree: a leaf is `{ type: 'leaf', id: groupId }`, a split is
+// `{ type: 'split', id, dir: 'row' | 'col', children, sizes }` (children
+// side by side for 'row', stacked for 'col'; `sizes` are flex weights).
+// Adding a group next to another splits that one's cell in the matching
+// direction; closing its last tab removes its cell (a split left with one
+// child collapses into it).
+let splitSeq = 0
+
+function findParent(node, id, parent = null) {
+  if (!node) return null
+  if (node.type === 'leaf') return node.id === id ? { parent, node } : null
+  for (const child of node.children) {
+    const hit = findParent(child, id, node)
+    if (hit) return hit
+  }
+  return null
+}
+
+function replaceChild(root, parent, oldNode, newNode) {
+  if (!parent) return newNode
+  const i = parent.children.indexOf(oldNode)
+  parent.children[i] = newNode
+  return root
+}
+
+function insertLeaf(root, id, refId, direction) {
+  const leaf = { type: 'leaf', id }
+  if (!root) return leaf
+  const dir = direction === 'above' || direction === 'below' ? 'col' : 'row'
+  const before = direction === 'left' || direction === 'above'
+  const hit = refId != null ? findParent(root, refId) : null
+  if (!hit) {
+    // No reference: along the top-level row.
+    if (root.type === 'split' && root.dir === 'row') {
+      root.children.push(leaf)
+      root.sizes.push(Math.max(...root.sizes, 1) / 2)
+      return root
+    }
+    return { type: 'split', id: `split-${++splitSeq}`, dir: 'row', children: [root, leaf], sizes: [2, 1] }
+  }
+  const { parent, node } = hit
+  if (parent && parent.dir === dir) {
+    const i = parent.children.indexOf(node)
+    const half = parent.sizes[i] / 2
+    parent.sizes[i] = half
+    parent.children.splice(before ? i : i + 1, 0, leaf)
+    parent.sizes.splice(before ? i : i + 1, 0, half)
+    return root
+  }
+  const split = { type: 'split', id: `split-${++splitSeq}`, dir, children: before ? [leaf, node] : [node, leaf], sizes: [1, 1] }
+  return replaceChild(root, parent, node, split)
+}
+
+function removeLeaf(root, id) {
+  const hit = findParent(root, id)
+  if (!hit) return root
+  const { parent, node } = hit
+  if (!parent) return null
+  const i = parent.children.indexOf(node)
+  parent.children.splice(i, 1)
+  parent.sizes.splice(i, 1)
+  if (parent.children.length > 1) return root
+  // One child left: the split collapses into it.
+  const only = parent.children[0]
+  const grand = findParentOfNode(root, parent)
+  return replaceChild(root, grand, parent, only)
+}
+
+function findParentOfNode(node, target, parent = null) {
+  if (node === target) return parent
+  if (node.type !== 'split') return undefined
+  for (const child of node.children) {
+    const hit = findParentOfNode(child, target, node)
+    if (hit !== undefined) return hit
+  }
+  return undefined
+}
+
+function findNode(node, id) {
+  if (!node) return null
+  if (node.id === id) return node
+  if (node.type !== 'split') return null
+  for (const child of node.children) {
+    const hit = findNode(child, id)
+    if (hit) return hit
+  }
+  return null
+}
+
 export function useFloatingDockApi() {
-  const store = useRef({ panels: {}, groups: {} }).current
+  const store = useRef({ panels: {}, groups: {}, layout: null }).current
   const [, bump] = useReducer((c) => c + 1, 0)
   const listeners = useRef(new Set()).current
   const zCounter = useRef(1)
@@ -99,13 +189,17 @@ export function useFloatingDockApi() {
             g.panelIds = []
             g.activeId = null
             g.open = false
+            store.layout = removeLeaf(store.layout, g.id)
             notify()
             return
           }
           g.panelIds = g.panelIds.filter((id) => id !== panelId)
           delete store.panels[panelId]
           if (g.activeId === panelId) g.activeId = g.panelIds[g.panelIds.length - 1] ?? null
-          if (g.panelIds.length === 0) g.open = false
+          if (g.panelIds.length === 0) {
+            g.open = false
+            store.layout = removeLeaf(store.layout, g.id)
+          }
           notify()
         },
         maximize() {
@@ -203,6 +297,7 @@ export function useFloatingDockApi() {
       }
     }
 
+    store.layout = insertLeaf(store.layout, id, ref?.id, ref ? options.direction ?? 'below' : undefined)
     store.groups[id] = {
       id,
       x,
@@ -282,6 +377,40 @@ export function useFloatingDockApi() {
     notify()
   }
 
+  // A splitter moved: the split's children's new flex weights.
+  function setSplitSizes(splitId, sizes) {
+    const node = findNode(store.layout, splitId)
+    if (!node) return
+    node.sizes = sizes
+    notify()
+  }
+
+  // A window dragged by its header and dropped on another: `zone` 'left' /
+  // 'right' / 'above' / 'below' docks it beside that one (a new split in
+  // that direction), 'center' merges its tabs into it.
+  function dockGroup(groupId, targetId, zone) {
+    const g = store.groups[groupId]
+    const target = store.groups[targetId]
+    if (!g || !target || groupId === targetId) return
+    g.maximized = false
+    g.minimized = false
+    if (zone === 'center') {
+      g.panelIds.forEach((pid) => {
+        store.panels[pid].groupId = targetId
+        target.panelIds.push(pid)
+      })
+      target.activeId = g.activeId ?? target.activeId
+      g.panelIds = []
+      g.activeId = null
+      g.open = false
+      store.layout = removeLeaf(store.layout, groupId)
+    } else {
+      store.layout = removeLeaf(store.layout, groupId)
+      store.layout = insertLeaf(store.layout, groupId, targetId, zone)
+    }
+    notify()
+  }
+
   function setActiveTab(groupId, panelId) {
     const g = store.groups[groupId]
     if (!g || !g.panelIds.includes(panelId)) return
@@ -296,6 +425,9 @@ export function useFloatingDockApi() {
     get height() {
       return CANVAS_H
     },
+    get layout() {
+      return store.layout
+    },
     getPanel,
     addPanel,
     addGroup,
@@ -307,6 +439,8 @@ export function useFloatingDockApi() {
     resizeGroup,
     focusGroup,
     minimizeGroup,
+    setSplitSizes,
+    dockGroup,
     setActiveTab,
   }).current
 

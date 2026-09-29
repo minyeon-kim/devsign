@@ -10,6 +10,7 @@ import {
 } from '@/components/mergestudio/floatingStyles'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
 import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
+import AddViewMenu from '@/components/workspace/AddViewMenu'
 
 const DRAG_THRESHOLD = 4
 
@@ -27,10 +28,11 @@ const DRAG_THRESHOLD = 4
 // panel's `component` string to the actual React component, same
 // convention dockview used.
 // `docked` (the Workspace's split-pane layout, see WorkspaceSplitLayout):
-// the window fills its pane instead of floating at x/y — no dragging or
-// corner resize (the splitters between panes do that) — and gains a
-// minimize control beside maximize / close.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false }) {
+// the window fills its pane instead of floating at x/y — no corner resize
+// (the splitters between panes do that); dragging its header hands off to
+// `onDockDragStart` (drop it beside / into another pane) — and its header
+// gains the `+` view menu and a minimize control beside maximize / close.
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -44,7 +46,11 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
   const isMaximized = activeHandle?.api.isMaximized() ?? false
 
   function beginDrag(e) {
-    if (docked || e.button !== 0 || e.target.closest('button')) return
+    if (e.button !== 0 || e.target.closest('button, input, [role="tablist"] *')) return
+    if (docked) {
+      onDockDragStart?.(group.id, e)
+      return
+    }
     dockApi.focusGroup(group.id)
     const start = { px: e.clientX, py: e.clientY, gx: group.x, gy: group.y }
     dragRef.current = { moved: false }
@@ -107,10 +113,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       ) : (
         <div
           onPointerDown={beginDrag}
-          className={cn(
-            'flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-2.5',
-            !docked && 'cursor-grab active:cursor-grabbing'
-          )}
+          className="flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
         >
           <div className="flex shrink-0 items-center gap-1">
             {group.panelIds.map((pid) => {
@@ -136,6 +139,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
           <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+            {docked && <AddViewMenu group={group} dockApi={dockApi} />}
             {docked && !isMaximized && (
               <button
                 type="button"

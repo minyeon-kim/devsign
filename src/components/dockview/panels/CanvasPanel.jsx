@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import {
   FileImage,
   Frame as FrameIcon,
-  Layers as LayersIcon,
   Hand,
   MessageCircle,
   MessageSquarePlus,
@@ -19,7 +18,6 @@ import { panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
-import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
 import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
 
 const MIN_ZOOM = 50
@@ -95,15 +93,12 @@ function CanvasToolbar({ tool, onSelectTool }) {
 // pill styling and single-row layout as the code editor's file tabs, so a
 // user can pop between "design files" the same way they pop between code
 // files.
-// The Layers button (opening the floating Files / Layers window) leads the
-// row, the same place the editor keeps its Files button.
+// (The layer tree opens from the window's `+` or the command palette.)
 function PageTabs({ activePageId, onSelectPage }) {
   // On the window's title line (see WindowHeaderSlot), right after "Canvas".
   return (
     <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 border-b bg-card px-2">
       <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
-      {/* The layer tree lives in the floating Files / Layers window. */}
-      <FilesLayersButton tab="layers" icon={LayersIcon} label="Layers" />
       {canvasPages.map((page) => {
         const active = activePageId === page.id
         return (

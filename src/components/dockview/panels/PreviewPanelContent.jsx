@@ -18,7 +18,7 @@ function parsePadding(value) {
 // either side shows up here too. The AI chat's padding fix still applies
 // to the primary button through `previewProps`.
 // History renders it at a past version: `previewProps` then comes from that
-// checkpoint's snapshot and `caption` replaces the "Live" header.
+// checkpoint's snapshot, and `caption` adds a label to its header.
 function PreviewPanelContent({ previewProps: snapshotProps, caption } = {}) {
   const { activePageId, prototypeEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? liveProps
@@ -41,12 +41,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, caption } = {}) {
     <div className="flex h-full flex-col overflow-hidden bg-card">
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2 text-[11px] text-muted-foreground">
         <span className="truncate">Synced from {file?.path}</span>
-        {caption ?? (
-          <span className="flex shrink-0 items-center gap-1">
-            <span className="size-1.5 rounded-full bg-emerald-400" />
-            Live
-          </span>
-        )}
+        {caption}
       </div>
 
       <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">

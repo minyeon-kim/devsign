@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Bell, FolderTree, PanelsTopLeft, Play, ScanEye } from 'lucide-react'
+import { Bell, Play } from 'lucide-react'
 import { cn } from 'cn'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
-import LayoutMenu from '@/components/layout/LayoutMenu'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
@@ -73,9 +72,8 @@ function InboxButton({ open, onToggle }) {
   )
 }
 
-function TopBar({ project, previewOpen, onTogglePreview, dockApi, onOpenPalette }) {
-  const { activeView, requestMergeFocus, openMergeStudio, inspectorOpen, setInspectorOpen, filesWindow, setFilesWindow } =
-    useWorkspace()
+function TopBar({ project, previewOpen, onTogglePreview, onOpenPalette }) {
+  const { activeView, requestMergeFocus, openMergeStudio } = useWorkspace()
   const [inboxOpen, setInboxOpen] = useState(false)
   if (activeView === 'mergeStudio') return null
 
@@ -107,8 +105,10 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi, onOpenPalette 
 
       {/* The action cluster, built exactly like Merge Studio's header:
           separate floating pieces rather than one long bar — the people
-          pill (Inbox + teammates), the view tools as icon buttons, Share,
-          Merge Studio, and Preview as an icon-only floating action. */}
+          pill (Inbox + teammates), Share, Merge Studio, and Preview as an
+          icon-only floating action. The view tools (Files & Layers, views,
+          layout, Inspect) live in the command palette (⌘K, the search
+          field) and each window's `+` instead. */}
       <div className="absolute top-3 right-4 z-40 flex items-center gap-2">
         <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
           <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
@@ -116,48 +116,6 @@ function TopBar({ project, previewOpen, onTogglePreview, dockApi, onOpenPalette 
           <span className={PRESENCE_STACK}>
             <UserPresence />
           </span>
-        </div>
-
-        <div className={cn('flex h-10 items-center gap-0.5 rounded-full px-1', FLOATING_PILL)}>
-          <button
-            type="button"
-            title="Files & Layers"
-            aria-label="Files & Layers"
-            aria-pressed={filesWindow.open}
-            onClick={() => setFilesWindow({ open: !filesWindow.open })}
-            className={cn(
-              'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-              filesWindow.open && 'bg-emerald-400/20 text-emerald-300'
-            )}
-          >
-            <FolderTree className="size-4" />
-          </button>
-          {/* Every view — Files, Terminal, Browser, Canvas, … — as a tab,
-              split pane or bottom-panel tab, via the command palette. */}
-          <button
-            type="button"
-            title="Views (⌘K)"
-            aria-label="Views"
-            aria-haspopup="dialog"
-            onClick={onOpenPalette}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-          >
-            <PanelsTopLeft className="size-4" />
-          </button>
-          <LayoutMenu dockApi={dockApi} />
-          <button
-            type="button"
-            title="Inspect"
-            aria-label="Inspect"
-            aria-pressed={inspectorOpen}
-            onClick={() => setInspectorOpen((v) => !v)}
-            className={cn(
-              'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-              inspectorOpen && 'bg-emerald-400/20 text-emerald-300'
-            )}
-          >
-            <ScanEye className="size-4" />
-          </button>
         </div>
 
         <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} />

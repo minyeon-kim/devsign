@@ -10,8 +10,10 @@ import {
   LayoutGrid,
   Monitor,
   PanelBottom,
+  ScanEye,
   ScrollText,
   Search,
+  Sparkles,
   SquareTerminal,
   TriangleAlert,
 } from 'lucide-react'
@@ -28,13 +30,15 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // Assets open the navigator pane; Terminal / Console / Conflict Points the
 // docked bottom panel.
 function useCommands() {
-  const { dockApi, setFilesWindow, bottomPanel, setBottomPanel, openMergeStudio } = useWorkspace()
+  const { dockApi, setFilesWindow, bottomPanel, setBottomPanel, openMergeStudio, inspectorOpen, setInspectorOpen } =
+    useWorkspace()
   const showTerminal = () => setBottomPanel({ tab: 'terminal', open: true })
 
   const windowViews = [
     { def: panelById.editor, label: 'Code Editor', icon: FileCode },
     { def: panelById.canvas, label: 'Canvas', icon: AppWindow },
     { def: panelById.preview, label: 'Browser', icon: Monitor, keywords: 'preview' },
+    { def: panelById.chat, label: 'AI Chat', icon: Sparkles, keywords: 'ask devsign agent assistant' },
   ]
   const navigatorViews = [
     { tab: 'files', label: 'Files', icon: Files, keywords: 'explorer tree' },
@@ -71,6 +75,14 @@ function useCommands() {
       run: () => setBottomPanel({ tab, open: true }),
     })),
     {
+      id: 'toggle-inspector',
+      section: 'Layout',
+      label: inspectorOpen ? 'Hide Inspector' : 'Show Inspector',
+      icon: ScanEye,
+      keywords: 'inspect properties',
+      run: () => setInspectorOpen((v) => !v),
+    },
+    {
       id: 'toggle-bottom',
       section: 'Layout',
       label: bottomPanel.open ? 'Collapse bottom panel' : 'Expand bottom panel',
@@ -90,7 +102,8 @@ function useCommands() {
 }
 
 // The Workspace's quick command palette (⌘K / Ctrl+K, or the header's
-// search field / Views button): type to filter, ↑ ↓ to move, Enter to run.
+// search field): type to filter, ↑ ↓ to move, Enter to run. No backdrop —
+// it opens over the workspace without dimming or blocking it.
 // It's how a view — Files, Terminal, Browser, Canvas, … — is opened as a
 // tab, a split pane or in the bottom panel without hunting for its button.
 function CommandPalette({ open, onOpenChange }) {
@@ -145,8 +158,9 @@ function CommandPalette({ open, onOpenChange }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent
+        overlay={false}
         showCloseButton={false}
         className={cn('top-[18%] translate-y-0 gap-0 overflow-hidden bg-card p-0 ring-0 sm:max-w-[560px]', PANEL_RADIUS, FLOATING_PANEL)}
       >

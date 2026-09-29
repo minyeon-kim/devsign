@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, Files, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
+import { Check, Copy, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -7,7 +7,6 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import EditorMinimap from '@/components/dockview/panels/EditorMinimap'
 import { RemoteCaretsOnLine, useRemoteCaretLines } from '@/components/collab/RemoteCarets'
-import { FilesLayersButton } from '@/components/workspace/FilesLayersWindow'
 import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
 
 const languageLabels = {
@@ -268,8 +267,6 @@ function EditorPanel() {
           (see WindowHeaderSlot). */}
       <WindowHeaderPortal fallbackClassName="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b bg-card px-2 font-sans">
         <span className="mx-1 h-4 w-px shrink-0 bg-white/10" />
-        {/* The file tree lives in the floating Files / Layers window. */}
-        <FilesLayersButton tab="files" icon={Files} label="Files" />
         {workspaceFiles.map((file) => {
           const name = getFileName(file.id)
           const { Icon, colorClass } = getFileIconMeta(name)

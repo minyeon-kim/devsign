@@ -93,7 +93,6 @@ function WorkspacePage() {
           project={project}
           previewOpen={inMergeStudio ? mergePreviewOpen : previewOpen}
           onTogglePreview={togglePreview}
-          dockApi={dockApi}
           onOpenPalette={() => setPaletteOpen(true)}
         />
         {!inMergeStudio && <FollowMeBanner />}

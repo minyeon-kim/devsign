@@ -1,37 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Braces,
-  ChevronDown,
-  Code2,
-  FileCode,
-  GripHorizontal,
-  History,
-  MessageCircle,
-  Paperclip,
-  Pin,
-  Send,
-  Sparkles,
-  X,
-} from 'lucide-react'
+import { GripHorizontal, History, PanelRight, Sparkles, X } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PANEL } from '@/components/mergestudio/floatingStyles'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import ChatCheckpoint from '@/components/history/ChatCheckpoint'
-import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
-import { aiModels, chatSuggestions } from '@/data/mockData'
+import ChatConversation from '@/components/chat/ChatConversation'
+import { openPanelInSplit, panelById } from '@/components/dockview/DockLayout'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-
-const suggestionIcons = { MessageCircle, Sparkles, Pin }
-const attachablePool = ['DesignCanvas.jsx', 'theme.css', 'tokens.json', 'screenshot.png']
 
 const ICON_SIZE = 48
 const MODAL_WIDTH = 400
@@ -42,42 +17,34 @@ const MARGIN = 18
 const ICON_RADIUS = ICON_SIZE / 2
 const MODAL_RADIUS = 28
 
-function TypingBubble() {
-  return (
-    <div className="flex justify-start">
-      <div className="flex items-center gap-1 rounded-2xl bg-muted px-3 py-2.5">
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
-      </div>
-    </div>
-  )
-}
-
 // The floating "Ask Devsign" entry point and its expanded conversation
 // window are the *same element* — clicking the icon morphs it (via a CSS
 // transition on left/top/width/height/border-radius, all explicit pixel
 // values so the browser can smoothly interpolate) into a freely draggable
 // window, and the close button reverses the animation back down into the
-// icon at its fixed corner.
+// icon at its fixed corner. The conversation inside is ChatConversation,
+// shared with the AI Chat pane; "Dock as pane" moves it into the workspace
+// as a split pane, and while that pane is open the widget steps aside.
 function ChatMorphWidget() {
-  const { chatMessages, isAiTyping, sendChatMessage, bottomPanel, projectId } = useWorkspace()
+  const { bottomPanel, projectId, dockApi } = useWorkspace()
   const [open, setOpen] = useState(false)
+  const [docked, setDocked] = useState(false)
   const [pos, setPos] = useState(null)
   const [windowSize, setWindowSize] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
   }))
-  const [input, setInput] = useState('')
-  const [attachments, setAttachments] = useState([])
-  const [codeBlockMode, setCodeBlockMode] = useState(false)
-  const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
-  const [autoMode, setAutoMode] = useState(true)
   const navigate = useNavigate()
-  // The checkpoint whose inline "Rollback here" was clicked (confirming).
-  const [rollbackId, setRollbackId] = useState(null)
   const dragRef = useRef(null)
-  const listRef = useRef(null)
+
+  // Is the AI Chat pane open in the workspace?
+  useEffect(() => {
+    if (!dockApi) return
+    const sync = () => setDocked(!!dockApi.getPanel(panelById.chat.id))
+    sync()
+    const disposable = dockApi.onDidLayoutChange(sync)
+    return () => disposable.dispose()
+  }, [dockApi])
 
   useEffect(() => {
     function onResize() {
@@ -86,11 +53,6 @@ function ChatMorphWidget() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
-
-  useEffect(() => {
-    if (!open) return
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [chatMessages, isAiTyping, open])
 
   const iconLeft = windowSize.width - MARGIN - ICON_SIZE
   // Sits above the workspace's docked bottom panel (expanded or just its
@@ -142,30 +104,9 @@ function ChatMorphWidget() {
     window.addEventListener('pointerup', onUp)
   }
 
-  function handleSend() {
-    if (!input.trim()) return
-    sendChatMessage(input)
-    setInput('')
-    setAttachments([])
-    setCodeBlockMode(false)
-  }
-
-  function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      handleSend()
-    }
-  }
-
-  function handleAttach() {
-    setAttachments((prev) => {
-      const next = attachablePool.find((f) => !prev.includes(f))
-      return next ? [...prev, next] : prev
-    })
-  }
-
-  function removeAttachment(name) {
-    setAttachments((prev) => prev.filter((f) => f !== name))
+  function dockAsPane() {
+    setOpen(false)
+    openPanelInSplit(dockApi, panelById.chat)
   }
 
   const rect = open
@@ -177,6 +118,8 @@ function ChatMorphWidget() {
         radius: MODAL_RADIUS,
       }
     : { left: iconLeft, top: iconTop, width: ICON_SIZE, height: ICON_SIZE, radius: ICON_RADIUS }
+
+  if (docked) return null
 
   return (
     <>
@@ -215,128 +158,15 @@ function ChatMorphWidget() {
               >
                 <History className="size-3.5" />
               </Button>
+              <Button type="button" variant="ghost" size="icon-sm" title="Dock as pane" aria-label="Dock as pane" onClick={dockAsPane}>
+                <PanelRight className="size-3.5" />
+              </Button>
               <Button type="button" variant="ghost" size="icon-sm" title="Close" onClick={closeWidget}>
                 <X className="size-3.5" />
               </Button>
             </div>
 
-            <RollbackCheckpointModal
-              key={rollbackId}
-              entryId={rollbackId}
-              onOpenChange={(open) => !open && setRollbackId(null)}
-            />
-
-            <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-3">
-              {chatSuggestions.map((suggestion) => {
-                const Icon = suggestionIcons[suggestion.iconName]
-                return (
-                  <button
-                    key={suggestion.id}
-                    type="button"
-                    onClick={() => sendChatMessage(suggestion.prompt)}
-                    className="flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:border-primary/40 hover:text-foreground"
-                  >
-                    {Icon && <Icon className="size-3 text-primary" />}
-                    {suggestion.label}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div ref={listRef} className="flex-1 space-y-2 overflow-auto p-3">
-              {chatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}
-                >
-                  <div
-                    className={cn(
-                      'max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    )}
-                  >
-                    {message.text}
-                  </div>
-                  {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
-                </div>
-              ))}
-              {isAiTyping && <TypingBubble />}
-            </div>
-
-            <div className="shrink-0 space-y-1.5 border-t p-2">
-              {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-1">
-                  {attachments.map((file) => (
-                    <span
-                      key={file}
-                      className="flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] text-foreground/80"
-                    >
-                      <FileCode className="size-2.5" />
-                      {file}
-                      <button type="button" onClick={() => removeAttachment(file)}>
-                        <X className="size-2.5 text-muted-foreground hover:text-foreground" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="rounded-3xl border bg-background">
-                <textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  rows={2}
-                  placeholder="Ask Devsign to tweak the design or code..."
-                  className="w-full resize-none border-none bg-transparent px-3 py-2 text-xs outline-none placeholder:text-muted-foreground"
-                />
-                <div className="flex items-center justify-between px-1.5 pb-1.5">
-                  <div className="flex items-center gap-0.5">
-                    <Button type="button" variant="ghost" size="icon-xs" onClick={handleAttach}>
-                      <Paperclip className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setCodeBlockMode((v) => !v)}
-                      className={cn(codeBlockMode && 'bg-primary/10 text-primary')}
-                    >
-                      <Code2 className="size-3.5" />
-                    </Button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="flex items-center gap-1 rounded-full px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground">
-                        <Braces className="size-3" />
-                        {model}
-                        <ChevronDown className="size-2.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuRadioGroup value={model} onValueChange={setModel}>
-                          {aiModels.map((option) => (
-                            <DropdownMenuRadioItem key={option} value={option}>
-                              {option}
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      Auto
-                      <Switch checked={autoMode} onCheckedChange={setAutoMode} size="sm" />
-                    </label>
-                    <Button type="button" size="icon" onClick={handleSend} disabled={!input.trim()}>
-                      <Send className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ChatConversation />
           </>
         ) : (
           <button

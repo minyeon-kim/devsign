@@ -24,8 +24,8 @@ const TABS = [
 // each, in a single tab row — instead of two drawers embedded inside the code editor and the
 // canvas. It's a Merge Studio floating panel (the Merge List window's
 // surface: opaque card, 20px radius, hairline border, soft layered
-// shadow), opened from the header's tools pill or the editor / canvas
-// header buttons, draggable by its title row, and closed with ✕.
+// shadow), opened from a window's `+` menu or the command palette,
+// draggable by its title row, and closed with ✕.
 // `docked` (the Workspace's split-pane layout): it's the leftmost pane
 // instead, filling it — no dragging; the splitter beside it sizes it.
 function FilesLayersWindow({ docked = false }) {
@@ -109,27 +109,3 @@ function FilesLayersWindow({ docked = false }) {
 }
 
 export default FilesLayersWindow
-
-// The button at the start of the editor's / canvas's header row (where
-// their embedded drawer toggles used to be): opens the window on its tab,
-// or closes it if that tab is already showing.
-export function FilesLayersButton({ tab, icon: Icon, label }) {
-  const { filesWindow, setFilesWindow } = useWorkspace()
-  const active = filesWindow.open && filesWindow.tab === tab
-
-  return (
-    <button
-      type="button"
-      title={active ? `Hide ${label}` : `Show ${label}`}
-      aria-label={active ? `Hide ${label}` : `Show ${label}`}
-      aria-pressed={active}
-      onClick={() => setFilesWindow(active ? { open: false } : { open: true, tab })}
-      className={cn(
-        'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors',
-        active ? 'bg-white/[0.08] text-foreground' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-      )}
-    >
-      <Icon className="size-3.5" />
-    </button>
-  )
-}
