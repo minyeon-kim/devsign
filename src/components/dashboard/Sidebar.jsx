@@ -84,24 +84,18 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
     <div className="flex h-full w-12 shrink-0 flex-col gap-1 bg-sidebar pb-2">
       <div className="mb-1 flex h-14 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <DropdownMenuTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
-                      className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
-                    />
-                  }
-                />
-              }
-            >
-              <ProjectsMark project={project} />
-            </TooltipTrigger>
-            <TooltipContent side="right">{project ? `${project.name} · Switch project` : 'Projects'}</TooltipContent>
-          </Tooltip>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
+                title={project ? `${project.name} · Switch project` : 'Projects'}
+                className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
+              />
+            }
+          >
+            <ProjectsMark project={project} />
+          </DropdownMenuTrigger>
         </ProjectSwitcher>
       </div>
 
