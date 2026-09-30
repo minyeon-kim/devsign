@@ -1,12 +1,20 @@
 // UI copy only. Project names, source code and authored content are not catalog keys.
-// Exception: the two UT persona names below (Jane/James are Korean-mode
-// display names, not literal translations, and JA/JD are their avatar
-// initials) — every other exact match in this catalog is real UI copy.
+// Exception: the three team members' names below (Jane/James/Min are
+// Korean-mode display names, not literal translations, and JA/JD/MI are
+// their avatar initials) — every other exact match in this catalog is real
+// UI copy.
 export const ko = Object.fromEntries(`
 Jane|김수연
 James|이지훈
+Min|한소민
 JA|수
 JD|지
+MI|소
+All members|전체 구성원
+Design Team|디자인 팀
+Engineering|엔지니어링
+Product|프로덕트
+Marketing|마케팅
 Settings|설정
 Workspace settings|워크스페이스 설정
 App preferences for this browser.|이 브라우저의 앱 환경설정입니다.
@@ -834,6 +842,35 @@ A shared height token keeps every Button consumer aligned with the design system
 How do I verify and roll back?|확인과 롤백은 어떻게 하나요?
 How do I verify and roll back the change?|변경 사항을 어떻게 확인하고 롤백하나요?
 Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.|Merge Changes에서 최종 코드와 시각적 미리보기를 확인하세요. 승인과 병합은 별개의 단계입니다. 병합 후에는 History를 열어 새 체크포인트를 선택하고 변경된 파일을 확인하세요. 결과가 잘못되었다면 롤백 작업으로 이전 체크포인트를 복원하세요.
+Should the CTA use the violet accent or stay neutral here?|CTA에 violet 강조색을 쓸까요, 아니면 중립색을 유지할까요?
+Padding looks tight on the mobile frame — can we match the 24px spec?|모바일 프레임에서 패딩이 좁아 보입니다 — 24px 스펙에 맞출 수 있을까요?
+I'll sync this with the token file once the palette is finalized.|팔레트가 확정되면 토큰 파일과 동기화하겠습니다.
+I kept the old violet as a hard-coded hex. Does the new checkout design drop it?|기존 violet을 하드코딩된 hex 값으로 남겨뒀어요. 새 결제 화면 디자인에서는 빠지나요?
+The design system says md is 40px. Can we use the token instead of h-9?|디자인 시스템에서는 md가 40px입니다. h-9 대신 토큰을 사용할 수 있을까요?
+approved the design changes on Hero CTA|Hero CTA 디자인 변경을 승인했습니다
+approved the code changes|코드 변경을 승인했습니다
+Padding looks tight on the primary button — can we match the 24px spec?|기본 버튼에서 패딩이 좁아 보입니다 — 24px 스펙에 맞출 수 있을까요?
+Leaning violet — it matches the new tokens.|violet 쪽으로 기울고 있어요 — 새 토큰과 어울립니다.
+requested your review on Place order button · Height & color|Place order button · Height & color 검토를 요청했습니다
+Can you take a look at the payment label spacing before we ship?|배포 전에 결제 라벨 간격을 확인해주시겠어요?
+divider color drifts from the border token in OrderSummary.jsx|OrderSummary.jsx의 구분선 색상이 border 토큰과 어긋납니다
+requested your review on Button / Height|Button / Height 검토를 요청했습니다
+GitHub Actions checks passed on merge/flowbank-homepage|merge/flowbank-homepage에서 GitHub Actions 검사를 통과했습니다
+checks passed on merge/place-order-button|merge/place-order-button에서 검사를 통과했습니다
+checks passed on merge/button-height-token|merge/button-height-token에서 검사를 통과했습니다
+heading size differs between A and B on line 4|4행에서 A안과 B안의 제목 크기가 다릅니다
+requested your review|검토를 요청했습니다
+approved the design changes|디자인 변경을 승인했습니다
+requested your review on|검토를 요청했습니다 ·
+commented on|댓글을 남겼습니다 ·
+flagged a design ↔ code difference on|디자인↔코드 차이를 발견했습니다 ·
+changed the Place order button background in|버튼 배경색을 변경했습니다 ·
+approved|승인했습니다
+merged|병합했습니다
+requested changes on|변경을 요청했습니다 ·
+pushed new changes to|새 변경사항을 푸시했습니다 ·
+added a new file to|새 파일을 추가했습니다 ·
+mentioned you in a comment on|댓글에서 언급했습니다 ·
 `.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
 
 Object.assign(ko, {

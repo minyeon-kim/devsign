@@ -9,6 +9,8 @@ import { needsReviewFrom } from '@/lib/conflicts'
 import { RiskBadge } from '@/components/conflicts/ConflictRow'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 
 // Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
 // count as a badge.
@@ -40,8 +42,12 @@ function shortLabel(label, max = 26) {
   const keep = max - 1
   return `${label.slice(0, Math.ceil(keep / 2))}…${label.slice(-Math.floor(keep / 2))}`
 }
+// Text passed here bypasses the JSX-boundary translator below (it's split
+// into path-aware segments, a raw prop rather than an isolated child), so
+// it's translated explicitly first.
 function CondensedText({ text }) {
-  return text.split(/(\s+)/).map((part, i) =>
+  const language = useLanguage()
+  return translateText(text, language).split(/(\s+)/).map((part, i) =>
     /^[\w.-]+\/[\w./-]+$/.test(part) ? (
       <code key={i} title={part} className="rounded bg-white/[0.06] px-1 font-mono text-[0.92em] text-slate-300">
         {part.split('/').pop()}
