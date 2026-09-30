@@ -77,7 +77,6 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   const base = project ? `/projects/${project.id}` : null
   const onDocs = !!base && path.startsWith(`${base}/docs`)
   const onHistory = !!base && path.startsWith(`${base}/history`)
-  const navigate = useNavigate()
 
   return (
     <div
@@ -126,13 +125,12 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-expanded={drawer === 'docs'}
               className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
             />
-            {/* The full History view — its page opens the checkpoint list in
-                the drawer beside it (AppShell). On it, the icon toggles
-                History off: back to the Workspace. */}
+            {/* Open the list first; choosing a checkpoint opens its viewer. */}
             <RailButton
               label="History"
               icon={History}
-              onClick={() => (onHistory ? onToggleDrawer('history') : navigate(`${base}/history`))}
+              onClick={() => onToggleDrawer('history')}
+              aria-expanded={drawer === 'history'}
               aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />

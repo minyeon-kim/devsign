@@ -13,8 +13,8 @@ import { historyMeta } from '@/lib/historyMeta'
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
-// The left column of the History view (it opens with it): the project's
-// checkpoints, newest first, as a compact list. Clicking one shows it in
+// History opens this compact list beside the current page first, with the
+// project's checkpoints newest first. Clicking one shows it in
 // History's main viewer — the same selection the timeline slider and
 // playback move through (see useSelectedCheckpoint). Hover a row for
 // Archive and "Rollback here"; archived ones sit under their own tab.
