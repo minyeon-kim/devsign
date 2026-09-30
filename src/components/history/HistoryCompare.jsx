@@ -200,10 +200,11 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             flip it to the latest one to see the difference. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
           <PreviewPanelContent
-            key={canvasSide === 'latest' && showDiff ? 'latest' : entry.id}
-            previewProps={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.previewProps}
-            prototypeEdits={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.prototypeEdits}
-            activePageId={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.activePageId}
+            key={canvasSide === 'latest' && showDiff ? 'latest' : 'checkpoint'}
+            previewProps={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.previewProps ?? {}}
+            prototypeEdits={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.prototypeEdits ?? {}}
+            activePageId={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.activePageId ?? null}
+            historical
             caption={
               showDiff ? (
                 <span className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Canvas version">

@@ -1,3 +1,4 @@
+import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
@@ -23,41 +24,23 @@ function HistoryPage() {
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   const [compareLatest, setCompareLatest] = useState(true)
-  const [playing, setPlaying] = useState(false)
 
   // The timeline runs oldest → newest over the active checkpoints.
   const timeline = useMemo(() => historyEntries.filter((e) => !e.archived), [historyEntries])
   const timelineIndex = timeline.findIndex((e) => e.id === selectedId)
 
-  // Playback: step forward one version at a time like a timelapse, and stop
-  // on the latest. Playing from the end starts over from the first.
-  useEffect(() => {
-    if (!playing) return
-    const timer = setTimeout(() => {
-      const next = timeline[timelineIndex + 1]
-      if (next) select(next.id)
-      else setPlaying(false)
-    }, 900)
-    return () => clearTimeout(timer)
-  }, [playing, timelineIndex, timeline, select])
+  const { playing, pause, toggle } = useHistoryPlayback(timeline, selectedId, select)
 
   function togglePlay() {
-    if (!playing && timelineIndex >= timeline.length - 1 && timeline[0]) select(timeline[0].id)
-    setPlaying((p) => !p)
+    // Replay shows each checkpoint itself, instead of keeping the latest
+    // canvas selected in the comparison view.
+    if (!playing) setCompareLatest(false)
+    toggle()
   }
 
   function selectVersion(id) {
-    setPlaying(false)
+    pause()
     select(id)
-  }
-
-  // Clicking a row in the drawer changes `?v=` from outside — that stops
-  // playback too, like any manual pick.
-  const [followed, setFollowed] = useState(selectedId)
-  if (followed !== selectedId) {
-    setFollowed(selectedId)
-    const expected = timeline[timeline.findIndex((e) => e.id === followed) + 1]?.id
-    if (playing && selectedId !== expected && selectedId !== timeline[0]?.id) setPlaying(false)
   }
 
   // ← / → step through versions anywhere on the page (not while typing,
@@ -100,7 +83,7 @@ function HistoryPage() {
           onCompareLatestChange={setCompareLatest}
           isCurrent={selectedId === activeHistoryId}
           onRestore={() => {
-            setPlaying(false)
+            pause()
             setRollbackId(selectedId)
           }}
         />

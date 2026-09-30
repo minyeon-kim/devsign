@@ -92,3 +92,6 @@ export const ACCENT_BADGE = 'bg-emerald-400 text-slate-950'
 // the text after them form clean vertical lines down the list.
 export const SEVERITY_COL = 'w-[46px]'
 export const SEVERITY_BADGE = 'h-5 w-[46px] px-0 text-[10px]'
+
+// Workspace tabs and their adjacent add button share a softer corner.
+export const WORKSPACE_TAB_RADIUS = 'rounded-[var(--ds-radius-workspace-tab)]'

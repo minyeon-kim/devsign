@@ -1,3 +1,4 @@
+import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { useRef, useState } from 'react'
 import { AppWindow, ArrowLeft, ChevronRight, FileCode, FileText, Monitor, Plus, ScrollText, Sparkles, SquareTerminal } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -81,9 +82,9 @@ function AddViewMenu({ group, dockApi }) {
       <PopoverTrigger
         title="Open a view"
         aria-label="Open a view"
-        className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white data-[popup-open]:bg-white/[0.08] data-[popup-open]:text-white"
+        className={`${WORKSPACE_TAB_RADIUS} flex size-8 shrink-0 items-center justify-center bg-transparent text-slate-400 transition-colors hover:bg-white/[0.14] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/60`}
       >
-        <Plus className="size-3.5" />
+        <Plus className="size-4" strokeWidth={2.25} />
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={6} className={picker ? 'w-80 gap-2 rounded-xl p-2' : 'w-48 gap-0 rounded-xl p-1'}>
         {picker === 'docs' ? <>
@@ -111,7 +112,7 @@ function AddViewMenu({ group, dockApi }) {
             >
               <Icon className="size-4 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate">{label}</span>
-              {here && <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Open here" />}
+              {here && <span className="ds-status-dot shrink-0 rounded-full bg-emerald-400" aria-label="Open here" />}
             </button>
           )
         })}

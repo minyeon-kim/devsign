@@ -19,12 +19,12 @@ function parsePadding(value) {
 // to the primary button through `previewProps`.
 // History renders it at a past version: `previewProps` then comes from that
 // checkpoint's snapshot, and `caption` adds a label to its header.
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, caption, showZoomControl = false } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, caption, historical = false, showZoomControl = false } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
-  const previewProps = snapshotProps ?? liveProps
-  const pageId = snapshotPageId ?? activePageId
+  const previewProps = snapshotProps ?? (historical ? {} : liveProps)
+  const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
   const page = projectPages.find((p) => p.id === pageId) ?? projectPages[0]
-  const renderedEdits = snapshotEdits ?? liveEdits
+  const renderedEdits = snapshotEdits ?? (historical ? {} : liveEdits)
   const file = prototypeFileForPage(page.id)
   const boxRef = useRef(null)
   const [width, setWidth] = useState(320)

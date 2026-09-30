@@ -87,7 +87,7 @@
     --ds-padding-row-compact: 12px;
     --ds-radius-md: 8px;
     --ds-radius-card: 12px;
-    --ds-radius-workspace-tab: 16px;
+    --ds-radius-workspace-tab: 10px;
     --ds-radius-pill: 9999px;
     --background: oklch(1 0 0);
     /* The infinite canvas (Workspace + Merge Studio) — a soft gray so the
@@ -466,4 +466,12 @@ button.editor-line-comment {
   :is(button, a, [role="button"]):is(.bg-primary, .bg-emerald-400, [class~="bg-[#5EEAB5]"], [class~="bg-[#5eeab5]"]) {
     border-radius: 9999px !important;
   }
+}
+
+/* Status dots share one size; count badges retain their own dimensions. */
+.ds-status-dot {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+  border-radius: 9999px;
 }

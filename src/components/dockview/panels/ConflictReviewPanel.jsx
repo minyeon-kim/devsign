@@ -135,7 +135,7 @@ function StagePill({ stage }) {
       aria-label={`Review status: ${STAGE_LABEL[stage]}, step ${index + 1} of ${REVIEW_STAGES.length}`}
       className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[11px] font-semibold text-slate-200"
     >
-      <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[stage])} />
+      <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[stage])} />
       {STAGE_LABEL[stage]}
       <span className="font-medium text-slate-500 tabular-nums">
         {index + 1}/{REVIEW_STAGES.length}
@@ -895,7 +895,7 @@ function HistoryCheckpointTimeline({ workspace }) {
                 )}
               >
                 <span className="flex w-full min-w-0 items-start gap-2">
-                  <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', isCurrent ? 'bg-emerald-300' : isRestored ? 'bg-amber-300' : 'bg-slate-600')} />
+                  <span className={cn('mt-1 ds-status-dot shrink-0 rounded-full', isCurrent ? 'bg-emerald-300' : isRestored ? 'bg-amber-300' : 'bg-slate-600')} />
                   <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-200" title={entry.label}>{entry.label}</span>
                   {isCurrent && <span className="shrink-0 rounded-full bg-emerald-400/10 px-1.5 py-0.5 text-[9px] text-emerald-300">Current</span>}
                   {!isCurrent && isRestored && <span className="shrink-0 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] text-amber-200">Restored</span>}

@@ -1,5 +1,5 @@
 import '@/components/dockview/panels/CanvasToolbar.css'
-import { Bell } from 'lucide-react'
+import { Bell, LayoutGrid } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -29,6 +29,8 @@ function ProjectTitle({ project }) {
     <div
       className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-2 text-[13px]"
     >
+      <Link to="/dashboard" title="Dashboard" aria-label="Dashboard" className="ds-header-pill flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-white/[0.06] hover:text-white"><LayoutGrid className="size-4" /></Link>
+      <span className="shrink-0 text-muted-foreground/60">/</span>
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}

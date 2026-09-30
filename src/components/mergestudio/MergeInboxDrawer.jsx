@@ -107,7 +107,7 @@ function InboxItem({ n, onJump }) {
   const meta = (
     <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
       <span className="text-[11px] text-slate-500 tabular-nums">{n.timeLabel}</span>
-      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('size-[5px] rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
+      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('ds-status-dot rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
     </span>
   )
 
@@ -260,7 +260,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
         <span className="mt-2 block text-[11px] text-slate-500">{group.timeLabel}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2 pt-1">
-        {group.unread && <span className="size-[5px] rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
+        {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
         <ChevronRight className="size-3.5 text-slate-500" />
       </span>
     </button>

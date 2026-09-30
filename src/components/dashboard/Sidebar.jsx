@@ -1,7 +1,7 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users, PanelTop } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -111,6 +111,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
           <>
+            <RailButton label="Dashboard" icon={LayoutGrid} render={<Link to="/dashboard" />} />
             <RailButton
               label={`${project.name} home`}
               icon={House}
@@ -118,6 +119,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-current={path === overviewPath ? 'page' : undefined}
               className={cn(path === overviewPath && !drawer && activeClass)}
             />
+            <RailButton label="Workspace" icon={PanelTop} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
             <RailButton
               label="Docs"
               icon={BookOpen}

@@ -293,7 +293,7 @@ function EditorPanel() {
               <button type="button" onClick={() => setActiveFileId(fileId)} className="flex h-full items-center gap-1.5 pl-3 pr-1.5">
                 <Icon className={cn('size-3.5 shrink-0', colorClass)} />
                 {name}
-                {(draftChanges[fileId] || editorDirtyFiles[fileId]) && <span className="size-1.5 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
+                {(draftChanges[fileId] || editorDirtyFiles[fileId]) && <span className="ds-status-dot shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
               </button>
               {openFileIds.length > 1 && (
                 <button
@@ -323,7 +323,7 @@ function EditorPanel() {
               {isEditing ? (
                 <>
                   <span className="flex items-center gap-1 text-emerald-300">
-                    <span className="size-1.5 rounded-full bg-emerald-300" />
+                    <span className="ds-status-dot rounded-full bg-emerald-300" />
                     Editing
                   </span>
                   <button

@@ -35,7 +35,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
             )}
           >
             <Bell className={iconClassName} />
-            {hasUnread && <span className="absolute top-1.5 right-1.5 size-[5px] rounded-full bg-primary" />}
+            {hasUnread && <span className="absolute top-1.5 right-1.5 ds-status-dot rounded-full bg-primary" />}
           </button>
         }
       />

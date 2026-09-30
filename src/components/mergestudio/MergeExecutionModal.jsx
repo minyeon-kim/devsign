@@ -890,7 +890,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
             <p className="mt-0.5 text-[13px] text-slate-400">Review the final result before merging.</p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs font-medium text-emerald-300">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+            <span className="ds-status-dot animate-pulse rounded-full bg-emerald-400" />
             Live
           </span>
         </div>

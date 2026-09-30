@@ -117,7 +117,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         <div
           onPointerDown={beginDrag}
           data-window-header={docked ? group.id : undefined}
-          className="@container/nav flex h-11 shrink-0 cursor-grab items-center gap-1 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
+          className="@container/nav flex h-11 shrink-0 cursor-grab items-center gap-0.5 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
         >
           {docked ? (
             // The real tabs — open files, canvas pages, the navigator's

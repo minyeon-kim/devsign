@@ -231,7 +231,7 @@ function ConflictPanel() {
                     {/* Status wraps within its own column. */}
                     <td className="px-1.5 py-2">
                       <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
-                        <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+                        <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
                         {needsReviewFrom(conflict) && (
                             <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">

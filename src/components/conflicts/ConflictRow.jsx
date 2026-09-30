@@ -33,7 +33,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className="flex items-center gap-1.5 text-[11px] text-slate-300">
-          <span className={cn('size-1.5 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+          <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
           {STAGE_LABEL[conflict.reviewStage]}
         </span>
         <span className={cn('text-[11px]', next.mine ? 'font-medium text-emerald-300' : 'text-slate-500')}>{next.label}</span>

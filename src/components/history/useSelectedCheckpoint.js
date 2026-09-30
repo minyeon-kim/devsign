@@ -10,8 +10,12 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 export function useSelectedCheckpoint() {
   const [params, setParams] = useSearchParams()
   const location = useLocation()
-  const { activeHistoryId } = useWorkspace()
-  const selectedId = params.get('v') ?? location.state?.highlightId ?? activeHistoryId
+  const { activeHistoryId, historyEntries } = useWorkspace()
+  const requestedId = params.get('v') ?? location.state?.highlightId ?? activeHistoryId
+  const selectedId = historyEntries.find(entry => entry.id === requestedId && !entry.archived)?.id
+    ?? historyEntries.find(entry => entry.id === activeHistoryId && !entry.archived)?.id
+    ?? historyEntries.filter(entry => !entry.archived).at(-1)?.id
+    ?? null
 
   const select = useCallback(
     (id) => setParams({ v: id }, { replace: true, state: location.state }),

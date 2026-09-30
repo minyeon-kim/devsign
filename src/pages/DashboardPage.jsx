@@ -9,7 +9,7 @@ import ReviewQueue from '@/components/dashboard/ReviewQueue'
 // projects page, which now redirects here.
 function DashboardPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout projectProportions>
       <ReviewQueue />
       <ProjectsSection />
     </DashboardLayout>

@@ -38,7 +38,7 @@ function ReviewQueue() {
   }
 
   return (
-    <section className="rounded-2xl bg-white/[0.03] p-5">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6">
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-[13px] font-semibold text-white">Your queue</h2>
         <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Queue">

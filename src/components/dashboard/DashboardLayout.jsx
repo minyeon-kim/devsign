@@ -10,17 +10,18 @@ import DashboardTopBar from '@/components/dashboard/DashboardTopBar'
 // capped with `max-w` + `mx-auto` so it stays comfortable to scan on
 // ultra-wide monitors instead of stretching edge to edge, with
 // generous, responsive horizontal padding at every breakpoint.
-function DashboardLayout({ children, rightColumn }) {
+function DashboardLayout({ children, rightColumn, projectProportions = false }) {
   return (
     <AppShell topBar={<DashboardTopBar />}>
       <div className="flex-1 overflow-auto" style={{ backgroundColor: '#070708' }}>
         <div
           className={cn(
-            'mx-auto grid max-w-[1680px] grid-cols-1 gap-8 px-6 py-8 sm:px-10 lg:px-14',
+            'mx-auto grid grid-cols-1 px-6 py-8 sm:px-10',
+            projectProportions ? 'max-w-[1180px] gap-6' : 'max-w-[1680px] gap-8 lg:px-14',
             rightColumn && 'lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px]'
           )}
         >
-          <div className="flex min-w-0 flex-col gap-8">{children}</div>
+          <div className={cn('flex min-w-0 flex-col', projectProportions ? 'gap-6' : 'gap-8')}>{children}</div>
           {rightColumn && <div className="flex min-w-0 flex-col gap-6">{rightColumn}</div>}
         </div>
       </div>

@@ -16,7 +16,7 @@ function MostActiveProjects() {
             to={`/projects/${project.id}`}
             className="group flex items-center gap-2.5 rounded-md px-1 py-0.5 -mx-1 transition-colors hover:bg-muted/60"
           >
-            <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
+            <span className="ds-status-dot shrink-0 rounded-full bg-muted-foreground/60" />
             <span className="min-w-0 flex-1 truncate text-xs text-foreground/90 group-hover:text-foreground">
               {project.name}
             </span>

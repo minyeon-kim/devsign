@@ -101,6 +101,7 @@ function HistoryTimeline({
         </div>
         <input
           type="range"
+          disabled={count < 2}
           min={0}
           max={Math.max(0, count - 1)}
           step={1}

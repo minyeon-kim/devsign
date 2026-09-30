@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import { Check, FolderKanban } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
 import ProjectThumbnail from '@/components/dashboard/ProjectThumbnail'
@@ -42,11 +42,12 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
 
   if (view === 'list') {
     return (
+      <div className="flex min-w-0 items-center gap-2">
       <button
         type="button"
         onClick={handleActivate}
         className={cn(
-          'flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
+          'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
           selected && 'border-primary bg-primary/5'
         )}
       >
@@ -57,15 +58,18 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{project.name}</span>
         <span className="shrink-0 text-[11px] text-muted-foreground">Edited {project.updatedAtLabel}</span>
       </button>
+      {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} aria-label={`Open ${project.name} workspace`} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] hover:text-white"><ArrowUpRight className="size-4" /></Link>}
+      </div>
     )
   }
 
   return (
+    <div className="relative min-w-0">
     <button
       type="button"
       onClick={handleActivate}
       className={cn(
-        'group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/40',
+        'group flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/40',
         selected && 'border-primary ring-2 ring-primary/40'
       )}
     >
@@ -101,6 +105,8 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
         </AvatarGroup>
       </div>
     </button>
+    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-[#121212]/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#242427] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
+    </div>
   )
 }
 

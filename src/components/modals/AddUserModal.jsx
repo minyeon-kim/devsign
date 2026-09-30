@@ -163,7 +163,7 @@ function AddUserModal({ open, onOpenChange, onSubmit, initialValues }) {
                     )}
                   >
                     <span
-                      className={cn('size-1.5 rounded-full', status === 'Active' ? 'bg-emerald-500' : 'bg-muted-foreground/40')}
+                      className={cn('ds-status-dot rounded-full', status === 'Active' ? 'bg-emerald-500' : 'bg-muted-foreground/40')}
                     />
                     {status}
                   </button>

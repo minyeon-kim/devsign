@@ -1255,7 +1255,7 @@ export function ComponentsTab({ selectedLayer, onApply, onAdd, onDrag, onInsert 
           <span className="font-medium text-slate-200">{designSystemMeta.name}</span>
           <span className="rounded-[4px] bg-white/[0.06] px-1.5 py-px text-[10px] text-slate-400 tabular-nums">{designSystemMeta.version}</span>
           <span className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500">
-            <span className="size-1.5 rounded-full bg-emerald-400" />
+            <span className="ds-status-dot rounded-full bg-emerald-400" />
             {designSystemMeta.syncedLabel}
           </span>
         </div>

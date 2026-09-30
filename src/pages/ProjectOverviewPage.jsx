@@ -101,6 +101,13 @@ function ProjectOverviewPage() {
   return (
     <div className="h-full overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
       <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
+        <nav aria-label="Project navigation" className="flex items-center gap-2 text-xs text-slate-400">
+          <Link to="/dashboard" className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Dashboard</Link>
+          <ChevronRight className="size-3" />
+          <span aria-current="page" className="text-white">Project home</span>
+          <ChevronRight className="size-3" />
+          <Link to={workspacePath} className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Workspace</Link>
+        </nav>
         {/* Header */}
         <header className="flex flex-wrap items-start gap-4">
           <span

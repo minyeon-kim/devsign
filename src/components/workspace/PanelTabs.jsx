@@ -1,3 +1,4 @@
+import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { orderedTabs } from '@/lib/tabOrder'
 import { Component, FileImage, Files, Layers, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -72,7 +73,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: Icon && <Icon className="size-3.5 shrink-0" />,
         active: panelActive,
         select: () => {},
-        close: closeView,
+        close: ['assets', 'layers', 'explorer'].includes(panel.component) ? null : closeView,
       },
     ]
   }
@@ -86,7 +87,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       data-tab-id={item.key}
       data-panel-id={pid}
       className={cn(
-        'workspace-header-tab group/tab flex h-8 items-center rounded-[16px] text-xs transition-colors',
+        'workspace-header-tab group/tab flex h-8 items-center text-xs transition-colors',
+        WORKSPACE_TAB_RADIUS,
         panel.component === 'navigator' ? 'min-w-0 flex-1' : 'shrink-0',
         item.active ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
       )}
@@ -114,11 +116,11 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
           item.select()
           activate()
         }}
-        className={cn('flex h-full items-center', panel.component === 'navigator' ? 'min-w-0 w-full justify-center gap-1 px-2' : ['gap-1.5 pl-3', item.close ? 'pr-1.5' : 'pr-3'])}
+        className={cn('flex h-full items-center', panel.component === 'navigator' ? 'min-w-0 w-full justify-center gap-1 px-1.5' : ['gap-1.5 pl-3', item.close ? 'pr-1.5' : 'pr-3'])}
       >
-        {panel.component === 'navigator' ? <span className="shrink-0 @max-[260px]/nav:hidden">{item.icon}</span> : item.icon}
+        {panel.component === 'navigator' ? <span className="shrink-0 @max-[340px]/nav:hidden">{item.icon}</span> : item.icon}
         <span className="max-w-[160px] truncate">{item.label}</span>
-        {item.dirty && <span className="size-1.5 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
+        {item.dirty && <span className="ds-status-dot ml-1 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
       </button>
       {item.close && (
         <button
