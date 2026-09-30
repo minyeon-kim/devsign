@@ -2990,47 +2990,481 @@ export const referenceDocs = [
   },
 ]
 
-// More Reference Docs, so the Archive's lists have a realistic length —
-// long enough to scroll, with titles long enough to truncate.
+// More Reference Docs, so the Archive's lists have a realistic length — long
+// enough to scroll, with titles long enough to truncate. Each has its own
+// real sections (not a repeat of `summary` + one generic paragraph), so the
+// "On this page" nav (ReferenceDocView) has more than one heading to show.
 const MORE_REFERENCE_DOCS = [
-  ['doc-color-tokens', 'Color tokens and semantic aliases', 'design', 'Every color token, what it maps to, and when to use the semantic alias instead.', 'min', '4 days ago'],
-  ['doc-type-scale', 'Type scale', 'design', 'Font sizes, line heights and weights for UI and long-form text.', 'min', '5 days ago'],
-  ['doc-spacing', 'Spacing and layout grid', 'design', 'The 4/8 spacing scale, container widths and breakpoints.', 'jane', '1 week ago'],
-  ['doc-motion', 'Motion principles', 'design', 'Durations, easing curves and when not to animate at all.', 'jane', '1 week ago'],
-  ['doc-iconography', 'Iconography guidelines for product surfaces and marketing', 'design', 'Stroke width, sizes, optical alignment and naming for the icon set.', 'min', '2 weeks ago'],
-  ['doc-button-spec', 'Button component spec', 'spec', 'Variants, sizes, states and the props contract for Button.', 'james', '2 days ago'],
-  ['doc-input-spec', 'Input and form field spec', 'spec', 'Labels, helper text, validation states and focus handling.', 'james', '3 days ago'],
-  ['doc-card-spec', 'Card component spec', 'spec', 'Padding, radius, elevation and content slots for Card.', 'james', '6 days ago'],
-  ['doc-modal-spec', 'Dialog and floating window behaviour', 'spec', 'Modal vs. non-modal, focus trapping, dismissal and stacking.', 'james', '1 week ago'],
-  ['doc-a11y', 'Accessibility checklist for every release', 'doc', 'Contrast, keyboard paths, focus order and screen reader labels to verify before shipping.', 'jane', '1 week ago'],
-  ['doc-release', 'Release process', 'doc', 'Branching, review sign-off, merge windows and rollback.', 'james', '2 weeks ago'],
-  ['doc-review', 'Design review rituals', 'doc', 'How and when design reviews happen, and who signs off.', 'min', '2 weeks ago'],
-  ['doc-naming', 'Naming conventions: components, tokens, files and Figma layers', 'doc', 'One naming scheme across code and design so layers map to components.', 'jane', '3 weeks ago'],
-  ['doc-handoff', 'Design → code handoff', 'doc', 'What a frame needs before it is ready for implementation.', 'min', '3 weeks ago'],
-  ['doc-api-errors', 'API error codes', 'spec', 'Every error the payments API returns and the copy we show for it.', 'james', '1 month ago'],
-  ['doc-analytics', 'Analytics events', 'spec', 'Event names, properties and where each one fires.', 'james', '1 month ago'],
-  ['doc-copy', 'Voice and tone', 'design', 'Writing UI copy: sentence case, verbs first, no jargon.', 'min', '1 month ago'],
-  ['doc-dark-mode', 'Dark mode surfaces and elevation', 'design', 'Surface steps, borders and shadows in the dark theme.', 'jane', '1 month ago'],
-]
-
-referenceDocs.push(
-  ...MORE_REFERENCE_DOCS.map(([id, title, type, summary, authorId, updatedAtLabel]) => ({
-    id,
-    title,
-    type,
-    summary,
-    authorId,
-    updatedAtLabel,
+  {
+    id: 'doc-color-tokens',
+    title: 'Color tokens and semantic aliases',
+    type: 'design',
+    summary: 'Every color token, what it maps to, and when to use the semantic alias instead.',
+    authorId: 'min',
+    updatedAtLabel: '4 days ago',
     blocks: [
-      { type: 'p', text: summary },
-      { type: 'h2', id: 'overview', text: 'Overview' },
+      { type: 'h2', id: 'tokens', text: 'Token reference' },
+      {
+        type: 'table',
+        columns: ['Token', 'Value', 'Semantic alias'],
+        rows: [
+          ['--accent-indigo', 'oklch(0.55 0.22 270)', '--color-primary'],
+          ['--accent-violet', 'oklch(0.6 0.24 300)', '--color-merge'],
+          ['--surface', 'oklch(0.21 0.006 286)', '--color-surface'],
+          ['--background', 'oklch(0.14 0.005 286)', '--color-canvas'],
+        ],
+        swatchColumn: 1,
+      },
+      { type: 'h2', id: 'usage', text: 'When to use the alias' },
       {
         type: 'p',
-        text: 'This page is the source of truth for the topic above. Changes go through a Design System Update so they are documented here and recorded in History.',
+        text: 'Components reference the semantic alias (`--color-primary`, `--color-surface`), never the raw token. If the brand color changes, only the alias’s mapping moves — every component that used it stays untouched.',
+      },
+      {
+        type: 'callout',
+        tone: 'info',
+        text: 'A raw token with no alias yet is not ready for use in a component. Request one in #design-system before shipping.',
       },
     ],
-  }))
-)
+  },
+  {
+    id: 'doc-type-scale',
+    title: 'Type scale',
+    type: 'design',
+    summary: 'Font sizes, line heights and weights for UI and long-form text.',
+    authorId: 'min',
+    updatedAtLabel: '5 days ago',
+    blocks: [
+      { type: 'h2', id: 'scale', text: 'Scale' },
+      {
+        type: 'table',
+        columns: ['Style', 'Size / line height', 'Weight'],
+        rows: [
+          ['Display', '26px / 1.3', 'Semibold'],
+          ['Heading', '17px / 1.4', 'Semibold'],
+          ['Body', '14px / 1.7', 'Regular'],
+          ['Label', '12–13px / 1.4', 'Medium'],
+          ['Caption', '11px / 1.4', 'Regular'],
+        ],
+      },
+      { type: 'h2', id: 'usage', text: 'Usage' },
+      {
+        type: 'ul',
+        items: [
+          'Headings use Heading or Display only — never Body set larger.',
+          'Labels stay Medium weight; Bold is reserved for emphasis inside body copy.',
+          'Numeric columns (prices, counts, tokens) use Geist Mono at the same size as the rest of their row.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-spacing',
+    title: 'Spacing and layout grid',
+    type: 'design',
+    summary: 'The 4/8 spacing scale, container widths and breakpoints.',
+    authorId: 'jane',
+    updatedAtLabel: '1 week ago',
+    blocks: [
+      { type: 'h2', id: 'scale', text: 'The 4/8 scale' },
+      {
+        type: 'p',
+        text: 'Every margin, padding and gap is a multiple of 4px, with 8px as the default step between related elements. 4px is for tight groupings (an icon next to its label); 24px or more separates unrelated sections.',
+      },
+      { type: 'h2', id: 'breakpoints', text: 'Containers & breakpoints' },
+      {
+        type: 'table',
+        columns: ['Breakpoint', 'Width', 'Columns'],
+        rows: [
+          ['Mobile', '375–599px', '4'],
+          ['Tablet', '600–959px', '8'],
+          ['Desktop', '960px+', '12'],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-motion',
+    title: 'Motion principles',
+    type: 'design',
+    summary: 'Durations, easing curves and when not to animate at all.',
+    authorId: 'jane',
+    updatedAtLabel: '1 week ago',
+    blocks: [
+      { type: 'h2', id: 'durations', text: 'Durations' },
+      {
+        type: 'table',
+        columns: ['Change', 'Duration', 'Easing'],
+        rows: [
+          ['Hover / focus', '120ms', 'ease-out'],
+          ['Panel open / close', '200ms', 'ease-in-out'],
+          ['Page transition', '280ms', 'ease-in-out'],
+        ],
+      },
+      { type: 'h2', id: 'when-not-to', text: 'When not to animate' },
+      {
+        type: 'ul',
+        items: [
+          'Continuously updating data (a live cursor, a typing indicator) — motion here reads as lag, not polish.',
+          'Anything that blocks the next action — never animate a disabled state into existence.',
+          'Error states — they should appear immediately so they are never missed.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-iconography',
+    title: 'Iconography guidelines for product surfaces and marketing',
+    type: 'design',
+    summary: 'Stroke width, sizes, optical alignment and naming for the icon set.',
+    authorId: 'min',
+    updatedAtLabel: '2 weeks ago',
+    blocks: [
+      { type: 'h2', id: 'construction', text: 'Construction' },
+      {
+        type: 'p',
+        text: 'Icons are drawn on a 24px grid at 2px stroke, with rounded caps and joins. Marketing surfaces may scale up to 48px; the product UI never goes below 16px.',
+      },
+      { type: 'h2', id: 'naming', text: 'Naming' },
+      {
+        type: 'p',
+        text: 'Name an icon after what it means, not what it looks like (`delete`, not `trash-can`). Directional variants get their own suffix (`arrow-left`, `arrow-right`) instead of rotating one icon at render time.',
+      },
+    ],
+  },
+  {
+    id: 'doc-button-spec',
+    title: 'Button component spec',
+    type: 'spec',
+    summary: 'Variants, sizes, states and the props contract for Button.',
+    authorId: 'james',
+    updatedAtLabel: '2 days ago',
+    blocks: [
+      { type: 'h2', id: 'variants', text: 'Variants' },
+      {
+        type: 'table',
+        columns: ['Variant', 'Use for'],
+        rows: [
+          ['Primary', 'The one main action per view'],
+          ['Secondary', 'Supporting actions alongside a primary'],
+          ['Ghost', 'Low-emphasis or destructive-adjacent actions'],
+        ],
+      },
+      { type: 'h2', id: 'sizes', text: 'Sizes' },
+      {
+        type: 'table',
+        columns: ['Size', 'Height', 'Token'],
+        rows: [
+          ['sm', '32px', '--button-height-sm'],
+          ['md', '40px', '--button-height-md'],
+          ['lg', '44px', '--button-height-lg'],
+        ],
+      },
+      {
+        type: 'callout',
+        tone: 'warning',
+        text: 'A hard-coded height (`h-9`, `h-10`) instead of the size token is the single most common Button drift Devsign catches — see Conflict Point cc-1.',
+      },
+    ],
+  },
+  {
+    id: 'doc-input-spec',
+    title: 'Input and form field spec',
+    type: 'spec',
+    summary: 'Labels, helper text, validation states and focus handling.',
+    authorId: 'james',
+    updatedAtLabel: '3 days ago',
+    blocks: [
+      { type: 'h2', id: 'states', text: 'States' },
+      {
+        type: 'table',
+        columns: ['State', 'Border', 'Notes'],
+        rows: [
+          ['Default', '--border', '—'],
+          ['Focus', '--color-primary, 2px ring', '—'],
+          ['Error', '--color-destructive', 'Helper text switches to the error message'],
+          ['Disabled', '--border, 40% opacity', 'Not focusable'],
+        ],
+      },
+      { type: 'h2', id: 'labels', text: 'Label & helper text' },
+      {
+        type: 'p',
+        text: 'Every input has a visible label — placeholder text is never a label. Helper text sits below the field and is replaced, not appended to, by the error message when validation fails.',
+      },
+    ],
+  },
+  {
+    id: 'doc-card-spec',
+    title: 'Card component spec',
+    type: 'spec',
+    summary: 'Padding, radius, elevation and content slots for Card.',
+    authorId: 'james',
+    updatedAtLabel: '6 days ago',
+    blocks: [
+      { type: 'h2', id: 'structure', text: 'Structure' },
+      {
+        type: 'p',
+        text: 'Padding is 16px on compact cards, 24px on standard cards. Radius follows `--radius-card` (12px) — never mixed with the pill radius reserved for controls (see Brand Guidelines → Shape & radius).',
+      },
+      { type: 'h2', id: 'slots', text: 'Content slots' },
+      {
+        type: 'ul',
+        items: [
+          'Media (optional, top, edge-to-edge)',
+          'Title plus one line of supporting text',
+          'Actions (0–2 buttons, right-aligned)',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-modal-spec',
+    title: 'Dialog and floating window behaviour',
+    type: 'spec',
+    summary: 'Modal vs. non-modal, focus trapping, dismissal and stacking.',
+    authorId: 'james',
+    updatedAtLabel: '1 week ago',
+    blocks: [
+      { type: 'h2', id: 'modal-vs-non-modal', text: 'Modal vs. non-modal' },
+      {
+        type: 'p',
+        text: 'A modal dialog traps focus and blocks the canvas behind it — confirmations, destructive actions. A non-modal floating window (the AI chat, Block Deck) stays open alongside the canvas and never steals focus on its own.',
+      },
+      { type: 'h2', id: 'dismissal', text: 'Dismissal & stacking' },
+      {
+        type: 'ul',
+        items: [
+          'Esc closes only the topmost floating surface, never the whole stack.',
+          'Clicking outside closes non-modal windows; modals require an explicit action.',
+          'A newly opened dialog always renders above the existing floating windows.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-a11y',
+    title: 'Accessibility checklist for every release',
+    type: 'doc',
+    summary: 'Contrast, keyboard paths, focus order and screen reader labels to verify before shipping.',
+    authorId: 'jane',
+    updatedAtLabel: '1 week ago',
+    blocks: [
+      { type: 'h2', id: 'before-you-ship', text: 'Before you ship' },
+      {
+        type: 'ol',
+        items: [
+          'Contrast: text and icons meet WCAG AA against their background.',
+          'Keyboard: every action reachable by mouse is reachable by Tab, Enter and Esc.',
+          'Focus order follows visual order, and focus is never lost after a dialog closes.',
+          'Every icon-only control has an `aria-label`; every image has alt text.',
+        ],
+      },
+      {
+        type: 'callout',
+        tone: 'info',
+        text: 'Run these four checks on the actual change, not the component in isolation — a correct component can still ship an inaccessible flow.',
+      },
+    ],
+  },
+  {
+    id: 'doc-release',
+    title: 'Release process',
+    type: 'doc',
+    summary: 'Branching, review sign-off, merge windows and rollback.',
+    authorId: 'james',
+    updatedAtLabel: '2 weeks ago',
+    blocks: [
+      { type: 'h2', id: 'branching', text: 'Branching' },
+      {
+        type: 'p',
+        text: 'Every change lives on its own branch and moves through Merge Studio — direct pushes to main are disabled. A branch is named after its Conflict Point or merge item (`fix/cc-11-place-order`).',
+      },
+      { type: 'h2', id: 'sign-off', text: 'Sign-off & merge windows' },
+      {
+        type: 'ul',
+        items: [
+          'Every reviewer on a Conflict Point must approve before it can merge — partial approval blocks the merge button.',
+          'Merges land any time; High-severity ones are held for the next scheduled window.',
+          'A failed merge rolls back automatically — nothing lands partially.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-review',
+    title: 'Design review rituals',
+    type: 'doc',
+    summary: 'How and when design reviews happen, and who signs off.',
+    authorId: 'min',
+    updatedAtLabel: '2 weeks ago',
+    blocks: [
+      { type: 'h2', id: 'when', text: 'When reviews happen' },
+      {
+        type: 'p',
+        text: 'A design review starts the moment a Conflict Point is created, not on a calendar. Low-severity drift is reviewed async in Merge Studio; Medium and High severity get a short synchronous walkthrough.',
+      },
+      { type: 'h2', id: 'sign-off', text: 'Who signs off' },
+      {
+        type: 'table',
+        columns: ['Severity', 'Required reviewers'],
+        rows: [
+          ['Low', 'The assignee only'],
+          ['Medium', 'Assignee + one teammate from the other discipline'],
+          ['High', 'Assignee + both other teammates'],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-naming',
+    title: 'Naming conventions: components, tokens, files and Figma layers',
+    type: 'doc',
+    summary: 'One naming scheme across code and design so layers map to components.',
+    authorId: 'jane',
+    updatedAtLabel: '3 weeks ago',
+    blocks: [
+      { type: 'h2', id: 'one-name', text: 'One name, three places' },
+      {
+        type: 'p',
+        text: 'A component’s Figma layer name, its file name and its exported name match exactly — a `PlaceOrderButton` layer becomes `PlaceOrderButton.jsx`, exporting `PlaceOrderButton`. This is what lets Devsign link a canvas layer straight to its code.',
+      },
+      { type: 'h2', id: 'tokens', text: 'Tokens' },
+      {
+        type: 'p',
+        text: 'Tokens are named `--category-role` (`--button-height-md`, `--accent-indigo`) — never a raw value or a component name. A token named after where it is used today (`--modal-shadow`) breaks the moment it is reused elsewhere.',
+      },
+    ],
+  },
+  {
+    id: 'doc-handoff',
+    title: 'Design → code handoff',
+    type: 'doc',
+    summary: 'What a frame needs before it is ready for implementation.',
+    authorId: 'min',
+    updatedAtLabel: '3 weeks ago',
+    blocks: [
+      { type: 'h2', id: 'checklist', text: 'Before a frame is ready' },
+      {
+        type: 'ol',
+        items: [
+          'Every layer name matches its intended component name (see Naming conventions).',
+          'Spacing and sizes are on the 4/8 scale — no arbitrary pixel values.',
+          'Colors and radii reference tokens, not raw hex or px values.',
+          'States (hover, disabled, error) exist as separate layers, not just a comment.',
+        ],
+      },
+      { type: 'h2', id: 'after', text: 'What happens after' },
+      {
+        type: 'p',
+        text: 'Once a frame meets the checklist, implementing it and requesting review creates a Conflict Point automatically if the code drifts from it — handoff never needs a separate ticket.',
+      },
+    ],
+  },
+  {
+    id: 'doc-api-errors',
+    title: 'API error codes',
+    type: 'spec',
+    summary: 'Every error the payments API returns and the copy we show for it.',
+    authorId: 'james',
+    updatedAtLabel: '1 month ago',
+    blocks: [
+      { type: 'h2', id: 'codes', text: 'Error codes' },
+      {
+        type: 'table',
+        columns: ['Code', 'Meaning', 'Copy shown to the user'],
+        rows: [
+          ['402', 'Payment declined', '“Your card was declined. Try another payment method.”'],
+          ['409', 'Stale cart', '“Your cart changed since you started checkout. Review it and try again.”'],
+          ['422', 'Invalid address', '“We couldn’t validate that shipping address.”'],
+          ['500', 'Processor unavailable', '“Something went wrong on our end. Your card was not charged.”'],
+        ],
+      },
+      {
+        type: 'callout',
+        tone: 'warning',
+        text: 'Never show the raw processor error to the user — map every new code to one of the messages above before shipping.',
+      },
+    ],
+  },
+  {
+    id: 'doc-analytics',
+    title: 'Analytics events',
+    type: 'spec',
+    summary: 'Event names, properties and where each one fires.',
+    authorId: 'james',
+    updatedAtLabel: '1 month ago',
+    blocks: [
+      { type: 'h2', id: 'naming', text: 'Naming' },
+      {
+        type: 'p',
+        text: 'Events are `object_action`, past tense, snake_case (`conflict_resolved`, `merge_requested`). The object is always the thing acted on, never the screen it happened on.',
+      },
+      { type: 'h2', id: 'core-events', text: 'Core events' },
+      {
+        type: 'table',
+        columns: ['Event', 'Fires when', 'Key properties'],
+        rows: [
+          ['conflict_detected', 'A drift is first flagged', 'severity, source (ai/person)'],
+          ['review_requested', 'A reviewer is assigned', 'conflict_id, reviewer_count'],
+          ['conflict_merged', 'A Conflict Point resolves', 'severity, time_to_merge'],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'doc-copy',
+    title: 'Voice and tone',
+    type: 'design',
+    summary: 'Writing UI copy: sentence case, verbs first, no jargon.',
+    authorId: 'min',
+    updatedAtLabel: '1 month ago',
+    blocks: [
+      { type: 'h2', id: 'terminology', text: 'Terminology' },
+      {
+        type: 'table',
+        columns: ['Say', 'Not'],
+        rows: [
+          ['Merge', 'Combine / Save'],
+          ['Conflict Point', 'Issue / Problem'],
+          ['Checkpoint', 'Snapshot / Backup'],
+          ['Reviewer', 'Approver'],
+        ],
+      },
+      { type: 'h2', id: 'longer-copy', text: 'Longer copy' },
+      {
+        type: 'p',
+        text: 'Empty states and error messages get one full sentence, not a fragment: what is true right now and, if there is an action, what to do about it. See Brand Guidelines → Voice for the three core rules every string follows.',
+      },
+    ],
+  },
+  {
+    id: 'doc-dark-mode',
+    title: 'Dark mode surfaces and elevation',
+    type: 'design',
+    summary: 'Surface steps, borders and shadows in the dark theme.',
+    authorId: 'jane',
+    updatedAtLabel: '1 month ago',
+    blocks: [
+      { type: 'h2', id: 'surfaces', text: 'Surface steps' },
+      {
+        type: 'table',
+        columns: ['Surface', 'Light', 'Dark'],
+        rows: [
+          ['Canvas', 'oklch(0.99 0 0)', 'oklch(0.14 0.005 286)'],
+          ['Card / Panel', '#ffffff', 'oklch(0.21 0.006 286)'],
+          ['Raised (popover, dialog)', '#ffffff + shadow', 'oklch(0.24 0.006 286)'],
+        ],
+      },
+      { type: 'h2', id: 'borders', text: 'Borders over shadows' },
+      {
+        type: 'p',
+        text: 'Dark surfaces raise with a 1px lighter border more than a shadow — shadows read poorly on dark backgrounds. Shadow stays reserved for floating elements over the canvas, like the AI chat bar and Block Deck.',
+      },
+    ],
+  },
+]
+
+referenceDocs.push(...MORE_REFERENCE_DOCS)
 
 referenceDocs.push(...backendReferenceDocs)
 

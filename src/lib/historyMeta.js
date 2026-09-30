@@ -1,3 +1,4 @@
+import { GitMerge, Pencil, RotateCcw, Sparkles } from 'lucide-react'
 import { allPeople, currentUser } from '@/data/mockData'
 
 // One line of "who / what / approvals" for a History checkpoint — shown
@@ -11,7 +12,36 @@ function nameOf(id, viewerId) {
   return allPeople.find((p) => p.id === id)?.name ?? id
 }
 
-const KIND_LABEL = { merge: 'Merged', 'ai-edit': 'AI edit', rollback: 'Rollback', edit: 'Edit' }
+// The checkpoint kinds a project's History can filter and badge by — every
+// `recordHistory()` call site sets one of these (see WorkspaceProvider).
+export const HISTORY_KINDS = ['edit', 'ai-edit', 'merge', 'rollback']
+export const KIND_LABEL = { merge: 'Merged', 'ai-edit': 'AI edit', rollback: 'Rollback', edit: 'Edit' }
+export const KIND_ICON = { merge: GitMerge, 'ai-edit': Sparkles, rollback: RotateCcw, edit: Pencil }
+export const KIND_TONE = { merge: 'text-primary', 'ai-edit': 'text-emerald-300', rollback: 'text-sky-300', edit: 'text-slate-400' }
+
+// The file/element a checkpoint's `target` names — "PlaceOrderButton.jsx ·
+// line 8" and "PlaceOrderButton.jsx" both belong to the same file, so the
+// target filter groups by this instead of the exact string.
+export function targetFileOf(entry) {
+  return entry.target?.split(' · ')[0] ?? null
+}
+
+// Every distinct file/element this project's History touches, in first-seen
+// (oldest → newest) order — the target filter's option list.
+export function historyTargets(entries) {
+  return [...new Set(entries.map(targetFileOf).filter(Boolean))]
+}
+
+// Shared by the History drawer's list and the History page's playback
+// timeline, so narrowing to one kind or file does the same thing in both.
+export function filterHistoryEntries(entries, filter) {
+  if (!filter) return entries
+  return entries.filter((entry) => {
+    if (filter.kind && filter.kind !== 'all' && entry.kind !== filter.kind) return false
+    if (filter.target && filter.target !== 'all' && targetFileOf(entry) !== filter.target) return false
+    return true
+  })
+}
 
 // `viewerId` is whichever project's viewer is active (pass
 // `useWorkspace().currentUser.id`) — it decides whether an entry's actor

@@ -69,7 +69,6 @@ Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 �
 Use the default stroke width on the shipping icons.|배송 아이콘에 기본 선 굵기를 사용하세요.
 Icon size|아이콘 크기
 Hit area|탭 영역
-Primary|기본색상
 Field gap|필드 간격
 Divider|구분선
 Tracking|자간
@@ -156,6 +155,15 @@ Send|보내기
 Review|검토
 Projects|프로젝트
 Rollback here|여기로 되돌리기
+AI edit|AI 편집
+Rollback|롤백
+All kinds|전체 종류
+All files|전체 파일
+No checkpoints match this filter.|이 필터에 맞는 체크포인트가 없습니다.
+No checkpoints yet.|아직 체크포인트가 없습니다.
+No matching checkpoints.|일치하는 체크포인트가 없습니다.
+— every other checkpoint is filtered out of this playback.|— 나머지 체크포인트는 이 재생에서 제외됩니다.
+Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. History 드로어에서 종류나 파일로 필터링할 수 있습니다.
 Merged|병합 완료
 Compare latest|최신 버전과 비교
 Merge Studio|머지 스튜디오

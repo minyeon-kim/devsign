@@ -180,6 +180,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // file tree is where files are opened.
   const [filesWindow, setFilesWindowState] = useState({ open: true, tab: 'files' })
   const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
+  // History's kind/target filter — shared by the sidebar drawer (which sets
+  // it) and the History page's playback timeline (which reads it too), so
+  // narrowing to one file's checkpoints does the same thing in both.
+  const [historyFilter, setHistoryFilterState] = useState({ kind: 'all', target: 'all' })
+  const setHistoryFilter = useCallback((patch) => setHistoryFilterState((prev) => ({ ...prev, ...patch })), [])
   // Assemble edits made from the navigator's Assets view (Block Deck's
   // Assemble, outside Merge Studio): { [layerId]: assembly }. Kept here so
   // they survive switching navigator tabs; `null` resets a layer.
@@ -752,6 +757,9 @@ export function WorkspaceProvider({ children, projectId }) {
       if (!update || !canProcessDocumentChange(dsUpdates, updateId, 'documented')) return
       const historyId = recordHistory({
         label: `Document update · ${update.title}`,
+        kind: 'edit',
+        actorId: currentUser.id,
+        target: update.title,
         timestamp: timeLabel(),
         snapshot: currentSnapshot(),
       })
@@ -760,7 +768,7 @@ export function WorkspaceProvider({ children, projectId }) {
       )
       appendTerminalLines([`$ devsign history record "${update.title}"`, '✓ archived to history'])
     },
-    [dsUpdates, recordHistory, currentSnapshot, appendTerminalLines, setDsUpdates]
+    [dsUpdates, recordHistory, currentSnapshot, appendTerminalLines, setDsUpdates, currentUser.id]
   )
 
   // Import: code files are read as text and added to the project's file
@@ -903,6 +911,9 @@ export function WorkspaceProvider({ children, projectId }) {
 
       const restoredId = recordHistory({
         label: `Restored: ${entry.label.replace(/^Restored: /, '')}`,
+        kind: 'rollback',
+        actorId: currentUser.id,
+        target: entry.target,
         timestamp: timeLabel(),
         restoredFrom: entry.id,
         snapshot: { ...snapshot, chatLength: agentMemory ? keep : chatLengthRef.current },
@@ -915,7 +926,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return restoredId
     },
-    [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setPrototypeEdits, setActivePageId, setChatMessages]
+    [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setPrototypeEdits, setActivePageId, setChatMessages, currentUser.id]
   )
 
   // Does a scenario's change fall inside the request's target? The target
@@ -1222,6 +1233,8 @@ export function WorkspaceProvider({ children, projectId }) {
     setBottomPanel,
     filesWindow,
     setFilesWindow,
+    historyFilter,
+    setHistoryFilter,
     assetAssemblies,
     assembleAsset,
     openConflictReview: setReviewConflictId,

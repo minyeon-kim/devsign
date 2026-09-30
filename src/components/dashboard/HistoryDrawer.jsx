@@ -1,27 +1,51 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArchiveRestore, RotateCcw, Sparkles, Search, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, RotateCcw, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { historyMeta } from '@/lib/historyMeta'
+import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
 
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
+
+// A checkpoint's kind as a small icon badge, so the list reads at a glance
+// without opening the row — Edit / AI edit / Merged / Rollback each get
+// their own icon + color (see lib/historyMeta).
+function KindBadge({ kind }) {
+  const Icon = KIND_ICON[kind]
+  if (!Icon) return null
+  return (
+    <span title={KIND_LABEL[kind]} className={cn('flex size-4 shrink-0 items-center justify-center', KIND_TONE[kind])}>
+      <Icon className="size-3" />
+    </span>
+  )
+}
 
 // History opens this compact list beside the current page first, with the
 // project's checkpoints newest first. Clicking one shows it in
 // History's main viewer — the same selection the timeline slider and
 // playback move through (see useSelectedCheckpoint). Hover a row for
 // Archive and "Rollback here"; archived ones sit under their own tab.
+//
+// A project's checkpoints span every file/element it touches and every kind
+// of change (a manual edit, an AI edit, a merge, a rollback) in one list —
+// the kind pills and the target dropdown narrow that down; both apply to
+// the History page's playback timeline too (shared via `historyFilter`).
 function HistoryDrawer({ project }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser } = useWorkspace()
+  const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [tab, setTab] = useState('active')
   const [query, setQuery] = useState('')
@@ -30,13 +54,16 @@ function HistoryDrawer({ project }) {
   const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
 
   const current = historyEntries.find((e) => e.id === activeHistoryId)
+  const targets = historyTargets(historyEntries)
+  const filtered = filterHistoryEntries(historyEntries, historyFilter)
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-  const matches = historyEntries.filter((entry) => {
+  const matches = filtered.filter((entry) => {
     const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry, currentUser.id)].filter(Boolean).join(' ').toLocaleLowerCase()
     return terms.every((term) => text.includes(term))
   })
   const active = [...matches].filter((e) => !e.archived).reverse()
   const archived = [...matches].filter((e) => e.archived).reverse()
+  const filtersActive = historyFilter.kind !== 'all' || historyFilter.target !== 'all'
 
   const open = (id) => {
     if (onHistoryPage && id === selectedId) {
@@ -73,6 +100,50 @@ function HistoryDrawer({ project }) {
         />
         {query && <button type="button" aria-label="Clear history search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
       </div>
+
+      {/* Kind + target filters — every checkpoint in this project's
+          History, across every file it touched, otherwise shows in one
+          undifferentiated list. Both also narrow the History page's
+          playback timeline (see `historyFilter` in WorkspaceProvider). */}
+      <div className="mb-2 flex flex-wrap items-center gap-1 px-1">
+        {['all', ...HISTORY_KINDS].map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={historyFilter.kind === kind}
+            onClick={() => setHistoryFilter({ kind })}
+            className={cn(
+              'flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+              historyFilter.kind === kind ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+            )}
+          >
+            {kind !== 'all' && <KindBadge kind={kind} />}
+            {kind === 'all' ? 'All kinds' : KIND_LABEL[kind]}
+          </button>
+        ))}
+        {targets.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'ml-auto flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+                historyFilter.target !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+              )}
+            >
+              <span className="max-w-24 truncate font-mono">{historyFilter.target === 'all' ? 'All files' : historyFilter.target}</span>
+              <ChevronDown className="size-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => setHistoryFilter({ target: 'all' })}>All files</DropdownMenuItem>
+              {targets.map((target) => (
+                <DropdownMenuItem key={target} onClick={() => setHistoryFilter({ target })} className="font-mono">
+                  {target}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
       <div className="mb-2 flex items-center gap-1 px-1" role="tablist" aria-label="Checkpoints">
         {[
           ['active', 'Checkpoints', active.length],
@@ -95,7 +166,11 @@ function HistoryDrawer({ project }) {
         ))}
       </div>
 
-      {tab === 'active' && active.length === 0 && <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching checkpoints.' : 'No checkpoints yet.'}</p>}
+      {tab === 'active' && active.length === 0 && (
+        <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">
+          {query.trim() ? 'No matching checkpoints.' : filtersActive ? 'No checkpoints match this filter.' : 'No checkpoints yet.'}
+        </p>
+      )}
       {tab === 'active' &&
         active.map((entry) => {
           const isCurrent = entry.id === activeHistoryId
@@ -117,8 +192,7 @@ function HistoryDrawer({ project }) {
                 className="block w-full px-2.5 py-2 text-left"
               >
                 <span className="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
-                  {entry.prompt && <Sparkles className="size-3 shrink-0 text-emerald-300" />}
-                  {entry.restoredFrom && <RotateCcw className="size-3 shrink-0 text-sky-300" />}
+                  <KindBadge kind={entry.kind} />
                   <span className="min-w-0 truncate">{entry.timestamp}</span>
                   {!isCurrent && (
                     <span className="font-mono text-[10px] transition-opacity group-hover:opacity-0">
