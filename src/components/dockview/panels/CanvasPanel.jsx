@@ -297,7 +297,7 @@ const FILL_SWATCHES = ['#6366f1', '#8b5cf6', '#10b981', '#f43f5e', '#0f172a']
 // than wireframe bars. Text is edited in place by double-clicking it, and
 // every edit — plus fill/radius from the property bar — is synced to the
 // page's code file (see lib/prototypeSync).
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText }) {
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -328,6 +328,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
               dimmed={Boolean(selectedId) && selectedId !== frame.id}
               onSelect={() => onSelect(layer.id)}
               onEditText={onEditText}
+              aiChanged={aiPulseId === layer.id}
             />
           ))}
         </div>
@@ -444,10 +445,22 @@ function CanvasPanel() {
     getViewersForCanvasPage,
     prototypeEdits,
     editPrototypeLayer,
+    aiEditPulse,
   } = useWorkspace()
   // The value a text slot had when in-place editing started, so Escape can
   // put it back after the live preview.
   const editStart = useRef(new Map())
+
+  // An AI chat edit just landed on this layer — pulse it for a couple of
+  // seconds (see StaticLayer's `aiChanged`), the same "points at its own
+  // work" pattern as the editor's `codeFlash`.
+  const [aiPulseId, setAiPulseId] = useState(null)
+  useEffect(() => {
+    if (!aiEditPulse) return
+    setAiPulseId(aiEditPulse.layerId)
+    const timer = window.setTimeout(() => setAiPulseId(null), 2100)
+    return () => window.clearTimeout(timer)
+  }, [aiEditPulse])
 
   function handleEditText(layerId, slot, value, { live } = {}) {
     const key = `${layerId}:${slot}`
@@ -622,6 +635,7 @@ function CanvasPanel() {
                 commentMode={commentMode}
                 edits={prototypeEdits}
                 onEditText={commentMode ? undefined : handleEditText}
+                aiPulseId={aiPulseId}
               />
             ))}
 

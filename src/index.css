@@ -504,3 +504,28 @@ button.editor-line-comment {
 .history-row-flash-remove {
   animation: history-row-flash-remove 700ms ease-out;
 }
+
+/* AI chat → canvas: the element an AI edit just changed pulses and wears
+   a small "AI" badge for a couple of seconds (see CanvasPanel's
+   `aiPulseId`, driven by WorkspaceProvider's `aiEditPulse`) — so the
+   change reads on the canvas itself, not only back in the chat
+   transcript. Two pulses (2 x 1s) then the badge fades, timed under the
+   2.1s the state stays set for. */
+@keyframes ai-layer-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(52 211 153 / 0.55); }
+  70%, 100% { box-shadow: 0 0 0 10px rgb(52 211 153 / 0); }
+}
+.ai-layer-pulse {
+  border-radius: 4px;
+  outline: 2px solid rgb(52 211 153 / 0.9);
+  outline-offset: 2px;
+  animation: ai-layer-pulse-ring 1000ms ease-out 2;
+}
+@keyframes ai-layer-badge-in {
+  0% { opacity: 0; transform: translateY(2px) scale(0.85); }
+  15%, 80% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(2px) scale(0.9); }
+}
+.ai-layer-badge {
+  animation: ai-layer-badge-in 2000ms ease-in-out forwards;
+}

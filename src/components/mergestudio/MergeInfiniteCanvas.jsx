@@ -540,7 +540,7 @@ function TransactionsTable({ style, className }) {
 // titles/bodies) can be edited in place by double-clicking it. A non-static
 // override renders a small badge so the change reads as a live preview
 // rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed }) {
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged }) {
   const [editingSlot, setEditingSlot] = useState(null)
   const style = {
     left: layer.x + (override?.dx ?? 0),
@@ -836,7 +836,6 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 
   return (
     <div
-      data-layer-id={layer.id}
       onClick={(e) => {
         e.stopPropagation()
         onSelect(e.currentTarget)
@@ -861,14 +860,23 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         // stay findable.
         drift && !selected && !hovered && 'rounded-sm outline outline-1 outline-offset-2 outline-solid outline-emerald-400/40',
         dimmed && !selected && !hovered && 'opacity-45',
-        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80'
+        hovered && 'outline outline-1 outline-offset-2 outline-solid outline-emerald-400/80',
+        // The element an AI chat edit just changed — a couple of pulses
+        // plus a small "AI" badge, so the change reads on the canvas
+        // itself instead of only inside the chat transcript (see
+        // WorkspaceProvider's `aiEditPulse`, set from sendChatMessage).
+        aiChanged && 'ai-layer-pulse'
       )}
       style={style}
       data-layer-id={layer.id}
     >
-      {/* No corner badge on the selection — the only AI affordance on a
-          selected element is the AI Edit chip at its bottom-right edge. */}
       {content}
+      {aiChanged && (
+        <span className="ai-layer-badge pointer-events-none absolute -right-1.5 -bottom-1.5 z-10 flex items-center gap-0.5 rounded-full bg-emerald-400 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30">
+          <Sparkles className="size-2.5" />
+          AI
+        </span>
+      )}
     </div>
   )
 }

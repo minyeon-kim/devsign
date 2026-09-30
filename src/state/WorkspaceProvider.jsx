@@ -121,6 +121,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // A line the editor should briefly highlight and scroll to — the code a
   // canvas edit or selection just touched: { fileId, line, nonce }.
   const [codeFlash, setCodeFlash] = useState(null)
+  // The canvas layer an AI chat edit just changed — CanvasPanel pulses it
+  // for a couple of seconds: { layerId, nonce }.
+  const [aiEditPulse, setAiEditPulse] = useState(null)
   // Generated once per edit (not per call), so a prototype file's lines
   // keep a stable identity for consumers that react to them changing.
   const generatedPrototypeLines = useMemo(
@@ -1039,6 +1042,19 @@ export function WorkspaceProvider({ children, projectId }) {
         setConflicts(nextConflicts)
         appendTerminalLines(scenario.terminalLines)
 
+        // Point the change at itself, on the canvas and in the editor, the
+        // moment it lands — instead of the edit only being visible back
+        // inside the chat transcript until "View changes" is clicked.
+        const changedLayerId = scenario.target?.layerId
+        const layerHit = changedLayerId && findCanvasTarget(changedLayerId)
+        if (layerHit) {
+          setActivePageId(layerHit.page.id)
+          setSelectedLayerId(changedLayerId)
+          setAiEditPulse({ layerId: changedLayerId, nonce: nextId('pulse') })
+        }
+        const firstChange = scenario.changes?.[0]
+        if (firstChange?.line) setCodeFlash({ fileId: firstChange.fileId ?? scenario.fileId, line: firstChange.line, nonce: nextId('flash') })
+
         const changes = (scenario.changes ?? [{ fileId: scenario.fileId, summary: scenario.title }]).map((c) => ({
           ...c,
           fileName: getFileNameRef.current(c.fileId),
@@ -1195,6 +1211,7 @@ export function WorkspaceProvider({ children, projectId }) {
     prototypeEdits,
     editPrototypeLayer,
     codeFlash,
+    aiEditPulse,
     importedAssets,
     importFiles,
     importFigmaLink,

@@ -56,20 +56,23 @@ const suggestionIcons = { MessageCircle, Sparkles, Pin }
 // The target is captured on the message when sent, and the AI only applies
 // a change that lands inside it.
 
+// The same shape TargetChip/sendChatMessage expect for a canvas element,
+// built straight from a layer id rather than from the live selection — so
+// a suggestion chip tied to one specific element (see chatSuggestions'
+// `targetLayerId`) can target it directly, regardless of what's currently
+// selected on canvas.
+function elementTarget(layerId) {
+  const hit = layerId && findCanvasTarget(layerId)
+  if (!hit) return null
+  const name = hit.layer?.name ?? hit.frame?.name
+  return { kind: 'element', key: `element:${layerId}`, layerId, pageId: hit.page.id, label: `${hit.page.name} → ${name}` }
+}
+
 function targetOptions(workspace) {
   const { selectedLayerId, activePageId, activeFileId, projectPages, getFileName } = workspace
   const options = []
-  const hit = selectedLayerId && findCanvasTarget(selectedLayerId)
-  if (hit) {
-    const name = hit.layer?.name ?? hit.frame?.name
-    options.push({
-      kind: 'element',
-      key: `element:${selectedLayerId}`,
-      layerId: selectedLayerId,
-      pageId: hit.page.id,
-      label: `${hit.page.name} → ${name}`,
-    })
-  }
+  const hit = selectedLayerId && elementTarget(selectedLayerId)
+  if (hit) options.push(hit)
   const page = projectPages.find((p) => p.id === activePageId)
   if (page) {
     options.push({
@@ -289,9 +292,9 @@ function ChatConversation() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [chatMessages, isAiTyping])
 
-  function handleSend(text = input) {
+  function handleSend(text = input, overrideTarget) {
     if (!text.trim() || isAiTyping) return
-    sendChatMessage(text, target)
+    sendChatMessage(text, overrideTarget ?? target)
     setInput('')
     setAttachments([])
     setCodeBlockMode(false)
@@ -375,12 +378,13 @@ function ChatConversation() {
       <div className="flex shrink-0 flex-wrap gap-2 px-2 pt-3 pb-2">
         {suggestions.map((suggestion) => {
           const Icon = suggestionIcons[suggestion.iconName]
+          const fixedTarget = suggestion.targetLayerId ? elementTarget(suggestion.targetLayerId) : null
           return (
             <button
               key={suggestion.id}
               type="button"
               disabled={isAiTyping}
-              onClick={() => handleSend(suggestion.prompt)}
+              onClick={() => handleSend(suggestion.prompt, fixedTarget)}
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:border-emerald-400/30 hover:text-white disabled:opacity-50"
             >
               {Icon && <Icon className="size-3 text-emerald-300" />}
