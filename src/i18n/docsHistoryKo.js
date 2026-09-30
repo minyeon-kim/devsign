@@ -1,5 +1,6 @@
 // Korean copy for seeded documentation and version history. Code stays unchanged.
 export const docsHistoryKo = {
+  "Search project docs": "프로젝트 문서 검색",
   "Brand Guidelines": "브랜드 가이드",
   "API Contract Notes": "API 명세와 변경 규칙",
   "Project Onboarding": "프로젝트 시작 가이드",
@@ -126,5 +127,30 @@ export const docsHistoryKo = {
   "Rolled back to checkpoint": "선택한 버전으로 되돌렸어요.",
   "Can't archive the entry you're currently on — roll back to a different one first.": "현재 적용 중인 버전은 보관할 수 없어요. 다른 버전으로 복원한 뒤 다시 시도하세요.",
   "checkpoints": "저장된 버전",
-  "Restore to this checkpoint": "이 버전으로 복원"
+  "Restore to this checkpoint": "이 버전으로 복원",
+  "Guidelines": "디자인 가이드",
+  "Brand": "브랜드",
+  "Foundations": "디자인 기본 요소",
+  "Component specs": "컴포넌트 명세",
+  "Actions & inputs": "버튼·입력 요소",
+  "Containers & overlays": "컨테이너·오버레이",
+  "Engineering": "개발",
+  "Backend": "백엔드",
+  "Process": "작업 절차",
+  "Quality & release": "품질 관리·배포",
+  "Search docs": "문서 검색",
+  "Search docs...": "문서 검색...",
+  "Search docs…": "문서 검색…",
+  "Clear search": "검색어 지우기",
+  "No matching docs": "검색 결과가 없어요.",
+  "Backend architecture": "백엔드 구조",
+  "Database schema & transactions": "데이터베이스 구조와 트랜잭션",
+  "Backend API & authorization": "백엔드 API와 권한 관리",
+  "Background jobs & integrations": "백그라운드 작업과 외부 연동",
+  "Backend deployment & operations": "백엔드 배포와 운영",
+  "Proposed service boundaries, project isolation and the review-to-merge workflow.": "서비스별 역할, 프로젝트 간 데이터 분리와 검토부터 병합까지의 흐름을 정리한 설계안이에요.",
+  "Proposed relational entities, keys, indexes and atomic merge writes.": "데이터 테이블, 키, 인덱스와 병합 내용을 하나의 트랜잭션으로 저장하는 방식을 정리한 설계안이에요.",
+  "Project-scoped endpoints, authorization checks and optimistic concurrency.": "프로젝트별 API, 접근 권한 확인과 버전 비교를 통한 동시 수정 처리 방식을 안내해요.",
+  "Import processing, retry policy and reliable event delivery.": "가져오기 작업, 실패 시 재시도와 이벤트를 안정적으로 전달하는 방식을 정리했어요.",
+  "Release checks, observability, recovery and incident response.": "배포 전 점검, 상태 모니터링, 복구와 장애 대응 절차를 안내해요."
 }

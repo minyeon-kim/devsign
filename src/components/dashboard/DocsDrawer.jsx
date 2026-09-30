@@ -1,5 +1,7 @@
 import { DOCUMENT_DRAG_TYPE } from '@/lib/workspaceDocuments'
 import { useState } from 'react'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -90,6 +92,7 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId }) {
 // Process — with the Document updates pipeline linked at the top.
 // Categories on the path to the open doc start expanded.
 function DocsDrawer({ project }) {
+  const language = useLanguage()
   const location = useLocation()
   const { referenceDocs, dsUpdates } = useWorkspace()
   const docsPath = `/projects/${project.id}/docs`
@@ -98,7 +101,13 @@ function DocsDrawer({ project }) {
   const activeDocId = state.docId
   const [query, setQuery] = useState('')
   const tree = buildDocTree(referenceDocs)
-  const matches = searchDocs(referenceDocs, query)
+  const searchableDocs = language === 'ko' ? referenceDocs.map((doc) => ({
+    ...doc,
+    searchKeywords: [...(doc.searchKeywords ?? []),
+      ...[doc.title, doc.summary, ...(docPath(tree, doc.id) ?? [])].filter(Boolean).map((text) => translateText(text, language)),
+    ],
+  })) : referenceDocs
+  const matches = searchDocs(searchableDocs, query)
   const visibleTree = query.trim() ? buildDocTree(matches) : tree
 
   const idsOnPath = (docId) => {
