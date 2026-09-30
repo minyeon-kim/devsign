@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronRight, FileText, Folder, FolderOpen, Library, Palette } from 'lucide-react'
+import { ChevronRight, FileText, Folder, FolderOpen, Library, Palette, Search, X } from 'lucide-react'
 import { cn } from 'cn'
-import { buildDocTree, countDocs, docPath } from '@/lib/docCategories'
+import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const activeClass = 'bg-muted text-foreground'
@@ -90,7 +90,10 @@ function DocsDrawer({ project }) {
   const onDocs = location.pathname.startsWith(docsPath)
   const state = onDocs ? (location.state ?? {}) : {}
   const activeDocId = state.docId
+  const [query, setQuery] = useState('')
   const tree = buildDocTree(referenceDocs)
+  const matches = searchDocs(referenceDocs, query)
+  const visibleTree = query.trim() ? buildDocTree(matches) : tree
 
   const idsOnPath = (docId) => {
     const labels = docPath(tree, docId) ?? []
@@ -123,11 +126,30 @@ function DocsDrawer({ project }) {
     })
   }
 
+  const visibleOpen = new Set(open)
+  if (query.trim()) {
+    const expand = (nodes) => nodes.forEach((node) => { visibleOpen.add(node.id); expand(node.children) })
+    expand(visibleTree)
+  }
+
   const rowClass =
     'flex h-9 min-w-0 items-center gap-2 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
   return (
     <nav aria-label="Docs" className="flex flex-col gap-0.5 pb-2">
+      <div className="relative mb-2">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          aria-label="Search project docs"
+          placeholder="Search docs..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
+          className="h-8 w-full min-w-0 appearance-none rounded-full border border-white/10 bg-[#09090A] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
+        />
+        {query && <button type="button" aria-label="Clear docs search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
+      </div>
       <Link
         to={docsPath}
         replace={false}
@@ -152,8 +174,9 @@ function DocsDrawer({ project }) {
         </span>
       </Link>
 
-      {tree.map((node) => (
-        <Category key={node.id} node={node} depth={0} open={open} onToggle={toggle} docsPath={docsPath} activeDocId={activeDocId} />
+      {query.trim() && <p role="status" className="px-2 py-1 text-[11px] text-muted-foreground">{matches.length ? `${matches.length} docs found` : 'No matching docs'}</p>}
+      {visibleTree.map((node) => (
+        <Category key={node.id} node={node} depth={0} open={visibleOpen} onToggle={toggle} docsPath={docsPath} activeDocId={activeDocId} />
       ))}
     </nav>
   )

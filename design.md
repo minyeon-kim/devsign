@@ -37,7 +37,7 @@ Status colors remain semantic: green for success/resolved, amber for warning/in-
 
 ## Components
 
-- Global primary buttons: use `.ds-primary-cta` or theme `bg-primary text-primary-foreground`; solid `#5EEAB5` fill, `#0A0A0A` text/icons, no border, and 8px radius. Do not use purple, gradient, or outline styling for a primary action.
+- Global primary buttons: use `.ds-primary-cta` or theme `bg-primary text-primary-foreground`; solid `#5EEAB5` fill, `#0A0A0A` text/icons, no border, and full-round `border-radius: 9999px !important`. Do not use purple, gradient, or outline styling for a primary action.
 - Workspace controls have a strict `height: 32px`, including compact size variants, top pills, tabs and bottom actions. Icon controls are 32 × 32px. Content rows, noninteractive badges, canvas artwork, switches and multiline editors retain their intrinsic sizing.
 - Secondary/ghost action: use the card surface and subtle border; hover to a solid raised surface without a gradient.
 - Badge/count pill: use `.ds-badge-pill`; fully rounded, 2–3px vertical and 6–8px horizontal padding, 11–12px medium text, and a high-contrast solid tint.

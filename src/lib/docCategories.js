@@ -32,6 +32,10 @@ export const DOC_TREE = [
     id: 'engineering',
     label: 'Engineering',
     docs: ['doc-api-contract', 'doc-api-errors', 'doc-analytics'],
+    children: [
+      { id: 'backend', label: 'Backend', docs: ['doc-backend-architecture', 'doc-backend-api', 'doc-backend-jobs', 'doc-backend-operations'] },
+      { id: 'database', label: 'Database', docs: ['doc-database-schema'] },
+    ],
   },
   {
     id: 'process',
@@ -89,4 +93,19 @@ export function docPath(tree, docId, trail = []) {
     if (found) return found
   }
   return null
+}
+
+// Search includes visible document content and its category path.
+export function searchDocs(docs, query) {
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  if (!terms.length) return docs
+  const tree = buildDocTree(docs)
+  return docs.filter((doc) => {
+    const text = [doc.title, doc.summary, ...(doc.searchKeywords ?? []),
+      ...(docPath(tree, doc.id) ?? []),
+      ...(doc.blocks ?? []).flatMap((block) => [block.text, ...(block.items ?? []),
+        ...(block.columns ?? []), ...(block.rows ?? []).flat(), block.code])]
+      .filter(Boolean).join(' ').toLocaleLowerCase()
+    return terms.every((term) => text.includes(term))
+  })
 }

@@ -1,3 +1,5 @@
+import { backendReferenceDocs } from './backendDocs'
+
 // Centralized mock data for the IDE layout.
 // Swap the values here (or point these exports at a real API/store later)
 // without touching any component code.
@@ -2621,6 +2623,8 @@ referenceDocs.push(
     ],
   }))
 )
+
+referenceDocs.push(...backendReferenceDocs)
 
 // Figma-style tool picker shown in the pill toolbar docked at the bottom of
 // the Canvas panel. `iconName` is resolved to a lucide component locally.

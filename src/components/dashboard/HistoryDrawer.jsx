@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArchiveRestore, RotateCcw, Sparkles } from 'lucide-react'
+import { Archive, ArchiveRestore, RotateCcw, Sparkles, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
@@ -24,13 +24,19 @@ function HistoryDrawer({ project }) {
   const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [tab, setTab] = useState('active')
+  const [query, setQuery] = useState('')
   const [rollbackId, setRollbackId] = useState(null)
   const historyPath = `/projects/${project.id}/history`
   const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
 
   const current = historyEntries.find((e) => e.id === activeHistoryId)
-  const active = [...historyEntries].filter((e) => !e.archived).reverse()
-  const archived = [...historyEntries].filter((e) => e.archived).reverse()
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  const matches = historyEntries.filter((entry) => {
+    const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry)].filter(Boolean).join(' ').toLocaleLowerCase()
+    return terms.every((term) => text.includes(term))
+  })
+  const active = [...matches].filter((e) => !e.archived).reverse()
+  const archived = [...matches].filter((e) => e.archived).reverse()
 
   const open = (id) => (onHistoryPage ? select(id) : navigate(`${historyPath}?v=${id}`))
 
@@ -47,6 +53,19 @@ function HistoryDrawer({ project }) {
 
   return (
     <div className="flex flex-col pb-2">
+      <div className="relative mb-2">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          aria-label="Search project history"
+          placeholder="Search history..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
+          className="h-8 w-full min-w-0 appearance-none rounded-full border border-white/10 bg-[#09090A] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
+        />
+        {query && <button type="button" aria-label="Clear history search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
+      </div>
       <div className="mb-2 flex items-center gap-1 px-1" role="tablist" aria-label="Checkpoints">
         {[
           ['active', 'Checkpoints', active.length],
@@ -69,6 +88,7 @@ function HistoryDrawer({ project }) {
         ))}
       </div>
 
+      {tab === 'active' && active.length === 0 && <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching checkpoints.' : 'No checkpoints yet.'}</p>}
       {tab === 'active' &&
         active.map((entry) => {
           const isCurrent = entry.id === activeHistoryId
@@ -130,7 +150,7 @@ function HistoryDrawer({ project }) {
 
       {tab === 'archived' &&
         (archived.length === 0 ? (
-          <p className="px-2.5 py-8 text-center text-xs text-slate-500">No archived checkpoints.</p>
+          <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching archived checkpoints.' : 'No archived checkpoints.'}</p>
         ) : (
           archived.map((entry) => (
             <div key={entry.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-white/[0.035]">
