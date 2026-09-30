@@ -1,3 +1,4 @@
+import { cn } from 'cn'
 import { activityOverviewStats } from '@/data/mockData'
 
 const maxValue = Math.max(...activityOverviewStats.map((stat) => stat.value))
@@ -16,7 +17,7 @@ function ActivityOverview() {
             <span className="w-16 shrink-0 text-xs text-muted-foreground">{stat.label}</span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-muted-foreground/50"
+                className={cn('h-full rounded-full', stat.tone)}
                 style={{ width: `${(stat.value / maxValue) * 100}%` }}
               />
             </div>

@@ -37,7 +37,7 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
               className={cn(
                 'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150',
                 isActive
-                  ? 'border-foreground/20 bg-muted text-foreground'
+                  ? 'border-primary/40 bg-primary/10 text-foreground'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
@@ -50,7 +50,7 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
       <div className="flex shrink-0 items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className={cn(dropdownTriggerClass, selectedProject && 'border-foreground/20 bg-muted text-foreground')}
+            className={cn(dropdownTriggerClass, selectedProject && 'border-primary/40 bg-primary/10 text-foreground')}
           >
             <FolderKanban className="size-3.5" />
             <span className="max-w-40 truncate">{selectedProject ? selectedProject.name : 'All projects'}</span>

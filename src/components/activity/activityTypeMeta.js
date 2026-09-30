@@ -1,37 +1,36 @@
 import { AtSign, FileText, GitBranch, GitCommitHorizontal, GitMerge, MessageSquare } from 'lucide-react'
 
-// Activity types are distinguished by their icon and label, with a shared neutral tone.
-const ACTIVITY_TONE = 'text-muted-foreground bg-muted/40 ring-1 ring-border/60'
+// Color is reserved for status badges; leading activity icons stay minimal.
 export const ACTIVITY_TYPE_META = {
   changes: {
     label: 'Changes',
     icon: GitCommitHorizontal,
-    tone: ACTIVITY_TONE,
+    tone: 'text-sky-400 bg-sky-500/10 ring-1 ring-sky-500/20',
   },
   conflict: {
     label: 'Conflict',
     icon: GitBranch,
-    tone: ACTIVITY_TONE,
+    tone: 'text-destructive bg-destructive/10 ring-1 ring-destructive/20',
   },
   merge: {
     label: 'Merge',
     icon: GitMerge,
-    tone: ACTIVITY_TONE,
+    tone: 'text-violet-400 bg-violet-500/10 ring-1 ring-violet-500/20',
   },
   comment: {
     label: 'Comment',
     icon: MessageSquare,
-    tone: ACTIVITY_TONE,
+    tone: 'text-muted-foreground bg-muted',
   },
   file: {
     label: 'File',
     icon: FileText,
-    tone: ACTIVITY_TONE,
+    tone: 'text-sky-400 bg-sky-500/10 ring-1 ring-sky-500/20',
   },
   mention: {
     label: 'Mention',
     icon: AtSign,
-    tone: ACTIVITY_TONE,
+    tone: 'text-muted-foreground bg-muted',
   },
 }
 

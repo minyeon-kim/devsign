@@ -1,4 +1,4 @@
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ActivityPreview from './ActivityPreview'
@@ -7,18 +7,19 @@ import { ACTIVITY_TYPE_META } from './activityTypeMeta'
 function ActivityRow({ activity }) {
   const meta = ACTIVITY_TYPE_META[activity.type]
   const Icon = meta.icon
+  const isAi = activity.actorName === 'Devsign'
 
   return (
     <div className="group grid grid-cols-[48px_28px_28px_minmax(0,1fr)_auto] sm:grid-cols-[56px_28px_28px_minmax(0,1fr)_auto_auto_28px] items-center gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors duration-150 hover:border-border hover:bg-muted/40">
       <span className="text-[11px] text-muted-foreground">{activity.timestamp}</span>
 
-      <span className={cn('flex size-7 items-center justify-center rounded-full', meta.tone)}>
-        <Icon className="size-3.5" />
+      <span className="flex size-7 items-center justify-center text-muted-foreground">
+        <Icon className="size-4" strokeWidth={1.5} />
       </span>
 
       <Avatar size="sm">
-        <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
-          {activity.actorInitials}
+        <AvatarFallback className={cn('text-[10px] font-medium text-white', activity.actorColorClass)} aria-label={isAi ? 'AI' : activity.actorName}>
+          {isAi ? <Sparkles className="size-3.5" aria-hidden="true" /> : activity.actorInitials}
         </AvatarFallback>
       </Avatar>
 
