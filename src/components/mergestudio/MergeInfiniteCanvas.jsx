@@ -2596,7 +2596,7 @@ function MergeInfiniteCanvas({
           >
             <Bell className="size-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+              <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
                 {unreadCount}
               </span>
             )}

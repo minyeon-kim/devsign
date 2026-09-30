@@ -1,5 +1,4 @@
 import '@/components/dockview/panels/CanvasToolbar.css'
-import { useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
@@ -70,7 +69,7 @@ function InboxButton({ open, onToggle }) {
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] leading-[14px] font-semibold text-slate-950 ring-2 ring-card">
+          <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
             {unreadCount}
           </span>
         )}
@@ -92,8 +91,8 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project, onOpenPalette }) {
-  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, setBottomPanel } = useWorkspace()
-  const [inboxOpen, setInboxOpen] = useState(false)
+  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const inboxOpen = mergeDrawer === 'inbox'
   if (activeView === 'mergeStudio') return null
 
   return (
@@ -141,7 +140,7 @@ function TopBar({ project, onOpenPalette }) {
         <ActionTooltip label="Open Merge Studio">
           <MergeStudioMenu standalone borderless />
         </ActionTooltip>
-        <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
+        <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
       </div>
 
       {inboxOpen && (
@@ -150,7 +149,7 @@ function TopBar({ project, onOpenPalette }) {
           // with the Conflict Points tab up behind it) or at a Merge Studio
           // target (jump there, focused).
           onJump={(n) => {
-            setInboxOpen(false)
+            setMergeDrawer(null)
             if (n.target.conflictId) {
               setBottomPanel({ tab: 'conflict', open: true })
               openConflictReview(n.target.conflictId)
@@ -159,7 +158,7 @@ function TopBar({ project, onOpenPalette }) {
             requestMergeFocus({ ...n.target, pulse: true })
             openMergeStudio()
           }}
-          onClose={() => setInboxOpen(false)}
+          onClose={() => setMergeDrawer(null)}
         />
       )}
     </>

@@ -13,8 +13,8 @@ import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/componen
 // Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
 // count as a badge.
 const tabs = [
-  ['all', 'All'],
   ['unread', 'Unread'],
+  ['all', 'All'],
   ['approval', 'Approvals'],
   ['comment', 'Comments'],
 ]
@@ -107,7 +107,7 @@ function InboxItem({ n, onJump }) {
   const meta = (
     <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
       <span className="text-[11px] text-slate-500 tabular-nums">{n.timeLabel}</span>
-      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('size-1.5 rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
+      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('size-[5px] rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
     </span>
   )
 
@@ -260,7 +260,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
         <span className="mt-2 block text-[11px] text-slate-500">{group.timeLabel}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2 pt-1">
-        {group.unread && <span className="size-1.5 rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
+        {group.unread && <span className="size-[5px] rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
         <ChevronRight className="size-3.5 text-slate-500" />
       </span>
     </button>
@@ -270,9 +270,9 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
 // Notifications open their scoped list first; individual rows open the target.
 function MergeInboxDrawer({ onJump, onClose }) {
   const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
-  const [tab, setTab] = useState('all')
+  const [tab, setTab] = useState('unread')
   const [selected, setSelected] = useState(null)
-  const [unreadIds, setUnreadIds] = useState(null)
+  const [unreadIds, setUnreadIds] = useState(() => new Set(notifications.filter(n => n.unread).map(n => n.id)))
   const unread = notifications.filter((n) => n.unread).length
   const groups = groupInboxNotifications(notifications)
   const selectedGroup = selected && (groups.find(group => group.id === selected.id) ?? selected)
@@ -287,12 +287,12 @@ function MergeInboxDrawer({ onJump, onClose }) {
     group.notifications.forEach(n => markNotificationRead(n.id))
   }
   const visible = groups.filter(group => tab === 'all' || (tab === 'unread'
-    ? group.notifications.some(n => unreadIds?.has(n.id)) : group.kind === tab))
+    ? group.notifications.some(n => n.unread || unreadIds?.has(n.id)) : group.kind === tab))
   const reviewItems = selectedGroup?.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean) ?? []
 
   return (
     <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} aside={
-      <button type="button" onClick={markAllNotificationsRead} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
+      <button type="button" onClick={() => { markAllNotificationsRead(); setUnreadIds(new Set()) }} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
         <CheckCheck className="size-3.5" /> Mark all read
       </button>
     }>

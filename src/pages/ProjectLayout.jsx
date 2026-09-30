@@ -1,3 +1,4 @@
+import HighReviewNotifications from '@/components/layout/HighReviewNotifications'
 import { Navigate, Outlet, useParams } from 'react-router-dom'
 import AppShell from '@/components/dashboard/AppShell'
 import { WorkspaceProvider } from '@/state/WorkspaceProvider'
@@ -21,6 +22,7 @@ function ProjectLayout() {
 
   return (
     <WorkspaceProvider key={projectId} projectId={project.id}>
+      <HighReviewNotifications />
       <AppShell project={project}>
         <Outlet context={{ project }} />
       </AppShell>

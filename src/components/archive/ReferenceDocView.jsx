@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { AlertTriangle, FileText, Info } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -130,16 +131,18 @@ function Block({ block }) {
 // reading width, and — on wide screens — an "On this page" list built
 // from the doc's h2 blocks.
 function ReferenceDocView({ doc }) {
+  const root = useRef(null)
   const author = allPeople.find((p) => p.id === doc.authorId)
   const type = DOC_TYPES[doc.type] ?? DOC_TYPES.doc
   const sections = doc.blocks.filter((b) => b.type === 'h2')
 
   function jumpTo(id) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    Array.from(root.current?.querySelectorAll('[id]') ?? []).find(el => el.id === id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl gap-12 px-8 py-10">
+    <div ref={root} className="@container/doc w-full">
+    <div className="mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10">
       <article className="min-w-0 max-w-[680px] flex-1">
         <header className="mb-8">
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
@@ -166,13 +169,19 @@ function ReferenceDocView({ doc }) {
           </div>
         </header>
 
+        {sections.length > 1 && <details className="mb-6 rounded-xl border border-white/[0.08] px-4 py-3 @min-[960px]/doc:hidden">
+          <summary className="cursor-pointer text-xs text-muted-foreground">On this page</summary>
+          <nav aria-label="On this page" className="mt-2 flex flex-col items-start gap-1">
+            {sections.map(section => <button key={section.id} type="button" onClick={() => jumpTo(section.id)} className="py-1 text-left text-xs text-muted-foreground hover:text-foreground">{section.text}</button>)}
+          </nav>
+        </details>}
         {doc.blocks.map((block, i) => (
           <Block key={block.id ?? i} block={block} />
         ))}
       </article>
 
       {sections.length > 1 && (
-        <nav aria-label="On this page" className="sticky top-10 hidden w-44 shrink-0 self-start xl:block">
+        <nav aria-label="On this page" className="sticky top-10 hidden w-44 shrink-0 self-start @min-[960px]/doc:block">
           <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">On this page</p>
           <ul className="space-y-1 border-l border-white/[0.06]">
             {sections.map((s) => (
@@ -189,6 +198,7 @@ function ReferenceDocView({ doc }) {
           </ul>
         </nav>
       )}
+    </div>
     </div>
   )
 }
