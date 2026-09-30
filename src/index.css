@@ -475,3 +475,32 @@ button.editor-line-comment {
   flex-shrink: 0;
   border-radius: 9999px;
 }
+
+/* History replay: an added line reveals left-to-right like it's being
+   typed (a stepped clip-path, not a smooth wipe) while its background
+   flashes brighter than the resting diff tint, so a step reads as code
+   actually appearing instead of the list silently swapping text. A
+   removed line just flashes. `history-row-typein`'s clip animation is
+   `backwards` so staggered rows stay hidden through their own delay
+   instead of flashing fully visible first. Each animation is shorter
+   than the 1.6s playback interval, even with the per-row stagger. */
+@keyframes history-row-typein-clip {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes history-row-flash-add {
+  from { background-color: rgb(52 211 153 / 0.35); }
+  to { background-color: transparent; }
+}
+@keyframes history-row-flash-remove {
+  from { background-color: rgb(248 113 113 / 0.3); }
+  to { background-color: transparent; }
+}
+.history-row-typein {
+  animation:
+    history-row-typein-clip 420ms steps(16, end) backwards,
+    history-row-flash-add 700ms ease-out;
+}
+.history-row-flash-remove {
+  animation: history-row-flash-remove 700ms ease-out;
+}

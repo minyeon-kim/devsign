@@ -14,7 +14,7 @@ import {
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
+import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, targetFileOf, filterHistoryEntries } from '@/lib/historyMeta'
 
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -29,6 +29,48 @@ function KindBadge({ kind }) {
     <span title={KIND_LABEL[kind]} className={cn('flex size-4 shrink-0 items-center justify-center', KIND_TONE[kind])}>
       <Icon className="size-3" />
     </span>
+  )
+}
+
+const OTHER_GROUP = '__other__'
+
+// A project's checkpoints span every file/element it touched — with more
+// piling up over time, a flat newest-first list stops being scannable.
+// Bucketing by the file/element each one touched (then newest-first inside
+// each bucket) says at a glance *what* changed before *when* it changed.
+// Entries already come newest-first, so a single pass over them also
+// orders the buckets themselves by how recently each was last touched.
+function groupByTarget(entries) {
+  const order = []
+  const byTarget = new Map()
+  for (const entry of entries) {
+    const key = targetFileOf(entry) ?? OTHER_GROUP
+    if (!byTarget.has(key)) {
+      byTarget.set(key, [])
+      order.push(key)
+    }
+    byTarget.get(key).push(entry)
+  }
+  return order.map((key) => ({ key, target: key === OTHER_GROUP ? null : key, entries: byTarget.get(key) }))
+}
+
+// One file/element's checkpoints, collapsible — so a project with a long
+// history still opens on something scannable instead of a wall of rows.
+function HistoryGroup({ target, count, collapsed, onToggle, children }) {
+  return (
+    <div className="mb-0.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-slate-400 transition-colors hover:bg-white/[0.035] hover:text-slate-200"
+      >
+        <ChevronDown className={cn('size-3 shrink-0 transition-transform', collapsed && '-rotate-90')} />
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">{target ?? 'Other changes'}</span>
+        <span className="shrink-0 text-[10px] text-slate-500 tabular-nums">{count}</span>
+      </button>
+      {!collapsed && children}
+    </div>
   )
 }
 
@@ -50,6 +92,14 @@ function HistoryDrawer({ project }) {
   const [tab, setTab] = useState('active')
   const [query, setQuery] = useState('')
   const [rollbackId, setRollbackId] = useState(null)
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
+  const toggleGroup = (key) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const historyPath = `/projects/${project.id}/history`
   const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
 
@@ -172,86 +222,94 @@ function HistoryDrawer({ project }) {
         </p>
       )}
       {tab === 'active' &&
-        active.map((entry) => {
-          const isCurrent = entry.id === activeHistoryId
-          const selected = onHistoryPage && entry.id === selectedId
-          const stats = diffStats(current?.snapshot.lines, entry.snapshot.lines)
-          return (
-            <div
-              key={entry.id}
-              ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
-              className={cn(
-                'group relative rounded-lg transition-colors',
-                selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.035]'
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => open(entry.id)}
-                aria-current={selected ? 'true' : undefined}
-                className="block w-full px-2.5 py-2 text-left"
-              >
-                <span className="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
-                  <KindBadge kind={entry.kind} />
-                  <span className="min-w-0 truncate">{entry.timestamp}</span>
-                  {!isCurrent && (
-                    <span className="font-mono text-[10px] transition-opacity group-hover:opacity-0">
-                      <span className="text-emerald-300/80">+{stats.added}</span> <span className="text-red-300/80">−{stats.removed}</span>
-                    </span>
+        groupByTarget(active).map(({ key, target, entries }) => (
+          <HistoryGroup key={key} target={target} count={entries.length} collapsed={collapsedGroups.has(key)} onToggle={() => toggleGroup(key)}>
+            {entries.map((entry) => {
+              const isCurrent = entry.id === activeHistoryId
+              const selected = onHistoryPage && entry.id === selectedId
+              const stats = diffStats(current?.snapshot.lines, entry.snapshot.lines)
+              return (
+                <div
+                  key={entry.id}
+                  ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
+                  className={cn(
+                    'group relative rounded-lg transition-colors',
+                    selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.035]'
                   )}
-                  {isCurrent && (
-                    <span className={cn('ml-auto shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', ACCENT_SOFT)}>Current</span>
-                  )}
-                </span>
-                <span
-                  className={cn('mt-0.5 line-clamp-2 block text-[12.5px] leading-snug', selected ? 'text-white' : 'text-slate-300')}
-                  title={entry.label}
                 >
-                  {entry.label}
-                </span>
-                {historyMeta(entry, currentUser.id) && (
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry, currentUser.id)}>
-                    {historyMeta(entry, currentUser.id)}
-                  </span>
-                )}
-              </button>
-              {!isCurrent && (
-                <div className="absolute top-1 right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
-                    <Archive className="size-3" />
+                  <button
+                    type="button"
+                    onClick={() => open(entry.id)}
+                    aria-current={selected ? 'true' : undefined}
+                    className="block w-full px-2.5 py-2 pl-6 text-left"
+                  >
+                    <span className="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
+                      <KindBadge kind={entry.kind} />
+                      <span className="min-w-0 truncate">{entry.timestamp}</span>
+                      {!isCurrent && (
+                        <span className="font-mono text-[10px] transition-opacity group-hover:opacity-0">
+                          <span className="text-emerald-300/80">+{stats.added}</span> <span className="text-red-300/80">−{stats.removed}</span>
+                        </span>
+                      )}
+                      {isCurrent && (
+                        <span className={cn('ml-auto shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', ACCENT_SOFT)}>Current</span>
+                      )}
+                    </span>
+                    <span
+                      className={cn('mt-0.5 line-clamp-2 block text-[12.5px] leading-snug', selected ? 'text-white' : 'text-slate-300')}
+                      title={entry.label}
+                    >
+                      {entry.label}
+                    </span>
+                    {historyMeta(entry, currentUser.id) && (
+                      <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry, currentUser.id)}>
+                        {historyMeta(entry, currentUser.id)}
+                      </span>
+                    )}
                   </button>
-                  <button type="button" title="Rollback here" aria-label="Rollback here" onClick={() => setRollbackId(entry.id)} className={ROW_ACTION}>
-                    <RotateCcw className="size-3" />
-                  </button>
+                  {!isCurrent && (
+                    <div className="absolute top-1 right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
+                        <Archive className="size-3" />
+                      </button>
+                      <button type="button" title="Rollback here" aria-label="Rollback here" onClick={() => setRollbackId(entry.id)} className={ROW_ACTION}>
+                        <RotateCcw className="size-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )
-        })}
+              )
+            })}
+          </HistoryGroup>
+        ))}
 
       {tab === 'archived' &&
         (archived.length === 0 ? (
           <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching archived checkpoints.' : 'No archived checkpoints.'}</p>
         ) : (
-          archived.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-white/[0.035]">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
-                <p className="mt-0.5 text-[11px] text-slate-500 tabular-nums">{entry.timestamp}</p>
-              </div>
-              <button
-                type="button"
-                title="Restore to History"
-                aria-label="Restore to History"
-                onClick={() => {
-                  restoreHistoryEntry(entry.id)
-                  toast('Checkpoint restored to History', { description: entry.label })
-                }}
-                className={ROW_ACTION}
-              >
-                <ArchiveRestore className="size-3.5" />
-              </button>
-            </div>
+          groupByTarget(archived).map(({ key, target, entries }) => (
+            <HistoryGroup key={key} target={target} count={entries.length} collapsed={collapsedGroups.has(key)} onToggle={() => toggleGroup(key)}>
+              {entries.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2 rounded-lg py-2 pr-2.5 pl-6 hover:bg-white/[0.035]">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500 tabular-nums">{entry.timestamp}</p>
+                  </div>
+                  <button
+                    type="button"
+                    title="Restore to History"
+                    aria-label="Restore to History"
+                    onClick={() => {
+                      restoreHistoryEntry(entry.id)
+                      toast('Checkpoint restored to History', { description: entry.label })
+                    }}
+                    className={ROW_ACTION}
+                  >
+                    <ArchiveRestore className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </HistoryGroup>
           ))
         ))}
 

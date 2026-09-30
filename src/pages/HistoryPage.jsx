@@ -44,13 +44,6 @@ function HistoryPage() {
 
   const { playing, pause, toggle } = useHistoryPlayback(timeline, selectedId, select)
 
-  function togglePlay() {
-    // Replay shows each checkpoint itself, instead of keeping the latest
-    // canvas selected in the comparison view.
-    if (!playing) setCompareLatest(false)
-    toggle()
-  }
-
   function selectVersion(id) {
     pause()
     select(id)
@@ -96,14 +89,20 @@ function HistoryPage() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         <div className="min-h-0 flex-1">
-          <HistoryCompare entryId={selectedId} compareLatest={compareLatest} hideRestore />
+          <HistoryCompare
+            entryId={selectedId}
+            compareLatest={compareLatest}
+            hideRestore
+            playing={playing}
+            baseEntryId={timeline[timelineIndex - 1]?.id}
+          />
         </div>
         <HistoryTimeline
           entries={timeline}
           selectedId={selectedId}
           onSelect={selectVersion}
           playing={playing}
-          onTogglePlay={togglePlay}
+          onTogglePlay={toggle}
           compareLatest={compareLatest}
           onCompareLatestChange={setCompareLatest}
           isCurrent={selectedId === activeHistoryId}

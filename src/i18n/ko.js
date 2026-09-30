@@ -202,6 +202,9 @@ Add user|사용자 추가
 Teams|팀
 All projects|모든 프로젝트
 This week|이번 주
+Last week|지난 주
+This month|이번 달
+Earlier|이전 기록
 Conflict|충돌
 Comment|댓글
 Conflicts|충돌
@@ -399,9 +402,15 @@ Select a version to compare it with the current one.|현재 버전과 비교할 
 This is the current version.|현재 버전입니다.
 The file as it was at this version.|이 버전 당시의 파일입니다.
 Compared with current ·|현재 버전과 비교 ·
+Compared with the previous step ·|이전 단계와 비교 ·
+This version|이 버전
+Latest|최신
+Previous step|이전 단계
 lines|줄
 Restore this version|이 버전 복원
 No code changes between this version and the latest.|이 버전과 최신 버전 사이에 코드 변경이 없습니다.
+No code changes from the previous step.|이전 단계와 비교해 코드 변경이 없습니다.
+Other changes|기타 변경
 Resize code and canvas|코드와 캔버스 크기 조절
 Canvas version|캔버스 버전
 Preview props|미리보기 속성

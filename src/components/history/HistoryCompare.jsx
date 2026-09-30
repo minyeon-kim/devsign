@@ -33,7 +33,7 @@ const MIN_CANVAS = 260
 // split by a draggable handle, so a change reads in both at a glance.
 // `hideRestore` drops the header's restore button when the caller has its
 // own (History's control bar).
-function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false }) {
+function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser } = useWorkspace()
   const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
   // The code pane's width in px (null = its default share); the canvas
@@ -49,23 +49,44 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const isCurrent = entryId === activeHistoryId
+  // While replaying, each step diffs against the one before it — so the
+  // diff and the canvas build up incrementally, step by step, instead of
+  // always comparing back to the latest checkpoint. The first step in the
+  // timeline has nothing before it, so it shows plain (no diff). Scrubbing
+  // by hand keeps comparing against the latest, as before.
+  const diffBase = playing ? historyEntries.find((h) => h.id === baseEntryId) ?? null : current
 
   const rows = useMemo(
-    () => (entry && current ? diffLines(current.snapshot.lines, entry.snapshot.lines) : []),
-    [entry, current]
+    () => (entry && diffBase ? diffLines(diffBase.snapshot.lines, entry.snapshot.lines) : []),
+    [entry, diffBase]
   )
-  const showDiff = compareLatest && !isCurrent
+  // While playing, the final step is still stepping forward from the one
+  // before it — even though it lands on the current checkpoint. Gating on
+  // `isCurrent` here too would collapse the diff and the canvas compare
+  // right at the last step, an abrupt cut after every prior step built up
+  // smoothly. Manual scrubbing keeps the old behavior: landing on the
+  // actual current checkpoint shows it plainly, nothing to compare.
+  const showDiff = compareLatest && Boolean(diffBase) && (playing || !isCurrent)
   const codeRows = useMemo(() => {
     const source = showDiff ? rows : (entry?.snapshot.lines ?? []).map((text) => ({ kind: 'same', text }))
-    // Old (latest) / new (this version) line numbers, like a split gutter.
+    // Old (latest) / new (this version) line numbers, like a split gutter;
+    // `addIndex` staggers the type-in animation across an added block.
     let a = 0
     let b = 0
+    let addIndex = 0
     return source.map((row) => ({
       ...row,
       from: row.kind === 'add' ? null : ++a,
       to: row.kind === 'remove' ? null : ++b,
+      addIndex: row.kind === 'add' ? addIndex++ : null,
     }))
   }, [showDiff, rows, entry])
+  // The canvas can compare "this version" against whatever we're diffing
+  // the code against — independent of the Compare-latest toggle, so
+  // switching that toggle only changes the code pane, never shifts the
+  // canvas out from under you mid-comparison.
+  const canCompare = Boolean(diffBase) && (playing || !isCurrent)
+  const shownSnapshot = canvasSide === 'latest' && canCompare ? diffBase : entry
 
   if (!entry) {
     return (
@@ -77,12 +98,12 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
 
   const added = rows.filter((r) => r.kind === 'add').length
   const removed = rows.filter((r) => r.kind === 'remove').length
-  const propChanges = current
-    ? Object.keys({ ...current.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
-        (key) => current.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
+  const propChanges = diffBase
+    ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
+        (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
       )
     : []
-  const conflictDelta = (entry.snapshot.conflicts?.length ?? 0) - (current?.snapshot.conflicts?.length ?? 0)
+  const conflictDelta = (entry.snapshot.conflicts?.length ?? 0) - (diffBase?.snapshot.conflicts?.length ?? 0)
 
   function handleRestore() {
     if (onRollback) {
@@ -107,13 +128,13 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           {historyMeta(entry, currentUser.id) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry, currentUser.id)}</p>}
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
             <GitCompareArrows className="size-3" />
-            {isCurrent ? (
+            {!playing && isCurrent ? (
               'This is the current version.'
             ) : !showDiff ? (
               'The file as it was at this version.'
             ) : (
               <>
-                Compared with current ·{' '}
+                {playing ? 'Compared with the previous step ·' : 'Compared with current ·'}{' '}
                 <span className="text-emerald-300">+{added}</span>
                 <span className="text-red-300">−{removed}</span> lines
                 {propChanges.length > 0 && ` · ${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`}
@@ -176,10 +197,25 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           </p>
           <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[12px] leading-5">
             {showDiff && rows.every((r) => r.kind === 'same') && (
-              <p className="px-4 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
+              <p className="px-4 pb-2 font-sans text-xs text-slate-500">
+                {playing ? 'No code changes from the previous step.' : 'No code changes between this version and the latest.'}
+              </p>
             )}
             {codeRows.map((row, index) => (
-              <div key={index} className={cn('flex min-w-0 pr-4 whitespace-pre-wrap [word-break:break-all]', showDiff ? ROW_TONES[row.kind] : 'text-slate-300')}>
+              // Keying on the entry too (not just the row's position) remounts every
+              // row when the selected checkpoint changes, so each step's added lines
+              // type themselves in (staggered by `addIndex`) and removed ones flash,
+              // instead of a static list silently swapping text.
+              <div
+                key={`${entryId}-${index}`}
+                style={row.kind === 'add' ? { animationDelay: `${Math.min(row.addIndex, 10) * 45}ms` } : undefined}
+                className={cn(
+                  'flex min-w-0 pr-4 whitespace-pre-wrap [word-break:break-all]',
+                  showDiff ? ROW_TONES[row.kind] : 'text-slate-300',
+                  showDiff && row.kind === 'add' && 'history-row-typein',
+                  showDiff && row.kind === 'remove' && 'history-row-flash-remove'
+                )}
+              >
                 {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
                 <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
                 {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
@@ -196,21 +232,25 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           onStep={(d) => resizeCode(codeRef.current.offsetWidth + d)}
         />
 
-        {/* The design at this version, beside its code — while comparing,
-            flip it to the latest one to see the difference. */}
+        {/* The design at this version, beside its code — flip it to what
+            we're comparing against to see the difference. This only reads
+            `canvasSide`/`canCompare`, never `compareLatest`, so switching
+            the Compare-latest toggle changes the code pane and never
+            silently moves this canvas out from under a comparison. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
           <PreviewPanelContent
-            key={canvasSide === 'latest' && showDiff ? 'latest' : 'checkpoint'}
-            previewProps={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.previewProps ?? {}}
-            prototypeEdits={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.prototypeEdits ?? {}}
-            activePageId={(canvasSide === 'latest' && showDiff && current ? current : entry).snapshot.activePageId ?? null}
+            key={canvasSide === 'latest' && canCompare ? 'latest' : 'checkpoint'}
+            snapshotKey={shownSnapshot.id}
+            previewProps={shownSnapshot.snapshot.previewProps ?? {}}
+            prototypeEdits={shownSnapshot.snapshot.prototypeEdits ?? {}}
+            activePageId={shownSnapshot.snapshot.activePageId ?? null}
             historical
             caption={
-              showDiff ? (
+              canCompare ? (
                 <span className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Canvas version">
                   {[
                     ['entry', 'This version'],
-                    ['latest', 'Latest'],
+                    ['latest', playing ? 'Previous step' : 'Latest'],
                   ].map(([id, label]) => (
                     <button
                       key={id}
@@ -228,7 +268,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
                   ))}
                 </span>
               ) : (
-                <span className="shrink-0 text-emerald-300">{isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>
+                <span className="shrink-0 text-emerald-300">{!playing && isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>
               )
             }
           />
@@ -242,7 +282,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           <p className="mb-1 text-xs font-medium text-slate-300">Preview props</p>
           {propChanges.map((key) => (
             <p key={key} className="font-mono text-[11px] text-slate-500">
-              {key}: <span className="text-red-300 line-through">{String(current.snapshot.previewProps?.[key] ?? '—')}</span>{' '}
+              {key}: <span className="text-red-300 line-through">{String(diffBase.snapshot.previewProps?.[key] ?? '—')}</span>{' '}
               → <span className="text-emerald-300">{String(entry.snapshot.previewProps?.[key] ?? '—')}</span>
             </p>
           ))}

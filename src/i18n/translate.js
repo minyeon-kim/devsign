@@ -7,6 +7,10 @@ const rules = [
   [/^(.+) goes back to this checkpoint \(\+(\d+) −(\d+) lines\)\.$/, (_, file, added, removed) => `${file}을 이 버전으로 되돌려요. ${added}줄 추가, ${removed}줄 삭제돼요.`],
   [/^Forget the (\d+) agent messages? after this checkpoint\.$/, (_, n) => `이 버전 이후에 나눈 AI 대화 ${n}개를 삭제해요.`],
   [/^(\d+) (days?|weeks?|months?) ago$/, (_, n, unit) => `${n}${unit.startsWith('day') ? '일' : unit.startsWith('week') ? '주' : '개월'} 전`],
+  [/^(Today|Yesterday)(?:, (\d{1,2}):(\d{2}) (AM|PM))?$/, (_, day, h, m, ampm) => {
+    const dayKo = day === 'Today' ? '오늘' : '어제'
+    return h ? `${dayKo} ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}` : dayKo
+  }],
   [/^(\d+) comments$/, (_, n) => `코멘트 ${n}개`],
   [/^(\d+) automated notes$/, (_, n) => `자동 피드백 ${n}개`],
   [/^(\d+) replies$/, (_, n) => `답글 ${n}개`],
@@ -25,6 +29,7 @@ const rules = [
   [/^(\d+) merged$/, (_, n) => `병합 완료 ${n}개`],
   [/^(\d+) pending$/, (_, n) => `대기 ${n}개`],
   [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '병합 충돌'}`],
+  [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^Waiting for (.+)$/, (_, name) => `${name} 대기 중`],
   [/^Approved by (.+)$/, (_, name) => `${name === 'you' ? '내가' : name} 승인함`],
   [/^Changes requested by (.+)$/, (_, name) => `${name} 변경 요청`],
