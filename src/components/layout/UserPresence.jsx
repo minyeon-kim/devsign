@@ -66,8 +66,11 @@ function UserPresence() {
         </PopoverTrigger>
 
         <PopoverContent align="end" sideOffset={10} className="w-64 gap-0 p-0">
+          {/* You — same avatar size as everyone else below (Switch user,
+              Team activity): only the ring on the Switch user row marks
+              you out, not a bigger icon. */}
           <div className="flex items-center gap-2 p-3">
-            <Avatar>
+            <Avatar size="sm">
               <AvatarFallback
                 className={cn('text-xs font-medium text-white', currentUser.colorClass)}
               >
@@ -78,7 +81,7 @@ function UserPresence() {
               <span className="font-medium">{currentUser.name}</span>{' '}
               <span className="text-muted-foreground">({currentUser.role})</span>
             </div>
-            <Button variant="ghost" size="icon-sm">
+            <Button variant="ghost" size="icon-sm" title="Voice chat" aria-label="Voice chat">
               <Headset className="size-4" />
             </Button>
             <Button
@@ -93,34 +96,35 @@ function UserPresence() {
           {/* UT-only: each persona has a fully scripted project — picking
               one takes you straight there instead of leaving you to find
               the right project for the role you're testing. */}
-          <div className="flex items-center gap-1.5 px-3 pb-2.5">
-            <span className="text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</span>
-            <span className="flex flex-1 items-center justify-end gap-1">
+          <div className="border-t px-3 py-2.5">
+            <p className="mb-1.5 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</p>
+            <div className="flex items-center gap-1.5">
               {viewerPersonas.map(({ projectId, person }) => (
-                <span key={projectId}>
-                  <button
-                    type="button"
-                    aria-label={person.name}
-                    onClick={() => navigate(`/projects/${projectId}`)}
-                    className={cn(
-                      'flex size-6 items-center justify-center rounded-full ring-1 ring-inset transition-opacity hover:opacity-80',
-                      person.id === currentUser.id ? 'ring-primary' : 'ring-transparent'
-                    )}
-                  >
-                    <Avatar size="sm" className="size-5">
-                      <AvatarFallback className={cn('text-[9px] font-medium text-white', person.colorClass)}>
-                        {person.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </span>
+                <button
+                  key={projectId}
+                  type="button"
+                  aria-label={person.name}
+                  title={person.name}
+                  onClick={() => navigate(`/projects/${projectId}`)}
+                  className={cn(
+                    'flex size-7 items-center justify-center rounded-full ring-1 ring-inset transition-opacity hover:opacity-80',
+                    person.id === currentUser.id ? 'ring-primary' : 'ring-transparent'
+                  )}
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className={cn('text-xs font-medium text-white', person.colorClass)}>
+                      {person.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
               ))}
-            </span>
+            </div>
           </div>
 
           <Separator />
 
           <div className="flex flex-col gap-0.5 p-1.5">
+            <p className="px-1.5 pt-0.5 pb-1 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Team activity</p>
             {teamMembers.map((member) => {
               const active = followedMemberId === member.id
               const currentView = contextFor(member)
@@ -160,9 +164,6 @@ function UserPresence() {
               )
             })}
           </div>
-          <p className="border-t px-3 py-2 text-[10.5px] text-muted-foreground">
-            Teammate activity is simulated in this prototype.
-          </p>
         </PopoverContent>
       </Popover>
 

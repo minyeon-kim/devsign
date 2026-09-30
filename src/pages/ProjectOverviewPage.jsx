@@ -11,6 +11,7 @@ import ActivityList from '@/components/conflicts/ActivityList'
 import { DOCUMENT_STAGES as DS_STAGES } from '@/lib/documentChanges'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import UserPresence from '@/components/layout/UserPresence'
 
 function Section({ title, action, children }) {
   return (
@@ -107,6 +108,13 @@ function ProjectOverviewPage() {
           <span aria-current="page" className="text-white">Project home</span>
           <ChevronRight className="size-3" />
           <Link to={workspacePath} className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Workspace</Link>
+          {/* Same profile popover as the Workspace's top bar — Project home
+              had no way to switch user or see who's on the project until
+              you opened the Workspace; this closes that gap instead of
+              growing a third, separate implementation of it. */}
+          <span className="ml-auto flex items-center">
+            <UserPresence />
+          </span>
         </nav>
         {/* Header */}
         <header className="flex flex-wrap items-start gap-4">

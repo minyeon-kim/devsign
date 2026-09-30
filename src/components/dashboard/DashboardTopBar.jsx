@@ -188,8 +188,8 @@ function DashboardTopBar() {
             <p className="px-2 pt-1 pb-0.5 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</p>
             {viewerPersonas.map(({ projectId, person }) => (
               <DropdownMenuItem key={projectId} onClick={() => navigate(`/projects/${projectId}`)}>
-                <Avatar size="sm" className="size-5">
-                  <AvatarFallback className={cn('text-[9px] font-medium text-white', person.colorClass)}>
+                <Avatar size="sm">
+                  <AvatarFallback className={cn('text-xs font-medium text-white', person.colorClass)}>
                     {person.initials}
                   </AvatarFallback>
                 </Avatar>

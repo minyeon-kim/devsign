@@ -112,6 +112,8 @@ Form gaps move from 6px to 8px to stay on the 4/8 spacing scale.|폼 간격이 4
 Design frame padding (12px 24px) does not match code button padding (8px 16px).|디자인 프레임 패딩(12px 24px)이 코드의 버튼 패딩(8px 16px)과 다릅니다.
 Ask Devsign to apply the padding fix — it will update the button className to px-6 py-3 to match the design frame.|Devsign에 패딩 수정을 요청하세요 — 버튼 className을 px-6 py-3으로 업데이트해 디자인 프레임과 맞춥니다.
 Switch user|사용자 전환
+Team activity|팀 활동
+Voice chat|음성 채팅
 Select an element on the canvas to see only the components that fit it.|캔버스에서 요소를 선택하면 해당 요소에 맞는 컴포넌트만 볼 수 있습니다.
 No checkpoints have been saved for this project yet.|이 프로젝트에는 아직 저장된 버전이 없습니다.
 No file snapshot is available for this checkpoint.|이 버전에는 파일 스냅샷이 없습니다.
@@ -469,7 +471,7 @@ Style|스타일
 Typography|타이포그래피
 Window Layout|창 배치
 Search files, commands...|파일, 명령 검색...
-Follow me|내 화면 공유
+Follow me|나를 따라가기
 Teammate activity is simulated in this prototype.|이 프로토타입의 팀원 활동은 시뮬레이션입니다.
 Edit custom value|사용자 지정 값 편집
 Set a custom value|사용자 지정 값 설정

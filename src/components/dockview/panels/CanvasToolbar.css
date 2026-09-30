@@ -1,15 +1,22 @@
 /* Match the primary CTA's layer so this more specific shape wins even
-   when an active tool receives its own !important radius. */
+   when an active tool receives its own !important radius. Sized and
+   rounded like the workspace's window tabs (PanelTabs) — a 28px control on
+   the tab radius — instead of the fully round pill this toolbar used
+   before, so the two read as the same design language. */
 @layer components {
   .canvas-floating-toolbar {
-    --ds-button-radius: 9999px;
-    border-radius: 9999px !important;
+    --ds-button-radius: var(--ds-radius-workspace-tab);
+    border-radius: var(--ds-radius-workspace-tab) !important;
     overflow: hidden;
   }
 
   .canvas-floating-toolbar button,
   .canvas-floating-toolbar .canvas-toolbar-tool {
-    border-radius: 9999px !important;
+    border-radius: var(--ds-radius-workspace-tab) !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
   }
 }
 

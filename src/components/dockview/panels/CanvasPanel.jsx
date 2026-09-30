@@ -15,6 +15,7 @@ import {
   Type,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { allPeople, canvasTools, findCanvasTarget, paddingConflict } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { panelById } from '@/components/dockview/DockLayout'
@@ -74,17 +75,16 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
   return (
     <div
       data-canvas-chrome
-      style={{ borderRadius: 9999, '--ds-button-radius': '9999px' }}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
-      className="canvas-floating-toolbar ds-canvas-toolbar ds-pill pointer-events-auto flex items-center gap-0.5 rounded-full border bg-card/95 p-0.5 shadow-xl backdrop-blur-sm"
+      className={cn('canvas-floating-toolbar pointer-events-auto flex items-center gap-0.5 border bg-card/95 p-0.5 shadow-xl backdrop-blur-sm', WORKSPACE_TAB_RADIUS)}
     >
       {compact ? (
         <>
           <span
             title={`Current tool: ${activeTool.label}`}
             aria-label={`Current tool: ${activeTool.label}`}
-            className="canvas-toolbar-tool ds-primary-cta ds-pill flex size-8 items-center justify-center rounded-full"
+            className={cn('canvas-toolbar-tool flex size-7 items-center justify-center bg-primary text-primary-foreground', WORKSPACE_TAB_RADIUS)}
           >
             {ActiveIcon && <ActiveIcon className="size-3.5" />}
           </span>
@@ -93,7 +93,7 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
               type="button"
               title="Choose canvas tool"
               aria-label="Choose canvas tool"
-              className="canvas-toolbar-tool ds-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className={cn('canvas-toolbar-tool flex size-7 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground', WORKSPACE_TAB_RADIUS)}
             >
               <Ellipsis className="size-3.5" />
             </DropdownMenuTrigger>
@@ -119,11 +119,11 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
             key={t.id}
             type="button"
             title={t.label}
-            style={{ borderRadius: 9999 }}
             onClick={() => onSelectTool(t.id)}
             className={cn(
-              'canvas-toolbar-tool ds-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              active && 'ds-primary-cta'
+              'canvas-toolbar-tool flex size-7 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              WORKSPACE_TAB_RADIUS,
+              active && 'bg-primary text-primary-foreground'
             )}
           >
             {Icon && <Icon className="size-3.5" />}
