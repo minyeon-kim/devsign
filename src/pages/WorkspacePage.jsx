@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
-import InspectorSidebar from '@/components/layout/InspectorSidebar'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
@@ -116,8 +115,6 @@ function WorkspacePage() {
         <TopBar project={project} onOpenPalette={() => setPaletteOpen(true)} />
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
-
-        <InspectorSidebar />
       </div>
       {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>

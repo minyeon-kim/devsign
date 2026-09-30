@@ -1,6 +1,6 @@
 import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { orderedTabs } from '@/lib/tabOrder'
-import { Component, FileImage, Files, Layers, X } from 'lucide-react'
+import { Component, FileImage, Files, Layers, ScanEye, X } from 'lucide-react'
 import { cn } from 'cn'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
@@ -10,6 +10,7 @@ const NAVIGATOR_TABS = [
   { id: 'files', label: 'Files', icon: Files },
   { id: 'layers', label: 'Layers', icon: Layers },
   { id: 'assets', label: 'Assets', icon: Component },
+  { id: 'inspect', label: 'Inspect', icon: ScanEye },
 ]
 
 // One panel's tabs in a docked window's header — the real things open in

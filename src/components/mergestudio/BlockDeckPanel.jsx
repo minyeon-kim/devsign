@@ -377,7 +377,7 @@ function ColorField({ value, swatchHex, swatchClass, placeholder, onHex, onToken
 
 // Figma-style segmented control: one 28px track, options as equal inner
 // segments; the active one is a lifted neutral.
-function Segmented({ options, value, onChange, className }) {
+export function Segmented({ options, value, onChange, className }) {
   return (
     <div className={cn('flex h-7 items-center gap-0.5 rounded-[6px] bg-white/[0.05] p-0.5', className)}>
       {options.map(({ id, label, icon: Icon, title, count }) => (
@@ -1096,7 +1096,7 @@ export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEff
 // "Insert") or pull a fresh instance onto both artboards ("Add").
 // Thumbnail: the live component on a small white (light-mode canvas)
 // tile, scaled to fit — 56×36, so a row stays one slim line.
-function ComponentPreview({ def, box = { w: 48, h: 28 } }) {
+export function ComponentPreview({ def, box = { w: 48, h: 28 } }) {
   const k = Math.min(1, box.w / def.width, box.h / def.height)
   // `name` matters: some layer types (avatars) render from it — without it
   // an avatar preview crashed the whole Library tab.

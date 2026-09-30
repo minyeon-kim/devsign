@@ -1,6 +1,7 @@
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
 import LayersPanel from '@/components/dockview/panels/LayersPanel'
 import AssetsPanel from '@/components/dockview/panels/AssetsPanel'
+import InspectPanel from '@/components/dockview/panels/InspectPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // The project's navigator as a pane — the file tree (Files), the canvas's
@@ -15,6 +16,7 @@ function NavigatorPanel() {
       {filesWindow.tab === 'files' && <ExplorerPanel />}
       {filesWindow.tab === 'layers' && <LayersPanel />}
       {filesWindow.tab === 'assets' && <AssetsPanel />}
+      {filesWindow.tab === 'inspect' && <InspectPanel />}
     </div>
   )
 }

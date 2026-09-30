@@ -193,7 +193,6 @@ export function WorkspaceProvider({ children, projectId }) {
   const historySeed = projectHistorySeeds[projectId] ?? initialHistoryEntries
   const [historyEntries, setHistoryEntries] = useDemoState(`project:${projectId}:historyEntries`, historySeed)
   const [activeHistoryId, setActiveHistoryId] = useDemoState(`project:${projectId}:activeHistoryId`, historySeed[historySeed.length - 1]?.id ?? null)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
   // Which design "page"/file the Canvas file-tab bar has open — shared here
   // (not local to CanvasPanel) so the Layers panel's frame tree stays in
   // sync with whichever page is active.
@@ -1233,8 +1232,6 @@ export function WorkspaceProvider({ children, projectId }) {
     rollbackTo,
     archiveHistoryEntry,
     restoreHistoryEntry,
-    inspectorOpen,
-    setInspectorOpen,
     activePageId,
     setActivePageId,
     dockApi,

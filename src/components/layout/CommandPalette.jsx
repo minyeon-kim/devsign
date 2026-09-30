@@ -26,8 +26,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // Assets open the navigator pane; Terminal / Console / Conflict Points the
 // docked bottom panel.
 function useCommands() {
-  const { dockApi, setFilesWindow, bottomPanel, setBottomPanel, openMergeStudio, inspectorOpen, setInspectorOpen } =
-    useWorkspace()
+  const { dockApi, setFilesWindow, bottomPanel, setBottomPanel, openMergeStudio } = useWorkspace()
   const showTerminal = () => setBottomPanel({ tab: 'terminal', open: true })
 
   const windowViews = [
@@ -39,6 +38,7 @@ function useCommands() {
     { tab: 'files', label: 'Files', icon: Files, keywords: 'explorer tree' },
     { tab: 'layers', label: 'Layers', icon: Layers },
     { tab: 'assets', label: 'Assets', icon: Component },
+    { tab: 'inspect', label: 'Inspect', icon: ScanEye, keywords: 'dev mode design spec css properties' },
   ]
   const bottomViews = [
     { tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
@@ -74,14 +74,6 @@ function useCommands() {
       keywords,
       run: () => setBottomPanel({ tab, open: true }),
     })),
-    {
-      id: 'toggle-inspector',
-      section: 'Layout',
-      label: inspectorOpen ? 'Hide Inspector' : 'Show Inspector',
-      icon: ScanEye,
-      keywords: 'inspect properties',
-      run: () => setInspectorOpen((v) => !v),
-    },
     {
       id: 'toggle-bottom',
       section: 'Layout',
