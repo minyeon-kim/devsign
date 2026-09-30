@@ -6,6 +6,8 @@ import { docsHistoryKo } from './docsHistoryKo'
 // their avatar initials) — every other exact match in this catalog is real
 // UI copy.
 export const ko = Object.fromEntries(`
+Follow|화면 따라가기
+Stop following|따라가기 중지
 Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.|주문 버튼을 디자인에 맞게 다듬어볼까요? Place order 버튼의 높이와 색상을 비교하고, 스타일을 수정한 뒤 검토를 요청할 수 있어요. 아래 질문을 선택하면 순서대로 안내해드릴게요.
 Let’s check the shared Button height. Compare the code with the design token, review the affected screens, then check the saved version after merging.|공통 버튼의 높이가 디자인 시스템 기준과 맞는지 확인해볼까요? Button 코드를 높이 토큰에 맞게 수정하고, 다른 화면에 미치는 영향도 살펴보세요. 검토와 병합을 마친 뒤에는 저장된 버전까지 확인할 수 있어요.
 Jane|김수연

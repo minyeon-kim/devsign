@@ -14,7 +14,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { viewerPersonas } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -53,8 +52,7 @@ function UserPresence() {
 
   return (
     <AvatarGroup className="ds-user-presence flex w-max flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-0">
-      {/* Clicking a teammate's avatar directly toggles following their view —
-          no popover in the way, per the Follow Me interaction spec. */}
+      {/* Avatars open profile details; following is an explicit action inside. */}
       <Popover>
         <PopoverTrigger
           aria-label={`${currentUser.name} profile`}
@@ -99,8 +97,10 @@ function UserPresence() {
             <span className="text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</span>
             <span className="flex flex-1 items-center justify-end gap-1">
               {viewerPersonas.map(({ projectId, person }) => (
-                <Tooltip key={projectId}>
-                  <TooltipTrigger
+                <span key={projectId}>
+                  <button
+                    type="button"
+                    aria-label={person.name}
                     onClick={() => navigate(`/projects/${projectId}`)}
                     className={cn(
                       'flex size-6 items-center justify-center rounded-full ring-1 ring-inset transition-opacity hover:opacity-80',
@@ -112,9 +112,8 @@ function UserPresence() {
                         {person.initials}
                       </AvatarFallback>
                     </Avatar>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{person.name}</TooltipContent>
-                </Tooltip>
+                  </button>
+                </span>
               ))}
             </span>
           </div>
@@ -171,9 +170,9 @@ function UserPresence() {
           const active = followedMemberId === member.id
           const currentView = contextFor(member)
           return (
-            <Tooltip key={member.id}>
-              <TooltipTrigger
-                onClick={() => followMember(member.id)}
+            <Popover key={member.id}>
+              <PopoverTrigger
+                aria-label={`${member.name} profile`}
                 data-following={active || undefined}
                 className={cn(
                   'relative z-30 size-5 rounded-full ring-2 ring-background transition-transform hover:scale-105',
@@ -188,30 +187,40 @@ function UserPresence() {
                   </AvatarFallback>
                   {member.online && <AvatarBadge className="bg-emerald-500" />}
                 </Avatar>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="flex-col items-start gap-0.5">
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={10} className="w-64 gap-2 rounded-2xl p-3">
                 <p className="font-medium">
                   {active ? `Following ${member.name}` : member.name}
-                  <span className="font-normal text-background/70"> · {currentView.status}</span>
+                  <span className="font-normal text-muted-foreground"> · {currentView.status}</span>
                 </p>
                 {currentView.label && <p>{currentView.label}</p>}
-                {currentView?.file && <p className="font-mono text-background/70">{currentView.file}</p>}
-              </TooltipContent>
-            </Tooltip>
+                {currentView?.file && <p className="font-mono text-muted-foreground">{currentView.file}</p>}
+                <p className="text-xs text-muted-foreground">{member.role}</p>
+                <Button size="sm" variant={active ? 'secondary' : 'outline'} className="mt-1 w-full" onClick={() => followMember(member.id)}>
+                  {active ? 'Stop following' : 'Follow'}
+                </Button>
+              </PopoverContent>
+            </Popover>
           )
         })}
         {teamMembers.length > 2 && (
-          <Tooltip>
-            <TooltipTrigger
+          <Popover>
+            <PopoverTrigger
               aria-label={`${teamMembers.length - 2} more teammates`}
               className="relative z-20 flex size-5 items-center justify-center rounded-full bg-white/[0.1] text-[9px] font-medium text-slate-300"
             >
               +{teamMembers.length - 2}
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {teamMembers.slice(2).map((member) => `${member.name} · ${contextFor(member).status}`).join('  /  ')}
-            </TooltipContent>
-          </Tooltip>
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={10} className="w-64 rounded-2xl p-2">
+              {teamMembers.slice(2).map((member) => (
+                <button key={member.id} type="button" onClick={() => followMember(member.id)} className="flex items-center gap-2 rounded-lg p-2 text-left hover:bg-muted">
+                  <Avatar size="sm"><AvatarFallback className={cn('text-[10px] text-white', member.colorClass)}>{member.initials}</AvatarFallback></Avatar>
+                  <span className="flex-1"><span className="block text-xs font-medium">{member.name}</span><span className="block text-[11px] text-muted-foreground">{contextFor(member).label ?? member.role}</span></span>
+                  <span className="text-[11px]">{followedMemberId === member.id ? 'Stop following' : 'Follow'}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         )}
     </AvatarGroup>
   )

@@ -139,9 +139,7 @@ function TopBar({ project, onOpenPalette }) {
         <ActionTooltip label="Share project">
           <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
         </ActionTooltip>
-        <ActionTooltip label="Open Merge Studio">
-          <MergeStudioMenu standalone borderless />
-        </ActionTooltip>
+        <MergeStudioMenu standalone borderless />
         <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
       </div>
 

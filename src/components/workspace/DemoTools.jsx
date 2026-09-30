@@ -18,9 +18,7 @@ export function useDemoStorageWarnings() {
 export default function DemoTools() {
   const [confirming, setConfirming] = useState(false)
   return (
-    <section className="space-y-3 border-t pt-5" aria-labelledby="demo-settings-title">
-      <h3 id="demo-settings-title" className="text-sm font-medium">Demo</h3>
-      <p className="text-xs leading-relaxed text-muted-foreground">Saved only in this browser. Approvals and edits are not synchronized with other users.</p>
+    <section className="space-y-2 border-t border-border/60 pt-2" aria-label="Demo">
       {confirming ? <>
         <p className="text-xs">Reset this prototype’s drafts, reviews and history for all projects?</p>
         <div className="flex gap-2">
@@ -31,7 +29,7 @@ export default function DemoTools() {
             }
           }}>Reset demo data</button>
         </div>
-      </> : <button type="button" className="rounded-lg border px-3 py-2 text-xs hover:bg-muted" onClick={() => setConfirming(true)}>Reset demo data</button>}
+      </> : <button type="button" className="w-full rounded-lg px-2 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" onClick={() => setConfirming(true)}>Reset demo data</button>}
     </section>
   )
 }
