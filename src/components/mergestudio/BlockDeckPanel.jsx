@@ -722,14 +722,24 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
   // its row (context-aware), without closing a row the user opened by hand
   // for something else unless the selection points at a drift.
   const [openId, setOpenId] = useState(selectedLayerId ? `d:${selectedLayerId}` : null)
+  // A row the user just closed by hand shouldn't immediately reopen on the
+  // next render just because `selectedLayerId` still resolves to that same
+  // layer (it does whenever nothing else is explicitly selected — the
+  // canvas falls back to the item's default layer) — only a genuinely new
+  // selection should auto-open a row again.
+  const closedByHandRef = useRef(null)
   useEffect(() => {
-    if (selectedLayerId && designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) setOpenId(`d:${selectedLayerId}`)
+    if (!selectedLayerId || !designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) return
+    const nextId = `d:${selectedLayerId}`
+    if (nextId === closedByHandRef.current) return
+    setOpenId(nextId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLayerId])
 
   function toggle(d) {
     const opening = openId !== d.id
     setOpenId(opening ? d.id : null)
+    closedByHandRef.current = opening ? null : d.id
     if (opening) {
       requestMergeFocus({
         itemId: item.id,
