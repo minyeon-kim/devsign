@@ -1,6 +1,6 @@
 // What an imported file becomes: code joins the file tree, everything
 // else is a design asset of that kind.
-const CODE_EXTENSIONS = new Set(['js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'json', 'md', 'html', 'py', 'svelte', 'vue', 'csv', 'tsv'])
+const CODE_EXTENSIONS = new Set(['js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'json', 'md', 'html', 'py', 'svelte', 'vue', 'csv', 'tsv', 'txt'])
 const DESIGN_KINDS = {
   fig: 'figma',
   ai: 'illustrator',
