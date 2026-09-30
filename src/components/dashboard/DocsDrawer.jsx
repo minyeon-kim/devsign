@@ -2,7 +2,7 @@ import { DOCUMENT_DRAG_TYPE } from '@/lib/workspaceDocuments'
 import { useState } from 'react'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
@@ -16,10 +16,16 @@ const GUIDE = 'ml-[15px] border-l border-white/[0.06] pl-1.5'
 // The docs route keeps its view in `location.state` (one URL); a Link to
 // the same URL replaces the history entry by default — `replace={false}`
 // makes each pick a real step for the header's ‹ › buttons.
-function DocLink({ doc, docsPath, active }) {
+function DocLink({ doc, docsPath, active, onToggle }) {
   return (
     <Link
       draggable
+      onClick={(event) => {
+        if (active) {
+          event.preventDefault()
+          onToggle()
+        }
+      }}
       onDragStart={(event) => {
         event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id)
         event.dataTransfer.effectAllowed = 'copy'
@@ -42,7 +48,7 @@ function DocLink({ doc, docsPath, active }) {
 
 // A category (or sub-category): a header row that expands / collapses its
 // contents in place, then its docs and sub-categories one level in.
-function Category({ node, depth, open, onToggle, docsPath, activeDocId }) {
+function Category({ node, depth, open, onToggle, docsPath, activeDocId, onToggleViewer }) {
   const expanded = open.has(node.id)
   const FolderIcon = expanded ? FolderOpen : Folder
 
@@ -75,10 +81,11 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId }) {
               onToggle={onToggle}
               docsPath={docsPath}
               activeDocId={activeDocId}
+              onToggleViewer={onToggleViewer}
             />
           ))}
           {node.docs.map((doc) => (
-            <DocLink key={doc.id} doc={doc} docsPath={docsPath} active={doc.id === activeDocId} />
+            <DocLink key={doc.id} doc={doc} docsPath={docsPath} active={doc.id === activeDocId} onToggle={onToggleViewer} />
           ))}
         </div>
       )}
@@ -94,11 +101,13 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId }) {
 function DocsDrawer({ project }) {
   const language = useLanguage()
   const location = useLocation()
+  const navigate = useNavigate()
   const { referenceDocs, dsUpdates } = useWorkspace()
   const docsPath = `/projects/${project.id}/docs`
   const onDocs = location.pathname.startsWith(docsPath)
   const state = onDocs ? (location.state ?? {}) : {}
-  const activeDocId = state.docId
+  const activeDocId = onDocs ? state.docId : null
+  const closeViewer = () => navigate(`/projects/${project.id}/workspace`, { state: { keepDrawer: 'docs' } })
   const [query, setQuery] = useState('')
   const tree = buildDocTree(referenceDocs)
   const searchableDocs = language === 'ko' ? referenceDocs.map((doc) => ({
@@ -169,6 +178,12 @@ function DocsDrawer({ project }) {
         to={docsPath}
         replace={false}
         aria-current={onDocs && !activeDocId && state.tab !== 'dsUpdates' ? 'page' : undefined}
+        onClick={(event) => {
+          if (onDocs && !activeDocId && state.tab !== 'dsUpdates') {
+            event.preventDefault()
+            closeViewer()
+          }
+        }}
         className={cn(rowClass, onDocs && !activeDocId && state.tab !== 'dsUpdates' && activeClass)}
       >
         <Library className="size-3.5 shrink-0" />
@@ -180,6 +195,12 @@ function DocsDrawer({ project }) {
         state={{ tab: 'dsUpdates' }}
         replace={false}
         aria-current={state.tab === 'dsUpdates' ? 'page' : undefined}
+        onClick={(event) => {
+          if (onDocs && state.tab === 'dsUpdates') {
+            event.preventDefault()
+            closeViewer()
+          }
+        }}
         className={cn(rowClass, 'mb-2', state.tab === 'dsUpdates' && activeClass)}
       >
         <BookOpen className="size-3.5 shrink-0" />
@@ -191,7 +212,7 @@ function DocsDrawer({ project }) {
 
       {query.trim() && <p role="status" className="px-2 py-1 text-[11px] text-muted-foreground">{matches.length ? `${matches.length} docs found` : 'No matching docs'}</p>}
       {visibleTree.map((node) => (
-        <Category key={node.id} node={node} depth={0} open={visibleOpen} onToggle={toggle} docsPath={docsPath} activeDocId={activeDocId} />
+        <Category key={node.id} node={node} depth={0} open={visibleOpen} onToggle={toggle} docsPath={docsPath} activeDocId={activeDocId} onToggleViewer={closeViewer} />
       ))}
     </nav>
   )

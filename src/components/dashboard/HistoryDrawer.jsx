@@ -38,7 +38,14 @@ function HistoryDrawer({ project }) {
   const active = [...matches].filter((e) => !e.archived).reverse()
   const archived = [...matches].filter((e) => e.archived).reverse()
 
-  const open = (id) => (onHistoryPage ? select(id) : navigate(`${historyPath}?v=${id}`))
+  const open = (id) => {
+    if (onHistoryPage && id === selectedId) {
+      navigate(`/projects/${project.id}/workspace`, { state: { keepDrawer: 'history' } })
+      return
+    }
+    if (onHistoryPage) select(id)
+    else navigate(`${historyPath}?v=${id}`)
+  }
 
   // Keep the selected row in view as the slider / playback moves it.
   const refs = useRef(new Map())

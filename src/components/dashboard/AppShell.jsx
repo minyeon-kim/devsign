@@ -22,13 +22,13 @@ function AppShell({ topBar, project, children }) {
   // null | 'docs' | 'history' | 'import'
   const [drawer, setDrawer] = useState(null)
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, state } = useLocation()
   const onHistoryPage = !!project && pathname.replace(/\/$/, '') === `/projects/${project.id}/history`
   const [wasOnHistory, setWasOnHistory] = useState(false)
   if (onHistoryPage !== wasOnHistory) {
     setWasOnHistory(onHistoryPage)
     if (onHistoryPage) setDrawer('history')
-    else if (drawer === 'history') setDrawer(null)
+    else if (drawer === 'history' && state?.keepDrawer !== 'history') setDrawer(null)
   }
 
   const leavingHistory = (panel) => onHistoryPage && panel === 'history' && drawer === 'history'
