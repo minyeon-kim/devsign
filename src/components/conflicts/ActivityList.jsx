@@ -30,7 +30,7 @@ function eventToActivity(event) {
 // owe — are set apart (accent, "Needs your review", a Review action) from
 // plain "this happened" entries, and stop standing out once you've
 // reviewed, since both read the same conflict store.
-function ActivityList({ projectId, limit = 6, onOpenConflict }) {
+function ActivityList({ projectId, limit = 6, onOpenConflict, inset = false }) {
   const { conflicts, events } = useConflictStore()
   const items = [...events.map(eventToActivity), ...activities]
     .filter((a) => !projectId || a.projectId === projectId)
@@ -39,7 +39,7 @@ function ActivityList({ projectId, limit = 6, onOpenConflict }) {
   if (items.length === 0) return <p className="py-4 text-center text-xs text-slate-500">Nothing yet.</p>
 
   return (
-    <ul className="-mx-2 flex flex-col gap-0.5">
+    <ul className={cn('flex flex-col gap-0.5', !inset && '-mx-2')}>
       {items.map((a) => {
         const conflict = a.conflictId && conflicts.find((c) => c.id === a.conflictId)
         const actionNeeded = conflict && needsReviewFrom(conflict)

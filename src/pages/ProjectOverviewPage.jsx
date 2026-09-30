@@ -1,8 +1,8 @@
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, Palette, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, Palette } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
+import { ACCENT_CTA } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { conflictCounts, isOpen, needsReviewFrom } from '@/lib/conflicts'
 import { historyMeta } from '@/lib/historyMeta'
@@ -14,8 +14,8 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function Section({ title, action, children }) {
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-[13px] font-semibold text-white">{title}</h2>
         {action}
       </div>
@@ -41,7 +41,7 @@ function Stat({ label, value, hint, title, tone, onClick }) {
       type="button"
       onClick={onClick}
       title={title}
-      className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
+      className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
     >
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn('mt-1.5 text-[22px] font-semibold tabular-nums', tone ?? 'text-white')}>{value}</p>
@@ -124,15 +124,6 @@ function ProjectOverviewPage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              aria-description="Compare design and code in Merge Studio"
-              onClick={() => navigate(workspacePath, { state: { openMergeStudio: true } })}
-              className={cn('inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
-            >
-              <Sparkles className="size-4 text-emerald-300" />
-              Merge Studio
-            </button>
             <Link to={workspacePath} aria-description="Open the code and design workspace" className={cn('inline-flex h-10 items-center gap-2 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA)}>
               Open Workspace
               <ArrowRight className="size-4" />
@@ -184,7 +175,7 @@ function ProjectOverviewPage() {
               {openConflicts.length === 0 ? (
                 <p className="py-4 text-center text-xs text-slate-500">No open Conflict Points.</p>
               ) : (
-                <div className="-mx-2 flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5">
                   {openConflicts.map((c) => (
                     <ConflictRow key={c.id} conflict={c} onOpen={openConflict} />
                   ))}
@@ -193,7 +184,7 @@ function ProjectOverviewPage() {
             </Section>
 
             <Section title="Recent activity" action={<SectionLink to="/activity">All activity</SectionLink>}>
-              <ActivityList projectId={project.id} onOpenConflict={openConflict} />
+              <ActivityList projectId={project.id} onOpenConflict={openConflict} inset />
             </Section>
           </div>
 
@@ -228,7 +219,7 @@ function ProjectOverviewPage() {
                 </SectionLink>
               }
             >
-              <div className="-mx-2 flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5">
                 {referenceDocs.slice(0, 4).map((doc) => (
                   <Link
                     key={doc.id}
@@ -252,7 +243,7 @@ function ProjectOverviewPage() {
                 </SectionLink>
               }
             >
-              <div className="-mx-2 flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5">
                 {recentHistory.map((entry) => (
                   <Link
                     key={entry.id}
