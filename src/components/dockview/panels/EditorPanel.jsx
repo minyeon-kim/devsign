@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { MessageSquarePlus, Save, Send, X } from 'lucide-react'
+import { MessageSquarePlus, Save, Send, Sparkles, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -149,6 +149,7 @@ function EditorPanel() {
     addComment,
     getViewersForFile,
     codeFlash,
+    aiGenerating,
     draftChanges,
     editorDirtyFiles,
     setEditorDirtyFiles,
@@ -161,6 +162,7 @@ function EditorPanel() {
   const [openLine, setOpenLine] = useState(null)
   const [lineDraft, setLineDraft] = useState('')
   const [flashLine, setFlashLine] = useState(null)
+  const [generatingLine, setGeneratingLine] = useState(null)
   // A prototype file's content when editing started, so Cancel can undo
   // the live sync to the canvas.
   const editStartLines = useRef(null)
@@ -233,6 +235,21 @@ function EditorPanel() {
       window.clearTimeout(timer)
     }
   }, [codeFlash, activeFile.id])
+
+  // An AI edit is being "written" to this line — shimmer it and scroll it
+  // into view before the change lands (see WorkspaceProvider's
+  // `aiGenerating`); `codeFlash` above takes over once it actually does.
+  useEffect(() => {
+    if (!aiGenerating || aiGenerating.fileId !== activeFile.id || !aiGenerating.line) {
+      setGeneratingLine(null)
+      return
+    }
+    setGeneratingLine(aiGenerating.line)
+    const frame = requestAnimationFrame(() => {
+      codeAreaRef.current?.querySelector(`[data-line="${aiGenerating.line}"]`)?.scrollIntoView({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [aiGenerating, activeFile.id])
 
   function startEditing() {
     editStartLines.current = activeLines
@@ -389,8 +406,9 @@ function EditorPanel() {
                       key={i}
                       data-line={lineNumber}
                       className={cn(
-                        'relative transition-colors duration-700',
-                        flashLine === lineNumber && 'bg-emerald-400/15'
+                        'relative overflow-hidden transition-colors duration-700',
+                        flashLine === lineNumber && 'bg-emerald-400/15',
+                        generatingLine === lineNumber && 'ai-gen-line'
                       )}
                     >
                       <RemoteCaretsOnLine
@@ -408,6 +426,12 @@ function EditorPanel() {
                         isPinOpen={openLine === lineNumber}
                         onTogglePin={toggleLinePin}
                       />
+                      {generatingLine === lineNumber && (
+                        <span className="ai-gen-badge pointer-events-none absolute top-0 right-2 z-10 flex items-center gap-1 rounded-full bg-[#0B0F0D] px-1.5 py-0.5 text-[9px] font-medium whitespace-nowrap text-emerald-300 ring-1 ring-emerald-400/30">
+                          <Sparkles className="size-2.5 animate-pulse" />
+                          AI
+                        </span>
+                      )}
                       {openLine === lineNumber && (
                         <LineCommentThread
                           lineComments={lineComments}

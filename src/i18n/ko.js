@@ -649,6 +649,7 @@ Required approvals · Local demo simulation|필수 승인 · 로컬 데모 시�
 Simulate approval|승인 시뮬레이션
 Merge approved changes|승인된 변경 병합
 Generating…|생성 중…
+AI generating…|AI 생성 중…
 Generate with AI|AI로 생성
 Commit & PR|커밋 및 PR
 Commit message|커밋 메시지
@@ -955,15 +956,15 @@ Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습�
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
 Where should I start?|어떤 것부터 확인할까요?
 Where should I start the designer UT?|주문 버튼 디자인은 어떤 것부터 확인하면 되나요?
-Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.|먼저 충돌 지점에서 Place order 버튼을 선택해보세요. 차이 보기에서 현재 높이 40px와 디자인의 44px를 비교할 수 있어요. 머지 스튜디오의 ‘비교’에서 디자인 값을 선택하고, 스타일을 더 다듬고 싶으면 ‘조합’을 열어보세요. 수정이 끝나면 ‘변경 사항 병합’에서 결과를 확인하고 검토를 요청하세요.
+Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 머지 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 Match Place order to design|주문 버튼을 디자인에 맞추기
 Make the Place order button match the checkout design|Place order 버튼의 높이와 색상을 디자인에 맞춰주세요
 What happens after my edit?|수정한 다음에는 뭘 해야 하나요?
 What happens after my design edit?|버튼을 수정했어요. 다음에는 뭘 해야 하나요?
-Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.|‘변경 사항 병합’에서 버튼 모양과 코드가 의도대로 바뀌었는지 확인해보세요. AI가 수정한 내용은 자동으로 병합되지 않아요. 검토를 요청하고 필요한 승인을 받은 뒤 병합하면 돼요. 저장된 버전은 ‘기록’에서 확인하거나 이전 상태로 되돌릴 수 있어요.
+AI edits create a draft checkpoint — review and approval are required before it merges.|AI 수정은 초안 체크포인트를 만들어요 — 병합 전에 검토와 승인이 필요해요.
 Guide me through code review|버튼 코드 검토 시작하기
 Guide me through the developer UT|공통 버튼의 높이를 수정하려고 해요. 어떤 것부터 확인하면 되나요?
-Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.|충돌 지점에서 Button / Height를 선택하고 코드 차이를 확인해보세요. 현재 코드는 h-9를 쓰지만, 디자인 시스템 기준은 40px 높이 토큰이에요. Button.jsx를 확인한 뒤 머지 스튜디오의 ‘비교’에서 토큰을 사용하는 코드로 맞춰보세요. ‘변경 사항 병합’에서 결과를 확인하고 검토자를 지정해 검토를 요청하세요. 필요한 승인을 받아 병합한 뒤에는 ‘기록’에서 변경 내용을 확인할 수 있어요.
+Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 머지 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
 Use the size token for Button|버튼 높이에 토큰 적용하기
 Use the size token for the Button height|Button의 높이에 디자인 시스템 토큰을 적용해주세요
 Why use a shared token?|높이를 토큰으로 관리하는 이유

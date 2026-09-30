@@ -297,7 +297,7 @@ const FILL_SWATCHES = ['#6366f1', '#8b5cf6', '#10b981', '#f43f5e', '#0f172a']
 // than wireframe bars. Text is edited in place by double-clicking it, and
 // every edit — plus fill/radius from the property bar — is synced to the
 // page's code file (see lib/prototypeSync).
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId }) {
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -329,6 +329,8 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
               onSelect={() => onSelect(layer.id)}
               onEditText={onEditText}
               aiChanged={aiPulseId === layer.id}
+              generating={genLayerId === layer.id}
+              genProgress={Math.round(genProgress)}
             />
           ))}
         </div>
@@ -446,6 +448,7 @@ function CanvasPanel() {
     prototypeEdits,
     editPrototypeLayer,
     aiEditPulse,
+    aiGenerating,
   } = useWorkspace()
   // The value a text slot had when in-place editing started, so Escape can
   // put it back after the live preview.
@@ -461,6 +464,24 @@ function CanvasPanel() {
     const timer = window.setTimeout(() => setAiPulseId(null), 2100)
     return () => window.clearTimeout(timer)
   }, [aiEditPulse])
+
+  // An AI edit is being "written" to this layer — glow it with a fake but
+  // convincing progress tick while it's worked on (see WorkspaceProvider's
+  // `aiGenerating`); the pulse above takes over once it actually lands.
+  const [genLayerId, setGenLayerId] = useState(null)
+  const [genProgress, setGenProgress] = useState(0)
+  useEffect(() => {
+    if (!aiGenerating?.layerId) {
+      setGenLayerId(null)
+      return
+    }
+    setGenLayerId(aiGenerating.layerId)
+    setGenProgress(10)
+    const interval = window.setInterval(() => {
+      setGenProgress((p) => Math.min(94, p + 6 + Math.random() * 10))
+    }, 140)
+    return () => window.clearInterval(interval)
+  }, [aiGenerating])
 
   function handleEditText(layerId, slot, value, { live } = {}) {
     const key = `${layerId}:${slot}`
@@ -636,6 +657,8 @@ function CanvasPanel() {
                 edits={prototypeEdits}
                 onEditText={commentMode ? undefined : handleEditText}
                 aiPulseId={aiPulseId}
+                genLayerId={genLayerId}
+                genProgress={genProgress}
               />
             ))}
 

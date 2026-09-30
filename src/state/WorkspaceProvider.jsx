@@ -124,6 +124,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // The canvas layer an AI chat edit just changed — CanvasPanel pulses it
   // for a couple of seconds: { layerId, nonce }.
   const [aiEditPulse, setAiEditPulse] = useState(null)
+  // Set while an AI edit is "being written" — before the change actually
+  // lands, so CanvasPanel/EditorPanel can show it being worked on (a
+  // generating glow) instead of the result just appearing outright:
+  // { layerId, fileId, line, nonce }.
+  const [aiGenerating, setAiGenerating] = useState(null)
   // Generated once per edit (not per call), so a prototype file's lines
   // keep a stable identity for consumers that react to them changing.
   const generatedPrototypeLines = useMemo(
@@ -980,17 +985,18 @@ export function WorkspaceProvider({ children, projectId }) {
       const fits = scenario && scenarioFitsTarget(scenario, target)
 
       window.setTimeout(() => {
-        setIsAiTyping(false)
-
         if (documentReply) {
+          setIsAiTyping(false)
           appendAssistant({ id: nextId('m'), role: 'assistant', text: documentReply, target })
           return
         }
         if (answer) {
-          appendAssistant({ id: nextId('m'), role: 'assistant', text: answer.reply })
+          setIsAiTyping(false)
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: answer.reply, summary: answer.summary })
           return
         }
         if (!scenario || !fits) {
+          setIsAiTyping(false)
           const where = target?.label ?? 'the current target'
           const reason = !scenario
             ? `I couldn’t turn that into a specific change in ${where}. Nothing was changed.`
@@ -1002,98 +1008,120 @@ export function WorkspaceProvider({ children, projectId }) {
         const live = aiStateRef.current
         const currentLines = live.fileOverrides[scenario.fileId] ?? files.find((f) => f.id === scenario.fileId)?.lines ?? []
         if (!Array.isArray(scenario.lines) || scenario.lines.some((line) => typeof line !== 'string')) {
+          setIsAiTyping(false)
           appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The demo could not apply this code. Try a supported request or edit the target in Assemble.', result: { status: 'failed', target } })
           return
         }
         if (signature(currentLines) === signature(scenario.lines) && Object.entries(scenario.previewProps ?? {}).every(([key, value]) => signature(live.previewProps[key]) === signature(value))) {
+          setIsAiTyping(false)
           appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The target already matches this result. No files or approvals were changed.', result: { status: 'no_change', target } })
           return
         }
-        const { fileOverrides, previewProps, conflicts } = live
-        const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
-        const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
-        // A fix for a conflict point doesn't close it: the conflict goes
-        // (back) into review, and only its reviewers' sign-off merges it.
-        const reopened = scenario.resolvesConflictId
-          ? conflicts.find((c) => c.id === scenario.resolvesConflictId)
-          : null
-        const nextConflicts = reopened
-          ? conflicts.map((c) =>
-              c.id === reopened.id
-                ? {
-                    ...c,
-                    reviewStage: c.reviewers.length ? 'in_review' : 'detected',
-                    reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
-                    // The change under review is now the AI's.
-                    changedBy: { type: 'ai', what: `${scenario.title} (requested by ${currentUser.name} in AI chat)` },
-                  }
-                : c
-            )
-          : conflicts
 
-        setDraftChanges((prev) => ({ ...prev, [scenario.fileId]: { conflictId: reopened?.id, title: scenario.title } }))
-        if (reopened?.mergeItemId) updateMergeItem(reopened.mergeItemId, { tag: 'In Review', updatedLabel: 'Just now' })
-        // Include the just-applied result even if a second request finishes before React renders.
-        aiStateRef.current = { fileOverrides: nextFileOverrides, previewProps: nextPreviewProps, conflicts: nextConflicts }
-        setFileOverrides(nextFileOverrides)
-        setActiveFileIdState(scenario.fileId)
-        setPreviewProps(nextPreviewProps)
-        setPreviewVersion((v) => v + 1)
-        setConflicts(nextConflicts)
-        appendTerminalLines(scenario.terminalLines)
-
-        // Point the change at itself, on the canvas and in the editor, the
-        // moment it lands — instead of the edit only being visible back
-        // inside the chat transcript until "View changes" is clicked.
+        // A real change is about to land. Jump to it and show it being
+        // worked on — canvas glow + editor shimmer (see `aiGenerating`,
+        // consumed by CanvasPanel/EditorPanel) — instead of the typing
+        // bubble just silently swapping for the finished result. The chat
+        // reply, the checkpoint and the actual file/preview/conflict
+        // writes all wait for this pass to finish, same as a real patch
+        // landing only once it's done streaming.
         const changedLayerId = scenario.target?.layerId
         const layerHit = changedLayerId && findCanvasTarget(changedLayerId)
+        const firstChange = scenario.changes?.[0]
         if (layerHit) {
           setActivePageId(layerHit.page.id)
           setSelectedLayerId(changedLayerId)
-          setAiEditPulse({ layerId: changedLayerId, nonce: nextId('pulse') })
         }
-        const firstChange = scenario.changes?.[0]
-        if (firstChange?.line) setCodeFlash({ fileId: firstChange.fileId ?? scenario.fileId, line: firstChange.line, nonce: nextId('flash') })
-
-        const changes = (scenario.changes ?? [{ fileId: scenario.fileId, summary: scenario.title }]).map((c) => ({
-          ...c,
-          fileName: getFileNameRef.current(c.fileId),
-        }))
-        const result = {
-          status: scenario.partialNote ? 'partial' : 'done',
-          title: scenario.title,
-          target,
-          changes,
-          fileCount: new Set(changes.map((c) => c.fileId)).size,
-          elementCount: scenario.elements?.length ?? 0,
-          reviewItems: reopened ? [{ conflictId: reopened.id, title: reopened.title }] : [],
-          note: scenario.partialNote ?? null,
-        }
-
-        // The edit is a checkpoint; the reply carries its id so the chat can
-        // offer "Rollback here" right under it. The checkpoint's agent
-        // memory includes this reply (+1 on the conversation so far).
-        const historyId = recordHistory({
-          label: scenario.title,
-          kind: 'ai-edit',
-          actorId: currentUser.id,
-          actorLabel: 'Devsign AI',
-          target: target?.label ?? changes.map((c) => c.fileName).join(', '),
-          prompt: trimmed,
-          timestamp: timeLabel(),
-          snapshot: {
-            activeFileId: scenario.fileId,
-            fileId: scenario.fileId,
-            lines: scenario.lines,
-            activePageId,
-            prototypeEdits,
-            previewProps: nextPreviewProps,
-            conflicts: nextConflicts,
-            selectedLayerId,
-            chatLength: chatLengthRef.current + 1,
-          },
+        setAiGenerating({
+          layerId: layerHit ? changedLayerId : null,
+          fileId: firstChange?.fileId ?? scenario.fileId,
+          line: firstChange?.line ?? null,
+          nonce: nextId('gen'),
         })
-        appendAssistant({ id: nextId('m'), role: 'assistant', text: scenario.reply, historyId, result })
+
+        window.setTimeout(() => {
+          setIsAiTyping(false)
+          setAiGenerating(null)
+
+          const { fileOverrides, previewProps, conflicts } = live
+          const nextFileOverrides = { ...fileOverrides, [scenario.fileId]: scenario.lines }
+          const nextPreviewProps = { ...previewProps, ...(scenario.previewProps ?? {}) }
+          // A fix for a conflict point doesn't close it: the conflict goes
+          // (back) into review, and only its reviewers' sign-off merges it.
+          const reopened = scenario.resolvesConflictId
+            ? conflicts.find((c) => c.id === scenario.resolvesConflictId)
+            : null
+          const nextConflicts = reopened
+            ? conflicts.map((c) =>
+                c.id === reopened.id
+                  ? {
+                      ...c,
+                      reviewStage: c.reviewers.length ? 'in_review' : 'detected',
+                      reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+                      // The change under review is now the AI's.
+                      changedBy: { type: 'ai', what: `${scenario.title} (requested by ${currentUser.name} in AI chat)` },
+                    }
+                  : c
+              )
+            : conflicts
+
+          setDraftChanges((prev) => ({ ...prev, [scenario.fileId]: { conflictId: reopened?.id, title: scenario.title } }))
+          if (reopened?.mergeItemId) updateMergeItem(reopened.mergeItemId, { tag: 'In Review', updatedLabel: 'Just now' })
+          // Include the just-applied result even if a second request finishes before React renders.
+          aiStateRef.current = { fileOverrides: nextFileOverrides, previewProps: nextPreviewProps, conflicts: nextConflicts }
+          setFileOverrides(nextFileOverrides)
+          setActiveFileIdState(scenario.fileId)
+          setPreviewProps(nextPreviewProps)
+          setPreviewVersion((v) => v + 1)
+          setConflicts(nextConflicts)
+          appendTerminalLines(scenario.terminalLines)
+
+          // The glow settles into the real, finished result: the same
+          // canvas pulse + code flash as before, now timed to the reveal
+          // rather than firing the instant the message was sent.
+          if (layerHit) setAiEditPulse({ layerId: changedLayerId, nonce: nextId('pulse') })
+          if (firstChange?.line) setCodeFlash({ fileId: firstChange.fileId ?? scenario.fileId, line: firstChange.line, nonce: nextId('flash') })
+
+          const changes = (scenario.changes ?? [{ fileId: scenario.fileId, summary: scenario.title }]).map((c) => ({
+            ...c,
+            fileName: getFileNameRef.current(c.fileId),
+          }))
+          const result = {
+            status: scenario.partialNote ? 'partial' : 'done',
+            title: scenario.title,
+            target,
+            changes,
+            fileCount: new Set(changes.map((c) => c.fileId)).size,
+            elementCount: scenario.elements?.length ?? 0,
+            reviewItems: reopened ? [{ conflictId: reopened.id, title: reopened.title }] : [],
+            note: scenario.partialNote ?? null,
+          }
+
+          // The edit is a checkpoint; the reply carries its id so the chat can
+          // offer "Rollback here" right under it. The checkpoint's agent
+          // memory includes this reply (+1 on the conversation so far).
+          const historyId = recordHistory({
+            label: scenario.title,
+            kind: 'ai-edit',
+            actorId: currentUser.id,
+            actorLabel: 'Devsign AI',
+            target: target?.label ?? changes.map((c) => c.fileName).join(', '),
+            prompt: trimmed,
+            timestamp: timeLabel(),
+            snapshot: {
+              activeFileId: scenario.fileId,
+              fileId: scenario.fileId,
+              lines: scenario.lines,
+              activePageId,
+              prototypeEdits,
+              previewProps: nextPreviewProps,
+              conflicts: nextConflicts,
+              selectedLayerId,
+              chatLength: chatLengthRef.current + 1,
+            },
+          })
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: scenario.reply, historyId, result })
+        }, 1100)
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1212,6 +1240,7 @@ export function WorkspaceProvider({ children, projectId }) {
     editPrototypeLayer,
     codeFlash,
     aiEditPulse,
+    aiGenerating,
     importedAssets,
     importFiles,
     importFigmaLink,

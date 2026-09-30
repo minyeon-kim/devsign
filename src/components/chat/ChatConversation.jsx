@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import ChatCheckpoint from '@/components/history/ChatCheckpoint'
+import ChatMarkdown from '@/components/chat/ChatMarkdown'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { aiModels, chatSuggestions, findCanvasTarget, forProject, projectChatGreetings } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -345,13 +346,20 @@ function ChatConversation() {
           <div key={message.id} className={cn('group/chat flex w-full flex-col gap-1.5', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
               className={cn(
-                'max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
+                'max-w-[88%] rounded-2xl px-4 py-3 text-[13px]',
                 message.role === 'user'
-                  ? 'ds-chat-user-bubble'
+                  ? 'ds-chat-user-bubble whitespace-pre-wrap leading-6'
                   : 'bg-slate-800/80 text-slate-200'
               )}
             >
-              {message.id === 'seed-1' ? projectChatGreetings[projectId] ?? message.text : message.text}
+              {message.role === 'user' ? (
+                message.text
+              ) : (
+                <ChatMarkdown
+                  text={message.id === 'seed-1' ? projectChatGreetings[projectId] ?? message.text : message.text}
+                  summary={message.summary}
+                />
+              )}
             </div>
             {message.role === 'user' ? message.target && (
               <div className="flex w-full items-center justify-end gap-1 px-1 text-[10px] text-slate-500">

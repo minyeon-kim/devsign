@@ -2475,13 +2475,58 @@ export const comments = [
 // selecting the right element gets "outside your target" and nothing
 // changes, even though the prompt's keywords matched a real scenario.
 export const chatSuggestions = [
-  { id: 'designer-start', projectId: 'checkout-redesign', label: 'Where should I start?', prompt: 'Where should I start the designer UT?', iconName: 'Sparkles', reply: 'Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.' },
+  {
+    id: 'designer-start',
+    projectId: 'checkout-redesign',
+    label: 'Where should I start?',
+    prompt: 'Where should I start the designer UT?',
+    iconName: 'Sparkles',
+    summary: 'Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.',
+    reply:
+      '**Follow these steps:**\n\n1. Open **Conflict Points** and select the `Place order button` issue.\n2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.\n3. Open **Merge Studio**, select `Place order`, and use **Compare** to choose the design value.\n4. Use **Assemble** for further styling.\n5. Open **Merge Changes** to inspect the result and request review.',
+  },
   { id: 'designer-fix', projectId: 'checkout-redesign', label: 'Match Place order to design', prompt: 'Make the Place order button match the checkout design', iconName: 'Sparkles', targetLayerId: 'place-order' },
-  { id: 'designer-review', projectId: 'checkout-redesign', label: 'What happens after my edit?', prompt: 'What happens after my design edit?', iconName: 'MessageCircle', reply: 'Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.' },
-  { id: 'developer-start', projectId: 'design-system-v2', label: 'Guide me through code review', prompt: 'Guide me through the developer UT', iconName: 'Sparkles', reply: 'Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.' },
+  {
+    id: 'designer-review',
+    projectId: 'checkout-redesign',
+    label: 'What happens after my edit?',
+    prompt: 'What happens after my design edit?',
+    iconName: 'MessageCircle',
+    summary: 'AI edits create a draft checkpoint — review and approval are required before it merges.',
+    reply:
+      '**What happens after an AI edit:**\n\n- It creates a **draft** and a **History checkpoint** — it does not merge automatically.\n- Inspect the visual comparison and code diff before approving.\n- **Request review** and collect the required approvals, then merge.\n- Use **History** to inspect or roll back the saved checkpoint anytime.',
+  },
+  {
+    id: 'developer-start',
+    projectId: 'design-system-v2',
+    label: 'Guide me through code review',
+    prompt: 'Guide me through the developer UT',
+    iconName: 'Sparkles',
+    summary: 'Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.',
+    reply:
+      '**Follow these steps:**\n\n1. Open the **Button / Height** conflict from the project overview.\n2. Inspect **Diff** — the implementation uses `h-9` while the design system requires the medium height token.\n3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.\n4. Review the resulting code in **Merge Changes**, assign reviewers, and request review.\n5. After approvals, merge and inspect **History**.',
+  },
   { id: 'developer-fix', projectId: 'design-system-v2', label: 'Use the size token for Button', prompt: 'Use the size token for the Button height', iconName: 'Sparkles', targetLayerId: 'button-md' },
-  { id: 'developer-impact', projectId: 'design-system-v2', label: 'Why use a shared token?', prompt: 'Why should the button use a shared token?', iconName: 'MessageCircle', reply: 'A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.' },
-  { id: 'developer-history', projectId: 'design-system-v2', label: 'How do I verify and roll back?', prompt: 'How do I verify and roll back the change?', iconName: 'MessageCircle', reply: 'Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.' },
+  {
+    id: 'developer-impact',
+    projectId: 'design-system-v2',
+    label: 'Why use a shared token?',
+    prompt: 'Why should the button use a shared token?',
+    iconName: 'MessageCircle',
+    summary: 'A shared Button token avoids fixing every screen separately — review affected screens before merging.',
+    reply:
+      '**Why use a shared token:**\n\n- A shared height token keeps every `Button` consumer aligned with the design system.\n- Replacing the hard-coded `h-9` avoids fixing each screen separately.\n- This is a **shared component** with wider impact than a single page edit — review the component diff and affected screens before merging.',
+  },
+  {
+    id: 'developer-history',
+    projectId: 'design-system-v2',
+    label: 'How do I verify and roll back?',
+    prompt: 'How do I verify and roll back the change?',
+    iconName: 'MessageCircle',
+    summary: 'Verify in Merge Changes, then use History → Rollback if something looks wrong.',
+    reply:
+      '**How to verify and roll back:**\n\n1. Check the final code and visual preview in **Merge Changes**.\n2. Note that **approval** and **merge** are separate steps.\n3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.\n4. Use **Rollback** to restore a previous checkpoint if the result is wrong.',
+  },
 ]
 
 // Selectable model options for the "Ask Devsign" input bar.

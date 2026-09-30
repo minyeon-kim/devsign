@@ -529,3 +529,39 @@ button.editor-line-comment {
 .ai-layer-badge {
   animation: ai-layer-badge-in 2000ms ease-in-out forwards;
 }
+
+/* Before that pulse: the element being "written" gets a soft pulsing
+   outline and a diagonal glow sweeping across it on a loop — Stitch/Bolt-
+   style "generating" — until `aiGenerating` clears and `ai-layer-pulse`
+   above takes over to reveal the finished result. */
+@keyframes ai-gen-outline-pulse {
+  0%, 100% { outline-color: rgb(52 211 153 / 0.35); }
+  50% { outline-color: rgb(52 211 153 / 0.9); }
+}
+.ai-gen-layer {
+  border-radius: 4px;
+  outline: 2px solid rgb(52 211 153 / 0.5);
+  outline-offset: 2px;
+  animation: ai-gen-outline-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ai-gen-sweep-move {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+.ai-gen-sweep {
+  background: linear-gradient(100deg, transparent 30%, rgb(52 211 153 / 0.4) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: ai-gen-sweep-move 1.1s linear infinite;
+}
+
+/* Same "being written" language, inline in the code editor: the target
+   line gets the same sweep, plus a small "AI" badge instead of the
+   canvas's percent readout (there's no room for one in a code row). */
+.ai-gen-line {
+  background: linear-gradient(100deg, transparent 30%, rgb(52 211 153 / 0.18) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: ai-gen-sweep-move 1.1s linear infinite;
+}
+.ai-gen-badge {
+  animation: ai-layer-badge-in 1.1s ease-in-out infinite;
+}

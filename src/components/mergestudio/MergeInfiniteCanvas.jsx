@@ -540,7 +540,7 @@ function TransactionsTable({ style, className }) {
 // titles/bodies) can be edited in place by double-clicking it. A non-static
 // override renders a small badge so the change reads as a live preview
 // rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged }) {
+export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged, generating, genProgress = 0 }) {
   const [editingSlot, setEditingSlot] = useState(null)
   const style = {
     left: layer.x + (override?.dx ?? 0),
@@ -865,12 +865,25 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
         // plus a small "AI" badge, so the change reads on the canvas
         // itself instead of only inside the chat transcript (see
         // WorkspaceProvider's `aiEditPulse`, set from sendChatMessage).
-        aiChanged && 'ai-layer-pulse'
+        aiChanged && 'ai-layer-pulse',
+        // Being written right now, before that change lands — a
+        // sweeping glow standing in for "generating" (see `aiGenerating`).
+        generating && 'ai-gen-layer'
       )}
       style={style}
       data-layer-id={layer.id}
     >
       {content}
+      {generating && (
+        <>
+          <div className="ai-gen-sweep pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-[inherit]" />
+          <span className="pointer-events-none absolute -top-6 left-0 z-20 flex items-center gap-1 rounded-full bg-[#0B0F0D] px-2 py-0.5 text-[9px] font-medium whitespace-nowrap text-emerald-300 shadow-lg ring-1 ring-emerald-400/30">
+            <Sparkles className="size-2.5 animate-pulse" />
+            <span>AI generating…</span>
+            <span className="tabular-nums">{genProgress}%</span>
+          </span>
+        </>
+      )}
       {aiChanged && (
         <span className="ai-layer-badge pointer-events-none absolute -right-1.5 -bottom-1.5 z-10 flex items-center gap-0.5 rounded-full bg-emerald-400 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30">
           <Sparkles className="size-2.5" />
