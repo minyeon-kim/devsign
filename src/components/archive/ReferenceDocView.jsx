@@ -1,4 +1,6 @@
 import { useRef } from 'react'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 import { AlertTriangle, FileText, Info } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -12,7 +14,8 @@ export const DOC_TYPES = {
 
 // Inline `code` spans inside otherwise plain text.
 function RichText({ text }) {
-  return text.split(/(`[^`]+`)/g).map((part, i) =>
+  const language = useLanguage()
+  return translateText(text, language).split(/(`[^`]+`)/g).map((part, i) =>
     part.startsWith('`') && part.endsWith('`') ? (
       <code key={i} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground">
         {part.slice(1, -1)}

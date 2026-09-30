@@ -1,3 +1,5 @@
+import { docsHistoryKo } from './docsHistoryKo'
+
 // UI copy only. Project names, source code and authored content are not catalog keys.
 // Exception: the three team members' names below (Jane/James/Min are
 // Korean-mode display names, not literal translations, and JA/JD/MI are
@@ -906,3 +908,5 @@ Object.assign(ko, {
   'Default workspace': '기본 워크스페이스', 'Balanced layout for everyday work': '일상 작업을 위한 균형 잡힌 배치',
   'Bring the terminal into focus': '터미널에 집중', 'Loading…': '불러오는 중…', 'Loading...': '불러오는 중...',
 })
+
+Object.assign(ko, docsHistoryKo)
