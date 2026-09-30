@@ -72,6 +72,7 @@
     --ds-surface-card: #121212;
     --ds-surface-raised: #1B1B1D;
     --ds-border-subtle: rgb(255 255 255 / 8%);
+    --ds-chrome-size: 48px;
     --ds-control-height: 32px;
     --ds-chat-submit-radius: 50%;
     --ds-primary: #5EEAB5;
@@ -421,3 +422,29 @@ button.conflict-checkbox {
   border-radius: 4px !important;
   padding: 0 !important;
 }
+
+/* Workspace and dashboard header surfaces. */
+.ds-header-pill,
+.workspace-canvas-toolbar > .group\/action-tooltip > button,
+.workspace-canvas-toolbar > button,
+input.ds-header-search {
+  background-color: #09090A;
+  transition: background-color 150ms ease;
+}
+.ds-header-pill:hover,
+.workspace-canvas-toolbar > .group\/action-tooltip > button:hover,
+.workspace-canvas-toolbar > button:hover,
+input.ds-header-search:hover,
+input.ds-header-search:focus-visible { background-color: #161618; }
+button.editor-line-comment {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  padding: 0;
+}
+/* Project badges retain the approved subtle tint and regular weight. */
+.ds-project-severity { font-weight: 400; }
+.ds-project-severity[data-level="high"] { background-color: oklch(0.7 0.20 18 / 0.36); }
+.ds-project-severity[data-level="medium"] { background-color: oklch(0.8 0.19 80 / 0.32); }
+.ds-project-severity[data-level="low"] { background-color: oklch(0.72 0.16 245 / 0.36); }

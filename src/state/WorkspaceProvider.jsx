@@ -248,6 +248,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Baseline moves only in the shared final merge operation, never on AI edits.
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
+  const [editorDirtyFiles, setEditorDirtyFiles] = useState({})
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
@@ -1172,6 +1173,8 @@ export function WorkspaceProvider({ children, projectId }) {
     mergeDrafts,
     saveMergeDraft,
     draftChanges,
+    editorDirtyFiles,
+    setEditorDirtyFiles,
     mergedBaseline,
     setSelectedMergeItemId,
     openMergeStudio,

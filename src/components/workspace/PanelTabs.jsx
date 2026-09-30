@@ -34,6 +34,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       return {
         key: fileId,
         label: name,
+        dirty: Boolean(workspace.draftChanges[fileId] || workspace.editorDirtyFiles[fileId]),
         icon: <Icon className={cn('size-3.5 shrink-0', colorClass)} />,
         active: panelActive && workspace.activeFileId === fileId,
         select: () => workspace.setActiveFileId(fileId),
@@ -117,6 +118,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       >
         {panel.component === 'navigator' ? <span className="shrink-0 @max-[260px]/nav:hidden">{item.icon}</span> : item.icon}
         <span className="max-w-[160px] truncate">{item.label}</span>
+        {item.dirty && <span className="size-1.5 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
       </button>
       {item.close && (
         <button

@@ -8,9 +8,9 @@ import { useEffect, useState } from 'react'
 // step re-mounts the caret with a short fade instead of gliding across the
 // panel, so it never pulls the eye.
 
-// Same editor gutter as CodeLine: px-4 (16) + comment pin (16) + gap (8) +
+// Same editor gutter as CodeLine: px-2 (8) + comment pin (16) + gap (8) +
 // line number (24) + gap (8).
-const GUTTER_PX = 72
+const GUTTER_PX = 64
 const STEP_MS = 9000
 
 function hash(text) {

@@ -83,7 +83,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
   return (
     <div
       className={cn(
-        'flex h-full w-12 shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
+        'flex h-full w-[var(--ds-chrome-size)] shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
         drawer ? 'bg-[#0B0B0E]' : 'bg-[#050506]'
       )}
     >
@@ -272,7 +272,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
             onResizeEnd={() => setResizing(false)}
             onStep={(d) => resize(width + d)}
           />
-          <div className="mb-1 flex h-14 shrink-0 items-center justify-between gap-1 pr-2 pl-2">
+          <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
             </p>

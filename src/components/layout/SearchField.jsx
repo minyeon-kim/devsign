@@ -16,7 +16,7 @@ function SearchField({ className, children, ...inputProps }) {
       <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <Input
         {...inputProps}
-        className="h-8 w-full rounded-full border-0! bg-muted/60 pr-3 pl-8 text-xs transition-colors hover:bg-muted dark:bg-muted/60 dark:hover:bg-muted dark:focus-visible:bg-muted"
+        className="ds-header-search h-8 w-full rounded-full border-0! bg-muted/60 pr-3 pl-8 text-xs transition-colors hover:bg-muted dark:bg-muted/60 dark:hover:bg-muted dark:focus-visible:bg-muted"
       />
       {children}
     </div>

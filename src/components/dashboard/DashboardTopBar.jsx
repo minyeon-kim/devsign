@@ -63,7 +63,7 @@ function DashboardTopBar() {
   return (
     // Equal 1fr columns either side of the search pin it to the bar's exact
     // center regardless of how wide the profile cluster on the right is.
-    <header className="z-20 grid h-14 shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
+    <header className="z-20 grid h-[var(--ds-chrome-size)] shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
       <div><SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /></div>
 
       <SearchField

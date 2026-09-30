@@ -286,7 +286,7 @@ function WorkspaceSplitLayout() {
 
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
-    <div className={cn('absolute inset-0 bg-background px-0 pt-[52px] pr-2', bottomPanel.open ? 'pb-2' : 'pb-0')}>
+    <div className={cn('absolute inset-0 bg-[#070708] px-0 pt-[var(--ds-chrome-size)] pr-2', bottomPanel.open ? 'pb-2' : 'pb-0')}>
       <div ref={rootRef} className="relative isolate flex size-full min-w-0">
         <div className="flex min-w-0 flex-1">
           {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}

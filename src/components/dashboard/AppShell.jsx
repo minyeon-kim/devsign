@@ -35,7 +35,7 @@ function AppShell({ topBar, project, children }) {
   const exitHistory = () => navigate(`/projects/${project.id}/workspace`)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen overflow-hidden bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
       <Sidebar
         project={project}
         drawer={drawer}

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { Check, Copy, MessageSquarePlus, Pencil, Save, Send, X } from 'lucide-react'
+import { MessageSquarePlus, Save, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -23,7 +23,7 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
     <div
       onClick={() => onSelect(lineNumber, line.length + 1)}
       className={cn(
-        'group flex cursor-text items-start gap-2 px-4 hover:bg-muted/40',
+        'group flex cursor-text items-start gap-2 px-2 hover:bg-muted/40',
         isActive && 'bg-muted/60'
       )}
     >
@@ -35,7 +35,7 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
           onTogglePin(lineNumber)
         }}
         className={cn(
-          'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full transition-opacity hover:text-foreground',
+          'editor-line-comment mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full transition-opacity hover:text-foreground',
           pinCount > 0 || isPinOpen
             ? 'text-emerald-300 opacity-100'
             : 'text-muted-foreground opacity-0 group-hover:opacity-100'
@@ -149,10 +149,12 @@ function EditorPanel() {
     addComment,
     getViewersForFile,
     codeFlash,
+    draftChanges,
+    editorDirtyFiles,
+    setEditorDirtyFiles,
   } = useWorkspace()
   const tabsInHeader = useContext(WindowTabsContext)
   const [cursor, setCursor] = useState({ line: 1, col: 1 })
-  const [copied, setCopied] = useState(false)
   const [viewport, setViewport] = useState({ top: 0, height: 1 })
   const [isEditing, setIsEditing] = useState(false)
   const [draftText, setDraftText] = useState('')
@@ -217,13 +219,6 @@ function EditorPanel() {
     setCursor({ line, col })
   }
 
-  function copyCode() {
-    const text = activeLines.join('\n')
-    navigator.clipboard?.writeText(text)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
-  }
-
   // A canvas edit or selection points here: scroll its line into view and
   // flash it (see WorkspaceProvider's codeFlash).
   useEffect(() => {
@@ -249,11 +244,13 @@ function EditorPanel() {
   // design, live); other files apply on save.
   function changeDraft(text) {
     setDraftText(text)
+    setEditorDirtyFiles((prev) => ({ ...prev, [activeFile.id]: text !== editStartLines.current?.join('\n') }))
     if (activeFile.prototype) updateFileContent(activeFile.id, text.split('\n'), { live: true })
   }
 
   function saveEditing() {
     updateFileContent(activeFile.id, draftText.split('\n'))
+    setEditorDirtyFiles((prev) => ({ ...prev, [activeFile.id]: false }))
     setIsEditing(false)
   }
 
@@ -261,8 +258,16 @@ function EditorPanel() {
     if (activeFile.prototype && editStartLines.current) {
       updateFileContent(activeFile.id, editStartLines.current, { live: true })
     }
+    setEditorDirtyFiles((prev) => ({ ...prev, [activeFile.id]: false }))
     setIsEditing(false)
   }
+
+  useEffect(() => () => {
+    setEditorDirtyFiles((prev) => {
+      if (!prev[activeFile.id]) return prev
+      return { ...prev, [activeFile.id]: false }
+    })
+  }, [activeFile.id, setEditorDirtyFiles])
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-card font-mono">
@@ -288,6 +293,7 @@ function EditorPanel() {
               <button type="button" onClick={() => setActiveFileId(fileId)} className="flex h-full items-center gap-1.5 pl-3 pr-1.5">
                 <Icon className={cn('size-3.5 shrink-0', colorClass)} />
                 {name}
+                {(draftChanges[fileId] || editorDirtyFiles[fileId]) && <span className="size-1.5 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
               </button>
               {openFileIds.length > 1 && (
                 <button
@@ -337,30 +343,7 @@ function EditorPanel() {
                     Done
                   </button>
                 </>
-              ) : (
-                <>
-                  <span className="flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-400" />
-                    Saved
-                  </span>
-                  <button
-                    type="button"
-                    onClick={startEditing}
-                    className="flex items-center gap-1 rounded hover:text-foreground"
-                  >
-                    <Pencil className="size-3" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={copyCode}
-                    className="flex items-center gap-1 rounded hover:text-foreground"
-                  >
-                    {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </>
-              )}
+              ) : null              }
             </div>
           </div>
 
@@ -374,10 +357,20 @@ function EditorPanel() {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveEditing()
               }}
               spellCheck={false}
-              className="min-h-0 flex-1 resize-none bg-card px-4 py-2 text-xs leading-relaxed text-foreground outline-none"
+              className="min-h-0 flex-1 resize-none bg-card px-2 py-2 text-xs leading-relaxed text-foreground outline-none"
             />
           ) : (
-            <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1">
+            <div ref={cursorAreaRef} className="force-cursor-none relative flex min-h-0 flex-1"
+              tabIndex={0}
+              aria-label="Code viewer. Double-click or press Enter to edit."
+              onDoubleClick={(event) => { if (!event.target.closest('button')) startEditing() }}
+              onKeyDown={(event) => {
+                if (event.target === event.currentTarget && event.key === 'Enter') {
+                  event.preventDefault()
+                  startEditing()
+                }
+              }}
+            >
               <div
                 ref={codeAreaRef}
                 onScroll={updateViewport}

@@ -5,7 +5,7 @@ import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 
 export function RiskBadge({ severity }) {
   if (!severity) return null
-  return <SeverityPill level={RISK_LABEL[severity]} />
+  return <SeverityPill level={RISK_LABEL[severity]} className="ds-project-severity" data-level={severity.toLowerCase()} />
 }
 
 // One Conflict Point as a list row (Dashboard queue, project overview):

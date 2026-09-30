@@ -13,7 +13,7 @@ import DashboardTopBar from '@/components/dashboard/DashboardTopBar'
 function DashboardLayout({ children, rightColumn }) {
   return (
     <AppShell topBar={<DashboardTopBar />}>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" style={{ backgroundColor: '#070708' }}>
         <div
           className={cn(
             'mx-auto grid max-w-[1680px] grid-cols-1 gap-8 px-6 py-8 sm:px-10 lg:px-14',

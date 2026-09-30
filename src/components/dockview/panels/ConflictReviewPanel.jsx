@@ -1140,7 +1140,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </button>
                 <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
                 <div className="flex shrink-0 items-center gap-2.5">
-                  {severity && <SeverityPill level={severity.label} />}
+                  {severity && <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />}
                   <StagePill stage={stage} />
                 </div>
               </div>

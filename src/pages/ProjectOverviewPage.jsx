@@ -99,7 +99,7 @@ function ProjectOverviewPage() {
   const stageCounts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
 
   return (
-    <div className="h-full overflow-y-auto bg-background text-foreground">
+    <div className="h-full overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
       <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
         {/* Header */}
         <header className="flex flex-wrap items-start gap-4">

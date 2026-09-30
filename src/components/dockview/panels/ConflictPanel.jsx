@@ -194,7 +194,7 @@ function ConflictPanel() {
                         onChange={() => toggle(conflict.id)}
                       />
                       </span>
-                      <SeverityPill level={severity.label} />
+                      <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />
                       </div>
                     </td>
                     <td className="min-w-0 px-1.5 py-2">
