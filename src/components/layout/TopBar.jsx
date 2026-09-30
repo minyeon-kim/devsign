@@ -1,3 +1,4 @@
+import '@/components/dockview/panels/CanvasToolbar.css'
 import { useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -29,7 +30,7 @@ function ProjectTitle({ project }) {
   return (
     <div
       className={cn(
-        'absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
+        'workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-2 rounded-full px-4 text-[13px]',
         FLOATING_PILL,
         'border-0'
       )}
@@ -37,7 +38,7 @@ function ProjectTitle({ project }) {
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}
-        className="min-w-0 truncate rounded-md px-1 py-1 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+        className="min-w-0 truncate rounded-full px-1 py-1 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
       >
         {project?.name}
       </Link>
@@ -45,7 +46,7 @@ function ProjectTitle({ project }) {
       <Link
         to={`/projects/${project?.id}/workspace`}
         title="Open workspace"
-        className="shrink-0 rounded-md px-1 py-1 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+        className="shrink-0 rounded-full px-1 py-1 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
       >
         Workspace
       </Link>
@@ -133,7 +134,7 @@ function TopBar({ project, onOpenPalette }) {
           (Files & Layers, views, layout, Inspect) live in the command
           palette (⌘K, the search field) and each window's `+` — the only
           place Preview opens from. */}
-      <div className="absolute top-2 right-4 z-40 flex items-center gap-2">
+      <div className="workspace-canvas-toolbar absolute top-2 right-4 z-40 flex items-center gap-2">
         <div className={cn('flex h-8 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0')}>
           <span className={PRESENCE_STACK}>
             <UserPresence />

@@ -1,3 +1,4 @@
+import './ConflictPanel.css'
 import { Fragment, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, X } from 'lucide-react'
@@ -99,7 +100,7 @@ function ConflictPanel() {
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-2 pb-2" role="group" aria-label="Filter conflicts">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-0 pb-2" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -123,38 +124,31 @@ function ConflictPanel() {
         </div>
       ) : (
         <div className="scroll-fade-bottom relative min-h-0 min-w-0 flex-1 overflow-auto">
-          <table className="w-full min-w-[860px] table-fixed border-collapse text-xs">
-            {/* Shared widths keep the header, rows and expanded diff aligned.
-                Only Issue grows; narrow panels scroll within the list. */}
-            <colgroup>
-              <col className="w-12" />
-              <col className="w-28" />
-              <col />
-              <col className="w-44" />
-              <col className="w-28" />
-              <col className="w-[108px]" />
-            </colgroup>
+          <table className="conflict-list-table text-xs">
+            {/* Headers, rows and expanded diffs share the same grid tracks. */}
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b text-left text-[11px] text-muted-foreground">
-                <th className="py-1.5 pr-1.5 pl-4">
+                <th className="py-1.5 text-left font-medium">
+                  <div className="flex items-center gap-4">
                   <Checkbox
                     checked={allSelected}
                     disabled={batchable.length === 0}
                     label={allSelected ? 'Clear selection' : 'Select all low-risk conflicts'}
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
+                    <span className="w-[58px] shrink-0 text-center">Severity</span>
+                  </div>
                 </th>
-                <th className="px-2 py-1.5 font-medium whitespace-nowrap">Severity</th>
-                <th className="px-2 py-1.5 font-medium">Issue</th>
-                <th className="px-2 py-1.5 font-medium whitespace-nowrap">Status</th>
-                <th className="py-1.5 pr-2 pl-1 text-right font-medium whitespace-nowrap">Reviewers</th>
-                <th className="py-1.5 pr-4 pl-2" />
+                <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Description</th>
+                <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
+                <th className="py-1.5 pr-3 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -171,13 +165,24 @@ function ConflictPanel() {
                   <Fragment key={conflict.id}>
                   <tr
                     onClick={() => openConflictReview(conflict.id)}
+                    tabIndex={0}
+                    aria-label={`Review ${conflict.title}`}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openConflictReview(conflict.id)
+                      }
+                    }}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
-                      'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 last:border-0 hover:bg-muted/40 aria-selected:bg-muted/60',
+                      'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60',
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="py-2 pr-1.5 pl-4" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-2">
+                      <div className="flex items-center gap-4">
+                      <span onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={!canBatchApprove(conflict)}
@@ -188,13 +193,26 @@ function ConflictPanel() {
                         }
                         onChange={() => toggle(conflict.id)}
                       />
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap">
+                      </span>
                       <SeverityPill level={severity.label} />
+                      </div>
                     </td>
-                    <td className="min-w-0 px-2 py-2">
-                      <div className="min-w-0 space-y-0.5">
-                        <p className="line-clamp-2 text-[11.5px] leading-4 font-medium break-words text-white">{conflict.title}</p>
+                    <td className="min-w-0 px-1.5 py-2">
+                      <div className="min-w-0 space-y-px">
+                        <p className="line-clamp-1 text-[11.5px] leading-4 font-medium break-words text-white" title={conflict.title}>{conflict.title}</p>
+                        <p className="flex min-w-0 items-start gap-1 text-[10px] leading-3 text-slate-400">
+                          <FileCode2 className="mt-0.5 size-2.5 shrink-0" />
+                          <span className="line-clamp-1 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
+                        </p>
+                      </div>
+                    </td>
+                    <td className="min-w-0 px-1.5 py-2">
+                      <div className="min-w-0 space-y-1">
+                        {conflict.message && (
+                          <p className="line-clamp-2 text-[11px] leading-4 text-slate-400" title={conflict.message}>
+                            {conflict.message}
+                          </p>
+                        )}
                         {expandable && (
                           <button
                             type="button"
@@ -207,19 +225,11 @@ function ConflictPanel() {
                             {expanded ? 'Hide quick diff' : 'Quick diff'}
                           </button>
                         )}
-                        <p className="flex min-w-0 items-start gap-1 text-[10px] leading-3.5 text-slate-400">
-                          <FileCode2 className="mt-0.5 size-2.5 shrink-0" />
-                          <span className="line-clamp-2 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
-                        </p>
-                        {conflict.message && (
-                          <p className="line-clamp-2 text-[10px] leading-3.5 break-words text-slate-400" title={conflict.message}>
-                            {conflict.message}
-                          </p>
-                        )}
+                        {!conflict.message && !expandable && <span className="text-slate-500">—</span>}
                       </div>
                     </td>
-                    {/* Status wraps within its own column, without pushing the CTA. */}
-                    <td className="px-2 py-2 whitespace-nowrap">
+                    {/* Status wraps within its own column. */}
+                    <td className="px-1.5 py-2">
                       <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
                         <span className={cn('size-1.5 shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                         {STAGE_LABEL[conflict.reviewStage]}
@@ -230,9 +240,9 @@ function ConflictPanel() {
                         )}
                       </span>
                     </td>
-                    <td className="py-2 pr-2 pl-1 text-right">
+                    <td className="py-2 pr-3 pl-1 text-left">
                       {reviewers.length ? (
-                        <div className="flex flex-wrap justify-end gap-y-1 -space-x-1.5">
+                        <div className="flex flex-wrap justify-start gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
                             <Avatar key={person.id} size="sm" className="size-5 ring-2 ring-card" title={person.name}>
                               <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
@@ -245,31 +255,16 @@ function ConflictPanel() {
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
                     </td>
-                    <td className="py-2 pr-4 pl-2 text-right">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openConflictReview(conflict.id)
-                        }}
-                        className={REVIEW_CTA}
-                      >
-                        Review
-                      </button>
-                    </td>
+
                   </tr>
                   {expanded && (
-                    // Lined up under the row's own columns: the diff spans
-                    // Issue → Reviewers; the checkbox, Severity and Review
-                    // columns stay clear (the row's Review button is right
-                    // above).
+                    // The diff spans Issue → Reviewers; selection and
+                    // severity columns stay aligned above.
                     <tr className="border-b border-border/60 bg-white/[0.015]">
                       <td />
-                      <td />
-                      <td colSpan={3} className="min-w-0 px-3 pt-2 pb-4">
+                      <td colSpan={4} className="conflict-list-diff min-w-0 px-3 pt-2 pb-4">
                         <MiniDiff conflict={conflict} />
                       </td>
-                      <td />
                     </tr>
                   )}
                   </Fragment>
@@ -279,7 +274,7 @@ function ConflictPanel() {
           </table>
 
           {selection.length > 0 && (
-            <div data-batch-actions className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-2 rounded-full bg-[#1c1c1f] py-1.5 pr-1.5 pl-4 text-xs shadow-[0_12px_32px_-8px_rgba(0,0,0,0.8)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div data-batch-actions className="sticky bottom-3 z-10 mx-auto flex w-fit items-center gap-2 rounded-full bg-[#1c1c1f] py-1.5 pr-1.5 pl-3 text-xs shadow-[0_12px_32px_-8px_rgba(0,0,0,0.8)] ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
               <span className="text-slate-300 tabular-nums">
                 <span className="font-semibold text-white">{selection.length}</span> low-risk selected
               </span>
@@ -306,11 +301,6 @@ function ConflictPanel() {
     </div>
   )
 }
-
-// The row action stays available without competing with the conflict title,
-// severity, and status hierarchy. Clicking the row still opens the review.
-const REVIEW_CTA =
-  'inline-flex h-7 w-[60px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[11px] font-medium whitespace-nowrap text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none'
 
 const DIFF_TONES = {
   same: 'text-slate-400',
@@ -352,13 +342,13 @@ function Checkbox({ checked, disabled, label, onChange }) {
       disabled={disabled}
       onClick={onChange}
       className={cn(
-        'flex size-4 items-center justify-center rounded-[5px] transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        'conflict-checkbox flex size-4 shrink-0 items-center justify-center rounded-[4px] p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         checked
-          ? 'bg-emerald-400 text-slate-950'
-          : 'bg-white/[0.06] ring-[1.5px] ring-slate-300/70 ring-inset hover:bg-white/[0.1] hover:ring-white'
+          ? 'text-emerald-300'
+          : 'text-slate-400'
       )}
     >
-      {checked && <Check className="size-3" strokeWidth={3} />}
+      {checked && <Check className="size-3" strokeWidth={2} />}
     </button>
   )
 }

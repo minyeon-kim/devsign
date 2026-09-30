@@ -1,0 +1,58 @@
+/* Shared tracks prevent header/body drift as the bottom panel resizes. */
+.conflict-list-table {
+  --conflict-columns: 90px minmax(180px, 0.85fr) minmax(220px, 1.85fr) 140px 120px;
+  display: block;
+  width: 100%;
+  min-width: 846px;
+  box-sizing: border-box;
+  padding-inline: 16px;
+  border-collapse: collapse;
+}
+.conflict-list-table thead,
+.conflict-list-table tbody {
+  display: block;
+  width: 100%;
+}
+.conflict-list-table tr {
+  display: grid;
+  grid-template-columns: var(--conflict-columns);
+  column-gap: 16px;
+  width: 100%;
+  align-items: center;
+}
+.conflict-list-table :is(th, td) {
+  display: block;
+  min-width: 0;
+  padding-inline: 0;
+}
+.conflict-list-table .conflict-list-empty {
+  grid-column: 1 / -1;
+}
+.conflict-list-table .conflict-list-diff {
+  grid-column: 2 / -1;
+}
+
+/* A single thin edge, without inset rings or filled selection surfaces. */
+button.conflict-checkbox {
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+button.conflict-checkbox[aria-checked="true"] {
+  border-color: #5EEAB5 !important;
+  color: #5EEAB5;
+}
+button.conflict-checkbox:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.65) !important;
+}
+button.conflict-checkbox:focus-visible {
+  outline: 1px solid #5EEAB5;
+  outline-offset: 2px;
+}
+
+.conflict-list-table th,
+.conflict-list-table td {
+  text-align: left;
+}
+

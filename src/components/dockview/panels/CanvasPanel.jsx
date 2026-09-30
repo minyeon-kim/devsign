@@ -155,7 +155,7 @@ function PageTabs({ activePageId, onSelectPage }) {
             type="button"
             onClick={() => onSelectPage(page.id)}
             className={cn(
-              'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition-colors',
+              'workspace-header-tab flex h-8 shrink-0 items-center gap-1.5 rounded-[16px] px-3 text-xs transition-colors',
               active
                 ? 'bg-muted text-foreground ring-1 ring-border'
                 : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'

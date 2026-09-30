@@ -86,6 +86,7 @@
     --ds-padding-row-compact: 12px;
     --ds-radius-md: 8px;
     --ds-radius-card: 12px;
+    --ds-radius-workspace-tab: 16px;
     --ds-radius-pill: 9999px;
     --background: oklch(1 0 0);
     /* The infinite canvas (Workspace + Merge Studio) — a soft gray so the
@@ -258,7 +259,7 @@
   --dv-tabs-and-actions-container-font-size: 12px;
   --dv-tabs-and-actions-container-height: 32px;
   --dv-border-radius: 0px;
-  --dv-tab-border-radius: 0px;
+  --dv-tab-border-radius: var(--ds-radius-workspace-tab);
   --dv-sash-border-radius: 0px;
   --dv-dropdown-border-radius: 0px;
   --dv-tab-margin: 0;
@@ -384,4 +385,39 @@
   height: var(--ds-control-height);
   margin-top: 0;
   margin-bottom: 8px;
+}
+
+/* Header tabs are compact rectangles; their close controls are an explicit
+   exception to the workspace's standard 32px action height. */
+.workspace-header-tab {
+  /* Compact header tabs use a subtle corner curve. */
+  border-radius: var(--ds-radius-workspace-tab);
+}
+button.workspace-tab-close {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  border-radius: 50% !important;
+  padding: 2px !important;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+button.workspace-tab-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Selection checkboxes are compact controls, exempt from 32px actions. */
+button.conflict-checkbox {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  border-radius: 4px !important;
+  padding: 0 !important;
 }

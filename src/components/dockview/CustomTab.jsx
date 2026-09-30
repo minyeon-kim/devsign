@@ -69,7 +69,7 @@ function CustomTab({ api, containerApi, params }) {
   }
 
   return (
-    <div className="flex h-full items-center gap-1.5 px-2.5 text-xs">
+    <div className="workspace-header-tab flex h-full items-center gap-1.5 rounded-[16px] px-2.5 text-xs">
       {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" />}
       <span className="truncate">{api.title}</span>
       <div className="ml-1 flex shrink-0 items-center gap-0.5">
@@ -89,7 +89,7 @@ function CustomTab({ api, containerApi, params }) {
         <button
           type="button"
           onClick={close}
-          className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+          className="workspace-tab-close flex size-4 shrink-0 items-center justify-center rounded-full p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
         >
           <X className="size-3" />
         </button>

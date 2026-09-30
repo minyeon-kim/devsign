@@ -12,3 +12,14 @@
     border-radius: 9999px !important;
   }
 }
+
+/* Floating workspace header actions also sit over the canvas. */
+@layer components {
+  .workspace-canvas-toolbar {
+    --ds-button-radius: 9999px;
+    border-radius: 9999px !important;
+  }
+  .workspace-canvas-toolbar :is(button, a) {
+    border-radius: 9999px !important;
+  }
+}

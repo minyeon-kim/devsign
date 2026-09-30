@@ -85,7 +85,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       data-tab-id={item.key}
       data-panel-id={pid}
       className={cn(
-        'group/tab flex h-8 items-center rounded-full text-xs transition-colors',
+        'workspace-header-tab group/tab flex h-8 items-center rounded-[16px] text-xs transition-colors',
         panel.component === 'navigator' ? 'min-w-0 flex-1' : 'shrink-0',
         item.active ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
       )}
@@ -125,7 +125,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
           title={item.closeLabel ?? 'Close'}
           onClick={item.close}
           className={cn(
-            'mr-1.5 flex size-8 items-center justify-center rounded-full text-slate-500 transition-opacity hover:bg-white/10 hover:text-white',
+            'workspace-tab-close mr-1 flex size-4 shrink-0 items-center justify-center rounded-full p-0.5 text-slate-500 transition-opacity hover:bg-white/10 hover:text-white',
             item.active ? 'opacity-100' : 'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100'
           )}
         >
