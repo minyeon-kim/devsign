@@ -50,7 +50,7 @@ function ProjectTitle({ project }) {
 }
 
 // The bell: opens the same Inbox panel Merge Studio uses (MergeInboxDrawer
-// — All / Unread / Approvals / Comments / Feedback), styled like Merge
+// — All / Unread / Approvals / Comments), styled like Merge
 // Studio's own bell, with the unread count badged on it.
 function InboxButton({ open, onToggle }) {
   const { notifications } = useWorkspace()

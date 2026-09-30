@@ -14,7 +14,6 @@ const tabs = [
   ['unread', 'Unread'],
   ['approval', 'Approvals'],
   ['comment', 'Comments'],
-  ['feedback', 'Feedback'],
 ]
 
 function Person({ id, className, size = 'sm' }) {
@@ -253,6 +252,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
   const visible = notifications.filter((n) => {
     if (tab === 'all') return true
     if (tab === 'unread') return unreadIds?.has(n.id)
+    if (tab === 'comment') return n.kind === 'comment' || n.kind === 'feedback'
     return n.kind === tab
   })
 
@@ -280,9 +280,10 @@ function MergeInboxDrawer({ onJump, onClose }) {
             type="button"
             role="tab"
             aria-selected={tab === id}
+            aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined}
             onClick={() => pick(id)}
             // Shared category-tab style (same as the Merge List's Files /
-            // Layers switch), with 8px sides so all five fit on one line.
+            // Layers switch), with 8px sides for a compact filter row.
             className={cn(CATEGORY_TAB, 'gap-1 px-2', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
           >
             {label}
