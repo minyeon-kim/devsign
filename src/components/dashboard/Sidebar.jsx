@@ -1,7 +1,7 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Settings, Users, PanelTop } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Users, PanelTop } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -161,7 +161,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       </nav>
 
       <div className="mt-auto flex flex-col gap-1">
-        <SettingsDialog trigger={<button type="button" aria-label="Settings" title="Settings" className={iconButtonClass}><Settings className="size-[18px]" /></button>} />
+        <SettingsDialog triggerClassName={iconButtonClass} />
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import DemoTools, { useDemoStorageWarnings } from '@/components/workspace/DemoTools'
 import { setLanguage, useLanguage } from '@/i18n/language'
-import { ChevronDown, Languages } from 'lucide-react'
+import { ChevronDown, Languages, Settings } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export function SettingsContent() {
@@ -29,10 +29,12 @@ export function SettingsContent() {
   </div>
 }
 
-export default function SettingsDialog({ trigger }) {
+export default function SettingsDialog({ triggerClassName }) {
   return (
     <Popover>
-      <PopoverTrigger render={trigger} />
+      <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName}>
+        <Settings className="size-[18px]" />
+      </PopoverTrigger>
       <PopoverContent side="right" align="end" sideOffset={12} className="w-72 max-h-[80vh] overflow-y-auto rounded-2xl border-white/10 bg-[#121212] p-3 shadow-xl">
         <PopoverTitle className="mb-1 text-xs font-medium text-muted-foreground">Settings</PopoverTitle>
         <SettingsContent />
