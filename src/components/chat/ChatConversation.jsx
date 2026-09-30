@@ -331,7 +331,7 @@ function ChatConversation() {
       <RollbackCheckpointModal key={rollbackId} entryId={rollbackId} onOpenChange={(open) => !open && setRollbackId(null)} />
 
       <div className="relative flex min-h-0 flex-1">
-        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto p-2">
+        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3">
         {chatMessages.map((message, index) => (
           <div key={message.id} className={cn('group/chat flex w-full flex-col gap-1.5', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
