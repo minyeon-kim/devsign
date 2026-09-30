@@ -73,6 +73,55 @@ Primary|기본색상
 Field gap|필드 간격
 Divider|구분선
 Tracking|자간
+Reviewing|검토 중
+Viewing|보는 중
+Commenting|댓글 작성 중
+Online|온라인
+Reviewing design tokens|디자인 토큰 검토 중
+Looking over the latest screens|최신 화면 확인 중
+Reviewing the Continue button spacing|Continue 버튼 여백 검토 중
+Tweaking the accent color token|강조 색상 토큰 조정 중
+Inspecting the hero card layout|히어로 카드 레이아웃 확인 중
+Checking the design tokens|디자인 토큰 확인 중
+Reading the card title copy|카드 제목 문구 검토 중
+Looking at the mobile frame|모바일 프레임 확인 중
+Editing Place order button in Checkout|결제 화면에서 Place order 버튼 편집 중
+Editing button sizes in tokens.json|tokens.json에서 버튼 크기 편집 중
+Reviewing Order summary in Checkout|결제 화면에서 Order summary 검토 중
+Reviewing color tokens in tokens.json|tokens.json에서 색상 토큰 검토 중
+Editing Order summary card in Checkout|결제 화면에서 Order summary 카드 편집 중
+Viewing the Checkout payment screen|결제 화면 보는 중
+Editing md size in Button.jsx|Button.jsx에서 md 크기 편집 중
+Checking --button-height-md in tokens.css|tokens.css에서 --button-height-md 확인 중
+Reviewing size tokens in tokens.css|tokens.css에서 size 토큰 검토 중
+Viewing compact Button|Small 버튼 보는 중
+Reviewing the Button height conflict|Button 높이 충돌 검토 중
+Commenting on --button-height-md in tokens.css|tokens.css의 --button-height-md에 댓글 작성 중
+Checkout Redesign|결제 화면 리디자인
+Design System v2|디자인 시스템 v2
+Marketing Site Refresh|마케팅 사이트 리뉴얼
+Mobile Nav Revamp|모바일 내비게이션 개편
+Onboarding Flow|온보딩 플로우
+size="lg" and the primary token replace the fixed violet hex|size="lg"와 primary 토큰이 고정된 violet hex를 대체합니다
+md size uses --button-height-md instead of h-9|md 크기가 h-9 대신 --button-height-md를 사용합니다
+Button padding set to 12px 24px (px-6 py-3)|Button 패딩을 12px 24px(px-6 py-3)로 설정
+Primary button background set to the sky accent|기본 버튼 배경을 sky 강조색으로 설정
+Inputs move from 10px to the 12px design system padding.|Input 패딩이 10px에서 디자인 시스템 기준인 12px로 바뀝니다.
+The lg radius step becomes 12px so cards and sheets share one curve.|lg 반경 단계가 12px가 되어 카드와 시트가 같은 곡률을 공유합니다.
+Form gaps move from 6px to 8px to stay on the 4/8 spacing scale.|폼 간격이 4/8 간격 스케일에 맞춰 6px에서 8px로 바뀝니다.
+--primary points at the brand token instead of a hard-coded hex.|--primary가 하드코딩된 hex 대신 브랜드 토큰을 가리킵니다.
+Design frame padding (12px 24px) does not match code button padding (8px 16px).|디자인 프레임 패딩(12px 24px)이 코드의 버튼 패딩(8px 16px)과 다릅니다.
+Ask Devsign to apply the padding fix — it will update the button className to px-6 py-3 to match the design frame.|Devsign에 패딩 수정을 요청하세요 — 버튼 className을 px-6 py-3으로 업데이트해 디자인 프레임과 맞춥니다.
+Switch user|사용자 전환
+Select an element on the canvas to see only the components that fit it.|캔버스에서 요소를 선택하면 해당 요소에 맞는 컴포넌트만 볼 수 있습니다.
+No checkpoints have been saved for this project yet.|이 프로젝트에는 아직 저장된 버전이 없습니다.
+No file snapshot is available for this checkpoint.|이 버전에는 파일 스냅샷이 없습니다.
+Select a checkpoint to inspect its file snapshot.|버전을 선택하면 파일 스냅샷을 확인할 수 있습니다.
+Edit or combine elements before merging.|병합하기 전에 요소를 편집하거나 조합하세요.
+Document not found|문서를 찾을 수 없습니다
+Select an element on the canvas to inspect its layout, style and CSS.|캔버스에서 요소를 선택하면 레이아웃, 스타일, CSS를 확인할 수 있습니다.
+No design spec for this element type yet.|이 요소 유형에 대한 디자인 명세가 아직 없습니다.
+Project home|프로젝트 홈
 Design Team|디자인 팀
 Engineering|엔지니어링
 Product|프로덕트
