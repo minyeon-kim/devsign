@@ -24,8 +24,6 @@ export const DOC_TREE = [
     children: [
       { id: 'inputs', label: 'Actions & inputs', docs: ['doc-button-spec', 'doc-input-spec'] },
       { id: 'containers', label: 'Containers & overlays', docs: ['doc-card-spec', 'doc-modal-spec'] },
-      // Written up from Design System Updates (see lib/designSystemUpdates).
-      { id: 'ds-updates', label: 'Design system updates', generated: true },
     ],
   },
   {
@@ -41,6 +39,7 @@ export const DOC_TREE = [
     id: 'process',
     label: 'Process',
     children: [
+      { id: 'document-updates', label: 'Document updates', generated: true },
       { id: 'team', label: 'Team', docs: ['doc-onboarding', 'doc-review', 'doc-handoff'] },
       { id: 'quality', label: 'Quality & release', docs: ['doc-a11y', 'doc-release', 'doc-naming'] },
     ],
@@ -66,7 +65,7 @@ export function buildDocTree(referenceDocs) {
   const extras = {}
   for (const doc of referenceDocs) {
     if (placed.has(doc.id)) continue
-    const target = doc.dsUpdateId ? 'ds-updates' : (FALLBACK[doc.type] ?? 'team')
+    const target = (doc.docUpdateId || doc.dsUpdateId) ? 'document-updates' : (FALLBACK[doc.type] ?? 'team')
     ;(extras[target] ??= []).push(doc)
   }
 

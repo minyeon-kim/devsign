@@ -757,6 +757,15 @@ Every required reviewer has to approve the latest changes first.|먼저 모든 �
 Resolve the conflicting blocks in Merge Studio’s Check step first.|먼저 머지 스튜디오의 확인 단계에서 충돌 블록을 해결하세요.
 Unresolved conflict markers remain in the code.|코드에 미해결 충돌 표시가 남아 있습니다.
 This change is already merged.|이미 병합된 변경입니다.
+
+Document updates|문서 업데이트
+Document update|문서 변경사항
+Approve update|변경사항 승인
+Record in history|기록에 저장
+Affected docs|관련 문서
+Waiting for earlier updates|이전 변경사항 처리 대기
+System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|Conflict·Merge에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 History에 기록합니다.
+No document updates yet. Resolving a Conflict Point or merging system changes adds an update automatically.|문서 업데이트가 없습니다. Conflict 해결 또는 시스템 변경사항 Merge 시 자동 등록됩니다.
 `.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
 
 Object.assign(ko, {

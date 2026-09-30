@@ -1,18 +1,15 @@
 import { allPeople } from '@/data/mockData'
+import { DOCUMENT_STAGES } from '@/lib/documentChanges'
 
-// The Design System Update → Documentation → History pipeline.
+// System changes → Document approval → History, across all references.
 //
-//   update      a token / component change exists (often born from a
+//   update      a system change exists (often born from a
 //               resolved Conflict Point) but isn't written up yet;
 //   documented  it has a generated Reference Doc in the Archive;
 //   archived    it's been recorded in the project's History as a version
 //               you can compare against and roll back to.
 
-export const DS_STAGES = [
-  { id: 'update', label: 'Design system update' },
-  { id: 'documented', label: 'Documentation' },
-  { id: 'archived', label: 'History' },
-]
+export const DS_STAGES = DOCUMENT_STAGES
 
 export function stageIndex(stage) {
   return Math.max(
@@ -25,7 +22,7 @@ export function docIdFor(update) {
   return `doc-${update.id}`
 }
 
-// The Reference Doc a design system update is documented as — the same
+// The Reference Doc an approved system update is documented as — the same
 // block format ReferenceDocView renders for the hand-written docs.
 export function docForUpdate(update) {
   const author = allPeople.find((p) => p.id === update.authorId)
@@ -35,22 +32,23 @@ export function docForUpdate(update) {
     summary: update.summary,
     authorId: update.authorId,
     updatedAtLabel: update.documentedAtLabel ?? update.createdAtLabel,
-    type: 'spec',
-    dsUpdateId: update.id,
+    type: 'doc',
+    docUpdateId: update.id,
+    affectedDocIds: update.affectedDocIds ?? [],
     blocks: [
       { type: 'p', text: update.summary },
       { type: 'h2', id: 'changes', text: 'What changed' },
       {
         type: 'table',
-        columns: ['Token / property', 'Before', 'After'],
+        columns: ['Section / property / file', 'Before', 'After'],
         rows: update.changes.map((c) => [`\`${c.label}\``, c.from, c.to]),
       },
       { type: 'h2', id: 'rollout', text: 'Rollout' },
       {
         type: 'ul',
         items: [
-          'Components that read the token pick the change up automatically — no per-screen edits.',
-          'Hard-coded values found in review are replaced with the token in the same change.',
+          'This document records the approved system changes and their before / after values.',
+          'Use the affected reference documents to review the impact across design, engineering and process.',
           `Questions go to ${author?.name ?? 'the author'} in the project thread.`,
         ],
       },
@@ -63,8 +61,7 @@ export function docForUpdate(update) {
   }
 }
 
-// A new update from a Conflict Point that was just resolved: its design
-// system values (the comparison's "expected" side) become the change.
+// Automatically propose a document update from a resolved Conflict Point.
 export function updateFromConflict(conflict, projectId) {
   return {
     id: `dsu-${conflict.id}`,
@@ -73,7 +70,11 @@ export function updateFromConflict(conflict, projectId) {
     conflictTitle: conflict.title,
     title: conflict.title,
     summary: conflict.suggestion ?? conflict.message ?? `Resolved ${conflict.title}.`,
-    authorId: 'jane',
+    source: 'conflict',
+    file: conflict.file,
+    docIds: conflict.docIds,
+    affectedDocIds: conflict.affectedDocIds,
+    authorId: conflict.mergedBy ?? 'jane',
     createdAtLabel: 'Just now',
     stage: 'update',
     changes: (conflict.comparisonFields ?? []).map((f) => ({ label: f.label, from: f.current, to: f.expected })),

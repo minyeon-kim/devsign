@@ -86,7 +86,7 @@ function CrumbSeparator() {
 }
 
 // Which view to show, from the link that opened it (`location.state`):
-// `{ docId }` a doc, `{ tab: 'dsUpdates' }` the Design System Updates
+// `{ docId }` a doc, `{ tab: 'dsUpdates' }` the Document updates
 // pipeline, nothing the categorized index.
 function resolveView(state, referenceDocs) {
   const doc = state?.docId && referenceDocs.find((d) => d.id === state.docId)
@@ -96,7 +96,7 @@ function resolveView(state, referenceDocs) {
 }
 
 // Docs — the project's Reference Docs (its own activity bar icon, with the
-// category tree in the drawer) and the Design System Updates pipeline that
+// category tree in the drawer) and the Document updates pipeline that
 // generates new ones. The header is the only place the path is shown:
 // Project / Docs / category / … / doc.
 function DocsPage() {
@@ -124,7 +124,7 @@ function DocsPage() {
           {view.kind === 'dsUpdates' && (
             <>
               <CrumbSeparator />
-              <Crumb current>Design System Updates</Crumb>
+              <Crumb current>Document updates</Crumb>
             </>
           )}
           {view.kind === 'doc' && (

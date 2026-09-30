@@ -1,12 +1,13 @@
-import { ArrowRight, BookOpen, Check, History, Palette } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { DS_STAGES, docIdFor, stageIndex } from '@/lib/designSystemUpdates'
+import { affectedDocuments, nextDocumentChange } from '@/lib/documentChanges'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const STAGE_ICONS = { update: Palette, documented: BookOpen, archived: History }
+const STAGE_ICONS = { update: FileText, documented: BookOpen, archived: History }
 
 // The pipeline itself, drawn once at the top of the view: what each stage
 // means, left to right.
@@ -60,7 +61,7 @@ function StageTrack({ stage }) {
   )
 }
 
-function UpdateCard({ update, onDocument, onArchive, onOpenDoc, onOpenHistory }) {
+function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpenDoc, onOpenHistory, onOpenReference }) {
   const author = allPeople.find((p) => p.id === update.authorId)
 
   return (
@@ -73,6 +74,10 @@ function UpdateCard({ update, onDocument, onArchive, onOpenDoc, onOpenHistory })
         <StageTrack stage={update.stage} />
       </div>
 
+      {affectedDocs.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+        <span>Affected docs</span>
+        {affectedDocs.map((doc) => <button key={doc.id} type="button" onClick={() => onOpenReference(doc.id)} className="rounded-full bg-white/[0.05] px-2.5 py-1 text-xs hover:text-white">{doc.title}</button>)}
+      </div>}
       {update.changes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {update.changes.map((c) => (
@@ -95,6 +100,8 @@ function UpdateCard({ update, onDocument, onArchive, onOpenDoc, onOpenHistory })
         <span className="min-w-0 truncate text-[11px] text-slate-500">
           {author?.name} · {update.createdAtLabel}
           {update.conflictTitle && ` · from Conflict Point “${update.conflictTitle}”`}
+          {update.mergeItemId && ' · from Merge'}
+          {!active && update.stage !== 'archived' && ' · Waiting for earlier updates'}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {update.stage !== 'update' && (
@@ -110,15 +117,15 @@ function UpdateCard({ update, onDocument, onArchive, onOpenDoc, onOpenHistory })
             </button>
           )}
           {update.stage === 'update' && (
-            <button type="button" onClick={onDocument} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold', ACCENT_CTA)}>
+            <button type="button" onClick={onDocument} disabled={!active} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold disabled:opacity-35', ACCENT_CTA)}>
               <BookOpen className="size-3.5" />
-              Generate documentation
+              Approve update
             </button>
           )}
           {update.stage === 'documented' && (
-            <button type="button" onClick={onArchive} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold', ACCENT_CTA)}>
+            <button type="button" onClick={onArchive} disabled={!active} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold disabled:opacity-35', ACCENT_CTA)}>
               <History className="size-3.5" />
-              Archive to history
+              Record in history
             </button>
           )}
         </div>
@@ -127,29 +134,26 @@ function UpdateCard({ update, onDocument, onArchive, onOpenDoc, onOpenHistory })
   )
 }
 
-// Archive → Design System Updates: every token/component change moving
-// through Design System Update → Documentation → History. Generating
-// documentation writes a Reference Doc (it shows up under Reference
-// Docs); archiving records the update as a version in History. Resolving
-// a Conflict Point adds a new update here.
+// System changes automatically queued by Conflict / Merge, reviewed in Docs.
 function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
-  const { dsUpdates, documentDsUpdate, archiveDsUpdate } = useWorkspace()
+  const { dsUpdates, referenceDocs, documentDsUpdate, archiveDsUpdate } = useWorkspace()
   const counts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
-  // Work still to do first, then finished ones.
-  const ordered = [...dsUpdates].sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage))
+  // Keep registration order for pending updates, completed records below.
+  const ordered = [...dsUpdates.filter((u) => u.stage !== 'archived'), ...dsUpdates.filter((u) => u.stage === 'archived')]
+  const next = nextDocumentChange(dsUpdates)
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 px-6 py-5">
       <div className="flex flex-col gap-3">
         <p className="text-xs text-slate-400">
-          Changes to the design system are written up as documentation, then recorded in the project&apos;s history.
+          System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.
         </p>
         <PipelineHeader counts={counts} />
       </div>
 
       {ordered.length === 0 ? (
         <p className="rounded-2xl bg-white/[0.03] px-4 py-10 text-center text-xs text-slate-500">
-          No design system updates yet. Resolving a Conflict Point starts one.
+          No document updates yet. Resolving a Conflict Point or merging system changes adds an update automatically.
         </p>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -157,6 +161,9 @@ function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
             <UpdateCard
               key={update.id}
               update={update}
+              active={next?.id === update.id}
+              affectedDocs={affectedDocuments(update, referenceDocs)}
+              onOpenReference={onOpenDoc}
               onDocument={() => documentDsUpdate(update.id)}
               onArchive={() => archiveDsUpdate(update.id)}
               onOpenDoc={() => onOpenDoc(docIdFor(update))}

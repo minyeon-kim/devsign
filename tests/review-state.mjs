@@ -66,7 +66,7 @@ try {
   const { default: Studio } = await server.ssrLoadModule('/src/components/mergestudio/MergeStudioWorkspace.jsx')
   const { mergeListItems } = await server.ssrLoadModule('/src/data/mockData.js')
   const html = renderToString(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
-    createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Studio, { item: mergeListItems.find((m) => m.id === 'merge-checkout-cta') })))))
+    createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Studio, { item: mergeListItems.find((m) => m.id === 'merge-checkout-cta'), listNavigation: { stack: 'list', direction: null }, onListNavigation: () => {} })))))
   assert.ok(html.includes('Place order'))
   const { default: PanelTabs } = await server.ssrLoadModule('/src/components/workspace/PanelTabs.jsx')
   const tabs = renderToString(createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId: 'checkout-redesign' },

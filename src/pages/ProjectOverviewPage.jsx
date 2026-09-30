@@ -1,5 +1,5 @@
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, Palette } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA } from '@/components/mergestudio/floatingStyles'
@@ -8,7 +8,7 @@ import { conflictCounts, isOpen, needsReviewFrom } from '@/lib/conflicts'
 import { historyMeta } from '@/lib/historyMeta'
 import ConflictRow from '@/components/conflicts/ConflictRow'
 import ActivityList from '@/components/conflicts/ActivityList'
-import { DS_STAGES } from '@/lib/designSystemUpdates'
+import { DOCUMENT_STAGES as DS_STAGES } from '@/lib/documentChanges'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -190,7 +190,7 @@ function ProjectOverviewPage() {
 
           <div className="flex flex-col gap-4">
             <Section
-              title="Design system pipeline"
+              title="Document updates"
               action={
                 <SectionLink to={docsPath} state={{ tab: 'dsUpdates' }}>
                   Open
@@ -199,7 +199,7 @@ function ProjectOverviewPage() {
             >
               <ol className="flex flex-col gap-2">
                 {DS_STAGES.map((stage, i) => {
-                  const Icon = [Palette, BookOpen, History][i]
+                  const Icon = [FileText, BookOpen, History][i]
                   return (
                     <li key={stage.id} className="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-2.5 text-xs">
                       <Icon className="size-3.5 text-emerald-300" />

@@ -35,6 +35,7 @@ import {
 import { allReviewersApproved, toConflictRecord } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
 import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUpdates'
+import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from '@/lib/documentChanges'
 import { importKind } from '@/lib/importFiles'
 import {
   PROTOTYPE_FILES,
@@ -68,7 +69,7 @@ const DEFAULT_PREVIEW_PROPS = {
 function seedDsUpdates(projectId) {
   return designSystemUpdates
     .filter((u) => u.projectId === projectId)
-    .map((u) => ({ ...u, conflictTitle: conflictChecklist.find((c) => c.id === u.conflictId)?.token }))
+    .map((u) => ({ ...u, source: 'conflict', conflictTitle: conflictChecklist.find((c) => c.id === u.conflictId)?.token }))
 }
 
 function timeLabel() {
@@ -610,9 +611,18 @@ export function WorkspaceProvider({ children, projectId }) {
     for (const c of related) {
       logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
       const update = updateFromConflict(c, projectId)
-      setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [update, ...prev])
+      setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [...prev, update])
     }
-    if (!related.length) logEvent({ kind: 'merge', projectId, actorId: currentUser.id, title: item.title })
+    if (!related.length) {
+      logEvent({ kind: 'merge', projectId, actorId: currentUser.id, title: item.title })
+      const update = mergeDocumentUpdate(item, projectId, {
+        files: finalFiles,
+        previousFiles: Object.fromEntries(files.map((file) => [file.id, fileOverrides[file.id] ?? file.lines])),
+        fileNames: Object.fromEntries(files.map((file) => [file.id, file.name])), draft,
+        layerDiffs: designMergeVariants[item.id]?.layerDiffs ?? {},
+      })
+      if (update) setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [...prev, update])
+    }
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
     return true
   }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits])
@@ -691,22 +701,22 @@ export function WorkspaceProvider({ children, projectId }) {
   const documentDsUpdate = useCallback(
     (updateId) => {
       const update = dsUpdates.find((u) => u.id === updateId)
-      if (!update || update.stage !== 'update') return
-      const documented = { ...update, stage: 'documented', documentedAtLabel: 'Just now' }
+      if (!update || !canProcessDocumentChange(dsUpdates, updateId, 'update')) return
+      const documented = { ...update, stage: 'documented', approvedBy: currentUser.id, documentedAtLabel: 'Just now', affectedDocIds: affectedDocuments(update, [...staticReferenceDocs, ...generatedDocs]).map((doc) => doc.id) }
       setDsUpdates((prev) => prev.map((u) => (u.id === updateId ? documented : u)))
       setGeneratedDocs((prev) => [...prev.filter((d) => d.id !== docIdFor(update)), docForUpdate(documented)])
       appendTerminalLines([`$ devsign docs generate "${update.title}"`, '✓ reference doc created'])
     },
-    [dsUpdates, appendTerminalLines, setDsUpdates, setGeneratedDocs]
+    [dsUpdates, generatedDocs, appendTerminalLines, setDsUpdates, setGeneratedDocs]
   )
 
   // Pipeline step 3: record it in History as a version of the project.
   const archiveDsUpdate = useCallback(
     (updateId) => {
       const update = dsUpdates.find((u) => u.id === updateId)
-      if (!update || update.stage !== 'documented') return
+      if (!update || !canProcessDocumentChange(dsUpdates, updateId, 'documented')) return
       const historyId = recordHistory({
-        label: `Design system update · ${update.title}`,
+        label: `Document update · ${update.title}`,
         timestamp: timeLabel(),
         snapshot: currentSnapshot(),
       })

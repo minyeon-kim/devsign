@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronRight, FileText, Folder, FolderOpen, Library, Palette, Search, X } from 'lucide-react'
+import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -80,8 +80,8 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId }) {
 
 // The drawer behind the activity bar's Docs icon: the project's Reference
 // Docs as a category tree — Guidelines (Brand, Foundations), Component
-// specs (incl. the docs Design System Updates generate), Engineering,
-// Process — with the Design System Updates pipeline linked at the top.
+// specs (incl. the docs Document updates generate), Engineering,
+// Process — with the Document updates pipeline linked at the top.
 // Categories on the path to the open doc start expanded.
 function DocsDrawer({ project }) {
   const location = useLocation()
@@ -167,8 +167,8 @@ function DocsDrawer({ project }) {
         aria-current={state.tab === 'dsUpdates' ? 'page' : undefined}
         className={cn(rowClass, 'mb-2', state.tab === 'dsUpdates' && activeClass)}
       >
-        <Palette className="size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">Design System Updates</span>
+        <BookOpen className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">Document updates</span>
         <span className="text-[11px] text-muted-foreground/60 tabular-nums">
           {dsUpdates.filter((u) => u.stage !== 'archived').length || ''}
         </span>
