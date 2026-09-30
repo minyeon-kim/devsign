@@ -153,7 +153,7 @@ function TeamPage() {
   const StatusSortIcon = statusSort === 'active' ? ArrowUp : statusSort === 'offline' ? ArrowDown : ArrowUpDown
 
   return (
-    <DashboardLayout>
+    <DashboardLayout projectProportions>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" title="Back to dashboard" nativeButton={false} render={<Link to="/dashboard" />}>

@@ -49,6 +49,7 @@ function ActivityPage() {
 
   return (
     <DashboardLayout
+      projectProportions
       rightColumn={
         <>
           <ActivityOverview />

@@ -33,7 +33,7 @@ Close|닫기
 Cancel|취소
 Current|현재
 Files|파일
-Needs your review|내 검토 필요
+Needs your review|검토할 항목
 Open|열기
 Status|상태
 Preview|미리보기
@@ -726,7 +726,7 @@ Create team|팀 만들기
 Open here|여기서 열기
 Drag to split or move|드래그하여 분할 또는 이동
 Resize bottom panel|하단 패널 크기 조절
-Needs your review ·|내 검토 필요 ·
+Needs your review ·|검토할 항목 ·
 No views open|열린 화면이 없습니다
 Resize panes|패널 크기 조절
 All activities|모든 활동

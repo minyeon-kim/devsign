@@ -18,11 +18,15 @@ function DashboardLayout({ children, rightColumn, projectProportions = false }) 
           className={cn(
             'mx-auto grid grid-cols-1 px-6 py-8 sm:px-10',
             projectProportions ? 'max-w-[1180px] gap-6' : 'max-w-[1680px] gap-8 lg:px-14',
-            rightColumn && 'lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px]'
+            rightColumn && !projectProportions && 'lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px]'
           )}
         >
           <div className={cn('flex min-w-0 flex-col', projectProportions ? 'gap-6' : 'gap-8')}>{children}</div>
-          {rightColumn && <div className="flex min-w-0 flex-col gap-6">{rightColumn}</div>}
+          {rightColumn && (
+            <div className={cn('min-w-0 gap-6', projectProportions ? 'grid grid-cols-1 md:grid-cols-3' : 'flex flex-col')}>
+              {rightColumn}
+            </div>
+          )}
         </div>
       </div>
     </AppShell>
