@@ -70,7 +70,7 @@ function Person({ id }) {
 function ProjectOverviewPage() {
   const { project } = useOutletContext()
   const navigate = useNavigate()
-  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel } = useWorkspace()
+  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel, currentUser } = useWorkspace()
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
@@ -262,7 +262,7 @@ function ProjectOverviewPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{entry.label}</span>
                       <span className="block truncate text-[11px] text-slate-500">
-                        {[historyMeta(entry), entry.timestamp].filter(Boolean).join(' · ')}
+                        {[historyMeta(entry, currentUser.id), entry.timestamp].filter(Boolean).join(' · ')}
                       </span>
                     </span>
                     {entry.id === activeHistoryId && (

@@ -18,7 +18,7 @@ import {
   referenceDocs as staticReferenceDocs,
   comments as seedComments,
   consoleLogLines as seedConsoleLogLines,
-  currentUser,
+  currentUserFor,
   findCanvasTarget,
   forProject,
   initialChatMessages,
@@ -29,6 +29,7 @@ import {
   registerMergeVariants,
   seedMergeNotifications,
   liveMergeNotification,
+  liveMergeNotificationsByProject,
   openFiles,
   projectFileSets,
   teamMembers,
@@ -80,6 +81,13 @@ function timeLabel() {
 }
 
 export function WorkspaceProvider({ children, projectId }) {
+  // Who "you" are on this project (Jane on the designer track, James on
+  // the developer track) — every reviewer/approval/"(you)" surface in this
+  // provider keys off this instead of the global default. `otherMembers` is
+  // the roster minus the viewer: the simulated teammates whose presence,
+  // cursors and Follow Me timelines actually render as *other* people.
+  const currentUser = currentUserFor(projectId)
+  const otherMembers = useMemo(() => teamMembers.filter((m) => m.id !== currentUser.id), [currentUser.id])
   // Every project's file set shares the same file *ids* as the default
   // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
   // so this only needs to swap which file objects those ids resolve to,
@@ -189,7 +197,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
   const [previewProps, setPreviewProps] = useDemoState(`project:${projectId}:previewProps`, DEFAULT_PREVIEW_PROPS)
-  const [comments, setComments] = useState(seedComments)
+  const [comments, setComments] = useState(() => forProject(seedComments, projectId))
   const historySeed = projectHistorySeeds[projectId] ?? initialHistoryEntries
   const [historyEntries, setHistoryEntries] = useDemoState(`project:${projectId}:historyEntries`, historySeed)
   const [activeHistoryId, setActiveHistoryId] = useDemoState(`project:${projectId}:activeHistoryId`, historySeed[historySeed.length - 1]?.id ?? null)
@@ -235,7 +243,7 @@ export function WorkspaceProvider({ children, projectId }) {
     const pendingIds = new Set(alerts.flatMap(alert => alert.reviewConflictIds))
     return [...alerts, ...storedNotifications.filter((n) => n.notificationType !== 'review_request'
       && !(n.kind === 'approval' && pendingIds.has(n.target?.conflictId))) ]
-  }, [conflicts, storedNotifications, notificationDay])
+  }, [conflicts, storedNotifications, notificationDay, currentUser.id])
   // The AI chat's unsent draft and an explicitly picked request target,
   // kept here (not in the chat pane) so collapsing the pane or switching
   // tabs never loses them (see ChatConversation).
@@ -280,14 +288,14 @@ export function WorkspaceProvider({ children, projectId }) {
   const [followingMe, setFollowingMe] = useState(false)
   const [followedMemberId, setFollowedMemberId] = useState(null)
   const [remoteViewportIndex, setRemoteViewportIndex] = useState(() =>
-    Object.fromEntries(teamMembers.map((m) => [m.id, 0]))
+    Object.fromEntries(otherMembers.map((m) => [m.id, 0]))
   )
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       setRemoteViewportIndex((prev) => {
         const next = { ...prev }
-        teamMembers.forEach((member) => {
+        otherMembers.forEach((member) => {
           if (member.viewportSequence?.length > 1) {
             next[member.id] = (prev[member.id] + 1) % member.viewportSequence.length
           }
@@ -296,7 +304,7 @@ export function WorkspaceProvider({ children, projectId }) {
       })
     }, REMOTE_VIEWPORT_INTERVAL)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [otherMembers])
 
   // Each teammate's mock "current viewport" — same rotating entry that
   // drives Follow Me — is what file-scoped multiplayer cursors are checked
@@ -308,11 +316,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // A live notification lands shortly after entering Merge Studio.
   useEffect(() => {
     if (activeView !== 'mergeStudio') return
+    const liveNotification = liveMergeNotificationsByProject[projectId] ?? liveMergeNotification
     const timer = setTimeout(() => {
-      setNotifications((prev) => (prev.some((n) => n.id === liveMergeNotification.id) ? prev : [liveMergeNotification, ...prev]))
+      setNotifications((prev) => (prev.some((n) => n.id === liveNotification.id) ? prev : [liveNotification, ...prev]))
     }, 9000)
     return () => clearTimeout(timer)
-  }, [activeView, setNotifications])
+  }, [activeView, projectId, setNotifications])
 
   // Each teammate's simulated timeline for this project (its own when the
   // project has one, else their default).
@@ -322,11 +331,11 @@ export function WorkspaceProvider({ children, projectId }) {
   )
   const memberViewports = useMemo(
     () =>
-      teamMembers.map((member) => {
+      otherMembers.map((member) => {
         const sequence = sequenceFor(member)
         return { member, viewport: sequence[(remoteViewportIndex[member.id] ?? 0) % Math.max(1, sequence.length)] ?? null }
       }),
-    [remoteViewportIndex, sequenceFor]
+    [otherMembers, remoteViewportIndex, sequenceFor]
   )
 
   const getViewersForFile = useCallback(
@@ -391,7 +400,7 @@ export function WorkspaceProvider({ children, projectId }) {
         )
       )
     },
-    [setNotifications]
+    [setNotifications, currentUser.id]
   )
 
   // "Start New with Current Work" — snapshots whatever's open in the editor
@@ -421,7 +430,7 @@ export function WorkspaceProvider({ children, projectId }) {
     ])
     setSelectedMergeItemId(id)
     setActiveView('mergeStudio')
-  }, [activePageId, setSelectedMergeItemId, setMergeItems])
+  }, [activePageId, setSelectedMergeItemId, setMergeItems, currentUser.id])
 
   const appendTerminalLines = useCallback((lines, stagger = 140) => {
     lines.forEach((text, i) => {
@@ -542,7 +551,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // the top of the screen, so this doesn't also need a transient toast.)
   useEffect(() => {
     if (!followedMemberId) return
-    const member = teamMembers.find((m) => m.id === followedMemberId)
+    const member = otherMembers.find((m) => m.id === followedMemberId)
     const sequence = member && sequenceFor(member)
     if (!sequence?.length) return
 
@@ -551,7 +560,7 @@ export function WorkspaceProvider({ children, projectId }) {
 
     setActiveFileIdState(target.fileId)
     setSelectedLayerId(target.layerId ?? null)
-  }, [followedMemberId, remoteViewportIndex, sequenceFor])
+  }, [followedMemberId, otherMembers, remoteViewportIndex, sequenceFor])
 
   // How long the agent conversation is right now — stored on each new
   // checkpoint so a rollback can also rewind the agent's memory to it.
@@ -644,7 +653,7 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
     return true
-  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits])
+  }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits, currentUser.id])
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
 
@@ -664,7 +673,7 @@ export function WorkspaceProvider({ children, projectId }) {
       appendTerminalLines([`$ devsign review approve "${conflict.title}" --as ${currentUser.id}`])
       return next
     },
-    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts]
+    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts, currentUser.id]
   )
 
   const requestChanges = useCallback(
@@ -680,7 +689,7 @@ export function WorkspaceProvider({ children, projectId }) {
       )
       logEvent({ kind: 'changes', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     },
-    [conflicts, logEvent, projectId, setConflicts]
+    [conflicts, logEvent, projectId, setConflicts, currentUser.id]
   )
 
   // Batch approval (the Conflict Points list): your sign-off on several
@@ -713,7 +722,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ])
       return { approved, waiting: next.size - approved }
     },
-    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts]
+    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts, currentUser.id]
   )
 
   const setDocumentUpdateCategory = useCallback((updateId, categoryId) => {
@@ -732,7 +741,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setGeneratedDocs((prev) => [...prev.filter((d) => d.id !== docIdFor(update)), docForUpdate(documented)])
       appendTerminalLines([`$ devsign docs generate "${update.title}"`, '✓ reference doc created'])
     },
-    [dsUpdates, generatedDocs, appendTerminalLines, setDsUpdates, setGeneratedDocs]
+    [dsUpdates, generatedDocs, appendTerminalLines, setDsUpdates, setGeneratedDocs, currentUser.id]
   )
 
   // Pipeline step 3: record it in History as a version of the project.
@@ -1164,10 +1173,12 @@ export function WorkspaceProvider({ children, projectId }) {
         ...(target ? { target } : {}),
       },
     ])
-  }, [])
+  }, [currentUser.id])
 
   const value = {
     projectId,
+    currentUser,
+    otherMembers,
     workspaceFiles: files,
     prototypeEdits,
     editPrototypeLayer,

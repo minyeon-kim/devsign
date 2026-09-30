@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { cn } from 'cn'
 import {
+  allPeople,
   blockDeckPresets,
   canvasPages,
   codeMergeVariants,
@@ -56,7 +57,7 @@ import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 // artboard), plus an on-demand pencil for typing a custom value — shown
 // inline only while editing, and as a slim chip once set. Callers key it by
 // its resolution so the draft resets whenever the choice changes.
-function DiffRow({ diff, resolution, onResolve, onHover }) {
+function DiffRow({ diff, resolution, onResolve, onHover, labelA = 'Original Design', labelB = 'Current Implementation' }) {
   const custom = isCustomResolution(resolution) ? resolution.custom : null
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(custom ?? '')
@@ -108,9 +109,9 @@ function DiffRow({ diff, resolution, onResolve, onHover }) {
           {diff.label}
         </span>
         <div className={cn('flex min-w-0 flex-1 items-center gap-1', custom != null && 'opacity-60')}>
-          {option('A', diff.optionA, 'Keep Original Design')}
+          {option('A', diff.optionA, `Keep ${labelA}`)}
           <ArrowRight className="size-2.5 shrink-0 text-muted-foreground/60" />
-          {option('B', diff.optionB, 'Take Current Implementation')}
+          {option('B', diff.optionB, `Take ${labelB}`)}
         </div>
         <button
           type="button"
@@ -712,6 +713,10 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
   const resolvedOf = (d) => d.kind === 'design' && d.diffs.every((diff) => resolutions[`${d.layerId}:${diff.id}`])
   const resolved = drifts.filter(resolvedOf).length
   const design = drifts.filter((d) => d.kind === 'design').length
+  // A two-author comparison (e.g. two designers' own drafts) names each
+  // side after its author instead of the usual design-vs-code framing.
+  const labelA = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
+  const labelB = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
 
   // The open row. Follows the canvas: selecting a drifting element opens
   // its row (context-aware), without closing a row the user opened by hand
@@ -825,6 +830,8 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
                               resolution={resolutions[`${d.layerId}:${diff.id}`]}
                               onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
                               onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
+                              labelA={labelA}
+                              labelB={labelB}
                             />
                           ))}
                         </div>

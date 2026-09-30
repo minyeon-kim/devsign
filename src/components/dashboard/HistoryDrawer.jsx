@@ -21,7 +21,7 @@ const ROW_ACTION =
 function HistoryDrawer({ project }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+  const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [tab, setTab] = useState('active')
   const [query, setQuery] = useState('')
@@ -32,7 +32,7 @@ function HistoryDrawer({ project }) {
   const current = historyEntries.find((e) => e.id === activeHistoryId)
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   const matches = historyEntries.filter((entry) => {
-    const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry)].filter(Boolean).join(' ').toLocaleLowerCase()
+    const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry, currentUser.id)].filter(Boolean).join(' ').toLocaleLowerCase()
     return terms.every((term) => text.includes(term))
   })
   const active = [...matches].filter((e) => !e.archived).reverse()
@@ -128,9 +128,9 @@ function HistoryDrawer({ project }) {
                 >
                   {entry.label}
                 </span>
-                {historyMeta(entry) && (
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry)}>
-                    {historyMeta(entry)}
+                {historyMeta(entry, currentUser.id) && (
+                  <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry, currentUser.id)}>
+                    {historyMeta(entry, currentUser.id)}
                   </span>
                 )}
               </button>

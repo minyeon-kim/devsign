@@ -1,4 +1,4 @@
-import { allPeople, conflictChecklist, currentUser } from '@/data/mockData'
+import { allPeople, conflictChecklist, currentUserFor } from '@/data/mockData'
 
 // The one conflict model every conflict surface shares — the Dashboard
 // queue, the workspace bottom panel's Conflict Points tab, the project
@@ -53,23 +53,32 @@ export function allReviewersApproved(conflict) {
   return reviewers.length > 0 && reviewers.every((r) => r.status === 'approved')
 }
 
-export function reviewerFor(conflict, userId = currentUser.id) {
-  return (conflict.reviewers ?? []).find((r) => r.id === userId) ?? null
+// Every helper below takes an optional `userId` — omit it and it resolves
+// the viewer itself from the conflict's own project (`currentUserFor`), so
+// "needs your review" reads correctly for both a single project's screens
+// and a cross-project list (the Dashboard queue) without either passing an
+// explicit id.
+function viewerIdFor(conflict, userId) {
+  return userId ?? currentUserFor(conflict?.projectId).id
+}
+
+export function reviewerFor(conflict, userId) {
+  return (conflict.reviewers ?? []).find((r) => r.id === viewerIdFor(conflict, userId)) ?? null
 }
 
 // "Needs your review": you're one of its required approvers, it's in
 // review, and you haven't approved (or requested changes) yet.
-export function needsReviewFrom(conflict, userId = currentUser.id) {
+export function needsReviewFrom(conflict, userId) {
   return conflict.reviewStage === 'in_review' && reviewerFor(conflict, userId)?.status === 'pending'
 }
 
-function nameOf(id) {
-  if (id === currentUser.id) return 'you'
+function nameOf(id, viewerId) {
+  if (id === viewerId) return 'you'
   return allPeople.find((p) => p.id === id)?.name ?? id
 }
 
-function joinNames(ids) {
-  const names = ids.map(nameOf)
+function joinNames(ids, viewerId) {
+  const names = ids.map((id) => nameOf(id, viewerId))
   if (names.length <= 1) return names[0] ?? ''
   return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
@@ -77,9 +86,10 @@ function joinNames(ids) {
 // The approval / merge status as short, direct lines ("Approved by you",
 // "Waiting for Min", "All required approvals received", "Pending merge",
 // "Merged") — from the actual reviewers, never an assumed rule.
-export function approvalStatus(conflict, userId = currentUser.id) {
+export function approvalStatus(conflict, userId) {
+  const viewerId = viewerIdFor(conflict, userId)
   const reviewers = conflict.reviewers ?? []
-  const mine = reviewerFor(conflict, userId)
+  const mine = reviewerFor(conflict, viewerId)
   if (conflict.reviewStage === 'resolved') {
     return { tone: 'done', lines: ['Merged'] }
   }
@@ -96,23 +106,24 @@ export function approvalStatus(conflict, userId = currentUser.id) {
   if (mine?.status === 'pending') lines.push('Your approval is needed')
   if (mine?.status === 'approved') lines.push('Approved by you')
   if (mine?.status === 'changes_requested') lines.push('You requested changes')
-  const changes = reviewers.filter((r) => r.status === 'changes_requested' && r.id !== userId).map((r) => r.id)
-  if (changes.length) lines.push(`Changes requested by ${joinNames(changes)}`)
-  const waiting = reviewers.filter((r) => r.status === 'pending' && r.id !== userId).map((r) => r.id)
-  if (waiting.length) lines.push(`Waiting for ${joinNames(waiting)}`)
+  const changes = reviewers.filter((r) => r.status === 'changes_requested' && r.id !== viewerId).map((r) => r.id)
+  if (changes.length) lines.push(`Changes requested by ${joinNames(changes, viewerId)}`)
+  const waiting = reviewers.filter((r) => r.status === 'pending' && r.id !== viewerId).map((r) => r.id)
+  if (waiting.length) lines.push(`Waiting for ${joinNames(waiting, viewerId)}`)
   return { tone: mine?.status === 'pending' ? 'action' : 'waiting', lines }
 }
 
 // The next thing that has to happen, and whether it's on you.
-export function nextActionFor(conflict, userId = currentUser.id) {
+export function nextActionFor(conflict, userId) {
+  const viewerId = viewerIdFor(conflict, userId)
   if (conflict.reviewStage === 'resolved') return { label: 'Merged', mine: false }
   if (conflict.reviewStage === 'approved') return { label: 'Merge the approved change', mine: false }
   if (conflict.reviewStage === 'detected') {
     return { label: conflict.reviewers?.length ? 'Request review' : 'Assign reviewers', mine: false }
   }
-  if (needsReviewFrom(conflict, userId)) return { label: 'Review and approve', mine: true }
+  if (needsReviewFrom(conflict, viewerId)) return { label: 'Review and approve', mine: true }
   const waiting = (conflict.reviewers ?? []).filter((r) => r.status === 'pending').map((r) => r.id)
-  return { label: waiting.length ? `Waiting for ${joinNames(waiting)}` : 'Waiting on changes', mine: false }
+  return { label: waiting.length ? `Waiting for ${joinNames(waiting, viewerId)}` : 'Waiting on changes', mine: false }
 }
 
 // Normalizes a raw conflict (a conflictChecklist item or a workspace
@@ -142,7 +153,7 @@ export function sortOpenFirst(conflicts) {
 
 // Counts every screen shows, from one set of rules (so a list, its total
 // and its status breakdown can never disagree).
-export function conflictCounts(conflicts, userId = currentUser.id) {
+export function conflictCounts(conflicts, userId) {
   return {
     total: conflicts.length,
     open: conflicts.filter(isOpen).length,

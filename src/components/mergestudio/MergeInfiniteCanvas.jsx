@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
+import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
@@ -1516,7 +1516,7 @@ function MergeInfiniteCanvas({
   onSelectFrame,
   onFocusSource,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -1574,6 +1574,10 @@ function MergeInfiniteCanvas({
   const suppressClick = useRef(false)
   const page = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId) : null
   const frame = frameWithLayers(page?.frames[0], extraLayers)
+  // A two-author comparison (e.g. two designers' own drafts) names each side
+  // after its author instead of the usual design-vs-code framing.
+  const frameLabelA = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
+  const frameLabelB = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
 
   useEffect(() => {
     viewRef.current = view
@@ -1910,8 +1914,8 @@ function MergeInfiniteCanvas({
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
     ? frameSel === 'a'
-      ? 'Original Design'
-      : 'Current Implementation'
+      ? frameLabelA
+      : frameLabelB
     : (frame?.layers.find((l) => l.id === syncSelection?.layerId)?.name ??
       (syncSelection?.line ? `line ${syncSelection.line}` : 'selection'))
 
@@ -2350,7 +2354,7 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="a"
                     frame={frame}
-                    label="Original Design"
+                    label={frameLabelA}
                     x={layout.a.x}
                     y={layout.a.y}
                     w={layout.a.w}
@@ -2370,7 +2374,7 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     frameKey="b"
                     frame={frame}
-                    label="Current Implementation"
+                    label={frameLabelB}
                     editable
                     onEditText={onEditText}
                     accentClass={OPTION_B_ACCENT}
@@ -2663,7 +2667,7 @@ function MergeInfiniteCanvas({
           pan/zoom-transformed content) so cursors track real screen
           position regardless of canvas pan/zoom, matching how the
           workspace panels position it. */}
-      <MultiplayerCursors scopeKey={item.id} />
+      <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
 
       {/* Bottom-right row: zoom pill sits directly beside the Changes Log
           toggle (both `items-end`-aligned so the zoom pill's bottom edge

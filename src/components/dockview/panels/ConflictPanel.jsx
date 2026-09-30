@@ -4,7 +4,7 @@ import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUser } from '@/data/mockData'
+import { allPeople } from '@/data/mockData'
 import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
@@ -41,7 +41,7 @@ const FILTERS = [
 function ConflictPanel() {
   const navigate = useNavigate()
   const { projectId, conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    updateConflict, approveConflict, requestChanges, resolveConflict } =
+    updateConflict, approveConflict, requestChanges, resolveConflict, currentUser } =
     useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
   const counts = conflictCounts(conflicts)

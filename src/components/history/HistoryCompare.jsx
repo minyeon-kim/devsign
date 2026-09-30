@@ -34,7 +34,7 @@ const MIN_CANVAS = 260
 // `hideRestore` drops the header's restore button when the caller has its
 // own (History's control bar).
 function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false }) {
-  const { historyEntries, activeHistoryId, rollbackTo, getFileName } = useWorkspace()
+  const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser } = useWorkspace()
   const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
@@ -104,7 +104,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
             {entry.label}
           </p>
-          {historyMeta(entry) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry)}</p>}
+          {historyMeta(entry, currentUser.id) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry, currentUser.id)}</p>}
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
             <GitCompareArrows className="size-3" />
             {isCurrent ? (

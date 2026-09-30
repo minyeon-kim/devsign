@@ -12,6 +12,10 @@ export const brand = {
   mark: { from: '#6d70ad', to: '#4b4d74' },
 }
 
+// The global default viewer — used outside any project (Dashboard, Team
+// page, a modal with no project in scope). Inside a project, the viewer is
+// `currentUserFor(projectId)` instead (see below): Jane on the designer
+// track, James on the developer track.
 export const currentUser = {
   id: 'jane',
   name: 'Jane',
@@ -23,18 +27,37 @@ export const currentUser = {
   email: 'jane@devsign.app',
 }
 
-// `viewportSequence` is the mock "what am I looking at" timeline used by the
-// Follow Me interaction — WorkspaceProvider cycles each member through their
-// sequence on a timer, and if you're following that member, your own
+// Every person Devsign knows about, with their real job title — the roster
+// used for reviewer/teammate lookups (`allPeople`) regardless of who's
+// viewing. `viewportSequence` is the mock "what am I looking at" timeline
+// used by the Follow Me interaction — WorkspaceProvider cycles each member
+// through their sequence on a timer (excluding whichever one is the active
+// project's viewer), and if you're following that member, your own
 // activeFileId/selectedLayerId are mirrored to match theirs. Each entry says
 // what they're doing (`status`) to which file / element. It's simulated
 // collaboration data, not a live connection. `projectViewportSequences`
 // overrides it for projects with their own content (see below).
 export const teamMembers = [
   {
+    id: 'jane',
+    name: 'Jane',
+    role: 'Designer',
+    team: 'Design Team',
+    initials: 'JA',
+    colorClass: 'bg-indigo-500',
+    cursorColor: '#6366f1',
+    email: 'jane@devsign.app',
+    online: true,
+    viewportSequence: [
+      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Reviewing design tokens' },
+      { fileId: 'app', layerId: null, status: 'Viewing', label: 'Looking over the latest screens' },
+    ],
+  },
+  {
     id: 'james',
     name: 'James',
     role: 'Developer',
+    team: 'Engineering',
     initials: 'JD',
     colorClass: 'bg-sky-500',
     cursorColor: '#0ea5e9',
@@ -50,6 +73,7 @@ export const teamMembers = [
     id: 'min',
     name: 'Min',
     role: 'Designer',
+    team: 'Product',
     initials: 'MI',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
@@ -79,11 +103,42 @@ export const projectViewportSequences = {
       { fileId: 'app', layerId: 'frame-checkout', status: 'Viewing', label: 'Viewing the Checkout payment screen' },
     ],
   },
+  'design-system-v2': {
+    james: [
+      { fileId: 'app', layerId: 'button-md', status: 'Editing', label: 'Editing md size in Button.jsx' },
+      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Checking --button-height-md in tokens.css' },
+    ],
+    min: [
+      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Reviewing size tokens in tokens.css' },
+      { fileId: 'app', layerId: 'button-sm', status: 'Viewing', label: 'Viewing compact Button' },
+    ],
+    jane: [
+      { fileId: 'app', layerId: 'button-md', status: 'Reviewing', label: 'Reviewing the Button height conflict' },
+      { fileId: 'tokens', layerId: null, status: 'Commenting', label: 'Commenting on --button-height-md in tokens.css' },
+    ],
+  },
+}
+
+// Which teammate is "you" on each project — Jane on the designer track,
+// James on the developer track. A project with no entry falls back to the
+// global `currentUser` default (Jane).
+export const projectViewerIds = {
+  'checkout-redesign': 'jane',
+  'design-system-v2': 'james',
+}
+
+// The active project's viewer, resolved from the full roster — same shape
+// as `currentUser`, with `role` forced to 'You' so screens that special-
+// case it (e.g. hiding your own role badge in a reviewer/author list) keep
+// working no matter which project's viewer this resolves to.
+export function currentUserFor(projectId) {
+  const person = teamMembers.find((p) => p.id === projectViewerIds[projectId])
+  return person ? { ...person, role: 'You' } : currentUser
 }
 
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
-export const allPeople = [currentUser, ...teamMembers]
+export const allPeople = teamMembers
 
 // Project-scoped seed data: when a list has entries tagged with this
 // project's id, the project uses those only (its own consistent scenario);
@@ -157,26 +212,49 @@ export const conflictChecklist = [
     resolved: false,
     severity: 'medium',
     riskReason: 'Medium: the shared Button component — a height change reaches every screen that uses it.',
-    impact: { components: ['Button'], files: ['src/components/ui/Button.jsx'] },
+    impact: {
+      components: ['Button'],
+      files: ['src/components/ui/Button.jsx'],
+      screens: ['Checkout · Payment step', 'Onboarding · Welcome', 'Settings · Profile'],
+    },
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Buttons render 4px shorter than the design system’s medium size.',
     preview: { kind: 'button', label: 'Continue', before: { height: 36, background: '#6366f1' }, after: { height: 40, background: '#6366f1' } },
     message: 'Button height in code (36px) drifts from the design system token (40px).',
+    // Who made the change under review (the code as it is now) and what
+    // flagged it.
+    changedBy: { type: 'person', id: 'jane', what: 'Pushed new changes to Button.jsx' },
     branches: { local: 'Button.jsx', remote: 'Button · Size/MD (Figma)' },
     suggestion: 'Swap the hard-coded h-9 for the size token so the button follows the design system height.',
+    suggestionReason:
+      'The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.',
+    // Only references that exist in this project (its tokens.css / components.json).
+    references: [
+      { kind: 'token', label: '--button-height-md = 40px', source: 'src/styles/tokens.css' },
+      { kind: 'component', label: 'Button · Size/MD (Figma)', source: 'src/design/components.json' },
+    ],
+    expectedResult: 'Every Button renders 40px tall from --button-height-md.',
     previewPrompt: 'Match the button height to the design system token',
+    reviewStage: 'detected',
     reviewers: [
-      { id: 'jane', status: 'pending' },
       { id: 'james', status: 'pending' },
+      { id: 'jane', status: 'pending' },
     ],
     comparisonFields: [
       { label: 'Height', expected: '40px (size/md)', current: '36px (h-9)' },
       { label: 'Token', expected: '--button-height-md', current: 'none — hard-coded' },
     ],
     diff: {
-      before: ['<button className="h-9 px-4 rounded-lg">'],
-      after: ['<button className="h-[var(--button-height-md)] px-4 rounded-lg">'],
+      before: ["    size: { sm: 'h-7 px-3', md: 'h-9 px-4' },"],
+      after: ["    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' },"],
     },
+    // Where it lives in the project's Workspace and Merge Studio.
+    fileId: 'app',
+    line: 6,
+    layerId: 'button-md',
+    mergeItemId: 'merge-ds-button-height',
+    mergeTitle: 'Merged Button height to size token',
+    linkedCommentId: 'comment-cc1',
   },
   {
     id: 'cc-2',
@@ -507,6 +585,7 @@ export const conflictChecklist = [
     layerId: 'place-order',
     mergeItemId: 'merge-checkout-cta',
     mergeTitle: 'Merged Place order button size and color',
+    linkedCommentId: 'comment-cc11',
   },
 ]
 
@@ -806,6 +885,69 @@ export const mergeListItems = [
     dueBucket: 'soon',
     assigneeId: 'jane',
   },
+  // Two designers' own drafts of the same card, compared against each
+  // other rather than against code — `authorAId`/`authorBId` swap the
+  // Compare view's "Original Design / Current Implementation" labels for
+  // the two authors' names (see ConflictResolutionModal/BlockDeckPanel/
+  // MergeInfiniteCanvas). No codeMergeVariants entry: this item is
+  // design-only, so the Compare view shows no code drifts.
+  {
+    id: 'merge-checkout-designer-pair',
+    projectId: 'checkout-redesign',
+    title: 'Order summary card',
+    subtitle: '1 file · Design',
+    tag: 'Draft',
+    updatedLabel: 'Just now',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Medium',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+    authorAId: 'jane',
+    authorBId: 'min',
+  },
+  // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
+  // lands here). Original Design = the design system's Size/MD spec (40px,
+  // --button-height-md); Current Implementation = Button.jsx (36px, h-9).
+  {
+    id: 'merge-ds-button-height',
+    projectId: 'design-system-v2',
+    conflictId: 'cc-1',
+    title: 'Button / Height',
+    subtitle: '2 files · Code + tokens',
+    tag: 'Needs Review',
+    updatedLabel: 'Yesterday',
+    fileIds: ['app', 'tokens'],
+    hasDesign: true,
+    designPageId: 'page-ds-button',
+    category: 'Design System',
+    conflictLevel: 'Medium',
+    dueLabel: 'Due tomorrow',
+    dueBucket: 'soon',
+    assigneeId: 'james',
+  },
+  // A lower-priority distractor alongside Button / Height, so the queue
+  // isn't a single obvious item — Conflict Point cc-3, code-only (no
+  // canvas page of its own).
+  {
+    id: 'merge-ds-card-radius',
+    projectId: 'design-system-v2',
+    conflictId: 'cc-3',
+    title: 'Card / Radius',
+    subtitle: '1 file · Code',
+    tag: 'Needs Review',
+    updatedLabel: 'Yesterday',
+    fileIds: ['app'],
+    hasDesign: false,
+    category: 'Design System',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'min',
+  },
   {
     id: 'merge-flowbank',
     title: 'FlowBank - Homepage',
@@ -875,7 +1017,14 @@ export const designMergeVariants = {
   'merge-checkout-cta': {
     layerDiffs: {
       'place-order': [
-        { id: 'po-size', label: 'Height', optionA: '44px', optionB: '40px' },
+        {
+          id: 'po-size',
+          label: 'Height',
+          optionA: '44px',
+          optionB: '40px',
+          recommended: 'A',
+          reason: 'Checkout design specifies button.height.lg = 44px',
+        },
         {
           id: 'po-accent',
           label: 'Background',
@@ -883,11 +1032,48 @@ export const designMergeVariants = {
           optionB: 'Violet 500',
           optionAClass: 'bg-indigo-500',
           optionBClass: 'bg-violet-500',
+          recommended: 'A',
+          reason: 'color.primary (Indigo 500) is the brand token',
         },
       ],
     },
     layerCodeMap: {
       'place-order': { fileId: 'app', line: 8, span: 3 },
+    },
+  },
+  'merge-checkout-designer-pair': {
+    layerDiffs: {
+      'order-summary': [
+        { id: 'os-radius', label: 'Radius', optionA: '12px', optionB: '16px' },
+        { id: 'os-title-weight', label: 'Title weight', optionA: '600', optionB: '700' },
+      ],
+    },
+  },
+  'merge-ds-button-height': {
+    layerDiffs: {
+      // Two diffs, not one: driftSeverity (mergeSummary.js) reads 2 diffs as
+      // Medium — matching cc-1's declared severity. One would compute Low.
+      'button-md': [
+        {
+          id: 'btn-height',
+          label: 'Height',
+          optionA: '40px',
+          optionB: '36px',
+          recommended: 'A',
+          reason: 'Design system size/md = 40px',
+        },
+        {
+          id: 'btn-token',
+          label: 'Height token',
+          optionA: '--button-height-md',
+          optionB: 'hard-coded h-9',
+          recommended: 'A',
+          reason: 'Use the shared token',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'button-md': { fileId: 'app', line: 6, span: 1 },
     },
   },
   'merge-flowbank': {
@@ -1017,6 +1203,12 @@ export const codeMergeVariants = {
   // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
   'merge-checkout-cta': {
     app: [{ id: 'place-order-button', line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
+  },
+  // The design system's version of Button.jsx line 6 and tokens.css line 6
+  // (cc-1's fix) — merging writes these lines as the final code.
+  'merge-ds-button-height': {
+    app: [{ id: 'button-md-height', line: 6, incoming: "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' }," }],
+    tokens: [{ id: 'button-height-token', line: 6, incoming: '  --button-height-md: 40px;' }],
   },
   'merge-flowbank': {
     app: [
@@ -1276,28 +1468,36 @@ export const projectFileSets = {
       ...openFiles[0],
       name: 'Button.jsx',
       path: 'src/components/ui/Button.jsx',
+      // Line 6 (md size) is Conflict Point cc-1's fix target — the
+      // implementation is h-9 (36px), the design system wants
+      // --button-height-md (40px). Keep this and cc-1's diff in sync.
       lines: [
         "import { cva } from 'class-variance-authority'",
         '',
         "export const buttonVariants = cva('inline-flex items-center rounded-full', {",
         '  variants: {',
-        "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent' },",
-        "    size: { sm: 'h-7 px-3', md: 'h-8 px-4' },",
+        "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent hover:bg-muted' },",
+        "    size: { sm: 'h-7 px-3', md: 'h-9 px-4' },",
         '  },',
         "  defaultVariants: { variant: 'primary', size: 'md' },",
         '})',
       ],
     },
     {
-      ...openFiles[1],
+      // Uses the 'tokens' file id (not 'theme') so it lines up with every
+      // other project's convention of 'tokens' = the token file.
+      ...openFiles[2],
       name: 'tokens.css',
       path: 'src/styles/tokens.css',
+      // Line 6 is left blank — that's where merging cc-1 inserts
+      // --button-height-md (see codeMergeVariants['merge-ds-button-height']).
       lines: [
         '/* Design System v2 — pill radius + indigo/violet accent migration */',
         ':root {',
         '  --radius-full: 9999px;',
         '  --accent-indigo: oklch(0.55 0.22 270);',
         '  --accent-violet: oklch(0.6 0.24 300);',
+        '',
         '}',
         '',
         '.pill {',
@@ -1307,7 +1507,7 @@ export const projectFileSets = {
       ],
     },
     {
-      ...openFiles[2],
+      ...openFiles[1],
       name: 'components.json',
       path: 'src/design/components.json',
       lines: [
@@ -1759,6 +1959,38 @@ export const aiEditScenarios = [
     ],
     resolvesConflictId: 'cc-11',
   },
+  // Design System v2 (project-scoped, see forProject). This is Conflict
+  // Point cc-1's proposed change: applying it sends cc-1 back to review —
+  // it's only merged once its reviewers approve.
+  {
+    id: 'button-height-token',
+    projectId: 'design-system-v2',
+    keywords: ['button height', 'height token', 'h-9', '버튼 높이', 'shared token'],
+    title: 'Updated Button height to use the size token',
+    reply: 'Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.',
+    target: { fileId: 'app', layerId: 'button-md' },
+    changes: [{ fileId: 'app', line: 6, summary: 'md size uses --button-height-md instead of h-9' }],
+    elements: ['button-md'],
+    fileId: 'app',
+    lines: [
+      "import { cva } from 'class-variance-authority'",
+      '',
+      "export const buttonVariants = cva('inline-flex items-center rounded-full', {",
+      '  variants: {',
+      "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent hover:bg-muted' },",
+      "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' },",
+      '  },',
+      "  defaultVariants: { variant: 'primary', size: 'md' },",
+      '})',
+    ],
+    terminalLines: [
+      '$ ai apply-patch Button.jsx',
+      "  - md: 'h-9 px-4'",
+      "  + md: 'h-[var(--button-height-md)] px-4'",
+      '[HMR] Button.jsx updated',
+    ],
+    resolvesConflictId: 'cc-1',
+  },
   {
     id: 'padding-fix',
     keywords: ['padding', '패딩', 'spacing', '간격'],
@@ -1977,6 +2209,49 @@ export const canvasPages = [
       },
     ],
   },
+  // Design System v2's own design page (see pagesForProject): the Button
+  // component's size variants (Conflict Point cc-1). button-md is the
+  // Size/MD spec Button.jsx should match (currently renders 36px, h-9).
+  {
+    id: 'page-ds-button',
+    name: 'Button',
+    projectId: 'design-system-v2',
+    frames: [
+      {
+        id: 'frame-ds-button',
+        name: 'Button · Size',
+        kind: 'frame',
+        x: 80,
+        y: 40,
+        width: 280,
+        height: 160,
+        layers: [
+          {
+            id: 'button-md',
+            name: 'Continue',
+            kind: 'component',
+            type: 'button',
+            x: 20,
+            y: 24,
+            width: 240,
+            height: 36,
+            label: 'Continue',
+          },
+          {
+            id: 'button-sm',
+            name: 'Compact',
+            kind: 'component',
+            type: 'button',
+            x: 20,
+            y: 92,
+            width: 160,
+            height: 28,
+            label: 'Compact',
+          },
+        ],
+      },
+    ],
+  },
 ]
 
 // Flattened across all pages — used by id-based lookups (the Inspector
@@ -2157,6 +2432,26 @@ export const comments = [
     likes: 0,
     replies: 0,
   },
+  {
+    id: 'comment-cc11',
+    projectId: 'checkout-redesign',
+    authorId: 'james',
+    timeLabel: '8m ago',
+    text: 'I kept the old violet as a hard-coded hex. Does the new checkout design drop it?',
+    status: 'open',
+    likes: 0,
+    replies: 0,
+  },
+  {
+    id: 'comment-cc1',
+    projectId: 'design-system-v2',
+    authorId: 'jane',
+    timeLabel: '2h ago',
+    text: 'The design system says md is 40px. Can we use the token instead of h-9?',
+    status: 'open',
+    likes: 0,
+    replies: 0,
+  },
 ]
 
 // Suggested prompt chips shown above the "Ask Devsign" chat input.
@@ -2165,6 +2460,7 @@ export const chatSuggestions = [
   { id: 'designer-fix', projectId: 'checkout-redesign', label: 'Match Place order to design', prompt: 'Make the Place order button match the checkout design', iconName: 'Sparkles' },
   { id: 'designer-review', projectId: 'checkout-redesign', label: 'What happens after my edit?', prompt: 'What happens after my design edit?', iconName: 'MessageCircle', reply: 'Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.' },
   { id: 'developer-start', projectId: 'design-system-v2', label: 'Guide me through code review', prompt: 'Guide me through the developer UT', iconName: 'Sparkles', reply: 'Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.' },
+  { id: 'developer-fix', projectId: 'design-system-v2', label: 'Use the size token for Button', prompt: 'Use the size token for the Button height', iconName: 'Sparkles' },
   { id: 'developer-impact', projectId: 'design-system-v2', label: 'Why use a shared token?', prompt: 'Why should the button use a shared token?', iconName: 'MessageCircle', reply: 'A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.' },
   { id: 'developer-history', projectId: 'design-system-v2', label: 'How do I verify and roll back?', prompt: 'How do I verify and roll back the change?', iconName: 'MessageCircle', reply: 'Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.' },
 ]
@@ -2194,8 +2490,37 @@ const checkoutButtonLines = (className) => [
   '}',
 ]
 
+const designSystemButtonLines = ({ radius = 'rounded-full', md = 'h-8', ghost = 'bg-transparent' } = {}) => [
+  "import { cva } from 'class-variance-authority'",
+  '',
+  `export const buttonVariants = cva('inline-flex items-center ${radius}', {`,
+  '  variants: {',
+  `    variant: { primary: 'bg-primary text-white', ghost: '${ghost}' },`,
+  `    size: { sm: 'h-7 px-3', md: '${md} px-4' },`,
+  '  },',
+  "  defaultVariants: { variant: 'primary', size: 'md' },",
+  '})',
+]
+
 export const projectHistorySeeds = {
   'checkout-redesign': [
+    {
+      id: 'history-co-0',
+      label: 'Initial checkout layout',
+      kind: 'edit',
+      actorId: 'min',
+      target: 'Checkout.jsx',
+      timestamp: 'Sat, 4:30 PM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: checkoutButtonLines('w-full'),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
     {
       id: 'history-co-1',
       label: 'Added Place order button',
@@ -2225,6 +2550,76 @@ export const projectHistorySeeds = {
         activeFileId: 'app',
         fileId: 'app',
         lines: checkoutButtonLines('w-full bg-[#7c3aed]'),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+  ],
+  'design-system-v2': [
+    {
+      id: 'history-ds-1',
+      label: 'Added Button size variants',
+      kind: 'edit',
+      actorId: 'james',
+      target: 'Button.jsx',
+      timestamp: 'Mon, 11:20 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: designSystemButtonLines({ radius: 'rounded-lg', md: 'h-8' }),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    {
+      id: 'history-ds-2',
+      label: 'Migrated Button to pill radius',
+      kind: 'edit',
+      actorId: 'jane',
+      target: 'Button.jsx',
+      timestamp: 'Mon, 3:05 PM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-8' }),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    {
+      id: 'history-ds-3',
+      label: 'Set md size to h-9',
+      kind: 'edit',
+      actorId: 'james',
+      target: 'Button.jsx · line 6',
+      timestamp: 'Yesterday, 10:40 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9' }),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    {
+      id: 'history-ds-4',
+      label: 'Jane pushed new changes to Button.jsx',
+      kind: 'edit',
+      actorId: 'jane',
+      target: 'Button.jsx',
+      timestamp: 'Yesterday, 11:02 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9', ghost: 'bg-transparent hover:bg-muted' }),
         previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
         conflicts: [],
         selectedLayerId: null,
@@ -2785,6 +3180,16 @@ export const conflictNotifications = [
     unread: false,
     target: { conflictId: 'cc-8', label: 'Divider / Color' },
   },
+  {
+    id: 'n-cc-1',
+    projectId: 'design-system-v2',
+    kind: 'approval',
+    authorId: 'jane',
+    text: 'requested your review on Button / Height',
+    timeLabel: '2h ago',
+    unread: true,
+    target: { conflictId: 'cc-1', label: 'Button / Height' },
+  },
 ]
 
 // Arrives a few seconds after entering Merge Studio to demo live feedback.
@@ -2796,6 +3201,33 @@ export const liveMergeNotification = {
   timeLabel: 'Just now',
   unread: true,
   target: { itemId: 'merge-flowbank', card: 'b', label: 'Option B' },
+}
+
+// Per-project override for the live notification above — a project whose
+// Merge List doesn't include merge-flowbank (e.g. checkout-redesign, which
+// only has merge-checkout-cta) needs its own item/label instead. Projects
+// with no entry here keep the generic `liveMergeNotification` default.
+export const liveMergeNotificationsByProject = {
+  'checkout-redesign': {
+    id: 'n-live',
+    projectId: 'checkout-redesign',
+    kind: 'feedback',
+    authorId: 'james',
+    text: 'CI: checks passed on merge/place-order-button',
+    timeLabel: 'Just now',
+    unread: true,
+    target: { itemId: 'merge-checkout-cta', card: 'b', label: 'Option B' },
+  },
+  'design-system-v2': {
+    id: 'n-live',
+    projectId: 'design-system-v2',
+    kind: 'feedback',
+    authorId: 'james',
+    text: 'CI: checks passed on merge/button-height-token',
+    timeLabel: 'Just now',
+    unread: true,
+    target: { itemId: 'merge-ds-button-height', card: 'b', label: 'Option B' },
+  },
 }
 
 // ---------------------------------------------------------------------

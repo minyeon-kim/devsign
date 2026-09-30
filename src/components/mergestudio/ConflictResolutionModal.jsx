@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Code2, Crosshair, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
-import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
+import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Derives the conflicting blocks for a merge item from its real mock data:
@@ -11,6 +11,10 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 function buildBlocks(item, getFileLines) {
   const blocks = []
   const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
+  // A two-author comparison (e.g. two designers' own drafts) names each
+  // side after its author instead of the usual design-vs-code framing.
+  const tokenCurrentLabel = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
+  const tokenIncomingLabel = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
 
   for (const [layerId, diffs] of Object.entries(designMergeVariants[item.id]?.layerDiffs ?? {})) {
     const layer = layers.find((l) => l.id === layerId)
@@ -23,8 +27,10 @@ function buildBlocks(item, getFileLines) {
         title: `${layer?.name ?? layerId} · ${diff.label}`,
         current: [diff.optionA],
         incoming: [diff.optionB],
-        recommended: 'B',
-        reason: 'Latest Design System token',
+        currentLabel: tokenCurrentLabel,
+        incomingLabel: tokenIncomingLabel,
+        recommended: diff.recommended ?? 'B',
+        reason: diff.reason ?? 'Latest Design System token',
       })
     }
   }
@@ -41,6 +47,8 @@ function buildBlocks(item, getFileLines) {
         title: `${file?.name ?? fileId} · line ${d.line}`,
         current: [lines[d.line - 1] ?? ''],
         incoming: [d.incoming],
+        currentLabel: 'Current Implementation',
+        incomingLabel: 'Original Design',
         recommended: 'B',
         reason: 'Uses updated token references',
       })
@@ -217,8 +225,8 @@ function ConflictResolver({ item, onBack, onResolved, onResolveDiff, onEditCode 
           )}
         </div>
         <div role="radiogroup" aria-label={b.title} className="overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07] divide-y divide-white/[0.06]">
-          <OptionRow label="Original Design" lines={b.current} selected={choices[b.id] === 'A'} recommended={b.recommended === 'A'} onSelect={() => choose('A')} />
-          <OptionRow label="Current Implementation" lines={b.incoming} strong selected={choices[b.id] === 'B'} recommended={b.recommended === 'B'} onSelect={() => choose('B')} />
+          <OptionRow label={b.currentLabel} lines={b.current} selected={choices[b.id] === 'A'} recommended={b.recommended === 'A'} onSelect={() => choose('A')} />
+          <OptionRow label={b.incomingLabel} lines={b.incoming} strong selected={choices[b.id] === 'B'} recommended={b.recommended === 'B'} onSelect={() => choose('B')} />
         </div>
         <p className="mt-2 text-xs text-slate-500">AI: {b.reason}.</p>
       </section>

@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { activities, allPeople, currentUser } from '@/data/mockData'
+import { activities, allPeople, currentUserFor } from '@/data/mockData'
 import { needsReviewFrom } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
 
@@ -12,10 +12,11 @@ const EVENT_ACTION = {
 // Review / merge actions taken this session (ConflictStore events), shaped
 // like the seeded activity entries so both read as one feed.
 function eventToActivity(event) {
-  const person = event.actorId === currentUser.id ? currentUser : allPeople.find((p) => p.id === event.actorId)
+  const viewer = currentUserFor(event.projectId)
+  const person = event.actorId === viewer.id ? viewer : allPeople.find((p) => p.id === event.actorId)
   return {
     id: event.id,
-    actorName: event.actorId === currentUser.id ? 'You' : person?.name,
+    actorName: event.actorId === viewer.id ? 'You' : person?.name,
     actorInitials: person?.initials,
     actorColorClass: person?.colorClass,
     action: EVENT_ACTION[event.kind] ?? event.kind,

@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { currentUser, teamMembers } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function UserPresence() {
@@ -26,6 +25,8 @@ function UserPresence() {
     followMember,
     memberViewports,
     workspaceFiles: files,
+    currentUser,
+    otherMembers: teamMembers,
   } = useWorkspace()
 
   // Each teammate's current screen / file / element — from this project's

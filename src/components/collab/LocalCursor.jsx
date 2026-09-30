@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Hand, Frame as FrameIcon, MessageSquarePlus, Square, Type } from 'lucide-react'
 import { cn } from 'cn'
-import { currentUser } from '@/data/mockData'
+import { currentUserFor } from '@/data/mockData'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // Non-default Canvas tools get their own cursor glyph while hovering the
@@ -41,6 +41,11 @@ function LocalCursor({ containerRef }) {
   const location = useLocation()
   const inWorkspace = location.pathname.includes('/workspace')
   const canvasTool = useWorkspaceOptional()?.canvasTool
+  // Same reasoning as `inWorkspace` above: this cursor can't reach a
+  // WorkspaceProvider's `currentUser` from outside the router, so it reads
+  // the project id straight out of the URL instead.
+  const routeProjectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1]
+  const currentUser = currentUserFor(routeProjectId)
 
   useEffect(() => {
     const el = containerRef?.current ?? window

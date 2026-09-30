@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUser } from '@/data/mockData'
+import { allPeople, currentUserFor } from '@/data/mockData'
 import {
   REVIEW_STAGES,
   STAGE_DOT_CLASS,
@@ -111,8 +111,8 @@ function PersonAvatar({ person }) {
   )
 }
 
-function PersonRole({ person }) {
-  if (!person?.role || person.role === 'You') return null
+function PersonRole({ person, viewerId }) {
+  if (!person?.role || person.id === viewerId) return null
   return (
     <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
       {person.role}
@@ -163,14 +163,15 @@ function ComparisonTable({ fields }) {
   )
 }
 
-function personName(id) {
-  if (id === currentUser.id) return 'You'
+function personName(id, viewerId) {
+  if (id === viewerId) return 'You'
   return allPeople.find((p) => p.id === id)?.name ?? id
 }
 
 // Who (or which AI) made the change under review, what flagged it, and the
 // screens / components / files it reaches — only what the record knows.
 function Provenance({ conflict, className }) {
+  const viewerId = currentUserFor(conflict.projectId).id
   const { changedBy, detectedBy, impact } = conflict
   const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
   const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
@@ -189,7 +190,7 @@ function Provenance({ conflict, className }) {
           <span className="text-xs leading-5 text-slate-200">
             <span className="inline-flex items-center gap-1 font-medium">
               {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
-              {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id)}
+              {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)}
             </span>
             {changedBy.what && <span className="text-slate-400"> · {changedBy.what}</span>}
           </span>
@@ -527,9 +528,10 @@ const iconActionClass =
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
 function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
+  const viewerId = currentUserFor(conflict.projectId).id
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
-  const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== currentUser.id)
+  const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== viewerId)
   const canRemind = reviewStage === 'in_review' || reviewStage === 'detected'
 
   function setReviewers(next, patch = {}) {
@@ -587,7 +589,7 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
                 >
                   <PersonAvatar person={person} />
                   {person.name}
-                  {person.id === currentUser.id && <span className="text-muted-foreground">(you)</span>}
+                  {person.id === viewerId && <span className="text-muted-foreground">(you)</span>}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -610,14 +612,14 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
                   <PersonAvatar person={person} />
                   <span className="min-w-0 truncate font-medium text-slate-200">
                     {person.name}
-                    {person.id === currentUser.id && <span className="font-normal text-slate-500"> (you)</span>}
+                    {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
                   </span>
                 </div>
                 <span className={cn('w-16 truncate text-right text-[11px]', status.className)}>
                   {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
                 <div className="flex w-[72px] shrink-0 items-center justify-end gap-0">
-                  {canRemind && reviewer.status !== 'approved' && reviewer.id !== currentUser.id && (
+                  {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && (
                     <button
                       type="button"
                       aria-label={`Remind ${person.name}`}
@@ -630,7 +632,7 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
                   )}
                   {/* Teammates aren't live: in this prototype their sign-off
                       is simulated, and labeled as such. */}
-                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== currentUser.id && onSimulateApproval && (
+                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== viewerId && onSimulateApproval && (
                     <button
                       type="button"
                       aria-label={`Simulate ${person.name}'s approval (demo)`}
@@ -666,6 +668,7 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
 // Comments live in a project's workspace; outside one (dashboard, the
 // global conflict list) the thread says where to find it instead.
 function CommentThread({ conflict, workspace }) {
+  const viewerId = currentUserFor(conflict.projectId).id
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyDraft, setReplyDraft] = useState('')
@@ -707,7 +710,7 @@ function CommentThread({ conflict, workspace }) {
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-1.5">
                     <span className="font-medium text-slate-200">{author?.name}</span>
-                    <PersonRole person={author} />
+                    <PersonRole person={author} viewerId={viewerId} />
                     <span className="text-[11px] text-slate-500">{comment.timeLabel}</span>
                   </p>
                   <p className="mt-0.5 leading-relaxed text-slate-300">{comment.text}</p>
@@ -733,7 +736,7 @@ function CommentThread({ conflict, workspace }) {
                         <div className="min-w-0 flex-1">
                           <p className="flex flex-wrap items-center gap-1.5">
                             <span className="font-medium text-slate-200">{replyAuthor?.name}</span>
-                            <PersonRole person={replyAuthor} />
+                            <PersonRole person={replyAuthor} viewerId={viewerId} />
                             <span className="text-[11px] text-slate-500">{reply.timeLabel}</span>
                           </p>
                           <p className="mt-0.5 leading-relaxed text-slate-300">{reply.text}</p>
@@ -924,7 +927,7 @@ function HistoryCheckpointTimeline({ workspace }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-slate-200">{selected.label}</p>
                 <p className="mt-1 truncate text-[10px] text-slate-500">
-                  {relativeCheckpointTime(selected.timestamp)}{historyMeta(selected) ? ` · ${historyMeta(selected)}` : ''}
+                  {relativeCheckpointTime(selected.timestamp)}{historyMeta(selected, workspace?.currentUser?.id) ? ` · ${historyMeta(selected, workspace?.currentUser?.id)}` : ''}
                   {selected.snapshot?.fileId ? ` · ${workspace.getFileName(selected.snapshot.fileId)}` : ''}
                 </p>
               </div>
