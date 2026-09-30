@@ -1,3 +1,4 @@
+import { DOCUMENT_DRAG_TYPE } from '@/lib/workspaceDocuments'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
@@ -16,11 +17,16 @@ const GUIDE = 'ml-[15px] border-l border-white/[0.06] pl-1.5'
 function DocLink({ doc, docsPath, active }) {
   return (
     <Link
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id)
+        event.dataTransfer.effectAllowed = 'copy'
+      }}
       to={docsPath}
       state={{ docId: doc.id }}
       replace={false}
       aria-current={active ? 'page' : undefined}
-      title={doc.title}
+      title={`${doc.title} · 워크스페이스 작업창으로 드래그`}
       className={cn(
         'flex h-8 min-w-0 items-center gap-2 rounded-lg px-2 text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
         active && activeClass

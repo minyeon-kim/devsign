@@ -1,3 +1,4 @@
+import { documentTarget } from '@/lib/workspaceDocuments'
 import '@/components/chat/ChatSubmitButton.css'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -11,6 +12,7 @@ import {
   Code2,
   Crosshair,
   FileCode,
+  FileText,
   MessageCircle,
   Paperclip,
   Pin,
@@ -79,6 +81,7 @@ function targetOptions(workspace) {
   if (activeFileId) {
     options.push({ kind: 'file', key: `file:${activeFileId}`, fileId: activeFileId, label: getFileName(activeFileId) })
   }
+  options.push(...workspace.referenceDocs.map(documentTarget))
   return options
 }
 
@@ -86,18 +89,18 @@ function selectionKey({ selectedLayerId, activePageId, activeFileId }) {
   return `${selectedLayerId ?? ''}|${activePageId ?? ''}|${activeFileId ?? ''}`
 }
 
-const TARGET_KIND_LABEL = { element: 'Selected element', page: 'Current page', file: 'Open file' }
+const TARGET_KIND_LABEL = { element: 'Selected element', page: 'Current page', file: 'Open file', document: 'Docs document' }
 
 function TargetChip({ target, options, onPick }) {
   const workspace = useWorkspace()
-  const fileName = target?.kind === 'file'
+  const fileName = (target?.kind === 'file' || target?.kind === 'document')
     ? target.label
     : target?.fileId
       ? workspace.getFileName(target.fileId)
       : workspace.activeFileId
         ? workspace.getFileName(workspace.activeFileId)
         : null
-  const { Icon } = getFileIconMeta(fileName ?? '')
+  const Icon = target?.kind === 'document' ? FileText : getFileIconMeta(fileName ?? '').Icon
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -265,7 +268,7 @@ function ChatConversation() {
   } = workspace
   const options = targetOptions(workspace)
   const key = selectionKey(workspace)
-  const picked = chatTargetOverride?.selection === key ? options.find((o) => o.key === chatTargetOverride.key) : null
+  const picked = (chatTargetOverride?.key?.startsWith('document:') || chatTargetOverride?.selection === key) ? options.find((o) => o.key === chatTargetOverride.key) : null
   const target = picked ?? options.find((o) => o.kind === 'element') ?? null
   const suggestions = forProject(chatSuggestions, projectId)
   const attachablePool = workspaceFiles.map((f) => f.name)

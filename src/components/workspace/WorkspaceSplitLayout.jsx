@@ -1,3 +1,5 @@
+import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
+import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from 'cn'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
@@ -20,6 +22,7 @@ import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingS
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const components = {
+  document: DocumentPanel,
   explorer: ExplorerPanel,
   layers: LayersPanel,
   assets: AssetsPanel,
@@ -114,7 +117,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout() {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride } = useWorkspace()
   const { dockApi, store } = useFloatingDockApi()
   const [dock, setDock] = useState(null) // { groupId, target, zone, rect } while dragging a window
   const rootRef = useRef(null)
@@ -263,6 +266,27 @@ function WorkspaceSplitLayout() {
     window.addEventListener('pointercancel', onCancel)
   }
 
+  function documentDrop(event, commit = false) {
+    if (!Array.from(event.dataTransfer.types).includes(DOCUMENT_DRAG_TYPE)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    const leaf = event.target.closest('[data-leaf]')
+    const group = leaf && store.groups[leaf.dataset.leaf]
+    const root = rootRef.current.getBoundingClientRect()
+    const rect = (leaf ?? rootRef.current).getBoundingClientRect()
+    const zone = event.target.closest('[data-window-header]') ? 'center' : dropZone(rect, event.clientX, event.clientY)
+    const preview = zoneRect({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }, zone)
+    if (!commit) {
+      setDock({ rect: { ...preview, left: preview.left - root.left, top: preview.top - root.top } })
+      return
+    }
+    setDock(null)
+    const doc = referenceDocs.find((entry) => entry.id === event.dataTransfer.getData(DOCUMENT_DRAG_TYPE))
+    if (!doc) return
+    openWorkspaceDocument(dockApi, doc, group ? { referencePanel: group.activeId, direction: zone === 'center' ? 'within' : zone } : {})
+    setChatTargetOverride(documentTarget(doc))
+  }
+
   function renderNode(node, parentDir) {
     if (node.type === 'leaf') {
       const group = store.groups[node.id]
@@ -287,7 +311,9 @@ function WorkspaceSplitLayout() {
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
     <div className={cn('absolute inset-0 bg-[#070708] px-0 pt-[var(--ds-chrome-size)] pr-2', bottomPanel.open ? 'pb-2' : 'pb-0')}>
-      <div ref={rootRef} className="relative isolate flex size-full min-w-0">
+      <div ref={rootRef} onDragOver={documentDrop} onDrop={(event) => documentDrop(event, true)} onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDock(null)
+      }} onDragEnd={() => setDock(null)} className="relative isolate flex size-full min-w-0">
         <div className="flex min-w-0 flex-1">
           {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}
         </div>

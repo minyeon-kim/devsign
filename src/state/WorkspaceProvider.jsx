@@ -1,3 +1,4 @@
+import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
@@ -914,6 +915,7 @@ export function WorkspaceProvider({ children, projectId }) {
       })
       setIsAiTyping(true)
 
+      const documentReply = target?.kind === 'document' ? answerDocumentQuestion(allReferenceDocs.find((doc) => doc.id === target.docId), trimmed) : null
       const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && q.prompt.toLowerCase() === trimmed.toLowerCase())
       const lower = trimmed.toLowerCase()
       const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
@@ -922,6 +924,10 @@ export function WorkspaceProvider({ children, projectId }) {
       window.setTimeout(() => {
         setIsAiTyping(false)
 
+        if (documentReply) {
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: documentReply, target })
+          return
+        }
         if (answer) {
           appendAssistant({ id: nextId('m'), role: 'assistant', text: answer.reply })
           return
@@ -1020,7 +1026,7 @@ export function WorkspaceProvider({ children, projectId }) {
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appendTerminalLines, conflicts, fileOverrides, previewProps, activePageId, prototypeEdits, projectId, recordHistory, selectedLayerId, setConflicts]
+    [allReferenceDocs, appendTerminalLines, conflicts, fileOverrides, previewProps, activePageId, prototypeEdits, projectId, recordHistory, selectedLayerId, setConflicts]
   )
 
   const getFileLines = useCallback(

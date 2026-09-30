@@ -1,3 +1,4 @@
+import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect } from 'react'
 import { DockviewReact } from 'dockview-react'
 import CustomTab from '@/components/dockview/CustomTab'
@@ -20,6 +21,7 @@ import { panelDefinitions } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const components = {
+  document: DocumentPanel,
   explorer: ExplorerPanel,
   layers: LayersPanel,
   assets: AssetsPanel,
