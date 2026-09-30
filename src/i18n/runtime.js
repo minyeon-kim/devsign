@@ -13,11 +13,13 @@ export function LocalizedText({ text }) {
   return original ? text : translateText(text, language)
 }
 
-function LocalizedElement({ elementType, elementProps, original = false }) {
+function LocalizedElement({ elementType, elementProps, original = false, ...forwardedProps }) {
   const language = useLanguage()
   const parentOriginal = useContext(OriginalText)
   const keepOriginal = original || parentOriginal
-  const props = { ...elementProps }
+  // UI primitives clone render elements to attach refs and event handlers.
+  // Keep those injected props when passing through the translation boundary.
+  const props = { ...elementProps, ...forwardedProps }
   if (!keepOriginal) for (const key of TEXT_ATTRIBUTES) {
     if (typeof props[key] === 'string') props[key] = translateText(props[key], language)
   }

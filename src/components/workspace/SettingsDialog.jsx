@@ -1,4 +1,5 @@
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
+import { useState } from 'react'
 import DemoTools, { useDemoStorageWarnings } from '@/components/workspace/DemoTools'
 import { setLanguage, useLanguage } from '@/i18n/language'
 import { ChevronDown, Languages, Settings } from 'lucide-react'
@@ -30,9 +31,10 @@ export function SettingsContent() {
 }
 
 export default function SettingsDialog({ triggerClassName }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Popover>
-      <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName}>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName} onClick={() => setOpen(!open)}>
         <Settings className="size-[18px]" />
       </PopoverTrigger>
       <PopoverContent side="right" align="end" sideOffset={12} className="w-72 max-h-[80vh] overflow-y-auto rounded-2xl border-white/10 bg-[#121212] p-3 shadow-xl">
