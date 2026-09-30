@@ -9,6 +9,7 @@ const CONTROLS = 'button, a[href], [role="tab"]'
 const OWN_TOOLTIP = '[data-slot="tooltip-trigger"], .group\\/action-tooltip, .group\\/project'
 
 function hintFor(control) {
+  if (control.closest('[data-control-tooltip="off"]')) return null
   if (control.closest(OWN_TOOLTIP) || control.title || control.getAttribute('aria-describedby')) return null
   if (control.matches('[role="treeitem"], [role="menuitem"], [role="checkbox"], [role="switch"]')) return null
   const hint = control.getAttribute('aria-description') || control.getAttribute('aria-label') || control.innerText || control.textContent

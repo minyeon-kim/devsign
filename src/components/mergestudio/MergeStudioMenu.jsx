@@ -20,6 +20,7 @@ function MergeStudioMenu({ standalone = false, borderless = false }) {
       {/* Styled as a control inside the Workspace's action pill: a
           borderless 32px pill with the accent carried by the icon only. */}
       <PopoverTrigger
+        data-control-tooltip="off"
         className={
           standalone
             ? cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL, borderless && 'border-0')
@@ -29,7 +30,7 @@ function MergeStudioMenu({ standalone = false, borderless = false }) {
         <Sparkles className={cn('text-emerald-400', standalone ? 'size-4' : 'size-3.5')} />
         Merge Studio
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={10} className="w-72 gap-1 rounded-2xl p-2">
+      <PopoverContent data-control-tooltip="off" align="end" sideOffset={10} className="w-72 gap-1 rounded-2xl p-2">
         <p className="px-1 pb-1 text-xs font-medium text-slate-400">
           Merge Studio
         </p>
