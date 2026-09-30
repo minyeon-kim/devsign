@@ -17,6 +17,62 @@ JA|수
 JD|지
 MI|소
 All members|전체 구성원
+Designer UT · Checkout|디자이너 UT · 결제 화면
+Designer UT: inspect the Place order button, compare design and code, adjust its style, and request a review.|디자이너 UT: Place order 버튼을 확인하고, 디자인과 코드를 비교하고, 스타일을 조정한 뒤 검토를 요청하세요.
+Developer UT · Design System|개발자 UT · 디자인 시스템
+Developer UT: inspect token drift, compare code, resolve changes, request review, and inspect the saved checkpoint.|개발자 UT: 토큰 차이를 확인하고, 코드를 비교하고, 변경 사항을 해결한 뒤 검토를 요청하고 저장된 체크포인트를 확인하세요.
+Issue summary|이슈 요약
+Review impact|검토 필요 이유
+Background|배경
+Proposal|제안
+Why|이유
+Expected result|예상 결과
+Devsign design ↔ code sync|Devsign 디자인 ↔ 코드 동기화
+The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|Place order 버튼이 고정된 violet 배경(#7c3aed)으로 40px 높이입니다. 결제 화면 디자인은 44px의 large 버튼과 primary 색상 토큰을 사용합니다.
+a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.|결제 화면의 핵심 CTA에 눈에 띄는 크기·색상 변경입니다. 스타일만 변경되며 결제 로직이나 데이터는 바뀌지 않습니다.
+Implemented the button in PlaceOrderButton.jsx|PlaceOrderButton.jsx에 버튼을 구현함
+Use the lg button size and remove the fixed background so the button uses the primary color token.|lg 버튼 크기를 사용하고 고정 배경을 제거해 버튼이 primary 색상 토큰을 사용하도록 하세요.
+The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 화면 디자인은 large 크기의 primary 버튼을 지정합니다. 하드코딩된 hex 값은 테마를 우회합니다.
+Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 Place order가 44px 높이, primary 색상으로 렌더링됩니다.
+Button height in code (36px) drifts from the design system token (40px).|코드의 Button 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
+the shared Button component — a height change reaches every screen that uses it.|공유 Button 컴포넌트입니다 — 높이 변경이 이를 사용하는 모든 화면에 영향을 미칩니다.
+Pushed new changes to Button.jsx|Button.jsx에 새 변경사항을 푸시함
+Swap the hard-coded h-9 for the size token so the button follows the design system height.|하드코딩된 h-9를 size 토큰으로 교체해 버튼이 디자인 시스템 높이를 따르도록 하세요.
+The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.|디자인 시스템은 size/md를 --button-height-md(40px)로 정의합니다. h-9는 36px로 하드코딩되어 토큰을 우회합니다.
+Every Button renders 40px tall from --button-height-md.|모든 Button이 --button-height-md로 40px 높이로 렌더링됩니다.
+a merge conflict — both branches edited the same lines, so one side’s change could be lost.|머지 충돌입니다 — 두 브랜치가 같은 줄을 수정해 한쪽의 변경 사항이 사라질 수 있습니다.
+Merge conflict between local and remote branch (lines 9-14).|로컬 브랜치와 원격 브랜치 사이에 머지 충돌이 있습니다 (9-14행).
+Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.|두 브랜치 모두 frame-mapping 블록을 수정했습니다. 원격의 key prop 변경을 유지하고 그 위에 로컬의 onSelect 핸들러를 다시 적용하세요.
+a corner radius on the Card container; no layout or behavior change.|Card 컨테이너의 모서리 반경입니다. 레이아웃이나 동작 변경은 없습니다.
+Card corner radius (8px) is smaller than the design system radius (12px).|Card 모서리 반경(8px)이 디자인 시스템 반경(12px)보다 작습니다.
+Use the radius-lg token on the card container instead of rounded-lg.|카드 컨테이너에 rounded-lg 대신 radius-lg 토큰을 사용하세요.
+the tab bar icons appear on every mobile screen.|탭 바 아이콘은 모든 모바일 화면에 나타납니다.
+Nav icons render at 20px in code but 24px in the redesigned nav frame.|내비게이션 아이콘이 코드에서는 20px이지만 재설계된 내비게이션 프레임에서는 24px입니다.
+Bump the nav icon size to 24px and keep the 44px hit area.|내비게이션 아이콘 크기를 24px로 키우고 44px 탭 영역은 유지하세요.
+one color token value; components keep reading the same token.|색상 토큰 값 하나입니다. 컴포넌트는 계속 같은 토큰을 참조합니다.
+Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).|코드의 primary 색상(#5B5BD6)이 브랜드 토큰(#5E6AD2)과 어긋났습니다.
+Point --primary at the brand token instead of the hard-coded hex.|--primary가 하드코딩된 hex 대신 브랜드 토큰을 가리키도록 하세요.
+2px of horizontal padding inside the Input component.|Input 컴포넌트 내부의 좌우 패딩 2px 차이입니다.
+Input horizontal padding (10px) differs from the design system (12px).|Input의 좌우 패딩(10px)이 디자인 시스템(12px)과 다릅니다.
+Use px-3 on the input so it matches the 12px design padding.|input에 px-3을 사용해 12px 디자인 패딩에 맞추세요.
+form spacing on the checkout — visible, but no behavior change.|결제 화면 폼 간격입니다 — 눈에는 보이지만 동작 변경은 없습니다.
+Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.|결제 화면 간격이 4/8 간격 스케일에 없는 6px 단위를 사용합니다.
+Replace gap-1.5 with gap-2 so the form sits on the 8px scale.|gap-1.5를 gap-2로 교체해 폼이 8px 스케일에 맞도록 하세요.
+a divider color on the order summary; no layout or behavior change.|주문 요약의 구분선 색상입니다. 레이아웃이나 동작 변경은 없습니다.
+The order summary divider uses slate-200 instead of the border token.|주문 요약 구분선이 border 토큰 대신 slate-200을 사용합니다.
+Use border-border on the divider so it follows the theme.|구분선에 border-border를 사용해 테마를 따르도록 하세요.
+letter spacing on payment field labels; no layout or behavior change.|결제 입력란 라벨의 자간입니다. 레이아웃이나 동작 변경은 없습니다.
+Field labels use tracking-wide; the design system label style has normal tracking.|입력란 라벨이 tracking-wide를 사용합니다. 디자인 시스템 라벨 스타일은 normal 자간입니다.
+Drop tracking-wide from the field labels.|입력란 라벨에서 tracking-wide를 제거하세요.
+icon stroke weight on the shipping options; no layout or behavior change.|배송 옵션 아이콘의 선 굵기입니다. 레이아웃이나 동작 변경은 없습니다.
+Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 옵션 아이콘이 선 굵기 2.5로 렌더링됩니다. 아이콘 세트는 2로 그려져 있습니다.
+Use the default stroke width on the shipping icons.|배송 아이콘에 기본 선 굵기를 사용하세요.
+Icon size|아이콘 크기
+Hit area|탭 영역
+Primary|기본색상
+Field gap|필드 간격
+Divider|구분선
+Tracking|자간
 Design Team|디자인 팀
 Engineering|엔지니어링
 Product|프로덕트
