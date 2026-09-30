@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict'
+import { reviewAlerts, groupInboxNotifications } from '../src/lib/inboxNotifications.js'
+const conflict = (id, severity, extra = {}) => ({ id, title: `Change ${id}`, severity, reviewStage: 'in_review', reviewers: [{ id: 'me', status: 'pending' }], ...extra })
+const conflicts = [conflict('h1', 'high'), conflict('m1', 'medium'), conflict('m2', 'medium'), conflict('m3', 'medium'), conflict('other', 'high', { reviewers: [{ id: 'other', status: 'pending' }] }), conflict('done', 'high', { reviewStage: 'approved' }), conflict('low', 'low')]
+const alerts = reviewAlerts(conflicts, 'me', '2026-09-30')
+assert.equal(alerts.length, 2)
+assert.equal(alerts[0].severity, 'high')
+assert.deepEqual(alerts[0].reviewConflictIds, ['h1'])
+assert.equal(alerts[1].text, 'Daily digest · 3 medium changes need review')
+assert.deepEqual(alerts[1].reviewConflictIds, ['m1', 'm2', 'm3'])
+assert.notEqual(reviewAlerts(conflicts, 'me', '2026-10-01')[1].id, alerts[1].id)
+assert.notEqual(reviewAlerts(conflicts.slice(0, 3), 'me', '2026-09-30')[1].id, alerts[1].id)
+assert.deepEqual(reviewAlerts(conflicts.map(c => ({ ...c, reviewStage: 'resolved' })), 'me', '2026-09-30'), [])
+const notes = [{ id: 'c1', kind: 'comment', text: 'Check spacing', unread: false, target: { itemId: 'item1', label: 'Button' } }, { id: 'c2', kind: 'feedback', text: 'AI: check color', unread: true, target: { itemId: 'item1', label: 'Color' } }, { id: 'c3', kind: 'comment', unread: true, target: { conflictId: 'separate', label: 'Modal' } }]
+const groups = groupInboxNotifications([...alerts, ...notes])
+assert.equal(groups.length, 4)
+assert.equal(groups[2].text, 'Comments · 2 conversations')
+assert.deepEqual(groups[2].notifications.map(n => n.id), ['c1', 'c2'])
+assert.equal(groups[2].unread, true)
+assert.equal(groups[3].notifications.length, 1)
+assert.deepEqual(groups[1].reviewConflictIds, ['m1', 'm2', 'm3'])
+console.log('Passed: high immediate alerts, medium digest scope/counts, reviewer isolation, completed exclusion and comment/feedback drill-down grouping.')

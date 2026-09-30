@@ -2,6 +2,7 @@ import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
+import { reviewAlerts } from '@/lib/inboxNotifications'
 import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -218,10 +219,19 @@ export function WorkspaceProvider({ children, projectId }) {
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
   // Merge Studio's feed plus this project's Conflict Points items.
-  const [notifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
+  const [storedNotifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
     ...conflictNotifications.filter((n) => n.projectId === projectId),
     ...seedMergeNotifications,
   ])
+  const notificationDay = new Date().toLocaleDateString('en-CA')
+  const notifications = useMemo(() => {
+    const alerts = reviewAlerts(conflicts, currentUser.id, notificationDay).map((alert) => ({
+      ...alert, unread: storedNotifications.find((n) => n.id === alert.id)?.unread ?? true,
+    }))
+    const pendingIds = new Set(alerts.flatMap(alert => alert.reviewConflictIds))
+    return [...alerts, ...storedNotifications.filter((n) => n.notificationType !== 'review_request'
+      && !(n.kind === 'approval' && pendingIds.has(n.target?.conflictId))) ]
+  }, [conflicts, storedNotifications, notificationDay])
   // The AI chat's unsent draft and an explicitly picked request target,
   // kept here (not in the chat pane) so collapsing the pane or switching
   // tabs never loses them (see ChatConversation).
@@ -356,12 +366,16 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [setSelectedMergeItemId])
 
   const markNotificationRead = useCallback((id, unread = false) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread } : n)))
-  }, [setNotifications])
+    setNotifications((prev) => {
+      if (prev.some((n) => n.id === id)) return prev.map((n) => n.id === id ? { ...n, unread } : n)
+      const alert = notifications.find((n) => n.id === id)
+      return alert ? [...prev, { ...alert, unread }] : prev
+    })
+  }, [setNotifications, notifications])
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
-  }, [setNotifications])
+    setNotifications((prev) => [...prev.map((n) => ({ ...n, unread: false })), ...notifications.filter(n => !prev.some(saved => saved.id === n.id)).map(n => ({ ...n, unread: false }))])
+  }, [setNotifications, notifications])
 
   const replyToNotification = useCallback(
     (id, text) => {

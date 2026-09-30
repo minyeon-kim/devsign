@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Bell, CheckCheck, Smile } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCheck, ChevronRight, MessageSquare, Smile } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { groupInboxNotifications } from '@/lib/inboxNotifications'
+import { needsReviewFrom } from '@/lib/conflicts'
+import { RiskBadge } from '@/components/conflicts/ConflictRow'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, CATEGORY_TAB_ROW } from '@/components/mergestudio/floatingStyles'
 
@@ -232,78 +235,96 @@ function InboxItem({ n, onJump }) {
   )
 }
 
-// Unified notification + comment inbox. Clicking an item marks it read and
-// asks the workspace to pan the infinite canvas to its target element.
+function NotificationSummary({ group, conflicts, onOpen }) {
+  const changes = (group.reviewConflictIds ?? []).map(id => conflicts.find(c => c.id === id)).filter(Boolean)
+  const first = group.notifications[0]
+  const author = allPeople.find(p => p.id === first.authorId)
+  const preview = changes.length ? changes.map(c => c.title).join(' · ')
+    : group.kind === 'comment' ? first.text : group.target.label
+  return (
+    <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 rounded-xl px-3 py-4 text-left transition-colors hover:bg-white/[0.04]">
+      <span className="mt-0.5 shrink-0">
+        {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? <MessageSquare className="size-4 text-slate-500" /> : <CheckCheck className="size-4 text-slate-500" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] leading-5 font-medium text-white">{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</span>
+        {group.kind === 'comment' && <span className="mt-1 block truncate text-xs text-slate-300">{group.target.label}</span>}
+        <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>
+        <span className="mt-2 block text-[11px] text-slate-500">{group.timeLabel}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2 pt-1">
+        {group.unread && <span className="size-1.5 rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
+        <ChevronRight className="size-3.5 text-slate-500" />
+      </span>
+    </button>
+  )
+}
+
+// Notifications open their scoped list first; individual rows open the target.
 function MergeInboxDrawer({ onJump, onClose }) {
-  const { notifications, markAllNotificationsRead } = useWorkspace()
+  const { notifications, conflicts, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('all')
-  // The Unread tab holds on to the items that were unread when it was
-  // opened, so reading one (or Mark all read) doesn't yank it out from
-  // under the cursor — they just turn read; the list refreshes the next
-  // time the tab is picked.
+  const [selected, setSelected] = useState(null)
   const [unreadIds, setUnreadIds] = useState(null)
   const unread = notifications.filter((n) => n.unread).length
+  const groups = groupInboxNotifications(notifications)
+  const selectedGroup = selected && (groups.find(group => group.id === selected.id) ?? selected)
 
   function pick(id) {
     setTab(id)
+    setSelected(null)
     setUnreadIds(id === 'unread' ? new Set(notifications.filter((n) => n.unread).map((n) => n.id)) : null)
   }
-
-  const visible = notifications.filter((n) => {
-    if (tab === 'all') return true
-    if (tab === 'unread') return unreadIds?.has(n.id)
-    if (tab === 'comment') return n.kind === 'comment' || n.kind === 'feedback'
-    return n.kind === tab
-  })
+  function openGroup(group) {
+    setSelected(group)
+    group.notifications.forEach(n => markNotificationRead(n.id))
+  }
+  const visible = groups.filter(group => tab === 'all' || (tab === 'unread'
+    ? group.notifications.some(n => unreadIds?.has(n.id)) : group.kind === tab))
+  const reviewItems = selectedGroup?.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean) ?? []
 
   return (
-    <MergeDrawer
-      icon={Bell}
-      title="Inbox"
-      onClose={onClose}
-      aside={
-        <button
-          type="button"
-          onClick={markAllNotificationsRead}
-          disabled={unread === 0}
-          className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
-        >
-          <CheckCheck className="size-3.5" />
-          Mark all read
-        </button>
-      }
-    >
-      <div className={cn(CATEGORY_TAB_ROW, 'gap-0.5')} role="tablist" aria-label="Filter notifications">
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined}
-            onClick={() => pick(id)}
-            // Shared category-tab style (same as the Merge List's Files /
-            // Layers switch), with 8px sides for a compact filter row.
-            className={cn(CATEGORY_TAB, 'gap-1 px-2', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
-          >
-            {label}
-            {id === 'unread' && unread > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">
-                {unread}
+    <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} aside={
+      <button type="button" onClick={markAllNotificationsRead} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
+        <CheckCheck className="size-3.5" /> Mark all read
+      </button>
+    }>
+      {selectedGroup ? <>
+        <div className="shrink-0 border-b border-white/[0.07] px-5 pb-3">
+          <button type="button" onClick={() => setSelected(null)} className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"><ArrowLeft className="size-3.5" /> Back to notifications</button>
+          <h3 className="text-[13px] leading-5 font-medium text-white">{selectedGroup.text}</h3>
+          <p className="mt-1 text-xs text-slate-400">{selectedGroup.reviewConflictIds ? 'Select a change to open its review.' : selectedGroup.kind === 'approval' ? 'Approval activity for this target.' : 'Comments and feedback for this target.'}</p>
+        </div>
+        <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+          {selectedGroup.reviewConflictIds ? <div className="divide-y divide-white/[0.06]">
+            {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 py-4 text-left">
+              <RiskBadge severity={conflict.severity} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-medium text-white">{conflict.title}</span>
+                <span className="mt-1 block text-[11px] text-slate-500">{conflict.file}</span>
+                <span className="mt-2 block text-xs leading-5 text-slate-400">{conflict.message ?? conflict.suggestion}</span>
+                <span className="mt-2 block text-[11px] text-emerald-300">{needsReviewFrom(conflict) ? 'Needs your review' : 'Review completed'}</span>
               </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="scroll-fade-bottom min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-5 pb-2">
-        {visible.map((n) => (
-          <InboxItem key={n.id} n={n} onJump={onJump} />
-        ))}
-        {visible.length === 0 && (
-          <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>
-        )}
-      </div>
+              <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />
+            </button>)}
+            {!reviewItems.length && <p className="py-6 text-center text-xs text-slate-500">No changes waiting for review.</p>}
+          </div> : selectedGroup.notifications.map(saved => {
+            const n = notifications.find(current => current.id === saved.id) ?? saved
+            return <InboxItem key={n.id} n={n} onJump={onJump} />
+          })}
+        </div>
+      </> : <>
+        <div className={cn(CATEGORY_TAB_ROW, 'gap-0.5')} role="tablist" aria-label="Filter notifications">
+          {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'gap-1 px-2', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
+            {label}
+            {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
+          </button>)}
+        </div>
+        <div className="scroll-fade-bottom min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-2 pb-2">
+          {visible.map(group => <NotificationSummary key={group.id} group={group} conflicts={conflicts} onOpen={() => openGroup(group)} />)}
+          {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
+        </div>
+      </>}
     </MergeDrawer>
   )
 }

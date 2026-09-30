@@ -771,6 +771,13 @@ Created document|생성된 문서
 Change path|경로 변경
 Document creation path|문서 생성 경로
 Document category|문서 카테고리
+Back to notifications|알림 목록으로
+Select a change to open its review.|변경사항을 선택하면 리뷰가 열립니다.
+Comments and feedback for this target.|이 대상의 코멘트와 피드백입니다.
+Approval activity for this target.|이 대상의 승인 내역입니다.
+Review completed|검토 완료
+No changes waiting for review.|검토 대기 중인 변경사항이 없습니다.
+Comments and AI / CI feedback|코멘트 및 AI / CI 피드백
 `.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
 
 Object.assign(ko, {
