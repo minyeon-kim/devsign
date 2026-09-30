@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { ArrowRight, BookOpen, Check, ChevronDown, History, FilePlus2, FileText } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, ChevronDown, ChevronRight, History, FilePlus2, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { DS_STAGES, docIdFor, stageIndex } from '@/lib/designSystemUpdates'
 import { affectedDocuments, nextDocumentChange } from '@/lib/documentChanges'
-import { buildDocTree, countDocs, docPath, documentCategoryOptions, suggestedDocumentCategory } from '@/lib/docCategories'
+import { buildDocTree, docPath, documentCategoryOptions, suggestedDocumentCategory } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const STAGE_ICONS = { update: FileText, documented: BookOpen, archived: History }
@@ -71,31 +71,30 @@ function AffectedDocs({ docs, onOpen }) {
   if (!docs.length) return null
   const groups = buildDocTree(docs)
   return (
-    <section className="mt-4 border-t border-white/[0.06] pt-4">
-      <div className="mb-3 flex items-baseline gap-2">
-        <h3 className="text-xs font-semibold text-slate-100">Affected docs</h3>
-        <span className="text-[11px] text-slate-500 tabular-nums">{docs.length}</span>
-      </div>
-      <div className="divide-y divide-white/[0.05]">
+    <details className="group/affected mt-4 border-t border-white/[0.06] pt-3">
+      <summary className="flex min-h-9 w-full list-none items-center gap-2 py-2 text-xs text-slate-100 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300/60 [&::-webkit-details-marker]:hidden">
+        <span className="font-semibold">Affected docs</span>
+        <span className="text-[11px] font-normal tabular-nums text-slate-500">{docs.length}</span>
+        <ChevronDown className="ml-auto size-3 shrink-0 text-slate-500 transition-transform group-open/affected:rotate-180" />
+      </summary>
+      <div className="mt-2 space-y-3">
         {groups.map((group) => (
-          <details key={group.id} className="group/docs min-w-0">
-            <summary className="flex min-h-9 w-full list-none items-center gap-2 py-2 text-xs text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300/60 [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 flex-1 truncate font-medium group-open/docs:text-slate-200">{group.label}</span>
-              <span className="text-[11px] text-slate-500 tabular-nums">{countDocs(group)}</span>
-              <ChevronDown className="size-3 shrink-0 text-slate-500 transition-transform group-open/docs:rotate-180" />
-            </summary>
-            <div className="mb-3 mt-1 flex flex-col rounded-lg bg-black/15 px-2 py-1">
+          <section key={group.id} className="min-w-0">
+            <div className="mb-1 flex items-center gap-2 text-xs text-slate-300">
+              <h4 className="min-w-0 flex-1 truncate font-medium">{group.label}</h4>
+            </div>
+            <div className="flex flex-col">
               {documentsInGroup(group).map((doc) => (
                 <button key={doc.id} type="button" onClick={() => onOpen(doc.id)} className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-2 text-left text-[11px] leading-5 text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white">
                   <span className="min-w-0 flex-1">{doc.title}</span>
-                  <ArrowRight className="size-3 shrink-0 text-slate-600" />
+                  <ChevronRight className="size-3 shrink-0 text-slate-500" />
                 </button>
               ))}
             </div>
-          </details>
+          </section>
         ))}
       </div>
-    </section>
+    </details>
   )
 }
 
