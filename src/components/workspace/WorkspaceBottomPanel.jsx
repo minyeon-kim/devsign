@@ -122,6 +122,7 @@ function WorkspaceBottomPanel() {
             key={id}
             type="button"
             role="tab"
+            aria-description={`Open ${label} · Drag to reorder`}
             aria-selected={id === tab}
             draggable
             onDragStart={(event) => {
@@ -167,6 +168,7 @@ function WorkspaceBottomPanel() {
         {needsMyReview > 0 && (
           <button
             type="button"
+            aria-description="Show conflicts waiting for your review"
             onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
             className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
           >

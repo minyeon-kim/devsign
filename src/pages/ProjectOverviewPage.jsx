@@ -126,13 +126,14 @@ function ProjectOverviewPage() {
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
+              aria-description="Compare design and code in Merge Studio"
               onClick={() => navigate(workspacePath, { state: { openMergeStudio: true } })}
               className={cn('inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-medium', GHOST_BUTTON)}
             >
               <Sparkles className="size-4 text-emerald-300" />
               Merge Studio
             </button>
-            <Link to={workspacePath} className={cn('inline-flex h-10 items-center gap-2 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA)}>
+            <Link to={workspacePath} aria-description="Open the code and design workspace" className={cn('inline-flex h-10 items-center gap-2 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA)}>
               Open Workspace
               <ArrowRight className="size-4" />
             </Link>

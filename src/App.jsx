@@ -1,3 +1,4 @@
+import ControlTooltips from '@/components/layout/ControlTooltips'
 import LanguageProvider from '@/i18n/LanguageProvider'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -32,6 +33,7 @@ function App() {
       <ConflictStoreProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <ConditionalScrollFade />
+        <ControlTooltips />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
