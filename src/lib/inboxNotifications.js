@@ -38,3 +38,13 @@ export function groupInboxNotifications(notifications) {
   }
   return groups
 }
+
+export function commentGroupSummary(group) {
+  const notes = group.notifications
+  return {
+    latest: notes[0],
+    comments: notes.filter(n => n.kind === 'comment').length,
+    feedback: notes.filter(n => n.kind === 'feedback').length,
+    replies: notes.reduce((total, n) => total + (n.replies?.length ?? 0), 0),
+  }
+}

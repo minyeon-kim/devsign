@@ -2,6 +2,9 @@ import { ko } from './ko'
 
 const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '차이', drifts: '차이', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
+  [/^(\d+) comments$/, (_, n) => `코멘트 ${n}개`],
+  [/^(\d+) automated notes$/, (_, n) => `자동 피드백 ${n}개`],
+  [/^(\d+) replies$/, (_, n) => `답글 ${n}개`],
   [/^Daily digest · (\d+) medium changes? needs? review$/, (_, n) => `일일 요약 · Medium 변경사항 ${n}개 검토 필요`],
   [/^Immediate review · High risk: (.+)$/, (_, title) => `즉시 검토 · High 위험도: ${title}`],
   [/^Comments · (\d+) conversations?$/, (_, n) => `코멘트 · 대화 ${n}개`],

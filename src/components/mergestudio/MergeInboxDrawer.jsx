@@ -4,11 +4,11 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { groupInboxNotifications } from '@/lib/inboxNotifications'
+import { commentGroupSummary, groupInboxNotifications } from '@/lib/inboxNotifications'
 import { needsReviewFrom } from '@/lib/conflicts'
 import { RiskBadge } from '@/components/conflicts/ConflictRow'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
-import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, CATEGORY_TAB_ROW } from '@/components/mergestudio/floatingStyles'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 
 // Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
 // count as a badge.
@@ -30,12 +30,6 @@ function Person({ id, className, size = 'sm' }) {
   )
 }
 
-// What the author did, phrased as a verb before the target.
-const ACTION = {
-  comment: 'commented on',
-  approval: 'approved',
-  feedback: 'flagged',
-}
 const EMOJI = ['👍', '🎉', '👀', '🔥', '✅', '💜']
 
 // Keep long labels from stretching the row: "FlowBank - Homepage…Header" style
@@ -146,7 +140,7 @@ function InboxItem({ n, onJump }) {
                 {meta}
               </span>
               <span className="block truncate text-xs text-slate-400">
-                {ACTION[n.kind] ?? 'mentioned'} {target}
+                {isThread ? 'Comment' : source ?? 'Feedback'} · {target}
               </span>
               {isThread ? (
                 <span className="mt-2.5 block text-[13px] leading-relaxed text-[#FFFFFF]">
@@ -235,10 +229,14 @@ function InboxItem({ n, onJump }) {
   )
 }
 
-function NotificationSummary({ group, conflicts, onOpen }) {
+function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
   const changes = (group.reviewConflictIds ?? []).map(id => conflicts.find(c => c.id === id)).filter(Boolean)
   const first = group.notifications[0]
   const author = allPeople.find(p => p.id === first.authorId)
+  const comment = group.kind === 'comment' ? commentGroupSummary(group) : null
+  const itemName = mergeItems.find(item => item.id === group.target.itemId)?.title
+  const subject = itemName ?? group.target.label
+  const latest = splitSource(first.text)
   const preview = changes.length ? changes.map(c => c.title).join(' · ')
     : group.kind === 'comment' ? first.text : group.target.label
   return (
@@ -247,9 +245,18 @@ function NotificationSummary({ group, conflicts, onOpen }) {
         {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? <MessageSquare className="size-4 text-slate-500" /> : <CheckCheck className="size-4 text-slate-500" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] leading-5 font-medium text-white">{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</span>
-        {group.kind === 'comment' && <span className="mt-1 block truncate text-xs text-slate-300">{group.target.label}</span>}
-        <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>
+        <span className="block text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
+        {comment ? <>
+          {itemName && itemName !== group.target.label && <span className="mt-1 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
+          <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-300">
+            <span className="text-slate-400">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
+          </span>
+          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+            {comment.comments > 0 && <span>{`${comment.comments} comments`}</span>}
+            {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
+            {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
+          </span>
+        </> : <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
         <span className="mt-2 block text-[11px] text-slate-500">{group.timeLabel}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2 pt-1">
@@ -262,7 +269,7 @@ function NotificationSummary({ group, conflicts, onOpen }) {
 
 // Notifications open their scoped list first; individual rows open the target.
 function MergeInboxDrawer({ onJump, onClose }) {
-  const { notifications, conflicts, markNotificationRead, markAllNotificationsRead } = useWorkspace()
+  const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('all')
   const [selected, setSelected] = useState(null)
   const [unreadIds, setUnreadIds] = useState(null)
@@ -292,7 +299,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
       {selectedGroup ? <>
         <div className="shrink-0 border-b border-white/[0.07] px-5 pb-3">
           <button type="button" onClick={() => setSelected(null)} className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"><ArrowLeft className="size-3.5" /> Back to notifications</button>
-          <h3 className="text-[13px] leading-5 font-medium text-white">{selectedGroup.text}</h3>
+          <h3 className="text-[13px] leading-5 font-medium text-white">{selectedGroup.kind === 'comment' ? mergeItems.find(item => item.id === selectedGroup.target.itemId)?.title ?? selectedGroup.target.label : selectedGroup.text}</h3>
           <p className="mt-1 text-xs text-slate-400">{selectedGroup.reviewConflictIds ? 'Select a change to open its review.' : selectedGroup.kind === 'approval' ? 'Approval activity for this target.' : 'Comments and feedback for this target.'}</p>
         </div>
         <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-5 pb-3">
@@ -314,14 +321,14 @@ function MergeInboxDrawer({ onJump, onClose }) {
           })}
         </div>
       </> : <>
-        <div className={cn(CATEGORY_TAB_ROW, 'gap-0.5')} role="tablist" aria-label="Filter notifications">
-          {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'gap-1 px-2', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
-            {label}
+        <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-3" role="tablist" aria-label="Filter notifications">
+          {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
+            <span className="truncate">{label}</span>
             {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
           </button>)}
         </div>
         <div className="scroll-fade-bottom min-h-0 flex-1 divide-y divide-white/[0.06] overflow-y-auto px-2 pb-2">
-          {visible.map(group => <NotificationSummary key={group.id} group={group} conflicts={conflicts} onOpen={() => openGroup(group)} />)}
+          {visible.map(group => <NotificationSummary key={group.id} group={group} conflicts={conflicts} mergeItems={mergeItems} onOpen={() => openGroup(group)} />)}
           {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
         </div>
       </>}
