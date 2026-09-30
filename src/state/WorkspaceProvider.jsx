@@ -36,6 +36,7 @@ import { allReviewersApproved, toConflictRecord } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
 import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUpdates'
 import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from '@/lib/documentChanges'
+import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
 import {
   PROTOTYPE_FILES,
@@ -697,12 +698,18 @@ export function WorkspaceProvider({ children, projectId }) {
     [appendTerminalLines, conflicts, logEvent, projectId, setConflicts]
   )
 
-  // Pipeline step 2: write the update up as a Reference Doc.
+  const setDocumentUpdateCategory = useCallback((updateId, categoryId) => {
+    if (!validDocumentCategory(categoryId)) return
+    setDsUpdates((prev) => prev.map((update) => update.id === updateId && update.stage === 'update' ? { ...update, categoryId } : update))
+  }, [setDsUpdates])
+
+  // Approval creates a new Reference Doc at the reviewed destination.
   const documentDsUpdate = useCallback(
     (updateId) => {
       const update = dsUpdates.find((u) => u.id === updateId)
       if (!update || !canProcessDocumentChange(dsUpdates, updateId, 'update')) return
-      const documented = { ...update, stage: 'documented', approvedBy: currentUser.id, documentedAtLabel: 'Just now', affectedDocIds: affectedDocuments(update, [...staticReferenceDocs, ...generatedDocs]).map((doc) => doc.id) }
+      const affectedDocs = affectedDocuments(update, [...staticReferenceDocs, ...generatedDocs])
+      const documented = { ...update, categoryId: suggestedDocumentCategory(update, affectedDocs), stage: 'documented', approvedBy: currentUser.id, documentedAtLabel: 'Just now', affectedDocIds: affectedDocs.map((doc) => doc.id) }
       setDsUpdates((prev) => prev.map((u) => (u.id === updateId ? documented : u)))
       setGeneratedDocs((prev) => [...prev.filter((d) => d.id !== docIdFor(update)), docForUpdate(documented)])
       appendTerminalLines([`$ devsign docs generate "${update.title}"`, '✓ reference doc created'])
@@ -1140,6 +1147,7 @@ export function WorkspaceProvider({ children, projectId }) {
     bottomPanel,
     dsUpdates,
     documentDsUpdate,
+    setDocumentUpdateCategory,
     archiveDsUpdate,
     referenceDocs: allReferenceDocs,
     setBottomPanel,

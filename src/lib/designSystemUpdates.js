@@ -34,6 +34,7 @@ export function docForUpdate(update) {
     updatedAtLabel: update.documentedAtLabel ?? update.createdAtLabel,
     type: 'doc',
     docUpdateId: update.id,
+    categoryId: update.categoryId,
     affectedDocIds: update.affectedDocIds ?? [],
     blocks: [
       { type: 'p', text: update.summary },

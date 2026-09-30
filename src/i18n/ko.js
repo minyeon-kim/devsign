@@ -766,6 +766,11 @@ Affected docs|관련 문서
 Waiting for earlier updates|이전 변경사항 처리 대기
 System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|Conflict·Merge에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 History에 기록합니다.
 No document updates yet. Resolving a Conflict Point or merging system changes adds an update automatically.|문서 업데이트가 없습니다. Conflict 해결 또는 시스템 변경사항 Merge 시 자동 등록됩니다.
+Create new document|새 문서 생성
+Created document|생성된 문서
+Change path|경로 변경
+Document creation path|문서 생성 경로
+Document category|문서 카테고리
 `.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
 
 Object.assign(ko, {

@@ -49,6 +49,39 @@ export const DOC_TREE = [
 // Where an unplaced doc goes, by its type.
 const FALLBACK = { design: 'foundations', spec: 'inputs', doc: 'team' }
 
+// Include leaf categories and parents that already contain documents.
+export function documentCategoryOptions(nodes = DOC_TREE, trail = []) {
+  return nodes.flatMap((node) => {
+    const path = [...trail, node.label]
+    const own = !node.children?.length || node.docs ? [{ id: node.id, path }] : []
+    return [...own, ...documentCategoryOptions(node.children ?? [], path)]
+  })
+}
+
+export function validDocumentCategory(id) {
+  return documentCategoryOptions().some((category) => category.id === id)
+}
+
+export function suggestedDocumentCategory(update, affectedDocs = []) {
+  if (validDocumentCategory(update.categoryId)) return update.categoryId
+  const text = [update.title, update.summary, update.file, ...(update.changes ?? []).map((change) => change.label)].filter(Boolean).join(' ').toLowerCase()
+  const topics = [
+    ['database', /database|schema|migration|sql|데이터베이스|스키마/],
+    ['backend', /backend|server|api|endpoint|auth|백엔드/],
+    ['containers', /card|modal|overlay|dialog/],
+    ['inputs', /button|input|checkbox|toggle|버튼/],
+    ['foundations', /token|color|spacing|radius|typograph|font|motion|색상/],
+    ['brand', /brand|copywriting|브랜드/],
+    ['quality', /release|accessibility|a11y|quality|배포/],
+    ['team', /onboarding|handoff|review|process|온보딩/],
+  ]
+  const topic = topics.find(([, pattern]) => pattern.test(text))
+  if (topic) return topic[0]
+  const tree = buildDocTree(affectedDocs)
+  const path = affectedDocs[0] && docPath(tree, affectedDocs[0].id)
+  return documentCategoryOptions().find((category) => category.path.join('/') === path?.join('/'))?.id ?? 'team'
+}
+
 function collectIds(nodes, into = new Set()) {
   for (const node of nodes) {
     node.docs?.forEach((id) => into.add(id))
@@ -65,7 +98,8 @@ export function buildDocTree(referenceDocs) {
   const extras = {}
   for (const doc of referenceDocs) {
     if (placed.has(doc.id)) continue
-    const target = (doc.docUpdateId || doc.dsUpdateId) ? 'document-updates' : (FALLBACK[doc.type] ?? 'team')
+    const target = validDocumentCategory(doc.categoryId) ? doc.categoryId
+      : (doc.docUpdateId || doc.dsUpdateId) ? 'document-updates' : (FALLBACK[doc.type] ?? 'team')
     ;(extras[target] ??= []).push(doc)
   }
 

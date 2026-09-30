@@ -1,11 +1,12 @@
-import { ArrowRight, BookOpen, Check, ChevronDown, History, FileText } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, BookOpen, Check, ChevronDown, History, FilePlus2, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { DS_STAGES, docIdFor, stageIndex } from '@/lib/designSystemUpdates'
 import { affectedDocuments, nextDocumentChange } from '@/lib/documentChanges'
-import { buildDocTree, countDocs } from '@/lib/docCategories'
+import { buildDocTree, countDocs, docPath, documentCategoryOptions, suggestedDocumentCategory } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const STAGE_ICONS = { update: FileText, documented: BookOpen, archived: History }
@@ -94,7 +95,37 @@ function AffectedDocs({ docs, onOpen }) {
   )
 }
 
-function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpenDoc, onOpenHistory, onOpenReference }) {
+function DocumentDestination({ update, affectedDocs, createdDoc, onChangeCategory }) {
+  const [editing, setEditing] = useState(false)
+  const categories = documentCategoryOptions()
+  const savedPath = createdDoc && docPath(buildDocTree([createdDoc]), createdDoc.id)
+  const savedCategory = categories.find((entry) => entry.path.join('/') === savedPath?.join('/'))
+  const categoryId = savedCategory?.id ?? suggestedDocumentCategory(update, affectedDocs)
+  const category = categories.find((entry) => entry.id === categoryId)
+  const pending = update.stage === 'update'
+  return (
+    <div className="mt-4 border-t border-white/[0.06] pt-3">
+      <div className="flex items-center gap-2 text-xs">
+        <FilePlus2 className="size-3.5 text-slate-500" />
+        <span className="text-slate-300">{pending ? 'Create new document' : 'Created document'}</span>
+        {pending && <button type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} className="ml-auto text-[11px] text-slate-400 hover:text-white">Change path</button>}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-5 text-slate-500" aria-label="Document creation path">
+        <span>Docs</span>
+        {category.path.map((label) => <span key={label} className="inline-flex items-center gap-1.5"><span>/</span><span>{label}</span></span>)}
+        <span>/</span><span className="text-slate-300">{update.title}</span>
+      </div>
+      {pending && editing && <label className="mt-3 grid gap-1.5 text-[11px] text-slate-400">
+        Document category
+        <select value={categoryId} onChange={(event) => onChangeCategory(event.target.value)} className="h-8 w-full rounded-lg border border-white/10 bg-[#09090A] px-3 text-xs text-slate-200 outline-none focus:border-emerald-300/50">
+          {categories.map((entry) => <option key={entry.id} value={entry.id}>{entry.path.join(' / ')}</option>)}
+        </select>
+      </label>}
+    </div>
+  )
+}
+
+function UpdateCard({ update, active, affectedDocs, createdDoc, onChangeCategory, onDocument, onArchive, onOpenDoc, onOpenHistory, onOpenReference }) {
   const author = allPeople.find((p) => p.id === update.authorId)
 
   return (
@@ -108,6 +139,7 @@ function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpe
       </div>
 
       <AffectedDocs docs={affectedDocs} onOpen={onOpenReference} />
+      <DocumentDestination update={update} affectedDocs={affectedDocs} createdDoc={createdDoc} onChangeCategory={onChangeCategory} />
       {update.changes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {update.changes.map((c) => (
@@ -166,7 +198,7 @@ function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpe
 
 // System changes automatically queued by Conflict / Merge, reviewed in Docs.
 function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
-  const { dsUpdates, referenceDocs, documentDsUpdate, archiveDsUpdate } = useWorkspace()
+  const { dsUpdates, referenceDocs, documentDsUpdate, archiveDsUpdate, setDocumentUpdateCategory } = useWorkspace()
   const counts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
   // Keep registration order for pending updates, completed records below.
   const ordered = [...dsUpdates.filter((u) => u.stage !== 'archived'), ...dsUpdates.filter((u) => u.stage === 'archived')]
@@ -192,8 +224,10 @@ function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
               key={update.id}
               update={update}
               active={next?.id === update.id}
+              createdDoc={referenceDocs.find((doc) => doc.id === docIdFor(update))}
               affectedDocs={affectedDocuments(update, referenceDocs)}
               onOpenReference={onOpenDoc}
+              onChangeCategory={(categoryId) => setDocumentUpdateCategory(update.id, categoryId)}
               onDocument={() => documentDsUpdate(update.id)}
               onArchive={() => archiveDsUpdate(update.id)}
               onOpenDoc={() => onOpenDoc(docIdFor(update))}
