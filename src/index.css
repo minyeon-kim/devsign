@@ -396,20 +396,20 @@
   border-radius: var(--ds-radius-workspace-tab);
 }
 button.workspace-tab-close {
-  width: 16px !important;
-  height: 16px !important;
-  min-width: 16px !important;
-  min-height: 16px !important;
-  max-width: 16px !important;
-  max-height: 16px !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
   border-radius: 50% !important;
   padding: 2px !important;
   box-sizing: border-box;
   flex-shrink: 0;
 }
 button.workspace-tab-close svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Selection checkboxes are compact controls, exempt from 32px actions. */

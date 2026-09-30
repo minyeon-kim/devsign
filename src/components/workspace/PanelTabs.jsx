@@ -87,7 +87,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       data-tab-id={item.key}
       data-panel-id={pid}
       className={cn(
-        'workspace-header-tab group/tab flex h-8 items-center text-xs transition-colors',
+        'workspace-header-tab group/tab relative flex h-7 items-center text-xs transition-colors',
         WORKSPACE_TAB_RADIUS,
         panel.component === 'navigator' ? 'min-w-0 flex-1' : 'shrink-0',
         item.active ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
@@ -116,25 +116,46 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
           item.select()
           activate()
         }}
-        className={cn('flex h-full items-center', panel.component === 'navigator' ? 'min-w-0 w-full justify-center gap-1 px-1.5' : ['gap-1.5 pl-3', item.close ? 'pr-1.5' : 'pr-3'])}
+        className={cn('flex h-full items-center', panel.component === 'navigator' ? 'min-w-0 w-full justify-center gap-1 px-1.5' : 'gap-1.5 px-2')}
       >
         {panel.component === 'navigator' ? <span className="shrink-0 @max-[340px]/nav:hidden">{item.icon}</span> : item.icon}
         <span className="max-w-[160px] truncate">{item.label}</span>
-        {item.dirty && <span className="ds-status-dot ml-1 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
+        {item.dirty && (
+          <span
+            className={cn(
+              'ds-status-dot ml-1 shrink-0 rounded-full bg-[#5EEAB5] transition-opacity duration-150',
+              item.close && 'group-hover/tab:opacity-0'
+            )}
+            role="img"
+            aria-label="Uncommitted or unsaved changes"
+          />
+        )}
       </button>
       {item.close && (
-        <button
-          type="button"
-          aria-label={item.closeLabel ?? `Close ${item.label}`}
-          title={item.closeLabel ?? 'Close'}
-          onClick={item.close}
-          className={cn(
-            'workspace-tab-close mr-1 flex size-4 shrink-0 items-center justify-center rounded-full p-0.5 text-slate-500 transition-opacity hover:bg-white/10 hover:text-white',
-            item.active ? 'opacity-100' : 'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100'
-          )}
-        >
-          <X className="size-3" />
-        </button>
+        <>
+          {/* Fades in on hover and fades the tab's own background over the trailing label/dot so the close button reads as covering the tab's content, not floating beside it. */}
+          <span
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-[var(--ds-radius-workspace-tab)] opacity-0 transition-opacity duration-150 group-hover/tab:opacity-100 group-focus-within/tab:opacity-100 motion-reduce:transition-none',
+              item.active
+                ? 'bg-[linear-gradient(to_left,color-mix(in_srgb,var(--card),white_9%)_30%,transparent)]'
+                : 'bg-[linear-gradient(to_left,color-mix(in_srgb,var(--card),white_5%)_30%,transparent)]'
+            )}
+          />
+          <button
+            type="button"
+            aria-label={item.closeLabel ?? `Close ${item.label}`}
+            title={item.closeLabel ?? 'Close'}
+            onClick={item.close}
+            className={cn(
+              'workspace-tab-close absolute top-1/2 right-1.5 -translate-y-1/2 flex size-4 shrink-0 items-center justify-center rounded-full p-0.5 text-slate-500 transition-opacity duration-150 motion-reduce:transition-none hover:bg-white/10 hover:text-white',
+              'pointer-events-none opacity-0 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100'
+            )}
+          >
+            <X className="size-3" />
+          </button>
+        </>
       )}
     </span>
   ))

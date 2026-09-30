@@ -286,11 +286,11 @@ function EditorPanel() {
             <span
               key={fileId}
               className={cn(
-                'group/tab flex h-7 shrink-0 items-center rounded-full text-xs transition-colors',
+                'group/tab relative flex h-7 shrink-0 items-center rounded-full text-xs transition-colors',
                 active ? 'bg-muted text-foreground ring-1 ring-border' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
               )}
             >
-              <button type="button" onClick={() => setActiveFileId(fileId)} className="flex h-full items-center gap-1.5 pl-3 pr-1.5">
+              <button type="button" onClick={() => setActiveFileId(fileId)} className={cn('flex h-full items-center gap-1.5 pl-2.5', openFileIds.length > 1 ? 'pr-8' : 'pr-2.5')}>
                 <Icon className={cn('size-3.5 shrink-0', colorClass)} />
                 {name}
                 {(draftChanges[fileId] || editorDirtyFiles[fileId]) && <span className="ds-status-dot shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
@@ -302,8 +302,8 @@ function EditorPanel() {
                   title="Close"
                   onClick={() => closeFileTab(fileId)}
                   className={cn(
-                    'mr-1.5 flex size-4 items-center justify-center rounded-full text-muted-foreground transition-opacity hover:bg-white/10 hover:text-foreground',
-                    active ? 'opacity-100' : 'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100'
+                    'absolute top-1/2 right-1.5 -translate-y-1/2 flex size-4 items-center justify-center rounded-full text-muted-foreground transition-opacity duration-150 motion-reduce:transition-none hover:bg-white/10 hover:text-foreground',
+                    'pointer-events-none opacity-0 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100'
                   )}
                 >
                   <X className="size-3" />
