@@ -37,7 +37,7 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
               className={cn(
                 'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150',
                 isActive
-                  ? 'border-primary/40 bg-primary/10 text-foreground'
+                  ? 'border-foreground/20 bg-muted text-foreground'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
@@ -50,7 +50,7 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
       <div className="flex shrink-0 items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className={cn(dropdownTriggerClass, selectedProject && 'border-primary/40 bg-primary/10 text-foreground')}
+            className={cn(dropdownTriggerClass, selectedProject && 'border-foreground/20 bg-muted text-foreground')}
           >
             <FolderKanban className="size-3.5" />
             <span className="max-w-40 truncate">{selectedProject ? selectedProject.name : 'All projects'}</span>
@@ -59,12 +59,12 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={() => onProjectChange(null)}>
               <span className="flex-1">All projects</span>
-              {!selectedProject && <Check className="size-3.5 text-primary" />}
+              {!selectedProject && <Check className="size-3.5 text-foreground" />}
             </DropdownMenuItem>
             {projects.map((p) => (
               <DropdownMenuItem key={p.id} onClick={() => onProjectChange(p.id)}>
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                {p.id === projectFilter && <Check className="size-3.5 text-primary" />}
+                {p.id === projectFilter && <Check className="size-3.5 text-foreground" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

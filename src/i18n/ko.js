@@ -910,3 +910,11 @@ Object.assign(ko, {
 })
 
 Object.assign(ko, docsHistoryKo)
+
+Object.assign(ko, {
+  'Open design preview': '디자인 미리보기 열기',
+  'Design preview': '디자인 미리보기',
+  'Current mock design · Not an activity snapshot': '현재 샘플 디자인이에요. 활동 당시의 화면과는 다를 수 있어요.',
+  'Checkout - Payment step': '결제 화면',
+  'Button · Size': '버튼 · 크기',
+})
