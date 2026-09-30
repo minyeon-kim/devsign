@@ -1,4 +1,4 @@
-import SettingsDialog from '@/components/workspace/SettingsDialog'
+import { SettingsContent } from '@/components/workspace/SettingsDialog'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
@@ -13,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import { allPeople, currentUser, projectFileSets, projects, viewerPersonas } from '@/data/mockData'
 
@@ -45,7 +48,6 @@ function searchAll(query) {
 // side columns with symmetric padding keep the pill exactly centered
 // over the content column.
 function DashboardTopBar() {
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
@@ -64,7 +66,7 @@ function DashboardTopBar() {
     // Equal 1fr columns either side of the search pin it to the bar's exact
     // center regardless of how wide the profile cluster on the right is.
     <header className="z-20 grid h-[var(--ds-chrome-size)] shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
-      <div><SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /></div>
+      <div />
 
       <SearchField
         className="w-full"
@@ -172,9 +174,13 @@ function DashboardTopBar() {
               <UserIcon />
               View profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-              Settings
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Settings</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-72 max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#121212] p-3 shadow-xl">
+                <p className="mb-3 text-xs font-medium text-muted-foreground">Settings</p>
+                <SettingsContent />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             {/* UT-only: each persona has a fully scripted project — picking
                 one takes you straight there instead of leaving you to find

@@ -1,19 +1,13 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import DemoTools, { useDemoStorageWarnings } from '@/components/workspace/DemoTools'
 import { setLanguage, useLanguage } from '@/i18n/language'
 import { ChevronDown, Languages } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-export default function SettingsDialog({ open, onOpenChange }) {
+export function SettingsContent() {
   const language = useLanguage()
   useDemoStorageWarnings()
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>App preferences for this browser.</DialogDescription>
-        </DialogHeader>
+  return <div className="space-y-4 px-1 pb-1">
         <section className="space-y-2">
           <label id="app-language-label" className="text-xs font-medium text-foreground">Language</label>
           <DropdownMenu>
@@ -32,7 +26,17 @@ export default function SettingsDialog({ open, onOpenChange }) {
           <p className="text-xs leading-relaxed text-muted-foreground">Applies to the entire app. Code, file paths and your content stay in their original language.</p>
         </section>
         <DemoTools />
-      </DialogContent>
-    </Dialog>
+  </div>
+}
+
+export default function SettingsDialog({ trigger }) {
+  return (
+    <Popover>
+      <PopoverTrigger render={trigger} />
+      <PopoverContent side="right" align="end" sideOffset={12} className="w-72 max-h-[80vh] overflow-y-auto rounded-2xl border-white/10 bg-[#121212] p-3 shadow-xl">
+        <PopoverTitle className="mb-1 text-xs font-medium text-muted-foreground">Settings</PopoverTitle>
+        <SettingsContent />
+      </PopoverContent>
+    </Popover>
   )
 }

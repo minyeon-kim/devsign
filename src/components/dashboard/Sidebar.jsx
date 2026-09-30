@@ -71,7 +71,6 @@ function ProjectsMark({ project }) {
 //     Conflict Points live only in the Workspace's bottom panel.
 // Settings is pinned to the bottom.
 function ActivityBar({ project, drawer, onToggleDrawer }) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const { pathname } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
@@ -163,13 +162,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         )}
       </nav>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="mt-auto flex flex-col gap-1">
-        <RailButton
-          label="Settings"
-          icon={Settings}
-          onClick={() => setSettingsOpen(true)}
-        />
+        <SettingsDialog trigger={<button type="button" aria-label="Settings" title="Settings" className={iconButtonClass}><Settings className="size-[18px]" /></button>} />
       </div>
     </div>
   )
