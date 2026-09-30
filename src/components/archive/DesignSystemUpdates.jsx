@@ -1,10 +1,11 @@
-import { ArrowRight, BookOpen, Check, History, FileText } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, ChevronDown, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, GHOST_BUTTON } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { DS_STAGES, docIdFor, stageIndex } from '@/lib/designSystemUpdates'
 import { affectedDocuments, nextDocumentChange } from '@/lib/documentChanges'
+import { buildDocTree, countDocs } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const STAGE_ICONS = { update: FileText, documented: BookOpen, archived: History }
@@ -61,6 +62,38 @@ function StageTrack({ stage }) {
   )
 }
 
+function documentsInGroup(node) {
+  return [...node.docs, ...node.children.flatMap(documentsInGroup)]
+}
+
+function AffectedDocs({ docs, onOpen }) {
+  if (!docs.length) return null
+  const groups = buildDocTree(docs)
+  return (
+    <div className="mt-4 border-t border-white/[0.06] pt-3">
+      <p className="mb-1 text-[11px] text-slate-500">Affected docs</p>
+      <div className="divide-y divide-white/[0.05]">
+        {groups.map((group) => (
+          <details key={group.id} className="group/docs min-w-0">
+            <summary className="flex min-h-9 w-full list-none items-center gap-2 py-2 text-xs text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300/60 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1 truncate font-medium">{group.label}</span>
+              <span className="text-[11px] text-slate-500 tabular-nums">{countDocs(group)}</span>
+              <ChevronDown className="size-3 shrink-0 text-slate-500 transition-transform group-open/docs:rotate-180" />
+            </summary>
+            <div className="grid gap-1 pb-3 sm:grid-cols-2">
+              {documentsInGroup(group).map((doc) => (
+                <button key={doc.id} type="button" onClick={() => onOpen(doc.id)} className="min-w-0 rounded-md bg-white/[0.025] px-3 py-2 text-left text-xs leading-5 text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white">
+                  {doc.title}
+                </button>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpenDoc, onOpenHistory, onOpenReference }) {
   const author = allPeople.find((p) => p.id === update.authorId)
 
@@ -74,10 +107,7 @@ function UpdateCard({ update, active, affectedDocs, onDocument, onArchive, onOpe
         <StageTrack stage={update.stage} />
       </div>
 
-      {affectedDocs.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-        <span>Affected docs</span>
-        {affectedDocs.map((doc) => <button key={doc.id} type="button" onClick={() => onOpenReference(doc.id)} className="rounded-full bg-white/[0.05] px-2.5 py-1 text-xs hover:text-white">{doc.title}</button>)}
-      </div>}
+      <AffectedDocs docs={affectedDocs} onOpen={onOpenReference} />
       {update.changes.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {update.changes.map((c) => (
