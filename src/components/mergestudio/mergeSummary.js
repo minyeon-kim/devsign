@@ -177,10 +177,10 @@ export function driftSeverity(d) {
 
 // An item's (file-level) conflict severity = the HIGHEST severity among
 // all its component drifts, plus which drift sets it — so a badge on the
-// item reads as its overall merge risk. null when it has no drifts or its
-// conflict has been resolved.
+// item reads as its overall merge risk. If drift details are unavailable,
+// keep the item's declared level. null means no known conflicts.
 export function itemSeverity(item) {
-  if (item.conflictLevel === 'None') return null
+  if (String(item.conflictLevel).toLowerCase() === 'none') return null
   const layers = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]?.layers ?? []
   const candidates = [
     ...Object.entries(designMergeVariants[item.id]?.layerDiffs ?? {}).map(([layerId, diffs]) => ({
@@ -191,7 +191,12 @@ export function itemSeverity(item) {
       lines.map((d) => ({ level: 'low', source: `${mergeFilesFor(item).find((f) => f.id === fileId)?.name ?? fileId} · line ${d.line}` }))
     ),
   ]
-  if (!candidates.length) return null
+  if (!candidates.length) {
+    const declared = String(item.conflictLevel).toLowerCase()
+    return SEVERITY_RANK[declared]
+      ? { level: declared.charAt(0).toUpperCase() + declared.slice(1), source: 'Item conflict level', count: 0 }
+      : null
+  }
   const top = candidates.reduce((a, b) => (SEVERITY_RANK[b.level] > SEVERITY_RANK[a.level] ? b : a))
   const label = top.level.charAt(0).toUpperCase() + top.level.slice(1)
   return { level: label, source: top.source, count: candidates.length }

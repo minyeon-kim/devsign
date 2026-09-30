@@ -5,8 +5,10 @@ import {
   CircleDot,
   CircleUser,
   FilePlus2,
+  Files,
   Frame,
   Image,
+  Layers,
   PanelBottom,
   PanelTop,
   Pencil,
@@ -21,6 +23,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { getFileIconMeta } from '@/lib/fileIcons'
 import { allPeople, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
@@ -30,28 +33,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   AVATAR_RING,
-  AVATAR_RING_ON_ACTIVE,
-  AVATAR_RING_ON_HOVER,
-  CATEGORY_TAB,
-  CATEGORY_TAB_ACTIVE,
-  CATEGORY_TAB_IDLE,
   COUNT_BADGE,
-  FLOATING_PANEL,
-  FLOATING_PILL,
-  PANEL_RADIUS,
-  PANEL_ROWS,
-  PANEL_SURFACE,
-  SEVERITY_BADGE,
-  SEVERITY_COL,
 } from '@/components/mergestudio/floatingStyles'
 
-// Merge List spacing grid — one set of numbers for the whole panel:
-//   inset 20px (px-5) for header and content; 12px inside grouped
-//   surfaces (px-3); 16px between groups (space-y-4); 8px from a group label
-//   to its surface (mb-2); controls 28px (h-7) or 32px (h-8).
-// Grouped surface: a subtle tonal lift + hairline ring, so sections and
-// lists read as containers without heavy boxes (shared with the Block Deck).
-const GROUP_SURFACE = PANEL_SURFACE
+// Match Workspace panels locally without restyling the other studio overlays.
+const GROUP_SURFACE = '-mx-2'
+const PANEL_ROWS = 'space-y-0.5 [&>*]:overflow-hidden [&>*]:rounded-lg'
+const CATEGORY_TAB = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-[16px] px-3 text-xs transition-colors'
+const CATEGORY_TAB_ACTIVE = 'bg-white/[0.09] text-white'
+const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+const FLOATING_PILL = 'border border-white/[0.08] bg-[#09090A] hover:bg-[#161618]'
+const FLOATING_PANEL = 'border border-white/[0.08] bg-[#121212] shadow-lg shadow-black/20'
+const PANEL_RADIUS = 'rounded-[16px]'
 
 // Merge List sections, in the order that needs attention first. Anything
 // with an unexpected status lands in "Other".
@@ -157,15 +150,13 @@ function MiniPeople({ item }) {
 // sets it.
 function MergeItemBody({ item, trailing, titleClassName }) {
   const status = changeStatus(item)
-  const severity = itemSeverity(item)
+  const severity = itemSeverity(item) ?? { level: 'None', source: 'No known conflicts' }
   return (
     // [severity] title (full width)
     //            N drifts · N code changes ·· reviewers
-    <span className={cn('grid min-w-0 flex-1 items-center gap-x-3 gap-y-1.5', trailing ? 'grid-cols-[46px_minmax(0,1fr)_auto]' : 'grid-cols-[46px_minmax(0,1fr)]')}>
-      <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
-        {severity && (
-          <SeverityPill level={severity.level} title={`Highest drift severity: ${severity.level} — set by ${severity.source}`} className={SEVERITY_BADGE} />
-        )}
+    <span className={cn('grid min-w-0 flex-1 items-center gap-x-3 gap-y-1', trailing ? 'grid-cols-[58px_minmax(0,1fr)_auto]' : 'grid-cols-[58px_minmax(0,1fr)]')}>
+      <span className="row-span-2 flex w-[58px] items-center">
+        <SeverityPill level={severity.level} title={severity.level === 'None' ? severity.source : `Conflict level: ${severity.level} — ${severity.source}`} className="ds-project-severity" data-level={severity.level.toLowerCase()} />
       </span>
       <span className={cn('min-w-0 truncate text-[13px] leading-5 font-medium text-[#FFFFFF]', titleClassName)}>{item.title}</span>
       {trailing && <span className="row-span-2 flex items-center">{trailing}</span>}
@@ -186,10 +177,10 @@ function MergeItemCard({ item, active, onSelect }) {
       onClick={() => onSelect(item.id)}
       className={cn(
         // 12px sides (the panel grid); the body lays itself out as a grid.
-        'group/card relative flex w-full items-center px-3 py-3.5 text-left transition-colors focus-visible:bg-white/[0.04] focus-visible:outline-none',
+        'group/card relative flex w-full items-center px-2 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5EEAB5]',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
-        active ? cn('bg-white/[0.06]', AVATAR_RING_ON_ACTIVE) : cn('hover:bg-white/[0.03]', AVATAR_RING_ON_HOVER)
+        active ? 'bg-[#0E1F1B] [--avatar-ring:#0E1F1B]' : 'hover:bg-white/[0.05] hover:[--avatar-ring:#1E1E1E]'
       )}
     >
       {/* The whole card opens the item (files & layers) — no chevron. */}
@@ -204,7 +195,7 @@ function MergeItemCard({ item, active, onSelect }) {
 function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
   if (!files.length) return <DetailEmpty text="This merge item has no files." />
   return (
-    <div className="space-y-px p-1">
+    <div className="space-y-0.5">
       {files.map((f) => {
         const incoming = codeMergeVariants[item.id]?.[f.id] ?? []
         const edits = Object.keys(manualCode ?? {})
@@ -212,21 +203,24 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
           .map((k) => Number(k.slice(k.lastIndexOf(':') + 1)))
         const firstLine = Math.min(...incoming.map((d) => d.line), ...edits, Infinity)
         const active = activeFileId === f.id
+        const { Icon, colorClass } = getFileIconMeta(f.name)
         return (
           <button
             key={f.id}
             ref={active ? revealRow : undefined}
             type="button"
+            aria-pressed={active}
             onClick={() => onOpen(f, Number.isFinite(firstLine) ? firstLine : 1)}
             // One concise line: icon · file name · change count. The path
             // is in the tooltip.
             title={f.path}
             className={cn(
-              'flex h-9 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors',
-              active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
+              'flex h-8 w-full items-center gap-1.5 rounded-lg px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-[#5EEAB5]',
+              active ? 'bg-[#0E1F1B] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
             )}
           >
-            <span className="min-w-0 flex-1 truncate text-[13px] text-slate-100">{f.name}</span>
+            <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />
+            <span className="min-w-0 flex-1 truncate text-xs">{f.name}</span>
             {/* Counts spelled out ("2 changes", "1 edit") as plain colored
                 text — no pills, no ambiguous "+N". */}
             {(incoming.length > 0 || edits.length > 0) && (
@@ -303,12 +297,12 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
   const drifted = designMergeVariants[item.id]?.layerDiffs ?? {}
   const rows = layerTree(frame.layers)
   return (
-    <div className="p-1">
-      <div className="flex h-8 items-center gap-3 px-2 text-xs font-medium text-slate-300">
-        <Frame className="size-4 shrink-0 text-emerald-400" />
+    <div>
+      <div className="flex h-8 items-center gap-1.5 px-3 text-xs font-medium text-slate-300">
+        <Frame className="size-3.5 shrink-0 text-slate-400" />
         <span className="truncate">{frame.name}</span>
       </div>
-      <div className="space-y-px">
+      <div className="space-y-0.5">
       {rows.map(({ layer, depth }) => {
         const Icon = LAYER_ICONS[layer.type] ?? Square
         const active = selectedLayerId === layer.id
@@ -317,15 +311,16 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
             key={layer.id}
             ref={active ? revealRow : undefined}
             type="button"
+            aria-pressed={active}
             onClick={() => onSelect(layer.id)}
             title={drifted[layer.id] ? `${layer.name} — drifts from the Original Design` : layer.name}
-            style={{ paddingLeft: 8 + (depth + 1) * 12 }}
+            style={{ paddingLeft: 12 + (depth + 1) * 16 }}
             className={cn(
-              'flex h-8 w-full items-center gap-3 rounded-lg pr-2 text-left text-[13px] transition-colors',
-              active ? 'bg-white/[0.08] text-[#FFFFFF]' : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+              'flex h-8 w-full items-center gap-1.5 rounded-lg pr-3 text-left text-xs transition-colors focus-visible:outline-2 focus-visible:outline-[#5EEAB5]',
+              active ? 'bg-[#0E1F1B] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
             )}
           >
-            <Icon className={cn('size-4 shrink-0', active ? 'text-emerald-300' : 'text-slate-500')} />
+            <Icon className={cn('size-3.5 shrink-0', active ? 'text-[#D1FAE5]' : 'text-slate-500')} />
             <span className="min-w-0 flex-1 truncate">{layer.name}</span>
             {editedLayerIds.has(layer.id) && <Pencil title="Edited" className="size-3 shrink-0 text-emerald-200" />}
           </button>
@@ -341,25 +336,23 @@ function DetailEmpty({ text }) {
 }
 
 // The drill-down view pushed in when a merge item is opened: the item
-// itself as a header card (same 3-tier layout as its list card), then its
-// Files and Layers behind a small switch — on the same 20 / 12 / 16 / 8px
-// grid and type scale as the list view.
+// summary followed by Workspace-style navigator tabs and file/layer rows.
 const DETAIL_VIEWS = [
-  ['files', 'Files'],
-  ['layers', 'Layers'],
+  ['files', 'Files', Files],
+  ['layers', 'Layers', Layers],
 ]
 
 function ItemDetailView({ item, files, frame, view, flashView, onView, selectedLayerId, selectedFileId, manualCode, editedLayerIds, onOpenFile, onSelectLayer }) {
   const counts = { files: files.length, layers: frame ? layerTree(frame.layers).length : 0 }
   return (
-    <div className="space-y-4 px-5 pt-1 pb-5">
+    <div className="space-y-4 px-4 pt-1 pb-4">
       {/* The drill-down's heading: title + change status, like the card. */}
-      <div title={itemTooltip(item)} className="flex pt-1">
-        <MergeItemBody item={item} titleClassName="text-sm font-semibold" />
+      <div title={itemTooltip(item)} className="flex py-2">
+        <MergeItemBody item={item} />
       </div>
       <section>
-        <div className="mb-2 flex h-7 items-center gap-1">
-          {DETAIL_VIEWS.map(([id, label]) => (
+        <div className="-mx-2 mb-3 flex items-center gap-1 border-b border-white/[0.08] px-1 pb-3">
+          {DETAIL_VIEWS.map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
@@ -367,11 +360,12 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
               onClick={() => onView(id)}
               className={cn(
                 CATEGORY_TAB,
-                'gap-1.5 transition-[background-color,color,box-shadow] duration-300',
+                'min-w-0 flex-1 transition-[background-color,color,box-shadow] duration-300',
                 view === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE,
                 flashView === id && 'shadow-[0_0_0_3px_rgba(52,211,153,0.35)]'
               )}
             >
+              <Icon className="size-3.5 shrink-0" />
               {label}
               <span className="text-[11px] text-slate-500 tabular-nums">{counts[id]}</span>
             </button>
@@ -397,7 +391,7 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
 // and, pushed in when an item is opened, that item's Files / Layers with a
 // "Back to Merge List" header. It collapses to a small pill; clicking the
 // canvas collapses it too.
-function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), onExplore }) {
+function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), onExplore, navigation, onNavigate }) {
   const {
     mergeItems,
     selectedMergeItemId,
@@ -411,17 +405,14 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
   // Navigation stack: 'list' or 'detail' (the open item's Files / Layers).
   // `navDir` picks the slide direction — forward pushes in from the right,
   // back returns from the left; null (first render) doesn't animate.
-  const [stack, setStack] = useState('list')
-  const [navDir, setNavDir] = useState(null)
+  const { stack, direction: navDir } = navigation
   const [detailView, setDetailView] = useState('files')
   const inDetail = stack === 'detail' && Boolean(item)
   function push() {
-    setNavDir('forward')
-    setStack('detail')
+    onNavigate({ stack: 'detail', direction: 'forward' })
   }
   function pop() {
-    setNavDir('back')
-    setStack('list')
+    onNavigate({ stack: 'list', direction: 'back' })
   }
   // Context-aware view: clicking a design element shows Layers, a code line
   // shows Files (pushing the item's view in if the list is showing). Only switches when the
@@ -485,14 +476,14 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
             // Solid surface — no glass / backdrop blur: an opaque neutral
             // dark pill with a hairline edge. Open = a slightly lifted
             // neutral tone (the mint count badge carries the accent).
-            'flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 pr-3 pl-4 text-[13px] font-medium shadow-lg shadow-black/30 transition-colors',
+            'flex h-10 items-center justify-center gap-2 rounded-full border border-white/[0.08] pr-3 pl-4 text-[13px] font-medium transition-colors',
             mergeListCollapsed
-              ? 'bg-[#1b1b1f] text-slate-200 hover:bg-[#232328] hover:text-white'
-              : 'border-white/15 bg-[#2a2a30] text-white hover:bg-[#303036]'
+              ? 'bg-[#09090A] text-slate-400 hover:bg-[#161618] hover:text-white'
+              : 'bg-[#161618] text-white hover:bg-[#202022]'
           )}
         >
           Merge List
-          <span className={cn(COUNT_BADGE, 'bg-emerald-400 text-slate-950')}>
+          <span className={cn(COUNT_BADGE, 'bg-[#5EEAB5] text-[#0A0A0A]')}>
             {mergeItems.length}
           </span>
         </button>
@@ -529,7 +520,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           names this panel, so it opens straight onto search and filters —
           20px in from the top, the same as the sides. */}
       <div className="scroll-fade-bottom min-h-0 flex-1 overflow-auto">
-          <div className="space-y-4 px-5 pt-5 pb-5">
+          <div className="space-y-4 p-4">
             {/* Search and a single Filter button on one row, straight in the
                 panel's flow (no box around them); what's filtered shows as
                 removable chips below, only when set. */}
@@ -544,7 +535,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                       onExplore?.()
                     }}
                     placeholder="Search…"
-                    className="h-8 w-full rounded-full bg-white/[0.05] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.08] focus:ring-1 focus:ring-white/20"
+                    className="h-8 w-full rounded-full border border-white/10 bg-[#09090A] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:border-white/25 focus:ring-1 focus:ring-white/20"
                   />
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
@@ -555,7 +546,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                   title="Add files — start a merge item from your open files"
                   aria-label="Add files"
                   onClick={startMergeFromOpenFiles}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-300 transition-colors hover:bg-white/[0.09] hover:text-white"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#09090A] text-slate-300 transition-colors hover:bg-[#161618] hover:text-white"
                 >
                   <FilePlus2 className="size-4" />
                 </button>
@@ -596,7 +587,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                     }
                     // Structural guidepost: stronger than row metadata —
                     // semibold, light, a clear dot — with a quiet count.
-                    className="group/section mb-2 flex h-7 w-full items-center gap-2 text-[13px] font-semibold text-slate-200 transition-colors hover:text-white"
+                    className="group/section mb-2 flex h-8 w-full items-center gap-2 text-xs font-medium text-slate-200 transition-colors hover:text-white"
                   >
                     <ChevronRight className={cn('size-3.5 text-slate-500 transition-transform', open && 'rotate-90')} />
                     {g.label}
@@ -630,14 +621,11 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       {/* View 2 — the open item's Files / Layers, pushed in from the right. */}
       {inDetail && (
         <div className={cn('flex min-h-0 flex-1 flex-col', navDir === 'forward' && 'animate-in fade-in slide-in-from-right-4 duration-200')}>
-          <div className="flex h-11 shrink-0 items-end px-5 pb-1">
+          <div className="flex h-12 shrink-0 items-center border-b border-white/[0.08] px-3">
             <button
               type="button"
               onClick={pop}
-              // A quiet breadcrumb, not a heading: small muted text that only
-              // brightens on hover, so the item's own title below leads.
-              // The negative margin keeps the arrow on the 20px inset line.
-              className="group/back -ml-1.5 flex h-7 items-center gap-1.5 rounded-full pr-2.5 pl-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-white/[0.04] hover:text-slate-200"
+              className="group/back flex h-8 items-center gap-1.5 rounded-[16px] px-3 text-xs text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200"
             >
               <ArrowLeft className="size-3.5 shrink-0 transition-transform group-hover/back:-translate-x-0.5" />
               Back to Merge List

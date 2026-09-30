@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeStudioWorkspace from '@/components/mergestudio/MergeStudioWorkspace'
 
@@ -14,6 +14,8 @@ import MergeStudioWorkspace from '@/components/mergestudio/MergeStudioWorkspace'
 function MergeStudioView() {
   const { mergeItems, selectedMergeItemId, setMergeListCollapsed } = useWorkspace()
   const selected = mergeItems.find((item) => item.id === selectedMergeItemId)
+  // Item selection remounts the canvas; sidebar navigation must survive it.
+  const [listNavigation, setListNavigation] = useState({ stack: 'list', direction: null })
 
   // Entering Merge Studio always starts with the Merge List open, so the
   // workflow items are the first thing in view; after that it only closes
@@ -24,7 +26,7 @@ function MergeStudioView() {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
-      <MergeStudioWorkspace key={selected?.id ?? "empty"} item={selected} />
+      <MergeStudioWorkspace key={selected?.id ?? "empty"} item={selected} listNavigation={listNavigation} onListNavigation={setListNavigation} />
     </div>
   )
 }

@@ -86,7 +86,7 @@ let guideFinished = false
 // Deck width plus its 16px right inset and 16px breathing room.
 const DECK_RESERVE = DECK_WIDTH + 32
 
-function MergeStudioWorkspace({ item }) {
+function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const {
     setActiveFileId,
     getFileLines,
@@ -719,6 +719,8 @@ function MergeStudioWorkspace({ item }) {
       )}
 
       <MergeListSidebar
+        navigation={listNavigation}
+        onNavigate={onListNavigation}
         onExplore={() => advanceGuide(1)}
         item={item}
         files={files}
