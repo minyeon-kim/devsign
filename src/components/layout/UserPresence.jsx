@@ -48,7 +48,7 @@ function UserPresence() {
   }
 
   return (
-    <AvatarGroup className="flex w-max flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-1">
+    <AvatarGroup className="ds-user-presence flex w-max flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-0">
       {/* Clicking a teammate's avatar directly toggles following their view —
           no popover in the way, per the Follow Me interaction spec. */}
       <Popover>
@@ -146,7 +146,7 @@ function UserPresence() {
                 data-following={active || undefined}
                 className={cn(
                   'relative z-30 size-5 rounded-full ring-2 ring-background transition-transform hover:scale-105',
-                  active && 'ring-2 ring-primary ring-offset-1 ring-offset-card'
+                  active && 'ring-2 ring-primary ring-offset-0 ring-offset-card'
                 )}
               >
                 <Avatar size="sm" className="size-5">
