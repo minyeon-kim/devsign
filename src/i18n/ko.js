@@ -1,5 +1,12 @@
 // UI copy only. Project names, source code and authored content are not catalog keys.
+// Exception: the two UT persona names below (Jane/James are Korean-mode
+// display names, not literal translations, and JA/JD are their avatar
+// initials) — every other exact match in this catalog is real UI copy.
 export const ko = Object.fromEntries(`
+Jane|김수연
+James|이지훈
+JA|수
+JD|지
 Settings|설정
 Workspace settings|워크스페이스 설정
 App preferences for this browser.|이 브라우저의 앱 환경설정입니다.
@@ -93,6 +100,16 @@ No comments yet.|아직 댓글이 없습니다.
 Clear selection|선택 해제
 Copied|복사됨
 Copy|복사
+Regenerate|다시 생성
+Thumbs up|좋아요
+Thumbs down|싫어요
+Selected element|선택한 요소
+Current page|현재 페이지
+Open file|열린 파일
+Docs document|문서
+Choose a file|파일 선택
+Draft · not merged|초안 · 병합 전
+ready for review|검토 대기
 Upload files|파일 업로드
 Width|너비
 Height|높이
@@ -274,7 +291,13 @@ What will be rolled back|되돌릴 내용
 Preview & canvas|미리보기와 캔버스
 Agent memory|에이전트 기억
 Nothing to forget — the agent conversation hasn’t moved on since.|이후 에이전트 대화가 없어 지울 내용이 없습니다.
+Preview settings and the canvas selection at this checkpoint.|이 체크포인트 시점의 미리보기 설정과 캔버스 선택 상태입니다.
+Review state of the conflicts this checkpoint knows about.|이 체크포인트가 알고 있는 충돌의 검토 상태입니다.
 Database|데이터베이스
+No database is connected to this project.|이 프로젝트에 연결된 데이터베이스가 없습니다.
+the current target|현재 대상
+The demo could not apply this code. Try a supported request or edit the target in Assemble.|데모에서 이 코드를 적용하지 못했습니다. 지원되는 요청을 시도하거나 조합에서 대상을 직접 편집하세요.
+The target already matches this result. No files or approvals were changed.|대상이 이미 이 결과와 일치합니다. 파일이나 승인 내용이 변경되지 않았습니다.
 Import a repository's files into this project's file tree.|저장소의 파일을 이 프로젝트의 파일 트리로 가져옵니다.
 Figma design|Figma 디자인
 Link a Figma file; its frames are available from Assets.|Figma 파일을 연결하면 에셋에서 프레임을 사용할 수 있습니다.
@@ -778,6 +801,36 @@ Approval activity for this target.|이 대상의 승인 내역입니다.
 Review completed|검토 완료
 No changes waiting for review.|검토 대기 중인 변경사항이 없습니다.
 Comments and AI / CI feedback|코멘트 및 AI / CI 피드백
+Hi, I'm your design + code copilot. Ask me to tweak spacing, colors, or sync the canvas with the editor — I'll update the code, preview and terminal together.|안녕하세요, 저는 디자인+코드 코파일럿입니다. 여백이나 색상 조정, 캔버스와 에디터 동기화를 요청해보세요 — 코드, 미리보기, 터미널을 함께 업데이트해드릴게요.
+Updated Place order button height and color|Place order 버튼 높이와 색상을 업데이트했습니다
+Updated the Place order button: it now uses the large size (44px) and the primary color token.|Place order 버튼을 업데이트했습니다: 이제 large 크기(44px)와 primary 색상 토큰을 사용합니다.
+Updated the Place order button. The other checkout buttons are in files that aren’t in this workspace, so they weren’t changed.|Place order 버튼을 업데이트했습니다. 다른 결제 화면 버튼들은 이 워크스페이스에 없는 파일에 있어 변경하지 않았습니다.
+Other checkout buttons live in files that aren’t in this workspace.|다른 결제 화면 버튼들은 이 워크스페이스에 없는 파일에 있습니다.
+Updated Button height to use the size token|Button 높이가 size 토큰을 사용하도록 업데이트했습니다
+Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.|Button.jsx를 업데이트했습니다: md 크기가 이제 h-9 대신 --button-height-md(40px)를 사용합니다.
+Updated Continue button padding|Continue 버튼 패딩을 업데이트했습니다
+Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.|수정했습니다 — Continue 버튼이 이제 디자인 프레임과 일치하는 12px/24px 패딩을 사용합니다. 패딩 충돌이 다시 검토 중 상태가 되었습니다 — 검토자들이 승인하면 종료됩니다.
+Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
+Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
+Where should I start?|어디서부터 시작해야 하나요?
+Where should I start the designer UT?|디자이너 UT는 어디서부터 시작해야 하나요?
+Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.|Open Conflict Points에서 Place order 버튼 이슈를 선택하는 것부터 시작하세요. 요약을 읽은 뒤 Diff를 열어 40px 구현과 44px 디자인을 비교하세요. Merge Studio를 열어 Place order를 선택하고 Compare로 디자인 값을 선택하세요. 추가 스타일링은 Assemble을 사용하고, Merge Changes에서 결과를 확인한 뒤 검토를 요청하세요.
+Match Place order to design|Place order를 디자인에 맞추기
+Make the Place order button match the checkout design|Place order 버튼을 결제 화면 디자인에 맞춰주세요
+What happens after my edit?|편집 후에는 어떻게 되나요?
+What happens after my design edit?|디자인 편집 후에는 어떻게 되나요?
+Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.|승인하기 전에 시각적 비교와 코드 차이를 확인하세요. AI 편집은 초안과 히스토리 체크포인트를 만들 뿐 자동으로 병합되지 않습니다. 검토를 요청해 필요한 승인을 받은 뒤 병합하세요. 히스토리에서 저장된 체크포인트를 확인하거나 되돌릴 수 있습니다.
+Guide me through code review|코드 검토를 안내해주세요
+Guide me through the developer UT|개발자 UT를 안내해주세요
+Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.|프로젝트 개요에서 Button / Height 충돌을 여세요. Diff를 확인하세요: 구현은 h-9를 사용하지만 디자인 시스템은 medium 높이 토큰을 요구합니다. Workspace를 열어 영향받는 파일을 확인한 뒤 Merge Studio의 Compare로 차이를 해결하세요. Merge Changes에서 결과 코드를 검토하고 검토자를 지정해 검토를 요청하세요. 승인 후 병합하고 History를 확인하세요.
+Use the size token for Button|Button에 size 토큰 사용하기
+Use the size token for the Button height|Button 높이에 size 토큰을 사용해주세요
+Why use a shared token?|공유 토큰을 왜 사용해야 하나요?
+Why should the button use a shared token?|버튼이 왜 공유 토큰을 사용해야 하나요?
+A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.|공유 높이 토큰을 사용하면 모든 Button 사용처가 디자인 시스템과 일치하게 됩니다. 하드코딩된 h-9를 대체하면 화면마다 따로 고칠 필요가 없습니다. 이 공유 컴포넌트는 한 페이지 수정보다 영향 범위가 넓으니 병합 전에 컴포넌트 diff와 영향받는 화면을 검토하세요.
+How do I verify and roll back?|확인과 롤백은 어떻게 하나요?
+How do I verify and roll back the change?|변경 사항을 어떻게 확인하고 롤백하나요?
+Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.|Merge Changes에서 최종 코드와 시각적 미리보기를 확인하세요. 승인과 병합은 별개의 단계입니다. 병합 후에는 History를 열어 새 체크포인트를 선택하고 변경된 파일을 확인하세요. 결과가 잘못되었다면 롤백 작업으로 이전 체크포인트를 복원하세요.
 `.trim().split('\n').map((line) => { const index = line.indexOf('|'); return [line.slice(0, index), line.slice(index + 1)] }))
 
 Object.assign(ko, {

@@ -338,7 +338,6 @@ function ChatConversation() {
         {chatMessages.map((message, index) => (
           <div key={message.id} className={cn('group/chat flex w-full flex-col gap-1.5', message.role === 'user' ? 'items-end' : 'items-start')}>
             <div
-              translate="no"
               className={cn(
                 'max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6',
                 message.role === 'user'

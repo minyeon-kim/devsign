@@ -136,6 +136,14 @@ export function currentUserFor(projectId) {
   return person ? { ...person, role: 'You' } : currentUser
 }
 
+// The people with a complete UT track (each project's own scripted
+// scenario) — backs the profile menu's "Switch user" control, where
+// picking one both identifies you and takes you to their project.
+export const viewerPersonas = Object.entries(projectViewerIds).map(([projectId, id]) => ({
+  projectId,
+  person: teamMembers.find((p) => p.id === id),
+}))
+
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
 export const allPeople = teamMembers
@@ -2610,7 +2618,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-ds-4',
-      label: 'Jane pushed new changes to Button.jsx',
+      label: 'Pushed new changes to Button.jsx',
       kind: 'edit',
       actorId: 'jane',
       target: 'Button.jsx',

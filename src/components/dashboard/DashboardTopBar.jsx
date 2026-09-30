@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
+import { allPeople, currentUser, projectFileSets, projects, viewerPersonas } from '@/data/mockData'
 
 const MAX_RESULTS_PER_GROUP = 4
 
@@ -175,6 +175,21 @@ function DashboardTopBar() {
             <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
               Settings
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/* UT-only: each persona has a fully scripted project — picking
+                one takes you straight there instead of leaving you to find
+                the right project for the role you're testing. */}
+            <p className="px-2 pt-1 pb-0.5 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</p>
+            {viewerPersonas.map(({ projectId, person }) => (
+              <DropdownMenuItem key={projectId} onClick={() => navigate(`/projects/${projectId}`)}>
+                <Avatar size="sm" className="size-5">
+                  <AvatarFallback className={cn('text-[9px] font-medium text-white', person.colorClass)}>
+                    {person.initials}
+                  </AvatarFallback>
+                </Avatar>
+                {person.name}
+              </DropdownMenuItem>
+            ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out', { description: 'This is a demo — no account was affected.' })}>
               Sign out

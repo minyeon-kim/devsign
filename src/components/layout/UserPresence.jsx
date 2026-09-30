@@ -1,5 +1,6 @@
 import { Headset } from 'lucide-react'
 import { cn } from 'cn'
+import { useNavigate } from 'react-router-dom'
 import {
   Avatar,
   AvatarBadge,
@@ -14,9 +15,11 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { viewerPersonas } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function UserPresence() {
+  const navigate = useNavigate()
   const {
     followingMe,
     followedMemberId,
@@ -87,6 +90,33 @@ function UserPresence() {
             >
               {followingMe ? 'Following' : 'Follow me'}
             </Button>
+          </div>
+
+          {/* UT-only: each persona has a fully scripted project — picking
+              one takes you straight there instead of leaving you to find
+              the right project for the role you're testing. */}
+          <div className="flex items-center gap-1.5 px-3 pb-2.5">
+            <span className="text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</span>
+            <span className="flex flex-1 items-center justify-end gap-1">
+              {viewerPersonas.map(({ projectId, person }) => (
+                <Tooltip key={projectId}>
+                  <TooltipTrigger
+                    onClick={() => navigate(`/projects/${projectId}`)}
+                    className={cn(
+                      'flex size-6 items-center justify-center rounded-full ring-1 ring-inset transition-opacity hover:opacity-80',
+                      person.id === currentUser.id ? 'ring-primary' : 'ring-transparent'
+                    )}
+                  >
+                    <Avatar size="sm" className="size-5">
+                      <AvatarFallback className={cn('text-[9px] font-medium text-white', person.colorClass)}>
+                        {person.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{person.name}</TooltipContent>
+                </Tooltip>
+              ))}
+            </span>
           </div>
 
           <Separator />

@@ -36,6 +36,7 @@ const rules = [
   [/^(\d+)m ago$/, (_, n) => `${n}분 전`],
   [/^(\d+)h ago$/, (_, n) => `${n}시간 전`],
   [/^(\d+)d ago$/, (_, n) => `${n}일 전`],
+  [/^I couldn’t turn that into a specific change in (.+)\. Nothing was changed\.$/, (_, where) => `${core(where)}에서 구체적인 변경으로 바꾸지 못했습니다. 아무것도 변경되지 않았습니다.`],
 ]
 
 function core(text) {
