@@ -4,6 +4,8 @@
 // their avatar initials) — every other exact match in this catalog is real
 // UI copy.
 export const ko = Object.fromEntries(`
+Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.|주문 버튼을 디자인에 맞게 다듬어볼까요? Place order 버튼의 높이와 색상을 비교하고, 스타일을 수정한 뒤 검토를 요청할 수 있어요. 아래 질문을 선택하면 순서대로 안내해드릴게요.
+Let’s check the shared Button height. Compare the code with the design token, review the affected screens, then check the saved version after merging.|공통 버튼의 높이가 디자인 시스템 기준과 맞는지 확인해볼까요? Button 코드를 높이 토큰에 맞게 수정하고, 다른 화면에 미치는 영향도 살펴보세요. 검토와 병합을 마친 뒤에는 저장된 버전까지 확인할 수 있어요.
 Jane|김수연
 James|이지훈
 Min|한소민
@@ -199,7 +201,7 @@ Partially done|일부 완료
 No changes made|변경 사항 없음
 Failed|실패
 View changes|변경 사항 보기
-Ask Devsign to tweak the design or code...|Devsign에 디자인이나 코드 수정을 요청하세요...
+Ask Devsign to tweak the design or code...|바꾸고 싶은 디자인이나 코드를 알려주세요
 Nothing yet.|아직 항목이 없습니다.
 Search projects, files, or members...|프로젝트, 파일 또는 구성원 검색...
 No results found.|검색 결과가 없습니다.
@@ -737,7 +739,7 @@ Open Workspace|워크스페이스 열기
 Open design ↔ code differences|디자인 ↔ 코드 차이 열기
 None high risk|고위험 항목 없음
 Conflict Points not merged yet|아직 병합되지 않은 충돌 지점
-Open Conflict Points|충돌 지점 열기
+Open Conflict Points|해결할 충돌
 In Workspace|워크스페이스에서
 No open Conflict Points.|미해결 충돌 지점이 없습니다.
 Recent activity|최근 활동
@@ -812,36 +814,36 @@ Approval activity for this target.|이 대상의 승인 내역입니다.
 Review completed|검토 완료
 No changes waiting for review.|검토 대기 중인 변경사항이 없습니다.
 Comments and AI / CI feedback|코멘트 및 AI / CI 피드백
-Hi, I'm your design + code copilot. Ask me to tweak spacing, colors, or sync the canvas with the editor — I'll update the code, preview and terminal together.|안녕하세요, 저는 디자인+코드 코파일럿입니다. 여백이나 색상 조정, 캔버스와 에디터 동기화를 요청해보세요 — 코드, 미리보기, 터미널을 함께 업데이트해드릴게요.
-Updated Place order button height and color|Place order 버튼 높이와 색상을 업데이트했습니다
-Updated the Place order button: it now uses the large size (44px) and the primary color token.|Place order 버튼을 업데이트했습니다: 이제 large 크기(44px)와 primary 색상 토큰을 사용합니다.
+Hi, I'm your design + code copilot. Ask me to tweak spacing, colors, or sync the canvas with the editor — I'll update the code, preview and terminal together.|디자인과 코드 수정을 도와드릴게요. 바꾸고 싶은 요소와 내용을 알려주세요.
+Updated Place order button height and color|주문 버튼 높이·색상 수정
+Updated the Place order button: it now uses the large size (44px) and the primary color token.|Place order 버튼 높이를 디자인과 같은 44px로 맞추고, 색상에는 primary 토큰을 적용했어요. 미리보기에서 확인해보세요.
 Updated the Place order button. The other checkout buttons are in files that aren’t in this workspace, so they weren’t changed.|Place order 버튼을 업데이트했습니다. 다른 결제 화면 버튼들은 이 워크스페이스에 없는 파일에 있어 변경하지 않았습니다.
 Other checkout buttons live in files that aren’t in this workspace.|다른 결제 화면 버튼들은 이 워크스페이스에 없는 파일에 있습니다.
-Updated Button height to use the size token|Button 높이가 size 토큰을 사용하도록 업데이트했습니다
-Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.|Button.jsx를 업데이트했습니다: md 크기가 이제 h-9 대신 --button-height-md(40px)를 사용합니다.
+Updated Button height to use the size token|공통 버튼 높이 토큰 적용
+Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.|Button.jsx의 md 높이를 수정했어요. 이제 h-9 대신 --button-height-md 토큰을 사용해 40px로 표시돼요.
 Updated Continue button padding|Continue 버튼 패딩을 업데이트했습니다
 Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.|수정했습니다 — Continue 버튼이 이제 디자인 프레임과 일치하는 12px/24px 패딩을 사용합니다. 패딩 충돌이 다시 검토 중 상태가 되었습니다 — 검토자들이 승인하면 종료됩니다.
 Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
-Where should I start?|어디서부터 시작해야 하나요?
-Where should I start the designer UT?|디자이너 UT는 어디서부터 시작해야 하나요?
-Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.|Open Conflict Points에서 Place order 버튼 이슈를 선택하는 것부터 시작하세요. 요약을 읽은 뒤 Diff를 열어 40px 구현과 44px 디자인을 비교하세요. Merge Studio를 열어 Place order를 선택하고 Compare로 디자인 값을 선택하세요. 추가 스타일링은 Assemble을 사용하고, Merge Changes에서 결과를 확인한 뒤 검토를 요청하세요.
-Match Place order to design|Place order를 디자인에 맞추기
-Make the Place order button match the checkout design|Place order 버튼을 결제 화면 디자인에 맞춰주세요
-What happens after my edit?|편집 후에는 어떻게 되나요?
-What happens after my design edit?|디자인 편집 후에는 어떻게 되나요?
-Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.|승인하기 전에 시각적 비교와 코드 차이를 확인하세요. AI 편집은 초안과 히스토리 체크포인트를 만들 뿐 자동으로 병합되지 않습니다. 검토를 요청해 필요한 승인을 받은 뒤 병합하세요. 히스토리에서 저장된 체크포인트를 확인하거나 되돌릴 수 있습니다.
-Guide me through code review|코드 검토를 안내해주세요
-Guide me through the developer UT|개발자 UT를 안내해주세요
-Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.|프로젝트 개요에서 Button / Height 충돌을 여세요. Diff를 확인하세요: 구현은 h-9를 사용하지만 디자인 시스템은 medium 높이 토큰을 요구합니다. Workspace를 열어 영향받는 파일을 확인한 뒤 Merge Studio의 Compare로 차이를 해결하세요. Merge Changes에서 결과 코드를 검토하고 검토자를 지정해 검토를 요청하세요. 승인 후 병합하고 History를 확인하세요.
-Use the size token for Button|Button에 size 토큰 사용하기
-Use the size token for the Button height|Button 높이에 size 토큰을 사용해주세요
-Why use a shared token?|공유 토큰을 왜 사용해야 하나요?
-Why should the button use a shared token?|버튼이 왜 공유 토큰을 사용해야 하나요?
-A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.|공유 높이 토큰을 사용하면 모든 Button 사용처가 디자인 시스템과 일치하게 됩니다. 하드코딩된 h-9를 대체하면 화면마다 따로 고칠 필요가 없습니다. 이 공유 컴포넌트는 한 페이지 수정보다 영향 범위가 넓으니 병합 전에 컴포넌트 diff와 영향받는 화면을 검토하세요.
-How do I verify and roll back?|확인과 롤백은 어떻게 하나요?
-How do I verify and roll back the change?|변경 사항을 어떻게 확인하고 롤백하나요?
-Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.|Merge Changes에서 최종 코드와 시각적 미리보기를 확인하세요. 승인과 병합은 별개의 단계입니다. 병합 후에는 History를 열어 새 체크포인트를 선택하고 변경된 파일을 확인하세요. 결과가 잘못되었다면 롤백 작업으로 이전 체크포인트를 복원하세요.
+Where should I start?|어떤 것부터 확인할까요?
+Where should I start the designer UT?|주문 버튼 디자인은 어떤 것부터 확인하면 되나요?
+Start with Open Conflict Points and select the Place order button issue. Read the summary, then open Diff to compare the 40px implementation with the 44px design. Open Merge Studio, select Place order, and use Compare to choose the design value. Use Assemble for further styling, then Merge Changes to inspect the result and request review.|먼저 충돌 지점에서 Place order 버튼을 선택해보세요. 차이 보기에서 현재 높이 40px와 디자인의 44px를 비교할 수 있어요. 머지 스튜디오의 ‘비교’에서 디자인 값을 선택하고, 스타일을 더 다듬고 싶으면 ‘조합’을 열어보세요. 수정이 끝나면 ‘변경 사항 병합’에서 결과를 확인하고 검토를 요청하세요.
+Match Place order to design|주문 버튼을 디자인에 맞추기
+Make the Place order button match the checkout design|Place order 버튼의 높이와 색상을 디자인에 맞춰주세요
+What happens after my edit?|수정한 다음에는 뭘 해야 하나요?
+What happens after my design edit?|버튼을 수정했어요. 다음에는 뭘 해야 하나요?
+Inspect the visual comparison and code diff before approving. An AI edit creates a draft and a History checkpoint; it does not merge automatically. Request review, collect the required approvals, then merge. History lets you inspect or roll back the saved checkpoint.|‘변경 사항 병합’에서 버튼 모양과 코드가 의도대로 바뀌었는지 확인해보세요. AI가 수정한 내용은 자동으로 병합되지 않아요. 검토를 요청하고 필요한 승인을 받은 뒤 병합하면 돼요. 저장된 버전은 ‘기록’에서 확인하거나 이전 상태로 되돌릴 수 있어요.
+Guide me through code review|버튼 코드 검토 시작하기
+Guide me through the developer UT|공통 버튼의 높이를 수정하려고 해요. 어떤 것부터 확인하면 되나요?
+Open the Button / Height conflict from the project overview. Inspect the Diff: the implementation uses h-9 while the design system requires the medium height token. Open Workspace to inspect the affected file, then use Merge Studio Compare to resolve the drift. Review the resulting code in Merge Changes, assign reviewers, and request review. After approvals, merge and inspect History.|충돌 지점에서 Button / Height를 선택하고 코드 차이를 확인해보세요. 현재 코드는 h-9를 쓰지만, 디자인 시스템 기준은 40px 높이 토큰이에요. Button.jsx를 확인한 뒤 머지 스튜디오의 ‘비교’에서 토큰을 사용하는 코드로 맞춰보세요. ‘변경 사항 병합’에서 결과를 확인하고 검토자를 지정해 검토를 요청하세요. 필요한 승인을 받아 병합한 뒤에는 ‘기록’에서 변경 내용을 확인할 수 있어요.
+Use the size token for Button|버튼 높이에 토큰 적용하기
+Use the size token for the Button height|Button의 높이에 디자인 시스템 토큰을 적용해주세요
+Why use a shared token?|높이를 토큰으로 관리하는 이유
+Why should the button use a shared token?|버튼 높이를 직접 지정하지 않고 토큰을 쓰는 이유가 뭔가요?
+A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.|같은 버튼을 쓰는 여러 화면의 높이를 한곳에서 관리할 수 있기 때문이에요. h-9처럼 값을 직접 지정하면 기준이 바뀔 때마다 코드를 따로 수정해야 해요. 공통 버튼을 바꾸는 작업이니, 병합 전에 코드 차이와 이 버튼을 쓰는 화면도 함께 확인해보세요.
+How do I verify and roll back?|변경 이력 확인하고 되돌리기
+How do I verify and roll back the change?|수정한 내용을 확인하고 이전 상태로 되돌리려면 어떻게 하나요?
+Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.|먼저 ‘변경 사항 병합’에서 코드와 미리보기를 확인해보세요. 승인이 끝나도 병합은 직접 진행해야 해요. 병합 후에는 ‘기록’에서 새로 저장된 버전과 변경 파일을 확인할 수 있어요. 이전 상태로 돌아가려면 원하는 버전을 선택해 복원하세요.
 Should the CTA use the violet accent or stay neutral here?|CTA에 violet 강조색을 쓸까요, 아니면 중립색을 유지할까요?
 Padding looks tight on the mobile frame — can we match the 24px spec?|모바일 프레임에서 패딩이 좁아 보입니다 — 24px 스펙에 맞출 수 있을까요?
 I'll sync this with the token file once the palette is finalized.|팔레트가 확정되면 토큰 파일과 동기화하겠습니다.

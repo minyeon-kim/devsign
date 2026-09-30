@@ -8,6 +8,7 @@ import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
+import { translateText } from '@/i18n/translate'
 import {
   aiEditScenarios,
   chatSuggestions,
@@ -959,7 +960,7 @@ export function WorkspaceProvider({ children, projectId }) {
       setIsAiTyping(true)
 
       const documentReply = target?.kind === 'document' ? answerDocumentQuestion(allReferenceDocs.find((doc) => doc.id === target.docId), trimmed) : null
-      const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && q.prompt.toLowerCase() === trimmed.toLowerCase())
+      const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && [q.prompt, translateText(q.prompt, 'ko')].some((prompt) => prompt.toLowerCase() === trimmed.toLowerCase()))
       const lower = trimmed.toLowerCase()
       const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
       const fits = scenario && scenarioFitsTarget(scenario, target)

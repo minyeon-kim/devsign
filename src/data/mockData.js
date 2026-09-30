@@ -1877,6 +1877,11 @@ export const paddingConflict = {
   },
 }
 
+export const projectChatGreetings = {
+  'checkout-redesign': 'Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.',
+  'design-system-v2': 'Let’s check the shared Button height. Compare the code with the design token, review the affected screens, then check the saved version after merging.',
+}
+
 export const initialChatMessages = [
   {
     id: 'seed-1',

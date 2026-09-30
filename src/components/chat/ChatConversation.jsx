@@ -1,4 +1,6 @@
 import { documentTarget } from '@/lib/workspaceDocuments'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 import '@/components/chat/ChatSubmitButton.css'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -39,7 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import ChatCheckpoint from '@/components/history/ChatCheckpoint'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
-import { aiModels, chatSuggestions, findCanvasTarget, forProject } from '@/data/mockData'
+import { aiModels, chatSuggestions, findCanvasTarget, forProject, projectChatGreetings } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -254,6 +256,7 @@ function ActionButton({ label, pressed, disabled, onClick, children }) {
 // shared by the floating chat widget and the AI Chat pane, so both are the
 // same conversation (the workspace's chat state) with the same controls.
 function ChatConversation() {
+  const language = useLanguage()
   const workspace = useWorkspace()
   const {
     chatMessages,
@@ -345,7 +348,7 @@ function ChatConversation() {
                   : 'bg-slate-800/80 text-slate-200'
               )}
             >
-              {message.text}
+              {message.id === 'seed-1' ? projectChatGreetings[projectId] ?? message.text : message.text}
             </div>
             {message.role === 'user' ? message.target && (
               <div className="flex w-full items-center justify-end gap-1 px-1 text-[10px] text-slate-500">
@@ -415,7 +418,7 @@ function ChatConversation() {
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={2}
-            placeholder="Ask Devsign to tweak the design or code..."
+            placeholder={translateText('Ask Devsign to tweak the design or code...', language)}
             className="w-full resize-none border-none bg-transparent px-3 py-2 text-xs outline-none placeholder:text-muted-foreground"
           />
           <div className="flex items-center justify-between px-1.5 pb-1.5">
