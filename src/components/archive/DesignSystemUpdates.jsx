@@ -138,20 +138,31 @@ function UpdateCard({ update, active, affectedDocs, createdDoc, onChangeCategory
         <StageTrack stage={update.stage} />
       </div>
 
-      <AffectedDocs docs={affectedDocs} onOpen={onOpenReference} />
-      <DocumentDestination update={update} affectedDocs={affectedDocs} createdDoc={createdDoc} onChangeCategory={onChangeCategory} />
       {update.changes.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {update.changes.map((c) => (
-            <span key={c.label} className="inline-flex items-center gap-1.5 rounded-lg bg-black/20 px-2 py-1 font-mono text-[11px]">
-              <span className="text-slate-400">{c.label}</span>
-              <span className="text-slate-500 line-through decoration-slate-600">{c.from}</span>
-              <ArrowRight className="size-3 text-slate-600" />
-              <span className="text-emerald-300">{c.to}</span>
-            </span>
-          ))}
-        </div>
+        <section className="mt-4">
+          <h3 className="mb-2 text-[11px] font-medium text-slate-400">What changed</h3>
+          <div className="space-y-3">
+            {update.changes.map((c, index) => (
+              <div key={`${c.label}-${index}`}>
+                <p className="mb-1.5 text-xs text-slate-300">{c.label}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="min-w-0 rounded-lg bg-black/15 px-3 py-2">
+                    <p className="mb-1 text-[10px] text-slate-500">Before</p>
+                    <pre className="max-h-40 overflow-auto font-mono text-[11px] leading-5 whitespace-pre-wrap break-words text-slate-500">{c.from}</pre>
+                  </div>
+                  <div className="min-w-0 rounded-lg bg-emerald-400/[0.04] px-3 py-2">
+                    <p className="mb-1 text-[10px] text-slate-500">After</p>
+                    <pre className="max-h-40 overflow-auto font-mono text-[11px] leading-5 whitespace-pre-wrap break-words text-emerald-300">{c.to}</pre>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
+
+      <DocumentDestination update={update} affectedDocs={affectedDocs} createdDoc={createdDoc} onChangeCategory={onChangeCategory} />
+      <AffectedDocs docs={affectedDocs} onOpen={onOpenReference} />
 
       <div className="mt-4 flex items-center gap-2">
         {author && (
