@@ -108,6 +108,9 @@ Current page|현재 페이지
 Open file|열린 파일
 Docs document|문서
 Choose a file|파일 선택
+Attach file|파일 첨부
+Remove attachment|첨부 제거
+Code block|코드 블록
 Draft · not merged|초안 · 병합 전
 ready for review|검토 대기
 Upload files|파일 업로드

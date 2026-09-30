@@ -394,7 +394,7 @@ function ChatConversation() {
               <span key={file} className="flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] text-foreground/80">
                 <FileCode className="size-2.5" />
                 {file}
-                <button type="button" onClick={() => removeAttachment(file)}>
+                <button type="button" onClick={() => removeAttachment(file)} title="Remove attachment" aria-label="Remove attachment">
                   <X className="size-2.5 text-muted-foreground hover:text-foreground" />
                 </button>
               </span>
@@ -420,7 +420,7 @@ function ChatConversation() {
           />
           <div className="flex items-center justify-between px-1.5 pb-1.5">
             <div className="flex items-center gap-0.5">
-              <Button type="button" variant="ghost" size="icon-xs" onClick={handleAttach}>
+              <Button type="button" variant="ghost" size="icon-xs" onClick={handleAttach} title="Attach file" aria-label="Attach file">
                 <Paperclip className="size-3.5" />
               </Button>
               <Button
@@ -429,6 +429,8 @@ function ChatConversation() {
                 size="icon-xs"
                 onClick={() => setCodeBlockMode((v) => !v)}
                 className={cn(codeBlockMode && 'bg-emerald-400/10 text-emerald-300')}
+                title="Code block"
+                aria-label="Code block"
               >
                 <Code2 className="size-3.5" />
               </Button>
