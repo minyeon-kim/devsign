@@ -90,6 +90,10 @@ export function WorkspaceProvider({ children, projectId }) {
   // images) land in `importedAssets` instead.
   const [importedFiles, setImportedFiles] = useDemoState(`project:${projectId}:importedFiles`, [])
   const [importedAssets, setImportedAssets] = useDemoState(`project:${projectId}:importedAssets`, [])
+  // Folders created from the Explorer's "New Folder" action before any file
+  // lives in them — buildFileTree otherwise only derives folders from file
+  // paths, so an empty one needs to be tracked explicitly to still show up.
+  const [emptyFolders, setEmptyFolders] = useDemoState(`project:${projectId}:emptyFolders`, [])
   // The canvas pages' code files (src/prototype/*.jsx) are part of every
   // project's tree: generated from — and parsed back into — the canvas
   // (see lib/prototypeSync), so design and code stay in sync both ways.
@@ -788,6 +792,37 @@ export function WorkspaceProvider({ children, projectId }) {
     [appendTerminalLines, setImportedAssets, setImportedFiles]
   )
 
+  // The Explorer's "New File" hover action — an empty file dropped straight
+  // into `parentPath` (root when empty), opened immediately like an import.
+  const createFile = useCallback(
+    (parentPath, name) => {
+      const trimmed = name.trim()
+      if (!trimmed) return null
+      const path = parentPath ? `${parentPath}/${trimmed}` : trimmed
+      const ext = trimmed.includes('.') ? trimmed.split('.').pop().toLowerCase() : ''
+      const id = nextId('new')
+      setImportedFiles((prev) => [...prev, { id, name: trimmed, path, language: ext, iconName: 'FileCode', imported: true, lines: [''] }])
+      setActiveFileIdState(id)
+      appendTerminalLines([`$ touch "${path}"`])
+      return id
+    },
+    [appendTerminalLines, setImportedFiles]
+  )
+
+  // The Explorer's "New Folder" hover action. Folders otherwise only exist
+  // as a byproduct of a file's path, so an empty one needs its own tracked
+  // list to show up in the tree at all (see buildFileTree).
+  const createFolder = useCallback(
+    (parentPath, name) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      const path = parentPath ? `${parentPath}/${trimmed}` : trimmed
+      setEmptyFolders((prev) => (prev.includes(path) ? prev : [...prev, path]))
+      appendTerminalLines([`$ mkdir "${path}"`])
+    },
+    [appendTerminalLines, setEmptyFolders]
+  )
+
   const importFigmaLink = useCallback(
     (url) => {
       const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] ?? '').replace(/-/g, ' ').trim() || 'Figma file'
@@ -1141,6 +1176,9 @@ export function WorkspaceProvider({ children, projectId }) {
     importedAssets,
     importFiles,
     importFigmaLink,
+    emptyFolders,
+    createFile,
+    createFolder,
     activeFileId,
     setActiveFileId,
     openFileIds,

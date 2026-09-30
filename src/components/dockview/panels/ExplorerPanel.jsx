@@ -1,11 +1,10 @@
 import { buildFileTree } from '@/lib/fileTree'
-import { useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Frame, Upload } from 'lucide-react'
+import { useState } from 'react'
+import { FilePlus, Folder, FolderOpen, FolderPlus, RefreshCw, Upload } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
-import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { assetIcon, getFileIconMeta } from '@/lib/fileIcons'
-import { IMPORT_ACCEPT } from '@/lib/importFiles'
+import { projects } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function announce({ code, design }) {
@@ -13,92 +12,49 @@ function announce({ code, design }) {
   toast('Imported', { description: parts.filter(Boolean).join(' · ') || 'Nothing to import.' })
 }
 
-// The Import action at the top of the file tree: upload Figma (.fig),
-// Illustrator (.ai) / SVG / image files or code files, or link a Figma
-// file by URL. Code files join the tree and open in the editor; design
-// files become Assets (the canvas's Layers drawer → Assets tab).
-function ImportMenu() {
-  const { importFiles, importFigmaLink } = useWorkspace()
-  const inputRef = useRef(null)
-  const [figmaUrl, setFigmaUrl] = useState('')
-
-  async function handleFiles(event) {
-    const list = event.target.files
-    if (!list?.length) return
-    announce(await importFiles(list))
-    event.target.value = ''
-  }
-
-  function linkFigma(event) {
-    event.preventDefault()
-    const url = figmaUrl.trim()
-    if (!url) return
-    const name = importFigmaLink(url)
-    toast('Figma file linked', { description: `“${name}” added to Assets` })
-    setFigmaUrl('')
-  }
-
+// A hover-revealed row action (New File, New Folder, Refresh) — hidden
+// until the row it sits in is hovered (see the `group/row` wrapper below).
+// No button chrome (no circle, no fill): only the icon itself lightens on
+// hover, Cursor-style, with a small tooltip below it naming the action.
+function RowAction({ icon: Icon, label, spin, onClick }) {
   return (
-    <Popover>
-      <PopoverTrigger
-        title="Import files"
-        className="ml-auto flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground data-[popup-open]:bg-white/[0.06] data-[popup-open]:text-foreground"
+    <span className="group/tip relative flex">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={(event) => {
+          event.stopPropagation()
+          onClick()
+        }}
+        className="flex items-center justify-center p-0.5 text-slate-500 hover:text-foreground"
       >
-        <Upload className="size-3" />
-        Import
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="w-72 gap-3 rounded-2xl p-3 font-sans">
-        <p className="text-sm font-semibold text-foreground">Import into this project</p>
-
-        <PopoverClose
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full items-start gap-3 rounded-xl bg-white/[0.04] p-3 text-left transition-colors hover:bg-white/[0.07]"
-        >
-          <Upload className="mt-0.5 size-4 shrink-0 text-emerald-300" />
-          <span>
-            <span className="block text-xs font-medium text-foreground">Upload files</span>
-            <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
-              Figma (.fig), Illustrator (.ai), SVG and images, or code files (.jsx, .tsx, .css, .json…). You can also drop them onto the file tree.
-            </span>
-          </span>
-        </PopoverClose>
-
-        <form onSubmit={linkFigma} className="flex flex-col gap-1.5">
-          <label htmlFor="figma-url" className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-            <Frame className="size-3.5" />
-            Link a Figma file
-          </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              id="figma-url"
-              value={figmaUrl}
-              onChange={(e) => setFigmaUrl(e.target.value)}
-              placeholder="https://figma.com/design/…"
-              className="h-8 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-white/25"
-            />
-            <button
-              type="submit"
-              disabled={!figmaUrl.trim()}
-              className="ds-primary-cta h-8 shrink-0 rounded-md px-3 text-xs font-medium disabled:opacity-45"
-            >
-              Link
-            </button>
-          </div>
-        </form>
-      </PopoverContent>
-      <input ref={inputRef} type="file" multiple accept={IMPORT_ACCEPT} onChange={handleFiles} className="hidden" />
-    </Popover>
+        <Icon className={cn('size-3.5', spin && 'animate-spin')} />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute top-[calc(100%+5px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-[#121212] px-2 py-1 text-[11px] text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/tip:opacity-100"
+      >
+        {label}
+      </span>
+    </span>
   )
 }
 
 function ExplorerPanel() {
-  const { workspaceFiles, activeFileId, setActiveFileId, getFileName, renameFile, importedAssets, importFiles, draftChanges, editorDirtyFiles } = useWorkspace()
+  const { projectId, workspaceFiles, emptyFolders, activeFileId, setActiveFileId, getFileName, renameFile, createFile, createFolder, importedAssets, importFiles, draftChanges, editorDirtyFiles } = useWorkspace()
   const [renamingId, setRenamingId] = useState(null)
   const [draftName, setDraftName] = useState('')
   const [dragging, setDragging] = useState(false)
   const [collapsed, setCollapsed] = useState(new Set())
-  const tree = buildFileTree(workspaceFiles, (file) => getFileName(file.id))
+  // The inline "New File" / "New Folder" row being typed into: which
+  // folder it'll land in (root is '') and which kind it'll create.
+  const [creating, setCreating] = useState(null)
+  const [creatingName, setCreatingName] = useState('')
+  const [spinning, setSpinning] = useState(false)
+  const rootName = projects.find((p) => p.id === projectId)?.name ?? projectId
+  // The project's own root folder, shown as the tree's own top node —
+  // not a separate path bar — so it can collapse like any other folder.
+  const tree = [{ kind: 'folder', path: '', name: rootName, children: buildFileTree(workspaceFiles, (file) => getFileName(file.id), emptyFolders) }]
 
   function startRename(file) {
     setRenamingId(file.id)
@@ -110,10 +66,63 @@ function ExplorerPanel() {
     setRenamingId(null)
   }
 
+  function startCreating(parentPath, kind) {
+    setCollapsed((prev) => {
+      if (!prev.has(parentPath)) return prev
+      const next = new Set(prev)
+      next.delete(parentPath)
+      return next
+    })
+    setCreating({ parentPath, kind })
+    setCreatingName('')
+  }
+
+  function commitCreating() {
+    const name = creatingName.trim()
+    if (name) {
+      if (creating.kind === 'folder') createFolder(creating.parentPath, name)
+      else createFile(creating.parentPath, name)
+    }
+    setCreating(null)
+    setCreatingName('')
+  }
+
+  function cancelCreating() {
+    setCreating(null)
+    setCreatingName('')
+  }
+
+  function refreshExplorer() {
+    setSpinning(true)
+    setTimeout(() => setSpinning(false), 500)
+  }
+
   async function handleDrop(event) {
     event.preventDefault()
     setDragging(false)
     if (event.dataTransfer.files?.length) announce(await importFiles(event.dataTransfer.files))
+  }
+
+  function renderCreatingRow(depth) {
+    const { Icon, colorClass } = creating.kind === 'folder' ? { Icon: Folder, colorClass: 'text-slate-400' } : getFileIconMeta(creatingName || 'untitled')
+    return (
+      <div role="treeitem" style={{ paddingLeft: 6 + depth * 10 }} className="flex w-full items-center gap-1.5 py-1 pr-2">
+        <Icon className={cn('size-3.5 shrink-0', colorClass)} />
+        <input
+          autoFocus
+          value={creatingName}
+          onChange={(e) => setCreatingName(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commitCreating}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitCreating()
+            if (e.key === 'Escape') cancelCreating()
+          }}
+          placeholder={creating.kind === 'folder' ? 'Folder name' : 'File name'}
+          className="w-full truncate rounded-sm bg-transparent px-1 text-xs text-foreground outline-none ring-1 ring-emerald-400/60 placeholder:text-muted-foreground"
+        />
+      </div>
+    )
   }
 
   function renderNodes(nodes, depth = 0) {
@@ -121,20 +130,31 @@ function ExplorerPanel() {
       if (node.kind === 'folder') {
         const expanded = !collapsed.has(node.path)
         const Icon = expanded ? FolderOpen : Folder
-        const Chevron = expanded ? ChevronDown : ChevronRight
+        const isRoot = depth === 0
         return (
           <div key={node.path} role="treeitem" aria-label={node.name} aria-expanded={expanded} aria-level={depth + 1}>
-            <button type="button" onClick={() => setCollapsed((prev) => {
-              const next = new Set(prev)
-              if (next.has(node.path)) next.delete(node.path)
-              else next.add(node.path)
-              return next
-            })} style={{ paddingLeft: depth * 16 }} className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left hover:bg-muted hover:text-foreground">
-              <Chevron className="size-3 shrink-0" />
-              <Icon className="size-3.5 shrink-0 text-slate-400" />
-              <span className="truncate">{node.name}</span>
-            </button>
-            {expanded && <div role="group">{renderNodes(node.children, depth + 1)}</div>}
+            <div className="group/row flex items-center rounded-lg hover:bg-muted hover:text-foreground">
+              <button type="button" onClick={() => setCollapsed((prev) => {
+                const next = new Set(prev)
+                if (next.has(node.path)) next.delete(node.path)
+                else next.add(node.path)
+                return next
+              })} style={{ paddingLeft: 6 + depth * 10 }} className="flex h-full min-w-0 flex-1 items-center gap-1.5 py-1 pr-1 text-left">
+                <Icon className="size-3.5 shrink-0 text-slate-400" />
+                <span className="truncate">{node.name}</span>
+              </button>
+              <div className="flex shrink-0 items-center gap-0.5 pr-1.5 pointer-events-none opacity-0 transition-opacity group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100">
+                {isRoot && <RowAction icon={RefreshCw} label="Refresh Explorer" spin={spinning} onClick={refreshExplorer} />}
+                <RowAction icon={FilePlus} label="New File..." onClick={() => startCreating(node.path, 'file')} />
+                <RowAction icon={FolderPlus} label="New Folder..." onClick={() => startCreating(node.path, 'folder')} />
+              </div>
+            </div>
+            {expanded && (
+              <div role="group">
+                {creating?.parentPath === node.path && renderCreatingRow(depth + 1)}
+                {renderNodes(node.children, depth + 1)}
+              </div>
+            )}
           </div>
         )
       }
@@ -145,7 +165,7 @@ function ExplorerPanel() {
 
       if (isRenaming) {
         return (
-          <div key={file.id} role="treeitem" aria-level={depth + 1} aria-selected={active} style={{ paddingLeft: 12 + depth * 16 }} className="flex w-full items-center gap-1.5 py-1 pr-2">
+          <div key={file.id} role="treeitem" aria-level={depth + 1} aria-selected={active} style={{ paddingLeft: 6 + depth * 10 }} className="flex w-full items-center gap-1.5 py-1 pr-2">
             <Icon className={cn('size-3.5 shrink-0', colorClass)} />
             <input
               autoFocus
@@ -170,9 +190,9 @@ function ExplorerPanel() {
           onClick={() => setActiveFileId(file.id)}
           onDoubleClick={() => startRename(file)}
           title={`${node.path}${file.imported ? ' · imported' : ''} · Double-click to rename`}
-          style={{ paddingLeft: 12 + depth * 16 }}
+          style={{ paddingLeft: 6 + depth * 10 }}
           className={cn(
-            'flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left transition-colors hover:bg-muted hover:text-foreground',
+            'flex w-full items-center gap-1.5 rounded-lg py-1 pr-2 text-left transition-colors hover:bg-muted hover:text-foreground',
             active && 'bg-[#0E1F1B] text-[#D1FAE5]'
           )}
         >
@@ -198,15 +218,9 @@ function ExplorerPanel() {
       }}
       onDrop={handleDrop}
     >
-      {/* Folders below are derived from the project's paths, starting at root. */}
-      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/60 pr-1.5 pl-3 text-xs font-medium text-foreground/70">
-        <Folder className="size-3.5" />
-        <span title="Project root">/</span>
-        <ImportMenu />
-      </div>
       <div className="scroll-fade-bottom flex-1 overflow-auto p-2.5 text-xs text-muted-foreground">
         <div role="tree" aria-label="Project files">{renderNodes(tree)}</div>
-        {!tree.length && <p className="px-2 py-4">No files yet. Import files to get started.</p>}
+        {!tree[0].children.length && <p className="px-2 py-4">No files yet. Import files to get started.</p>}
 
         {importedAssets.length > 0 && (
           <div className="mt-3">

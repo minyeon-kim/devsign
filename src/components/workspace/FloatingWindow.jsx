@@ -95,6 +95,8 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       ? { position: 'relative', width: '100%', height: '100%' }
       : { left: group.x, top: group.y, width: group.w, height: group.h }
 
+  const isNavigatorGroup = group.panelIds.every((pid) => panelsById[pid]?.component === 'navigator')
+
   return (
     <div
       data-window={group.id}
@@ -117,14 +119,15 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         <div
           onPointerDown={beginDrag}
           data-window-header={docked ? group.id : undefined}
-          className="@container/nav flex h-11 shrink-0 cursor-grab items-center gap-0.5 border-b border-white/[0.06] px-2.5 active:cursor-grabbing"
+          className="@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 border-b border-white/[0.06] px-2 active:cursor-grabbing"
         >
           {docked ? (
             // The real tabs — open files, canvas pages, the navigator's
             // views, other views by name (PanelTabs) — then `+` right after
-            // the last one.
+            // the last one. The navigator's tabs (Files/Layers/Assets) are
+            // fixed navigation, not addable views, so it gets no `+`.
             <>
-              <div className={cn("flex min-w-0 items-center gap-1", group.panelIds.every((pid) => panelsById[pid]?.component === 'navigator') ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
+              <div className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
                 {group.panelIds.map((pid) =>
                   panelsById[pid] ? (
                     <PanelTabs
@@ -138,7 +141,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                   ) : null
                 )}
               </div>
-              <AddViewMenu group={group} dockApi={dockApi} />
+              {!isNavigatorGroup && <AddViewMenu group={group} dockApi={dockApi} />}
             </>
           ) : (
           <div className="flex shrink-0 items-center gap-1">

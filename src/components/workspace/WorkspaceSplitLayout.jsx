@@ -39,7 +39,7 @@ const components = {
 const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
 // The navigator's default width, in px.
-const NAVIGATOR_W = 304
+const NAVIGATOR_W = 240
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
 // it rather than into it as a tab.
