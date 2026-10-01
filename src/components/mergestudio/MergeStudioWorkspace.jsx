@@ -1,6 +1,6 @@
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Blocks, ListChecks, TriangleAlert } from 'lucide-react'
+import { Blocks, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { STUDIO_PILL as FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -755,14 +755,29 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         // Nothing is auto-selected — but the empty state is the same canvas
         // surface as MergeInfiniteCanvas (bg-canvas + its dot grid at
         // 100% zoom), so selecting an item just fills the canvas in rather
-        // than swapping a flat placeholder for a whole new background.
+        // than swapping a flat placeholder for a whole new background. A
+        // bare dot grid with no copy reads as broken (a Conflict Point
+        // with no merge item of its own — most of the project-wide list —
+        // leaves this showing instead of jumping anywhere), so it says
+        // plainly that it's waiting on a pick, not stuck.
         <div
-          className="min-h-0 flex-1 bg-canvas"
+          className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center"
           style={{
+            backgroundColor: 'var(--canvas)',
             backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
             backgroundSize: '18px 18px',
           }}
-        />
+        >
+          <div className="flex size-11 items-center justify-center rounded-full bg-white/[0.06] text-slate-400">
+            <MousePointerClick className="size-5" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-slate-300">No item open yet</p>
+            <p className="max-w-[260px] text-xs text-slate-500">
+              Pick one from the Merge List on the left — or a Conflict Point linked to one — to open it here.
+            </p>
+          </div>
+        </div>
       )}
 
       <MergeListSidebar

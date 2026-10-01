@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import { TriangleAlert } from 'lucide-react'
 import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
@@ -106,7 +108,28 @@ function WorkspacePage() {
           // `relative`, not `flex`, so it needs its own properly-sized flex
           // wrapper here instead of relying on the root itself.
           <div className="absolute inset-0 flex flex-col">
-            <MergeStudioView />
+            <ErrorBoundary
+              key={location.key}
+              fallback={(error, reset) => (
+                <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-[#070708] p-6 text-center text-slate-400">
+                  <TriangleAlert className="size-5 text-amber-400" />
+                  <p className="text-sm font-medium text-slate-300">Merge Studio couldn't open this.</p>
+                  <p className="max-w-[320px] text-xs text-slate-500">{error?.message || 'Something went wrong.'}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reset()
+                      exitMergeStudio()
+                    }}
+                    className="mt-1 inline-flex h-8 items-center rounded-full bg-white/[0.08] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.14]"
+                  >
+                    Back to Workspace
+                  </button>
+                </div>
+              )}
+            >
+              <MergeStudioView />
+            </ErrorBoundary>
           </div>
         ) : (
           <WorkspaceSplitLayout />
