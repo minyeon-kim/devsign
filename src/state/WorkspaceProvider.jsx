@@ -1019,6 +1019,13 @@ export function WorkspaceProvider({ children, projectId }) {
 
       setDraftChanges((prev) => ({ ...prev, [scenario.fileId]: { conflictId: reopened?.id, title: scenario.title } }))
       if (reopened?.mergeItemId) updateMergeItem(reopened.mergeItemId, { tag: 'In Review', updatedLabel: 'Just now' })
+      // Jump to the change as it lands — not before: a pending proposal
+      // shouldn't move the canvas or select anything until it's actually
+      // approved, so nothing on screen reacts ahead of that decision.
+      if (layerHit) {
+        setActivePageId(layerHit.page.id)
+        setSelectedLayerId(changedLayerId)
+      }
       // Include the just-applied result even if a second request finishes before React renders.
       aiStateRef.current = { fileOverrides: nextFileOverrides, previewProps: nextPreviewProps, conflicts: nextConflicts }
       setFileOverrides(nextFileOverrides)
@@ -1139,37 +1146,36 @@ export function WorkspaceProvider({ children, projectId }) {
           return
         }
 
-        // A real change is about to land. Jump to it and show it being
-        // worked on — canvas glow + editor shimmer (see `aiGenerating`,
-        // consumed by CanvasPanel/EditorPanel) — instead of the typing
-        // bubble just silently swapping for the finished result. The chat
-        // reply, the checkpoint and the actual file/preview/conflict
-        // writes all wait for this pass to finish, same as a real patch
-        // landing only once it's done streaming.
-        const changedLayerId = scenario.target?.layerId
-        const layerHit = changedLayerId && findCanvasTarget(changedLayerId)
-        const firstChange = scenario.changes?.[0]
-        if (layerHit) {
-          setActivePageId(layerHit.page.id)
-          setSelectedLayerId(changedLayerId)
+        // Auto mode (opt-in, off by default): a real change is about to
+        // land, so jump to it and show it being worked on — canvas glow +
+        // editor shimmer (see `aiGenerating`, consumed by
+        // CanvasPanel/EditorPanel) — instead of the typing bubble just
+        // silently swapping for the finished result. Outside Auto mode
+        // nothing lands without approval, so nothing jumps or glows yet
+        // either — the canvas only reacts once the person clicks Apply
+        // (see `commitAiScenario`, shared by both paths).
+        const autoApply = options.autoApply === true
+        if (autoApply) {
+          const changedLayerId = scenario.target?.layerId
+          const layerHit = changedLayerId && findCanvasTarget(changedLayerId)
+          const firstChange = scenario.changes?.[0]
+          setAiGenerating({
+            layerId: layerHit ? changedLayerId : null,
+            fileId: firstChange?.fileId ?? scenario.fileId,
+            line: firstChange?.line ?? null,
+            nonce: nextId('gen'),
+          })
         }
-        setAiGenerating({
-          layerId: layerHit ? changedLayerId : null,
-          fileId: firstChange?.fileId ?? scenario.fileId,
-          line: firstChange?.line ?? null,
-          nonce: nextId('gen'),
-        })
 
         window.setTimeout(() => {
           setIsAiTyping(false)
           setAiGenerating(null)
 
-          // Auto mode (opt-in, off by default): apply immediately, same as
-          // before. Otherwise the proposal sits in chat as a draft — files,
-          // canvas and the History checkpoint only happen once the person
-          // clicks Apply (see `applyPendingAiEdit`), so the AI never edits
+          // The proposal sits in chat as a draft otherwise — files, canvas
+          // and the History checkpoint only happen once the person clicks
+          // Apply (see `applyPendingAiEdit`), so the AI never edits
           // anything on its own say-so.
-          if (options.autoApply === true) {
+          if (autoApply) {
             const { result, historyId, reply } = commitAiScenario(scenario, target, trimmed)
             appendAssistant({ id: nextId('m'), role: 'assistant', text: reply, historyId, result })
             return
