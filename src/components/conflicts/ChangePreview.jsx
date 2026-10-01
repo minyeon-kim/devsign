@@ -8,9 +8,9 @@ import { Truck } from 'lucide-react'
 
 function Frame({ label, children }) {
   return (
-    <figure aria-label={label} className="flex min-w-0 flex-col items-center justify-center">
+    <figure aria-label={label} className="flex min-w-0 flex-col items-center">
       <figcaption className="mb-1 text-[10px] font-medium text-slate-500">{label}</figcaption>
-      <div className="flex min-h-24 w-full items-center justify-center">{children}</div>
+      <div className="flex h-20 w-full shrink-0 items-center justify-center">{children}</div>
     </figure>
   )
 }

@@ -45,15 +45,15 @@ function RowAction({ icon: Icon, label, show, onClick }) {
 
 function SpecRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-2 text-xs">
-      <span className="text-slate-500">{label}</span>
+    <div className="flex items-center justify-between gap-2 text-[11px]">
+      <span className="text-[10px] text-slate-500">{label}</span>
       <span className="truncate text-slate-200">{value}</span>
     </div>
   )
 }
 
 function SectionLabel({ children }) {
-  return <div className="mb-1.5 flex h-5 items-center text-xs font-medium text-slate-300">{children}</div>
+  return <div className="mb-1.5 flex h-5 items-center text-[11px] font-medium text-slate-300">{children}</div>
 }
 
 // The Files/Layers/Assets navigator's Dev-Mode-style Inspect view: the
@@ -100,8 +100,8 @@ function InspectPanel() {
           <div className="flex items-center gap-2">
             <Icon className="size-3.5 shrink-0 text-emerald-300" />
             <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-medium text-slate-100">{node.name}</p>
-              <p className="text-[11px] text-slate-500 capitalize">{node.kind}</p>
+              <p className="truncate text-xs font-medium text-slate-100">{node.name}</p>
+              <p className="text-[10px] text-slate-500 capitalize">{node.kind}</p>
             </div>
           </div>
 
@@ -132,8 +132,8 @@ function InspectPanel() {
               <div>
                 <SectionLabel>Style</SectionLabel>
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-slate-500">Fill</span>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="text-[10px] text-slate-500">Fill</span>
                     <span className="flex items-center gap-1.5 text-slate-200">
                       <span className="size-3 rounded-sm border border-white/10" style={{ background: spec.fill.color }} />
                       {spec.fill.color}
@@ -154,7 +154,7 @@ function InspectPanel() {
                   <span className="text-xs font-medium text-slate-300">CSS</span>
                   <RowAction icon={copied ? Check : Copy} label={copied ? 'Copied' : 'Copy CSS'} show={copied} onClick={copyCss} />
                 </div>
-                <pre className="overflow-auto rounded-md border border-white/10 bg-black/30 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-slate-300">
+                <pre className="overflow-auto rounded-md border border-white/10 bg-black/30 p-2 font-mono text-[10px] leading-relaxed whitespace-pre-wrap break-words text-slate-300">
                   {spec.css}
                 </pre>
               </div>

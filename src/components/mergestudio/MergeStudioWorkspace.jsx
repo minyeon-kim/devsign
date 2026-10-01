@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
+import { Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
@@ -22,6 +22,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
+import { DesignComparePanel, DesignComparisonCanvas } from '@/components/mergestudio/DesignComparison'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -108,6 +109,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     completeMerge,
     conflicts,
     updateConflict,
+    mergeItems,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -139,6 +141,9 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // step flow is docked there now instead of a floating wizard the parent
   // mounts/unmounts per "open".
   const [wizardStep, setWizardStep] = useState(0)
+  const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
+  const [designCompareKeys, setDesignCompareKeys] = useState([])
+  const [designComparison, setDesignComparison] = useState(null)
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   // Variant Compare state lives here (not in the deck) so choosing — or
@@ -148,6 +153,24 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // Hand-typed code lines from the code window, keyed `fileId:line`. They
   // win over incoming and AI-edited text everywhere the merged code shows.
   const [manualCode, setManualCode] = useState(savedDraft.manualCode ?? {})
+
+  useEffect(() => {
+    setDesignCompareItemId(item?.id ?? null)
+    setDesignCompareKeys([])
+    setDesignComparison(null)
+  }, [item?.id])
+
+  const designCompareItems = mergeItems.filter((candidate) => candidate.hasDesign && candidate.designPageId)
+  const designCompareItem = designCompareItems.find((candidate) => candidate.id === designCompareItemId)
+  function toggleDesignCompareOption(key) {
+    setDesignCompareKeys((current) =>
+      current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]
+    )
+  }
+  function openDesignComparison(compareItem, options) {
+    setDesignComparison({ item: compareItem, options })
+    setBottomPanel({ open: false })
+  }
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -641,6 +664,23 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       panelProps: { mergeStudioItem: item, inMergeStudio: true, mergeStepFlowProps },
     },
     {
+      id: 'design-compare',
+      label: 'Design Compare',
+      icon: Layers3,
+      Panel: DesignComparePanel,
+      panelProps: {
+        items: designCompareItems,
+        itemId: designCompareItem?.id ?? null,
+        selectedKeys: designCompareKeys,
+        onSelectItem: (id) => {
+          setDesignCompareItemId(id)
+          setDesignCompareKeys([])
+        },
+        onToggleVariant: toggleDesignCompareOption,
+        onCompare: openDesignComparison,
+      },
+    },
+    {
       id: 'changes',
       label: 'Changes',
       icon: ListChecks,
@@ -704,7 +744,17 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     <div className="relative flex min-h-0 flex-1 flex-col bg-canvas">
       <div className="relative flex min-h-0 flex-1">
 
-      {item ? (
+      {designComparison ? (
+        <DesignComparisonCanvas
+          item={designComparison.item}
+          options={designComparison.options}
+          onBack={() => {
+            setDesignComparison(null)
+            setBottomPanel({ tab: 'design-compare', open: true })
+          }}
+          onExit={() => setDesignComparison(null)}
+        />
+      ) : item ? (
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
           reserve={reserve}

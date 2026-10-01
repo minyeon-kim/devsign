@@ -173,7 +173,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       const groupId = store.panels[id]?.groupId
       if (!groupId || floatingGroups.current.has(groupId)) continue
       floatingGroups.current.add(groupId)
-      const width = Math.min(right ? 380 : 360, bounds.width * 0.3)
+      const width = Math.min(right ? NAVIGATOR_W : 360, bounds.width * 0.3)
       const height = Math.max(180, Math.min(560, bounds.height - 160))
       dockApi.moveGroup(groupId, right ? bounds.width - width - 16 : 16, 64)
       dockApi.resizeGroup(groupId, width, height)

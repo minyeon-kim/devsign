@@ -1,5 +1,5 @@
 import { moveTab } from '@/lib/tabOrder'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
@@ -29,7 +29,7 @@ const MIN_CANVAS = 220
 // resize; switching tabs preserves the user's height, and content scrolls
 // inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
-  const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
@@ -108,7 +108,10 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
       />
 
       <div
-        className="flex shrink-0 cursor-pointer items-center gap-1 px-3 py-2"
+        className={cn(
+          'flex shrink-0 cursor-pointer items-center gap-1 px-3',
+          open && tab === 'conflict' && reviewConflictId ? 'pt-2 pb-0' : 'py-2'
+        )}
         style={{ height: STRIP_HEIGHT }}
         role="tablist"
         onClick={(event) => {
@@ -119,64 +122,63 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
         }}
       >
         {tabOrder.map((id) => tabs.find((t) => t.id === id)).filter(Boolean).map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-description={`Open ${label} · Drag to reorder`}
-            aria-selected={id === tab}
-            draggable
-            onDragStart={(event) => {
-              draggedTab.current = id
-              event.dataTransfer.effectAllowed = 'move'
-              event.dataTransfer.setData('text/plain', id)
-            }}
-            onDragOver={(event) => { if (draggedTab.current) event.preventDefault() }}
-            onDrop={(event) => {
-              if (!draggedTab.current) return
-              event.preventDefault()
-              const rect = event.currentTarget.getBoundingClientRect()
-              const source = draggedTab.current
-              const after = event.clientX >= rect.left + rect.width / 2
-              setTabOrder((prev) => moveTab(prev, source, id, after))
-            }}
-            onDragEnd={() => { draggedTab.current = null }}
-            onKeyDown={(event) => {
-              if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
-              const direction = event.key === 'ArrowRight' ? 1 : -1
-              const target = tabOrder[tabOrder.indexOf(id) + direction]
-              if (!target) return
-              event.preventDefault()
-              setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
-            }}
-            onClick={() => pickTab(id)}
-            className={cn(CATEGORY_TAB, 'h-8 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
-          >
-            <Icon className="size-3.5" />
-            {label}
-            {id === 'conflict' && openConflicts > 0 && (
-              <span
-                title={`${openConflicts} open`}
-                className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[10px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
+          <Fragment key={id}>
+            <button
+              type="button"
+              role="tab"
+              aria-description={`Open ${label} · Drag to reorder`}
+              aria-selected={id === tab}
+              draggable
+              onDragStart={(event) => {
+                draggedTab.current = id
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', id)
+              }}
+              onDragOver={(event) => { if (draggedTab.current) event.preventDefault() }}
+              onDrop={(event) => {
+                if (!draggedTab.current) return
+                event.preventDefault()
+                const rect = event.currentTarget.getBoundingClientRect()
+                const source = draggedTab.current
+                const after = event.clientX >= rect.left + rect.width / 2
+                setTabOrder((prev) => moveTab(prev, source, id, after))
+              }}
+              onDragEnd={() => { draggedTab.current = null }}
+              onKeyDown={(event) => {
+                if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+                const direction = event.key === 'ArrowRight' ? 1 : -1
+                const target = tabOrder[tabOrder.indexOf(id) + direction]
+                if (!target) return
+                event.preventDefault()
+                setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
+              }}
+              onClick={() => pickTab(id)}
+              className={cn(CATEGORY_TAB, 'h-8 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            >
+              <Icon className="size-3.5" />
+              {label}
+              {id === 'conflict' && openConflicts > 0 && (
+                <span
+                  title={`${openConflicts} open`}
+                  className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[10px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
+                >
+                  {openConflicts}
+                </span>
+              )}
+            </button>
+            {id === 'conflict' && needsMyReview > 0 && (
+              <button
+                type="button"
+                aria-description="Show conflicts waiting for your review"
+                onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
               >
-                {openConflicts}
-              </span>
+                <span className="ds-status-dot rounded-full bg-emerald-400" />
+                Needs your review · {needsMyReview}
+              </button>
             )}
-          </button>
+          </Fragment>
         ))}
-        {/* Your share of the open ones, kept apart from the total: jumps to
-            the Conflict Points list filtered to what needs your review. */}
-        {needsMyReview > 0 && (
-          <button
-            type="button"
-            aria-description="Show conflicts waiting for your review"
-            onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
-            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
-          >
-            <span className="ds-status-dot rounded-full bg-emerald-400" />
-            Needs your review · {needsMyReview}
-          </button>
-        )}
       </div>
 
       {open && (

@@ -217,12 +217,12 @@ function Provenance({ conflict, className }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage }) {
+function OverviewTab({ conflict, severity, stage, showProject }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
     : conflict.riskReason
-  const reviewImpact = riskExplanation && `This needs review because ${riskExplanation}`
+  const summary = conflict.message || riskExplanation
   const hasMetadata = Boolean(
     conflict.changedBy ||
     conflict.detectedBy ||
@@ -230,7 +230,6 @@ function OverviewTab({ conflict, severity, stage }) {
     conflict.impact?.components?.length ||
     conflict.impact?.files?.length
   )
-  const stageIndex = Math.max(0, REVIEW_STAGES.findIndex((item) => item.id === stage))
   const severityTone = severity?.label === 'High'
     ? 'text-red-300'
     : severity?.label === 'Medium'
@@ -239,33 +238,33 @@ function OverviewTab({ conflict, severity, stage }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 min-w-0 border-b border-white/[0.08] pb-3">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex min-w-0 items-center gap-2">
+      <div className="mb-4 min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/[0.055] px-2.5 py-1 text-xs font-semibold text-slate-100">
             <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
-            <span className="min-w-0 break-words text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">
-              {STAGE_LABEL[stage]}
-            </span>
-            <span className="shrink-0 text-xs font-medium tabular-nums text-slate-500">
-              {stageIndex + 1}/{REVIEW_STAGES.length}
-            </span>
-          </div>
+            <span className="min-w-0 break-words [overflow-wrap:anywhere]">{STAGE_LABEL[stage]}</span>
+          </span>
           {severity && (
-            <p className="flex shrink-0 items-center gap-1.5 text-[11px]">
+            <p className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.035] px-2.5 py-1 text-[11px]">
               <span className="text-slate-500"><LocalizedText text="Severity" /></span>
               <span className={cn('font-semibold', severityTone)}>{severity.label}</span>
             </p>
           )}
         </div>
-        {conflict.projectName && (
-          <p className="mt-2 min-w-0 break-words text-xs font-medium text-slate-300 [overflow-wrap:anywhere]">
-            <LocalizedText text="Project" /> · {conflict.projectName}
-          </p>
-        )}
-        {conflict.detectedAt && (
-          <p className="mt-1 text-[11px] text-slate-500">
-            <LocalizedText text="Detected" /> · {conflict.detectedAt}
-          </p>
+        {((showProject && conflict.projectName) || conflict.detectedAt) && (
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+            {showProject && conflict.projectName && (
+              <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                <LocalizedText text="Project" /> · {conflict.projectName}
+              </span>
+            )}
+            {conflict.detectedAt && (
+              <span className="inline-flex items-center gap-1">
+                <Clock3 className="size-3 shrink-0" />
+                <LocalizedText text="Detected" /> · {conflict.detectedAt}
+              </span>
+            )}
+          </div>
         )}
       </div>
       {conflict.reviewStage === 'resolved' && (
@@ -280,23 +279,17 @@ function OverviewTab({ conflict, severity, stage }) {
           Devsign AI already made this change in the workspace. It becomes final only when approved and merged.
         </p>
       )}
-      {(conflict.message || reviewImpact || hasMetadata) && (
+      {(summary || hasMetadata) && (
         <section className="min-w-0 flex-1">
-          {conflict.message && (
+          {summary && (
             <div className={REVIEW_INFO_GRID}>
-              <p className={REVIEW_INFO_LABEL}>Issue summary</p>
-              <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}>{conflict.message}</p>
-            </div>
-          )}
-          {reviewImpact && (
-            <div className={cn(REVIEW_INFO_GRID, conflict.message && 'mt-4 border-t border-white/[0.08] pt-4')}>
-              <p className={REVIEW_INFO_LABEL}>Review impact</p>
-              <p className="min-w-0 break-words text-[13px] leading-5 text-slate-300 [overflow-wrap:anywhere]">{reviewImpact}</p>
+              <p className={REVIEW_INFO_LABEL}>Review summary</p>
+              <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}>{summary}</p>
             </div>
           )}
           <Provenance
             conflict={conflict}
-            className={cn((conflict.message || reviewImpact) && hasMetadata && 'mt-4 border-t border-white/[0.08] pt-4')}
+            className={cn(summary && hasMetadata && 'mt-4 border-t border-white/[0.08] pt-4')}
           />
         </section>
       )}
@@ -306,8 +299,8 @@ function OverviewTab({ conflict, severity, stage }) {
 
 const DIFF_TONES = {
   same: 'text-slate-400',
-  add: 'bg-emerald-400/[0.08] text-emerald-300',
-  remove: 'bg-destructive/[0.08] text-red-300',
+  add: 'bg-emerald-400/[0.05] text-emerald-300',
+  remove: 'bg-destructive/[0.05] text-red-300',
 }
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
@@ -320,7 +313,7 @@ function CodeDiffColumns({ rows }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {columns.map((column) => (
-        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11px] leading-relaxed">
+        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto rounded-xl border border-white/[0.06] bg-white/[0.025] py-2 font-mono text-[11px] leading-relaxed">
           <span className="sr-only">{column.label}</span>
           {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
             <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-2 whitespace-pre-wrap [word-break:break-all]', DIFF_TONES[row.kind])}>
@@ -351,20 +344,14 @@ function DiffTab({ conflict }) {
     <div className="flex h-full flex-col">
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
         <section className="min-w-0 flex-1">
-          <div className="flex flex-col gap-4">
-            {conflict.file && (
-              <p className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.06] pb-2 font-mono text-[10.5px] text-slate-400" title={conflict.file}>
-                <FileCode2 className="size-3.5 shrink-0" />
-                <span className="truncate">{conflict.file}</span>
-              </p>
-            )}
+          <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { side: 'before', tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', tone: 'text-emerald-200', value: (field) => field.expected },
                 ].map(({ side, tone, value }) => (
-                  <div key={side} className="min-w-0">
+                  <div key={side} className="min-w-0 rounded-xl bg-white/[0.025] px-2 pb-2">
                     <ChangePreview preview={conflict.preview} side={side} />
                     <dl className="mt-0.5 space-y-0.5">
                       {conflict.comparisonFields.map((field) => (
@@ -419,15 +406,16 @@ function DiffTab({ conflict }) {
             )}
             {conflict.diff && (
               <div className="min-w-0 border-t border-white/[0.06] pt-3">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                  <Sparkles className="size-3.5 shrink-0 text-emerald-300" />
-                  <LocalizedText text="AI suggestion" />
-                </p>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                    <Sparkles className="size-3.5 shrink-0 text-emerald-300" />
+                    <LocalizedText text="AI suggestion" />
+                  </p>
+                  <span className="text-[10px] text-slate-500">
+                    <LocalizedText text="Applied after required approvals and merge" />
+                  </span>
+                </div>
                 <CodeDiffColumns rows={rows} />
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                  <Eye className="size-3" />
-                  Preview only — applied when the change is merged, after every required reviewer approves.
-                </p>
               </div>
             )}
           </div>
@@ -569,7 +557,7 @@ function ReviewersSection({ conflict, onUpdate, onApproveReviewer }) {
       </div>
 
       {reviewers.length === 0 ? (
-        <p className="text-xs text-slate-500">No reviewers yet.</p>
+        <p className="text-[11px] leading-4 text-slate-500">No reviewers assigned</p>
       ) : (
         <div className="space-y-1">
           {reviewers.map((reviewer) => {
@@ -671,7 +659,7 @@ function CommentThread({ conflict, workspace }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="scroll-fade-bottom min-h-0 flex-1 space-y-3 overflow-auto">
-        {comments.length === 0 && <p className="text-xs text-slate-500">No comments yet.</p>}
+        {comments.length === 0 && <p className="text-[11px] leading-4 text-slate-500">No comments yet</p>}
         {comments.map((comment) => {
           const author = allPeople.find((p) => p.id === comment.authorId)
           const replies = linked.filter((reply) => reply.target?.replyTo === comment.id)
@@ -1099,14 +1087,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         {conflict && (
           <>
             {/* Primary header combines the issue identity and detail tabs. */}
-            <div className="flex min-h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-5 py-1">
+            <div className="flex h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-5">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
                   title="Back to list"
                   aria-label="Back to list"
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                 >
                   <ArrowLeft className="size-4" />
                 </button>
@@ -1136,7 +1124,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto p-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-hidden',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto px-3 pt-1 pb-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
                 <div className="min-h-[420px] min-w-0 overflow-auto xl:min-h-0" role="tabpanel">
@@ -1147,7 +1135,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           <LocalizedText text="Overview" />
                         </p>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <OverviewTab conflict={conflict} severity={severity} stage={stage} />
+                          <OverviewTab conflict={conflict} severity={severity} stage={stage} showProject={!workspace} />
                         </div>
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>

@@ -888,7 +888,7 @@ No comparison captured yet.|아직 비교 정보가 없습니다.
 Why review is needed|검토가 필요한 이유
 No diff captured for this conflict yet.|이 충돌의 코드 차이가 아직 없습니다.
 Proposed change|제안된 변경
-Preview only — applied when the change is merged, after every required reviewer approves.|미리보기입니다. 필수 검토자가 모두 승인한 뒤 병합할 때 적용됩니다.
+Applied after required approvals and merge|필수 승인 후 병합 시 적용
 Next:|다음:
 your review|내 검토
 Remind all|모두에게 알림
