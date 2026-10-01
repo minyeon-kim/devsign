@@ -197,7 +197,17 @@ const COMPONENT_SYNC = {
   },
   'design-system-v2:app': {
     layerId: 'button-md',
-    derive: (text) => ({ dh: /--button-height-md/.test(text) ? 4 : 0 }),
+    // The md size's actual value, not just "is it fixed yet" — h-8 (ds-1/
+    // ds-2, 32px), h-9 (ds-3/ds-4/the conflict itself, 36px — the layer's
+    // own canvas default) and the token (40px, the fix) are three real,
+    // different heights; collapsing them to one "not fixed" bucket is why
+    // replaying the whole history up to the fix looked like nothing ever
+    // changed on the canvas even though the code pane did.
+    derive: (text) => {
+      const md = /\bmd:\s*'([^']+)'/.exec(text)?.[1] ?? ''
+      const px = /--button-height-md/.test(md) ? 40 : (Number(/\bh-(\d+)\b/.exec(md)?.[1]) || 9) * 4
+      return { dh: px - 36 }
+    },
   },
 }
 
