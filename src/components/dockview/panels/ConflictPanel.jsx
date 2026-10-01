@@ -8,6 +8,8 @@ import { allPeople } from '@/data/mockData'
 import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
+import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
+import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
 import { diffLines } from '@/lib/lineDiff'
 import { useNavigate } from 'react-router-dom'
 import { LocalizedText } from '@/i18n/runtime'
@@ -39,6 +41,24 @@ const FILTERS = [
   { id: 'pending_merge', label: 'Pending merge', test: isPendingMerge, count: 'pendingMerge' },
   { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
 ]
+
+function matchesConflictFilters(conflict, filters) {
+  const stageMatches = {
+    'In Progress': conflict.reviewStage === 'approved',
+    'Needs Review': needsReviewFrom(conflict),
+    Draft: conflict.reviewStage === 'detected',
+    Merged: conflict.reviewStage === 'resolved',
+    'In Review': conflict.reviewStage === 'in_review',
+  }
+
+  if (filters.status.length && !filters.status.some((status) => stageMatches[status])) return false
+  if (filters.assignee.length && !filters.assignee.includes(conflict.assigneeId)) return false
+  const severity = conflict.severity
+    ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
+    : 'None'
+  if (filters.conflict.length && !filters.conflict.includes(severity)) return false
+  return matchesDue(conflict, filters.due)
+}
 
 // `mergeStudioItem`/`mergeStepFlowProps` are set only when this panel is
 // Merge Studio's own Conflict Points tab (see MergeStudioWorkspace) — the
@@ -102,7 +122,26 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   }, [reviewConflict?.id])
   const counts = conflictCounts(conflicts)
   const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
-  const visible = sortOpenFirst(conflicts.filter(filter.test))
+  const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
+  const filterItems = conflicts.map((conflict) => ({
+    ...conflict,
+    tag: conflict.reviewStage === 'resolved'
+      ? 'Merged'
+      : conflict.reviewStage === 'detected'
+        ? 'Draft'
+        : conflict.reviewStage === 'approved'
+          ? 'In Progress'
+          : needsReviewFrom(conflict)
+            ? 'Needs Review'
+            : 'In Review',
+    conflictLevel: conflict.severity
+      ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
+      : 'None',
+  }))
+  const markedDueDates = conflicts.map(dueDateOf).filter(Boolean)
+  const visible = sortOpenFirst(
+    conflicts.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
+  )
   const [selected, setSelected] = useState([])
   // The low-risk row expanded to its mini diff (a click on a low-risk row
   // shows what it changes, for checking before batch-approving).
@@ -187,6 +226,12 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               </span>
             </button>
           ))}
+          <MergeFilterButton
+            value={advancedFilters}
+            onChange={setAdvancedFilters}
+            items={filterItems}
+            markedDays={markedDueDates}
+          />
         </div>
       )}
       {conflicts.length === 0 ? (

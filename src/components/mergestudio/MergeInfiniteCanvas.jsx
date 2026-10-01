@@ -18,9 +18,6 @@ const MIN_ZOOM = 25
 const MAX_ZOOM = 200
 const ZOOM_STEP = 10
 const CODE_DIFF_WIDTH = 820
-// How far right content starts, so it clears the floating Merge List window
-// (w-72 at left-4, plus breathing room) over the same canvas surface.
-const CONTENT_START_X = 320
 const ARTBOARD_PREVIEW_WIDTH = 600
 // Option B's own fixed accent — a simple, permanent visual reminder that
 // it's a different variant, independent of whatever layer happens to be
@@ -1012,7 +1009,7 @@ const BOTTOM_CONTROLS_CLEARANCE = 76
 // Fitting may zoom past 100% so the comparison fills the available canvas
 // on large screens instead of sitting small in the middle of it.
 const MAX_FIT_ZOOM = 1.8
-const DEFAULT_VIEW = { x: CONTENT_START_X, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
+const DEFAULT_VIEW = { x: 16, y: TOP_CONTROLS_CLEARANCE, zoom: 100 }
 
 function clampZoom(z) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
@@ -1362,7 +1359,6 @@ function MergeInfiniteCanvas({
   layoutReserve = reserve,
   guidesVisible = true,
   onToggleGuides,
-  listCollapsed,
   focus,
   resolutionCount,
   merged,
@@ -1384,7 +1380,6 @@ function MergeInfiniteCanvas({
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
-  onFocusSource,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1450,17 +1445,8 @@ function MergeInfiniteCanvas({
     viewRef.current = view
   }, [view])
 
-  // Left edge of the unobstructed canvas *right now*: the Merge List is an
-  // overlay drawer, so content only needs to clear it while it's open. Only
-  // read when a view is (re)computed — opening a target, Reset view, an
-  // inbox jump — never on the drawer toggle itself, so toggling it never
-  // moves the canvas.
-  function contentStartX() {
-    return listCollapsed ? 16 : CONTENT_START_X
-  }
-
-  // Zoom/pan so the whole card row sits inside the visible canvas (right of
-  // the Merge List, left of any docked Block Deck) with breathing room.
+  // Zoom/pan so the whole card row sits inside the visible canvas, left of
+  // any docked Block Deck, with breathing room.
   function fitView(lay) {
     const c = containerRef.current
     if (!c) return DEFAULT_VIEW
@@ -1475,7 +1461,7 @@ function MergeInfiniteCanvas({
     const minY = Math.min(...cards.map((k) => box(k).t))
     const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
     const worldH = Math.max(...cards.map((k) => box(k).b)) - minY
-    const startX = contentStartX()
+    const startX = 16
     // Clear of the right-edge canvas tools and the docked Block Deck.
     const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - layoutReserve
     const availW = visRight - startX
@@ -1553,7 +1539,7 @@ function MergeInfiniteCanvas({
       // centered behind it.
       const to = {
         zoom,
-        x: (contentStartX() + (base.width - reserve)) / 2 - wx * k1,
+        x: (16 + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
       }
       const t0 = performance.now()
@@ -1669,7 +1655,6 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLayer(layerId)
-    onFocusSource?.('design')
   }
   function pickLine(fileId, line, el) {
     anchorElRef.current = el
@@ -1677,7 +1662,6 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLine(fileId, line)
-    onFocusSource?.('code')
   }
   function pickFrame(key, el) {
     anchorElRef.current = el
@@ -1685,7 +1669,6 @@ function MergeInfiniteCanvas({
     setFrameSel(key)
     setAiStage('badge')
     onSelectFrame()
-    onFocusSource?.('design')
   }
 
   // Click-to-annotate: the note becomes a pin on the element; the (mock)
@@ -2107,10 +2090,7 @@ function MergeInfiniteCanvas({
 
   const scale = view.zoom / 100
   const gridSize = 18 * scale
-  // Left inset of the floating header/toolbar rows. Fixed regardless of the
-  // Merge List drawer: it overlays the canvas rather than pushing it, so
-  // the rows (and the stepper centered within them) keep one stable center
-  // axis instead of jumping sideways each time the drawer toggles.
+  // Left inset of the floating header/toolbar rows.
   const leftInset = 16
 
   return (

@@ -4,10 +4,9 @@ import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
@@ -26,9 +25,8 @@ import { DesignComparePanel, DesignComparisonCanvas } from '@/components/mergest
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
-// and design artboards, with the Merge List panel floating on the left, the
-// Block Deck as a draggable window that opens only when a canvas element is
-// clicked — the canvas itself spans this whole area
+// and design artboards, with the Block Deck as a draggable window that opens
+// only when a canvas element is clicked — the canvas itself spans this whole area
 // underneath both. This component is the orchestrator: it owns the
 // code<->design sync selection (driven by clicking a layer on an artboard
 // or a line in the code window — see `designMergeVariants[item.id]
@@ -85,7 +83,7 @@ function defaultLineFor(item) {
 
 // Deck width plus its 16px right inset and 16px breathing room.
 
-function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
+function MergeStudioWorkspace({ item }) {
   const {
     setActiveFileId,
     setFilesWindow,
@@ -100,7 +98,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     mergePreviewOpen,
     setMergePreviewOpen,
     setMergeCta,
-    mergeListCollapsed,
     exitMergeStudio,
     openConflictReview,
     setBottomPanel,
@@ -175,11 +172,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
   const [liveCode, setLiveCode] = useState(null)
-  // Which Merge List tab the user's last direct click points at — a design
-  // element -> Layers, a code line -> Files. A nonce so repeat clicks of the
-  // same kind still register; only direct canvas/code clicks set it, never
-  // programmatic selection (defaults, drift pager, inbox jumps).
-  const [listFocus, setListFocus] = useState(null)
   const deferredLive = useDeferredValue(liveCode)
 
   // Unmerged edits are kept per item (in the project's WorkspaceProvider),
@@ -742,6 +734,14 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-canvas">
+      <button
+        type="button"
+        onClick={exitMergeStudio}
+        className="absolute top-3 left-4 z-40 flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-[#121212]/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-muted"
+      >
+        <ArrowLeft className="size-4" />
+        Workspace
+      </button>
       <div className="relative flex min-h-0 flex-1">
 
       {designComparison ? (
@@ -761,7 +761,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           layoutReserve={deckReserve}
           guidesVisible={guidesVisible}
           onToggleGuides={() => setGuidesVisible((v) => !v)}
-          listCollapsed={mergeListCollapsed}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           merged={item.tag === 'Merged'}
@@ -789,18 +788,11 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           onSelectLayer={selectLayer}
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
-          onFocusSource={(source) => setListFocus({ tab: source === 'code' ? 'files' : 'layers', nonce: Date.now() })}
         />
         </div>
       ) : (
-        // Nothing is auto-selected — but the empty state is the same canvas
-        // surface as MergeInfiniteCanvas (bg-canvas + its dot grid at
-        // 100% zoom), so selecting an item just fills the canvas in rather
-        // than swapping a flat placeholder for a whole new background. A
-        // bare dot grid with no copy reads as broken (a Conflict Point
-        // with no merge item of its own — most of the project-wide list —
-        // leaves this showing instead of jumping anywhere), so it says
-        // plainly that it's waiting on a pick, not stuck.
+        // Keep an explicit empty state only when this project has no saved
+        // merge work to open.
         <div
           className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center"
           style={{
@@ -813,26 +805,13 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
             <MousePointerClick className="size-5" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-300">No item open yet</p>
+            <p className="text-sm font-medium text-slate-300">No saved merge work</p>
             <p className="max-w-[260px] text-xs text-slate-500">
-              Pick one from the Merge List on the left — or a Conflict Point linked to one — to open it here.
+              Start a new merge from the currently open files to begin.
             </p>
           </div>
         </div>
       )}
-
-      <MergeListSidebar
-        navigation={listNavigation}
-        onNavigate={onListNavigation}
-        item={item}
-        files={files}
-        frame={frame0}
-        selectedLayerId={syncSelection?.layerId}
-        selectedFileId={syncSelection?.fileId}
-        manualCode={manualCode}
-        focusTab={listFocus}
-        editedLayerIds={new Set([...Object.keys(assemblies), ...Object.keys(copyEdits(frame0, manualCode))])}
-      />
 
       {item && deckElement && createPortal(
         <BlockDeckPanel

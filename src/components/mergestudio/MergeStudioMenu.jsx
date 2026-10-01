@@ -40,7 +40,7 @@ function MergeStudioMenu({ standalone = false, borderless = false }) {
           className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-transparent p-2.5 text-left transition-colors hover:border-border hover:bg-muted"
         >
           <span className="text-xs font-medium text-foreground">Open Saved Merge Work</span>
-          <span className="text-[11px] text-muted-foreground">Continue from Merge List</span>
+          <span className="text-[11px] text-muted-foreground">Continue with saved merge work</span>
         </PopoverClose>
         <PopoverClose
           type="button"

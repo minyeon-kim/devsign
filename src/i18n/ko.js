@@ -648,7 +648,6 @@ Custom range…|범위 지정…
 Clear all filters|모든 필터 해제
 Showing|표시 중
 Clear filters|필터 해제
-Explore the Merge List|병합 목록 살펴보기
 Open a merge item|병합 항목 열기
 Step through drifts|차이 항목 순서대로 보기
 Edit & bind in the Block Deck|블록 덱에서 편집 및 연결
@@ -734,7 +733,13 @@ General access|일반 접근 권한
 Link copied|링크 복사됨
 Copy link|링크 복사
 Open Saved Merge Work|저장된 병합 작업 열기
-Continue from Merge List|병합 목록에서 계속하기
+Continue with saved merge work|저장된 병합 작업 계속하기
+No saved merge work|저장된 병합 작업이 없습니다
+Start a new merge from the currently open files to begin.|현재 열린 파일로 새 병합을 시작하세요.
+Open saved merge work|저장된 병합 작업 열기
+Merge Studio opens your current saved merge work.|Merge Studio에서 현재 저장된 병합 작업을 엽니다.
+Start a new merge|새 병합 시작
+Use the Merge Studio menu to start with currently open files.|Merge Studio 메뉴에서 현재 열린 파일로 새 병합을 시작하세요.
 Start New with Current Work|현재 작업으로 새로 시작
 Start with currently open files|현재 열린 파일로 시작
 State restored|상태 복원됨

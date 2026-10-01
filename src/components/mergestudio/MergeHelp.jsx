@@ -4,8 +4,8 @@ import { FLOATING_PANEL, STUDIO_PILL as FLOATING_PILL, PANEL_RADIUS } from '@/co
 import { Popover, PopoverClose, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 
 const topics = [
-  ['Explore the Merge List', 'Filter by status, conflict or due date.'],
-  ['Open a merge item', 'Open an item, or add files to start a merge.'],
+  ['Open saved merge work', 'Merge Studio opens your current saved merge work.'],
+  ['Start a new merge', 'Use the Merge Studio menu to start with currently open files.'],
   ['Step through drifts', 'Use ‹ › to review each visual change.'],
   ['Edit & bind in the Block Deck', 'Select a canvas element to compare values and edit styles or tokens in the Block Deck.'],
   ['Finish the merge', 'Click Merge Changes to check conflicts, preview changes and request a review.'],

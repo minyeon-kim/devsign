@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
 import { RangeCalendar, dueSummary } from '@/components/mergestudio/RangeCalendar'
 import { DUE_PRESETS, EMPTY_DUE, EMPTY_FILTERS, activeFilterCount, isDueActive } from '@/components/mergestudio/mergeFilters'
+import { LocalizedText } from '@/i18n/runtime'
 
 // Plus "In Review" — the status an item gets once its PR is opened.
 const STATUS_OPTIONS = [...new Set([...mergeFilterTags.filter((t) => t !== 'All'), 'In Review'])]
@@ -36,7 +37,7 @@ function Section({ title, aside, children }) {
   return (
     <section className="space-y-1.5">
       <div className="flex h-5 items-center justify-between">
-        <span className="text-xs font-medium text-slate-300">{title}</span>
+        <span className="text-xs font-medium text-slate-300"><LocalizedText text={title} /></span>
         {aside}
       </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
@@ -47,7 +48,7 @@ function Section({ title, aside, children }) {
 function Avatar({ person, className }) {
   return (
     <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[7px] font-semibold text-white', person.colorClass, className)}>
-      {person.initials}
+      <LocalizedText text={person.initials} />
     </span>
   )
 }
@@ -100,14 +101,14 @@ function AssigneePicker({ items, value, onChange }) {
                 {on && <Check className="size-3" />}
               </span>
               <Avatar person={p} className="size-5 text-[8px]" />
-              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate"><LocalizedText text={p.name} /></span>
               {/* Its own pill, not inline text — so a long name truncating
                   never takes the role with it, and "Designer"/"Developer"
                   stays a clearly separate, always-visible fact about who
                   you're filtering by, not an easy-to-miss suffix. */}
               {p.role && (
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium text-muted-foreground">
-                  {p.role}
+                  <LocalizedText text={p.role} />
                 </span>
               )}
               <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">{p.count}</span>
@@ -159,7 +160,7 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
               >
                 <ArrowLeft className="size-3.5" />
               </button>
-              <span className="flex-1 text-xs font-semibold text-foreground">Custom due range</span>
+              <span className="flex-1 text-xs font-semibold text-foreground"><LocalizedText text="Custom due range" /></span>
               {value.due.range && (
                 <button
                   type="button"
@@ -184,32 +185,34 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
             <Section title="Status">
               {STATUS_OPTIONS.map((s) => (
                 <Toggle key={s} on={value.status.includes(s)} onClick={() => set('status', toggle(value.status, s))}>
-                  {s}
+                  <LocalizedText text={s} />
                 </Toggle>
               ))}
             </Section>
             <section className="space-y-1.5">
               <div className="flex h-5 items-center">
-                <span className="text-xs font-medium text-slate-300">Assignee</span>
+                <span className="text-xs font-medium text-slate-300"><LocalizedText text="Assignee" /></span>
               </div>
               <AssigneePicker items={items} value={value.assignee} onChange={(v) => set('assignee', v)} />
             </section>
             <Section title="Conflict">
               {CONFLICT_OPTIONS.map((c) => (
                 <Toggle key={c} on={value.conflict.includes(c)} onClick={() => set('conflict', toggle(value.conflict, c))}>
-                  {c}
+                  <LocalizedText text={c} />
                 </Toggle>
               ))}
             </Section>
             <Section title="Due">
               {DUE_PRESETS.map((p) => (
                 <Toggle key={p.id} on={value.due.presets.includes(p.id)} onClick={() => set('due', { ...value.due, presets: toggle(value.due.presets, p.id) })}>
-                  {p.label}
+                  <LocalizedText text={p.label} />
                 </Toggle>
               ))}
               <Toggle on={!!value.due.range} onClick={() => setView('range')}>
                 <CalendarDays className="size-3" />
-                {value.due.range ? dueSummary({ ...EMPTY_DUE, range: value.due.range }) : 'Custom range…'}
+                {value.due.range
+                  ? <LocalizedText text={dueSummary({ ...EMPTY_DUE, range: value.due.range })} />
+                  : <LocalizedText text="Custom range…" />}
               </Toggle>
             </Section>
             {count > 0 && (
@@ -267,7 +270,7 @@ export function ActiveFilterChips({ value, onChange, query = '', onClearQuery, s
       <div className="flex flex-wrap gap-1">
         {chips.map((c) => (
           <span key={c.key} className="flex h-6 max-w-full items-center gap-1 rounded-full bg-white/[0.06] pr-1 pl-2.5 text-[11px] text-foreground ring-1 ring-inset ring-white/10">
-            <span className="truncate">{c.label}</span>
+            <span className="truncate"><LocalizedText text={c.label} /></span>
             <button
               type="button"
               title={`Remove ${c.label}`}
