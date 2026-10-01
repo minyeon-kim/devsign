@@ -205,15 +205,21 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
                 key={`${entryId}-${index}`}
                 style={row.kind === 'add' ? { animationDelay: `${Math.min(row.addIndex, 10) * 45}ms` } : undefined}
                 className={cn(
-                  'flex min-w-0 pr-4 whitespace-pre-wrap [word-break:break-all]',
+                  'flex min-w-0 py-px pr-4 pl-4 whitespace-pre-wrap [word-break:break-all]',
                   showDiff ? ROW_TONES[row.kind] : 'text-slate-300',
                   showDiff && row.kind === 'add' && 'history-row-typein',
                   showDiff && row.kind === 'remove' && 'history-row-flash-remove'
                 )}
               >
-                {showDiff && <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.from ?? ''}</span>}
-                <span className="w-9 shrink-0 pr-2 text-right text-slate-600 select-none tabular-nums">{row.to ?? ''}</span>
-                {showDiff && <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>}
+                {/* The gutter as its own group, divided from the code by a
+                    hairline — a flush, unbordered set of numbers read as
+                    part of the code text itself rather than as a separate
+                    column next to it. */}
+                <span className="mr-3 flex shrink-0 items-center gap-2.5 border-r border-white/[0.07] pr-3 text-slate-600 select-none">
+                  {showDiff && <span className="w-8 text-right tabular-nums">{row.from ?? ''}</span>}
+                  <span className="w-8 text-right tabular-nums">{row.to ?? ''}</span>
+                  {showDiff && <span className="w-3 text-center opacity-70">{ROW_MARKS[row.kind]}</span>}
+                </span>
                 <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
               </div>
             ))}

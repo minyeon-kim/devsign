@@ -53,13 +53,19 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         </div>
       </div>
 
-      <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+      {/* `m-auto` on the frame wrapper centers it in the space below the
+          header instead of it sitting flush against it — the frame is
+          usually much shorter than this panel, so without it the preview
+          reads as crammed into the top-left corner. `overflow-auto` still
+          scrolls to the full content when a frame is taller than the
+          panel (auto margins collapse to 0 once there's no extra room). */}
+      <div ref={boxRef} className="flex min-h-0 flex-1 flex-col overflow-auto px-4 pb-4">
         {/* Keyed on the snapshot itself in historical mode (History's
             playback and version compare), not the live `previewVersion` —
             otherwise scrubbing/replaying through checkpoints swaps this
             content with no transition at all, reading as an abrupt jump
             instead of the design settling into its next state. */}
-        <div key={historical ? snapshotKey : previewVersion} className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
+        <div key={historical ? snapshotKey : previewVersion} className="m-auto flex w-full flex-col items-center gap-6 animate-in fade-in duration-500">
           {page.frames.map((frame) => {
             const scale = Math.min(1, width / frame.width) * (zoom / 100)
             return (
