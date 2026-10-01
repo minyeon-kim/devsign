@@ -15,8 +15,7 @@ function MergeChangesPanel({ entries, codeRows, onJump, onUndo, onOpenHistory })
     <div className="flex h-full flex-col">
       <div className="flex h-10 shrink-0 items-center gap-2 px-4">
         <span className="text-xs font-medium text-slate-400">
-          {total} edit{total === 1 ? '' : 's'}
-          {codeRows.length > 0 ? ` · ${codeRows.length} file${codeRows.length === 1 ? '' : 's'}` : ''}
+          {`${total} edit${total === 1 ? '' : 's'}${codeRows.length > 0 ? ` · ${codeRows.length} file${codeRows.length === 1 ? '' : 's'}` : ''}`}
         </span>
         {onOpenHistory && (
           <button

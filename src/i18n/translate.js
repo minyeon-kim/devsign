@@ -23,6 +23,7 @@ const rules = [
   [/^(\d+) of (\d+) checks need attention$/, (_, n, total) => `${total}개 검사 중 ${n}개 확인 필요`],
   [/^(\d+) of (\d+) to resolve$/, (_, n, total) => `${total}개 중 ${n}개 해결 필요`],
   [/^(\d+) code changes?$/, (_, n) => `코드 변경 ${n}개`],
+  [/^(\d+) edits?( · (\d+) files?)?$/, (_, n, _group, m) => `편집 ${n}개${m ? ` · 파일 ${m}개` : ''}`],
   [/^Target size ≥ 24px on all (\d+) controls$/, (_, n) => `${n}개의 UI 요소 모두 터치 영역 24px 이상`],
   [/^All (\d+) design options decided$/, (_, n) => `디자인 옵션 ${n}개 모두 결정됨`],
   [/^(\d+) design options? undecided$/, (_, n) => `디자인 옵션 ${n}개 미결정`],

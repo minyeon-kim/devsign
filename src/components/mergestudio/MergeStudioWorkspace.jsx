@@ -647,7 +647,8 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
-    <div className="relative flex min-h-0 flex-1 bg-canvas">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-canvas">
+      <div className="relative flex min-h-0 flex-1">
 
       {item ? (
         <div className="flex min-h-0 flex-1">
@@ -878,6 +879,9 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
 
       <MergeAiBar />
       <MergeHelp />
+      </div>
+
+      <WorkspaceBottomPanel tabs={bottomPanelTabs} />
     </div>
   )
 }
