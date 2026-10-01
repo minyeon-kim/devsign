@@ -859,26 +859,33 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   }, [spot?.id, activeFile?.id])
 
   return (
-    <div className="space-y-7">
-      {/* Item-by-item review sits with the preview it changes. */}
-      <DriftReviewSection
-        item={item}
-        drifts={review.drifts}
-        review={review}
-        frame={frame}
-        resolutions={resolutions}
-        assemblies={assemblies}
-        assemblySources={assemblySources}
-        onResolveDiff={onResolveDiff}
-        onActiveChange={setSpot}
-        onSetReviewMark={onSetReviewMark}
-        onEditInAssemble={onEditInAssemble}
-        initialDriftId={initialDriftId}
-      />
+    // Side by side, not stacked: the panel is wide and short now, not a
+    // tall narrow dialog, and these two halves are a pair anyway (review
+    // an item on the left, watch its live result settle on the right) —
+    // stacking them just forced scrolling past one to reach the other.
+    <div className="grid grid-cols-2">
+      <div className="min-w-0 border-r border-white/[0.06] pr-8">
+        <DriftReviewSection
+          item={item}
+          drifts={review.drifts}
+          review={review}
+          frame={frame}
+          resolutions={resolutions}
+          assemblies={assemblies}
+          assemblySources={assemblySources}
+          onResolveDiff={onResolveDiff}
+          onActiveChange={setSpot}
+          onSetReviewMark={onSetReviewMark}
+          onEditInAssemble={onEditInAssemble}
+          initialDriftId={initialDriftId}
+        />
+      </div>
 
       {/* Staging preview: a plain heading (no banner), then the two outputs
-          side by side, captioned lightly — no competing borders. */}
-      <section className="border-t border-white/[0.06] pt-6">
+          stacked — this column is already half-width, so the macro zoom's
+          own Original/Merged pair (and the code output under it) read
+          better one above the other here than squeezed to quarter-width. */}
+      <section className="min-w-0 pl-8">
         <div className="mb-4 flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold text-white">Staging preview</p>
@@ -899,8 +906,9 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
               <Palette className="size-3.5 text-slate-500" />
               {spotLayer.name}
             </p>
-            {/* Wide elements (bars, headings) stack the two panels so each
-                gets the full width; the shared scale applies either way. */}
+            {/* This column is already half the panel's width, so anything
+                wider than a narrow control stacks the two panels — the
+                shared scale applies either way. */}
             <MacroZoomPair
               frame={frame}
               layerId={spotLayer.id}
@@ -1305,8 +1313,14 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
             <div className="space-y-7">
               {/* What will actually be merged, before assigning reviewers. */}
               <SummarySection summary={summary} />
+              {/* Reviewers and the commit/PR form side by side — the same
+                  half-and-half split as Preview, instead of the two
+                  stretching the full width one above the other. */}
+              <div className="grid grid-cols-2">
+              <div className="min-w-0 border-r border-white/[0.06] pr-8">
               <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
-
+              </div>
+              <div className="min-w-0 pl-8">
               <section>
                 <SectionTitle
                   aside={
@@ -1351,6 +1365,8 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
                   </label>
                 </div>
               </section>
+              </div>
+              </div>
             </div>
           )}
 

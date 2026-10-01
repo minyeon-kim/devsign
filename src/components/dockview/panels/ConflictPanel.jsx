@@ -1,5 +1,5 @@
 import './ConflictPanel.css'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -11,6 +11,7 @@ import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { diffLines } from '@/lib/lineDiff'
 import { useNavigate } from 'react-router-dom'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
+import MergeStepFlow from '@/components/mergestudio/MergeStepFlow'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
@@ -38,12 +39,33 @@ const FILTERS = [
   { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
 ]
 
-function ConflictPanel() {
+// `mergeStudioItem`/`mergeStepFlowProps` are set only when this panel is
+// Merge Studio's own Conflict Points tab (see MergeStudioWorkspace) — the
+// list stays the project-wide one either way, but reviewing a conflict
+// linked to the item currently open there shows its full Compare → Check
+// → Preview → Review flow instead of the plain conflict review, since
+// Merge Studio already has that item's edit session loaded. Everything
+// else falls back to the ordinary review, same as the Workspace's own tab.
+function ConflictPanel({ mergeStudioItem, mergeStepFlowProps }) {
   const navigate = useNavigate()
   const { projectId, conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    updateConflict, approveConflict, requestChanges, resolveConflict, currentUser } =
+    updateConflict, approveConflict, requestChanges, resolveConflict, currentUser, requestMergeFocus } =
     useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
+  const reviewConflictIsOpenItem =
+    mergeStudioItem && reviewConflict && (reviewConflict.mergeItemId === mergeStudioItem.id || reviewConflict.id === mergeStudioItem.conflictId)
+  // Selecting a conflict that's the open item's own doesn't just swap the
+  // panel to its step flow — the canvas needs to jump to the element it's
+  // actually about, the same "pick it, see it" the Merge List already does.
+  useEffect(() => {
+    if (!reviewConflictIsOpenItem) return
+    requestMergeFocus({
+      itemId: mergeStudioItem.id,
+      label: reviewConflict.title,
+      ...(reviewConflict.layerId ? { layerId: reviewConflict.layerId } : { fileId: reviewConflict.fileId, line: reviewConflict.line }),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewConflictIsOpenItem, reviewConflict?.id])
   const counts = conflictCounts(conflicts)
   const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
   const visible = sortOpenFirst(conflicts.filter(filter.test))
@@ -77,20 +99,24 @@ function ConflictPanel() {
   if (reviewConflict) {
     return (
       <div className="h-full min-h-0 min-w-0 bg-card">
-        <ConflictReviewPanel
-          conflict={reviewConflict}
-          onOpenChange={(open) => !open && openConflictReview(null)}
-          onUpdate={updateConflict}
-          onApprove={approveConflict}
-          onRequestChanges={requestChanges}
-          onResolve={resolveConflict}
-          onOpenMergeStudio={(conflict) => {
-            openConflictReview(null)
-            navigate(`/projects/${projectId}/workspace`, {
-              state: { openMergeStudio: true, mergeItemId: conflict.mergeItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
-            })
-          }}
-        />
+        {reviewConflictIsOpenItem ? (
+          <MergeStepFlow {...mergeStepFlowProps} onBack={() => openConflictReview(null)} />
+        ) : (
+          <ConflictReviewPanel
+            conflict={reviewConflict}
+            onOpenChange={(open) => !open && openConflictReview(null)}
+            onUpdate={updateConflict}
+            onApprove={approveConflict}
+            onRequestChanges={requestChanges}
+            onResolve={resolveConflict}
+            onOpenMergeStudio={(conflict) => {
+              openConflictReview(null)
+              navigate(`/projects/${projectId}/workspace`, {
+                state: { openMergeStudio: true, mergeItemId: conflict.mergeItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
+              })
+            }}
+          />
+        )}
       </div>
     )
   }

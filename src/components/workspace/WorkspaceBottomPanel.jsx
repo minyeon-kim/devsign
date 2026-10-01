@@ -180,7 +180,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS }) {
 
       {open && (
         <div role="tabpanel" aria-label={active.label} className="min-h-0 flex-1 overflow-hidden">
-          <Panel />
+          <Panel {...active.panelProps} />
         </div>
       )}
     </section>

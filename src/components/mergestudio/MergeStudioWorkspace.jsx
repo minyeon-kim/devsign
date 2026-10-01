@@ -11,7 +11,7 @@ import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPa
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
-import MergeStepFlow, { WIZARD_STEPS } from '@/components/mergestudio/MergeStepFlow'
+import { WIZARD_STEPS } from '@/components/mergestudio/MergeStepFlow'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeHelp from '@/components/mergestudio/MergeHelp'
@@ -578,73 +578,78 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
 
   // Merge Studio's own bottom panel: Conflict Points plus this item's
   // Changes log, instead of Terminal/Console — there's no code execution
-  // context here to make those meaningful. With an item open, Conflict
-  // Points shows that item's own Compare → Check → Preview → Review flow
-  // (the old floating wizard, now docked here) rather than the
-  // project-wide list the Workspace's own Conflict Points tab shows —
-  // Merge Studio is always focused on one item, so the list would just be
-  // a detour back to the thing already on screen.
+  // context here to make those meaningful. Conflict Points is always the
+  // full project-wide list first (same as the Workspace's own tab) —
+  // selecting a conflict linked to the item open here drills into its
+  // Compare → Check → Preview → Review flow (the old floating wizard, now
+  // docked here); anything else, or "back", returns to the list. See
+  // ConflictPanel's own handling of `mergeStudioItem`/`mergeStepFlowProps`.
+  const mergeStepFlowProps = item && {
+    item,
+    resolutions,
+    annotations: annotationsSnap,
+    preset: changesPreset,
+    assemblies,
+    assemblySources,
+    extraLayers: addedLayers,
+    manualCode,
+    onResolveDiff: resolveDiff,
+    onHoverDiff: setHoverDiff,
+    selectedLayerId: deckLayerId,
+    reviewMarks,
+    onSetReviewMark: setReviewMark,
+    onEditInAssemble: editInAssemble,
+    step: wizardStep,
+    onStepChange: setWizardStep,
+    // Opening the PR hands the item to its reviewers: it reads "In Review"
+    // in the Merge List until it's approved (merging and deploying happen
+    // after approval, outside this flow).
+    onComplete: (reviewerIds) => {
+      updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
+      for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
+        const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
+        updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
+      }
+    },
+    onFinalMerge: () => completeMerge(item.id),
+    onEditCode: editCodeLine,
+  }
+  // `Panel` is always the bare component reference (never an inline arrow
+  // function here) — WorkspaceBottomPanel spreads `panelProps` onto it
+  // separately. An inline `() => <X .../>` is a *new* function, and so a
+  // new component type, on every render of this component (which happens
+  // constantly — any edit, hover, or selection change), so React would
+  // unmount and remount the tab's whole panel each time instead of just
+  // re-rendering it with new props — exactly what broke the canvas focus
+  // jump when selecting a conflict (the panel never stayed mounted long
+  // enough for its effect to stick).
   const bottomPanelTabs = [
     {
       id: 'conflict',
       label: 'Conflict Points',
       icon: TriangleAlert,
-      Panel: item
-        ? () => (
-            <MergeStepFlow
-              item={item}
-              resolutions={resolutions}
-              annotations={annotationsSnap}
-              preset={changesPreset}
-              assemblies={assemblies}
-              assemblySources={assemblySources}
-              extraLayers={addedLayers}
-              manualCode={manualCode}
-              onResolveDiff={resolveDiff}
-              onHoverDiff={setHoverDiff}
-              selectedLayerId={deckLayerId}
-              reviewMarks={reviewMarks}
-              onSetReviewMark={setReviewMark}
-              onEditInAssemble={editInAssemble}
-              step={wizardStep}
-              onStepChange={setWizardStep}
-              // Opening the PR hands the item to its reviewers: it reads
-              // "In Review" in the Merge List until it's approved (merging
-              // and deploying happen after approval, outside this flow).
-              onComplete={(reviewerIds) => {
-                updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
-                for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
-                  const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
-                  updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
-                }
-              }}
-              onFinalMerge={() => completeMerge(item.id)}
-              onEditCode={editCodeLine}
-            />
-          )
-        : ConflictPanel,
+      Panel: ConflictPanel,
+      panelProps: { mergeStudioItem: item, mergeStepFlowProps },
     },
     {
       id: 'changes',
       label: 'Changes',
       icon: ListChecks,
-      Panel: () => (
-        <MergeChangesPanel
-          entries={changesEntries}
-          codeRows={changesCodeRows}
-          onJump={(e) =>
-            item &&
-            requestMergeFocus({
-              itemId: item.id,
-              keepDeck: true,
-              label: e.title,
-              ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
-            })
-          }
-          onUndo={(e) => (e.kind === 'annotation' ? setAnnotationsSnap((prev) => prev.filter((a) => a.id !== e.id)) : undoChange(e))}
-          onOpenHistory={requestHistoryDrawer}
-        />
-      ),
+      Panel: MergeChangesPanel,
+      panelProps: {
+        entries: changesEntries,
+        codeRows: changesCodeRows,
+        onJump: (e) =>
+          item &&
+          requestMergeFocus({
+            itemId: item.id,
+            keepDeck: true,
+            label: e.title,
+            ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
+          }),
+        onUndo: (e) => (e.kind === 'annotation' ? setAnnotationsSnap((prev) => prev.filter((a) => a.id !== e.id)) : undoChange(e)),
+        onOpenHistory: requestHistoryDrawer,
+      },
     },
   ]
   // Block Deck target: the selected layer, or the smart default when the
