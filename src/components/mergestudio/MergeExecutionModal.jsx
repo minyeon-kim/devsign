@@ -1285,9 +1285,9 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged · Local demo</p>
+          <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged</p>
           {item.tag === 'In Review' && <div className="mb-4 space-y-2">
-            <p className="text-xs text-slate-400">Required approvals · Local demo simulation</p>
+            <p className="text-xs text-slate-400">Required approvals</p>
             {(linkedConflicts.length ? linkedConflicts.flatMap((c) => c.reviewers.map((r) => ({ ...r, conflictId: c.id }))) : item.reviewers ?? []).map((r) => (
               <button key={`${r.conflictId ?? item.id}:${r.id}`} type="button" disabled={r.status === 'approved'} className="mr-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-50" onClick={() => {
                 if (r.conflictId) {
@@ -1295,7 +1295,7 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                   const next = c.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person)
                   updateConflict(c.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
                 } else updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person) })
-              }}>{r.status === 'approved' ? 'Approved' : 'Simulate approval'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
+              }}>{r.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
             ))}
           </div>}
           {item.tag === 'In Review' && (

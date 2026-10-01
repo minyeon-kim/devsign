@@ -175,8 +175,8 @@ export const teams = [
 export const projects = [
   {
     id: 'checkout-redesign',
-    name: 'Designer UT · Checkout',
-    description: 'Designer UT: inspect the Place order button, compare design and code, adjust its style, and request a review.',
+    name: 'Checkout Redesign',
+    description: 'Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.',
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'james', 'min'],
     updatedAtLabel: '2h ago',
@@ -186,8 +186,8 @@ export const projects = [
   },
   {
     id: 'design-system-v2',
-    name: 'Developer UT · Design System',
-    description: 'Developer UT: inspect token drift, compare code, resolve changes, request review, and inspect the saved checkpoint.',
+    name: 'Design System v2',
+    description: 'Shared components and design tokens used across every product surface, kept consistent between Figma and code.',
     ownerId: 'james',
     memberIds: ['james', currentUser.id],
     updatedAtLabel: 'Yesterday',
@@ -2547,7 +2547,7 @@ export const chatSuggestions = [
     id: 'designer-start',
     projectId: 'checkout-redesign',
     label: 'Where should I start?',
-    prompt: 'Where should I start the designer UT?',
+    prompt: 'Where should I start?',
     iconName: 'Sparkles',
     summary: 'Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.',
     reply:
@@ -2568,7 +2568,7 @@ export const chatSuggestions = [
     id: 'developer-start',
     projectId: 'design-system-v2',
     label: 'Guide me through code review',
-    prompt: 'Guide me through the developer UT',
+    prompt: 'Guide me through code review',
     iconName: 'Sparkles',
     summary: 'Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.',
     reply:

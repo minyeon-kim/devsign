@@ -8,7 +8,6 @@ import {
   Code2,
   Eye,
   FileCode2,
-  FlaskConical,
   GitMerge,
   History,
   Plus,
@@ -527,7 +526,7 @@ const iconActionClass =
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
+function ReviewersSection({ conflict, onUpdate, onApproveReviewer }) {
   const viewerId = currentUserFor(conflict.projectId).id
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
@@ -630,17 +629,19 @@ function ReviewersSection({ conflict, onUpdate, onSimulateApproval }) {
                       <Bell className="size-3.5" />
                     </button>
                   )}
-                  {/* Teammates aren't live: in this prototype their sign-off
-                      is simulated, and labeled as such. */}
-                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== viewerId && onSimulateApproval && (
+                  {/* Records an approval obtained outside Devsign (in
+                      person, on a call, in Slack) so the review stays
+                      accurate without waiting on the reviewer to click
+                      through themselves. */}
+                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== viewerId && onApproveReviewer && (
                     <button
                       type="button"
-                      aria-label={`Simulate ${person.name}'s approval (demo)`}
-                      title={`Simulate ${person.name}'s approval (demo — teammates aren't live)`}
-                      onClick={() => onSimulateApproval(reviewer.id)}
+                      aria-label={`Mark ${person.name}'s review as approved`}
+                      title={`Mark ${person.name}'s review as approved`}
+                      onClick={() => onApproveReviewer(reviewer.id)}
                       className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
                     >
-                      <FlaskConical className="size-3.5" />
+                      <Check className="size-3.5" />
                     </button>
                   )}
                   {(reviewStage === 'detected' ||
@@ -1048,9 +1049,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
 
-  // Demo only: teammates aren't live, so their sign-off is simulated with
-  // the same rule as a real one (Approved once every reviewer approved).
-  function handleSimulateApproval(reviewerId) {
+  // Records a reviewer's approval on their behalf (e.g. obtained outside
+  // Devsign) using the same rule as their own sign-off would.
+  function handleApproveReviewer(reviewerId) {
     const reviewers = conflict.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'approved' } : r))
     const allApproved = reviewers.every((r) => r.status === 'approved')
     update({ reviewers, reviewStage: allApproved ? 'approved' : 'in_review' })
@@ -1186,7 +1187,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
                   <StatusCard conflict={conflict} />
                   <div className={cn('scroll-fade-bottom min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
-                    <ReviewersSection conflict={conflict} onUpdate={update} onSimulateApproval={handleSimulateApproval} />
+                    <ReviewersSection conflict={conflict} onUpdate={update} onApproveReviewer={handleApproveReviewer} />
                   </div>
                   <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>Comments</p>

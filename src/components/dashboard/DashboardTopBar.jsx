@@ -197,7 +197,7 @@ function DashboardTopBar() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out', { description: 'This is a demo — no account was affected.' })}>
+            <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out')}>
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

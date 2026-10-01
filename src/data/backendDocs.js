@@ -1,4 +1,4 @@
-// Proposed backend reference documents for project demos.
+// Proposed backend reference documents for the project archive.
 export const backendReferenceDocs = [
   {
     "id": "doc-backend-architecture",
@@ -17,7 +17,7 @@ export const backendReferenceDocs = [
       {
         "type": "callout",
         "tone": "info",
-        "text": "Draft implementation proposal. The current Devsign demo uses client-side state and local storage; the services and schemas below are proposed, not deployed infrastructure."
+        "text": "Draft implementation proposal. Pending architecture review — the services and schemas below are not yet implemented."
       },
       {
         "type": "h2",
@@ -99,10 +99,10 @@ export const backendReferenceDocs = [
       {
         "type": "ul",
         "items": [
-          "Introduce repository interfaces around current demo storage.",
+          "Introduce repository interfaces around the current storage layer.",
           "Implement read APIs and access checks before switching writes.",
           "Migrate drafts, reviews and checkpoint writes together so there is one authoritative baseline.",
-          "Keep a demo adapter for local previews and automated tests."
+          "Keep a local adapter for offline previews and automated tests."
         ]
       }
     ]
@@ -126,7 +126,7 @@ export const backendReferenceDocs = [
       {
         "type": "callout",
         "tone": "info",
-        "text": "Draft implementation proposal. The current Devsign demo uses client-side state and local storage; the services and schemas below are proposed, not deployed infrastructure."
+        "text": "Draft implementation proposal. Pending architecture review — the services and schemas below are not yet implemented."
       },
       {
         "type": "h2",
@@ -251,7 +251,7 @@ export const backendReferenceDocs = [
       {
         "type": "callout",
         "tone": "info",
-        "text": "Draft implementation proposal. The current Devsign demo uses client-side state and local storage; the services and schemas below are proposed, not deployed infrastructure."
+        "text": "Draft implementation proposal. Pending architecture review — the services and schemas below are not yet implemented."
       },
       {
         "type": "h2",
@@ -397,7 +397,7 @@ export const backendReferenceDocs = [
       {
         "type": "callout",
         "tone": "info",
-        "text": "Draft implementation proposal. The current Devsign demo uses client-side state and local storage; the services and schemas below are proposed, not deployed infrastructure."
+        "text": "Draft implementation proposal. Pending architecture review — the services and schemas below are not yet implemented."
       },
       {
         "type": "h2",
@@ -497,7 +497,7 @@ export const backendReferenceDocs = [
       {
         "type": "callout",
         "tone": "info",
-        "text": "Draft implementation proposal. The current Devsign demo uses client-side state and local storage; the services and schemas below are proposed, not deployed infrastructure."
+        "text": "Draft implementation proposal. Pending architecture review — the services and schemas below are not yet implemented."
       },
       {
         "type": "h2",

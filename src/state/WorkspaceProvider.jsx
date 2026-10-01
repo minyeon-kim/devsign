@@ -1022,7 +1022,7 @@ export function WorkspaceProvider({ children, projectId }) {
         const currentLines = live.fileOverrides[scenario.fileId] ?? files.find((f) => f.id === scenario.fileId)?.lines ?? []
         if (!Array.isArray(scenario.lines) || scenario.lines.some((line) => typeof line !== 'string')) {
           setIsAiTyping(false)
-          appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The demo could not apply this code. Try a supported request or edit the target in Assemble.', result: { status: 'failed', target } })
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: 'I couldn’t apply this change. Try rephrasing the request, or edit the target directly in Assemble.', result: { status: 'failed', target } })
           return
         }
         if (signature(currentLines) === signature(scenario.lines) && Object.entries(scenario.previewProps ?? {}).every(([key, value]) => signature(live.previewProps[key]) === signature(value))) {

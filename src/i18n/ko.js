@@ -17,10 +17,8 @@ JA|수
 JD|지
 MI|소
 All members|전체 구성원
-Designer UT · Checkout|디자이너 UT · 결제 화면
-Designer UT: inspect the Place order button, compare design and code, adjust its style, and request a review.|디자이너 UT: Place order 버튼을 확인하고, 디자인과 코드를 비교하고, 스타일을 조정한 뒤 검토를 요청하세요.
-Developer UT · Design System|개발자 UT · 디자인 시스템
-Developer UT: inspect token drift, compare code, resolve changes, request review, and inspect the saved checkpoint.|개발자 UT: 토큰 차이를 확인하고, 코드를 비교하고, 변경 사항을 해결한 뒤 검토를 요청하고 저장된 체크포인트를 확인하세요.
+Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.|결제 플로우의 비주얼 리뉴얼입니다 — 결제 단계 레이아웃, 버튼과 카드 스타일을 Figma 디자인과 동기화된 상태로 유지합니다.
+Shared components and design tokens used across every product surface, kept consistent between Figma and code.|모든 제품 화면에서 쓰이는 공용 컴포넌트와 디자인 토큰입니다. Figma와 코드 간 일관성을 유지합니다.
 Issue summary|이슈 요약
 Review impact|검토 필요 이유
 Background|배경
@@ -153,13 +151,10 @@ Workspace settings|워크스페이스 설정
 App preferences for this browser.|이 브라우저의 앱 환경설정입니다.
 Language|언어
 Applies to the entire app. Code, file paths and your content stay in their original language.|앱 전체에 적용됩니다. 코드, 파일 경로와 사용자 콘텐츠는 원문을 유지합니다.
-Demo|데모
-Local demo data|로컬 데모 데이터
-Local demo tools|로컬 데모 도구
-Reset demo data|데모 데이터 초기화
-Saved only in this browser. Approvals and edits are not synchronized with other users.|이 브라우저에만 저장됩니다. 승인과 편집 내용은 다른 사용자와 동기화되지 않습니다.
-Reset this prototype’s drafts, reviews and history for all projects?|모든 프로젝트의 초안, 검토와 기록을 초기화할까요?
-Local demo could not be saved|로컬 데모를 저장하지 못했습니다
+Workspace data|워크스페이스 데이터
+Reset workspace data|워크스페이스 데이터 초기화
+Reset all drafts, reviews and history for every project?|모든 프로젝트의 초안, 검토와 기록을 초기화할까요?
+Changes could not be saved|변경 사항을 저장하지 못했습니다
 Storage is unavailable or full. Changes remain in this tab; allow browser storage before refreshing.|저장 공간을 사용할 수 없거나 가득 찼습니다. 변경 내용은 이 탭에 남아 있습니다. 새로고침 전에 브라우저 저장소를 허용하세요.
 Reset failed. Allow access to browser storage and try again.|초기화하지 못했습니다. 브라우저 저장소 접근을 허용한 뒤 다시 시도하세요.
 Close|닫기
@@ -349,7 +344,6 @@ Ask Devsign to tweak the design or code...|바꾸고 싶은 디자인이나 코�
 Nothing yet.|아직 항목이 없습니다.
 Search projects, files, or members...|프로젝트, 파일 또는 구성원 검색...
 No results found.|검색 결과가 없습니다.
-This is a demo — no account was affected.|데모입니다. 실제 계정에는 영향을 주지 않습니다.
 Sign out|로그아웃
 Undo|실행 취소
 Checkpoints|체크포인트
@@ -459,7 +453,7 @@ Review state of the conflicts this checkpoint knows about.|이 체크포인트�
 Database|데이터베이스
 No database is connected to this project.|이 프로젝트에 연결된 데이터베이스가 없습니다.
 the current target|현재 대상
-The demo could not apply this code. Try a supported request or edit the target in Assemble.|데모에서 이 코드를 적용하지 못했습니다. 지원되는 요청을 시도하거나 조합에서 대상을 직접 편집하세요.
+I couldn’t apply this change. Try rephrasing the request, or edit the target directly in Assemble.|이 변경 사항을 적용하지 못했습니다. 요청을 다르게 표현해보거나 조합에서 대상을 직접 편집하세요.
 The target already matches this result. No files or approvals were changed.|대상이 이미 이 결과와 일치합니다. 파일이나 승인 내용이 변경되지 않았습니다.
 Import a repository's files into this project's file tree.|저장소의 파일을 이 프로젝트의 파일 트리로 가져옵니다.
 Figma design|Figma 디자인
@@ -503,7 +497,6 @@ Typography|타이포그래피
 Window Layout|창 배치
 Search files, commands...|파일, 명령 검색...
 Follow me|나를 따라가기
-Teammate activity is simulated in this prototype.|이 프로토타입의 팀원 활동은 시뮬레이션입니다.
 Edit custom value|사용자 지정 값 편집
 Set a custom value|사용자 지정 값 설정
 Custom|사용자 지정
@@ -666,9 +659,8 @@ Deploys automatically once approved and merged|승인 및 병합 후 자동 배�
 Auto-deploy is off — deploy manually after merge|자동 배포가 꺼져 있습니다. 병합 후 수동으로 배포하세요
 ” is open and waiting for approval.|’ 검토가 열려 승인 대기 중입니다.
 Merge changes|변경 사항 병합
-Draft changes · Not merged · Local demo|변경 초안 · 병합 전 · 로컬 데모
-Required approvals · Local demo simulation|필수 승인 · 로컬 데모 시뮬레이션
-Simulate approval|승인 시뮬레이션
+Required approvals|필수 승인
+Approve|승인
 Merge approved changes|승인된 변경 병합
 Generating…|생성 중…
 AI generating…|AI 생성 중…
@@ -977,7 +969,6 @@ Fixed it — the Continue button now uses 12px/24px padding to match the design 
 Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
 Where should I start?|어떤 것부터 확인할까요?
-Where should I start the designer UT?|주문 버튼 디자인은 어떤 것부터 확인하면 되나요?
 Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 머지 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 **Follow these steps:**|**이렇게 진행해보세요:**
 1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌 지점**에서 \`Place order 버튼\` 이슈를 선택하세요.
@@ -996,7 +987,6 @@ AI edits create a draft checkpoint — review and approval are required before i
 - **Request review** and collect the required approvals, then merge.|- **검토를 요청**하고 필요한 승인을 받은 뒤 병합하세요.
 - Use **History** to inspect or roll back the saved checkpoint anytime.|- **기록**에서 저장된 버전을 언제든 확인하거나 되돌릴 수 있어요.
 Guide me through code review|버튼 코드 검토 시작하기
-Guide me through the developer UT|공통 버튼의 높이를 수정하려고 해요. 어떤 것부터 확인하면 되나요?
 Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 머지 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
 1. Open the **Button / Height** conflict from the project overview.|1. 프로젝트 홈에서 **Button / Height** 충돌을 여세요.
 2. Inspect **Diff** — the implementation uses \`h-9\` while the design system requires the medium height token.|2. **차이 보기**를 확인하세요 — 현재 코드는 \`h-9\`를 쓰지만 디자인 시스템 기준은 medium 높이 토큰이에요.
