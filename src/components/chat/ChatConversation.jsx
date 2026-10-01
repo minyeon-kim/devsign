@@ -147,6 +147,8 @@ const RESULT_STATUS = {
   partial: { label: 'Partially done', icon: CircleAlert, className: 'text-amber-400' },
   no_change: { label: 'No changes made', icon: CircleMinus, className: 'text-muted-foreground' },
   failed: { label: 'Failed', icon: X, className: 'text-destructive' },
+  pending: { label: 'Needs your approval', icon: CircleAlert, className: 'text-amber-400' },
+  discarded: { label: 'Discarded', icon: CircleMinus, className: 'text-muted-foreground' },
 }
 
 function plural(n, word) {
@@ -158,11 +160,12 @@ function plural(n, word) {
 // element ("View changes") and the Conflict Point now awaiting review
 // ("Review changes"). A request that changed nothing says so, and has no
 // checkpoint.
-function ResultCard({ result }) {
-  const { focusChange, setBottomPanel, openConflictReview } = useWorkspace()
+function ResultCard({ result, messageId }) {
+  const { focusChange, setBottomPanel, openConflictReview, applyPendingAiEdit, discardPendingAiEdit } = useWorkspace()
   const status = RESULT_STATUS[result.status] ?? RESULT_STATUS.done
   const StatusIcon = status.icon
-  const changed = result.status === 'done' || result.status === 'partial'
+  const pending = result.status === 'pending'
+  const changed = result.status === 'done' || result.status === 'partial' || pending
   const first = result.changes?.[0]
 
   return (
@@ -180,7 +183,9 @@ function ResultCard({ result }) {
       {changed && (
         <>
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">Draft · not merged</span>
+            <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+              {pending ? 'Proposed · not applied' : 'Draft · not merged'}
+            </span>
             <span className="text-[10px] text-slate-500">
               {plural(result.fileCount, 'file')} · {plural(result.elementCount, 'element')}
             </span>
@@ -203,29 +208,53 @@ function ResultCard({ result }) {
           )}
           {result.note && <p className="mt-1 text-[11px] text-amber-400/90">{result.note}</p>}
           <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {first && (
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
-                onClick={() => focusChange({ fileId: first.fileId, line: first.line, layerId: result.target?.layerId })}
-              >
-                View changes
-              </Button>
-            )}
-            {result.reviewItems.length > 0 && (
-              <Button
-                type="button"
-                size="xs"
-                className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
-                onClick={() => {
-                  setBottomPanel({ tab: 'conflict', open: true })
-                  openConflictReview(result.reviewItems[0].conflictId)
-                }}
-              >
-                Review changes
-              </Button>
+            {pending ? (
+              <>
+                <Button
+                  type="button"
+                  size="xs"
+                  className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
+                  onClick={() => applyPendingAiEdit(messageId)}
+                >
+                  Apply change
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
+                  onClick={() => discardPendingAiEdit(messageId)}
+                >
+                  Discard
+                </Button>
+              </>
+            ) : (
+              <>
+                {first && (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
+                    onClick={() => focusChange({ fileId: first.fileId, line: first.line, layerId: result.target?.layerId })}
+                  >
+                    View changes
+                  </Button>
+                )}
+                {result.reviewItems.length > 0 && (
+                  <Button
+                    type="button"
+                    size="xs"
+                    className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
+                    onClick={() => {
+                      setBottomPanel({ tab: 'conflict', open: true })
+                      openConflictReview(result.reviewItems[0].conflictId)
+                    }}
+                  >
+                    Review changes
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </>
@@ -282,7 +311,10 @@ function ChatConversation() {
   const [attachments, setAttachments] = useState([])
   const [codeBlockMode, setCodeBlockMode] = useState(false)
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
-  const [autoMode, setAutoMode] = useState(true)
+  // Off by default: an AI change sits in chat as a proposal (Apply /
+  // Discard) until approved, rather than landing on canvas/files straight
+  // away. Turning this on restores the old immediate-apply behavior.
+  const [autoMode, setAutoMode] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
   const [feedback, setFeedback] = useState({})
   // The checkpoint whose inline "Rollback here" was clicked (confirming).
@@ -295,7 +327,7 @@ function ChatConversation() {
 
   function handleSend(text = input, overrideTarget) {
     if (!text.trim() || isAiTyping) return
-    sendChatMessage(text, overrideTarget ?? target)
+    sendChatMessage(text, overrideTarget ?? target, { autoApply: autoMode })
     setInput('')
     setAttachments([])
     setCodeBlockMode(false)
@@ -370,12 +402,12 @@ function ChatConversation() {
               </div>
             ) : <div className="flex w-full items-center justify-start gap-1 px-1 opacity-0 transition-opacity group-hover/chat:opacity-100 focus-within:opacity-100">
               <ActionButton label={copiedId === message.id ? 'Copied' : 'Copy'} onClick={() => copyMessage(message)}>{copiedId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</ActionButton>
-              <ActionButton label="Regenerate" disabled={isAiTyping || Boolean(message.historyId) || !chatMessages.slice(0, index).some((m) => m.role === 'user')} onClick={() => { const previous = chatMessages.slice(0, index).reverse().find((m) => m.role === 'user'); if (previous) sendChatMessage(previous.text, previous.target, { includeUser: false, replaceMessageId: message.id }) }}><RotateCw className="size-3.5" /></ActionButton>
+              <ActionButton label="Regenerate" disabled={isAiTyping || Boolean(message.historyId) || Boolean(message.pendingEdit) || !chatMessages.slice(0, index).some((m) => m.role === 'user')} onClick={() => { const previous = chatMessages.slice(0, index).reverse().find((m) => m.role === 'user'); if (previous) sendChatMessage(previous.text, previous.target, { includeUser: false, replaceMessageId: message.id, autoApply: autoMode }) }}><RotateCw className="size-3.5" /></ActionButton>
               <ActionButton label="Thumbs up" pressed={feedback[message.id] === 'up'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'up' ? null : 'up' }))}><ThumbsUp className="size-3.5" /></ActionButton>
               <ActionButton label="Thumbs down" pressed={feedback[message.id] === 'down'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'down' ? null : 'down' }))}><ThumbsDown className="size-3.5" /></ActionButton>
               <ActionButton label="Share" onClick={() => shareMessage(message)}><Share2 className="size-3.5" /></ActionButton>
             </div>}
-            {message.result && <ResultCard result={message.result} />}
+            {message.result && <ResultCard result={message.result} messageId={message.id} />}
             {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
           </div>
         ))}
@@ -469,7 +501,10 @@ function ChatConversation() {
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <label
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                title={autoMode ? 'Auto-apply AI changes without asking first' : 'AI changes wait for your approval before they apply'}
+              >
                 Auto
                 <Switch
                   checked={autoMode}

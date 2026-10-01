@@ -313,6 +313,13 @@ Attach file|파일 첨부
 Remove attachment|첨부 제거
 Code block|코드 블록
 Draft · not merged|초안 · 병합 전
+Proposed · not applied|제안됨 · 적용 전
+Needs your approval|승인 필요
+Discarded|취소됨
+Apply change|변경 적용
+Discard|취소
+Auto-apply AI changes without asking first|AI 변경 사항을 묻지 않고 자동으로 적용합니다
+AI changes wait for your approval before they apply|AI가 제안한 변경 사항은 승인해야 적용됩니다
 ready for review|검토 대기
 Upload files|파일 업로드
 Width|너비
