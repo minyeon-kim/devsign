@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
+import { LocalizedText } from '@/i18n/runtime'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
@@ -45,11 +46,9 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
-  CATEGORY_TAB,
-  CATEGORY_TAB_ACTIVE,
-  CATEGORY_TAB_IDLE,
   GHOST_BUTTON,
   PANEL_LABEL,
+  WORKSPACE_TAB_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 
 // ─── The one conflict review window ────────────────────────────────────
@@ -946,7 +945,7 @@ function HistoryCheckpointTimeline({ workspace }) {
                     className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-medium transition-colors', historyView === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200')}
                   >
                     <Icon className="size-3" />
-                    {label}
+                    <LocalizedText text={label} />
                   </button>
                 ))}
               </div>
@@ -1128,7 +1127,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         {conflict && (
           <>
             {/* Primary header combines the issue identity and project context. */}
-            <div className="flex min-h-14 shrink-0 items-center justify-between gap-5 border-b border-white/[0.07] bg-white/[0.02] px-5 py-3">
+            <div className="flex min-h-11 shrink-0 items-center justify-between gap-5 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -1161,9 +1160,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       role="tab"
                       aria-selected={tab === id}
                       onClick={() => openTab(id)}
-                      className={cn(CATEGORY_TAB, 'gap-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+                      className={cn(
+                        'inline-flex h-7 shrink-0 items-center justify-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap transition-colors',
+                        WORKSPACE_TAB_RADIUS,
+                        tab === id
+                          ? 'bg-white/[0.09] text-white'
+                          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+                      )}
                     >
-                      {label}
+                      <LocalizedText text={label} />
                     </button>
                   ))}
                 </div>

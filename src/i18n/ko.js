@@ -781,7 +781,7 @@ Jump to element|요소로 이동
 Undo this change|이 변경 취소
 Incoming from the Current Implementation|현재 구현에서 들어오는 변경
 Incoming changed lines|들어오는 변경된 줄
-Changes log|변경 기록
+Changes log|변경 히스토리
 Design changes|디자인 변경
 Close preview|미리보기 닫기
 Apply with AI|AI로 적용

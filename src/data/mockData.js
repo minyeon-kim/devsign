@@ -3029,6 +3029,33 @@ export const chatSuggestions = [
     reply:
       '**How to verify and roll back:**\n\n1. Check the final code and visual preview in **Merge Changes**.\n2. Note that **approval** and **merge** are separate steps.\n3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.\n4. Use **Rollback** to restore a previous checkpoint if the result is wrong.',
   },
+  {
+    id: 'general-start',
+    label: 'What can you help me with?',
+    prompt: 'What can you help me with?',
+    iconName: 'Sparkles',
+    summary: 'Ask about this workspace or request a focused design or code change.',
+    reply:
+      '**I can help with this workspace:**\n\n- Explain the project, its files, and design.\n- Propose a focused code or design change.\n- Help review a change before you apply or merge it.\n\nFor a change, select the relevant canvas element or file first so I can target it.',
+  },
+  {
+    id: 'general-apply',
+    label: 'How do AI changes get applied?',
+    prompt: 'How do AI changes get applied?',
+    iconName: 'MessageCircle',
+    summary: 'AI changes stay as a proposal until you apply them.',
+    reply:
+      '**AI changes need your approval:**\n\n1. Ask for a specific change to the selected element or file.\n2. Review the proposal in chat.\n3. Choose **Apply change** to keep it or **Discard** to reject it.\n\nApplied changes can then be reviewed and merged separately.',
+  },
+  {
+    id: 'general-review',
+    label: 'How do I review a change?',
+    prompt: 'How do I review a change?',
+    iconName: 'MessageCircle',
+    summary: 'Compare the change, request review, then merge after approval.',
+    reply:
+      '**Review a change:**\n\n1. Open its Conflict Point and inspect the **Overview** and **Diff**.\n2. Request review and wait for the required approvals.\n3. Merge only after approval. Use **History** to inspect or roll back saved changes.',
+  },
 ]
 
 // Selectable model options for the "Ask Devsign" input bar.
