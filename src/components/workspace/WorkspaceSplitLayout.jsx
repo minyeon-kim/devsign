@@ -145,7 +145,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     if (!dockApi.getPanel(panelById.chat.id)) {
       addDockPanel(dockApi, panelById.chat, {
         position: { direction: 'left', referencePanel: panelById.canvas.id },
-        initialWidth: 420,
+        initialWidth: 380,
       })
     }
     const canvasGroupId = store.panels[panelById.canvas.id]?.groupId

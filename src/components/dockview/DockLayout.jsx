@@ -97,15 +97,15 @@ export function buildInitialLayout(api) {
   // `+`). The default split: AI Chat up front on the left with the code
   // file beside it as an inactive tab; the Canvas up front in the center
   // with Preview beside it.
-  // AI Chat is pinned to a fixed, narrower width; Canvas takes whatever's
-  // left — the main work area, not the chat sidebar, should dominate the
-  // screen by default.
-  addDockPanel(api, panelById.chat, { initialWidth: 420 })
+  // Split shares determine the workspace pane widths; give Canvas a little
+  // more than half so AI Chat starts narrower and the main work area dominates.
+  addDockPanel(api, panelById.chat, { initialWidth: 380 })
   addDockPanel(api, panelById.editor, {
     position: { direction: 'within', referencePanel: panelById.chat.id },
   })
   addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.chat.id },
+    share: 0.6,
   })
   addDockPanel(api, panelById.preview, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
