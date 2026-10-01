@@ -12,7 +12,7 @@ import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
-import { COUNT_BADGE, FLOATING_PANEL, FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, FLOATING_PANEL, STUDIO_PILL as FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
@@ -1429,7 +1429,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
         aria-expanded={open}
         // Text + count only; the open state is a soft fill, not an icon.
         className={cn(
-          'ml-auto flex h-11 items-center justify-center gap-2 rounded-full pr-3.5 pl-4.5 text-sm font-semibold text-foreground transition-colors',
+          'ml-auto flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors',
           FLOATING_PILL,
           open ? 'bg-white/[0.1]' : 'hover:bg-muted'
         )}
@@ -1470,7 +1470,7 @@ function MacroStepper({ stage, disabled, onOpenStep }) {
               disabled={i === 0 || disabled || i > current + 1}
               onClick={() => onOpenStep(i - 1)}
               className={cn(
-                'flex h-7 items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors',
+                'flex h-7 items-center justify-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors',
                 active && 'bg-slate-700 text-white',
                 done && 'text-emerald-400',
                 !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
@@ -2561,7 +2561,7 @@ function MergeInfiniteCanvas({
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
             aria-label="Zoom out"
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
             <Minus className="size-4" />
           </button>
@@ -2570,7 +2570,7 @@ function MergeInfiniteCanvas({
             type="button"
             onClick={() => zoomFromCenter(ZOOM_STEP)}
             aria-label="Zoom in"
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
             <Plus className="size-4" />
           </button>
@@ -2582,7 +2582,7 @@ function MergeInfiniteCanvas({
               setView(fitView(lay))
               setLayout(lay)
             }}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
             <Maximize className="size-4" />
           </button>
@@ -2600,7 +2600,7 @@ function MergeInfiniteCanvas({
                 onClick={onToggleGuides}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-full transition-colors',
-                  guidesVisible ? 'text-muted-foreground hover:bg-muted hover:text-foreground' : 'bg-white/10 text-foreground'
+                  guidesVisible ? 'text-foreground hover:bg-muted' : 'bg-white/10 text-foreground'
                 )}
               >
                 {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
@@ -2646,7 +2646,7 @@ function MergeInfiniteCanvas({
               type="button"
               onClick={applyAll}
               disabled={pendingCount === 0}
-              className="flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-400/50 bg-card/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className={cn(FLOATING_PILL, "flex items-center justify-center gap-2 px-4 disabled:cursor-not-allowed disabled:opacity-50")}
             >
               <Sparkles className="size-4 text-emerald-400" />
               Apply with AI
@@ -2664,7 +2664,7 @@ function MergeInfiniteCanvas({
             aria-expanded={mergeDrawer === 'inbox'}
             onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
             className={cn(
-              'relative flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              'relative flex size-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted',
               FLOATING_PILL,
               mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
             )}
@@ -2683,7 +2683,7 @@ function MergeInfiniteCanvas({
         <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {stage === 'compare' && (
-              <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
+              <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-[13px]', FLOATING_PILL)}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2691,14 +2691,14 @@ function MergeInfiniteCanvas({
                   }}
                   title="Previous drift"
                   disabled={drifts.length === 0}
-                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
                 >
-                  <ChevronLeft className="size-4.5" />
+                  <ChevronLeft className="size-4" />
                 </button>
                 {/* Plain label, not a button — drift detail now lives inline
                     in the Block Deck's Compare tab (no more floating
                     popover here for this to show/hide). */}
-                <span className="min-w-20 rounded-full px-1.5 text-center font-medium text-foreground tabular-nums">
+                <span className="min-w-20 rounded-full px-1.5 text-center font-semibold text-foreground tabular-nums">
                   Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
                 </span>
                 <button
@@ -2708,9 +2708,9 @@ function MergeInfiniteCanvas({
                   }}
                   title="Next drift"
                   disabled={drifts.length === 0}
-                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
                 >
-                  <ChevronRight className="size-4.5" />
+                  <ChevronRight className="size-4" />
                 </button>
               </div>
             )}

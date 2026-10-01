@@ -10,7 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { STUDIO_PILL as FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
 // The Share control, in the top header of both Merge Studio and the
 // Workspace (it used to live in the app's right-hand floating toolbar):

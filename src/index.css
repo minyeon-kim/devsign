@@ -349,6 +349,46 @@
   height: var(--ds-control-height);
   min-height: var(--ds-control-height);
 }
+/* Merge Studio's top and bottom pills share geometry even inside compact
+   workspace chrome. Keep panel controls and avatar artwork independent. */
+.ds-workspace .ds-merge-pill.ds-merge-pill {
+  height: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 9999px;
+  background-color: #09090a;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.ds-workspace .ds-merge-pill.ds-merge-pill[class~="size-10"] {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+}
+.ds-workspace button.ds-merge-pill:hover,
+.ds-workspace .ds-merge-pill[data-popup-open],
+.ds-workspace .ds-merge-pill[aria-expanded="true"],
+.ds-workspace .ds-merge-pill[aria-pressed="true"],
+.ds-workspace .ds-merge-pill.ds-merge-pill-active {
+  background-color: #161618;
+  border-color: rgb(255 255 255 / 16%);
+}
+.ds-workspace .ds-merge-pill > button,
+.ds-workspace .ds-merge-pill > li > button {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ds-workspace .ds-merge-pill > button > svg,
+.ds-workspace button.ds-merge-pill > svg {
+  width: 16px;
+  height: 16px;
+}
 /* Fixed geometry and colors override button variants and utility classes. */
 .ds-chat-submit {
   width: 40px !important;

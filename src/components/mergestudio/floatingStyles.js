@@ -15,6 +15,9 @@ export const FLOATING_PANEL =
 export const PANEL_RADIUS = 'rounded-[20px]'
 export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-lg backdrop-blur-md'
 
+// Studio chrome has fixed geometry independent of compact workspace buttons.
+export const STUDIO_PILL = 'ds-merge-pill'
+
 // Shared sizing so every count badge in the studio is the same box,
 // flex-centered (fixed height, not padding-derived).
 // Count badge inside a button or title (Merge Changes, Changes log, …);

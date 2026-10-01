@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import { cn } from 'cn'
-import { FLOATING_PANEL, FLOATING_PILL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
+import { FLOATING_PANEL, STUDIO_PILL as FLOATING_PILL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { Popover, PopoverClose, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 
 const topics = [
@@ -18,7 +18,7 @@ function MergeHelp() {
         <PopoverTrigger
           aria-label="Merge Studio help"
           title="Merge Studio help"
-          className={cn('flex size-10 items-center justify-center rounded-full text-lg font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)}
+          className={cn('flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)}
         >
           <span aria-hidden>?</span>
         </PopoverTrigger>

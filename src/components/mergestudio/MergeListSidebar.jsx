@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   AVATAR_RING,
+  STUDIO_PILL as FLOATING_PILL,
   COUNT_BADGE,
 } from '@/components/mergestudio/floatingStyles'
 
@@ -42,7 +43,6 @@ const PANEL_ROWS = 'space-y-0.5 [&>*]:overflow-hidden [&>*]:rounded-lg'
 const CATEGORY_TAB = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-[16px] px-3 text-xs transition-colors'
 const CATEGORY_TAB_ACTIVE = 'bg-white/[0.09] text-white'
 const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-const FLOATING_PILL = 'border border-white/[0.08] bg-[#09090A] hover:bg-[#161618]'
 const FLOATING_PANEL = 'border border-white/[0.08] bg-[#121212] shadow-lg shadow-black/20'
 const PANEL_RADIUS = 'rounded-[16px]'
 
@@ -451,13 +451,13 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           present, with a comfortable gap. The toggle is click-only (no
           hover flyout, no auto-close): the window stays open until it's
           toggled here or closed from its own header. */}
-      <div className="absolute top-3 left-4 z-40 flex items-center gap-3">
+      <div className="absolute top-3 left-4 z-40 flex items-center gap-2">
         <button
           type="button"
           // Straight back, no confirmation wall — merge progress is kept
           // in the workspace state either way.
           onClick={exitMergeStudio}
-          className={cn('flex h-10 items-center justify-center gap-2 rounded-full px-4.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
+          className={cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)}
         >
           <ArrowLeft className="size-4" />
           Workspace
@@ -468,13 +468,9 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
           className={cn(
-            // Solid surface — no glass / backdrop blur: an opaque neutral
-            // dark pill with a hairline edge. Open = a slightly lifted
-            // neutral tone (the mint count badge carries the accent).
-            'flex h-10 items-center justify-center gap-2 rounded-full border border-white/[0.08] pr-3 pl-4 text-[13px] font-medium transition-colors',
-            mergeListCollapsed
-              ? 'bg-[#09090A] text-slate-400 hover:bg-[#161618] hover:text-white'
-              : 'bg-[#161618] text-white hover:bg-[#202022]'
+            FLOATING_PILL,
+            'flex items-center justify-center gap-2 px-4',
+            !mergeListCollapsed && 'ds-merge-pill-active'
           )}
         >
           Merge List
