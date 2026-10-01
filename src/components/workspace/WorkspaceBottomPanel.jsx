@@ -153,14 +153,14 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
                 setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
               }}
               onClick={() => pickTab(id)}
-              className={cn(CATEGORY_TAB, 'h-8 gap-1.5 px-3 text-xs', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+              className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
-              <Icon className="size-3.5" />
+              <Icon className="size-3" />
               {label}
               {id === 'conflict' && openConflicts > 0 && (
                 <span
                   title={`${openConflicts} open`}
-                  className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[10px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
+                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[9px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
                 >
                   {openConflicts}
                 </span>
@@ -171,7 +171,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
                 type="button"
                 aria-description="Show conflicts waiting for your review"
                 onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
+                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
               >
                 <span className="ds-status-dot rounded-full bg-emerald-400" />
                 Needs your review · {needsMyReview}

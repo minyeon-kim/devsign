@@ -11,6 +11,7 @@ import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
+import { LocalizedText } from '@/i18n/runtime'
 
 // Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
 // count as a badge.
@@ -26,7 +27,7 @@ function Person({ id, className, size = 'sm' }) {
   return (
     <Avatar size={size} className={className}>
       <AvatarFallback className={cn('font-semibold text-white', size === 'sm' ? 'text-[9px]' : 'text-[11px]', person?.colorClass)}>
-        {person?.initials}
+        <LocalizedText text={person?.initials ?? ''} />
       </AvatarFallback>
     </Avatar>
   )
@@ -103,16 +104,16 @@ function InboxItem({ n, onJump }) {
   }
 
   const name = (
-    <span className={cn('text-[13px]', n.unread ? 'font-semibold text-[#FFFFFF]' : 'font-medium text-slate-200')}>{author?.name}</span>
+    <span className={cn('text-[13px]', n.unread ? 'font-semibold text-[#FFFFFF]' : 'font-medium text-slate-200')}><LocalizedText text={author?.name ?? ''} /></span>
   )
   const target = (
     <span title={n.target.label} className="font-medium text-[#FFFFFF] underline-offset-2 group-hover:underline">
-      {shortLabel(n.target.label)}
+      {n.target.conflictId ? <LocalizedText text={n.target.label} /> : shortLabel(n.target.label)}
     </span>
   )
   const meta = (
     <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
-      <span className="text-[11px] text-slate-500 tabular-nums">{n.timeLabel}</span>
+      <span className="text-[11px] text-slate-500 tabular-nums"><LocalizedText text={n.timeLabel} /></span>
       <span aria-label={n.unread ? 'Unread' : undefined} className={cn('ds-status-dot rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
     </span>
   )
@@ -132,7 +133,10 @@ function InboxItem({ n, onJump }) {
             // Approval: one quiet line.
             <span className="flex items-start gap-2">
               <span className="min-w-0 flex-1 text-[13px] leading-6 text-slate-400">
-                {name} {stripTarget(n.text, n.target.label)} on {target}
+                {name}{' '}
+                {n.target.conflictId
+                  ? <LocalizedText text={n.text} />
+                  : <><LocalizedText text={stripTarget(n.text, n.target.label)} /> on {target}</>}
               </span>
               {meta}
             </span>
@@ -141,7 +145,7 @@ function InboxItem({ n, onJump }) {
               <span className="flex items-start gap-2">
                 <span className="min-w-0 flex-1 truncate leading-6">
                   {name}
-                  {author?.role && <span className="ml-1.5 text-xs text-slate-500">{author.role}</span>}
+                  {author?.role && <span className="ml-1.5 text-xs text-slate-500"><LocalizedText text={author.role} /></span>}
                 </span>
                 {meta}
               </span>
@@ -313,9 +317,9 @@ function MergeInboxDrawer({ onJump, onClose }) {
             {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 py-4 text-left">
               <RiskBadge severity={conflict.severity} />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium text-white">{conflict.title}</span>
+                <span className="block text-[13px] font-medium text-white"><LocalizedText text={conflict.title} /></span>
                 <span className="mt-1 block text-[11px] text-slate-500">{conflict.file}</span>
-                <span className="mt-2 block text-xs leading-5 text-slate-400">{conflict.message ?? conflict.suggestion}</span>
+                <span className="mt-2 block text-xs leading-5 text-slate-400"><LocalizedText text={conflict.message ?? conflict.suggestion} /></span>
                 <span className="mt-2 block text-[11px] text-emerald-300">{needsReviewFrom(conflict) ? 'Needs your review' : 'Review completed'}</span>
               </span>
               <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />

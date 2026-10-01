@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { activities } from '@/data/mockData'
+import { LocalizedText } from '@/i18n/runtime'
 
 const recentNotifications = activities.slice(0, 4)
 
@@ -49,9 +50,9 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
             onClick={() => navigate('/activity')}
           >
             <span className="text-xs text-foreground">
-              {activity.actorName} {activity.action} {activity.target}
+              <LocalizedText text={activity.actorName} /> <LocalizedText text={activity.action} /> <LocalizedText text={activity.target} />
             </span>
-            <span className="text-[11px] text-muted-foreground">{activity.timestamp}</span>
+            <span className="text-[11px] text-muted-foreground"><LocalizedText text={activity.timestamp} /></span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

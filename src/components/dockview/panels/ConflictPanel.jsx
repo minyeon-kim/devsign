@@ -10,6 +10,7 @@ import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/componen
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { diffLines } from '@/lib/lineDiff'
 import { useNavigate } from 'react-router-dom'
+import { LocalizedText } from '@/i18n/runtime'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
 import MergeStepFlow from '@/components/mergestudio/MergeStepFlow'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -180,7 +181,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               onClick={() => setBottomPanel({ conflictFilter: f.id })}
               className={cn(CATEGORY_TAB, 'h-6 gap-1 px-2 text-[10.5px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
-              {f.label}
+              <LocalizedText text={f.label} />
               <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
                 {counts[f.count]}
               </span>
@@ -271,7 +272,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                     </td>
                     <td className="min-w-0 px-1.5 py-2">
                       <div className="min-w-0 space-y-px">
-                        <p className="line-clamp-1 text-[11.5px] leading-4 font-medium break-words text-white" title={conflict.title}>{conflict.title}</p>
+                        <p className="line-clamp-1 text-[11.5px] leading-4 font-medium break-words text-white" title={conflict.title}><LocalizedText text={conflict.title} /></p>
                         <p className="flex min-w-0 items-start gap-1 text-[10px] leading-3 text-slate-400">
                           <FileCode2 className="mt-0.5 size-2.5 shrink-0" />
                           <span className="line-clamp-1 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
@@ -282,7 +283,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                       <div className="min-w-0 space-y-1">
                         {conflict.message && (
                           <p className="line-clamp-2 text-[11px] leading-4 text-slate-400" title={conflict.message}>
-                            {conflict.message}
+                            <LocalizedText text={conflict.message} />
                           </p>
                         )}
                         {expandable && (
@@ -304,7 +305,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                     <td className="px-1.5 py-2">
                       <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
                         <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
-                        {STAGE_LABEL[conflict.reviewStage]}
+                        <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
                         {needsReviewFrom(conflict) && (
                             <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">
                             Needs your review

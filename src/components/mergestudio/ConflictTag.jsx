@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
+import { LocalizedText } from '@/i18n/runtime'
 
 // The conflict-level tag for the conflict-resolution panel's header: a
 // tinted pill with a severity icon and "<Level> conflict".
@@ -45,7 +46,7 @@ export function SeverityPill({ level, className, ...props }) {
         className
       )}
     >
-      {key.charAt(0).toUpperCase() + key.slice(1)}
+      <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>
   )
 }

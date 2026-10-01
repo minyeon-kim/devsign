@@ -90,8 +90,8 @@ const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
-const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
-const REVIEW_DETAIL_COPY = 'text-[13px] leading-5 text-slate-200'
+const REVIEW_INFO_LABEL = 'text-[10px] leading-4 font-medium text-slate-500'
+const REVIEW_DETAIL_COPY = 'text-xs leading-[18px] text-slate-200'
 
 function EmptyNote({ children }) {
   return <p className="rounded-xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">{children}</p>
@@ -101,7 +101,7 @@ function PersonAvatar({ person }) {
   return (
     <Avatar size="sm">
       <AvatarFallback className={cn('text-[10px] font-semibold text-white', person.colorClass)}>
-        {person.initials}
+        <LocalizedText text={person.initials} />
       </AvatarFallback>
     </Avatar>
   )
@@ -111,7 +111,7 @@ function PersonRole({ person, viewerId }) {
   if (!person?.role || person.id === viewerId) return null
   return (
     <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
-      {person.role}
+      <LocalizedText text={person.role} />
     </span>
   )
 }
@@ -148,10 +148,10 @@ function ComparisonTable({ fields }) {
     <div className="space-y-1.5">
       {fields.map((field) => (
         <div key={field.label} className="space-y-1.5">
-          <p className="text-[11px] text-slate-500">{field.label}</p>
+          <p className="text-[11px] text-slate-500"><LocalizedText text={field.label} /></p>
           <div className="grid grid-cols-2 gap-3">
-            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300">{field.current}</span>
-            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200">{field.expected}</span>
+            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300"><LocalizedText text={field.current} /></span>
+            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200"><LocalizedText text={field.expected} /></span>
           </div>
         </div>
       ))}
@@ -179,35 +179,35 @@ function Provenance({ conflict, className }) {
   if (!changedBy && !detectedBy && !impactRows.length) return null
 
   return (
-    <div className={cn(REVIEW_INFO_GRID, 'gap-y-3 text-xs', className)}>
+    <div className={cn(REVIEW_INFO_GRID, 'gap-y-2.5 text-[11px]', className)}>
       {changedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Changed by</span>
-          <span className="min-w-0 break-words text-xs leading-5 text-slate-200 [overflow-wrap:anywhere]">
+          <span className="min-w-0 break-words text-[11px] leading-4 text-slate-200 [overflow-wrap:anywhere]">
             <span className="inline-flex items-center gap-1 font-medium">
               {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
-              {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)}
+              <LocalizedText text={changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)} />
             </span>
-            {changedBy.what && <span className="text-slate-400"> · {changedBy.what}</span>}
+            {changedBy.what && <span className="text-slate-400"> · <LocalizedText text={changedBy.what} /></span>}
           </span>
         </>
       )}
       {detectedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Detected by</span>
-          <span className="min-w-0 break-words text-xs leading-5 text-slate-300 [overflow-wrap:anywhere]">{detectedBy}</span>
+          <span className="min-w-0 break-words text-[11px] leading-4 text-slate-300 [overflow-wrap:anywhere]"><LocalizedText text={detectedBy} /></span>
         </>
       )}
       {impactRows.map(([label, list]) => (
         <Fragment key={label}>
-          <span className={REVIEW_INFO_LABEL}>{label}</span>
+          <span className={REVIEW_INFO_LABEL}><LocalizedText text={label} /></span>
           <span className="flex min-w-0 flex-wrap gap-1">
             {list.map((item) => (
               <span
                 key={item}
-                className={cn('min-w-0 break-words rounded-md bg-white/[0.05] px-1.5 py-0.5 text-slate-200 [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[11px]')}
+                className={cn('min-w-0 break-words rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] leading-4 text-slate-200 [overflow-wrap:anywhere]', label === 'Files' && 'font-mono')}
               >
-                {item}
+                <LocalizedText text={item} />
               </span>
             ))}
           </span>
@@ -240,28 +240,28 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
     <div className="flex h-full flex-col">
       <div className="mb-4 min-w-0">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/[0.055] px-2.5 py-1 text-xs font-semibold text-slate-100">
+          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/[0.055] px-2.5 py-1 text-[11px] font-semibold text-slate-100">
             <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
-            <span className="min-w-0 break-words [overflow-wrap:anywhere]">{STAGE_LABEL[stage]}</span>
+            <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
           </span>
           {severity && (
-            <p className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.035] px-2.5 py-1 text-[11px]">
+            <p className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.035] px-2.5 py-1 text-[10px]">
               <span className="text-slate-500"><LocalizedText text="Severity" /></span>
-              <span className={cn('font-semibold', severityTone)}>{severity.label}</span>
+              <span className={cn('font-semibold', severityTone)}><LocalizedText text={severity.label} /></span>
             </p>
           )}
         </div>
         {((showProject && conflict.projectName) || conflict.detectedAt) && (
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
             {showProject && conflict.projectName && (
               <span className="min-w-0 break-words [overflow-wrap:anywhere]">
-                <LocalizedText text="Project" /> · {conflict.projectName}
+                <LocalizedText text="Project" /> · <LocalizedText text={conflict.projectName} />
               </span>
             )}
             {conflict.detectedAt && (
               <span className="inline-flex items-center gap-1">
                 <Clock3 className="size-3 shrink-0" />
-                <LocalizedText text="Detected" /> · {conflict.detectedAt}
+                <LocalizedText text="Detected" /> · <LocalizedText text={conflict.detectedAt} />
               </span>
             )}
           </div>
@@ -284,7 +284,7 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
           {summary && (
             <div className={REVIEW_INFO_GRID}>
               <p className={REVIEW_INFO_LABEL}>Review summary</p>
-              <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}>{summary}</p>
+              <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}><LocalizedText text={summary} /></p>
             </div>
           )}
           <Provenance
@@ -299,8 +299,8 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
 
 const DIFF_TONES = {
   same: 'text-slate-400',
-  add: 'bg-emerald-400/[0.05] text-emerald-300',
-  remove: 'bg-destructive/[0.05] text-red-300',
+  add: 'bg-emerald-400/[0.08] text-emerald-300',
+  remove: 'bg-destructive/[0.08] text-red-300',
 }
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
@@ -313,12 +313,16 @@ function CodeDiffColumns({ rows }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {columns.map((column) => (
-        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto rounded-xl border border-white/[0.06] bg-white/[0.025] py-2 font-mono text-[11px] leading-relaxed">
+        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto py-1 font-mono text-[11px] leading-relaxed">
           <span className="sr-only">{column.label}</span>
           {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
-            <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-2 whitespace-pre-wrap [word-break:break-all]', DIFF_TONES[row.kind])}>
+            <div key={`${row.kind}-${index}`} className="flex min-w-0 whitespace-pre-wrap [word-break:break-all]">
               <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-              <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
+              <span className={cn(
+                'min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]',
+                DIFF_TONES[row.kind],
+                row.kind !== 'same' && 'box-decoration-clone px-1'
+              )}>{row.text || ' '}</span>
             </div>
           ))}
         </div>
@@ -351,22 +355,16 @@ function DiffTab({ conflict }) {
                   { side: 'before', tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', tone: 'text-emerald-200', value: (field) => field.expected },
                 ].map(({ side, tone, value }) => (
-                  <div key={side} className="min-w-0 rounded-xl bg-white/[0.025] px-2 pb-2">
+                  <div key={side} className="min-w-0 rounded-lg bg-white/[0.025] px-2 pb-1">
                     <ChangePreview preview={conflict.preview} side={side} />
-                    <dl className="mt-0.5 space-y-0.5">
+                    <dl className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0">
                       {conflict.comparisonFields.map((field) => (
-                        <div key={field.label} className="flex min-w-0 items-center justify-center gap-1.5 text-xs">
-                          <dt className="truncate text-[10px] text-slate-500">{field.label}</dt>
-                          <dd className={cn('shrink-0 font-medium', tone)}>{value(field)}</dd>
+                        <div key={field.label} className="flex min-w-0 items-center gap-1 text-xs">
+                          <dt className="truncate text-[10px] text-slate-500"><LocalizedText text={field.label} /></dt>
+                          <dd className={cn('shrink-0 font-medium', tone)}><LocalizedText text={value(field)} /></dd>
                         </div>
                       ))}
                     </dl>
-                    {(side === 'before' ? conflict.branches?.local : conflict.branches?.remote) && (
-                      <p className="mt-1 flex min-w-0 items-center justify-center gap-1 truncate text-[10px] text-slate-500" title={side === 'before' ? conflict.branches.local : conflict.branches.remote}>
-                        <FileCode2 className="size-3 shrink-0" />
-                        <span className="truncate">{side === 'before' ? conflict.branches.local : conflict.branches.remote}</span>
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
@@ -381,10 +379,10 @@ function DiffTab({ conflict }) {
                   <div className="space-y-1.5">
                     {conflict.comparisonFields.map((field) => (
                       <div key={field.label} className="grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)] items-center gap-3">
-                        <span className="text-[11px] text-slate-400">{field.label}</span>
+                        <span className="text-[11px] text-slate-400"><LocalizedText text={field.label} /></span>
                         <div className="grid min-w-0 grid-cols-2 gap-3">
-                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300" title={field.current}>{field.current}</span>
-                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200" title={field.expected}>{field.expected}</span>
+                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300" title={field.current}><LocalizedText text={field.current} /></span>
+                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200" title={field.expected}><LocalizedText text={field.expected} /></span>
                         </div>
                       </div>
                     ))}
@@ -399,7 +397,7 @@ function DiffTab({ conflict }) {
                 {[conflict.branches.local, conflict.branches.remote].map((source, index) => (
                   <p key={index} className="flex min-w-0 items-center gap-1" title={source}>
                     <FileCode2 className="size-3 shrink-0" />
-                    <span className="truncate">{source}</span>
+                    <span className="truncate"><LocalizedText text={source} /></span>
                   </p>
                 ))}
               </div>
@@ -669,11 +667,11 @@ function CommentThread({ conflict, workspace }) {
                 {author && <PersonAvatar person={author} />}
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium text-slate-200">{author?.name}</span>
+                    <span className="font-medium text-slate-200"><LocalizedText text={author?.name ?? ''} /></span>
                     <PersonRole person={author} viewerId={viewerId} />
-                    <span className="text-[11px] text-slate-500">{comment.timeLabel}</span>
+                    <span className="text-[11px] text-slate-500"><LocalizedText text={comment.timeLabel} /></span>
                   </p>
-                  <p className="mt-0.5 leading-relaxed text-slate-300">{comment.text}</p>
+                  <p className="mt-0.5 leading-relaxed text-slate-300"><LocalizedText text={comment.text} /></p>
                   <button
                     type="button"
                     onClick={() => {
@@ -695,11 +693,11 @@ function CommentThread({ conflict, workspace }) {
                         {replyAuthor && <PersonAvatar person={replyAuthor} />}
                         <div className="min-w-0 flex-1">
                           <p className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-medium text-slate-200">{replyAuthor?.name}</span>
+                            <span className="font-medium text-slate-200"><LocalizedText text={replyAuthor?.name ?? ''} /></span>
                             <PersonRole person={replyAuthor} viewerId={viewerId} />
-                            <span className="text-[11px] text-slate-500">{reply.timeLabel}</span>
+                            <span className="text-[11px] text-slate-500"><LocalizedText text={reply.timeLabel} /></span>
                           </p>
-                          <p className="mt-0.5 leading-relaxed text-slate-300">{reply.text}</p>
+                          <p className="mt-0.5 leading-relaxed text-slate-300"><LocalizedText text={reply.text} /></p>
                         </div>
                       </div>
                     )
@@ -1098,7 +1096,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 >
                   <ArrowLeft className="size-4" />
                 </button>
-                <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
+                <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white"><LocalizedText text={conflict.title} /></h2>
+                <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
               </div>
               <div className="flex shrink-0 items-center gap-1" role="tablist" aria-label="Conflict details">
                 {TABS.map(([id, label]) => (
@@ -1131,7 +1130,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {tab === 'overview' ? (
                     <div className="grid min-h-full min-w-0 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
-                        <p className="mb-3 flex h-7 shrink-0 items-center border-b border-white/[0.07] pb-2 text-[13px] font-semibold text-slate-200">
+                        <p className="mb-2 flex h-7 shrink-0 items-center text-xs font-semibold text-slate-200">
                           <LocalizedText text="Overview" />
                         </p>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
@@ -1139,7 +1138,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         </div>
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
-                        <p className="mb-3 flex h-7 shrink-0 items-center border-b border-white/[0.07] pb-2 text-[13px] font-semibold text-slate-200">
+                        <p className="mb-2 flex h-7 shrink-0 items-center text-xs font-semibold text-slate-200">
                           <LocalizedText text="Compare" />
                         </p>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">

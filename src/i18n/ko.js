@@ -1,10 +1,7 @@
 import { docsHistoryKo } from './docsHistoryKo'
 
-// UI copy only. Project names, source code and authored content are not catalog keys.
-// Exception: the three team members' names below (Jane/James/Min are
-// Korean-mode display names, not literal translations, and JA/JD/MI are
-// their avatar initials) — every other exact match in this catalog is real
-// UI copy.
+// UI copy and seeded conflict-review content shown to Korean-language users.
+// Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Follow|화면 따라가기
 Stop following|따라가기 중지
@@ -37,34 +34,15 @@ Drag to reorder|끌어서 순서 바꾸기
 Share project|프로젝트 공유
 Documentation|문서
 Archived|보관됨
-Place order button · Height & color|주문 버튼 · 높이와 색상
-Divider / Color|구분선 / 색상
-Label / Letter spacing|라벨 / 자간
-Icon / Stroke width|아이콘 / 선 굵기
-Button / Height|버튼 / 높이
-Card / Radius|카드 / 모서리
-Spacing scale mismatch|간격 스케일 불일치
-Checkout · Payment step|결제 · 결제 단계
-Onboarding · Welcome|온보딩 · 환영
-Settings · Profile|설정 · 프로필
-40px (default size)|40px(기본 크기)
-#7c3aed (fixed hex)|#7c3aed(고정 색상값)
-44px (button.height.lg)|44px(button.height.lg)
-color.primary (Indigo 500)|color.primary(인디고 500)
 Indigo 500|인디고 500
 Violet 500|바이올렛 500
 Height token|높이 토큰
 hard-coded h-9|하드코딩된 h-9
-Checkout|결제
 Step 3 of 3 · Payment|3/3단계 · 결제
-Order summary|주문 요약
 2 items · $128.00|상품 2개 · $128.00
-Card number|카드 번호
 Standard shipping · 3–5 days|일반 배송 · 3~5일
 Total $128.00|합계 $128.00
 Total|합계
-Place order|주문하기
-Continue|계속하기
 Small|작게
 Checkout design specifies button.height.lg = 44px|결제 화면 디자인은 button.height.lg = 44px를 지정합니다
 Design system size/md = 40px|디자인 시스템 size/md = 40px
@@ -73,74 +51,14 @@ Visual refresh of the checkout flow — payment step layout, button and card sty
 Shared components and design tokens used across every product surface, kept consistent between Figma and code.|모든 제품 화면에서 쓰이는 공용 컴포넌트와 디자인 토큰입니다. Figma와 코드 간 일관성을 유지합니다.
 Issue summary|이슈 요약
 Review impact|검토 필요 이유
-Background|배경
 Proposal|제안
 Why|이유
 Expected result|예상 결과
-Devsign design ↔ code sync|Devsign 디자인 ↔ 코드 동기화
-The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|Place order 버튼이 고정된 violet 배경(#7c3aed)으로 40px 높이입니다. 결제 화면 디자인은 44px의 large 버튼과 primary 색상 토큰을 사용합니다.
-a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.|결제 화면의 핵심 CTA에 눈에 띄는 크기·색상 변경입니다. 스타일만 변경되며 결제 로직이나 데이터는 바뀌지 않습니다.
-Implemented the button in PlaceOrderButton.jsx|PlaceOrderButton.jsx에 버튼을 구현함
-Use the lg button size and remove the fixed background so the button uses the primary color token.|lg 버튼 크기를 사용하고 고정 배경을 제거해 버튼이 primary 색상 토큰을 사용하도록 하세요.
-The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 화면 디자인은 large 크기의 primary 버튼을 지정합니다. 하드코딩된 hex 값은 테마를 우회합니다.
-Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 Place order가 44px 높이, primary 색상으로 렌더링됩니다.
-Button height in code (36px) drifts from the design system token (40px).|코드의 Button 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
-Order summary card|주문 요약 카드
 Radius & weight|반경·굵기
-Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|주문 요약 카드 시안 세 개가 나란히 열려 있습니다 — 김수연, 한소민, 이지훈의 시안이 모서리 반경과 제목 굵기에서 차이가 있습니다.
-a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면 주문 요약 카드의 스타일 선택입니다 — 어느 쪽을 선택해도 로직이나 데이터는 바뀌지 않습니다.
-Opened a second draft of the Order summary card|주문 요약 카드의 두 번째 시안을 열었습니다
-Three open drafts on the same element|같은 요소에 열려 있는 시안 세 개
-Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|한소민의 시안을 사용하세요 — 16px 반경과 700 굵기의 제목이 결제 화면의 다른 카드들과 일치합니다.
-Every other card on this screen already uses a 16px radius and a 700-weight title.|이 화면의 다른 모든 카드는 이미 16px 반경과 700 굵기의 제목을 사용하고 있습니다.
-One Order summary card style, used consistently across the checkout flow.|결제 플로우 전체에서 하나의 주문 요약 카드 스타일을 일관되게 사용합니다.
 Jane’s draft|김수연의 시안
 Min’s draft|한소민의 시안
 James’s draft|이지훈의 시안
-16px (Min’s draft)|16px (한소민의 시안)
-12px (Jane’s draft)|12px (김수연의 시안)
-700 (Min’s draft)|700 (한소민의 시안)
-600 (Jane’s draft)|600 (김수연의 시안)
-Title weight|제목 굵기
-Merged Order summary card style|주문 요약 카드 스타일 병합됨
 More drafts:|추가 시안:
-the shared Button component — a height change reaches every screen that uses it.|공유 Button 컴포넌트입니다 — 높이 변경이 이를 사용하는 모든 화면에 영향을 미칩니다.
-Pushed new changes to Button.jsx|Button.jsx에 새 변경사항을 푸시함
-Swap the hard-coded h-9 for the size token so the button follows the design system height.|하드코딩된 h-9를 size 토큰으로 교체해 버튼이 디자인 시스템 높이를 따르도록 하세요.
-The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.|디자인 시스템은 size/md를 --button-height-md(40px)로 정의합니다. h-9는 36px로 하드코딩되어 토큰을 우회합니다.
-Every Button renders 40px tall from --button-height-md.|모든 Button이 --button-height-md로 40px 높이로 렌더링됩니다.
-a merge conflict — both branches edited the same lines, so one side’s change could be lost.|병합 충돌입니다 — 두 브랜치가 같은 줄을 수정해 한쪽의 변경 사항이 사라질 수 있습니다.
-Merge conflict between local and remote branch (lines 9-14).|로컬 브랜치와 원격 브랜치 사이에 병합 충돌이 있습니다 (9-14행).
-Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.|두 브랜치 모두 frame-mapping 블록을 수정했습니다. 원격의 key prop 변경을 유지하고 그 위에 로컬의 onSelect 핸들러를 다시 적용하세요.
-a corner radius on the Card container; no layout or behavior change.|Card 컨테이너의 모서리 반경입니다. 레이아웃이나 동작 변경은 없습니다.
-Card corner radius (8px) is smaller than the design system radius (12px).|Card 모서리 반경(8px)이 디자인 시스템 반경(12px)보다 작습니다.
-Use the radius-lg token on the card container instead of rounded-lg.|카드 컨테이너에 rounded-lg 대신 radius-lg 토큰을 사용하세요.
-the tab bar icons appear on every mobile screen.|탭 바 아이콘은 모든 모바일 화면에 나타납니다.
-Nav icons render at 20px in code but 24px in the redesigned nav frame.|내비게이션 아이콘이 코드에서는 20px이지만 재설계된 내비게이션 프레임에서는 24px입니다.
-Bump the nav icon size to 24px and keep the 44px hit area.|내비게이션 아이콘 크기를 24px로 키우고 44px 탭 영역은 유지하세요.
-one color token value; components keep reading the same token.|색상 토큰 값 하나입니다. 컴포넌트는 계속 같은 토큰을 참조합니다.
-Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).|코드의 primary 색상(#5B5BD6)이 브랜드 토큰(#5E6AD2)과 어긋났습니다.
-Point --primary at the brand token instead of the hard-coded hex.|--primary가 하드코딩된 hex 대신 브랜드 토큰을 가리키도록 하세요.
-2px of horizontal padding inside the Input component.|Input 컴포넌트 내부의 좌우 패딩 2px 차이입니다.
-Input horizontal padding (10px) differs from the design system (12px).|Input의 좌우 패딩(10px)이 디자인 시스템(12px)과 다릅니다.
-Use px-3 on the input so it matches the 12px design padding.|input에 px-3을 사용해 12px 디자인 패딩에 맞추세요.
-form spacing on the checkout — visible, but no behavior change.|결제 화면 폼 간격입니다 — 눈에는 보이지만 동작 변경은 없습니다.
-Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.|결제 화면 간격이 4/8 간격 스케일에 없는 6px 단위를 사용합니다.
-Replace gap-1.5 with gap-2 so the form sits on the 8px scale.|gap-1.5를 gap-2로 교체해 폼이 8px 스케일에 맞도록 하세요.
-a divider color on the order summary; no layout or behavior change.|주문 요약의 구분선 색상입니다. 레이아웃이나 동작 변경은 없습니다.
-The order summary divider uses slate-200 instead of the border token.|주문 요약 구분선이 border 토큰 대신 slate-200을 사용합니다.
-Use border-border on the divider so it follows the theme.|구분선에 border-border를 사용해 테마를 따르도록 하세요.
-letter spacing on payment field labels; no layout or behavior change.|결제 입력란 라벨의 자간입니다. 레이아웃이나 동작 변경은 없습니다.
-Field labels use tracking-wide; the design system label style has normal tracking.|입력란 라벨이 tracking-wide를 사용합니다. 디자인 시스템 라벨 스타일은 normal 자간입니다.
-Drop tracking-wide from the field labels.|입력란 라벨에서 tracking-wide를 제거하세요.
-icon stroke weight on the shipping options; no layout or behavior change.|배송 옵션 아이콘의 선 굵기입니다. 레이아웃이나 동작 변경은 없습니다.
-Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 옵션 아이콘이 선 굵기 2.5로 렌더링됩니다. 아이콘 세트는 2로 그려져 있습니다.
-Use the default stroke width on the shipping icons.|배송 아이콘에 기본 선 굵기를 사용하세요.
-Icon size|아이콘 크기
-Hit area|탭 영역
-Field gap|필드 간격
-Divider|구분선
-Tracking|자간
 Reviewing|검토 중
 Viewing|보는 중
 Commenting|댓글 작성 중
@@ -155,7 +73,6 @@ Reading the card title copy|카드 제목 문구 검토 중
 Looking at the mobile frame|모바일 프레임 확인 중
 Editing Place order button in Checkout|결제 화면에서 Place order 버튼 편집 중
 Place order button|Place order 버튼
-Height & color|높이·색상
 Editing button sizes in tokens.json|tokens.json에서 버튼 크기 편집 중
 Reviewing Order summary in Checkout|결제 화면에서 Order summary 검토 중
 Reviewing color tokens in tokens.json|tokens.json에서 색상 토큰 검토 중
@@ -167,11 +84,7 @@ Reviewing size tokens in tokens.css|tokens.css에서 size 토큰 검토 중
 Viewing compact Button|Small 버튼 보는 중
 Reviewing the Button height conflict|Button 높이 충돌 검토 중
 Commenting on --button-height-md in tokens.css|tokens.css의 --button-height-md에 댓글 작성 중
-Checkout Redesign|결제 화면 리디자인
-Design System v2|디자인 시스템 v2
 Marketing Site Refresh|마케팅 사이트 리뉴얼
-Mobile Nav Revamp|모바일 내비게이션 개편
-Onboarding Flow|온보딩 플로우
 size="lg" and the primary token replace the fixed violet hex|size="lg"와 primary 토큰이 고정된 violet hex를 대체합니다
 md size uses --button-height-md instead of h-9|md 크기가 h-9 대신 --button-height-md를 사용합니다
 Button padding set to 12px 24px (px-6 py-3)|Button 패딩을 12px 24px(px-6 py-3)로 설정
@@ -180,8 +93,6 @@ Inputs move from 10px to the 12px design system padding.|Input 패딩이 10px에
 The lg radius step becomes 12px so cards and sheets share one curve.|lg 반경 단계가 12px가 되어 카드와 시트가 같은 곡률을 공유합니다.
 Form gaps move from 6px to 8px to stay on the 4/8 spacing scale.|폼 간격이 4/8 간격 스케일에 맞춰 6px에서 8px로 바뀝니다.
 --primary points at the brand token instead of a hard-coded hex.|--primary가 하드코딩된 hex 대신 브랜드 토큰을 가리킵니다.
-Design frame padding (12px 24px) does not match code button padding (8px 16px).|디자인 프레임 패딩(12px 24px)이 코드의 버튼 패딩(8px 16px)과 다릅니다.
-Ask Devsign to apply the padding fix — it will update the button className to px-6 py-3 to match the design frame.|Devsign에 패딩 수정을 요청하세요 — 버튼 className을 px-6 py-3으로 업데이트해 디자인 프레임과 맞춥니다.
 Switch user|사용자 전환
 Team activity|팀 활동
 Voice chat|음성 채팅
@@ -213,11 +124,8 @@ Close|닫기
 Cancel|취소
 Current|현재
 Files|파일
-Needs your review|검토할 항목
-Open|열기
 Status|상태
 Preview|미리보기
-All|전체
 History|히스토리
 Design|디자인
 Done|완료
@@ -235,7 +143,6 @@ No checkpoints yet.|아직 체크포인트가 없습니다.
 No matching checkpoints.|일치하는 체크포인트가 없습니다.
 — every other checkpoint is filtered out of this playback.|— 나머지 체크포인트는 이 재생에서 제외됩니다.
 Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. 히스토리에서 종류나 파일로 걸러 볼 수 있습니다.
-Merged|병합 완료
 Compare latest|최신 버전과 비교
 Merge Studio|병합 스튜디오
 Notifications|알림
@@ -250,12 +157,10 @@ All types|모든 유형
 Import|가져오기
 Back|뒤로
 Fill|채우기
-Radius|모서리 반경
 Resolved|해결됨
 High|높음
 Medium|보통
 Low|낮음
-Reviewers|검토자
 Conflict Points|충돌 지점
 Assets|에셋
 Terminal|터미널
@@ -294,7 +199,6 @@ Archive|보관함
 Restore to History|히스토리로 복원
 Bring designs, code and data into|디자인, 코드와 데이터 가져오기
 Delete|삭제
-Approved · Pending merge|승인됨 · 병합 대기
 Forward|앞으로
 Agent checkpoints (History)|에이전트 체크포인트 (히스토리)
 No comments yet.|아직 댓글이 없습니다.
@@ -323,7 +227,6 @@ AI changes wait for your approval before they apply|AI가 제안한 변경 사�
 ready for review|검토 대기
 Upload files|파일 업로드
 Width|너비
-Height|높이
 Label|레이블
 Version History|버전 히스토리
 Checkpoint ·|체크포인트 ·
@@ -336,7 +239,6 @@ Canvas|캔버스
 AI Chat|AI 채팅
 Layers|레이어
 Bottom panel|하단 패널
-Stroke|테두리
 Layout|레이아웃
 Workspace|워크스페이스
 Appearance|모양
@@ -440,7 +342,6 @@ Double-click text to edit|텍스트를 두 번 클릭하여 편집
 Zoom out|축소
 Zoom in|확대
 Write a comment...|댓글 작성...
-Pending merge|병합 대기
 Filter conflicts|충돌 필터
 No conflicts — design and code are in sync.|충돌이 없습니다. 디자인과 코드가 일치합니다.
 Select all low-risk conflicts|낮은 위험도의 충돌 모두 선택
@@ -651,7 +552,9 @@ Locate|위치 찾기
 Previous|이전
 Apply resolution|해결 결과 적용
 Next|다음
-No conflicts|충돌 없음
+Comment #1|댓글 #1
+Comment #2|댓글 #2
+Comment #11|댓글 #11
 Reset position & size|위치와 크기 초기화
 Delete (⌫)|삭제 (⌫)
 Listening…|듣는 중…
@@ -889,6 +792,189 @@ Why review is needed|검토가 필요한 이유
 No diff captured for this conflict yet.|이 충돌의 코드 차이가 아직 없습니다.
 Proposed change|제안된 변경
 Applied after required approvals and merge|필수 승인 후 병합 시 적용
+All|전체
+Open|미해결
+Pending merge|병합 대기
+Needs your review|내 검토 필요
+Reviewers|검토자
+Checkout Redesign|결제 화면 개편
+Design System v2|디자인 시스템 v2
+Mobile Nav Revamp|모바일 내비게이션 개편
+Onboarding Flow|온보딩 흐름
+Implemented the button in PlaceOrderButton.jsx|PlaceOrderButton.jsx에 버튼을 구현했습니다
+Opened a second draft of the Order summary card|주문 요약 카드의 두 번째 초안을 열었습니다
+Button|버튼
+40px (size/md)|40px (size/md)
+36px (h-9)|36px (h-9)
+--button-height-md|--button-height-md
+none — hard-coded|없음 — 하드코딩
+12px (custom)|12px (사용자 지정)
+8px (rounded-lg)|8px (rounded-lg)
+44px|44px
+24px|24px
+20px|20px
+button.height.lg = 44|button.height.lg = 44
+color.primary|color.primary
+16px radius and 700 title weight|모서리 반경 16px 및 제목 두께 700
+Button / Padding|버튼 / 안쪽 여백
+Design System|디자인 시스템
+Checkout|결제
+Navigation|내비게이션
+Height & color|높이 및 색상
+Title weight|제목 두께
+normal|기본값
+border (token)|border 토큰
+slate-200|slate-200
+0.025em (tracking-wide)|0.025em (tracking-wide)
+Button (DesignCanvas.jsx)|Button (DesignCanvas.jsx)
+Button · Frame 1 (Figma)|Button · 프레임 1 (Figma)
+Frame 1 · Button (Figma)|프레임 1 · 버튼 (Figma)
+Design frame padding (12px 24px) does not match code button padding (8px 16px).|디자인 프레임의 안쪽 여백(12px 24px)이 코드 버튼의 여백(8px 16px)과 다릅니다.
+Ask Devsign to apply the padding fix — it will update the button className to px-6 py-3 to match the design frame.|Devsign에 여백 수정을 요청하세요. 디자인 프레임에 맞게 버튼 className을 px-6 py-3으로 변경합니다.
+Fix the button padding to match the design frame|버튼 여백을 디자인 프레임에 맞추기
+Approved · Pending merge|승인됨 · 병합 대기
+Merged|병합 완료
+No conflicts|충돌 없음
+Button / Height|버튼 / 높이
+Merge conflict · DesignCanvas.jsx|병합 충돌 · DesignCanvas.jsx
+Card / Radius|카드 / 모서리 반경
+Nav Icon / Size|내비게이션 아이콘 / 크기
+Color token drift|색상 토큰 불일치
+Input / Padding|입력 필드 / 안쪽 여백
+Spacing scale mismatch|간격 단위 불일치
+Divider / Color|구분선 / 색상
+Label / Letter spacing|레이블 / 자간
+Icon / Stroke width|아이콘 / 선 두께
+Place order button · Height & color|주문 버튼 · 높이 및 색상
+Order summary card · Radius & weight|주문 요약 카드 · 모서리 반경 및 글자 두께
+the shared Button component — a height change reaches every screen that uses it.|공용 Button 컴포넌트의 높이 변경으로, 이를 사용하는 모든 화면에 영향을 줍니다.
+a merge conflict — both branches edited the same lines, so one side’s change could be lost.|병합 충돌입니다. 두 브랜치가 같은 줄을 수정해 한쪽 변경 사항이 사라질 수 있습니다.
+a corner radius on the Card container; no layout or behavior change.|Card 컨테이너의 모서리 반경 변경으로, 레이아웃이나 동작에는 영향이 없습니다.
+the tab bar icons appear on every mobile screen.|탭 바 아이콘이 모든 모바일 화면에 표시됩니다.
+one color token value; components keep reading the same token.|색상 토큰 값 하나의 변경이며, 컴포넌트는 동일한 토큰을 계속 사용합니다.
+2px of horizontal padding inside the Input component.|Input 컴포넌트 안쪽의 가로 여백이 2px 달라집니다.
+form spacing on the checkout — visible, but no behavior change.|결제 화면의 폼 간격 차이로, 눈에 보이지만 동작에는 영향이 없습니다.
+a divider color on the order summary; no layout or behavior change.|주문 요약 구분선의 색상 변경으로, 레이아웃이나 동작에는 영향이 없습니다.
+letter spacing on payment field labels; no layout or behavior change.|결제 입력란 레이블의 자간 차이로, 레이아웃이나 동작에는 영향이 없습니다.
+icon stroke weight on the shipping options; no layout or behavior change.|배송 옵션 아이콘의 선 두께 차이로, 레이아웃이나 동작에는 영향이 없습니다.
+a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.|결제 화면의 주요 버튼 크기와 색상이 달라집니다. 스타일만 변경되며 결제 로직이나 데이터에는 영향이 없습니다.
+a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면의 주문 요약 카드 스타일 선택으로, 어느 쪽을 선택해도 로직이나 데이터에는 영향이 없습니다.
+Button height in code (36px) drifts from the design system token (40px).|코드의 버튼 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
+Merge conflict between local and remote branch (lines 9-14).|로컬과 원격 브랜치의 9~14번째 줄에서 병합 충돌이 발생했습니다.
+Card corner radius (8px) is smaller than the design system radius (12px).|카드 모서리 반경(8px)이 디자인 시스템 기준(12px)보다 작습니다.
+Nav icons render at 20px in code but 24px in the redesigned nav frame.|코드에서는 내비게이션 아이콘이 20px로 표시되지만, 새 디자인 프레임에서는 24px입니다.
+Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).|코드의 기본 색상(#5B5BD6)이 브랜드 토큰(#5E6AD2)과 다릅니다.
+Input horizontal padding (10px) differs from the design system (12px).|입력 필드의 가로 안쪽 여백(10px)이 디자인 시스템 기준(12px)과 다릅니다.
+Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.|결제 화면 간격에 4/8 단위에 없는 6px 값이 사용되고 있습니다.
+The order summary divider uses slate-200 instead of the border token.|주문 요약 구분선에 border 토큰 대신 slate-200이 사용되고 있습니다.
+Field labels use tracking-wide; the design system label style has normal tracking.|필드 레이블에 tracking-wide가 적용되어 있습니다. 디자인 시스템에서는 기본 자간을 사용합니다.
+Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 옵션 아이콘의 선 두께는 2.5지만, 아이콘 세트 기준은 2입니다.
+The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|주문 버튼은 높이가 40px이고 보라색 배경(#7c3aed)이 고정되어 있습니다. 결제 디자인은 높이 44px의 large 버튼과 기본 색상 토큰을 사용합니다.
+Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|주문 요약 카드 초안 세 개가 나란히 열려 있습니다. Jane, Min, James의 초안은 모서리 반경과 제목 글자 두께가 서로 다릅니다.
+Buttons render 4px shorter than the design system’s medium size.|버튼 높이가 디자인 시스템의 medium 크기보다 4px 낮습니다.
+Without the merged version, frames either lose their selection handler or their stable key.|병합하지 않으면 프레임에서 선택 핸들러나 안정적인 key 중 하나가 누락됩니다.
+Cards look slightly sharper than the rest of the design system.|카드 모서리가 디자인 시스템의 다른 요소보다 조금 더 각져 보입니다.
+Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.|탭 아이콘이 새 탭 바보다 작아 보이지만, 44px 터치 영역은 유지됩니다.
+The primary color is a slightly different shade from the brand color.|기본 색상이 브랜드 색상과 미세하게 다릅니다.
+Input text sits 2px closer to the edge than in the design.|입력 텍스트가 디자인보다 가장자리에 2px 더 가깝습니다.
+Form fields sit 2px closer together than the 8px spacing scale.|폼 필드 사이 간격이 8px 단위보다 2px 좁습니다.
+The fixed color will not follow theme changes.|고정 색상은 테마 변경을 반영하지 않습니다.
+Field labels read slightly wider-spaced than the rest of the form.|필드 레이블의 자간이 폼의 다른 텍스트보다 약간 넓습니다.
+Shipping icons look heavier than the rest of the icon set.|배송 아이콘 선이 아이콘 세트의 다른 아이콘보다 굵어 보입니다.
+The button is 4px shorter than the design’s large button, and its fixed violet color won’t follow theme changes.|버튼 높이가 디자인의 large 크기보다 4px 낮고, 고정된 보라색은 테마 변경을 반영하지 않습니다.
+Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.|초안 하나를 선택하면 주문 요약 카드가 결제 화면의 다른 카드와 일관된 스타일을 유지합니다.
+Every other card on this screen already uses a 16px radius and a 700-weight title.|이 화면의 다른 카드는 모두 모서리 반경 16px와 글자 두께 700을 사용합니다.
+Buttons|버튼
+Checkout · Payment step|결제 · 결제 단계
+Onboarding · Welcome|온보딩 · 환영 화면
+Settings · Profile|설정 · 프로필
+Checkout · Shipping step|결제 · 배송 단계
+Order summary|주문 요약
+Three open drafts on the same element|같은 요소에 열린 초안 3개
+Devsign design ↔ code sync|Devsign 디자인 ↔ 코드 동기화
+Pushed new changes to Button.jsx|Button.jsx에 새 변경 사항을 푸시했습니다
+DesignCanvas|디자인 캔버스
+DesignCanvas.jsx|DesignCanvas.jsx
+Card|카드
+BottomNav|하단 내비게이션
+Input|입력 필드
+CheckoutForm|결제 폼
+OrderSummary|주문 요약
+PaymentForm|결제 폼
+PlaceOrderButton|주문 버튼
+Height|높이
+Token|토큰
+key prop|key 속성
+onSelect handler|onSelect 핸들러
+frame.id (preserved)|frame.id (유지됨)
+missing — merge conflict|누락됨 — 병합 충돌
+kept from local branch|로컬 브랜치에서 유지
+duplicated across branches|두 브랜치에 중복됨
+Radius|모서리 반경
+Icon size|아이콘 크기
+Hit area|터치 영역
+Primary|기본 색상
+Padding X|가로 안쪽 여백
+Field gap|필드 간격
+Divider|구분선
+Tracking|자간
+Stroke|선 두께
+44px (button.height.lg)|44px (button.height.lg)
+40px (default size)|40px (기본 크기)
+Background|배경
+color.primary (Indigo 500)|color.primary (인디고 500)
+#7c3aed (fixed hex)|#7c3aed (고정 색상)
+16px (Min’s draft)|16px (Min 초안)
+12px (Jane’s draft)|12px (Jane 초안)
+700 (Min’s draft)|700 (Min 초안)
+600 (Jane’s draft)|600 (Jane 초안)
+Checkout · Payment step (Figma)|결제 · 결제 단계 (Figma)
+Button · Size/MD (Figma)|Button · 크기/MD (Figma)
+Card · Default (Figma)|카드 · 기본값 (Figma)
+Nav · Tab bar (Figma)|내비게이션 · 탭 바 (Figma)
+Color · Primary (Figma)|색상 · 기본값 (Figma)
+Input · Default (Figma)|입력 필드 · 기본값 (Figma)
+Checkout · Form (Figma)|결제 · 폼 (Figma)
+Checkout · Summary (Figma)|결제 · 요약 (Figma)
+Checkout · Payment (Figma)|결제 · 결제 단계 (Figma)
+Checkout · Shipping (Figma)|결제 · 배송 (Figma)
+Light theme|라이트 테마
+Dark theme|다크 테마
+Continue|계속
+Place order|주문하기
+Card number|카드 번호
+Order summary card|주문 요약 카드
+The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.|디자인 시스템에서 size/md는 --button-height-md(40px)입니다. h-9는 36px을 고정해 토큰을 사용하지 않습니다.
+Every Button renders 40px tall from --button-height-md.|모든 Button이 --button-height-md에 따라 높이 40px로 표시됩니다.
+Swap the hard-coded h-9 for the size token so the button follows the design system height.|고정된 h-9 대신 크기 토큰을 사용해 버튼 높이를 디자인 시스템 기준에 맞추세요.
+Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.|두 브랜치가 프레임 매핑 블록을 수정했습니다. 원격 브랜치의 key 속성 변경을 유지하고 그 위에 로컬 onSelect 핸들러를 다시 적용하세요.
+Resolve the merge conflict in DesignCanvas.jsx|DesignCanvas.jsx의 병합 충돌 해결
+Use the radius-lg token on the card container instead of rounded-lg.|카드 컨테이너에 rounded-lg 대신 radius-lg 토큰을 사용하세요.
+Match the card radius to the design system|카드 모서리 반경을 디자인 시스템에 맞추세요
+Bump the nav icon size to 24px and keep the 44px hit area.|내비게이션 아이콘을 24px로 키우고 44px 터치 영역은 유지하세요.
+Resize the bottom nav icons to 24px|하단 내비게이션 아이콘을 24px로 조정
+Point --primary at the brand token instead of the hard-coded hex.|고정된 HEX 값 대신 --primary가 브랜드 토큰을 참조하도록 바꾸세요.
+Sync the primary color with the brand token|기본 색상을 브랜드 토큰과 동기화
+Use px-3 on the input so it matches the 12px design padding.|입력 필드에 px-3을 적용해 디자인의 12px 여백에 맞추세요.
+Fix the input padding to match the design system|입력 필드 여백을 디자인 시스템에 맞추세요
+Replace gap-1.5 with gap-2 so the form sits on the 8px scale.|폼 간격을 8px 단위에 맞추도록 gap-1.5를 gap-2로 바꾸세요.
+Align checkout spacing to the 8px scale|결제 화면 간격을 8px 단위에 맞추세요
+Use border-border on the divider so it follows the theme.|테마를 따르도록 구분선에 border-border를 사용하세요.
+Use the border token on the order summary divider|주문 요약 구분선에 border 토큰 사용
+Drop tracking-wide from the field labels.|필드 레이블에서 tracking-wide를 제거하세요.
+Remove the extra letter spacing from payment labels|결제 레이블의 추가 자간을 제거
+Use the default stroke width on the shipping icons.|배송 아이콘에 기본 선 두께를 사용하세요.
+Reset the shipping icon stroke width|배송 아이콘 선 두께를 기본값으로 되돌리기
+Use the lg button size and remove the fixed background so the button uses the primary color token.|버튼에 lg 크기를 적용하고 고정 배경을 제거해 기본 색상 토큰을 사용하세요.
+The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 디자인은 큰 기본 버튼을 지정하지만, 고정된 HEX 값은 테마를 따르지 않습니다.
+Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 주문 버튼이 기본 색상으로 높이 44px에 표시됩니다.
+Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|Min의 초안을 사용하세요. 모서리 반경 16px와 제목 두께 700이 결제 화면의 다른 카드와 일치합니다.
+One Order summary card style, used consistently across the checkout flow.|결제 흐름 전체에서 일관되게 사용하는 하나의 주문 요약 카드 스타일입니다.
+Merged Button height to size token|Button 높이를 크기 토큰에 맞춰 병합
+Merged Place order button size and color|주문 버튼의 크기와 색상 병합
+Merged Order summary card style|주문 요약 카드 스타일 병합
+I’ll sync this with the token file once the palette is finalized.|팔레트가 확정되면 토큰 파일에도 반영하겠습니다.
+AI: divider color drifts from the border token in OrderSummary.jsx|AI: OrderSummary.jsx의 구분선 색상이 border 토큰과 다릅니다
 Next:|다음:
 your review|내 검토
 Remind all|모두에게 알림

@@ -2,6 +2,7 @@ import { ChevronRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
 import { RISK_LABEL, STAGE_DOT_CLASS, STAGE_LABEL, nextActionFor } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
+import { LocalizedText } from '@/i18n/runtime'
 
 export function RiskBadge({ severity }) {
   if (!severity) return null
@@ -21,12 +22,12 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
     >
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[13px] font-medium text-slate-100">{conflict.title}</span>
+          <span className="truncate text-[13px] font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
           <RiskBadge severity={conflict.severity} />
-          {note && <span className="shrink-0 text-[10.5px] text-slate-500">{note}</span>}
+          {note && <span className="shrink-0 text-[10.5px] text-slate-500"><LocalizedText text={note} /></span>}
         </span>
         <span className="mt-1 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
-          {showProject && conflict.projectName && <span className="shrink-0 text-slate-400">{conflict.projectName} ·</span>}
+          {showProject && conflict.projectName && <span className="shrink-0 text-slate-400"><LocalizedText text={conflict.projectName} /> ·</span>}
           <FileCode2 className="size-3 shrink-0" />
           <span className="truncate font-mono">{conflict.file}</span>
         </span>
@@ -34,9 +35,9 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className="flex items-center gap-1.5 text-[11px] text-slate-300">
           <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
-          {STAGE_LABEL[conflict.reviewStage]}
+          <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
         </span>
-        <span className={cn('text-[11px]', next.mine ? 'font-medium text-emerald-300' : 'text-slate-500')}>{next.label}</span>
+        <span className={cn('text-[11px]', next.mine ? 'font-medium text-emerald-300' : 'text-slate-500')}><LocalizedText text={next.label} /></span>
       </span>
       <ChevronRight className="size-3.5 shrink-0 text-slate-600 transition-colors group-hover:text-slate-300" />
     </button>
