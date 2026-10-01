@@ -752,36 +752,26 @@ export function VariantCompareTab({ item, selectedLayerId, resolutions, onResolv
   // rather than widening the row to N columns.
   const extraVariants = (item.variants ?? []).filter((v) => v.key !== item.authorAId && v.key !== item.authorBId)
 
-  // The open row. Follows the canvas: selecting a drifting element opens
-  // its row (context-aware), without closing a row the user opened by hand
-  // for something else unless the selection points at a drift.
-  const [openId, setOpenId] = useState(selectedLayerId ? `d:${selectedLayerId}` : null)
-  // A row the user just closed by hand shouldn't immediately reopen on the
-  // next render just because `selectedLayerId` still resolves to that same
-  // layer (it does whenever nothing else is explicitly selected — the
-  // canvas falls back to the item's default layer) — only a genuinely new
-  // selection should auto-open a row again.
-  const closedByHandRef = useRef(null)
+  const [openId, setOpenId] = useState(() => (
+    (selectedLayerId && drifts.some((drift) => drift.id === `d:${selectedLayerId}`)
+      ? `d:${selectedLayerId}`
+      : drifts[0]?.id) ?? null
+  ))
   useEffect(() => {
     if (!selectedLayerId || !designMergeVariants[item.id]?.layerDiffs?.[selectedLayerId]) return
     const nextId = `d:${selectedLayerId}`
-    if (nextId === closedByHandRef.current) return
     setOpenId(nextId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLayerId])
 
-  function toggle(d) {
-    const opening = openId !== d.id
-    setOpenId(opening ? d.id : null)
-    closedByHandRef.current = opening ? null : d.id
-    if (opening) {
-      requestMergeFocus({
-        itemId: item.id,
-        keepDeck: true,
-        label: d.label,
-        ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
-      })
-    }
+  function selectDrift(d) {
+    setOpenId(d.id)
+    requestMergeFocus({
+      itemId: item.id,
+      keepDeck: true,
+      label: d.label,
+      ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
+    })
   }
 
   if (!drifts.length) {
@@ -792,118 +782,117 @@ export function VariantCompareTab({ item, selectedLayerId, resolutions, onResolv
     )
   }
 
+  const activeDrift = drifts.find((drift) => drift.id === openId) ?? drifts[0]
+  const activeDone = resolvedOf(activeDrift)
+  const activeLeft = activeDrift.kind === 'design'
+    ? activeDrift.diffs.filter((diff) => !resolutions[`${activeDrift.layerId}:${diff.id}`]).length
+    : null
+  const activeOriginal = activeDrift.kind === 'code' ? (getFileLines(activeDrift.fileId)[activeDrift.line - 1] ?? '') : null
+  const activeIncoming = activeDrift.kind === 'code'
+    ? codeMergeVariants[item.id]?.[activeDrift.fileId]?.find((change) => change.line === activeDrift.line)?.incoming
+    : null
+
   return (
-    <DeckScroll innerClassName="space-y-4 px-5 pb-5">
-      {/* Resolution summary — plain text over the progress bar, no box. */}
-      <div className="pt-1">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[13px] font-semibold text-slate-100 tabular-nums">
-            {resolved} of {drifts.length}
-          </span>
-          <span className="text-xs text-slate-400">drifts resolved</span>
-          <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
-            {design} design · {drifts.length - design} code
-          </span>
+    <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(180px,0.72fr)_minmax(250px,1fr)_minmax(360px,1.6fr)]">
+      <section className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] p-4')}>
+        <h3 className="text-xs font-medium text-slate-300">Resolution progress</h3>
+        <div className="mt-4 flex items-baseline gap-1.5">
+          <span className="text-2xl font-semibold text-white tabular-nums">{resolved}</span>
+          <span className="text-sm text-slate-500">/ {drifts.length}</span>
         </div>
-        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+        <p className="mt-1 text-xs text-slate-400">drifts resolved</p>
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
           <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-300" style={{ width: `${(resolved / drifts.length) * 100}%` }} />
         </div>
-      </div>
+        <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3 text-[11px] text-slate-400">
+          <p className="flex justify-between gap-2"><span>Design</span><span className="tabular-nums text-slate-200">{design}</span></p>
+          <p className="flex justify-between gap-2"><span>Code</span><span className="tabular-nums text-slate-200">{drifts.length - design}</span></p>
+        </div>
+      </section>
 
-      <section>
-        <p className={PANEL_LABEL}>
-          Detected drifts
-          <span className="text-slate-500 tabular-nums">{drifts.length}</span>
-        </p>
-        {/* Borderless list: rows split by thin hairlines; severity sits in
-            its own fixed-width column so every row lines up. */}
-        <div className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-          {drifts.map((d) => {
-            const done = resolvedOf(d)
-            const open = openId === d.id
-            const left = d.kind === 'design' ? d.diffs.filter((diff) => !resolutions[`${d.layerId}:${diff.id}`]).length : null
-            const original = d.kind === 'code' ? (getFileLines(d.fileId)[d.line - 1] ?? '') : null
-            const incoming = d.kind === 'code' ? codeMergeVariants[item.id]?.[d.fileId]?.find((x) => x.line === d.line)?.incoming : null
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
+        <div className="flex shrink-0 items-center gap-2 px-3 py-3">
+          <h3 className="text-xs font-medium text-slate-300">Detected drifts</h3>
+          <span className="ml-auto text-[10px] tabular-nums text-slate-500">{drifts.length}</span>
+        </div>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto', PANEL_ROWS)}>
+          {drifts.map((drift) => {
+            const done = resolvedOf(drift)
+            const remaining = drift.kind === 'design'
+              ? drift.diffs.filter((diff) => !resolutions[`${drift.layerId}:${diff.id}`]).length
+              : null
+            const selected = activeDrift.id === drift.id
             return (
-              // Same row language as the Merge List cards: the severity badge
-              // in a fixed column at the front, two lines (13px label · 11px
-              // status) with the resolved check at the end of the first. The
-              // whole row is the toggle — no chevron; open is a pure
-              // background tint.
-              <div key={d.id} className={cn('transition-colors', open ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]')}>
-                <button
-                  type="button"
-                  onClick={() => toggle(d)}
-                  aria-expanded={open}
-                  title={open ? 'Collapse' : 'Show property diffs'}
-                  className="grid w-full cursor-pointer grid-cols-[46px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-3 py-3.5 text-left"
-                >
-                  <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
-                    <SeverityPill level={severityOf(d)} className={SEVERITY_BADGE} />
-                  </span>
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    <span className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-white">{d.label}</span>
-                    {/* Resolved: a solid mint circle with a dark check and a
-                        soft mint glow. Pending: plain gray. */}
-                    <span
-                      title={done ? 'Resolved' : 'Not resolved yet'}
-                      className={cn(
-                        'flex size-4 shrink-0 items-center justify-center rounded-full transition-colors',
-                        done ? 'bg-emerald-400 text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.55)]' : 'bg-slate-700 text-muted-foreground'
-                      )}
-                    >
-                      {done && <Check strokeWidth={3.5} className="size-2.5" />}
-                    </span>
-                  </span>
-                  <span className="min-w-0 truncate text-[11px] leading-4 text-slate-400">
-                    {d.kind === 'code' ? `Code · line ${d.line}` : done ? 'All properties resolved' : `${left} of ${d.diffs.length} to resolve`}
-                  </span>
-                </button>
-
-                {/* Inline accordion body, directly beneath its row: animates
-                    its height open / closed (grid-rows 0fr ↔ 1fr). */}
-                <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')} inert={!open} aria-hidden={!open}>
-                  <div className="overflow-hidden">
-                    <div className="px-3 pb-3">
-                      {d.kind === 'design' ? (
-                        <div>
-                          {d.diffs.map((diff) => (
-                            <DiffRow
-                              key={`${diff.id}:${JSON.stringify(resolutions[`${d.layerId}:${diff.id}`] ?? null)}`}
-                              diff={diff}
-                              resolution={resolutions[`${d.layerId}:${diff.id}`]}
-                              onResolve={(diffId, side) => onResolve(d.layerId, diffId, side)}
-                              onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
-                              labelA={labelA}
-                              labelB={labelB}
-                              extraOptions={
-                                diff.values
-                                  ? extraVariants.filter((v) => v.key in diff.values).map((v) => ({ key: v.key, label: v.label, value: diff.values[v.key] }))
-                                  : []
-                              }
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-[4.5rem_1fr] items-start gap-x-2 gap-y-1.5 py-1 text-[11px]">
-                          <span className="pt-0.5 text-slate-500">Original</span>
-                          <p className="font-mono break-words text-slate-500 line-through decoration-slate-600">{original || ' '}</p>
-                          <span className="pt-0.5 text-slate-500">Incoming</span>
-                          <p className="font-mono break-words text-slate-100">{incoming ?? '—'}</p>
-                          <span />
-                          <p className="text-slate-500">Edit this line directly in the code window.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <button
+                key={drift.id}
+                type="button"
+                onClick={() => selectDrift(drift)}
+                aria-pressed={selected}
+                className={cn('grid w-full grid-cols-[42px_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5 px-3 py-3 text-left transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.035]')}
+              >
+                <span className={cn('row-span-2 flex items-center', SEVERITY_COL)}>
+                  <SeverityPill level={severityOf(drift)} className={SEVERITY_BADGE} />
+                </span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-white">{drift.label}</span>
+                  {done && <Check className="size-3.5 shrink-0 text-emerald-300" />}
+                </span>
+                <span className="min-w-0 truncate text-[10px] text-slate-500">
+                  {drift.kind === 'code' ? `Code · line ${drift.line}` : done ? 'All properties resolved' : `${remaining} of ${drift.diffs.length} to resolve`}
+                </span>
+              </button>
             )
           })}
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">Open a drift to compare and resolve its properties right here.</p>
       </section>
-    </DeckScroll>
+
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
+        <div className="flex shrink-0 items-start gap-3 border-b border-white/[0.06] px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{activeDrift.label}</p>
+            <p className={cn('mt-1 text-[11px]', activeDone ? 'text-emerald-300' : 'text-slate-400')}>
+              {activeDone ? 'All properties resolved' : activeDrift.kind === 'code' ? `Code · line ${activeDrift.line}` : `${activeLeft} of ${activeDrift.diffs.length} properties remaining`}
+            </p>
+          </div>
+          <span className="shrink-0 text-[10px] tabular-nums text-slate-500">
+            {drifts.findIndex((drift) => drift.id === activeDrift.id) + 1} / {drifts.length}
+          </span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+          {activeDrift.kind === 'design' ? (
+            <>
+              <div className="mb-2 grid grid-cols-[74px_minmax(0,1fr)] gap-2 text-[10px] text-slate-500">
+                <span>Property</span>
+                <span className="grid grid-cols-3 gap-1 text-center"><span>{labelA}</span><span>{labelB}</span><span>Final</span></span>
+              </div>
+              {activeDrift.diffs.map((diff) => (
+                <DiffRow
+                  key={`${diff.id}:${JSON.stringify(resolutions[`${activeDrift.layerId}:${diff.id}`] ?? null)}`}
+                  diff={diff}
+                  resolution={resolutions[`${activeDrift.layerId}:${diff.id}`]}
+                  onResolve={(diffId, side) => onResolve(activeDrift.layerId, diffId, side)}
+                  onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: activeDrift.layerId, diffId, side } : null)}
+                  labelA={labelA}
+                  labelB={labelB}
+                  extraOptions={diff.values
+                    ? extraVariants.filter((variant) => variant.key in diff.values).map((variant) => ({ key: variant.key, label: variant.label, value: diff.values[variant.key] }))
+                    : []}
+                />
+              ))}
+            </>
+          ) : (
+            <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 py-2 text-xs">
+              <span className="pt-0.5 text-slate-500">Original</span>
+              <p className="min-w-0 break-words font-mono text-slate-500 line-through decoration-slate-600">{activeOriginal || ' '}</p>
+              <span className="pt-0.5 text-slate-500">Incoming</span>
+              <p className="min-w-0 break-words font-mono text-slate-100">{activeIncoming ?? '—'}</p>
+              <span />
+              <p className="text-[11px] text-slate-500">Edit this line directly in the code window.</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   )
 }
 

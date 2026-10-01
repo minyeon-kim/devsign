@@ -1,14 +1,11 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Bell,
   Bot,
-  ArrowLeft,
   Check,
+  ChevronLeft,
   Clock3,
-  Code2,
-  Eye,
   GitMerge,
-  History,
   Plus,
   RotateCcw,
   Send,
@@ -36,18 +33,14 @@ import {
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
-import { historyMeta } from '@/lib/historyMeta'
-import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
-import HistoryTimeline from '@/components/history/HistoryTimeline'
-import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
+import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
   GHOST_BUTTON,
   PANEL_LABEL,
-  WORKSPACE_TAB_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 
 // ─── The one conflict review window ────────────────────────────────────
@@ -511,7 +504,7 @@ const iconActionClass =
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onApproveReviewer }) {
+function ReviewersSection({ conflict, onUpdate }) {
   const viewerId = currentUserFor(conflict.projectId).id
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
@@ -612,21 +605,6 @@ function ReviewersSection({ conflict, onUpdate, onApproveReviewer }) {
                       className={iconActionClass}
                     >
                       <Bell className="size-3.5" />
-                    </button>
-                  )}
-                  {/* Records an approval obtained outside Devsign (in
-                      person, on a call, in Slack) so the review stays
-                      accurate without waiting on the reviewer to click
-                      through themselves. */}
-                  {reviewStage === 'in_review' && reviewer.status === 'pending' && reviewer.id !== viewerId && onApproveReviewer && (
-                    <button
-                      type="button"
-                      aria-label={`Mark ${person.name}'s review as approved`}
-                      title={`Mark ${person.name}'s review as approved`}
-                      onClick={() => onApproveReviewer(reviewer.id)}
-                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
-                    >
-                      <Check className="size-3.5" />
                     </button>
                   )}
                   {(reviewStage === 'detected' ||
@@ -781,209 +759,6 @@ function CommentThread({ conflict, workspace }) {
   )
 }
 
-const EMPTY_HISTORY = []
-
-function relativeCheckpointTime(timestamp) {
-  if (!timestamp) return 'Saved checkpoint'
-  if (/^(just now|today|yesterday|last week|\d+\s*(?:m|h|d|w|mo|y) ago)/i.test(timestamp)) {
-    return timestamp.split(',')[0]
-  }
-  const now = new Date()
-  const weekday = timestamp.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s+(\d{1,2}:\d{2}\s*[AP]M)$/i)
-  let date = null
-  if (weekday) {
-    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const targetDay = weekdays.findIndex((day) => day.toLowerCase() === weekday[1].toLowerCase())
-    const daysAgo = (now.getDay() - targetDay + 7) % 7 || 7
-    date = new Date(now)
-    date.setDate(now.getDate() - daysAgo)
-    const time = new Date(`Jan 1, 2000 ${weekday[2]}`)
-    date.setHours(time.getHours(), time.getMinutes(), 0, 0)
-  } else {
-    date = new Date(`${timestamp}, ${now.getFullYear()}`)
-    if (Number.isNaN(date.getTime())) return timestamp
-    if (date > now) date.setFullYear(date.getFullYear() - 1)
-  }
-  const days = Math.max(0, Math.floor((now - date) / 86_400_000))
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`
-  if (days < 365) return `${Math.floor(days / 30)} months ago`
-  return `${Math.floor(days / 365)} years ago`
-}
-
-function HistoryCheckpointTimeline({ workspace }) {
-  const entries = workspace?.historyEntries ?? EMPTY_HISTORY
-  const activeId = workspace?.activeHistoryId
-  const timeline = useMemo(() => entries.filter((entry) => !entry.archived), [entries])
-  const [selectedId, setSelectedId] = useState(null)
-  const [rollbackId, setRollbackId] = useState(null)
-  const [compareLatest, setCompareLatest] = useState(true)
-  const [playing, setPlaying] = useState(false)
-  const [historyView, setHistoryView] = useState('code')
-  const active = entries.find((entry) => entry.id === activeId) ?? timeline.at(-1) ?? null
-  const resolvedSelectedId = timeline.some((entry) => entry.id === selectedId) ? selectedId : active?.id
-  const selected = entries.find((entry) => entry.id === resolvedSelectedId) ?? null
-  const timelineIndex = timeline.findIndex((entry) => entry.id === resolvedSelectedId)
-  const rows = useMemo(() => {
-    if (!selected) return []
-    const versionLines = selected.snapshot?.lines ?? []
-    if (!compareLatest || !active || selected.id === active.id) return versionLines.map((text) => ({ kind: 'same', text }))
-    return diffLines(active.snapshot?.lines ?? [], versionLines)
-  }, [selected, active, compareLatest])
-
-  useEffect(() => {
-    if (!playing) return undefined
-    const timer = window.setTimeout(() => {
-      const next = timeline[timelineIndex + 1]
-      if (next) setSelectedId(next.id)
-      else setPlaying(false)
-    }, 900)
-    return () => window.clearTimeout(timer)
-  }, [playing, timeline, timelineIndex])
-
-  function selectVersion(id) {
-    setPlaying(false)
-    setSelectedId(id)
-  }
-
-  function togglePlay() {
-    if (!playing && timelineIndex >= timeline.length - 1 && timeline[0]) setSelectedId(timeline[0].id)
-    setPlaying((current) => !current)
-  }
-
-  if (entries.length === 0) {
-    return <EmptyNote>No checkpoints have been saved for this project yet.</EmptyNote>
-  }
-
-  return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
-      <div className={cn('flex min-h-0 min-w-0 flex-1', REVIEW_GUTTER)}>
-        <section aria-label="Project checkpoints" className={cn('flex w-[38%] min-w-[190px] max-w-[360px] shrink-0 flex-col overflow-hidden', REVIEW_CARD)}>
-          <div className="flex shrink-0 items-center gap-1.5 px-3 py-3">
-            <History className="size-3.5 text-slate-500" />
-            <span className="text-xs font-medium text-slate-300">Checkpoints</span>
-            <span className="ml-auto text-[10px] tabular-nums text-slate-500">{timeline.length}</span>
-          </div>
-          <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
-          {[...timeline].reverse().map((entry) => {
-            const person = allPeople.find((candidate) => candidate.id === entry.actorId)
-            const author = entry.actorLabel ?? person?.name ?? 'Workspace'
-            const isCurrent = entry.id === activeId
-            const isRestored = Boolean(entry.restoredFrom || entry.kind === 'rollback' || /^(restored|rolled back)/i.test(entry.label))
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                aria-pressed={entry.id === resolvedSelectedId}
-                onClick={() => selectVersion(entry.id)}
-                className={cn(
-                  'flex w-full min-w-0 flex-col gap-1.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.045]',
-                  entry.id === resolvedSelectedId && 'bg-white/[0.06]'
-                )}
-              >
-                <span className="flex w-full min-w-0 items-start gap-2">
-                  <span className={cn('mt-1 ds-status-dot shrink-0 rounded-full', isCurrent ? 'bg-emerald-300' : isRestored ? 'bg-amber-300' : 'bg-slate-600')} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-200" title={entry.label}>{entry.label}</span>
-                  {isCurrent && <span className="shrink-0 rounded-full bg-emerald-400/10 px-1.5 py-0.5 text-[9px] text-emerald-300">Current</span>}
-                  {!isCurrent && isRestored && <span className="shrink-0 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] text-amber-200">Restored</span>}
-                  {!isCurrent && entry.archived && <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-slate-400">Archived</span>}
-                </span>
-                <span className="flex min-w-0 items-center gap-1.5 pl-3.5">
-                  {person ? <PersonAvatar person={person} /> : (
-                    <Avatar size="sm"><AvatarFallback className="bg-emerald-400/15 text-[9px] font-medium text-emerald-200">{author.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{author}</span>
-                  <span className="flex shrink-0 items-center gap-1 text-[10px] text-slate-500">
-                    <Clock3 className="size-3" />
-                    {relativeCheckpointTime(entry.timestamp)}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
-          </div>
-        </section>
-
-        <section aria-label="Checkpoint version comparison" className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', REVIEW_CARD)}>
-          {selected ? (
-          <>
-            <div className="flex shrink-0 items-start gap-3 px-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-slate-200">{selected.label}</p>
-                <p className="mt-1 truncate text-[10px] text-slate-500">
-                  {relativeCheckpointTime(selected.timestamp)}{historyMeta(selected, workspace?.currentUser?.id) ? ` · ${historyMeta(selected, workspace?.currentUser?.id)}` : ''}
-                  {selected.snapshot?.fileId ? ` · ${workspace.getFileName(selected.snapshot.fileId)}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Checkpoint view">
-                {[
-                  ['code', Code2, 'Code'],
-                  ['preview', Eye, 'Preview'],
-                ].map(([id, Icon, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={historyView === id}
-                    onClick={() => setHistoryView(id)}
-                    className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-medium transition-colors', historyView === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200')}
-                  >
-                    <Icon className="size-3" />
-                    <LocalizedText text={label} />
-                  </button>
-                ))}
-              </div>
-            </div>
-            {historyView === 'code' ? (
-              <div className="min-h-0 flex-1 overflow-auto border-t border-white/[0.05] py-1.5 font-mono text-[10px] leading-relaxed">
-                {rows.length === 0 ? <p className="px-3 py-3 text-slate-500">No file snapshot is available for this checkpoint.</p> : rows.map((row, index) => (
-                  <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-400/[0.08] text-emerald-300' : row.kind === 'remove' ? 'bg-red-400/[0.08] text-red-300' : 'text-slate-500')}>
-                    <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 overflow-hidden border-t border-white/[0.05]">
-                <PreviewPanelContent
-                  key={`history-preview-${selected.id}`}
-                  previewProps={selected.snapshot.previewProps}
-                  prototypeEdits={selected.snapshot.prototypeEdits}
-                  activePageId={selected.snapshot.activePageId}
-                  showZoomControl
-                  caption={<span className="text-emerald-300">{selected.id === activeId ? 'Current checkpoint' : 'Selected checkpoint'}</span>}
-                />
-              </div>
-            )}
-            <div className="shrink-0 border-t border-white/[0.06] p-2">
-              <HistoryTimeline
-                compact
-                entries={timeline}
-                selectedId={resolvedSelectedId}
-                onSelect={selectVersion}
-                playing={playing}
-                onTogglePlay={togglePlay}
-                compareLatest={compareLatest}
-                onCompareLatestChange={setCompareLatest}
-                onRestore={() => selected && setRollbackId(selected.id)}
-                isCurrent={selected?.id === activeId}
-              />
-            </div>
-          </>
-          ) : <p className="p-3 text-xs text-slate-500">Select a checkpoint to inspect its file snapshot.</p>}
-        </section>
-      </div>
-      <RollbackCheckpointModal
-        entryId={rollbackId}
-        onOpenChange={(open) => !open && setRollbackId(null)}
-        onDone={(_entry, restoredId) => setSelectedId(restoredId)}
-      />
-    </div>
-  )
-}
-
 // ─── Inline review view ────────────────────────────────────────────────
 //
 // `onUpdate(id, patch)` applies review edits (stage, reviewers) to
@@ -1031,14 +806,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
 
-  // Records a reviewer's approval on their behalf (e.g. obtained outside
-  // Devsign) using the same rule as their own sign-off would.
-  function handleApproveReviewer(reviewerId) {
-    const reviewers = conflict.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'approved' } : r))
-    const allApproved = reviewers.every((r) => r.status === 'approved')
-    update({ reviewers, reviewStage: allApproved ? 'approved' : 'in_review' })
-  }
-
   function handleMerge() {
     if (onResolve) onResolve(conflict.id)
     else update({ reviewStage: 'resolved' })
@@ -1051,6 +818,28 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
     })
   }
+
+  const detailTabs = (
+    <div className="flex shrink-0 items-center gap-7 border-b border-white/[0.07]" role="tablist" aria-label="Conflict details">
+      {TABS.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={tab === id}
+          onClick={() => openTab(id)}
+          className={cn(
+            'relative -mb-px inline-flex h-9 shrink-0 items-center border-b-2 px-2 text-xs font-medium whitespace-nowrap transition-colors',
+            tab === id
+              ? 'border-emerald-300 text-white'
+              : 'border-transparent text-slate-500 hover:text-slate-200'
+          )}
+        >
+          <LocalizedText text={label} />
+        </button>
+      ))}
+    </div>
+  )
 
   const stage = conflict?.reviewStage
   const myReview = conflict ? needsReviewFrom(conflict) : false
@@ -1105,77 +894,57 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            {/* Primary header combines the issue identity and detail tabs. */}
-            <div className="flex h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-3">
+            <div className="flex h-8 shrink-0 items-center gap-2 bg-[#121212] px-2.5">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
                   title="Back to list"
                   aria-label="Back to list"
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                  className="flex size-6 shrink-0 items-center justify-center text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                 >
-                  <ArrowLeft className="size-4" />
+                  <ChevronLeft className="size-5" />
                 </button>
-                <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white"><LocalizedText text={conflict.title} /></h2>
+                <h2 className="min-w-0 truncate text-[13px] font-semibold text-white">
+                  <LocalizedText text={conflict.title} />
+                </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
-              </div>
-              <div className="flex shrink-0 items-center gap-1" role="tablist" aria-label="Conflict details">
-                {TABS.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === id}
-                    onClick={() => openTab(id)}
-                    className={cn(
-                      'inline-flex h-7 shrink-0 items-center justify-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap transition-colors',
-                      WORKSPACE_TAB_RADIUS,
-                      tab === id
-                        ? 'bg-white/[0.09] text-white'
-                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-                    )}
-                  >
-                    <LocalizedText text={label} />
-                  </button>
-                ))}
               </div>
             </div>
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
+              <div className="shrink-0 px-1">
+                {detailTabs}
+              </div>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto px-3 pt-1 pb-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-2 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
               )}>
-                <div className="min-h-0 min-w-0 overflow-auto" role="tabpanel">
+                <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
                   {tab === 'overview' ? (
-                    <div className="grid min-h-full min-w-0 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
+                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
-                        <p className="mb-2 flex h-7 shrink-0 items-center text-xs font-semibold text-slate-200">
-                          <LocalizedText text="Overview" />
-                        </p>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab conflict={conflict} severity={severity} stage={stage} showProject={!workspace} />
                         </div>
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
-                        <p className="mb-2 flex h-7 shrink-0 items-center text-xs font-semibold text-slate-200">
-                          <LocalizedText text="Compare" />
-                        </p>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <DiffTab conflict={conflict} />
                         </div>
                       </section>
                     </div>
                   ) : (
-                    <HistoryCheckpointTimeline workspace={workspace} />
+                    <div className="flex min-h-0 flex-1">
+                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
+                    </div>
                   )}
                 </div>
 
-                {/* Sidebar begins level with the main content beneath the shared tab bar. */}
+                {/* All three review columns now start beneath the shared tab row. */}
                 <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
-                  <div className={cn('min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
-                    <ReviewersSection conflict={conflict} onUpdate={update} onApproveReviewer={handleApproveReviewer} />
+                  <div className={cn('min-h-0 max-h-[48%] shrink-0 overflow-y-auto', REVIEW_CONTEXT_CARD)}>
+                    <ReviewersSection conflict={conflict} onUpdate={update} />
                   </div>
                   <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
@@ -1187,24 +956,33 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 px-5 pt-1 pb-2.5">
+            <div className="flex shrink-0 items-center gap-3 px-5 pt-1 pb-2.5">
               <div className="min-w-0 flex-1" />
-              {stage !== 'resolved' && (
-                <Tooltip>
-                  <TooltipTrigger
-                    type="button"
-                    onClick={() => onOpenMergeStudio?.(conflict)}
-                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/15 px-3.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-400/25 hover:text-emerald-200"
-                  >
-                    <GitMerge className="size-3.5" />
-                    {mergeActionLabel}
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Edit or combine elements before merging.</TooltipContent>
-                </Tooltip>
-              )}
-              <div className="flex shrink-0 items-center">
+              <div className="flex shrink-0 items-center gap-1.5">
+                {stage === 'in_review' && myReview && (
+                  <span className="mr-1 hidden text-[10px] text-slate-500 sm:inline">Your decision</span>
+                )}
                 {primary}
               </div>
+              {stage !== 'resolved' && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden text-[10px] text-slate-500 sm:inline">Review first</span>
+                  <Tooltip>
+                    <TooltipTrigger
+                      type="button"
+                      onClick={() => onOpenMergeStudio?.(conflict)}
+                      className={cn(
+                        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap',
+                        GHOST_BUTTON
+                      )}
+                    >
+                      <GitMerge className="size-3.5" />
+                      {mergeActionLabel}
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Review merge impact and automated checks. This does not approve or merge the change.</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -497,16 +497,16 @@ No design tokens found|디자인 토큰이 없습니다
 AI recommends|AI 추천
 Apply recommendation|추천 적용
 No drifts — this item matches the Original Design.|차이가 없습니다. 원본 디자인과 일치합니다.
-drifts resolved|개 차이 해결됨
+drifts resolved|Drift 해결
 design ·|디자인 ·
-Detected drifts|감지된 차이
+Detected drifts|감지된 Drift
 Collapse|접기
 Show property diffs|속성 차이 표시
 Not resolved yet|아직 해결되지 않음
 All properties resolved|모든 속성 해결됨
 Incoming|들어오는 변경
 Edit this line directly in the code window.|코드 창에서 이 줄을 직접 편집하세요.
-Open a drift to compare and resolve its properties right here.|차이 항목을 열어 여기서 속성을 비교하고 해결하세요.
+Open a drift to compare and resolve its properties right here.|Drift를 열어 속성을 비교하고 바로 해결하세요.
 Text|텍스트
 Synced to copy.json|copy.json에 동기화됨
 Dismiss suggestion|추천 닫기
@@ -612,7 +612,7 @@ Both at|공통 배율
 Staging preview|최종안 미리보기
 Review the final result before merging.|병합 전에 최종 결과를 검토하세요.
 Live|실시간
-This drift has no design element — its change is in the code below.|이 차이에는 디자인 요소가 없습니다. 아래 코드에서 변경을 확인하세요.
+This drift has no design element — its change is in the code below.|이 Drift는 디자인 요소와 관련이 없습니다. 아래 코드에서 확인하세요.
 Output files|출력 파일
 Needs at least one reviewer|검토자가 한 명 이상 필요합니다
 Not required|필수 아님
@@ -649,7 +649,7 @@ Clear all filters|모든 필터 해제
 Showing|표시 중
 Clear filters|필터 해제
 Open a merge item|병합 항목 열기
-Step through drifts|차이 항목 순서대로 보기
+Step through drifts|Drift를 순서대로 살펴보기
 Edit & bind in the Block Deck|블록 덱에서 편집 및 연결
 Finish the merge|병합 마무리
 Skip guide|안내 건너뛰기
@@ -687,9 +687,9 @@ Changes log|변경 히스토리
 Design changes|디자인 변경
 Close preview|미리보기 닫기
 Apply with AI|AI로 적용
-Previous drift|이전 차이
-Drift|차이
-Next drift|다음 차이
+Previous drift|이전 Drift
+Drift|Drift
+Next drift|다음 Drift
 Merge Changes|변경 사항 병합
 Reset view and layout|보기와 레이아웃 초기화
 Hide selection guides|선택 안내선 숨기기
@@ -1079,6 +1079,17 @@ No reviewers assigned|배정된 검토자 없음
 Your approval is needed|내 승인이 필요합니다
 You requested changes|변경을 요청했습니다
 Review not requested yet|아직 검토를 요청하지 않았습니다
+Issue activity|이슈 활동
+Change replay|변경 리플레이
+No activity has been recorded for this issue yet.|이 이슈에 기록된 활동이 없습니다.
+No replay snapshots are linked to this issue yet. Review and comment activity will still appear in the timeline.|아직 이 이슈에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
+requested a review|검토를 요청했습니다
+approved this change|변경을 승인했습니다
+requested changes|변경을 요청했습니다
+merged this change|변경을 병합했습니다
+reopened this issue|이 이슈를 다시 열었습니다
+pushed code changes|코드를 수정했습니다
+commented on this issue|이 이슈에 댓글을 남겼습니다.
 Merge the approved change|승인된 변경 병합
 Assign reviewers|검토자 배정
 Review and approve|검토 후 승인
@@ -1196,7 +1207,7 @@ mentioned you in a comment on|댓글에서 언급했습니다 ·
 Object.assign(ko, {
   'of': '/', 'file': '파일', 'files': '파일', 'change': '변경', 'changes': '변경',
   'code': '코드', 'design': '디자인', 'layers': '레이어', 'copy': '복사',
-  'drift': '차이', 'drifts': '차이', 'conflict': '충돌', 'conflicts': '충돌',
+  'drift': 'Drift', 'drifts': 'Drift', 'conflict': '충돌', 'conflicts': '충돌',
   'element': '요소', 'elements': '요소', 'propert': '속성', 'ies': '',
   'note': '메모', 'notes': '메모', 'checkpoints': '체크포인트', 's': '',
   'resolve': '해결', 'resolved': '해결됨', 'reviewed': '검토 완료', 'stale': '검토 후 변경됨',

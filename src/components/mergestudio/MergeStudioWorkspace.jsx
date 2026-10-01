@@ -1,4 +1,3 @@
-import { mergeBlockReason } from '@/lib/mergePolicy'
 import { mergeChangeCount } from '@/lib/mergeChangeCount'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
@@ -99,6 +98,7 @@ function MergeStudioWorkspace({ item }) {
     setMergePreviewOpen,
     setMergeCta,
     exitMergeStudio,
+    setSelectedMergeItemId,
     openConflictReview,
     setBottomPanel,
     mergeDrafts,
@@ -133,10 +133,8 @@ function MergeStudioWorkspace({ item }) {
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
-  // Index into WIZARD_STEPS (Compare/Check/Preview/Review) — drives both
-  // the canvas's MacroStepper and the bottom panel's step flow, since the
-  // step flow is docked there now instead of a floating wizard the parent
-  // mounts/unmounts per "open".
+  // Index into WIZARD_STEPS (Compare/Check/Preview/Review), shared by the
+  // canvas drift controls and the bottom-panel step flow.
   const [wizardStep, setWizardStep] = useState(0)
   const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
   const [designCompareKeys, setDesignCompareKeys] = useState([])
@@ -249,19 +247,32 @@ function MergeStudioWorkspace({ item }) {
     if (openDeck) setFilesWindow({ open: true, tab: 'inspect' })
   }
 
-  // Opens the step flow (in the bottom panel's Conflict Points tab) at a
-  // given WIZARD_STEPS-relative step (0 = Check, matching the old modal's
-  // numbering — Compare sits before it as the panel's own first step, not
-  // something "opening the wizard" ever needs to jump past). `_annotations`
-  // is accepted for backward compatibility with the canvas's MacroStepper
-  // callback, which still forwards its live annotations prop along; the
-  // step flow reads `annotationsSnap` directly instead of a frozen copy now
-  // that it's a persistent panel, not a per-open modal.
-  function openWizard(_annotations, step = 0) {
-    setWizardStep(step + 1)
+  // Opens the step flow in the bottom panel at Check.
+  function openWizard() {
+    setWizardStep(1)
     const conflict = conflicts.find((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
     if (conflict) openConflictReview(conflict.id)
     setBottomPanel({ tab: 'conflict', open: true, conflictMode: 'check' })
+  }
+
+  function finishMerge(itemId) {
+    if (!completeMerge(itemId)) return
+    const nextItem = mergeItems.find((mergeItem) => mergeItem.id !== itemId && mergeItem.tag !== 'Merged')
+    openConflictReview(null)
+    setBottomPanel({ open: false })
+    if (nextItem) {
+      setSelectedMergeItemId(nextItem.id)
+    } else {
+      setSelectedMergeItemId(null)
+      exitMergeStudio()
+    }
+  }
+
+  function finishReviewRequest(itemId) {
+    const nextItem = mergeItems.find((mergeItem) => mergeItem.id !== itemId && mergeItem.tag !== 'Merged')
+    openConflictReview(null)
+    setBottomPanel({ open: false })
+    if (nextItem) setSelectedMergeItemId(nextItem.id)
   }
 
   // Preview's "Edit in Assemble": select the element being reviewed, bring
@@ -629,13 +640,15 @@ function MergeStudioWorkspace({ item }) {
     // in the Merge List until it's approved (merging and deploying happen
     // after approval, outside this flow).
     onComplete: (reviewerIds) => {
+      if (item?.tag === 'Merged') return
       updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
       for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
         const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
         updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
       }
     },
-    onFinalMerge: () => completeMerge(item.id),
+    onRequestComplete: () => finishReviewRequest(item.id),
+    onFinalMerge: () => finishMerge(item.id),
     onEditCode: editCodeLine,
   }
   // `Panel` is always the bare component reference (never an inline arrow
@@ -700,9 +713,8 @@ function MergeStudioWorkspace({ item }) {
   // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
   const openWizardRef = useRef(null)
   openWizardRef.current = () => {
-    const related = conflicts.filter((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
-    if (mergeBlockReason({ conflicts: related, item })) openWizard()
-    else completeMerge(item.id)
+    if (item?.tag === 'Merged') return
+    openWizard()
   }
   const mergedNow = item?.tag === 'Merged'
   const ctaCount = mergedNow ? 0 : mergeChangeCount(changesSummary, codeMergeVariants[item?.id], manualCode, annotationsSnap)
@@ -763,8 +775,6 @@ function MergeStudioWorkspace({ item }) {
           onToggleGuides={() => setGuidesVisible((v) => !v)}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
-          merged={item.tag === 'Merged'}
-          inReview={item.tag === 'In Review'}
           stage={WIZARD_STEPS[wizardStep].id}
           assemblies={assemblies}
           resolutions={resolutions}
@@ -779,7 +789,6 @@ function MergeStudioWorkspace({ item }) {
           onUndoChange={undoChange}
           annotations={annotationsSnap}
           onAnnotationsChange={setAnnotationsSnap}
-          onMerge={(annotations, step = 0) => openWizard(annotations, step)}
           item={item}
           files={files}
           syncSelection={syncSelection}
@@ -906,7 +915,7 @@ function MergeStudioWorkspace({ item }) {
       <MergeHelp />
       </div>
 
-      <WorkspaceBottomPanel tabs={bottomPanelTabs} />
+      <WorkspaceBottomPanel tabs={bottomPanelTabs} portal />
     </div>
   )
 }

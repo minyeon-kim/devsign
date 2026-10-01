@@ -505,8 +505,22 @@ export function WorkspaceProvider({ children, projectId }) {
   // Review-workflow edits from the conflict modal (stage, reviewers,
   // diff inspected) — everything short of the final resolve.
   const updateConflict = useCallback((conflictId, patch) => {
+    const conflict = conflicts.find((candidate) => candidate.id === conflictId)
+    const startsAnotherReviewRound = conflict
+      && patch.reviewStage === 'in_review'
+      && conflict.reviewStage === 'in_review'
+      && conflict.reviewers.some((reviewer) => reviewer.status === 'changes_requested')
+      && patch.reviewers?.some((reviewer) => reviewer.status === 'pending')
+    if (conflict && ((patch.reviewStage && patch.reviewStage !== conflict.reviewStage) || startsAnotherReviewRound)) {
+      const kind = patch.reviewStage === 'in_review'
+        ? 'review_requested'
+        : patch.reviewStage === 'detected' && conflict.reviewStage === 'resolved'
+          ? 'reopened'
+          : null
+      if (kind) logEvent({ kind, projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    }
     setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, ...patch } : c)))
-  }, [setConflicts])
+  }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
 
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
@@ -690,6 +704,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setDraftChanges((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !Object.hasOwn(finalFiles, id))))
     const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
     recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+      conflictIds: [...mergedIds],
       timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap((c) => c.reviewers) : item.reviewers).map((r) => r.id))],
       snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps, prototypeEdits: nextPrototypeEdits, activePageId } })
     for (const c of related) {
@@ -1045,6 +1060,16 @@ export function WorkspaceProvider({ children, projectId }) {
               : c
           )
         : conflicts
+      if (reopened) {
+        logEvent({
+          kind: 'code_change',
+          projectId,
+          conflictId: reopened.id,
+          actorId: 'system',
+          title: reopened.title,
+          detail: scenario.title,
+        })
+      }
 
       setDraftChanges((prev) => ({ ...prev, [scenario.fileId]: { conflictId: reopened?.id, title: scenario.title } }))
       if (reopened?.mergeItemId) updateMergeItem(reopened.mergeItemId, { tag: 'In Review', updatedLabel: 'Just now' })
@@ -1067,7 +1092,8 @@ export function WorkspaceProvider({ children, projectId }) {
       // file) changes the code pane and nothing else, which is exactly
       // "code changed, preview didn't" (see lib/prototypeSync).
       const derivedOverride = deriveComponentOverride(projectId, scenario.fileId, scenario.lines)
-      if (derivedOverride) setPrototypeEdits((prev) => ({ ...prev, ...derivedOverride }))
+      const nextPrototypeEdits = derivedOverride ? { ...prototypeEdits, ...derivedOverride } : prototypeEdits
+      if (derivedOverride) setPrototypeEdits(nextPrototypeEdits)
       setPreviewVersion((v) => v + 1)
       setConflicts(nextConflicts)
       appendTerminalLines(scenario.terminalLines)
@@ -1096,6 +1122,7 @@ export function WorkspaceProvider({ children, projectId }) {
       const historyId = recordHistory({
         label: scenario.title,
         kind: 'ai-edit',
+        ...(reopened ? { conflictIds: [reopened.id] } : {}),
         actorId: currentUser.id,
         actorLabel: 'Devsign AI',
         target: target?.label ?? changes.map((c) => c.fileName).join(', '),
@@ -1106,7 +1133,7 @@ export function WorkspaceProvider({ children, projectId }) {
           fileId: scenario.fileId,
           lines: scenario.lines,
           activePageId,
-          prototypeEdits,
+          prototypeEdits: nextPrototypeEdits,
           previewProps: nextPreviewProps,
           conflicts: nextConflicts,
           selectedLayerId,
@@ -1117,7 +1144,7 @@ export function WorkspaceProvider({ children, projectId }) {
       return { result, historyId, reply: scenario.reply }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appendTerminalLines, activePageId, prototypeEdits, projectId, recordHistory, selectedLayerId]
+    [appendTerminalLines, activePageId, logEvent, prototypeEdits, projectId, recordHistory, selectedLayerId]
   )
 
   const sendChatMessage = useCallback(
@@ -1297,15 +1324,24 @@ export function WorkspaceProvider({ children, projectId }) {
     (fileId, lines, { live = false } = {}) => {
       const before = fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? []
       if (!live && signature(before) === signature(lines)) return
+      let affected = []
+      let nextConflicts = conflicts
+      let snapshotPrototypeEdits = prototypeEdits
       if (!live) {
         const changedLines = new Set(Array.from({ length: Math.max(before.length, lines.length) }, (_, i) => i + 1).filter((n) => before[n - 1] !== lines[n - 1]))
-        const affected = conflicts.filter((c) => {
+        affected = conflicts.filter((c) => {
           const span = designMergeVariants[c.mergeItemId]?.layerCodeMap?.[c.layerId]
           const start = span?.line ?? c.line
           return (span?.fileId ?? c.fileId) === fileId && (!start || Array.from({ length: span?.span ?? 1 }, (_, i) => start + i).some((n) => changedLines.has(n)))
         })
         const ids = new Set(affected.map((c) => c.id))
-        setConflicts((prev) => prev.map((c) => ids.has(c.id) ? { ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected', reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) } : c))
+        nextConflicts = conflicts.map((c) => ids.has(c.id)
+          ? { ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected', reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) }
+          : c)
+        setConflicts(nextConflicts)
+        for (const conflict of affected) {
+          logEvent({ kind: 'code_change', projectId, conflictId: conflict.id, actorId: currentUser.id, title: conflict.title })
+        }
         for (const c of affected) if (c.mergeItemId) updateMergeItem(c.mergeItemId, { tag: 'In Review' })
         setDraftChanges((prev) => ({ ...prev, [fileId]: { title: 'Code edited' } }))
       }
@@ -1313,6 +1349,7 @@ export function WorkspaceProvider({ children, projectId }) {
       // model rather than stored as text.
       if (prototypeFile(fileId)) {
         const parsed = parsePrototype(fileId, lines)
+        snapshotPrototypeEdits = { ...prototypeEdits, ...parsed }
         setPrototypeEdits((prev) => ({ ...prev, ...parsed }))
       } else {
         if (live) return
@@ -1321,12 +1358,32 @@ export function WorkspaceProvider({ children, projectId }) {
         // component file (not a generated prototype file) has no other
         // path back to the canvas at all otherwise.
         const derivedOverride = deriveComponentOverride(projectId, fileId, lines)
+        if (derivedOverride) snapshotPrototypeEdits = { ...prototypeEdits, ...derivedOverride }
         if (derivedOverride) setPrototypeEdits((prev) => ({ ...prev, ...derivedOverride }))
+      }
+      if (!live && affected.length) {
+        recordHistory({
+          label: `Code update · ${getFileName(fileId)}`,
+          kind: 'edit',
+          actorId: currentUser.id,
+          target: getFileName(fileId),
+          conflictIds: affected.map((conflict) => conflict.id),
+          timestamp: timeLabel(),
+          snapshot: {
+            ...currentSnapshot(),
+            activeFileId: fileId,
+            fileId,
+            lines,
+            files: { [fileId]: lines },
+            prototypeEdits: snapshotPrototypeEdits,
+            conflicts: nextConflicts,
+          },
+        })
       }
       setPreviewVersion((v) => v + 1)
       if (!live) appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
     },
-    [appendTerminalLines, getFileName, setPrototypeEdits, setFileOverrides, fileOverrides, files, conflicts, setConflicts, updateMergeItem, setDraftChanges, projectId]
+    [appendTerminalLines, currentSnapshot, currentUser.id, getFileName, logEvent, projectId, prototypeEdits, recordHistory, setPrototypeEdits, setFileOverrides, fileOverrides, files, conflicts, setConflicts, updateMergeItem, setDraftChanges]
   )
 
   const setCommentStatus = useCallback((commentId, status) => {
@@ -1350,6 +1407,19 @@ export function WorkspaceProvider({ children, projectId }) {
   const addComment = useCallback((text, target) => {
     const trimmed = text.trim()
     if (!trimmed) return
+    if (target?.conflictId) {
+      const conflict = conflicts.find((candidate) => candidate.id === target.conflictId)
+      if (conflict) {
+        logEvent({
+          kind: 'comment',
+          projectId,
+          conflictId: conflict.id,
+          actorId: currentUser.id,
+          title: conflict.title,
+          detail: trimmed,
+        })
+      }
+    }
     setComments((prev) => [
       ...prev,
       {
@@ -1363,7 +1433,7 @@ export function WorkspaceProvider({ children, projectId }) {
         ...(target ? { target } : {}),
       },
     ])
-  }, [currentUser.id])
+  }, [conflicts, currentUser.id, logEvent, projectId])
 
   const value = {
     projectId,

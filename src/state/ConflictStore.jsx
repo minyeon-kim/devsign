@@ -41,7 +41,12 @@ export function ConflictStoreProvider({ children }) {
   }, [setConflicts])
 
   const logEvent = useCallback((event) => {
-    setEvents((prev) => [{ id: nextEventId(), timeLabel: 'Just now', ...event }, ...prev])
+    setEvents((prev) => [{
+      id: nextEventId(),
+      createdAt: Date.now(),
+      timeLabel: 'Just now',
+      ...event,
+    }, ...prev])
   }, [setEvents])
 
   const value = useMemo(

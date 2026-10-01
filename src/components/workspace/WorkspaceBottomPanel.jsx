@@ -1,7 +1,9 @@
 import { moveTab } from '@/lib/tabOrder'
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { GitPullRequest, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
+import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
@@ -28,8 +30,9 @@ const MIN_CANVAS = 220
 // a Problems tab, its open count badged on the tab. Drag the top edge to
 // resize; switching tabs preserves the user's height, and content scrolls
 // inside each panel rather than resizing this dock to fit it.
-function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
-  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
+function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
+  const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
+  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId, activeView, mergeCta } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
@@ -91,7 +94,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
 
   const Panel = active.Panel
 
-  return (
+  const panel = (
     <section
       ref={rootRef}
       aria-label="Bottom panel"
@@ -100,7 +103,10 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
         'flex shrink-0 flex-col overflow-hidden transition-all duration-300',
         open
           ? 'absolute inset-x-0 bottom-0 z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
-          : 'relative rounded-none border-transparent bg-[#050506] shadow-none',
+          : cn(
+              'relative border-transparent bg-[#050506] shadow-none',
+              activeView === 'mergeStudio' ? 'rounded-b-2xl' : 'rounded-none'
+            ),
         className
       )}
     >
@@ -124,6 +130,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
           setBottomPanel({ open: !open })
         }}
       >
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {tabOrder.map((id) => tabs.find((t) => t.id === id)).filter(Boolean).map(({ id, label, icon: Icon }) => (
           <Fragment key={id}>
             <button
@@ -171,6 +178,19 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
             </button>
           </Fragment>
         ))}
+        </div>
+        {activeView === 'mergeStudio' && tabs.some((entry) => entry.id === 'changes') && (
+          <button
+            type="button"
+            onClick={() => mergeCta?.open()}
+            disabled={!mergeCta || mergeCta.merged || mergeCta.count === 0}
+            className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-[11px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:opacity-40"
+          >
+            <GitPullRequest className="size-3.5" />
+            <span>{mergeCta?.merged ? 'Merged' : 'Merge changes'}</span>
+            <span className="rounded-full bg-black/10 px-1.5 text-[10px] tabular-nums">{mergeCta?.count ?? 0}</span>
+          </button>
+        )}
       </div>
 
       {open && (
@@ -180,6 +200,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
       )}
     </section>
   )
+
+  return portal ? (portalTarget ? createPortal(panel, portalTarget) : null) : panel
 }
 
 export default WorkspaceBottomPanel

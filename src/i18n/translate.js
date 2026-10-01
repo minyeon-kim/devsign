@@ -1,6 +1,6 @@
 import { ko } from './ko'
 
-const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '차이', drifts: '차이', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
+const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: 'Drift', drifts: 'Drift', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
   [/^(\d+) docs found$/, (_, n) => `문서 ${n}개를 찾았어요.`],
   [/^(\d+) checkpoints?$/, (_, n) => `저장된 버전 ${n}개`],

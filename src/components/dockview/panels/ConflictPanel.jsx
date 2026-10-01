@@ -161,11 +161,17 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
     return (
       <div className="h-full min-h-0 min-w-0 bg-card">
         {reviewConflictIsOpenItem && bottomPanel.conflictMode === 'check' ? (
-          <MergeStepFlow {...mergeStepFlowProps} onBack={() => setBottomPanel({ conflictMode: 'overview' })} />
+          <MergeStepFlow
+            {...mergeStepFlowProps}
+            onBack={() => {
+              setBottomPanel({ conflictMode: 'overview' })
+              openConflictReview(null)
+            }}
+          />
         ) : (
           <ConflictReviewPanel
             conflict={reviewConflict}
-            mergeActionLabel={inMergeStudio && reviewConflictItemId ? 'Continue to Check' : undefined}
+            mergeActionLabel={inMergeStudio && reviewConflictItemId ? 'Review impact & checks' : undefined}
             onOpenChange={(open) => !open && openConflictReview(null)}
             onUpdate={updateConflict}
             onApprove={approveConflict}

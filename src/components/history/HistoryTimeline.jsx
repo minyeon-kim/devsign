@@ -25,6 +25,7 @@ function HistoryTimeline({
   onCompareLatestChange,
   onRestore,
   isCurrent,
+  hideRestore = false,
   compact = false,
 }) {
   const count = entries.length
@@ -134,7 +135,7 @@ function HistoryTimeline({
         </button>
       </label>
 
-      <button
+      {!hideRestore && <button
         type="button"
         onClick={onRestore}
         disabled={isCurrent}
@@ -148,7 +149,7 @@ function HistoryTimeline({
       >
         <RotateCcw className="size-3.5" />
         {compact ? (isCurrent ? 'Current' : 'Restore') : isCurrent ? 'Current version' : 'Restore to here'}
-      </button>
+      </button>}
     </div>
   )
 }

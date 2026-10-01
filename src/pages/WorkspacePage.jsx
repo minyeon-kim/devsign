@@ -8,6 +8,7 @@ import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import WorkspaceSplitLayout from '@/components/workspace/WorkspaceSplitLayout'
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
+import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Project resolution + WorkspaceProvider now live in ProjectLayout (the
@@ -30,6 +31,7 @@ function WorkspacePage() {
     openConflictReview,
   } = useWorkspace()
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [workspaceRoot, setWorkspaceRoot] = useState(null)
 
   // Arriving with an intent in router state:
   //  · `openMergeStudio` (a Conflict Point's "Open in Merge Studio") — Merge
@@ -88,7 +90,8 @@ function WorkspacePage() {
   return (
     // One persistent dock owns the AI and navigator panels in both modes.
     // Merge Studio replaces only its canvas pane and owns its bottom panel.
-    <div className="ds-workspace flex h-full flex-col overflow-hidden bg-[#070708] text-foreground">
+    <WorkspaceBottomPanelPortalContext.Provider value={workspaceRoot}>
+    <div ref={setWorkspaceRoot} className="ds-workspace relative flex h-full flex-col overflow-hidden bg-[#070708] text-foreground">
       <div className="@container relative min-h-0 flex-1 overflow-hidden">
         <WorkspaceSplitLayout mergeStudio={inMergeStudio}>
           {inMergeStudio && (
@@ -123,6 +126,7 @@ function WorkspacePage() {
       </div>
       {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>
+    </WorkspaceBottomPanelPortalContext.Provider>
   )
 }
 

@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Code2,
   GitBranch,
+  GitMerge,
   GitPullRequest,
   Loader2,
   MessageSquare,
@@ -47,9 +48,9 @@ function slugify(text) {
 // Section heading used across the wizard's steps: a quiet label (small
 // muted icon + text) rather than a colored icon + bold title, matching the
 // Check and Preview steps' labels.
-function SectionTitle({ icon: Icon, children, aside }) {
+function SectionTitle({ icon: Icon, children, aside, className }) {
   return (
-    <div className="mb-3 flex items-center gap-2">
+    <div className={cn('mb-3 flex items-center gap-2', className)}>
       {Icon && <Icon className="size-3.5 text-slate-500" />}
       <h3 className="text-xs font-medium text-slate-300">{children}</h3>
       {aside && <span className="ml-auto">{aside}</span>}
@@ -59,7 +60,6 @@ function SectionTitle({ icon: Icon, children, aside }) {
 
 // Linear-style form field: transparent, a single 1px border, 8px corners.
 const FIELD = 'w-full rounded-lg border border-white/[0.1] bg-transparent px-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/[0.16] focus:border-white/30'
-const FIELD_LABEL = 'mb-1 block text-xs text-slate-400'
 
 // What will be merged: a single row of compact summary chips — Design,
 // Code, AI edits with their counts — collapsed by default so the step
@@ -98,7 +98,7 @@ function SummarySection({ summary }) {
 
   return (
     <section>
-      <SectionTitle>What will be merged</SectionTitle>
+      <SectionTitle className="mb-1">What will be merged</SectionTitle>
       <div className="flex flex-wrap items-center gap-1.5">
         {groups.map((g) => {
           const isOpen = open === g.id
@@ -109,20 +109,20 @@ function SummarySection({ summary }) {
               aria-expanded={isOpen}
               onClick={() => setOpen(isOpen ? null : g.id)}
               className={cn(
-                'flex h-8 items-center gap-1.5 rounded-full pr-2 pl-3 text-[13px] transition-colors',
-                isOpen ? 'bg-white/[0.1] text-white' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                'flex h-7 items-center gap-1 border-b-2 px-1.5 text-xs transition-colors',
+                isOpen ? 'border-emerald-300 text-white' : 'border-transparent text-slate-400 hover:text-white'
               )}
             >
-              <g.icon className="size-3.5 text-slate-500" />
+              <g.icon className="size-3 text-slate-500" />
               {g.label}
               <span className={cn('tabular-nums', g.items.length ? 'font-semibold text-white' : 'text-slate-500')}>{g.items.length}</span>
-              <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-200', isOpen && 'rotate-180')} />
+              <ChevronDown className={cn('size-3 text-slate-500 transition-transform duration-200', isOpen && 'rotate-180')} />
             </button>
           )
         })}
         {summary.pending > 0 && (
-          <span className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-amber-300">
-            <TriangleAlert className="size-3.5 shrink-0" />
+          <span className="flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-amber-300">
+            <TriangleAlert className="size-3 shrink-0" />
             {summary.pending} note{summary.pending === 1 ? '' : 's'} not applied
           </span>
         )}
@@ -549,89 +549,105 @@ function CheckStep({ item, resolutions, summary, onResolveDiff, onEditCode }) {
   const groups = [...new Set(a.checks.map((c) => c.group))]
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-base font-semibold text-white">Merge impact</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-400">
-          <span className={cn('font-medium', RISK_TONE[a.risk])}>{a.risk} risk</span>
-          {' · '}
-          {attention ? `${attention} of ${a.checks.length} checks need attention` : 'All automated checks pass'}
-          {' · '}
-          {a.drifts.length} drift{a.drifts.length === 1 ? '' : 's'} across {a.codeFiles} file{a.codeFiles === 1 ? '' : 's'}
-        </p>
-      </div>
-
-      {/* Headline numbers: primary figures, secondary labels, hairline
-          dividers — no per-metric boxes. */}
-      <dl className="grid grid-cols-4 divide-x divide-white/[0.08]">
-        {metrics.map((m) => (
-          <div key={m.id} className="min-w-0 px-4 first:pl-0">
-            <dd className="flex items-baseline gap-0.5 text-2xl leading-none font-semibold text-white tabular-nums">
-              {m.value}
-              {m.unit && <span className="text-base font-medium text-slate-400">{m.unit}</span>}
-              {m.of != null && <span className="text-sm font-medium text-slate-500">/{m.of}</span>}
-            </dd>
-            <dt className="mt-1.5 text-xs leading-snug text-slate-400">{m.label}</dt>
-            {m.tag && <p className={cn('mt-0.5 text-xs font-medium', m.tone)}>{m.tag}</p>}
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(190px,22%)_minmax(0,1fr)_minmax(190px,22%)]">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-auto rounded-xl bg-white/[0.03] p-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-[11px] font-semibold text-slate-200">Merge impact</h2>
+            <p className="mt-1 text-[10px] leading-4 text-slate-400">
+              <span className={cn('font-medium', RISK_TONE[a.risk])}>{a.risk} risk</span>
+              {' · '}
+              {attention ? `${attention} checks need attention` : 'Checks pass'}
+            </p>
           </div>
-        ))}
-      </dl>
+          <span className="shrink-0 rounded-full bg-white/[0.05] px-2 py-1 text-[9px] text-slate-400">
+            {a.drifts.length} drift{a.drifts.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        <dl className="grid grid-cols-2 gap-2 xl:grid-cols-1">
+          {metrics.map((m) => (
+            <div key={m.id} className="flex min-w-0 items-center gap-2 rounded-lg bg-black/15 px-2.5 py-2 xl:justify-between">
+              <div className="min-w-0">
+                <dt className="truncate text-[9px] leading-3 text-slate-400">{m.label}</dt>
+                {m.tag && <p className={cn('mt-0.5 text-[9px] font-medium', m.tone)}>{m.tag}</p>}
+              </div>
+              <dd className="shrink-0 text-base leading-none font-semibold text-white tabular-nums">
+                {m.value}
+                {m.unit && <span className="text-xs font-medium text-slate-400">{m.unit}</span>}
+                {m.of != null && <span className="text-[10px] font-medium text-slate-500">/{m.of}</span>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
-      {/* Screen impact. */}
-      <section>
-        <p className="mb-2 text-xs font-medium text-slate-300">Impact</p>
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] p-3">
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+          <h2 className="text-[11px] font-semibold text-slate-200">Automated checks</h2>
+          <span className="text-[9px] text-slate-500">{passed}/{a.checks.length} passed</span>
+        </div>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-auto md:grid-cols-2 2xl:grid-cols-3">
+          {groups.map((g) => (
+            <section key={g} className="min-w-0 rounded-lg bg-black/10 p-2">
+              <p className="mb-1.5 text-[9px] font-medium text-slate-500">{g}</p>
+              <ul className="space-y-1">
+                {a.checks
+                  .filter((c) => c.group === g)
+                  .map((c) => (
+                    <li key={c.id} className="flex items-start gap-1.5 rounded-md bg-white/[0.025] px-2 py-1.5">
+                      {c.ok ? <CheckCircle2 className="mt-px size-3 shrink-0 text-emerald-400" /> : <TriangleAlert className="mt-px size-3 shrink-0 text-amber-300" />}
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('block text-[10px] leading-[14px]', c.ok ? 'text-slate-300' : 'font-medium text-white')}>{c.title}</span>
+                        {c.hint && <span className="mt-0.5 block text-[9px] leading-3 text-slate-400">{c.hint}</span>}
+                      </span>
+                      {c.action === 'resolve' && (
+                        <button
+                          type="button"
+                          onClick={() => setConflictOpen(true)}
+                          className="flex h-6 shrink-0 items-center gap-1 rounded-full ds-primary-cta pr-1.5 pl-2 text-[9px] font-semibold text-slate-950"
+                        >
+                          Resolve
+                          <ArrowRight className="size-2.5" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </section>
+
+      <section className="min-h-0 min-w-0 overflow-auto rounded-xl bg-white/[0.03] p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-[11px] font-semibold text-slate-200">Impact</h2>
+          <span className="text-[9px] text-slate-500">{a.screens.length} screen · {a.codeFiles} file</span>
+        </div>
         <ul className="divide-y divide-white/[0.06]">
           {a.screens.map((sc) => (
-            <li key={sc.name} className="flex items-center gap-3 py-2.5">
-              <Palette className="size-4 shrink-0 text-slate-500" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{sc.name}</span>
-              <span className="shrink-0 text-xs text-slate-400 tabular-nums">
-                {sc.elements} element{sc.elements === 1 ? '' : 's'} · {sc.props} propert{sc.props === 1 ? 'y' : 'ies'}
+            <li key={sc.name} className="flex items-center gap-2 py-2 first:pt-0 last:pb-0">
+              <Palette className="size-3.5 shrink-0 text-slate-500" />
+              <span className="min-w-0 flex-1 truncate text-[10px] text-slate-100">{sc.name}</span>
+              <span className="shrink-0 text-[9px] text-slate-400 tabular-nums">
+                {sc.elements} · {sc.props}
               </span>
             </li>
           ))}
           {a.codeFiles > 0 && (
-            <li className="flex items-center gap-3 py-2.5">
-              <Code2 className="size-4 shrink-0 text-slate-500" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-100">Code</span>
-              <span className="shrink-0 text-xs text-slate-400 tabular-nums">
-                {a.codeFiles} file{a.codeFiles === 1 ? '' : 's'}
-              </span>
+            <li className="flex items-center gap-2 py-2 last:pb-0">
+              <Code2 className="size-3.5 shrink-0 text-slate-500" />
+              <span className="min-w-0 flex-1 truncate text-[10px] text-slate-100">Code</span>
+              <span className="shrink-0 text-[9px] text-slate-400 tabular-nums">{a.codeFiles} file{a.codeFiles === 1 ? '' : 's'}</span>
             </li>
           )}
+          {!a.screens.length && a.codeFiles === 0 && (
+            <li className="py-3 text-[10px] text-slate-500">No affected screens or files.</li>
+          )}
         </ul>
+        {a.screens.length > 0 && (
+          <p className="mt-2 text-[9px] text-slate-500">Elements · properties</p>
+        )}
       </section>
-
-      {/* Automated checks, grouped; what needs attention reads brighter
-          and carries its hint. */}
-      {groups.map((g) => (
-        <section key={g}>
-          <p className="mb-3 text-xs font-medium text-slate-300">{g}</p>
-          <ul className="space-y-3">
-            {a.checks
-              .filter((c) => c.group === g)
-              .map((c) => (
-                <li key={c.id} className="flex items-start gap-3">
-                  {c.ok ? <CheckCircle2 className="mt-px size-[18px] shrink-0 text-emerald-400" /> : <TriangleAlert className="mt-px size-[18px] shrink-0 text-amber-300" />}
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block text-sm', c.ok ? 'text-slate-300' : 'font-medium text-white')}>{c.title}</span>
-                    {c.hint && <span className="mt-0.5 block text-[13px] leading-relaxed text-slate-400">{c.hint}</span>}
-                  </span>
-                  {c.action === 'resolve' && (
-                    <button
-                      type="button"
-                      onClick={() => setConflictOpen(true)}
-                      className="flex h-8 shrink-0 items-center gap-1 rounded-full ds-primary-cta pr-2.5 pl-3.5 text-xs font-semibold text-slate-950 shadow-md shadow-emerald-500/25 transition-colors hover:bg-emerald-300"
-                    >
-                      Resolve
-                      <ArrowRight className="size-3.5" />
-                    </button>
-                  )}
-                </li>
-              ))}
-          </ul>
-        </section>
-      ))}
     </div>
   )
 }
@@ -859,12 +875,8 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
   }, [spot?.id, activeFile?.id])
 
   return (
-    // Side by side, not stacked: the panel is wide and short now, not a
-    // tall narrow dialog, and these two halves are a pair anyway (review
-    // an item on the left, watch its live result settle on the right) —
-    // stacking them just forced scrolling past one to reach the other.
-    <div className="grid grid-cols-2">
-      <div className="min-w-0 border-r border-white/[0.06] pr-8">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(260px,28%)_minmax(0,1fr)_minmax(0,1fr)]">
+      <section className="min-h-0 min-w-0 overflow-auto rounded-xl bg-white/[0.03] p-3">
         <DriftReviewSection
           item={item}
           drifts={review.drifts}
@@ -879,74 +891,65 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
           onEditInAssemble={onEditInAssemble}
           initialDriftId={initialDriftId}
         />
-      </div>
+      </section>
 
-      {/* Staging preview: a plain heading (no banner), then the two outputs
-          stacked — this column is already half-width, so the macro zoom's
-          own Original/Merged pair (and the code output under it) read
-          better one above the other here than squeezed to quarter-width. */}
-      <section className="min-w-0 pl-8">
-        <div className="mb-4 flex items-start gap-3">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] p-3">
+        <div className="mb-2 flex shrink-0 items-start gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold text-white">Staging preview</p>
-            <p className="mt-0.5 text-[13px] text-slate-400">Review the final result before merging.</p>
+            <p className="text-[11px] font-semibold text-slate-200">Design preview</p>
+            <p className="mt-0.5 text-[10px] text-slate-500">Original and merged</p>
           </div>
-          <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs font-medium text-emerald-300">
+          <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-[10px] font-medium text-emerald-300">
             <span className="ds-status-dot animate-pulse rounded-full bg-emerald-400" />
             Live
           </span>
         </div>
-
-        {/* Component macro zoom: the reviewed element, cropped and scaled
-            up, Original Design next to the Merged result — at one shared
-            scale (see MacroZoomPair). */}
-        {frame && spotLayer ? (
-          <div className="mb-6">
-            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-slate-300">
+        <div className="min-h-0 flex-1 overflow-auto">
+          {frame && spotLayer ? (
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
               <Palette className="size-3.5 text-slate-500" />
               {spotLayer.name}
-            </p>
-            {/* This column is already half the panel's width, so anything
-                wider than a narrow control stacks the two panels — the
-                shared scale applies either way. */}
-            <MacroZoomPair
-              frame={frame}
-              layerId={spotLayer.id}
-              originalOverride={originalOverride}
-              mergedOverride={mergedOverride}
-              stacked={wideSpot}
-              height={wideSpot ? 124 : ZOOM_H}
-            />
-          </div>
-        ) : (
-          frame && <p className="mb-6 text-[13px] text-slate-400">This drift has no design element — its change is in the code below.</p>
-        )}
-
-        <div>
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-1.5">
-              <Code2 className="size-3.5 shrink-0 text-slate-500" />
-              <div className="flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Output files">
-                {files.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={f.id === activeFile?.id}
-                    onClick={() => setFileId(f.id)}
-                    className={cn(
-                      'h-6 shrink-0 rounded-full px-2.5 text-xs font-medium transition-colors',
-                      f.id === activeFile?.id ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:text-slate-200'
-                    )}
-                  >
-                    {f.name}
-                  </button>
-                ))}
-              </div>
+              </p>
+              <MacroZoomPair
+                frame={frame}
+                layerId={spotLayer.id}
+                originalOverride={originalOverride}
+                mergedOverride={mergedOverride}
+                stacked={wideSpot}
+                height={wideSpot ? 124 : ZOOM_H}
+              />
             </div>
-            {/* One faint tint for readability — no border, no header strip;
-                changed lines keep the mint edge marker. */}
-            <div ref={codeRef} className="relative max-h-64 overflow-auto rounded-lg bg-white/[0.025] py-2 font-mono text-xs leading-relaxed">
+          ) : (
+            <p className="text-[10px] leading-4 text-slate-400">
+              {frame ? 'This change is in code and has no design element.' : 'No design preview for this item.'}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] p-3">
+        <div className="mb-2 flex shrink-0 items-center gap-1.5">
+          <Code2 className="size-3.5 shrink-0 text-slate-500" />
+          <div className="flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Output files">
+            {files.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={f.id === activeFile?.id}
+                onClick={() => setFileId(f.id)}
+                className={cn(
+                  'h-6 shrink-0 rounded-full px-2.5 text-[10px] font-medium transition-colors',
+                  f.id === activeFile?.id ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:text-slate-200'
+                )}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div ref={codeRef} className="relative min-h-0 flex-1 overflow-auto rounded-lg bg-white/[0.025] py-2 font-mono text-[10px] leading-relaxed">
               {lines.map((line, i) => {
                 const n = i + 1
                 const manual = manualCode[`${activeFile.id}:${n}`]
@@ -967,8 +970,6 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
                   </div>
                 )
               })}
-            </div>
-          </div>
         </div>
       </section>
     </div>
@@ -977,15 +978,6 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
 
 // ----- Step 3: Review --------------------------------------------------
 function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
-  function togglePerson(id) {
-    setReviewers((prev) => {
-      const next = { ...prev }
-      if (next[id]) delete next[id]
-      else next[id] = ['code', 'design']
-      return next
-    })
-  }
-
   function toggleScope(id, scope) {
     setReviewers((prev) => {
       const current = prev[id] ?? []
@@ -997,76 +989,56 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
     })
   }
 
-  const byScope = (scope) => allPeople.filter((p) => reviewers[p.id]?.includes(scope)).map((p) => p.name)
-  const codeNames = byScope('code')
-  const designNames = byScope('design')
-
   return (
-    <section>
-      <SectionTitle>Reviewers</SectionTitle>
-
-      {/* Who reviews what — two plain lines, no boxes. */}
-      <dl className="mb-3 grid grid-cols-2 gap-5">
+    <section className="min-w-0">
+      <SectionTitle className="mb-2">Reviewers</SectionTitle>
+      <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
         {[
-          ['code', 'Code review', codeNames, needCode],
-          ['design', 'Design review', designNames, needDesign],
-        ].map(([scope, label, names, needed]) => (
-          <div key={scope} className="min-w-0">
-            <dt className="text-xs text-slate-500">{label}</dt>
-            <dd className={cn('mt-0.5 truncate text-[13px]', names.length ? 'text-white' : needed ? 'text-amber-300' : 'text-slate-500')}>
-              {names.length ? names.join(', ') : needed ? 'Needs at least one reviewer' : 'Not required'}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      {/* People: hairline-divided rows; selecting one reveals its review
-          scopes. */}
-      <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
-        {allPeople.map((person) => {
-          const scopes = reviewers[person.id]
-          const selected = Boolean(scopes)
+          { scope: 'code', needed: needCode },
+          { scope: 'design', needed: needDesign },
+        ].map(({ scope, needed }) => {
+          const meta = scopeMeta[scope]
+          const Icon = meta.icon
+          const assignedCount = allPeople.filter((person) => reviewers[person.id]?.includes(scope)).length
           return (
-            <li key={person.id} className="flex h-12 items-center gap-3">
-              <button type="button" onClick={() => togglePerson(person.id)} aria-pressed={selected} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                <span
-                  className={cn(
-                    'flex size-4 shrink-0 items-center justify-center rounded-[4px] ring-1 ring-inset transition-colors',
-                    selected ? 'bg-emerald-400 ring-emerald-400' : 'ring-white/25'
-                  )}
-                >
-                  {selected && <Check strokeWidth={3.5} className="size-2.5 text-slate-950" />}
-                </span>
-                <Avatar size="sm">
-                  <AvatarFallback className={cn('text-[9px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
-                </Avatar>
-                <span className={cn('text-sm', selected ? 'font-medium text-white' : 'text-slate-200')}>{person.name}</span>
-                <span className="truncate text-[13px] text-slate-500">{person.role}</span>
-              </button>
-              {selected &&
-                ['code', 'design'].map((scope) => {
-                  const on = scopes.includes(scope)
-                  const meta = scopeMeta[scope]
-                  return (
-                    <button
-                      key={scope}
-                      type="button"
-                      onClick={() => toggleScope(person.id, scope)}
-                      aria-pressed={on}
-                      title={`${on ? 'Remove' : 'Add'} ${meta.label.toLowerCase()} review`}
-                      className={cn(
-                        'flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-medium transition-colors',
-                        on ? 'bg-emerald-400/15 text-emerald-300' : 'text-slate-500 hover:bg-white/[0.05] hover:text-slate-300'
-                      )}
-                    >
-                      <meta.icon className="size-3" />
-                      {meta.label}
-                    </button>
-                  )
-                })}
-            </li>
+            <span key={scope} className={cn('inline-flex items-center gap-1', needed && assignedCount === 0 ? 'text-amber-300' : 'text-slate-500')}>
+              <Icon className="size-3" />
+              {meta.label} · {assignedCount}{needed ? ' required' : ''}
+            </span>
           )
         })}
+      </div>
+      <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
+        {allPeople.map((person) => (
+          <li key={person.id} className="flex min-w-0 items-center gap-2 py-1.5">
+            <Avatar size="sm" className="size-6 shrink-0">
+              <AvatarFallback className={cn('text-[8px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-200" title={person.role}>{person.name}</span>
+            {['code', 'design'].map((scope) => {
+              const selected = Boolean(reviewers[person.id]?.includes(scope))
+              const meta = scopeMeta[scope]
+              const Icon = meta.icon
+              return (
+                <button
+                  key={scope}
+                  type="button"
+                  onClick={() => toggleScope(person.id, scope)}
+                  aria-pressed={selected}
+                  aria-label={`${selected ? 'Remove' : 'Assign'} ${person.name} for ${meta.label.toLowerCase()} review`}
+                  title={`${meta.label} review`}
+                  className={cn(
+                    'flex h-6 shrink-0 items-center gap-1 px-1.5 text-[10px] transition-colors',
+                    selected ? 'text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+                  )}
+                >
+                  <Icon className="size-3" />
+                  {meta.label}
+                </button>
+              )
+            })}
+          </li>
+        ))}
       </ul>
     </section>
   )
@@ -1136,9 +1108,10 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
 // state — the panel is always mounted once an item is open, so there's no
 // "open fresh every time" moment to seed an initial step/drift from
 // anymore.
-function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, onHoverDiff, selectedLayerId, reviewMarks = {}, onSetReviewMark, onEditInAssemble, step, onStepChange, onComplete, onFinalMerge, onEditCode, onBack }) {
+function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, onHoverDiff, selectedLayerId, reviewMarks = {}, onSetReviewMark, onEditInAssemble, step, onStepChange, onComplete, onRequestComplete, onFinalMerge, onEditCode, onBack }) {
+  const merged = item.tag === 'Merged'
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
-  const { getFileLines, conflicts, updateConflict, updateMergeItem } = useWorkspace()
+  const { getFileLines, conflicts } = useWorkspace()
   const linkedConflicts = conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId)
   const review = useMemo(
     () => buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }),
@@ -1218,30 +1191,31 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
           the step tabs, all on the same baseline — the panel is wide and
           short now, not a tall narrow dialog, so stacking them wasted the
           width and buried the steps behind the canvas's own stepper. */}
-      <div className="flex shrink-0 items-center gap-4 border-b border-white/[0.08] px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-3 px-4 py-2">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-full py-1 pr-2.5 pl-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            title="Back to conflict list"
+            aria-label="Back to conflict list"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <ChevronLeft className="size-4" />
-            Conflict Points
           </button>
         )}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
             <GitPullRequest className="size-3" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm leading-tight font-semibold text-white">{run === 'success' ? 'Review requested' : 'Merge changes'}</p>
+            <p className="text-sm leading-tight font-semibold text-white">{merged ? 'Merge complete' : run === 'success' ? 'Review requested' : 'Merge changes'}</p>
             <p className="flex items-center gap-1 text-[11px] leading-tight text-slate-500">
               <GitBranch className="size-2.5" />
               {branch} → main
             </p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-1" role="tablist" aria-label="Merge steps">
+        {!merged && <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-white/[0.025] p-1" role="tablist" aria-label="Merge steps">
           {WIZARD_STEPS.map((s, i) => {
             const active = i === step
             const done = i < step
@@ -1251,7 +1225,7 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
                 type="button"
                 role="tab"
                 aria-selected={active}
-                disabled={busy}
+                disabled={busy || merged}
                 onClick={() => onStepChange(i)}
                 className={cn(
                   'flex h-7 items-center gap-1 rounded-full px-3 text-[12px] font-medium transition-colors disabled:opacity-40',
@@ -1263,51 +1237,58 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
               </button>
             )
           })}
-        </div>
+        </div>}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className={cn('mx-auto w-full', step === 0 ? 'max-w-[1280px]' : 'max-w-[1440px]')}>
-        <section className={cn('mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl bg-white/[0.035] px-4 py-3', item.tag !== 'In Review' && 'justify-between')}>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-amber-300">Draft changes</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Not merged · Review the incoming changes before applying them.</p>
+      {merged ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300">
+            <CheckCircle2 className="size-6" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-white">Changes already merged</p>
+            <p className="mt-1 text-xs text-slate-500">This item is complete. It can’t be submitted or merged again.</p>
+          </div>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mt-1 flex h-7 items-center rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white"
+            >
+              Back to conflict
+            </button>
+          )}
+        </div>
+      ) : (
+      <>
+      <div className={cn('min-h-0 flex-1 px-4', step === 0 || step === 1 || step === 2 ? 'overflow-hidden py-1' : step === 3 ? 'overflow-y-auto py-1 xl:overflow-hidden' : 'overflow-y-auto py-4')}>
+        <div className={cn('mx-auto w-full', (step === 0 || step === 1 || step === 2 || step === 3) && 'flex h-full min-h-0 flex-col', step === 0 || step === 1 || step === 2 || step === 3 ? 'max-w-none' : 'max-w-[1440px]')}>
+        <section className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-1',
+          step === 1 || step === 2 || step === 3
+            ? 'mb-2 min-h-7 shrink-0 px-1'
+            : 'mb-4 rounded-xl bg-white/[0.035] px-4 py-3',
+          item.tag !== 'In Review' && 'justify-between'
+        )}>
+          <div className="flex min-w-0 items-center">
+            <p className={cn('shrink-0 font-semibold text-amber-300', step === 1 || step === 2 || step === 3 ? 'text-[10px]' : 'text-xs')}>Draft changes</p>
           </div>
           {item.tag === 'In Review' && (
             <>
-              <div className="min-w-0 flex-1">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Required approvals</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                <span className="mr-1 text-[10px] text-slate-500">Reviews</span>
                   {approvalRecords.map((reviewer) => (
-                    <button
+                    <span
                       key={`${reviewer.conflictId ?? item.id}:${reviewer.id}`}
-                      type="button"
-                      disabled={reviewer.status === 'approved'}
                       className={cn(
-                        'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-default',
-                        reviewer.status === 'approved'
-                          ? 'bg-emerald-400/[0.1] text-emerald-300'
-                          : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.1]'
+                        'inline-flex h-5 items-center text-[10px] leading-none font-medium',
+                        reviewer.status === 'approved' ? 'text-emerald-300' : 'text-slate-400'
                       )}
-                      onClick={() => {
-                        if (reviewer.conflictId) {
-                          const conflict = linkedConflicts.find((entry) => entry.id === reviewer.conflictId)
-                          if (!conflict) return
-                          const next = conflict.reviewers.map((person) => person.id === reviewer.id ? { ...person, status: 'approved' } : person)
-                          updateConflict(conflict.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
-                        } else {
-                          updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === reviewer.id ? { ...person, status: 'approved' } : person) })
-                        }
-                      }}
                     >
-                      {reviewer.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id}
-                    </button>
+                      {reviewer.status === 'approved' ? 'Approved' : 'Waiting'} · {allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id}
+                    </span>
                   ))}
-                </div>
               </div>
-              <button type="button" onClick={onFinalMerge} className="shrink-0 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
-                Merge approved changes
-              </button>
             </>
           )}
         </section>
@@ -1339,63 +1320,56 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
           )}
 
           {run === 'idle' && step === 3 && (
-            <div className="space-y-7">
-              {/* What will actually be merged, before assigning reviewers. */}
-              <SummarySection summary={summary} />
-              {/* Reviewers and the commit/PR form side by side — the same
-                  half-and-half split as Preview, instead of the two
-                  stretching the full width one above the other. */}
-              <div className="grid grid-cols-2">
-              <div className="min-w-0 border-r border-white/[0.06] pr-8">
-              <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
+            <div className="grid min-h-0 grid-cols-1 gap-3 xl:flex xl:flex-1 xl:overflow-hidden">
+              <div className="min-w-0 rounded-xl bg-white/[0.03] p-3 xl:min-h-0 xl:w-[28%] xl:shrink-0 xl:overflow-y-auto">
+                <SummarySection summary={summary} />
               </div>
-              <div className="min-w-0 pl-8">
-              <section>
+              <div className="min-w-0 rounded-xl bg-white/[0.03] p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+                <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
+              </div>
+              <section className="min-w-0 rounded-xl bg-white/[0.03] p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
                 <SectionTitle
+                  className="mb-2"
                   aside={
                     <button
                       type="button"
                       onClick={generateWithAi}
                       disabled={generating}
-                      className="flex h-7 items-center justify-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
+                      className="flex h-6 items-center justify-center gap-1 rounded-full bg-white/[0.06] px-2 text-[10px] font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
                     >
-                      {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-                      {generating ? 'Generating…' : 'Generate with AI'}
+                      {generating ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                      {generating ? 'Generating…' : 'AI draft'}
                     </button>
                   }
                 >
                   Commit &amp; PR
                 </SectionTitle>
-                {/* Compact form: 32px single-line fields; the description
-                    starts at 3 lines and grows with its content (capped). */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="block">
-                    <span className={FIELD_LABEL}>Commit message</span>
-                    <input value={commit} onChange={(e) => setCommit(e.target.value)} className={cn(FIELD, 'h-8 font-mono text-[12px]')} />
+                    <span className="mb-0.5 block text-[10px] text-slate-400">Commit message</span>
+                    <input value={commit} onChange={(e) => setCommit(e.target.value)} className={cn(FIELD, 'h-7 px-2 text-[11px] font-mono')} />
                   </label>
                   <label className="block">
-                    <span className={FIELD_LABEL}>PR title</span>
-                    <input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className={cn(FIELD, 'h-8 text-[13px]')} />
+                    <span className="mb-0.5 block text-[10px] text-slate-400">PR title</span>
+                    <input value={prTitle} onChange={(e) => setPrTitle(e.target.value)} className={cn(FIELD, 'h-7 px-2 text-[11px]')} />
                   </label>
                   <label className="block">
-                    <span className={FIELD_LABEL}>PR description</span>
+                    <span className="mb-0.5 block text-[10px] text-slate-400">PR description</span>
                     <textarea
                       value={prBody}
                       onChange={(e) => setPrBody(e.target.value)}
-                      rows={3}
+                      rows={2}
                       placeholder="Describe this merge, or use Generate with AI…"
-                      className={cn(FIELD, 'max-h-40 min-h-[4.5rem] resize-none py-1.5 text-[13px] leading-relaxed [field-sizing:content]')}
+                      className={cn(FIELD, 'max-h-32 min-h-[3.5rem] resize-none px-2 py-1 text-[11px] leading-relaxed [field-sizing:content]')}
                     />
                   </label>
-                  <label className="flex items-center gap-3 border-t border-white/[0.06] pt-3 text-[13px]">
-                    <Rocket className="size-4 shrink-0 text-slate-500" />
-                    <span className="flex-1 text-slate-200">Deploy automatically once approved and merged</span>
+                  <label className="flex items-center gap-2 border-t border-white/[0.06] pt-2 text-[11px]">
+                    <Rocket className="size-3.5 shrink-0 text-slate-500" />
+                    <span className="flex-1 text-slate-300">Auto-deploy after merge</span>
                     <Switch checked={deploy} onCheckedChange={setDeploy} />
                   </label>
                 </div>
               </section>
-              </div>
-              </div>
             </div>
           )}
 
@@ -1407,11 +1381,14 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
 
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.08] px-4 py-3">
+        <div className="flex shrink-0 items-center justify-end gap-2 px-4 py-3">
           {run === 'success' ? (
             <button
               type="button"
-              onClick={() => setRun('idle')}
+              onClick={() => {
+                setRun('idle')
+                onRequestComplete?.()
+              }}
               className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
             >
               Done
@@ -1459,20 +1436,35 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
               ) : (
                 <button
                   type="button"
-                  disabled={busy || !reviewValid}
+                  disabled={busy || (item.tag === 'In Review' ? false : !reviewValid)}
                   onClick={() => {
-                    setProgress(0)
-                    setRun('progress')
+                    if (item.tag === 'In Review') {
+                      onFinalMerge()
+                    } else {
+                      setProgress(0)
+                      setRun('progress')
+                    }
                   }}
                   className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
                 >
-                  <GitPullRequest className="size-4" />
-                  Open PR &amp; Request Review
+                  {item.tag === 'In Review' ? (
+                    <>
+                      <GitMerge className="size-4" />
+                      Merge approved changes
+                    </>
+                  ) : (
+                    <>
+                      <GitPullRequest className="size-4" />
+                      Open PR &amp; Request Review
+                    </>
+                  )}
                 </button>
               )}
             </>
           )}
         </div>
+        </>
+        )}
       </div>
   )
 }

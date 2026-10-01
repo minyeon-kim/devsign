@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, Eye, EyeOff, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -9,6 +9,7 @@ import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupC
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { LocalizedText } from '@/i18n/runtime'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { COUNT_BADGE, STUDIO_PILL as FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -999,11 +1000,8 @@ function defaultLayout(frame) {
     code: { x: 0, y: ARTBOARD_LABEL_H + artH + CODE_GAP_Y, w: codeW, h: CODE_H },
   }
 }
-// Vertical room reserved above the cards for the two-tier floating top
-// controls (Compare > Check stepper at `top-3`, drift pager / Merge CTA row
-// at `top-[60px]`, ~104px to its bottom edge) plus breathing room, so a freshly
-// opened merge target never lands underneath them.
-const TOP_CONTROLS_CLEARANCE = 124
+// Room for the top floating controls and a little breathing space.
+const TOP_CONTROLS_CLEARANCE = 76
 // Clear the 40px help pill plus its bottom inset.
 const BOTTOM_CONTROLS_CLEARANCE = 76
 // Fitting may zoom past 100% so the comparison fills the available canvas
@@ -1292,52 +1290,6 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   )
 }
 
-const MACRO_STEPS = [
-  { id: 'compare', label: 'Compare' },
-  { id: 'check', label: 'Check' },
-  { id: 'preview', label: 'Preview' },
-  { id: 'review', label: 'Review' },
-]
-
-// Macro workflow stepper: Compare ➔ Check ➔ Preview ➔ Review (the flow ends
-// with a PR + review request — no deploy step). The
-// current stage is filled with the accent gradient (Compare while working
-// on the canvas; the wizard's step while Merge Changes is open). Clicking a
-// later step opens the merge wizard at that step.
-function MacroStepper({ stage, disabled, onOpenStep }) {
-  const current = Math.max(0, MACRO_STEPS.findIndex((s) => s.id === stage))
-  return (
-    <ol className={cn('flex h-10 items-center gap-1 rounded-full px-1.5', FLOATING_PILL)}>
-      {MACRO_STEPS.map((s, i) => {
-        const active = i === current
-        const done = i < current
-        return (
-          <li key={s.id} className="flex items-center gap-1">
-            <button
-              type="button"
-              // Strict progression: revisiting an already-passed step is
-              // fine, but you can only ever advance one step at a time —
-              // no jumping straight to e.g. Review from Compare.
-              disabled={i === 0 || disabled || i > current + 1}
-              onClick={() => onOpenStep(i - 1)}
-              className={cn(
-                'flex h-7 items-center justify-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors',
-                active && 'bg-slate-700 text-white',
-                done && 'text-emerald-400',
-                !active && !done && 'text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground'
-              )}
-            >
-              {done && <Check className="size-3" />}
-              {s.label}
-            </button>
-            {i < MACRO_STEPS.length - 1 && <ArrowRight className="size-3 text-muted-foreground/50" />}
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
-
 // The shared spatial workspace for a merge item — a true infinite canvas.
 // Content lives in "world" coordinates under one transform (`view`): drag
 // the empty dot-grid to pan, scroll/trackpad to pan, pinch or Ctrl/Cmd +
@@ -1361,8 +1313,6 @@ function MergeInfiniteCanvas({
   onToggleGuides,
   focus,
   resolutionCount,
-  merged,
-  inReview,
   headerAction,
   assemblies,
   extraLayers,
@@ -1376,7 +1326,6 @@ function MergeInfiniteCanvas({
   annotations = [],
   onAnnotationsChange,
   stage = 'compare',
-  onMerge,
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
@@ -2307,25 +2256,6 @@ function MergeInfiniteCanvas({
           />
         )}
 
-        {/* Header row: macro stepper centered, Apply with AI on the right
-            (the [Merge Changes] CTA itself now lives in the drift-nav row
-            below, next to the drift pager). Kept clear of the docked Block
-            Deck via `reserve`. The stepper is centered with its own
-            `absolute left-1/2` inside this box (not a `1fr auto 1fr` grid)
-            so its position never depends on how wide the right-side
-            "Apply with AI" button happens to be — a 1fr/auto/1fr grid only
-            centers the middle column when both flanking columns have equal
-            content width, and the empty left column vs. a real button on
-            the right broke that. This way it's always dead-center of the
-            [leftInset, right: 12+reserve] box, matching the workspace
-            canvas regardless of sidebar/deck state. */}
-        {/* Top-center stepper: centered on the whole studio canvas
-            (absolute left-1/2), independent of the right-docked Block Deck
-            / wizard reserve, so opening or closing them never moves it. */}
-        <div className="pointer-events-auto absolute top-3 left-1/2 z-20 flex h-10 -translate-x-1/2 items-center">
-          <MacroStepper stage={stage} disabled={merged || inReview} onOpenStep={(step) => onMerge(annotations, step)} />
-        </div>
-
         {/* Right-hand header cluster (notifications + avatars, Preview,
             Apply with AI): pinned top-right. The docked Block Deck and the
             merge wizard both open below this row (60px), so neither pushes
@@ -2346,23 +2276,23 @@ function MergeInfiniteCanvas({
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
-        <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5 text-[13px]', FLOATING_PILL)}>
+        <div className={cn('ds-canvas-zoom-control flex h-8 items-center gap-0.5 rounded-full pr-1 pl-1 text-[11px]', FLOATING_PILL)}>
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
             aria-label="Zoom out"
-            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
+            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
-            <Minus className="size-4" />
+            <Minus className="size-3.5" />
           </button>
-          <span className="w-12 text-center text-[13px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
+          <span className="w-9 text-center text-[11px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
           <button
             type="button"
             onClick={() => zoomFromCenter(ZOOM_STEP)}
             aria-label="Zoom in"
-            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
+            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
           </button>
           <button
             type="button"
@@ -2372,16 +2302,16 @@ function MergeInfiniteCanvas({
               setView(fitView(lay))
               setLayout(lay)
             }}
-            className="flex size-8 items-center justify-center rounded-full text-foreground hover:bg-muted"
+            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
           >
-            <Maximize className="size-4" />
+            <Maximize className="size-3.5" />
           </button>
           {/* Show / hide every selection box, link line, size readout and
               drift / hover outline on the canvas (moved here from the old
               right-edge toolbar). */}
           {onToggleGuides && (
             <>
-              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <span aria-hidden className="mx-0.5 h-3 w-px bg-white/10" />
               <button
                 type="button"
                 title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
@@ -2389,11 +2319,11 @@ function MergeInfiniteCanvas({
                 aria-pressed={guidesVisible}
                 onClick={onToggleGuides}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-full transition-colors',
+                  'ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full transition-colors',
                   guidesVisible ? 'text-foreground hover:bg-muted' : 'bg-white/10 text-foreground'
                 )}
               >
-                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                {guidesVisible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
               </button>
             </>
           )}
@@ -2469,8 +2399,8 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
-        {/* Drift navigation stays centered below the workflow steps. */}
-        <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
+        {/* Drift navigation replaces the redundant workflow stepper. */}
+        <div className="pointer-events-none absolute top-3 left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {stage === 'compare' && (
               <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-[13px]', FLOATING_PILL)}>
@@ -2489,7 +2419,7 @@ function MergeInfiniteCanvas({
                     in the Block Deck's Compare tab (no more floating
                     popover here for this to show/hide). */}
                 <span className="min-w-20 rounded-full px-1.5 text-center font-semibold text-foreground tabular-nums">
-                  Drift {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
+                  <LocalizedText text="Drift" /> {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
                 </span>
                 <button
                   type="button"

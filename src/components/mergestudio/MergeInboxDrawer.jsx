@@ -119,7 +119,7 @@ function InboxItem({ n, onJump }) {
   )
 
   return (
-    <div className={cn('group', isEvent ? 'py-3.5' : 'py-5')}>
+    <div className={cn('group', isEvent ? 'py-3.5' : 'py-4')}>
       <button
         type="button"
         title={n.target.conflictId ? `Open the review of ${n.target.label}` : `Jump to ${n.target.label} on the canvas`}
@@ -149,11 +149,13 @@ function InboxItem({ n, onJump }) {
                 </span>
                 {meta}
               </span>
-              <span className="block truncate text-xs text-slate-400">
-                {isThread ? 'Comment' : source ?? 'Feedback'} · {target}
+              <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
+                {isThread && <span className="shrink-0 rounded bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">Comment</span>}
+                {!isThread && source && <span className="shrink-0 text-slate-500">{source}</span>}
+                <span className="truncate text-slate-400">· {target}</span>
               </span>
               {isThread ? (
-                <span className="mt-2.5 block text-[13px] leading-relaxed text-[#FFFFFF]">
+                <span className="mt-2 block rounded-lg border-l-2 border-emerald-400/60 bg-white/[0.035] px-3 py-2 text-[13px] leading-relaxed text-slate-100">
                   <CondensedText text={n.text} />
                 </span>
               ) : (
@@ -250,19 +252,30 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
   const preview = changes.length ? changes.map(c => c.title).join(' · ')
     : group.kind === 'comment' ? first.text : group.target.label
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 rounded-xl px-3 py-4 text-left transition-colors hover:bg-white/[0.04]">
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        'flex w-full items-start gap-3 rounded-xl px-3 py-3.5 text-left transition-colors',
+        comment && group.unread ? 'bg-emerald-400/[0.035] hover:bg-emerald-400/[0.07]' : 'hover:bg-white/[0.04]'
+      )}
+    >
       <span className="mt-0.5 shrink-0">
-        {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? <MessageSquare className="size-4 text-slate-500" /> : <CheckCheck className="size-4 text-slate-500" />}
+        {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? (
+          <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
+            <MessageSquare className="size-3.5" />
+          </span>
+        ) : <CheckCheck className="size-4 text-slate-500" />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
         {comment ? <>
           {itemName && itemName !== group.target.label && <span className="mt-1 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-300">
-            <span className="text-slate-400">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
+          <span className="mt-2 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-2.5 py-1.5 text-xs leading-5 text-slate-200">
+            <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
           </span>
-          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-            {comment.comments > 0 && <span>{`${comment.comments} comments`}</span>}
+          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+            {comment.comments > 0 && <span className="text-emerald-300/80">{`${comment.comments} comments`}</span>}
             {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
             {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
           </span>
