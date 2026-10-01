@@ -127,8 +127,14 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
             onResolve={resolveConflict}
             onOpenMergeStudio={(conflict) => {
               openConflictReview(null)
+              // `conflict` here is always `reviewConflict`, so its item id
+              // is `reviewConflictItemId` — most conflicts only carry the
+              // reverse link (see its definition above), never their own
+              // `mergeItemId`, so reading that field directly left Merge
+              // Studio with nothing selected (a near-black empty canvas)
+              // for most conflicts.
               navigate(`/projects/${projectId}/workspace`, {
-                state: { openMergeStudio: true, mergeItemId: conflict.mergeItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
+                state: { openMergeStudio: true, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
               })
             }}
           />

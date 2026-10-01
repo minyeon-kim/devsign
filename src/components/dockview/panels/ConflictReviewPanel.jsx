@@ -1041,11 +1041,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const next = onApprove?.(conflict.id)
     if (!next) return
     const waiting = next.reviewers.filter((r) => r.status === 'pending').length
-    toast(next.reviewStage === 'approved' ? 'All required approvals received' : 'Approved by you', {
-      description:
-        next.reviewStage === 'approved'
-          ? 'Pending merge. Approval does not merge the changes.'
-          : `Waiting for ${waiting} more reviewer${waiting === 1 ? '' : 's'}. Approval does not merge the changes.`,
+    toast(next.reviewStage === 'approved' ? 'All approvals received' : 'Approved by you', {
+      description: next.reviewStage === 'approved' ? 'Ready to merge.' : `Waiting on ${waiting} more reviewer${waiting === 1 ? '' : 's'}.`,
     })
   }
 
@@ -1204,7 +1201,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <TooltipTrigger
                     type="button"
                     onClick={() => onOpenMergeStudio?.(conflict)}
-                    className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
+                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/15 px-3.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-400/25 hover:text-emerald-200"
                   >
                     <GitMerge className="size-3.5" />
                     Open in Merge Studio
