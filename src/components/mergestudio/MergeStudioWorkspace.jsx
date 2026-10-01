@@ -576,6 +576,15 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     : []
   const changesCodeRows = changesSummary ? changesSummary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0) : []
 
+  // Block Deck target: the selected layer, or the smart default when the
+  // selection is an unmapped code line / nothing. Computed here (ahead of
+  // `mergeStepFlowProps` below, which reads it) rather than down by its
+  // other canvas-selection neighbors — it used to sit after, which left
+  // `deckLayerId` in its temporal dead zone at the point `mergeStepFlowProps`
+  // read it; `item && {...}` short-circuited past the read whenever no item
+  // was open, which is why this went unnoticed until every conflict started
+  // resolving to a real item.
+  const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
   // Merge Studio's own bottom panel: Conflict Points plus this item's
   // Changes log, instead of Terminal/Console — there's no code execution
   // context here to make those meaningful. Conflict Points is always the
@@ -652,9 +661,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       },
     },
   ]
-  // Block Deck target: the selected layer, or the smart default when the
-  // selection is an unmapped code line / nothing.
-  const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
   // A fresh selection re-expands a collapsed Block Deck, so its
   // context-aware content is visible right away.
   useEffect(() => setDeckCollapsed(false), [deckLayerId])
