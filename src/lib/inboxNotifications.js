@@ -10,7 +10,11 @@ export function reviewAlerts(conflicts, userId, day) {
   if (medium.length) alerts.push({
     id: `review-medium-${day}-${medium.map(c => c.id).sort().join('-')}`, kind: 'approval', notificationType: 'review_request', severity: 'medium',
     text: `Daily digest · ${medium.length} medium change${medium.length === 1 ? '' : 's'} need${medium.length === 1 ? 's' : ''} review`,
-    timeLabel: day, unread: true, reviewConflictIds: medium.map(c => c.id), target: { label: 'Medium changes awaiting your review' },
+    // `day` (an ISO date, so re-digesting the same day doesn't duplicate
+    // the alert) is only the id's cache key — showing it as the time would
+    // print a raw "2026-10-01" instead of a label the Today/Yesterday
+    // translation rule can read.
+    timeLabel: 'Today', unread: true, reviewConflictIds: medium.map(c => c.id), target: { label: 'Medium changes awaiting your review' },
   })
   return alerts
 }

@@ -4,7 +4,7 @@ import { designSystemComponents, inspectorSpecsByType } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { BlockAssembleTab, ComponentPreview, Segmented } from '@/components/mergestudio/BlockDeckPanel'
 import { libraryCompat } from '@/components/mergestudio/mergeEffects'
-import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
+import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ListFilter } from 'lucide-react'
 
@@ -19,11 +19,17 @@ const SUB_TABS = [
 // to what fits the selection). Project files — imported design files
 // included — live in the Files tree, not here. Outside Merge Studio the
 // Library is browse-only: placing components is Merge Studio's.
+// `tab` lives in WorkspaceProvider (not local state) so selecting an
+// element on the canvas can switch this to Assemble (see CanvasPanel's
+// handleSelect) instead of a floating editor over the canvas itself.
 function AssetsPanel() {
-  const [tab, setTab] = useState('library')
+  const { assetsTab: tab, setAssetsTab: setTab } = useWorkspace()
 
   return (
     <div className="flex h-full flex-col bg-card text-xs text-muted-foreground">
+      {/* Same shape as the window header's workspace tabs (PanelTabs) —
+          this panel's own Files/Layers/Assets/Inspect tabs included —
+          instead of Merge Studio's larger rounded-full category pills. */}
       <div className="flex shrink-0 items-center gap-1 px-3 pt-2 pb-1.5">
         {SUB_TABS.map(([id, label]) => (
           <button
@@ -31,7 +37,11 @@ function AssetsPanel() {
             type="button"
             aria-pressed={tab === id}
             onClick={() => setTab(id)}
-            className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            className={cn(
+              'flex h-7 items-center px-2 text-xs transition-colors',
+              WORKSPACE_TAB_RADIUS,
+              tab === id ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+            )}
           >
             {label}
           </button>
@@ -56,20 +66,23 @@ function useSelectedLayer() {
 }
 
 // BlockAssembleTab is Merge Studio's inspector, built for its 360px Block
-// Deck — every section pads itself with `px-5` (20px a side), and its
+// Deck — every section pads itself with `px-5` (20px a side), its
 // three-column row grid leaves a 28px slot spare on rows a full-width
-// Segmented spans past (`col-span-2` of 3). Left as-is here, that's a third
-// of this ~240px sidebar's width gone before any content, plus every
+// Segmented spans past (`col-span-2` of 3), and its controls/text (14px
+// headers, 28px-tall pill fields) are sized for that wider panel. Left
+// as-is here, that's a third of this ~240px sidebar's width gone before
+// any content, rows at nearly twice a Files/Layers row's height, and every
 // three-option Segmented (Effects, Radius, Icon) clipping its longest
-// label. Rather than fork the whole inspector, narrow just those two
+// label. Rather than fork the whole inspector, narrow this handful of
 // utility classes for its subtree (same technique NavigatorPanel uses for
-// `bg-card`) — every section tightens up without touching Merge Studio.
+// `bg-card`) — every section tightens to the sidebar's own scale without
+// touching Merge Studio.
 function AssembleView() {
   const { assetAssemblies, assembleAsset } = useWorkspace()
   const { layer, frameWidth } = useSelectedLayer()
   const [appliedPresetId, setAppliedPresetId] = useState(null)
   return (
-    <div className="flex min-h-0 flex-1 flex-col [&_.px-5]:px-3 [&_.col-span-2]:col-span-3">
+    <div className="flex min-h-0 flex-1 flex-col [&_.col-span-2]:col-span-3 [&_.h-7]:h-6 [&_.px-5]:px-3 [&_.py-2\.5]:py-1.5 [&_.size-7]:size-6 [&_.text-sm]:text-xs">
       <BlockAssembleTab
         selectedLayer={layer}
         frameWidth={frameWidth}

@@ -229,6 +229,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // here rather than local to CanvasPanel so the global cursor overlay can
   // read it and swap its glyph while hovering the canvas surface.
   const [canvasTool, setCanvasTool] = useState('move')
+  // The Assets navigator's sub-tab ('assemble' | 'library') — kept here
+  // rather than local to AssetsPanel so selecting an element on the canvas
+  // can switch it to Assemble (see CanvasPanel's handleSelect), the same
+  // way it already opens the Inspect tab.
+  const [assetsTab, setAssetsTab] = useState('library')
 
   // --- View routing (workspace vs. Merge Studio) ----------------------
   // Switches the whole app body below TopBar, rather than living inside
@@ -1309,6 +1314,8 @@ export function WorkspaceProvider({ children, projectId }) {
     setDockApi,
     canvasTool,
     setCanvasTool,
+    assetsTab,
+    setAssetsTab,
     getViewersForFile,
     getViewersForCanvasPage,
     activeView,

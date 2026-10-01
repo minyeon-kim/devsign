@@ -8,9 +8,7 @@ import {
   Hand,
   MessageCircle,
   MessageSquarePlus,
-  Minus,
   MousePointer2,
-  Plus,
   Square,
   Type,
 } from 'lucide-react'
@@ -18,10 +16,10 @@ import { cn } from 'cn'
 import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { allPeople, canvasTools, findCanvasTarget, paddingConflict } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { panelById } from '@/components/dockview/DockLayout'
+import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { SYNC_FILL_TYPES, SYNC_RADIUS_TYPES, overrideFromEdit } from '@/lib/prototypeSync'
+import { overrideFromEdit } from '@/lib/prototypeSync'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import {
@@ -290,13 +288,12 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
   )
 }
 
-const FILL_SWATCHES = ['#6366f1', '#8b5cf6', '#10b981', '#f43f5e', '#0f172a']
-
 // A hi-fi artboard: the frame drawn as a real, light product screen with
 // Merge Studio's StaticLayer (actual copy, inputs, buttons, charts) rather
 // than wireframe bars. Text is edited in place by double-clicking it, and
-// every edit — plus fill/radius from the property bar — is synced to the
-// page's code file (see lib/prototypeSync).
+// every edit — plus fill/radius from the Inspect panel's Appearance
+// section (opened automatically on selection, see `openLayerInspectTab`)
+// — is synced to the page's code file (see lib/prototypeSync).
 function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
@@ -340,69 +337,6 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
   )
 }
 
-// Shown for a selected layer that syncs to code: its fill and corner
-// radius, edited here and written straight into the page's code file.
-function PropertyBar({ layer, edit, onChange }) {
-  const canFill = SYNC_FILL_TYPES.has(layer.type)
-  const canRadius = SYNC_RADIUS_TYPES.has(layer.type)
-  const radius = edit?.radius
-
-  return (
-    <div
-      onClick={(event) => event.stopPropagation()}
-      className="canvas-floating-toolbar pointer-events-auto absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-card/95 py-1 pr-1.5 pl-3 font-sans text-xs shadow-xl backdrop-blur-sm"
-    >
-      <span className="max-w-32 truncate font-medium text-foreground">{layer.name}</span>
-      {canFill && (
-        <>
-          <span className="h-4 w-px bg-white/10" />
-          <span className="flex items-center gap-1" role="group" aria-label="Fill">
-            {FILL_SWATCHES.map((color) => (
-              <button
-                key={color}
-                type="button"
-                title={color}
-                aria-label={`Fill ${color}`}
-                aria-pressed={edit?.fill === color}
-                onClick={() => onChange({ fill: color })}
-                className={cn('size-5 rounded-full ring-1 ring-white/15 transition-transform hover:scale-110', edit?.fill === color && 'ring-2 ring-white')}
-                style={{ background: color }}
-              />
-            ))}
-          </span>
-        </>
-      )}
-      {canRadius && (
-        <>
-          <span className="h-4 w-px bg-white/10" />
-          <span className="flex items-center gap-0.5" role="group" aria-label="Radius">
-            <span className="px-1 text-muted-foreground">Radius</span>
-            <button
-              type="button"
-              aria-label="Less radius"
-              onClick={() => onChange({ radius: Math.max(0, (radius ?? 8) - 2) })}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
-            >
-              <Minus className="size-3" />
-            </button>
-            <span className="w-7 text-center text-foreground tabular-nums">{radius ?? '—'}</span>
-            <button
-              type="button"
-              aria-label="More radius"
-              onClick={() => onChange({ radius: Math.min(28, (radius ?? 8) + 2) })}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
-            >
-              <Plus className="size-3" />
-            </button>
-          </span>
-        </>
-      )}
-      <span className="h-4 w-px bg-white/10" />
-      <span className="pr-1.5 text-muted-foreground">Double-click text to edit</span>
-    </div>
-  )
-}
-
 function CanvasPanel() {
   // The infinite canvas's viewport: pan offset (px) and zoom (%).
   const [view, setView] = useState({ x: 0, y: 0, zoom: 100 })
@@ -442,6 +376,7 @@ function CanvasPanel() {
     dockApi,
     canvasTool,
     setCanvasTool,
+    setAssetsTab,
     comments,
     addComment,
     getViewersForCanvasPage,
@@ -492,10 +427,6 @@ function CanvasPanel() {
   }
   const activePage = projectPages.find((p) => p.id === activePageId) ?? projectPages[0]
   const commentMode = canvasTool === 'comment'
-  // The selected layer, if it's on the page being shown (a selection made
-  // on another page shouldn't keep its property bar up here).
-  const selectedTarget = findCanvasTarget(selectedLayerId)
-  const selectedLayer = selectedTarget?.page.id === activePage?.id ? selectedTarget.layer : null
 
   function handleSelect(id) {
     selectCanvasLayer(id, {
@@ -503,7 +434,14 @@ function CanvasPanel() {
     })
     setPendingComment(null)
     const target = findCanvasTarget(id)
-    if (target) openLayerInspectTab(dockApi, target.layer ?? target.frame)
+    if (target) {
+      openLayerInspectTab(dockApi, target.layer ?? target.frame)
+      // Editing a selected element happens in the Assets panel's Assemble
+      // tab, not a floating toolbar over the canvas — bring it forward
+      // and switch to it, the same way selecting already opens Inspect.
+      setAssetsTab('assemble')
+      openOrFocusPanel(dockApi, panelById.assets)
+    }
   }
 
   function handleSelectTool(id) {
@@ -673,13 +611,6 @@ function CanvasPanel() {
           </div>
 
           <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} scopeKey={activePage?.id} />
-          {selectedLayer && (SYNC_FILL_TYPES.has(selectedLayer.type) || SYNC_RADIUS_TYPES.has(selectedLayer.type)) && (
-            <PropertyBar
-              layer={selectedLayer}
-              edit={prototypeEdits[selectedLayer.id]}
-              onChange={(patch) => editPrototypeLayer(selectedLayer.id, patch)}
-            />
-          )}
 
           {pendingComment && (
             <PinComposer
