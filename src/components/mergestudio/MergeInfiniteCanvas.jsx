@@ -2556,10 +2556,62 @@ function MergeInfiniteCanvas({
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
+        <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5 text-[13px]', FLOATING_PILL)}>
+          <button
+            type="button"
+            onClick={() => zoomFromCenter(-ZOOM_STEP)}
+            aria-label="Zoom out"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-12 text-center text-[13px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
+          <button
+            type="button"
+            onClick={() => zoomFromCenter(ZOOM_STEP)}
+            aria-label="Zoom in"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            title="Reset view and layout"
+            onClick={() => {
+              const lay = defaultLayout(frame)
+              setView(fitView(lay))
+              setLayout(lay)
+            }}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Maximize className="size-4" />
+          </button>
+          {/* Show / hide every selection box, link line, size readout and
+              drift / hover outline on the canvas (moved here from the old
+              right-edge toolbar). */}
+          {onToggleGuides && (
+            <>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button
+                type="button"
+                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
+                aria-label="Selection guides"
+                aria-pressed={guidesVisible}
+                onClick={onToggleGuides}
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-full transition-colors',
+                  guidesVisible ? 'text-muted-foreground hover:bg-muted hover:text-foreground' : 'bg-white/10 text-foreground'
+                )}
+              >
+                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+              </button>
+            </>
+          )}
+        </div>
           {/* Same presence cluster as the main Workspace TopBar (teammate
               avatars that follow-on-click + your own profile menu) — that
               bar is hidden in Merge Studio, so it lives here instead, in a
-              glass pill matched to the Preview button's 30px height. */}
+              pill matched to the zoom and Preview controls' 40px height. */}
           <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
             {/* Studio-scoped styling for the shared presence stack (the
                 component itself is untouched): left-on-top order and the
@@ -2626,10 +2678,10 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
-        {/* Canvas controls share the upper toolbar and its 40px pill height. */}
+        {/* Drift navigation stays centered below the workflow steps. */}
         <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
-            {stage === 'compare' && drifts.length > 1 && (
+            {stage === 'compare' && (
               <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
                 <button
                   type="button"
@@ -2637,6 +2689,7 @@ function MergeInfiniteCanvas({
                     goDrift(-1)
                   }}
                   title="Previous drift"
+                  disabled={drifts.length === 0}
                   className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ChevronLeft className="size-4.5" />
@@ -2653,6 +2706,7 @@ function MergeInfiniteCanvas({
                     goDrift(1)
                   }}
                   title="Next drift"
+                  disabled={drifts.length === 0}
                   className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ChevronRight className="size-4.5" />
@@ -2660,58 +2714,6 @@ function MergeInfiniteCanvas({
               </div>
             )}
 
-        <div className={cn('flex h-10 items-center gap-1 rounded-full px-1.5 text-[13px]', FLOATING_PILL)}>
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(-ZOOM_STEP)}
-            aria-label="Zoom out"
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Minus className="size-4" />
-          </button>
-          <span className="w-12 text-center text-[13px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(ZOOM_STEP)}
-            aria-label="Zoom in"
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Plus className="size-4" />
-          </button>
-          <button
-            type="button"
-            title="Reset view and layout"
-            onClick={() => {
-              const lay = defaultLayout(frame)
-              setView(fitView(lay))
-              setLayout(lay)
-            }}
-            className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Maximize className="size-4" />
-          </button>
-          {/* Show / hide every selection box, link line, size readout and
-              drift / hover outline on the canvas (moved here from the old
-              right-edge toolbar). */}
-          {onToggleGuides && (
-            <>
-              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
-              <button
-                type="button"
-                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
-                aria-label="Selection guides"
-                aria-pressed={guidesVisible}
-                onClick={onToggleGuides}
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-full transition-colors',
-                  guidesVisible ? 'text-muted-foreground hover:bg-muted hover:text-foreground' : 'bg-white/10 text-foreground'
-                )}
-              >
-                {guidesVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-              </button>
-            </>
-          )}
-        </div>
           </div>
         </div>
       </div>
