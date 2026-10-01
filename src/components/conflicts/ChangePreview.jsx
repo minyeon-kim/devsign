@@ -7,11 +7,11 @@ import { LocalizedText } from '@/i18n/runtime'
 // drawn at the same scale, so a real size difference stays visible.
 // Records without a `preview` simply don't render one.
 
-function Frame({ label, children }) {
+function Frame({ label, children, showLabel = true, contentClassName = 'h-14' }) {
   return (
     <figure aria-label={label} className="flex min-w-0 flex-col items-center">
-      <figcaption className="mb-0.5 text-[10px] font-medium text-slate-500"><LocalizedText text={label} /></figcaption>
-      <div className="flex h-14 w-full shrink-0 items-center justify-center">{children}</div>
+      {showLabel && <figcaption className="mb-0.5 text-[10px] font-medium text-slate-500"><LocalizedText text={label} /></figcaption>}
+      <div className={`flex ${contentClassName} w-full shrink-0 items-center justify-center`}>{children}</div>
     </figure>
   )
 }
@@ -29,21 +29,21 @@ function ButtonSample({ height, background, label }) {
   )
 }
 
-function Pair({ before, after, side }) {
+function Pair({ before, after, side, showLabel, contentClassName }) {
   if (side) {
-    return <Frame label={side === 'before' ? 'Before' : 'After'}>{side === 'before' ? before : after}</Frame>
+    return <Frame label={side === 'before' ? 'Before' : 'After'} showLabel={showLabel} contentClassName={contentClassName}>{side === 'before' ? before : after}</Frame>
   }
   return (
     <div className="grid grid-cols-2 items-stretch gap-3">
-      <Frame label="Before">{before}</Frame>
-      <Frame label="After">
+      <Frame label="Before" showLabel={showLabel} contentClassName={contentClassName}>{before}</Frame>
+      <Frame label="After" showLabel={showLabel} contentClassName={contentClassName}>
         {after}
       </Frame>
     </div>
   )
 }
 
-function ChangePreview({ preview, side }) {
+function ChangePreview({ preview, side, showLabels = true }) {
   if (!preview) return null
   const { kind, before, after } = preview
 
@@ -51,6 +51,7 @@ function ChangePreview({ preview, side }) {
     return (
       <Pair
         side={side}
+        showLabel={showLabels}
         before={<ButtonSample {...before} label={preview.label} />}
         after={<ButtonSample {...after} label={preview.label} />}
       />
@@ -84,7 +85,7 @@ function ChangePreview({ preview, side }) {
         <LocalizedText text={preview.label} />
       </span>
     )
-    return <Pair side={side} before={sample(before)} after={sample(after)} />
+    return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />
   }
 
   if (kind === 'icon') {
@@ -93,7 +94,7 @@ function ChangePreview({ preview, side }) {
         <Truck className="text-slate-700" style={{ width: s.size, height: s.size }} strokeWidth={s.stroke} />
       </span>
     )
-    return <Pair side={side} before={sample(before)} after={sample(after)} />
+    return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />
   }
 
   if (kind === 'card') {
@@ -111,7 +112,7 @@ function ChangePreview({ preview, side }) {
         </span>
       </div>
     )
-    return <Pair side={side} before={sample(before)} after={sample(after)} />
+    return <Pair side={side} showLabel={showLabels} contentClassName="h-28" before={sample(before)} after={sample(after)} />
   }
 
   if (kind === 'swatch') {
@@ -120,7 +121,7 @@ function ChangePreview({ preview, side }) {
         <span className="block size-12 rounded-lg" style={{ background: s.color }} />
       </span>
     )
-    return <Pair side={side} before={sample(before)} after={sample(after)} />
+    return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />
   }
 
   return null

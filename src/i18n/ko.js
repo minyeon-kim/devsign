@@ -996,8 +996,6 @@ Request changes|변경 요청
 Approve change|변경 승인
 Merge change|변경 병합
 Reopen|다시 열기
-Approval does not merge the changes.|승인만으로 변경 사항이 병합되지 않습니다.
-Merging applies the change and saves a History checkpoint.|병합하면 변경을 적용하고 히스토리에 체크포인트를 저장합니다.
 Risk|위험도
 Conflict details|충돌 상세
 Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 히스토리에서 확인할 수 있습니다.

@@ -7,7 +7,6 @@ import {
   Clock3,
   Code2,
   Eye,
-  FileCode2,
   GitMerge,
   History,
   Plus,
@@ -142,10 +141,39 @@ function StagePill({ stage }) {
 
 // ─── Left: what's in conflict ──────────────────────────────────────────
 
-// Expected (design system) vs current (code), as one aligned table.
-function ComparisonTable({ fields }) {
+function comparisonSources(branches) {
+  if (!branches) return null
+  const isDesignReference = /figma/i.test(branches.remote ?? '')
+  return [
+    {
+      label: isDesignReference ? 'Current implementation' : 'Local branch',
+      source: branches.local,
+    },
+    {
+      label: isDesignReference ? 'Design reference' : 'Remote branch',
+      source: branches.remote,
+    },
+  ]
+}
+
+function ComparisonSource({ label, source }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium text-slate-300"><LocalizedText text={label} /></p>
+      <p className="truncate text-[10px] text-slate-500" title={source}><LocalizedText text={source} /></p>
+    </div>
+  )
+}
+
+// Expected (design system) vs current (code), with each source named above its values.
+function ComparisonTable({ fields, sources }) {
   return (
     <div className="space-y-1.5">
+      {sources && (
+        <div className="grid grid-cols-2 gap-3">
+          {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
+        </div>
+      )}
       {fields.map((field) => (
         <div key={field.label} className="space-y-1.5">
           <p className="text-[11px] text-slate-500"><LocalizedText text={field.label} /></p>
@@ -311,22 +339,28 @@ function CodeDiffColumns({ rows }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {columns.map((column) => (
-        <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto py-1 font-mono text-[11px] leading-relaxed">
-          <span className="sr-only">{column.label}</span>
-          {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
-            <div key={`${row.kind}-${index}`} className="flex min-w-0 whitespace-pre-wrap [word-break:break-all]">
-              <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-              <span className={cn(
-                'min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]',
-                DIFF_TONES[row.kind],
-                row.kind !== 'same' && 'box-decoration-clone px-1'
-              )}>{row.text || ' '}</span>
-            </div>
-          ))}
-        </div>
-      ))}
+    <div className="grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)] gap-3">
+      <div className="flex items-start gap-1.5 pt-0.5 text-[10px] font-medium text-slate-400">
+        <Sparkles className="mt-0.5 size-3 shrink-0 text-emerald-300" />
+        <LocalizedText text="AI suggestion" />
+      </div>
+      <div className="grid min-w-0 grid-cols-2 gap-3">
+        {columns.map((column) => (
+          <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto font-mono text-[11px] leading-relaxed">
+            <span className="sr-only">{column.label}</span>
+            {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
+              <div key={`${row.kind}-${index}`} className="flex min-w-0 whitespace-pre-wrap [word-break:break-all]">
+                <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
+                <span className={cn(
+                  'min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]',
+                  DIFF_TONES[row.kind],
+                  row.kind !== 'same' && 'box-decoration-clone px-1'
+                )}>{row.text || ' '}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -343,6 +377,7 @@ function DiffTab({ conflict }) {
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
   const pairedPreview = conflict.preview && conflict.preview.kind !== 'divider' && conflict.comparisonFields?.length > 0
+  const sources = comparisonSources(conflict.branches)
 
   return (
     <div className="flex h-full flex-col">
@@ -352,15 +387,16 @@ function DiffTab({ conflict }) {
             {pairedPreview ? (
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { side: 'before', tone: 'text-red-300', value: (field) => field.current },
-                  { side: 'after', tone: 'text-emerald-200', value: (field) => field.expected },
-                ].map(({ side, tone, value }) => (
-                  <div key={side} className="min-w-0 rounded-lg bg-white/[0.025] px-2 pb-1">
-                    <ChangePreview preview={conflict.preview} side={side} />
-                    <dl className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0">
+                  { side: 'before', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
+                  { side: 'after', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
+                ].map(({ side, source, tone, value }) => (
+                  <div key={side} className="flex min-w-0 flex-col gap-2 rounded-lg bg-white/[0.025] p-3">
+                    {source && <ComparisonSource {...source} />}
+                    <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
+                    <dl className="mt-1 min-w-0 space-y-1.5">
                       {conflict.comparisonFields.map((field) => (
-                        <div key={field.label} className="flex min-w-0 items-center gap-1 text-xs">
-                          <dt className="truncate text-[10px] text-slate-500"><LocalizedText text={field.label} /></dt>
+                        <div key={field.label} className="flex min-w-0 items-center justify-between gap-2 border-t border-white/[0.06] pt-1.5 text-xs">
+                          <dt className="min-w-0 truncate text-[10px] text-slate-500"><LocalizedText text={field.label} /></dt>
                           <dd className={cn('shrink-0 font-medium', tone)}><LocalizedText text={value(field)} /></dd>
                         </div>
                       ))}
@@ -370,6 +406,12 @@ function DiffTab({ conflict }) {
               </div>
             ) : conflict.preview && (
               <div className="min-w-0">
+                {conflict.preview.kind === 'divider' && sources && (
+                  <div className="mb-2 grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
+                    <span />
+                    {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
+                  </div>
+                )}
                 <ChangePreview preview={conflict.preview} />
               </div>
             )}
@@ -388,31 +430,17 @@ function DiffTab({ conflict }) {
                     ))}
                   </div>
                 ) : (
-                  <ComparisonTable fields={conflict.comparisonFields} />
+                  <ComparisonTable fields={conflict.comparisonFields} sources={sources} />
                 )}
               </div>
             )}
-            {!pairedPreview && conflict.branches && (
-              <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-500">
-                {[conflict.branches.local, conflict.branches.remote].map((source, index) => (
-                  <p key={index} className="flex min-w-0 items-center gap-1" title={source}>
-                    <FileCode2 className="size-3 shrink-0" />
-                    <span className="truncate"><LocalizedText text={source} /></span>
-                  </p>
-                ))}
+            {!pairedPreview && !conflict.comparisonFields?.length && sources && (
+              <div className="grid grid-cols-2 gap-3">
+                {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
               </div>
             )}
             {conflict.diff && (
               <div className="min-w-0 border-t border-white/[0.06] pt-3">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                    <Sparkles className="size-3.5 shrink-0 text-emerald-300" />
-                    <LocalizedText text="AI suggestion" />
-                  </p>
-                  <span className="text-[10px] text-slate-500">
-                    <LocalizedText text="Applied after required approvals and merge" />
-                  </span>
-                </div>
                 <CodeDiffColumns rows={rows} />
               </div>
             )}
@@ -1073,13 +1101,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
-  const footerNote =
-    stage === 'in_review' && myReview
-      ? 'Approval does not merge the changes.'
-      : stage === 'approved'
-        ? 'Merging applies the change and saves a History checkpoint.'
-        : null
-
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
@@ -1182,7 +1203,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </Tooltip>
               )}
               <div className="flex shrink-0 items-center">
-                {footerNote && <span className="mr-1.5 hidden text-right text-[10px] leading-snug text-slate-400 xl:block">{footerNote}</span>}
                 {primary}
               </div>
             </div>
