@@ -2664,7 +2664,8 @@ function MergeInfiniteCanvas({
             aria-expanded={mergeDrawer === 'inbox'}
             onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
             className={cn(
-              'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+              'relative flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              FLOATING_PILL,
               mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
             )}
           >

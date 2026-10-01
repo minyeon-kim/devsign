@@ -14,6 +14,7 @@ import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
+import MergeHelp from '@/components/mergestudio/MergeHelp'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
 import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine, parseCopyLine } from '@/components/mergestudio/copyFile'
@@ -876,6 +877,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       )}
 
       <MergeAiBar />
+      <MergeHelp />
     </div>
   )
 }

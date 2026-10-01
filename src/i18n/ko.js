@@ -1139,6 +1139,16 @@ Object.assign(ko, {
 Object.assign(ko, docsHistoryKo)
 
 Object.assign(ko, {
+  'Merge Studio help': '병합 스튜디오 도움말',
+  'Close help': '도움말 닫기',
+  'Filter by status, conflict or due date.': '상태, 충돌 여부, 마감일로 병합 목록을 필터링하세요.',
+  'Open an item, or add files to start a merge.': '항목을 열거나 파일을 추가해 병합을 시작하세요.',
+  'Use ‹ › to review each visual change.': '‹ › 버튼으로 각 변경점을 확인하세요.',
+  'Select a canvas element to compare values and edit styles or tokens in the Block Deck.': '캔버스 요소를 선택하면 블록 덱에서 값을 비교하고 스타일이나 토큰을 편집할 수 있어요.',
+  'Click Merge Changes to check conflicts, preview changes and request a review.': '변경 사항 병합을 눌러 충돌을 확인하고, 변경 사항을 미리 본 뒤 검토를 요청하세요.',
+})
+
+Object.assign(ko, {
   'Open design preview': '디자인 미리보기 열기',
   'Design preview': '디자인 미리보기',
   'Current mock design · Not an activity snapshot': '현재 샘플 디자인이에요. 활동 당시의 화면과는 다를 수 있어요.',
