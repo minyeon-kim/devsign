@@ -5,7 +5,7 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
-import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { STUDIO_PILL as FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 
 // `bezel` = frame thickness, `radius` = outer corner — a phone reads as a
 // phone, a desktop as a thin-framed display.

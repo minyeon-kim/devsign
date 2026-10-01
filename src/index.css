@@ -337,11 +337,11 @@
 .ds-workspace :is(button, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, [role="tab"]):is(
   [class~="h-5"], [class~="h-6"], [class~="h-7"], [class~="h-8"], [class~="h-9"], [class~="h-10"],
   [class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]
-) {
+):not(.ds-merge-pill) {
   height: var(--ds-control-height);
   min-height: var(--ds-control-height);
 }
-.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]) {
+.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]):not(.ds-merge-pill) {
   width: var(--ds-control-height);
   min-width: var(--ds-control-height);
 }
@@ -354,6 +354,9 @@
 .ds-workspace .ds-merge-pill.ds-merge-pill {
   height: 40px;
   min-height: 40px;
+  max-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
   flex-shrink: 0;
   box-sizing: border-box;
   border: 1px solid rgb(255 255 255 / 10%);
@@ -369,6 +372,7 @@
 .ds-workspace .ds-merge-pill.ds-merge-pill[class~="size-10"] {
   width: 40px;
   min-width: 40px;
+  max-width: 40px;
   padding: 0;
 }
 .ds-workspace button.ds-merge-pill:hover,

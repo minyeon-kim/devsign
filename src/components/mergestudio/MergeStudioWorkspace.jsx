@@ -669,7 +669,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
                 <button
                   type="button"
                   onClick={returnToPreview}
-                  className="flex h-10 items-center gap-2 rounded-full bg-emerald-400 pr-4 pl-3 text-[13px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300 animate-in fade-in zoom-in-95 duration-200"
+                  className={cn(FLOATING_PILL, 'flex items-center gap-2 pr-4 pl-3 animate-in fade-in zoom-in-95 duration-200')}
                 >
                   <ArrowLeft className="size-4" />
                   Back to Preview
