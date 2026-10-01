@@ -19,13 +19,13 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { buildDrifts, buildSummary, buildOverrides } from '@/components/mergestudio/mergeSummary'
 import ConflictResolver from '@/components/mergestudio/ConflictResolutionModal'
+import { VariantCompareTab } from '@/components/mergestudio/BlockDeckPanel'
 import { codeOverrides, workspaceCodeEdits } from '@/components/mergestudio/codeSync'
 import { isSecondaryLayer } from '@/components/mergestudio/mockupContent'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -153,19 +153,14 @@ function SummarySection({ summary }) {
   )
 }
 
-// Reserved width for the canvas to shift clear of, while the wizard is open
-// and docked to its default right-side spot (max-w-2xl + its right-6
-// margin + breathing room). Matches the `reserve`/`DECK_RESERVE` pattern
-// the Block Deck already uses for the same purpose — both dock right and
-// share the same reserved zone, so neither the code comparison nor the
-// artboards sit hidden behind either one.
-export const WIZARD_RESERVE = 720
-
-// Top edge the wizard docks at and can't be dragged above: just below the
-// studio's top toolbar row (matches the Block Deck's DECK_TOP).
-const WIZARD_TOP = 60
-
+// The full flow, docked in the bottom panel's Conflict Points tab instead
+// of a floating wizard: Compare (the Block Deck's old tab, now here) then
+// Check → Preview → Review. The canvas's own `MacroStepper` mirrors this
+// same list for its header stepper. The flow ends at Review with a PR +
+// review request; there is no deploy step (deploying unapproved changes
+// isn't possible here).
 export const WIZARD_STEPS = [
+  { id: 'compare', label: 'Compare' },
   { id: 'check', label: 'Check' },
   { id: 'preview', label: 'Preview' },
   { id: 'review', label: 'Review' },
@@ -1126,17 +1121,14 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
   )
 }
 
-// The full flow (Compare, then the wizard's Check → Preview → Review) —
-// shown only on the canvas's top stepper; the modal's footer uses it for
-// "Step N of 4". The flow ends at Review with a PR + review request; there
-// is no deploy step (deploying unapproved changes isn't possible here).
-const DISPLAY_STEPS = [{ id: 'compare', label: 'Compare' }, ...WIZARD_STEPS]
-
-
-// The "Merge Changes" wizard: Check -> Preview -> Review -> Deploy. Rendered
-// only while open (the parent mounts it per click), so every session starts
-// fresh. `onStepChange` lets the canvas header stepper mirror the stage.
-function MergeExecutionModal({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, reviewMarks = {}, onSetReviewMark, onEditInAssemble, initialDriftId, initialStep = 0, onStepChange, onClose, onComplete, onFinalMerge, onEditCode }) {
+// Compare → Check → Preview → Review, docked in the bottom panel's Conflict
+// Points tab (the canvas's own `MacroStepper` is the primary way to jump
+// between steps; this just renders whichever one is active). `step` is
+// owned by the parent (MergeStudioWorkspace's `wizardStep`), not internal
+// state — the panel is always mounted once an item is open, so there's no
+// "open fresh every time" moment to seed an initial step/drift from
+// anymore.
+function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, onHoverDiff, selectedLayerId, reviewMarks = {}, onSetReviewMark, onEditInAssemble, step, onStepChange, onComplete, onFinalMerge, onEditCode, onBack }) {
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
   const { getFileLines, conflicts, updateConflict, updateMergeItem } = useWorkspace()
   const linkedConflicts = conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId)
@@ -1146,7 +1138,6 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   )
   const unreviewedCount = review.drifts.length - review.reviewedCount
   const branch = `merge/${slugify(item.title)}`
-  const [step, setStep] = useState(initialStep)
   const [run, setRun] = useState('idle') // idle | progress | success (Deploy step)
   const [progress, setProgress] = useState(0)
   const [reviewers, setReviewers] = useState({ james: ['code'], min: ['design'] })
@@ -1157,41 +1148,6 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   const [generating, setGenerating] = useState(false)
   const [prNumber] = useState(() => 100 + Math.floor(Math.random() * 90))
 
-  // Free dragging: starts at the default docked spot (top-[60px]/right-6, via
-  // CSS) until the user first drags the header, after which `pos` takes
-  // over as an explicit viewport-relative left/top (the dialog is `fixed`,
-  // so plain client coordinates work with no container/offset math needed).
-  const [pos, setPos] = useState(null)
-  function handleHeaderPointerDown(event) {
-    if (event.button !== 0 || event.target.closest('button, a, input, textarea')) return
-    const content = event.currentTarget.closest('[data-slot="dialog-content"]')
-    if (!content) return
-    event.preventDefault()
-    const rect = content.getBoundingClientRect()
-    const startX = event.clientX
-    const startY = event.clientY
-    const startLeft = rect.left
-    const startTop = rect.top
-    // Suppress text selection for the drag's duration — without this,
-    // a fast drag starting on the title/branch text selects it instead of
-    // tracking the cursor smoothly, which reads as the drag "sticking".
-    const prevUserSelect = document.body.style.userSelect
-    document.body.style.userSelect = 'none'
-    function onMove(m) {
-      setPos({
-        left: Math.min(Math.max(8, startLeft + m.clientX - startX), window.innerWidth - rect.width - 8),
-        top: Math.min(Math.max(WIZARD_TOP, startTop + m.clientY - startY), window.innerHeight - 60),
-      })
-    }
-    function onUp() {
-      document.body.style.userSelect = prevUserSelect
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }
-
   const needCode = summary.files.length > 0
   const needDesign = item.hasDesign
   const hasScope = (scope) => Object.values(reviewers).some((s) => s.includes(scope))
@@ -1200,10 +1156,6 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
   const reviewerNames = reviewerIds.map((id) => allPeople.find((p) => p.id === id)?.name).filter(Boolean)
   const scopeNames = (scope) => allPeople.filter((p) => reviewers[p.id]?.includes(scope)).map((p) => p.name)
   const reviewValid = reviewersOk && commit.trim() && prTitle.trim()
-
-  useEffect(() => {
-    onStepChange?.(WIZARD_STEPS[step].id)
-  }, [step, onStepChange])
 
   useEffect(() => {
     if (run !== 'progress') return
@@ -1246,65 +1198,93 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
 
   const busy = run === 'progress'
   const last = step === WIZARD_STEPS.length - 1
-  const canNext = step === 2 ? reviewValid : true
+  const canNext = step === 3 ? reviewValid : true
 
   return (
-    // No overlay / blur and non-modal: the canvas stays sharp and visible
-    // behind the wizard, which docks to the right.
-    <Dialog open modal={false} onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent
-        overlay={false}
-        showCloseButton={!busy}
-        style={pos ? { left: pos.left, top: pos.top, right: 'auto' } : undefined}
-        className={cn(
-          'flex max-h-[calc(100vh-76px)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 shadow-2xl sm:max-w-2xl',
-          // Default dock: `top-[60px]` — the same line as the Block Deck and
-          // Merge List — so it opens below the studio's top toolbar row
-          // (stepper, avatars, Preview) and never covers it; dragging
-          // can't lift it above that line either. Docked toward the
-          // *right* so it sits clear of the central code comparison /
-          // artboards instead of covering them — free dragging (see `pos`
-          // above) takes over as soon as the user drags the header.
-          !pos && 'top-[60px] right-6 left-auto'
+    <div className="flex h-full flex-col">
+      {/* One wide row instead of a stacked title block: back (when this is
+          a drill-in from the Conflict Points list), title + branch, and
+          the step tabs, all on the same baseline — the panel is wide and
+          short now, not a tall narrow dialog, so stacking them wasted the
+          width and buried the steps behind the canvas's own stepper. */}
+      <div className="flex shrink-0 items-center gap-4 border-b border-white/[0.08] px-4 py-2.5">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-full py-1 pr-2.5 pl-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            <ChevronLeft className="size-4" />
+            Conflict Points
+          </button>
         )}
-      >
-        <DialogHeader
-          onPointerDown={handleHeaderPointerDown}
-          className="shrink-0 cursor-grab gap-1.5 border-b px-6 py-5 active:cursor-grabbing"
-        >
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <span className="flex size-7 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
-              <GitPullRequest className="size-3.5" />
-            </span>
-            {run === 'success' ? 'Review requested' : 'Merge changes'}
-          </DialogTitle>
-          <DialogDescription className="flex items-center gap-1.5 text-sm">
-            <GitBranch className="size-3.5" />
-            {branch} → main
-          </DialogDescription>
-        </DialogHeader>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950">
+            <GitPullRequest className="size-3" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm leading-tight font-semibold text-white">{run === 'success' ? 'Review requested' : 'Merge changes'}</p>
+            <p className="flex items-center gap-1 text-[11px] leading-tight text-slate-500">
+              <GitBranch className="size-2.5" />
+              {branch} → main
+            </p>
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-1" role="tablist" aria-label="Merge steps">
+          {WIZARD_STEPS.map((s, i) => {
+            const active = i === step
+            const done = i < step
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                disabled={busy}
+                onClick={() => onStepChange(i)}
+                className={cn(
+                  'flex h-7 items-center gap-1 rounded-full px-3 text-[12px] font-medium transition-colors disabled:opacity-40',
+                  active ? 'bg-white/[0.1] text-white' : done ? 'text-emerald-400 enabled:hover:bg-white/[0.06]' : 'text-slate-500 enabled:hover:bg-white/[0.04] enabled:hover:text-slate-300'
+                )}
+              >
+                {done && <Check className="size-3" />}
+                {s.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged</p>
-          {item.tag === 'In Review' && <div className="mb-4 space-y-2">
-            <p className="text-xs text-slate-400">Required approvals</p>
-            {(linkedConflicts.length ? linkedConflicts.flatMap((c) => c.reviewers.map((r) => ({ ...r, conflictId: c.id }))) : item.reviewers ?? []).map((r) => (
-              <button key={`${r.conflictId ?? item.id}:${r.id}`} type="button" disabled={r.status === 'approved'} className="mr-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-50" onClick={() => {
-                if (r.conflictId) {
-                  const c = linkedConflicts.find((c) => c.id === r.conflictId)
-                  const next = c.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person)
-                  updateConflict(c.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
-                } else updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person) })
-              }}>{r.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
-            ))}
-          </div>}
-          {item.tag === 'In Review' && (
-            <button type="button" onClick={() => { if (onFinalMerge()) onClose() }} className="mb-4 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
-              Merge approved changes
-            </button>
-          )}
-          {run === 'idle' && step === 0 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} onEditCode={onEditCode} />}
-          {run === 'idle' && step === 1 && (
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged</p>
+        {item.tag === 'In Review' && <div className="mb-4 space-y-2">
+          <p className="text-xs text-slate-400">Required approvals</p>
+          {(linkedConflicts.length ? linkedConflicts.flatMap((c) => c.reviewers.map((r) => ({ ...r, conflictId: c.id }))) : item.reviewers ?? []).map((r) => (
+            <button key={`${r.conflictId ?? item.id}:${r.id}`} type="button" disabled={r.status === 'approved'} className="mr-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-50" onClick={() => {
+              if (r.conflictId) {
+                const c = linkedConflicts.find((c) => c.id === r.conflictId)
+                const next = c.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person)
+                updateConflict(c.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
+              } else updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person) })
+            }}>{r.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
+          ))}
+        </div>}
+        {item.tag === 'In Review' && (
+          <button type="button" onClick={onFinalMerge} className="mb-4 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
+            Merge approved changes
+          </button>
+        )}
+        {run === 'idle' && step === 0 && (
+          item.hasDesign ? (
+            <VariantCompareTab item={item} selectedLayerId={selectedLayerId} resolutions={resolutions} onResolve={onResolveDiff} onHoverDiff={onHoverDiff} />
+          ) : (
+            <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+              This merge item has no design page to compare.
+            </div>
+          )
+        )}
+        {run === 'idle' && step === 1 && <CheckStep item={item} resolutions={resolutions} summary={summary} onResolveDiff={onResolveDiff} onEditCode={onEditCode} />}
+        {run === 'idle' && step === 2 && (
             <PreviewStep
               item={item}
               resolutions={resolutions}
@@ -1318,11 +1298,10 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
               review={review}
               onSetReviewMark={onSetReviewMark}
               onEditInAssemble={onEditInAssemble}
-              initialDriftId={initialDriftId}
             />
           )}
 
-          {run === 'idle' && step === 2 && (
+          {run === 'idle' && step === 3 && (
             <div className="space-y-7">
               {/* What will actually be merged, before assigning reviewers. */}
               <SummarySection summary={summary} />
@@ -1381,22 +1360,22 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.08] px-4 py-3">
           {run === 'success' ? (
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => setRun('idle')}
               className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
             >
               Done
             </button>
           ) : (
             <>
-              {step === 2 && !reviewValid ? (
+              {step === 3 && !reviewValid ? (
                 <span className="mr-auto text-[13px] text-amber-500">
                   {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
                 </span>
-              ) : step === 1 && review.drifts.length > 0 ? (
+              ) : step === 2 && review.drifts.length > 0 ? (
                 // Preview never blocks moving on (the existing policy) — it
                 // just says plainly how much is left to look at. Continuing
                 // opens the Review step; nothing is merged until the PR
@@ -1408,34 +1387,23 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
                 </span>
               ) : (
                 <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
-                  Step {step + 2} of {DISPLAY_STEPS.length} · {WIZARD_STEPS[step].label}
+                  Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
                 </span>
               )}
-              {step === 0 ? (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="inline-flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <ChevronLeft className="size-4" />
-                  Back to Compare
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setStep((s) => s - 1)}
-                  className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
-                >
-                  <ChevronLeft className="size-4" />
-                  Back
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={busy || step === 0}
+                onClick={() => onStepChange(step - 1)}
+                className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+              >
+                <ChevronLeft className="size-4" />
+                Back
+              </button>
               {!last ? (
                 <button
                   type="button"
                   disabled={!canNext}
-                  onClick={() => setStep((s) => s + 1)}
+                  onClick={() => onStepChange(step + 1)}
                   className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
                 >
                   Continue to {WIZARD_STEPS[step + 1].label}
@@ -1458,9 +1426,8 @@ function MergeExecutionModal({ item, resolutions, annotations, preset, assemblie
             </>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
   )
 }
 
-export default MergeExecutionModal
+export default MergeStepFlow

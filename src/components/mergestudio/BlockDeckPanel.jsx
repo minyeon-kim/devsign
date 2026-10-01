@@ -735,7 +735,7 @@ function AiRecommendation({ layer, onChange }) {
 // the Merge List's per-item badge is the highest of these.
 const severityOf = driftSeverity
 
-function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
+export function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHoverDiff }) {
   const { requestMergeFocus, getFileLines } = useWorkspace()
   const page = canvasPages.find((p) => p.id === item.designPageId)
   const frame = frameWithLayers(page?.frames[0])
@@ -1403,12 +1403,9 @@ function BlockDeckPanel({
   selectedLayerName,
   appliedPresetId,
   onApplyPreset,
-  resolutions,
   driftEffect,
   textSlots,
   onEditText,
-  onResolve,
-  onHoverDiff,
   selectedLayer,
   frameWidth,
   assembly,
@@ -1424,7 +1421,7 @@ function BlockDeckPanel({
   onMerge,
   changeCounts = {},
 }) {
-  const [tab, setTab] = useState('compare')
+  const [tab, setTab] = useState('assemble')
   function switchTab(next) {
     setTab(next)
   }
@@ -1517,7 +1514,6 @@ function BlockDeckPanel({
           title — no rules above or below, just spacing. */}
       <div className="flex shrink-0 items-center gap-1 px-5 pb-3">
         {[
-          ['compare', 'Compare'],
           ['assemble', 'Assemble'],
           ['library', 'Library'],
         ].map(([id, label]) => (
@@ -1535,21 +1531,7 @@ function BlockDeckPanel({
       </div>
       {/* No per-tab description line — each tab's content starts right
           under the tab bar. */}
-      {tab === 'compare' ? (
-        item.hasDesign ? (
-          <VariantCompareTab
-            item={item}
-            selectedLayerId={selectedLayerId}
-            resolutions={resolutions}
-            onResolve={onResolve}
-            onHoverDiff={onHoverDiff}
-          />
-        ) : (
-          <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-            This merge item has no design page to compare.
-          </div>
-        )
-      ) : tab === 'library' ? (
+      {tab === 'library' ? (
         <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
       ) : (
         <BlockAssembleTab

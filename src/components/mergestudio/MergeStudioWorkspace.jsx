@@ -1,6 +1,6 @@
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Blocks, ListChecks, TriangleAlert } from 'lucide-react'
+import { Blocks, ListChecks, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { STUDIO_PILL as FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -9,9 +9,9 @@ import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
-import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
-import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
+import MergeStepFlow, { WIZARD_STEPS } from '@/components/mergestudio/MergeStepFlow'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeHelp from '@/components/mergestudio/MergeHelp'
@@ -115,7 +115,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // The Block Deck collapses into a toggle pill in the canvas header (next
   // to Share); any fresh selection re-expands it.
   const [deckCollapsed, setDeckCollapsed] = useState(false)
-  const [mergeModal, setMergeModal] = useState(null) // { annotations, step } snapshot while open
   const [annotationsSnap, setAnnotationsSnap] = useState(savedDraft.annotations ?? [])
   // Block Assemble: per-layer structural edits (shape, size, fill, border,
   // shadow, alignment, icon), previewed live on Option B and bundled into the
@@ -135,7 +134,11 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
-  const [wizardStage, setWizardStage] = useState('compare') // macro stage shown in the canvas header
+  // Index into WIZARD_STEPS (Compare/Check/Preview/Review) — drives both
+  // the canvas's MacroStepper and the bottom panel's step flow, since the
+  // step flow is docked there now instead of a floating wizard the parent
+  // mounts/unmounts per "open".
+  const [wizardStep, setWizardStep] = useState(0)
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   const [deckFloating, setDeckFloating] = useState(false)
@@ -232,33 +235,31 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     if (openDeck) setDeckOpen(true)
   }
 
-  // Opens the 4-step merge wizard with everything chosen so far bundled in:
-  // Block Deck variant resolutions (via `resolutions`), the applied AI
-  // preset, and the canvas annotations.
-  function openWizard(annotations = annotationsSnap, step = 0) {
-    const preset =
-      appliedPreset?.layerId
-        ? appliedPreset
-        : null
-    setMergeModal({ annotations, step, preset })
+  // Opens the step flow (in the bottom panel's Conflict Points tab) at a
+  // given WIZARD_STEPS-relative step (0 = Check, matching the old modal's
+  // numbering — Compare sits before it as the panel's own first step, not
+  // something "opening the wizard" ever needs to jump past). `_annotations`
+  // is accepted for backward compatibility with the canvas's MacroStepper
+  // callback, which still forwards its live annotations prop along; the
+  // step flow reads `annotationsSnap` directly instead of a frozen copy now
+  // that it's a persistent panel, not a per-open modal.
+  function openWizard(_annotations, step = 0) {
+    setWizardStep(step + 1)
+    setBottomPanel({ tab: 'conflict', open: true })
   }
 
-  // Preview's "Edit in Assemble": park the wizard (kept, just not shown),
-  // select the element being reviewed, bring it into view and open the
-  // Block Deck on its Assemble tab — every edit so far stays as it is.
-  // `returnToPreview` reopens the wizard on Preview at the same item, with
-  // the latest edits (and review marks) reflected.
-  function editInAssemble({ layerId, driftId }) {
-    setMergeModal((m) => m && { ...m, parked: true, step: 1, returnDriftId: driftId })
-    setWizardStage('preview')
+  // Preview's "Edit in Assemble": select the element being reviewed, bring
+  // it into view and open the Block Deck on its Assemble tab — every edit
+  // so far stays as it is. Nothing needs "parking" any more: the step flow
+  // lives in the bottom panel, not floating over the canvas, so it and the
+  // Block Deck simply stay open together and the Preview step reflects the
+  // Assemble edits live.
+  function editInAssemble({ layerId }) {
+    setWizardStep(2)
     setDeckCollapsed(false)
     setDeckTabRequest({ tab: 'assemble', nonce: Date.now() })
     requestMergeFocus({ itemId: item.id, layerId, openDeck: true, label: 'Edit in Assemble' })
   }
-  function returnToPreview() {
-    setMergeModal((m) => m && { ...m, parked: false, step: 1, annotations: annotationsSnap })
-  }
-  const wizardParked = Boolean(mergeModal?.parked)
 
   function setReviewMark(driftId, signature) {
     setReviewMarks((prev) => {
@@ -575,11 +576,54 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     : []
   const changesCodeRows = changesSummary ? changesSummary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0) : []
 
-  // Merge Studio's own bottom panel: Conflict Points (same as the
-  // Workspace's) plus this item's Changes log, instead of Terminal/Console
-  // — there's no code execution context here to make those meaningful.
+  // Merge Studio's own bottom panel: Conflict Points plus this item's
+  // Changes log, instead of Terminal/Console — there's no code execution
+  // context here to make those meaningful. With an item open, Conflict
+  // Points shows that item's own Compare → Check → Preview → Review flow
+  // (the old floating wizard, now docked here) rather than the
+  // project-wide list the Workspace's own Conflict Points tab shows —
+  // Merge Studio is always focused on one item, so the list would just be
+  // a detour back to the thing already on screen.
   const bottomPanelTabs = [
-    { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
+    {
+      id: 'conflict',
+      label: 'Conflict Points',
+      icon: TriangleAlert,
+      Panel: item
+        ? () => (
+            <MergeStepFlow
+              item={item}
+              resolutions={resolutions}
+              annotations={annotationsSnap}
+              preset={changesPreset}
+              assemblies={assemblies}
+              assemblySources={assemblySources}
+              extraLayers={addedLayers}
+              manualCode={manualCode}
+              onResolveDiff={resolveDiff}
+              onHoverDiff={setHoverDiff}
+              selectedLayerId={deckLayerId}
+              reviewMarks={reviewMarks}
+              onSetReviewMark={setReviewMark}
+              onEditInAssemble={editInAssemble}
+              step={wizardStep}
+              onStepChange={setWizardStep}
+              // Opening the PR hands the item to its reviewers: it reads
+              // "In Review" in the Merge List until it's approved (merging
+              // and deploying happen after approval, outside this flow).
+              onComplete={(reviewerIds) => {
+                updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
+                for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
+                  const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
+                  updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
+                }
+              }}
+              onFinalMerge={() => completeMerge(item.id)}
+              onEditCode={editCodeLine}
+            />
+          )
+        : ConflictPanel,
+    },
     {
       id: 'changes',
       label: 'Changes',
@@ -626,14 +670,10 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   }, [item, mergedNow, ctaCount, setMergeCta])
 
   const deckReserve = deckOpen && !deckCollapsed && !deckFloating ? DECK_RESERVE : 0
-  // The wizard docks right too (same side as the Block Deck) but floats as
-  // an independent inspector: it doesn't refit the canvas or move the
-  // canvas tools (those follow `deckReserve` only). Its width only counts
-  // when centering a jump-to target, so a target being reviewed is never
-  // hidden behind it. Takes whichever of the two reserves more, since both
-  // dock to the same edge.
-  const wizardReserve = mergeModal && !wizardParked ? WIZARD_RESERVE : 0
-  const reserve = Math.max(deckReserve, wizardReserve)
+  // The step flow no longer floats over the canvas (it's docked in the
+  // bottom panel), so it has nothing to reserve space for — only the Block
+  // Deck does.
+  const reserve = deckReserve
   // Committed manual code plus the in-progress keystrokes: what the canvas,
   // Preview and wizard render the Current Implementation from.
   const syncedCode = deferredLive ? { ...manualCode, [deferredLive.key]: deferredLive.text } : manualCode
@@ -664,18 +704,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           inReview={item.tag === 'In Review'}
           headerAction={
             <>
-              {/* While the wizard is parked for "Edit in Assemble": the way
-                  back to Preview, where the latest edits are reflected. */}
-              {wizardParked && (
-                <button
-                  type="button"
-                  onClick={returnToPreview}
-                  className={cn(FLOATING_PILL, 'flex items-center gap-2 pr-4 pl-3 animate-in fade-in zoom-in-95 duration-200')}
-                >
-                  <ArrowLeft className="size-4" />
-                  Back to Preview
-                </button>
-              )}
               {deckOpen && deckCollapsed && (
                 <button
                   type="button"
@@ -692,7 +720,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
               )}
             </>
           }
-          stage={mergeModal ? wizardStage : 'compare'}
+          stage={WIZARD_STEPS[wizardStep].id}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}
@@ -758,11 +786,8 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           selectedLayerId={deckLayerId}
           selectedLayerName={selectedLayer?.name}
           appliedPresetId={appliedPreset?.id}
-          resolutions={resolutions}
           manualCode={manualCode}
           onEditCode={editCodeLine}
-          onResolve={resolveDiff}
-          onHoverDiff={setHoverDiff}
           selectedLayer={selectedLayer}
           frameWidth={frame0?.width ?? 300}
           assembly={deckLayerId ? assemblies[deckLayerId] : undefined}
@@ -776,52 +801,15 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           tabRequest={deckTabRequest}
           onMerge={() => openWizard()}
           changeCounts={{
-            compare: buildDrifts(item, frame0).length,
             assemble: Object.keys(assemblies).length,
             library: addedLayers.length,
           }}
         />
       )}
 
-      {item && mergeModal && !wizardParked && (
-        <MergeExecutionModal
-          item={item}
-          resolutions={resolutions}
-          annotations={mergeModal.annotations}
-          preset={mergeModal.preset}
-          assemblies={assemblies}
-          assemblySources={assemblySources}
-          extraLayers={addedLayers}
-          manualCode={manualCode}
-          onResolveDiff={resolveDiff}
-          reviewMarks={reviewMarks}
-          onSetReviewMark={setReviewMark}
-          onEditInAssemble={editInAssemble}
-          initialDriftId={mergeModal.returnDriftId}
-          initialStep={mergeModal.step}
-          onStepChange={setWizardStage}
-          onClose={() => {
-            setMergeModal(null)
-            setWizardStage('compare')
-          }}
-          // Opening the PR hands the item to its reviewers: it reads
-          // "In Review" in the Merge List until it's approved (merging and
-          // deploying happen after approval, outside this flow).
-          onComplete={(reviewerIds) => {
-            updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
-            for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
-              const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
-              updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
-            }
-          }}
-          onFinalMerge={() => completeMerge(item.id)}
-          onEditCode={editCodeLine}
-        />
-      )}
-
       {/* The selected canvas element: bounding box handles to move / resize
           (plus delete for Library-added layers, reset for edited ones). */}
-      {selLayer && frame0 && guidesVisible && !placing && (!mergeModal || wizardParked) && !mergePreviewOpen && (
+      {selLayer && frame0 && guidesVisible && !placing && !mergePreviewOpen && (
         <LayerTransformHandles
           layerId={selLayer.id}
           frame={frame0}
