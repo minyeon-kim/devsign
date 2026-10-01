@@ -13,7 +13,6 @@ import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import { WIZARD_STEPS } from '@/components/mergestudio/MergeStepFlow'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
-import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeHelp from '@/components/mergestudio/MergeHelp'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
@@ -26,7 +25,7 @@ import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
 // and design artboards, with the Merge List panel floating on the left, the
 // Block Deck as a draggable window that opens only when a canvas element is
-// clicked, and a sticky AI bar at the bottom center — the canvas itself spans this whole area
+// clicked — the canvas itself spans this whole area
 // underneath both. This component is the orchestrator: it owns the
 // code<->design sync selection (driven by clicking a layer on an artboard
 // or a line in the code window — see `designMergeVariants[item.id]
@@ -891,7 +890,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         />
       )}
 
-      <MergeAiBar />
       <MergeHelp />
       </div>
 

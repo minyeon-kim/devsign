@@ -1008,10 +1008,8 @@ function defaultLayout(frame) {
 // at `top-[60px]`, ~104px to its bottom edge) plus breathing room, so a freshly
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
-// Room kept free below the cards for the bottom AI bar (~135px tall at
-// `bottom-5`) and Changes Log, so fitted artboards never sit
-// underneath them.
-const BOTTOM_CONTROLS_CLEARANCE = 150
+// Clear the 40px help and Changes Log pills plus their bottom inset.
+const BOTTOM_CONTROLS_CLEARANCE = 76
 // Fitting may zoom past 100% so the comparison fills the available canvas
 // on large screens instead of sitting small in the middle of it.
 const MAX_FIT_ZOOM = 1.8
@@ -1581,11 +1579,9 @@ function MergeInfiniteCanvas({
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
-  const [logRowRight, setLogRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
-  const logRowRef = useRef(null)
   const viewRef = useRef(view)
   const highlightRef = useRef(null)
   const anchorElRef = useRef(null)
@@ -1634,17 +1630,8 @@ function MergeInfiniteCanvas({
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
-    // Horizontal axis to center on: the bottom AI chat bar's own center
-    // (it's centered on the whole viewport, not on this canvas's visible
-    // strip, so centering on the strip's midpoint left the cards visibly
-    // shifted off the bar's axis). Falls back to the visible strip's
-    // midpoint if the bar isn't mounted. The result is then clamped so the
-    // content never slides under the Merge List drawer or a right-docked
-    // panel — it only drifts off the bar's axis when there isn't room on
-    // one side to stay centered on it.
-    const aiBar = document.querySelector('[data-ai-bar]')
-    const aiRect = aiBar?.getBoundingClientRect()
-    const axis = aiRect?.width ? aiRect.left + aiRect.width / 2 - rect.left : (startX + visRight) / 2
+    // Center within the canvas space available between the panels.
+    const axis = (startX + visRight) / 2
     const left =
       contentW >= availW
         ? startX
@@ -2273,36 +2260,6 @@ function MergeInfiniteCanvas({
   // axis instead of jumping sideways each time the drawer toggles.
   const leftInset = 16
 
-  // Changes Log placement: right-anchored at `right-3` by
-  // default, but the AI chat bar is independently centered on the *whole*
-  // viewport — at narrower windows its right edge can reach past where
-  // that default would put this row. Measuring the AI bar's actual rect
-  // and pushing `right` out just enough to clear it (recomputed on resize
-  // and whenever the row's own width changes, e.g. the Changes Log panel
-  // opening) keeps the two from ever overlapping, at any window size,
-  // instead of relying on a fixed offset that only happens to work at
-  // some widths.
-  useLayoutEffect(() => {
-    function recompute() {
-      const row = logRowRef.current
-      const aiBar = document.querySelector('[data-ai-bar]')
-      if (!row || !aiBar) return
-      const aiRight = aiBar.getBoundingClientRect().right
-      const rowWidth = row.getBoundingClientRect().width
-      const minLeft = aiRight + 12
-      const desiredLeft = window.innerWidth - 12 - rowWidth
-      setLogRowRight(desiredLeft < minLeft ? Math.max(12, window.innerWidth - minLeft - rowWidth) : 12)
-    }
-    recompute()
-    const ro = new ResizeObserver(recompute)
-    if (logRowRef.current) ro.observe(logRowRef.current)
-    window.addEventListener('resize', recompute)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', recompute)
-    }
-  }, [summaryOpen])
-
   return (
     // The shared infinite-canvas tone (`bg-canvas`, one shade above the
     // panel/sidebar surface), same as the Workspace canvas — panels and
@@ -2730,8 +2687,8 @@ function MergeInfiniteCanvas({
           workspace panels position it. */}
       <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
 
-      {/* Changes Log stays above the bottom edge, clear of the AI chat bar. */}
-      <div ref={logRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: logRowRight }}>
+      {/* Changes Log stays anchored to the bottom-right corner. */}
+      <div className="absolute right-3 bottom-5 z-20 flex items-end gap-3">
         {stage === 'compare' && (() => {
           const presetObj =
             appliedPreset?.layerId
