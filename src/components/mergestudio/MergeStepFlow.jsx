@@ -1207,6 +1207,9 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
   const busy = run === 'progress'
   const last = step === WIZARD_STEPS.length - 1
   const canNext = step === 3 ? reviewValid : true
+  const approvalRecords = linkedConflicts.length
+    ? linkedConflicts.flatMap((conflict) => conflict.reviewers.map((reviewer) => ({ ...reviewer, conflictId: conflict.id })))
+    : item.reviewers ?? []
 
   return (
     <div className="flex h-full flex-col">
@@ -1264,24 +1267,50 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <p className="mb-4 text-xs text-amber-300">Draft changes · Not merged</p>
-        {item.tag === 'In Review' && <div className="mb-4 space-y-2">
-          <p className="text-xs text-slate-400">Required approvals</p>
-          {(linkedConflicts.length ? linkedConflicts.flatMap((c) => c.reviewers.map((r) => ({ ...r, conflictId: c.id }))) : item.reviewers ?? []).map((r) => (
-            <button key={`${r.conflictId ?? item.id}:${r.id}`} type="button" disabled={r.status === 'approved'} className="mr-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-50" onClick={() => {
-              if (r.conflictId) {
-                const c = linkedConflicts.find((c) => c.id === r.conflictId)
-                const next = c.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person)
-                updateConflict(c.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
-              } else updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === r.id ? { ...person, status: 'approved' } : person) })
-            }}>{r.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((p) => p.id === r.id)?.name ?? r.id}</button>
-          ))}
-        </div>}
-        {item.tag === 'In Review' && (
-          <button type="button" onClick={onFinalMerge} className="mb-4 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
-            Merge approved changes
-          </button>
-        )}
+        <div className={cn('mx-auto w-full', step === 0 ? 'max-w-[1280px]' : 'max-w-[1440px]')}>
+        <section className={cn('mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl bg-white/[0.035] px-4 py-3', item.tag !== 'In Review' && 'justify-between')}>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-amber-300">Draft changes</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">Not merged · Review the incoming changes before applying them.</p>
+          </div>
+          {item.tag === 'In Review' && (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Required approvals</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {approvalRecords.map((reviewer) => (
+                    <button
+                      key={`${reviewer.conflictId ?? item.id}:${reviewer.id}`}
+                      type="button"
+                      disabled={reviewer.status === 'approved'}
+                      className={cn(
+                        'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-default',
+                        reviewer.status === 'approved'
+                          ? 'bg-emerald-400/[0.1] text-emerald-300'
+                          : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.1]'
+                      )}
+                      onClick={() => {
+                        if (reviewer.conflictId) {
+                          const conflict = linkedConflicts.find((entry) => entry.id === reviewer.conflictId)
+                          if (!conflict) return
+                          const next = conflict.reviewers.map((person) => person.id === reviewer.id ? { ...person, status: 'approved' } : person)
+                          updateConflict(conflict.id, { reviewers: next, reviewStage: next.every((person) => person.status === 'approved') ? 'approved' : 'in_review' })
+                        } else {
+                          updateMergeItem(item.id, { reviewers: item.reviewers.map((person) => person.id === reviewer.id ? { ...person, status: 'approved' } : person) })
+                        }
+                      }}
+                    >
+                      {reviewer.status === 'approved' ? 'Approved' : 'Approve'} · {allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="button" onClick={onFinalMerge} className="shrink-0 rounded-full ds-primary-cta px-4 py-2 text-xs font-semibold text-slate-950">
+                Merge approved changes
+              </button>
+            </>
+          )}
+        </section>
         {run === 'idle' && step === 0 && (
           item.hasDesign ? (
             <VariantCompareTab item={item} selectedLayerId={selectedLayerId} resolutions={resolutions} onResolve={onResolveDiff} onHoverDiff={onHoverDiff} />
@@ -1374,6 +1403,8 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
           {run === 'success' && (
             <SuccessView prTitle={prTitle} reviewerNames={reviewerNames} deploy={deploy} prNumber={prNumber} />
           )}
+        </div>
+
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.08] px-4 py-3">

@@ -28,7 +28,7 @@ const MIN_CANVAS = 220
 // a Problems tab, its open count badged on the tab. Drag the top edge to
 // resize; switching tabs preserves the user's height, and content scrolls
 // inside each panel rather than resizing this dock to fit it.
-function WorkspaceBottomPanel({ tabs = DEFAULT_TABS }) {
+function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
   const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
@@ -91,10 +91,11 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS }) {
       aria-label="Bottom panel"
       style={{ height: open ? height : STRIP_HEIGHT }}
       className={cn(
-        'relative flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        'flex shrink-0 flex-col overflow-hidden transition-all duration-300',
         open
-          ? 'mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
-          : 'rounded-none border-transparent bg-[#050506] shadow-none'
+          ? 'absolute inset-x-0 bottom-0 z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
+          : 'relative rounded-none border-transparent bg-[#050506] shadow-none',
+        className
       )}
     >
       {/* Resize handle along the top edge. */}

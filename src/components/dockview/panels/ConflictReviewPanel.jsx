@@ -83,16 +83,14 @@ const REVIEWER_STATUS = {
 
 const TABS = [
   ['overview', 'Overview'],
-  ['diff', 'Diff'],
   ['history', 'History'],
 ]
 
-const REVIEW_INFO_GRID = 'grid items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
+const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-[11px] leading-5 font-medium text-slate-500'
-const REVIEW_DETAIL_CARD = 'rounded-2xl bg-white/[0.03] p-4'
 const REVIEW_DETAIL_COPY = 'text-[13px] leading-5 text-slate-200'
 
 function EmptyNote({ children }) {
@@ -185,7 +183,7 @@ function Provenance({ conflict, className }) {
       {changedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Changed by</span>
-          <span className="text-xs leading-5 text-slate-200">
+          <span className="min-w-0 break-words text-xs leading-5 text-slate-200 [overflow-wrap:anywhere]">
             <span className="inline-flex items-center gap-1 font-medium">
               {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
               {changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)}
@@ -197,17 +195,17 @@ function Provenance({ conflict, className }) {
       {detectedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Detected by</span>
-          <span className="text-xs leading-5 text-slate-300">{detectedBy}</span>
+          <span className="min-w-0 break-words text-xs leading-5 text-slate-300 [overflow-wrap:anywhere]">{detectedBy}</span>
         </>
       )}
       {impactRows.map(([label, list]) => (
         <Fragment key={label}>
           <span className={REVIEW_INFO_LABEL}>{label}</span>
-          <span className="flex flex-wrap gap-1">
+          <span className="flex min-w-0 flex-wrap gap-1">
             {list.map((item) => (
               <span
                 key={item}
-                className={cn('rounded-md bg-white/[0.05] px-1.5 py-0.5 text-slate-200', label === 'Files' && 'font-mono text-[11px]')}
+                className={cn('min-w-0 break-words rounded-md bg-white/[0.05] px-1.5 py-0.5 text-slate-200 [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[11px]')}
               >
                 {item}
               </span>
@@ -219,7 +217,7 @@ function Provenance({ conflict, className }) {
   )
 }
 
-function OverviewTab({ conflict }) {
+function OverviewTab({ conflict, severity, stage }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -232,9 +230,44 @@ function OverviewTab({ conflict }) {
     conflict.impact?.components?.length ||
     conflict.impact?.files?.length
   )
+  const stageIndex = Math.max(0, REVIEW_STAGES.findIndex((item) => item.id === stage))
+  const severityTone = severity?.label === 'High'
+    ? 'text-red-300'
+    : severity?.label === 'Medium'
+      ? 'text-amber-200'
+      : 'text-sky-200'
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full flex-col">
+      <div className="mb-3 min-w-0 border-b border-white/[0.08] pb-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
+            <span className="min-w-0 break-words text-sm font-semibold text-slate-100 [overflow-wrap:anywhere]">
+              {STAGE_LABEL[stage]}
+            </span>
+            <span className="shrink-0 text-xs font-medium tabular-nums text-slate-500">
+              {stageIndex + 1}/{REVIEW_STAGES.length}
+            </span>
+          </div>
+          {severity && (
+            <p className="flex shrink-0 items-center gap-1.5 text-[11px]">
+              <span className="text-slate-500"><LocalizedText text="Severity" /></span>
+              <span className={cn('font-semibold', severityTone)}>{severity.label}</span>
+            </p>
+          )}
+        </div>
+        {conflict.projectName && (
+          <p className="mt-2 min-w-0 break-words text-xs font-medium text-slate-300 [overflow-wrap:anywhere]">
+            <LocalizedText text="Project" /> · {conflict.projectName}
+          </p>
+        )}
+        {conflict.detectedAt && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            <LocalizedText text="Detected" /> · {conflict.detectedAt}
+          </p>
+        )}
+      </div>
       {conflict.reviewStage === 'resolved' && (
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
           <Check className="size-3.5" strokeWidth={2.5} />
@@ -248,17 +281,17 @@ function OverviewTab({ conflict }) {
         </p>
       )}
       {(conflict.message || reviewImpact || hasMetadata) && (
-        <section className={REVIEW_DETAIL_CARD}>
+        <section className="min-w-0 flex-1">
           {conflict.message && (
             <div className={REVIEW_INFO_GRID}>
               <p className={REVIEW_INFO_LABEL}>Issue summary</p>
-              <p className={cn(REVIEW_DETAIL_COPY, 'font-medium')}>{conflict.message}</p>
+              <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}>{conflict.message}</p>
             </div>
           )}
           {reviewImpact && (
             <div className={cn(REVIEW_INFO_GRID, conflict.message && 'mt-4 border-t border-white/[0.08] pt-4')}>
               <p className={REVIEW_INFO_LABEL}>Review impact</p>
-              <p className="text-[13px] leading-5 text-slate-300">{reviewImpact}</p>
+              <p className="min-w-0 break-words text-[13px] leading-5 text-slate-300 [overflow-wrap:anywhere]">{reviewImpact}</p>
             </div>
           )}
           <Provenance
@@ -305,41 +338,25 @@ function CodeDiffColumns({ rows }) {
 // applied: the fix reaches the workspace when the change is merged.
 function DiffTab({ conflict }) {
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
-    return <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+    return (
+      <div className="h-full">
+        <EmptyNote>No diff captured for this conflict yet.</EmptyNote>
+      </div>
+    )
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
   const pairedPreview = conflict.preview && conflict.preview.kind !== 'divider' && conflict.comparisonFields?.length > 0
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full flex-col">
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
-        <section className="rounded-xl bg-white/[0.025] p-4">
+        <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-4">
-            {conflict.suggestion && (
-              <div className="rounded-xl bg-white/[0.03] p-3">
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                  <Sparkles className="size-3.5" />
-                  AI suggestion
-                </p>
-                <dl className="mt-2 space-y-2">
-                  <div className={REVIEW_INFO_GRID}>
-                    <dt className={REVIEW_INFO_LABEL}>Proposal</dt>
-                    <dd className={REVIEW_DETAIL_COPY}>{conflict.suggestion}</dd>
-                  </div>
-                  {conflict.suggestionReason && (
-                    <div className={REVIEW_INFO_GRID}>
-                      <dt className={REVIEW_INFO_LABEL}>Why</dt>
-                      <dd className={REVIEW_DETAIL_COPY}>{conflict.suggestionReason}</dd>
-                    </div>
-                  )}
-                  {conflict.expectedResult && (
-                    <div className={REVIEW_INFO_GRID}>
-                      <dt className={REVIEW_INFO_LABEL}>Expected result</dt>
-                      <dd className={REVIEW_DETAIL_COPY}>{conflict.expectedResult}</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
+            {conflict.file && (
+              <p className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.06] pb-2 font-mono text-[10.5px] text-slate-400" title={conflict.file}>
+                <FileCode2 className="size-3.5 shrink-0" />
+                <span className="truncate">{conflict.file}</span>
+              </p>
             )}
             {pairedPreview ? (
               <div className="grid grid-cols-2 gap-3">
@@ -373,7 +390,21 @@ function DiffTab({ conflict }) {
             )}
             {!pairedPreview && conflict.comparisonFields?.length > 0 && (
               <div className="min-w-0">
-                <ComparisonTable fields={conflict.comparisonFields} />
+                {conflict.preview?.kind === 'divider' ? (
+                  <div className="space-y-1.5">
+                    {conflict.comparisonFields.map((field) => (
+                      <div key={field.label} className="grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)] items-center gap-3">
+                        <span className="text-[11px] text-slate-400">{field.label}</span>
+                        <div className="grid min-w-0 grid-cols-2 gap-3">
+                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300" title={field.current}>{field.current}</span>
+                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200" title={field.expected}>{field.expected}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ComparisonTable fields={conflict.comparisonFields} />
+                )}
               </div>
             )}
             {!pairedPreview && conflict.branches && (
@@ -387,13 +418,10 @@ function DiffTab({ conflict }) {
               </div>
             )}
             {conflict.diff && (
-              <div className="min-w-0">
-                <p className={cn(PANEL_LABEL, 'mb-2 justify-between')}>
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="size-3.5 text-emerald-300" />
-                    Proposed change
-                  </span>
-                  <span className="font-mono text-[10.5px] font-normal">{conflict.file}</span>
+              <div className="min-w-0 border-t border-white/[0.06] pt-3">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                  <Sparkles className="size-3.5 shrink-0 text-emerald-300" />
+                  <LocalizedText text="AI suggestion" />
                 </p>
                 <CodeDiffColumns rows={rows} />
                 <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -967,7 +995,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   function openTab(value) {
     setTab(value)
-    if (value === 'diff' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
+    if (value === 'overview' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
       update({ diffInspected: true })
     }
   }
@@ -1070,8 +1098,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            {/* Primary header combines the issue identity and project context. */}
-            <div className="flex min-h-11 shrink-0 items-center justify-between gap-5 border-b border-white/[0.07] bg-white/[0.02] px-5 py-2">
+            {/* Primary header combines the issue identity and detail tabs. */}
+            <div className="flex min-h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-5 py-1">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -1083,67 +1111,75 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <ArrowLeft className="size-4" />
                 </button>
                 <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{conflict.title}</h2>
-                <div className="flex shrink-0 items-center gap-2.5">
-                  {severity && <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />}
-                  <StagePill stage={stage} />
-                </div>
               </div>
-              <div className="flex min-w-0 max-w-[52%] flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-xs text-slate-500">
-                {conflict.projectName && <span className="text-slate-500">Project · <span className="text-slate-400">{conflict.projectName}</span></span>}
-                {conflict.detectedAt && <span className="text-slate-500">Detected · <span className="text-slate-400">{conflict.detectedAt}</span></span>}
+              <div className="flex shrink-0 items-center gap-1" role="tablist" aria-label="Conflict details">
+                {TABS.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === id}
+                    onClick={() => openTab(id)}
+                    className={cn(
+                      'inline-flex h-7 shrink-0 items-center justify-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap transition-colors',
+                      WORKSPACE_TAB_RADIUS,
+                      tab === id
+                        ? 'bg-white/[0.09] text-white'
+                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+                    )}
+                  >
+                    <LocalizedText text={label} />
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-5 py-2.5">
-                <div className="flex items-center gap-1" role="tablist" aria-label="Conflict details">
-                  {TABS.map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === id}
-                      onClick={() => openTab(id)}
-                      className={cn(
-                        'inline-flex h-7 shrink-0 items-center justify-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap transition-colors',
-                        WORKSPACE_TAB_RADIUS,
-                        tab === id
-                          ? 'bg-white/[0.09] text-white'
-                          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-                      )}
-                    >
-                      <LocalizedText text={label} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={cn('grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] p-3', REVIEW_GUTTER)}>
-                <div className="min-h-0 min-w-0 overflow-auto" role="tabpanel">
-                    {tab === 'overview' && (
-                      <OverviewTab conflict={conflict} />
-                    )}
-                    {tab === 'diff' && <DiffTab conflict={conflict} />}
-                    {tab === 'history' && (
-                      <HistoryCheckpointTimeline workspace={workspace} />
-                    )}
+              <div className={cn(
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto p-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-hidden',
+                REVIEW_GUTTER
+              )}>
+                <div className="min-h-[420px] min-w-0 overflow-auto xl:min-h-0" role="tabpanel">
+                  {tab === 'overview' ? (
+                    <div className="grid min-h-full min-w-0 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
+                        <p className="mb-3 flex h-7 shrink-0 items-center border-b border-white/[0.07] pb-2 text-[13px] font-semibold text-slate-200">
+                          <LocalizedText text="Overview" />
+                        </p>
+                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          <OverviewTab conflict={conflict} severity={severity} stage={stage} />
+                        </div>
+                      </section>
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
+                        <p className="mb-3 flex h-7 shrink-0 items-center border-b border-white/[0.07] pb-2 text-[13px] font-semibold text-slate-200">
+                          <LocalizedText text="Compare" />
+                        </p>
+                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          <DiffTab conflict={conflict} />
+                        </div>
+                      </section>
+                    </div>
+                  ) : (
+                    <HistoryCheckpointTimeline workspace={workspace} />
+                  )}
                 </div>
 
                 {/* Sidebar begins level with the main content beneath the shared tab bar. */}
-                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
-                  <StatusCard conflict={conflict} />
-                  <div className={cn('scroll-fade-bottom min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
+                <div className={cn('flex h-[420px] min-h-0 min-w-0 flex-col overflow-hidden xl:h-auto', REVIEW_GUTTER)}>
+                  <div className={cn('min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
                     <ReviewersSection conflict={conflict} onUpdate={update} onApproveReviewer={handleApproveReviewer} />
                   </div>
                   <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
-                    <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>Comments</p>
+                    <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
+                      <LocalizedText text="Comments" />
+                    </p>
                     <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 px-5 py-2.5">
+            <div className="flex shrink-0 items-center gap-1.5 px-5 pt-1 pb-2.5">
               <div className="min-w-0 flex-1" />
               {stage !== 'resolved' && (
                 <Tooltip>
