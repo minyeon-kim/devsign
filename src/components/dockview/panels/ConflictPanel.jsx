@@ -108,18 +108,6 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
-  // Opening a conflict's detail needs real room — its own split layout
-  // (content tabs beside Status/Reviewers/Comments) reads cramped at the
-  // panel's resting height. Grow it to ~30% of the screen on open, but only
-  // up (never fight a bigger height the user already dragged to, and never
-  // shrink it back down going from one conflict's detail to another's or
-  // back to the list — only the fresh open to a detail view claims space).
-  useEffect(() => {
-    if (!reviewConflict) return
-    const target = Math.round(window.innerHeight * 0.3)
-    if (bottomPanel.height < target) setBottomPanel({ open: true, height: target })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewConflict?.id])
   const counts = conflictCounts(conflicts)
   const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
@@ -211,7 +199,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-0 pb-2" role="group" aria-label="Filter conflicts">
+        <div className="mt-1 flex shrink-0 flex-wrap items-center gap-2 border-t border-white/[0.06] px-4 pt-2 pb-2" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}

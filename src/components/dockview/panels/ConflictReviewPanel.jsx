@@ -85,7 +85,7 @@ const TABS = [
   ['history', 'History'],
 ]
 
-const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[112px_minmax(0,1fr)]'
+const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-2 gap-y-1 sm:grid-cols-[88px_minmax(0,1fr)]'
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
@@ -1106,7 +1106,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         {conflict && (
           <>
             {/* Primary header combines the issue identity and detail tabs. */}
-            <div className="flex h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-5">
+            <div className="flex h-9 shrink-0 items-center justify-between gap-5 bg-[#121212] px-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -1144,10 +1144,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto px-3 pt-1 pb-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-hidden',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto px-3 pt-1 pb-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
               )}>
-                <div className="min-h-[420px] min-w-0 overflow-auto xl:min-h-0" role="tabpanel">
+                <div className="min-h-0 min-w-0 overflow-auto" role="tabpanel">
                   {tab === 'overview' ? (
                     <div className="grid min-h-full min-w-0 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
@@ -1173,7 +1173,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
 
                 {/* Sidebar begins level with the main content beneath the shared tab bar. */}
-                <div className={cn('flex h-[420px] min-h-0 min-w-0 flex-col overflow-hidden xl:h-auto', REVIEW_GUTTER)}>
+                <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
                   <div className={cn('min-h-0 max-h-[40%] overflow-y-auto', REVIEW_CONTEXT_CARD)}>
                     <ReviewersSection conflict={conflict} onUpdate={update} onApproveReviewer={handleApproveReviewer} />
                   </div>

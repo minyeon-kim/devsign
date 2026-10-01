@@ -1,5 +1,5 @@
 import { moveTab } from '@/lib/tabOrder'
-import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
@@ -46,10 +46,16 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (!reviewConflictId) return
+    const target = Math.max(320, Math.round(window.innerHeight * 0.46))
+    setBottomPanel({ open: true, height: target })
+  }, [reviewConflictId, setBottomPanel])
+
   useLayoutEffect(() => {
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
   }, [open, height, availableHeight, setBottomPanel])
-  const { open: openConflicts, needsMyReview } = conflictCounts(conflicts)
+  const { open: openConflicts } = conflictCounts(conflicts)
 
   function maxHeight() {
     const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
@@ -108,10 +114,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
       />
 
       <div
-        className={cn(
-          'flex shrink-0 cursor-pointer items-center gap-1 px-3',
-          open && tab === 'conflict' && reviewConflictId ? 'pt-2 pb-0' : 'py-2'
-        )}
+        className="flex shrink-0 cursor-pointer items-center gap-1.5 px-3 py-2"
         style={{ height: STRIP_HEIGHT }}
         role="tablist"
         onClick={(event) => {
@@ -166,17 +169,6 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className }) {
                 </span>
               )}
             </button>
-            {id === 'conflict' && needsMyReview > 0 && (
-              <button
-                type="button"
-                aria-description="Show conflicts waiting for your review"
-                onClick={() => setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'mine' })}
-                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20"
-              >
-                <span className="ds-status-dot rounded-full bg-emerald-400" />
-                Needs your review · {needsMyReview}
-              </button>
-            )}
           </Fragment>
         ))}
       </div>

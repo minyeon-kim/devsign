@@ -10,7 +10,7 @@ function MergeDrawer({ icon: Icon, title, aside, onClose, children }) {
   return (
     <div
       className={cn(
-        'absolute top-[60px] right-4 bottom-4 z-40 flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        'absolute top-[60px] right-4 bottom-4 z-[700] flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
         PANEL_RADIUS,
         FLOATING_PANEL
       )}
