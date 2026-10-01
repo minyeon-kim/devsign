@@ -27,7 +27,6 @@ function AddFilesMenu() {
     <Popover onOpenChange={(open) => open && setSelected([])}>
       <PopoverTrigger
         type="button"
-        data-guide="add-files"
         title="Add files — start a merge item from your project's files"
         aria-label="Add files"
         className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#09090A] text-slate-300 transition-colors hover:bg-[#161618] hover:text-white"

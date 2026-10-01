@@ -391,7 +391,7 @@ function ItemDetailView({ item, files, frame, view, flashView, onView, selectedL
 // and, pushed in when an item is opened, that item's Files / Layers with a
 // "Back to Merge List" header. It collapses to a small pill; clicking the
 // canvas collapses it too.
-function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), onExplore, navigation, onNavigate }) {
+function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFileId, manualCode, focusTab, editedLayerIds = new Set(), navigation, onNavigate }) {
   const {
     mergeItems,
     selectedMergeItemId,
@@ -435,11 +435,8 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
   // Collapsed Merge List sections — Merged starts folded away.
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set(['merged']))
 
-  // Any filter change also counts as exploring the list for the onboarding
-  // guide.
   function changeFilters(next) {
     setFilters(next)
-    onExplore?.()
   }
   const dueDays = mergeItems.map(dueDateOf).filter(Boolean)
 
@@ -467,7 +464,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
         </button>
         <button
           type="button"
-          data-guide="merge-list-toggle"
           onClick={() => setMergeListCollapsed((v) => !v)}
           aria-pressed={!mergeListCollapsed}
           title={mergeListCollapsed ? 'Show Merge List' : 'Hide Merge List'}
@@ -492,7 +488,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       // Floating glass window that slides/fades over the canvas (transform
       // only), so toggling it never shifts the canvas or its centered
       // floating controls.
-      data-guide="merge-list"
       aria-hidden={mergeListCollapsed}
       inert={mergeListCollapsed}
       className={cn(
@@ -531,7 +526,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value)
-                      onExplore?.()
                     }}
                     placeholder="Search…"
                     className="h-8 w-full rounded-full border border-white/10 bg-[#09090A] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:border-white/25 focus:ring-1 focus:ring-white/20"
@@ -552,7 +546,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
             </div>
 
 
-            <div data-guide="merge-items" className="space-y-4">
+            <div className="space-y-4">
             {visible.length === 0 && (
               <p className={cn(GROUP_SURFACE, 'py-6 text-center text-[13px] text-slate-400')}>No merge items match these filters.</p>
             )}
@@ -594,7 +588,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                               onSelect={() => {
                                 setSelectedMergeItemId(it.id)
                                 push()
-                                onExplore?.()
                               }}
                             />
                       ))}
@@ -630,7 +623,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
               flashView={flashView}
               onView={(v) => {
                 setDetailView(v)
-                onExplore?.()
               }}
               selectedLayerId={selectedLayerId}
               selectedFileId={selectedFileId}

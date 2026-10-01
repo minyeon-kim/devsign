@@ -1508,7 +1508,6 @@ function MergeInfiniteCanvas({
   // opening it never refits the canvas or moves the tools; `reserve` (deck
   // or wizard) is only used to center jump-to targets in the visible area.
   layoutReserve = reserve,
-  onDriftNav,
   guidesVisible = true,
   onToggleGuides,
   listCollapsed,
@@ -2642,12 +2641,11 @@ function MergeInfiniteCanvas({
         <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {drifts.length > 1 && (
-              <div data-guide="drift-nav" className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
+              <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
                 <button
                   type="button"
                   onClick={() => {
                     goDrift(-1)
-                    onDriftNav?.()
                   }}
                   title="Previous drift"
                   className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -2664,7 +2662,6 @@ function MergeInfiniteCanvas({
                   type="button"
                   onClick={() => {
                     goDrift(1)
-                    onDriftNav?.()
                   }}
                   title="Next drift"
                   className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

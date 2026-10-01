@@ -1418,7 +1418,6 @@ function BlockDeckPanel({
   onAddComponent,
   onDragComponent,
   onInsertComponent,
-  onTabSwitch,
   collapsed = false,
   onCollapse,
   tabRequest,
@@ -1428,7 +1427,6 @@ function BlockDeckPanel({
   const [tab, setTab] = useState('compare')
   function switchTab(next) {
     setTab(next)
-    onTabSwitch?.()
   }
   // A tab asked for from outside (e.g. Preview's "Edit in Assemble"); the
   // nonce lets the same tab be requested again. Applied during render
@@ -1481,7 +1479,6 @@ function BlockDeckPanel({
   return (
     <div
       ref={rootRef}
-      data-guide="block-deck"
       aria-hidden={collapsed}
       inert={collapsed}
       style={{

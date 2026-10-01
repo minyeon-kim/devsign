@@ -14,7 +14,6 @@ import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
-import MergeGuide from '@/components/mergestudio/MergeGuide'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
 import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine, parseCopyLine } from '@/components/mergestudio/copyFile'
@@ -80,10 +79,6 @@ function defaultLineFor(item) {
   }
   return null
 }
-
-// Once the guide is finished or skipped it stays gone for the rest of the
-// session, even across leaving and re-entering Merge Studio.
-let guideFinished = false
 
 // Deck width plus its 16px right inset and 16px breathing room.
 const DECK_RESERVE = DECK_WIDTH + 32
@@ -650,44 +645,12 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     .map((e) => ({ ...e, current: layerCopy?.[e.slot] ?? e.value }))
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
-  // Onboarding guide (MergeGuide), fully action-driven — no Next button:
-  //   1 Merge List    → a tab / filter / search interaction  → 2
-  //   2 Pick or add   → an item opens (selected or via Add Files) → 3
-  //   3 Drift pager   → a ‹ › click, or the deck opening (the only way
-  //                     forward when an item has a single drift)  → 4
-  //   4 Block Deck    → a property edit or a deck tab switch    → 5
-  //   5 Merge Changes → the merge wizard opens                  → done
-  // Closing the item drops back to 2. Skip ends it for the session.
-  const rootRef = useRef(null)
-  const [guideStep, setGuideStep] = useState(() => (guideFinished ? null : item ? 3 : 1))
-  function finishGuide() {
-    guideFinished = true
-    setGuideStep(null)
-  }
-  function advanceGuide(from) {
-    setGuideStep((s) => (s === from ? from + 1 : s))
-  }
-  const editCount = Object.keys(resolutions).length + Object.keys(assemblies).length + Object.keys(manualCode).length + addedLayers.length
-  useEffect(() => {
-    setGuideStep((s) => (s == null ? s : item && s <= 2 ? 3 : !item && s >= 3 ? 2 : s))
-  }, [item?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (deckOpen) advanceGuide(3)
-  }, [deckOpen])
-  useEffect(() => {
-    if (editCount > 0) advanceGuide(4)
-  }, [editCount])
-  useEffect(() => {
-    if (mergeModal && guideStep != null) finishGuide()
-  }, [mergeModal]) // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
-    <div ref={rootRef} className="relative flex min-h-0 flex-1 bg-canvas">
+    <div className="relative flex min-h-0 flex-1 bg-canvas">
 
       {item ? (
         <div className="flex min-h-0 flex-1">
         <MergeInfiniteCanvas
-          onDriftNav={() => advanceGuide(3)}
           reserve={reserve}
           layoutReserve={deckReserve}
           guidesVisible={guidesVisible}
@@ -714,7 +677,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
               {deckOpen && deckCollapsed && (
                 <button
                   type="button"
-                  data-guide="block-deck"
                   onClick={() => setDeckCollapsed(false)}
                   title="Show Block Deck"
                   className={cn(
@@ -758,9 +720,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         // Nothing is auto-selected — but the empty state is the same canvas
         // surface as MergeInfiniteCanvas (bg-canvas + its dot grid at
         // 100% zoom), so selecting an item just fills the canvas in rather
-        // than swapping a flat placeholder for a whole new background. The
-        // "pick an item" guidance is the onboarding guide's job (MergeGuide),
-        // keeping the canvas clean.
+        // than swapping a flat placeholder for a whole new background.
         <div
           className="min-h-0 flex-1 bg-canvas"
           style={{
@@ -773,7 +733,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       <MergeListSidebar
         navigation={listNavigation}
         onNavigate={onListNavigation}
-        onExplore={() => advanceGuide(1)}
         item={item}
         files={files}
         frame={frame0}
@@ -791,7 +750,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           onEditText={editText}
           open={deckOpen}
           onFloat={() => setDeckFloating(true)}
-          onTabSwitch={() => advanceGuide(4)}
           collapsed={deckCollapsed}
           onCollapse={() => setDeckCollapsed(true)}
           item={item}
@@ -820,14 +778,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
             assemble: Object.keys(assemblies).length,
             library: addedLayers.length,
           }}
-        />
-      )}
-
-      {guideStep != null && !mergeModal && !mergePreviewOpen && (
-        <MergeGuide
-          containerRef={rootRef}
-          step={guideStep}
-          onSkip={finishGuide}
         />
       )}
 
