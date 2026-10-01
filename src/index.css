@@ -135,10 +135,11 @@
        box. Hover/selected fills (--muted) sit one step above that. */
     --background: var(--ds-bg-base);
     /* The infinite canvas behind the Workspace and Merge Studio windows —
-       exactly one shade above the surface tone (--card / --sidebar), so
-       navigation and panels (layer 0) read as a darker frame around a
-       slightly lifted canvas (layer 1) instead of a flat, muddy void. */
-    --canvas: var(--ds-bg-base);
+       a touch lighter than --background, so navigation and panels (layer
+       0) read as a darker frame around a slightly lifted canvas (layer 1)
+       instead of a flat, muddy void — while staying darker than --card so
+       floating panels still read as raised above it. */
+    --canvas: #141414;
     --foreground: #FAFAFA;
     --card: var(--ds-surface-card);
     --card-foreground: #FAFAFA;
