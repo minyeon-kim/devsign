@@ -629,7 +629,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       label: 'Conflict Points',
       icon: TriangleAlert,
       Panel: ConflictPanel,
-      panelProps: { mergeStudioItem: item, mergeStepFlowProps },
+      panelProps: { mergeStudioItem: item, inMergeStudio: true, mergeStepFlowProps },
     },
     {
       id: 'changes',

@@ -46,26 +46,42 @@ const FILTERS = [
 // → Preview → Review flow instead of the plain conflict review, since
 // Merge Studio already has that item's edit session loaded. Everything
 // else falls back to the ordinary review, same as the Workspace's own tab.
-function ConflictPanel({ mergeStudioItem, mergeStepFlowProps }) {
+function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   const navigate = useNavigate()
-  const { projectId, conflicts, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
+  const { projectId, conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
     updateConflict, approveConflict, requestChanges, resolveConflict, currentUser, requestMergeFocus } =
     useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
-  const reviewConflictIsOpenItem =
-    mergeStudioItem && reviewConflict && (reviewConflict.mergeItemId === mergeStudioItem.id || reviewConflict.id === mergeStudioItem.conflictId)
-  // Selecting a conflict that's the open item's own doesn't just swap the
-  // panel to its step flow — the canvas needs to jump to the element it's
-  // actually about, the same "pick it, see it" the Merge List already does.
+  // A conflict links to its merge item either way round — its own
+  // `mergeItemId`, or the item's `conflictId` pointing back at it (most of
+  // conflictChecklist only has the latter; see mockData). Resolve both so
+  // "which item is this conflict's" works for any conflict in the list,
+  // not just ones that happen to carry `mergeItemId` themselves.
+  const reviewConflictItemId =
+    reviewConflict && (reviewConflict.mergeItemId ?? mergeItems.find((mi) => mi.conflictId === reviewConflict.id)?.id ?? null)
+  const reviewConflictIsOpenItem = Boolean(mergeStudioItem && reviewConflictItemId === mergeStudioItem.id)
+  // Selecting a conflict in Merge Studio's own Conflict Points tab doesn't
+  // just swap the panel to its step flow — the canvas needs to jump to the
+  // element it's actually about, the same "pick it, see it" the Merge List
+  // already does. If the conflict belongs to a *different* item than the
+  // one open here, `requestMergeFocus` switches to it (it sets the
+  // selected merge item too), so any conflict in the list lands somewhere
+  // concrete instead of only ones already matching what's open. This must
+  // key off `inMergeStudio` (always true for this tab), not
+  // `mergeStudioItem` — the Conflict Points list shows up even before any
+  // merge item has been opened (empty canvas), and gating on
+  // `mergeStudioItem` meant the very first click from that empty state
+  // never called `requestMergeFocus` at all, so the canvas never populated.
   useEffect(() => {
-    if (!reviewConflictIsOpenItem) return
+    if (!inMergeStudio || !reviewConflict || !reviewConflictItemId) return
+    if (!reviewConflict.layerId && !(reviewConflict.fileId && reviewConflict.line)) return
     requestMergeFocus({
-      itemId: mergeStudioItem.id,
+      itemId: reviewConflictItemId,
       label: reviewConflict.title,
       ...(reviewConflict.layerId ? { layerId: reviewConflict.layerId } : { fileId: reviewConflict.fileId, line: reviewConflict.line }),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewConflictIsOpenItem, reviewConflict?.id])
+  }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
   const counts = conflictCounts(conflicts)
   const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
   const visible = sortOpenFirst(conflicts.filter(filter.test))
