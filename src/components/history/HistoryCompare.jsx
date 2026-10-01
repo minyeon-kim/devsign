@@ -36,7 +36,6 @@ const MIN_CANVAS = 260
 // own (History's control bar).
 function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser, projectId } = useWorkspace()
-  const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
   const [codeWidth, setCodeWidth] = useState(null)
@@ -82,12 +81,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
       addIndex: row.kind === 'add' ? addIndex++ : null,
     }))
   }, [showDiff, rows, entry])
-  // The canvas can compare "this version" against whatever we're diffing
-  // the code against — independent of the Compare-latest toggle, so
-  // switching that toggle only changes the code pane, never shifts the
-  // canvas out from under you mid-comparison.
-  const canCompare = Boolean(diffBase) && (playing || !isCurrent)
-  const shownSnapshot = canvasSide === 'latest' && canCompare ? diffBase : entry
+  const shownSnapshot = showDiff ? diffBase : entry
 
   if (!entry) {
     return (
@@ -233,14 +227,14 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           onStep={(d) => resizeCode(codeRef.current.offsetWidth + d)}
         />
 
-        {/* The design at this version, beside its code — flip it to what
-            we're comparing against to see the difference. This only reads
-            `canvasSide`/`canCompare`, never `compareLatest`, so switching
-            the Compare-latest toggle changes the code pane and never
-            silently moves this canvas out from under a comparison. */}
+        {/* The design at this version, beside its code — one Compare-latest
+            toggle now drives both: on, the code shows a diff and this
+            shows the latest design; off, both just show this version
+            plainly. Having the toggle and a separate This-version/Latest
+            switch do overlapping jobs was confusing — one control. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
           <PreviewPanelContent
-            key={canvasSide === 'latest' && canCompare ? 'latest' : 'checkpoint'}
+            key={showDiff ? 'latest' : 'checkpoint'}
             snapshotKey={shownSnapshot.id}
             previewProps={shownSnapshot.snapshot.previewProps ?? {}}
             // Seeded checkpoints don't carry their own `prototypeEdits` —
@@ -256,30 +250,9 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
             historical
             caption={
-              canCompare ? (
-                <span className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Canvas version">
-                  {[
-                    ['entry', 'This version'],
-                    ['latest', playing ? 'Previous step' : 'Latest'],
-                  ].map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      aria-selected={canvasSide === id}
-                      onClick={() => setCanvasSide(id)}
-                      className={cn(
-                        'h-5 rounded-full px-2 text-[10.5px] font-medium transition-colors',
-                        canvasSide === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </span>
-              ) : (
-                <span className="shrink-0 text-emerald-300">{!playing && isCurrent ? 'Current' : `At ${entry.timestamp}`}</span>
-              )
+              <span className="shrink-0 text-emerald-300">
+                {showDiff ? (playing ? 'Previous step' : 'Latest') : !playing && isCurrent ? 'Current' : `At ${entry.timestamp}`}
+              </span>
             }
           />
         </div>
