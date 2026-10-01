@@ -277,6 +277,10 @@ export function WorkspaceProvider({ children, projectId }) {
   const [chatDraft, setChatDraft] = useState('')
   const [chatTargetOverride, setChatTargetOverride] = useState(null)
   const [mergeFocus, setMergeFocus] = useState(null)
+  // A request to open the Activity Bar's History drawer from somewhere
+  // deep in the tree (Merge Studio's "Version history" link) — observed by
+  // AppShell, which owns the drawer itself. See `requestHistoryDrawer`.
+  const [historyDrawerRequest, setHistoryDrawerRequest] = useState(null)
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
@@ -404,6 +408,13 @@ export function WorkspaceProvider({ children, projectId }) {
     // MergeStudioWorkspace would silently swallow it.
     setMergeFocus({ target, nonce: nextId('focus') })
   }, [setSelectedMergeItemId])
+
+  // Same request/observe pattern as `requestMergeFocus`, for the one
+  // History UI (the Activity Bar's) rather than a second, separate one
+  // inside Merge Studio.
+  const requestHistoryDrawer = useCallback(() => {
+    setHistoryDrawerRequest({ nonce: nextId('history-drawer') })
+  }, [])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     setNotifications((prev) => {
@@ -1443,6 +1454,8 @@ export function WorkspaceProvider({ children, projectId }) {
     replyToNotification,
     mergeFocus,
     requestMergeFocus,
+    historyDrawerRequest,
+    requestHistoryDrawer,
     mergePreviewOpen,
     setMergePreviewOpen,
     mergeCta,

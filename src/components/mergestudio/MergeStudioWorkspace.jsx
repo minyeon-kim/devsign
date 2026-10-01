@@ -3,7 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { ArrowLeft, Blocks } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
-import { canvasPages, codeMergeVariants, designMergeVariants, mergeHistoryEvents, mergeFilesFor } from '@/data/mockData'
+import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -12,7 +12,6 @@ import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffec
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
-import MergeHistoryDrawer from '@/components/mergestudio/MergeHistoryDrawer'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeGuide from '@/components/mergestudio/MergeGuide'
@@ -110,8 +109,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     updateConflict,
   } = useWorkspace()
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
-  const [historyEvents, setHistoryEvents] = useState(savedDraft.historyEvents ?? mergeHistoryEvents)
-  const [currentHistoryId, setCurrentHistoryId] = useState(savedDraft.currentHistoryId ?? mergeHistoryEvents[0].id)
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(savedDraft.appliedPreset ?? null)
   const [deckOpen, setDeckOpen] = useState(false)
@@ -166,9 +163,9 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   useEffect(() => {
     if (item?.id) saveMergeDraft(item.id, {
       resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode,
-      annotations: annotationsSnap, appliedPreset, syncSelection, historyEvents, currentHistoryId,
+      annotations: annotationsSnap, appliedPreset, syncSelection,
     })
-  }, [item?.id, saveMergeDraft, resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode, annotationsSnap, appliedPreset, syncSelection, historyEvents, currentHistoryId])
+  }, [item?.id, saveMergeDraft, resolutions, assemblies, assemblySources, reviewMarks, addedLayers, manualCode, annotationsSnap, appliedPreset, syncSelection])
 
   useEffect(() => {
     if (!item) return
@@ -467,24 +464,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     if (!keepDeck && !forceOpen) setDeckOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeFocus, item?.id])
-
-  function rollbackTo(event) {
-    const entry = {
-      id: `mh-rb-${Date.now()}`,
-      kind: 'rollback',
-      title: `Rolled back to “${event.title}”`,
-      branch: event.branch,
-      authorId: 'jane',
-      time: 'Just now',
-      changes: [{ label: 'State restored', from: 'Current', to: event.time }],
-    }
-    setHistoryEvents((prev) => [entry, ...prev])
-    setCurrentHistoryId(entry.id)
-    setResolutions({})
-    setManualCode({})
-    setAppliedPreset(null)
-    if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'In Progress' })
-  }
 
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
   const frame0 = frameWithLayers(baseFrame, addedLayers)
@@ -856,14 +835,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         />
       )}
 
-      {mergeDrawer === 'history' && (
-        <MergeHistoryDrawer
-          events={historyEvents}
-          currentId={currentHistoryId}
-          onRollback={rollbackTo}
-          onClose={() => setMergeDrawer(null)}
-        />
-      )}
       {mergeDrawer === 'inbox' && (
         <MergeInboxDrawer
           onJump={(n) => {

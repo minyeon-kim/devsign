@@ -3654,63 +3654,6 @@ export const canvasTools = [
 // Merge Studio collaboration data
 // ---------------------------------------------------------------------
 
-// Past merge / branch / review activity for the Version History drawer.
-// `changes` is what "Preview" expands; rolling back to an entry records a
-// new "rollback" event on top of the timeline.
-export const mergeHistoryEvents = [
-  {
-    id: 'mh-5',
-    kind: 'review',
-    title: 'Design review approved',
-    branch: 'merge/flowbank-homepage',
-    authorId: 'min',
-    time: 'Today, 10:42 AM',
-    changes: [{ label: 'Hero CTA · Accent Color', from: 'Indigo 500', to: 'Violet 500' }],
-  },
-  {
-    id: 'mh-4',
-    kind: 'merge',
-    title: 'Merged Settings Panel into main',
-    branch: 'merge/settings-panel',
-    authorId: 'james',
-    time: 'Today, 9:15 AM',
-    changes: [
-      { label: 'tokens.json · radius.card', from: '8px', to: '16px' },
-      { label: 'Primary Button · Corner Radius', from: '8px', to: '16px' },
-    ],
-  },
-  {
-    id: 'mh-3',
-    kind: 'ai',
-    title: 'AI resolved 2 token conflicts',
-    branch: 'merge/flowbank-homepage',
-    authorId: 'jane',
-    time: 'Yesterday, 5:30 PM',
-    changes: [
-      { label: 'theme.css · --accent', from: 'indigo-500', to: 'violet-500' },
-      { label: 'Nav Bar · Background', from: 'Transparent', to: 'Card Surface' },
-    ],
-  },
-  {
-    id: 'mh-2',
-    kind: 'commit',
-    title: 'Commit: tighten hero heading scale',
-    branch: 'merge/flowbank-homepage',
-    authorId: 'jane',
-    time: 'Yesterday, 3:12 PM',
-    changes: [{ label: 'Hero Heading · Font Size', from: '28px', to: '32px' }],
-  },
-  {
-    id: 'mh-1',
-    kind: 'branch',
-    title: 'Branch created from main',
-    branch: 'merge/flowbank-homepage',
-    authorId: 'james',
-    time: '2d ago',
-    changes: [{ label: 'Branch point', from: 'main@a41c9e2', to: 'merge/flowbank-homepage' }],
-  },
-]
-
 // Inbox items. `kind`: 'approval' | 'comment' | 'feedback'. `target` says
 // what to pan the canvas to when clicked: a design `layerId`, a code
 // `fileId` + `line`, or a whole `card` ('code' | 'a' | 'b').

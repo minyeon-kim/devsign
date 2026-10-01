@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // The common application shell, shared by the dashboard-level pages and
 // a project's Workspace/Archive:
@@ -33,6 +34,18 @@ function AppShell({ topBar, project, children }) {
 
   const leavingHistory = (panel) => onHistoryPage && panel === 'history' && drawer === 'history'
   const exitHistory = () => navigate(`/projects/${project.id}/workspace`)
+
+  // Merge Studio's "Version history" link opens this same drawer instead of
+  // a separate panel of its own — see WorkspaceProvider's
+  // `requestHistoryDrawer`/`historyDrawerRequest`. Same render-phase sync
+  // as `wasOnHistory` above, not an effect: `historyDrawerRequest` is a
+  // fresh object each time, so a reference check is enough to catch it.
+  const { historyDrawerRequest } = useWorkspaceOptional() ?? {}
+  const [handledHistoryRequest, setHandledHistoryRequest] = useState(null)
+  if (historyDrawerRequest && historyDrawerRequest !== handledHistoryRequest) {
+    setHandledHistoryRequest(historyDrawerRequest)
+    setDrawer('history')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>

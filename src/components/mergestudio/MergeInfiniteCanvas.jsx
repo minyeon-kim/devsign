@@ -1537,7 +1537,7 @@ function MergeInfiniteCanvas({
   onSelectFrame,
   onFocusSource,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, requestHistoryDrawer, otherMembers } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -2795,7 +2795,7 @@ function MergeInfiniteCanvas({
               onToggle={() => setSummaryOpen((v) => !v)}
               onOpenHistory={() => {
                 setSummaryOpen(false)
-                setMergeDrawer('history')
+                requestHistoryDrawer()
               }}
               onJump={(e) =>
                 requestMergeFocus({
