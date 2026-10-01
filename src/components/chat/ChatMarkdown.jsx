@@ -63,17 +63,23 @@ function parseBlocks(text) {
   return blocks
 }
 
-// `summary` is the short callout shown above the body — for a reply long
-// enough that a reader would otherwise have to read the whole thing to
-// find the point. Both `text` and `summary` are the raw (English) source;
-// translated here, once, before parsing — never rely on the JSX
-// auto-translator for this, since by the time bold/code/list parsing
-// splits the text into elements, there's no longer one full string for it
-// to match against the dictionary.
+// `translateText` collapses all whitespace (including newlines) before
+// matching the dictionary — fine for a short single-line string, but it
+// would flatten a whole multi-paragraph/numbered-list reply into one line
+// and lose the structure this component exists to render. Translating
+// line by line instead keeps each line's own newline intact and still
+// hits the same dictionary (a line like "1. Open **Diff**..." is matched
+// as its own catalog entry), never relying on the JSX auto-translator
+// either, since by the time bold/code/list parsing splits a line into
+// elements there's no longer one full string for it to match against.
+function translateBlock(raw, language) {
+  return (raw ?? '').split('\n').map((line) => translateText(line, language)).join('\n')
+}
+
 function ChatMarkdown({ text, summary, className }) {
   const language = useLanguage()
-  const translated = translateText(text ?? '', language)
-  const translatedSummary = summary ? translateText(summary, language) : null
+  const translated = translateBlock(text, language)
+  const translatedSummary = summary ? translateBlock(summary, language) : null
   const blocks = useMemo(() => parseBlocks(translated), [translated])
 
   return (

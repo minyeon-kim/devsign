@@ -957,22 +957,47 @@ Swapped the primary button to the sky accent token in theme.css.|theme.css에서
 Where should I start?|어떤 것부터 확인할까요?
 Where should I start the designer UT?|주문 버튼 디자인은 어떤 것부터 확인하면 되나요?
 Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 머지 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
+**Follow these steps:**|**이렇게 진행해보세요:**
+1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌 지점**에서 \`Place order 버튼\` 이슈를 선택하세요.
+2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.|2. 요약을 읽은 뒤 **차이 보기**를 열어 40px 구현과 44px 디자인을 비교하세요.
+3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **머지 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
+4. Use **Assemble** for further styling.|4. 스타일을 더 다듬고 싶으면 **조합**을 사용하세요.
+5. Open **Merge Changes** to inspect the result and request review.|5. **변경 사항 병합**에서 결과를 확인하고 검토를 요청하세요.
 Match Place order to design|주문 버튼을 디자인에 맞추기
 Make the Place order button match the checkout design|Place order 버튼의 높이와 색상을 디자인에 맞춰주세요
 What happens after my edit?|수정한 다음에는 뭘 해야 하나요?
 What happens after my design edit?|버튼을 수정했어요. 다음에는 뭘 해야 하나요?
 AI edits create a draft checkpoint — review and approval are required before it merges.|AI 수정은 초안 체크포인트를 만들어요 — 병합 전에 검토와 승인이 필요해요.
+**What happens after an AI edit:**|**AI가 수정한 뒤에는 이렇게 진행돼요:**
+- It creates a **draft** and a **History checkpoint** — it does not merge automatically.|- **초안**과 **기록 체크포인트**가 생성돼요 — 자동으로 병합되지 않아요.
+- Inspect the visual comparison and code diff before approving.|- 승인하기 전에 비교 화면과 코드 차이를 확인하세요.
+- **Request review** and collect the required approvals, then merge.|- **검토를 요청**하고 필요한 승인을 받은 뒤 병합하세요.
+- Use **History** to inspect or roll back the saved checkpoint anytime.|- **기록**에서 저장된 버전을 언제든 확인하거나 되돌릴 수 있어요.
 Guide me through code review|버튼 코드 검토 시작하기
 Guide me through the developer UT|공통 버튼의 높이를 수정하려고 해요. 어떤 것부터 확인하면 되나요?
 Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 머지 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
+1. Open the **Button / Height** conflict from the project overview.|1. 프로젝트 홈에서 **Button / Height** 충돌을 여세요.
+2. Inspect **Diff** — the implementation uses \`h-9\` while the design system requires the medium height token.|2. **차이 보기**를 확인하세요 — 현재 코드는 \`h-9\`를 쓰지만 디자인 시스템 기준은 medium 높이 토큰이에요.
+3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.|3. **워크스페이스**에서 관련 파일을 확인한 뒤 **머지 스튜디오 비교**로 차이를 해결하세요.
+4. Review the resulting code in **Merge Changes**, assign reviewers, and request review.|4. **변경 사항 병합**에서 결과 코드를 확인하고 검토자를 지정해 검토를 요청하세요.
+5. After approvals, merge and inspect **History**.|5. 승인을 받으면 병합하고 **기록**에서 확인하세요.
 Use the size token for Button|버튼 높이에 토큰 적용하기
 Use the size token for the Button height|Button의 높이에 디자인 시스템 토큰을 적용해주세요
 Why use a shared token?|높이를 토큰으로 관리하는 이유
 Why should the button use a shared token?|버튼 높이를 직접 지정하지 않고 토큰을 쓰는 이유가 뭔가요?
-A shared height token keeps every Button consumer aligned with the design system. Replacing the hard-coded h-9 avoids fixing each screen separately. Review the component diff and affected screens before merging because this shared component has a wider impact than a single page edit.|같은 버튼을 쓰는 여러 화면의 높이를 한곳에서 관리할 수 있기 때문이에요. h-9처럼 값을 직접 지정하면 기준이 바뀔 때마다 코드를 따로 수정해야 해요. 공통 버튼을 바꾸는 작업이니, 병합 전에 코드 차이와 이 버튼을 쓰는 화면도 함께 확인해보세요.
+A shared Button token avoids fixing every screen separately — review affected screens before merging.|공유 Button 토큰을 쓰면 화면마다 따로 고치지 않아도 돼요 — 병합 전에 영향받는 화면을 확인하세요.
+**Why use a shared token:**|**토큰을 공유해서 쓰는 이유:**
+- A shared height token keeps every \`Button\` consumer aligned with the design system.|- 공유 높이 토큰을 쓰면 \`Button\`을 사용하는 모든 화면이 디자인 시스템과 맞춰져요.
+- Replacing the hard-coded \`h-9\` avoids fixing each screen separately.|- \`h-9\`처럼 값을 직접 지정하면 화면마다 따로 고쳐야 해요.
+- This is a **shared component** with wider impact than a single page edit — review the component diff and affected screens before merging.|- 여러 화면에 영향을 주는 **공용 컴포넌트**이니, 병합 전에 코드 차이와 영향받는 화면을 함께 확인하세요.
 How do I verify and roll back?|변경 이력 확인하고 되돌리기
 How do I verify and roll back the change?|수정한 내용을 확인하고 이전 상태로 되돌리려면 어떻게 하나요?
-Check the final code and visual preview in Merge Changes. Approval and merge are separate steps. Once merged, open History, select the new checkpoint, and inspect its changed files. Use the rollback action to restore a previous checkpoint if the result is wrong.|먼저 ‘변경 사항 병합’에서 코드와 미리보기를 확인해보세요. 승인이 끝나도 병합은 직접 진행해야 해요. 병합 후에는 ‘기록’에서 새로 저장된 버전과 변경 파일을 확인할 수 있어요. 이전 상태로 돌아가려면 원하는 버전을 선택해 복원하세요.
+Verify in Merge Changes, then use History → Rollback if something looks wrong.|변경 사항 병합에서 확인한 뒤, 문제가 있으면 기록 → 롤백을 사용하세요.
+**How to verify and roll back:**|**확인하고 되돌리는 방법:**
+1. Check the final code and visual preview in **Merge Changes**.|1. **변경 사항 병합**에서 최종 코드와 미리보기를 확인하세요.
+2. Note that **approval** and **merge** are separate steps.|2. **승인**과 **병합**은 별도의 단계예요.
+3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.|3. 병합 후에는 **기록**에서 새 체크포인트를 선택해 변경된 파일을 확인하세요.
+4. Use **Rollback** to restore a previous checkpoint if the result is wrong.|4. 결과가 잘못됐다면 **롤백**으로 이전 체크포인트를 복원하세요.
 Should the CTA use the violet accent or stay neutral here?|CTA에 violet 강조색을 쓸까요, 아니면 중립색을 유지할까요?
 Padding looks tight on the mobile frame — can we match the 24px spec?|모바일 프레임에서 패딩이 좁아 보입니다 — 24px 스펙에 맞출 수 있을까요?
 I'll sync this with the token file once the palette is finalized.|팔레트가 확정되면 토큰 파일과 동기화하겠습니다.

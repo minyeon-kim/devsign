@@ -36,5 +36,5 @@ export function answerDocumentQuestion(doc, question) {
   const summary = /요약|정리|summary|summarize|overview|설명/.test(question.toLowerCase())
   if (!summary && !ranked.some((p) => p.score)) return `「${doc.title}」에서 질문과 일치하는 내용을 찾지 못했습니다. 문서의 섹션명이나 용어를 포함해 질문해 주세요.\n\n${doc.summary ?? ''}\n섹션: ${[...new Set(passages.map((p) => p.heading))].join(' · ')}`
   const selected = (summary ? passages : ranked.filter((p) => p.score)).slice(0, 3)
-  return `「${doc.title}」 문서에서 확인한 내용입니다.\n\n${summary && doc.summary ? `${doc.summary}\n\n` : ''}${selected.map((p) => `${p.heading}\n${p.text}`).join('\n\n')}\n\n출처: Docs / ${doc.title}`
+  return `「${doc.title}」 문서에서 확인한 내용입니다.\n\n${summary && doc.summary ? `${doc.summary}\n\n` : ''}${selected.map((p) => `**${p.heading}**\n${p.text}`).join('\n\n')}\n\n출처: Docs / ${doc.title}`
 }
