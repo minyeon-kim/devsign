@@ -1,4 +1,4 @@
-import { GitMerge, Pencil, RotateCcw, Sparkles } from 'lucide-react'
+import { GitMerge, Pencil, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
 import { allPeople, currentUser } from '@/data/mockData'
 
 // One line of "who / what / approvals" for a History checkpoint — shown
@@ -13,11 +13,15 @@ function nameOf(id, viewerId) {
 }
 
 // The checkpoint kinds a project's History can filter and badge by — every
-// `recordHistory()` call site sets one of these (see WorkspaceProvider).
-export const HISTORY_KINDS = ['edit', 'ai-edit', 'merge', 'rollback']
-export const KIND_LABEL = { merge: 'Merged', 'ai-edit': 'AI edit', rollback: 'Rollback', edit: 'Edit' }
-export const KIND_ICON = { merge: GitMerge, 'ai-edit': Sparkles, rollback: RotateCcw, edit: Pencil }
-export const KIND_TONE = { merge: 'text-primary', 'ai-edit': 'text-emerald-300', rollback: 'text-sky-300', edit: 'text-slate-400' }
+// `recordHistory()` call site sets one of these (see WorkspaceProvider),
+// except `conflict`: a Conflict Point's own detection moment, seeded
+// alongside the checkpoints around it (see projectHistorySeeds) rather
+// than recorded live, so the timeline shows not just what changed but
+// when design and code drifted apart in the first place.
+export const HISTORY_KINDS = ['edit', 'ai-edit', 'merge', 'rollback', 'conflict']
+export const KIND_LABEL = { merge: 'Merged', 'ai-edit': 'AI edit', rollback: 'Rollback', edit: 'Edit', conflict: 'Conflict detected' }
+export const KIND_ICON = { merge: GitMerge, 'ai-edit': Sparkles, rollback: RotateCcw, edit: Pencil, conflict: TriangleAlert }
+export const KIND_TONE = { merge: 'text-primary', 'ai-edit': 'text-emerald-300', rollback: 'text-sky-300', edit: 'text-slate-400', conflict: 'text-amber-300' }
 
 // The file/element a checkpoint's `target` names — "PlaceOrderButton.jsx ·
 // line 8" and "PlaceOrderButton.jsx" both belong to the same file, so the

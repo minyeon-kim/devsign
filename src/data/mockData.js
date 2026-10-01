@@ -2619,6 +2619,32 @@ export const projectHistorySeeds = {
         selectedLayerId: null,
       },
     },
+    // Not a code change — the sync engine flagging cc-11 eighteen minutes
+    // after the color edit above, so the timeline shows when design and
+    // code actually drifted apart, not only the edits around it. Same
+    // snapshot as history-co-2: nothing changed here, something was caught.
+    {
+      id: 'history-conflict-cc-11',
+      label: 'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.',
+      kind: 'conflict',
+      conflictId: 'cc-11',
+      actorLabel: 'Devsign design ↔ code sync',
+      // The file, not the conflict's own "Place order button · Height &
+      // color" token — so the History drawer's target filter/grouping
+      // (which reads the text before " · ") puts this under the same
+      // PlaceOrderButton.jsx group as the edits around it.
+      target: 'PlaceOrderButton.jsx · Height & color',
+      timestamp: 'Yesterday, 5:20 PM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: checkoutButtonLines('w-full bg-[#7c3aed]'),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
   ],
   'design-system-v2': [
     {
@@ -2679,6 +2705,32 @@ export const projectHistorySeeds = {
       actorId: 'jane',
       target: 'Button.jsx',
       timestamp: 'Yesterday, 11:02 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9', ghost: 'bg-transparent hover:bg-muted' }),
+        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    // Not a code change — the sync engine flagging cc-1 (most recent, "2h
+    // ago"), so the timeline shows when design and code actually drifted
+    // apart, not only the edits around it. Same snapshot as history-ds-4:
+    // nothing changed here, something was caught.
+    {
+      id: 'history-conflict-cc-1',
+      label: 'Button height in code (36px) drifts from the design system token (40px).',
+      kind: 'conflict',
+      conflictId: 'cc-1',
+      actorLabel: 'Devsign design ↔ code sync',
+      // The file, not the conflict's own "Button / Height" token — so the
+      // History drawer's target filter/grouping (which reads the text
+      // before " · ") puts this under the same Button.jsx group as the
+      // edits around it.
+      target: 'Button.jsx · Height',
+      timestamp: '2h ago',
       archived: false,
       snapshot: {
         activeFileId: 'app',

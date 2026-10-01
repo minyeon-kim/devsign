@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArchiveRestore, ChevronDown, RotateCcw, Search, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, RotateCcw, Search, Sparkles, X } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
@@ -11,7 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
+import { allPeople } from '@/data/mockData'
 import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, targetFileOf, filterHistoryEntries } from '@/lib/historyMeta'
@@ -20,8 +22,8 @@ const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
 // A checkpoint's kind as a small icon badge, so the list reads at a glance
-// without opening the row — Edit / AI edit / Merged / Rollback each get
-// their own icon + color (see lib/historyMeta).
+// without opening the row — Edit / AI edit / Merged / Rollback / Conflict
+// detected each get their own icon + color (see lib/historyMeta).
 function KindBadge({ kind }) {
   const Icon = KIND_ICON[kind]
   if (!Icon) return null
@@ -29,6 +31,26 @@ function KindBadge({ kind }) {
     <span title={KIND_LABEL[kind]} className={cn('flex size-4 shrink-0 items-center justify-center', KIND_TONE[kind])}>
       <Icon className="size-3" />
     </span>
+  )
+}
+
+// Who made this checkpoint — a person's avatar, or a small sparkle for
+// Devsign's own edits/sync (an `actorLabel`, see lib/historyMeta) — the
+// same at-a-glance read as KindBadge, but for *who* instead of *what kind*.
+function ActorAvatar({ entry }) {
+  if (entry.actorLabel) {
+    return (
+      <span title={entry.actorLabel} className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
+        <Sparkles className="size-2.5" />
+      </span>
+    )
+  }
+  const person = entry.actorId ? allPeople.find((p) => p.id === entry.actorId) : null
+  if (!person) return null
+  return (
+    <Avatar size="sm" className="size-4" title={person.name}>
+      <AvatarFallback className={cn('text-[7px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+    </Avatar>
   )
 }
 
@@ -245,6 +267,7 @@ function HistoryDrawer({ project }) {
                   >
                     <span className="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
                       <KindBadge kind={entry.kind} />
+                      <ActorAvatar entry={entry} />
                       <span className="min-w-0 truncate">{entry.timestamp}</span>
                       {!isCurrent && (
                         <span className="font-mono text-[10px] transition-opacity group-hover:opacity-0">
@@ -293,7 +316,11 @@ function HistoryDrawer({ project }) {
                 <div key={entry.id} className="flex items-center gap-2 rounded-lg py-2 pr-2.5 pl-6 hover:bg-white/[0.035]">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500 tabular-nums">{entry.timestamp}</p>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
+                      <KindBadge kind={entry.kind} />
+                      <ActorAvatar entry={entry} />
+                      <span className="min-w-0 truncate">{entry.timestamp}</span>
+                    </p>
                   </div>
                   <button
                     type="button"

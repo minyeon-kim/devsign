@@ -85,6 +85,8 @@ Checking the design tokens|디자인 토큰 확인 중
 Reading the card title copy|카드 제목 문구 검토 중
 Looking at the mobile frame|모바일 프레임 확인 중
 Editing Place order button in Checkout|결제 화면에서 Place order 버튼 편집 중
+Place order button|Place order 버튼
+Height & color|높이·색상
 Editing button sizes in tokens.json|tokens.json에서 버튼 크기 편집 중
 Reviewing Order summary in Checkout|결제 화면에서 Order summary 검토 중
 Reviewing color tokens in tokens.json|tokens.json에서 색상 토큰 검토 중
@@ -159,6 +161,7 @@ Projects|프로젝트
 Rollback here|여기로 되돌리기
 AI edit|AI 편집
 Rollback|롤백
+Conflict detected|충돌 감지됨
 All kinds|전체 종류
 All files|전체 파일
 No checkpoints match this filter.|이 필터에 맞는 체크포인트가 없습니다.
