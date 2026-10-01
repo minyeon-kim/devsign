@@ -595,6 +595,57 @@ export const conflictChecklist = [
     mergeTitle: 'Merged Place order button size and color',
     linkedCommentId: 'comment-cc11',
   },
+  // Design ↔ design, not design ↔ code: two drafts of the same card,
+  // compared against each other (see mergeListItems'
+  // `merge-checkout-designer-pair`, which this links to the same way
+  // cc-11 links to merge-checkout-cta) — a Conflict Point same as any
+  // other, so it surfaces in Open Conflict Points / the bottom panel and
+  // opens straight into Merge Studio from there, instead of only being
+  // reachable by browsing Merge Studio's own Draft list directly.
+  {
+    id: 'cc-12',
+    token: 'Order summary card · Radius & weight',
+    file: 'src/prototype/Checkout.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: 'Just now',
+    resolved: false,
+    severity: 'medium',
+    message: 'Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.',
+    riskReason: 'Medium: a visible style choice on the checkout’s order summary card — no logic or data changes either way.',
+    impact: {
+      screens: ['Checkout · Payment step'],
+      components: ['Order summary'],
+      files: ['src/prototype/Checkout.jsx'],
+    },
+    changedBy: { type: 'person', id: 'min', what: 'Opened a second draft of the Order summary card' },
+    detectedBy: 'Three open drafts on the same element',
+    uxNote: 'Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.',
+    branches: { local: 'Jane’s draft', remote: 'Min’s draft' },
+    suggestion: 'Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.',
+    suggestionReason: 'Every other card on this screen already uses a 16px radius and a 700-weight title.',
+    expectedResult: 'One Order summary card style, used consistently across the checkout flow.',
+    reviewStage: 'in_review',
+    reviewers: [
+      { id: 'jane', status: 'pending' },
+      { id: 'min', status: 'pending' },
+    ],
+    comparisonFields: [
+      { label: 'Radius', expected: '16px (Min’s draft)', current: '12px (Jane’s draft)' },
+      { label: 'Title weight', expected: '700 (Min’s draft)', current: '600 (Jane’s draft)' },
+    ],
+    preview: {
+      kind: 'card',
+      before: { radius: 12 },
+      after: { radius: 16 },
+      content: { title: 'Order summary', detail: 'rounded-xl · p-4' },
+    },
+    // Where it lives in the project's Workspace and Merge Studio.
+    fileId: 'app',
+    layerId: 'order-summary',
+    mergeItemId: 'merge-checkout-designer-pair',
+    mergeTitle: 'Merged Order summary card style',
+  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -899,12 +950,16 @@ export const mergeListItems = [
   // the two authors' names (see ConflictResolutionModal/BlockDeckPanel/
   // MergeInfiniteCanvas). No codeMergeVariants entry: this item is
   // design-only, so the Compare view shows no code drifts.
+  // `conflictId` links it to cc-12 the same way merge-checkout-cta links
+  // to cc-11 — opening Merge Studio from Open Conflict Points lands here,
+  // instead of this only being reachable from Merge Studio's own Draft list.
   {
     id: 'merge-checkout-designer-pair',
     projectId: 'checkout-redesign',
+    conflictId: 'cc-12',
     title: 'Order summary card',
     subtitle: '1 file · Design',
-    tag: 'Draft',
+    tag: 'Needs Review',
     updatedLabel: 'Just now',
     fileIds: ['app'],
     hasDesign: true,
@@ -916,6 +971,15 @@ export const mergeListItems = [
     assigneeId: 'jane',
     authorAId: 'jane',
     authorBId: 'min',
+    // Three drafts, not two — `variants` lists every one of them, in
+    // addition to authorAId/authorBId above (kept as the default starting
+    // pair). The Compare view's pair picker (ConflictResolutionModal)
+    // resolves any two of these at a time against each other.
+    variants: [
+      { key: 'jane', authorId: 'jane', label: 'Jane’s draft' },
+      { key: 'min', authorId: 'min', label: 'Min’s draft' },
+      { key: 'james', authorId: 'james', label: 'James’s draft' },
+    ],
   },
   // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
   // lands here). Original Design = the design system's Size/MD spec (40px,
@@ -1051,9 +1115,13 @@ export const designMergeVariants = {
   },
   'merge-checkout-designer-pair': {
     layerDiffs: {
+      // `values` carries every variant (keyed like mergeListItems'
+      // `variants`); `optionA`/`optionB` stay too, as the default pair
+      // (Jane vs Min) for callers that don't resolve a specific pair —
+      // existing behavior is unchanged unless a pair is actually picked.
       'order-summary': [
-        { id: 'os-radius', label: 'Radius', optionA: '12px', optionB: '16px' },
-        { id: 'os-title-weight', label: 'Title weight', optionA: '600', optionB: '700' },
+        { id: 'os-radius', label: 'Radius', optionA: '12px', optionB: '16px', values: { jane: '12px', min: '16px', james: '20px' } },
+        { id: 'os-title-weight', label: 'Title weight', optionA: '600', optionB: '700', values: { jane: '600', min: '700', james: '800' } },
       ],
     },
   },

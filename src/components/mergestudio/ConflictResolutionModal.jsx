@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Code2, Crosshair, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
+import { isCustomResolution } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Derives the conflicting blocks for a merge item from its real mock data:
@@ -15,6 +16,11 @@ function buildBlocks(item, getFileLines) {
   // side after its author instead of the usual design-vs-code framing.
   const tokenCurrentLabel = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
   const tokenIncomingLabel = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
+  // A third+ draft (more designers' own takes on the same property) rides
+  // as a quick-pick beyond the A/B pair, each resolving to the same
+  // `{ custom }` shape the free-text value already uses — so nothing past
+  // this function needs to know there were more than two options.
+  const extraVariants = (item.variants ?? []).filter((v) => v.key !== item.authorAId && v.key !== item.authorBId)
 
   for (const [layerId, diffs] of Object.entries(designMergeVariants[item.id]?.layerDiffs ?? {})) {
     const layer = layers.find((l) => l.id === layerId)
@@ -31,6 +37,9 @@ function buildBlocks(item, getFileLines) {
         incomingLabel: tokenIncomingLabel,
         recommended: diff.recommended ?? 'B',
         reason: diff.reason ?? 'Latest Design System token',
+        extraOptions: diff.values
+          ? extraVariants.filter((v) => v.key in diff.values).map((v) => ({ key: v.key, label: v.label, value: diff.values[v.key] }))
+          : [],
       })
     }
   }
@@ -228,6 +237,32 @@ function ConflictResolver({ item, onBack, onResolved, onResolveDiff, onEditCode 
           <OptionRow label={b.currentLabel} lines={b.current} selected={choices[b.id] === 'A'} recommended={b.recommended === 'A'} onSelect={() => choose('A')} />
           <OptionRow label={b.incomingLabel} lines={b.incoming} strong selected={choices[b.id] === 'B'} recommended={b.recommended === 'B'} onSelect={() => choose('B')} />
         </div>
+        {/* More drafts beyond the A/B pair, e.g. a third designer's own
+            take on the same property — quick-picks, not another radio row,
+            since the block only ever holds two "sides". */}
+        {b.extraOptions?.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-slate-500">More drafts:</span>
+            {b.extraOptions.map((opt) => {
+              const selected = isCustomResolution(choices[b.id]) && choices[b.id].custom === opt.value
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => choose({ custom: opt.value })}
+                  className={cn(
+                    'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium transition-colors',
+                    selected ? 'bg-emerald-400/15 text-emerald-300 ring-1 ring-inset ring-emerald-400/40' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09]'
+                  )}
+                >
+                  {opt.label}
+                  <span className="text-slate-500">·</span>
+                  <span className="font-mono">{opt.value}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
         <p className="mt-2 text-xs text-slate-500">AI: {b.reason}.</p>
       </section>
 

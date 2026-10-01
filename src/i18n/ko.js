@@ -35,6 +35,25 @@ Use the lg button size and remove the fixed background so the button uses the pr
 The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 화면 디자인은 large 크기의 primary 버튼을 지정합니다. 하드코딩된 hex 값은 테마를 우회합니다.
 Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 Place order가 44px 높이, primary 색상으로 렌더링됩니다.
 Button height in code (36px) drifts from the design system token (40px).|코드의 Button 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
+Order summary card|Order summary 카드
+Radius & weight|반경·굵기
+Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|Order summary 카드 시안 세 개가 나란히 열려 있습니다 — 김수연, 한소민, 이지훈의 시안이 모서리 반경과 제목 굵기에서 차이가 있습니다.
+a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면 Order summary 카드의 스타일 선택입니다 — 어느 쪽을 선택해도 로직이나 데이터는 바뀌지 않습니다.
+Opened a second draft of the Order summary card|Order summary 카드의 두 번째 시안을 열었습니다
+Three open drafts on the same element|같은 요소에 열려 있는 시안 세 개
+Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|한소민의 시안을 사용하세요 — 16px 반경과 700 굵기의 제목이 결제 화면의 다른 카드들과 일치합니다.
+Every other card on this screen already uses a 16px radius and a 700-weight title.|이 화면의 다른 모든 카드는 이미 16px 반경과 700 굵기의 제목을 사용하고 있습니다.
+One Order summary card style, used consistently across the checkout flow.|결제 플로우 전체에서 하나의 Order summary 카드 스타일을 일관되게 사용합니다.
+Jane’s draft|김수연의 시안
+Min’s draft|한소민의 시안
+James’s draft|이지훈의 시안
+16px (Min’s draft)|16px (한소민의 시안)
+12px (Jane’s draft)|12px (김수연의 시안)
+700 (Min’s draft)|700 (한소민의 시안)
+600 (Jane’s draft)|600 (김수연의 시안)
+Title weight|제목 굵기
+Merged Order summary card style|Order summary 카드 스타일 병합됨
+More drafts:|추가 시안:
 the shared Button component — a height change reaches every screen that uses it.|공유 Button 컴포넌트입니다 — 높이 변경이 이를 사용하는 모든 화면에 영향을 미칩니다.
 Pushed new changes to Button.jsx|Button.jsx에 새 변경사항을 푸시함
 Swap the hard-coded h-9 for the size token so the button follows the design system height.|하드코딩된 h-9를 size 토큰으로 교체해 버튼이 디자인 시스템 높이를 따르도록 하세요.

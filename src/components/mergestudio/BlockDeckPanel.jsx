@@ -57,7 +57,7 @@ import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 // artboard), plus an on-demand pencil for typing a custom value — shown
 // inline only while editing, and as a slim chip once set. Callers key it by
 // its resolution so the draft resets whenever the choice changes.
-function DiffRow({ diff, resolution, onResolve, onHover, labelA = 'Original Design', labelB = 'Current Implementation' }) {
+function DiffRow({ diff, resolution, onResolve, onHover, labelA = 'Original Design', labelB = 'Current Implementation', extraOptions = [] }) {
   const custom = isCustomResolution(resolution) ? resolution.custom : null
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(custom ?? '')
@@ -136,6 +136,36 @@ function DiffRow({ diff, resolution, onResolve, onHover, labelA = 'Original Desi
           <Pencil className="size-3" />
         </button>
       </div>
+
+      {/* Beyond A/B: more drafts in play for this property, one quick-pick
+          chip each. Picking one is just a shortcut for typing that same
+          value into the custom field — it rides the exact same `{ custom }`
+          resolution the pencil produces, so nothing downstream needs to
+          know there were more than two options. */}
+      {extraOptions.length > 0 && (
+        <div className="mt-1.5 ml-[80px] flex flex-wrap items-center gap-1">
+          {extraOptions.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              title={`Take ${opt.label}`}
+              onClick={() => onResolve(diff.id, { custom: opt.value })}
+              onPointerEnter={() => onHover(diff.id, { custom: opt.value })}
+              onPointerLeave={() => onHover(null)}
+              className={cn(
+                'flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-[10px] font-medium whitespace-nowrap transition-colors',
+                custom === opt.value
+                  ? 'bg-white/[0.14] text-white ring-1 ring-inset ring-white/25'
+                  : 'bg-white/[0.03] text-slate-500 hover:bg-white/[0.08] hover:text-slate-300'
+              )}
+            >
+              <span className="max-w-[72px] truncate">{opt.label}</span>
+              <span className="text-slate-600">·</span>
+              <span>{opt.value}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {editing ? (
         <input
@@ -717,6 +747,10 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
   // side after its author instead of the usual design-vs-code framing.
   const labelA = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
   const labelB = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
+  // More than two drafts open on this item (e.g. three designers' own
+  // takes): the rest ride as quick-pick shortcuts next to the A/B pair
+  // rather than widening the row to N columns.
+  const extraVariants = (item.variants ?? []).filter((v) => v.key !== item.authorAId && v.key !== item.authorBId)
 
   // The open row. Follows the canvas: selecting a drifting element opens
   // its row (context-aware), without closing a row the user opened by hand
@@ -842,6 +876,11 @@ function VariantCompareTab({ item, selectedLayerId, resolutions, onResolve, onHo
                               onHover={(diffId, side) => onHoverDiff(diffId ? { layerId: d.layerId, diffId, side } : null)}
                               labelA={labelA}
                               labelB={labelB}
+                              extraOptions={
+                                diff.values
+                                  ? extraVariants.filter((v) => v.key in diff.values).map((v) => ({ key: v.key, label: v.label, value: diff.values[v.key] }))
+                                  : []
+                              }
                             />
                           ))}
                         </div>
