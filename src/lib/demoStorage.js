@@ -1,6 +1,14 @@
 // Only this prototype's versioned namespace is read or reset.
 export const DEMO_PREFIX = 'devsign:demo:'
-export const DEMO_VERSION = 1
+// Bump this whenever a mock data shape/seed changes in a way existing
+// localStorage demo state wouldn't reflect — readDemo below discards
+// anything saved under an older version instead of silently keeping a
+// browser on data from before the change (e.g. History's seed checkpoints
+// changed several times this session; without this, a browser that had
+// already loaded the app once kept its *original* historyEntries from
+// localStorage forever, never picking up any of it — including Playback's
+// own position in that array, so it looked unrelated to it).
+export const DEMO_VERSION = 2
 
 export function readDemo(key, fallback) {
   try {
