@@ -8,6 +8,7 @@ import SplitHandle from '@/components/layout/SplitHandle'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 import { historyMeta } from '@/lib/historyMeta'
+import { deriveComponentOverride } from '@/lib/prototypeSync'
 
 const ROW_TONES = {
   same: 'text-slate-500',
@@ -34,7 +35,7 @@ const MIN_CANVAS = 260
 // `hideRestore` drops the header's restore button when the caller has its
 // own (History's control bar).
 function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId }) {
-  const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser } = useWorkspace()
+  const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser, projectId } = useWorkspace()
   const [canvasSide, setCanvasSide] = useState('entry') // 'entry' | 'latest'
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
@@ -242,7 +243,16 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             key={canvasSide === 'latest' && canCompare ? 'latest' : 'checkpoint'}
             snapshotKey={shownSnapshot.id}
             previewProps={shownSnapshot.snapshot.previewProps ?? {}}
-            prototypeEdits={shownSnapshot.snapshot.prototypeEdits ?? {}}
+            // Seeded checkpoints don't carry their own `prototypeEdits` —
+            // derive it from that checkpoint's own code instead of falling
+            // back to no overrides at all, which reads as the canvas never
+            // changing between checkpoints no matter what the code diff
+            // shows (see lib/prototypeSync).
+            prototypeEdits={
+              shownSnapshot.snapshot.prototypeEdits ??
+              deriveComponentOverride(projectId, shownSnapshot.snapshot.fileId, shownSnapshot.snapshot.lines) ??
+              {}
+            }
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
             historical
             caption={

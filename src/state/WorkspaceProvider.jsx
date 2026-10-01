@@ -44,6 +44,7 @@ import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCateg
 import { importKind } from '@/lib/importFiles'
 import {
   PROTOTYPE_FILES,
+  deriveComponentOverride,
   lineForLayer,
   parsePrototype,
   prototypeFile,
@@ -117,7 +118,14 @@ export function WorkspaceProvider({ children, projectId }) {
     () => [...baseFiles, ...projectPrototypeFiles, ...importedFiles],
     [baseFiles, projectPrototypeFiles, importedFiles]
   )
-  const [prototypeEdits, setPrototypeEdits] = useDemoState(`project:${projectId}:prototypeEdits`, {})
+  // `app`'s starting lines (PlaceOrderButton.jsx's hard-coded violet,
+  // Button.jsx's h-9) already describe the two scripted conflicts' buggy
+  // *current* state — derive the canvas override that matches, so the
+  // canvas doesn't open already showing the fixed design regardless.
+  const [prototypeEdits, setPrototypeEdits] = useDemoState(
+    `project:${projectId}:prototypeEdits`,
+    () => deriveComponentOverride(projectId, 'app', baseFiles.find((f) => f.id === 'app')?.lines) ?? {}
+  )
   // A line the editor should briefly highlight and scroll to — the code a
   // canvas edit or selection just touched: { fileId, line, nonce }.
   const [codeFlash, setCodeFlash] = useState(null)
@@ -1077,6 +1085,14 @@ export function WorkspaceProvider({ children, projectId }) {
           setFileOverrides(nextFileOverrides)
           setActiveFileIdState(scenario.fileId)
           setPreviewProps(nextPreviewProps)
+          // The code text changed (nextFileOverrides, above) but the canvas
+          // doesn't re-parse arbitrary JSX on its own — without this, a
+          // scenario that edits one of the two real component files
+          // deriveComponentOverride knows (not an auto-generated prototype
+          // file) changes the code pane and nothing else, which is exactly
+          // "code changed, preview didn't" (see lib/prototypeSync).
+          const derivedOverride = deriveComponentOverride(projectId, scenario.fileId, scenario.lines)
+          if (derivedOverride) setPrototypeEdits((prev) => ({ ...prev, ...derivedOverride }))
           setPreviewVersion((v) => v + 1)
           setConflicts(nextConflicts)
           appendTerminalLines(scenario.terminalLines)
@@ -1193,11 +1209,16 @@ export function WorkspaceProvider({ children, projectId }) {
       } else {
         if (live) return
         setFileOverrides((prev) => ({ ...prev, [fileId]: lines }))
+        // Same reasoning as sendChatMessage's AI edits: a hand-edited real
+        // component file (not a generated prototype file) has no other
+        // path back to the canvas at all otherwise.
+        const derivedOverride = deriveComponentOverride(projectId, fileId, lines)
+        if (derivedOverride) setPrototypeEdits((prev) => ({ ...prev, ...derivedOverride }))
       }
       setPreviewVersion((v) => v + 1)
       if (!live) appendTerminalLines([`[HMR] ${getFileName(fileId)} updated`])
     },
-    [appendTerminalLines, getFileName, setPrototypeEdits, setFileOverrides, fileOverrides, files, conflicts, setConflicts, updateMergeItem, setDraftChanges]
+    [appendTerminalLines, getFileName, setPrototypeEdits, setFileOverrides, fileOverrides, files, conflicts, setConflicts, updateMergeItem, setDraftChanges, projectId]
   )
 
   const setCommentStatus = useCallback((commentId, status) => {

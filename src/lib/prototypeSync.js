@@ -159,7 +159,11 @@ export function parsePrototype(fileId, lines) {
   return edits
 }
 
-// A layer's edits as a StaticLayer override (text copy, fill, radius).
+// A layer's edits as a StaticLayer override (text copy, fill, radius,
+// position/size deltas). `dx`/`dy`/`dw`/`dh` pass straight through — an AI
+// edit that changes a component's size (e.g. a button's height variant)
+// needs to move the layer on canvas the same way a manual resize drag
+// does, and StaticLayer already reads these directly off the override.
 export function overrideFromEdit(edit) {
   if (!edit) return undefined
   const override = { ...edit.merged }
@@ -167,5 +171,40 @@ export function overrideFromEdit(edit) {
   if (Object.keys(copy).length) override.copy = copy
   if (edit.fill) override.fillStyle = { background: edit.fill, color: '#fff' }
   if (edit.radius !== undefined) override.radius = edit.radius
+  for (const key of ['dx', 'dy', 'dw', 'dh']) {
+    if (edit[key] !== undefined) override[key] = edit[key]
+  }
   return Object.keys(override).length ? override : undefined
+}
+
+// A couple of the UT script's own *real* component files — not the
+// generated src/prototype/*.jsx ones parsePrototype handles — are also
+// wired to a canvas layer, by a handful of known text patterns rather
+// than a general JSX parser: PlaceOrderButton.jsx's `size="lg"` / hard-
+// coded violet (cc-11), Button.jsx's `--button-height-md` vs `h-9` (cc-1).
+// Both layers' own canvas defaults already sit at one of the two real
+// values (place-order's at the fixed 44px, button-md's at the buggy
+// 36px/h-9) — `dh` is the delta from there, not an absolute height.
+// Without this, editing or AI-fixing either file changes the code pane
+// and nothing else: "code changed, preview didn't".
+const COMPONENT_SYNC = {
+  'checkout-redesign:app': {
+    layerId: 'place-order',
+    derive: (text) => ({
+      dh: /size="lg"/.test(text) ? 0 : -4,
+      fill: /bg-\[(#[0-9a-f]{6})\]/i.exec(text)?.[1],
+    }),
+  },
+  'design-system-v2:app': {
+    layerId: 'button-md',
+    derive: (text) => ({ dh: /--button-height-md/.test(text) ? 4 : 0 }),
+  },
+}
+
+// `{ [layerId]: patch }`, ready to merge into `prototypeEdits` — or null
+// if this project/file isn't one of the two wired above.
+export function deriveComponentOverride(projectId, fileId, lines) {
+  const sync = COMPONENT_SYNC[`${projectId}:${fileId}`]
+  if (!sync || !Array.isArray(lines)) return null
+  return { [sync.layerId]: sync.derive(lines.join('\n')) }
 }
