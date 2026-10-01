@@ -1396,6 +1396,7 @@ export const DECK_WIDTH = 360
 const DECK_TOP = 60
 
 function BlockDeckPanel({
+  embedded = false,
   open,
   onFloat,
   item,
@@ -1418,7 +1419,6 @@ function BlockDeckPanel({
   collapsed = false,
   onCollapse,
   tabRequest,
-  onMerge,
   changeCounts = {},
 }) {
   const [tab, setTab] = useState('assemble')
@@ -1478,19 +1478,19 @@ function BlockDeckPanel({
       ref={rootRef}
       aria-hidden={collapsed}
       inert={collapsed}
-      style={{
+      style={embedded ? undefined : {
         width: DECK_WIDTH,
         ...anchor,
         maxHeight: `calc(100% - ${DECK_TOP + 16}px)`,
       }}
-      className={cn(
+      className={embedded ? 'flex h-full min-h-0 flex-col overflow-hidden bg-card' : cn(
         'absolute z-30 flex flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
         PANEL_RADIUS,
         FLOATING_PANEL,
         collapsed ? 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0' : 'translate-x-0 opacity-100'
       )}
     >
-      <div
+      {!embedded && <div
         onPointerDown={handleDragStart}
         className="flex h-12 shrink-0 cursor-grab items-center justify-between gap-2 pr-3 pl-5 active:cursor-grabbing"
       >
@@ -1506,7 +1506,7 @@ function BlockDeckPanel({
         >
           <PanelRightClose className="size-4" />
         </button>
-      </div>
+      </div>}
 
       <>
       {/* Tabs: the shared category-tab pills (same as the Merge List's
@@ -1550,15 +1550,6 @@ function BlockDeckPanel({
           onApplyPreset={onApplyPreset}
         />
       )}
-      <div className="mt-auto border-t border-white/[0.07] px-5 py-3">
-        <button
-          type="button"
-          onClick={onMerge}
-          className="flex h-5 w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-3 text-[11px] font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
-        >
-          Merge Changes
-        </button>
-      </div>
       </>
     </div>
   )

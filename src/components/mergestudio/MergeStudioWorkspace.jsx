@@ -1,13 +1,15 @@
+import { mergeBlockReason } from '@/lib/mergePolicy'
+import { mergeChangeCount } from '@/lib/mergeChangeCount'
+import { createPortal } from 'react-dom'
+import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Blocks, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
-import { cn } from 'cn'
-import { STUDIO_PILL as FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
+import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
-import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
+import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
@@ -81,11 +83,11 @@ function defaultLineFor(item) {
 }
 
 // Deck width plus its 16px right inset and 16px breathing room.
-const DECK_RESERVE = DECK_WIDTH + 32
 
 function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const {
     setActiveFileId,
+    setFilesWindow,
     getFileLines,
     setActivePageId,
     updateMergeItem,
@@ -107,13 +109,12 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     conflicts,
     updateConflict,
   } = useWorkspace()
+  const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(savedDraft.appliedPreset ?? null)
-  const [deckOpen, setDeckOpen] = useState(false)
   // The Block Deck collapses into a toggle pill in the canvas header (next
   // to Share); any fresh selection re-expands it.
-  const [deckCollapsed, setDeckCollapsed] = useState(false)
   const [annotationsSnap, setAnnotationsSnap] = useState(savedDraft.annotations ?? [])
   // Block Assemble: per-layer structural edits (shape, size, fill, border,
   // shadow, alignment, icon), previewed live on Option B and bundled into the
@@ -140,7 +141,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const [wizardStep, setWizardStep] = useState(0)
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
-  const [deckFloating, setDeckFloating] = useState(false)
   // Variant Compare state lives here (not in the deck) so choosing — or
   // merely hovering — an option can live-preview on the Option B artboard.
   const [resolutions, setResolutions] = useState(savedDraft.resolutions ?? {})
@@ -203,14 +203,14 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
       line: target?.line,
       endLine: target ? target.line + (target.span ?? 1) - 1 : undefined,
     })
-    if (openDeck) setDeckOpen(true)
+    if (openDeck) setFilesWindow({ open: true, tab: 'inspect' })
     // copy.json is Merge Studio-only; never hand it to the main workspace.
     if (target?.fileId && target.fileId !== COPY_FILE_ID) setActiveFileId(target.fileId)
   }
 
   function selectFrame() {
     // Keep the current selection so the Block Deck still has a target.
-    setDeckOpen(true)
+    setFilesWindow({ open: true, tab: 'inspect' })
   }
 
   function selectLine(fileId, line, { openDeck = true } = {}) {
@@ -231,7 +231,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         ? { layerId, fileId: t.fileId, line: t.line, endLine: t.line + (t.span ?? 1) - 1 }
         : { layerId: undefined, fileId, line, endLine: line }
     )
-    if (openDeck) setDeckOpen(true)
+    if (openDeck) setFilesWindow({ open: true, tab: 'inspect' })
   }
 
   // Opens the step flow (in the bottom panel's Conflict Points tab) at a
@@ -244,7 +244,9 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // that it's a persistent panel, not a per-open modal.
   function openWizard(_annotations, step = 0) {
     setWizardStep(step + 1)
-    setBottomPanel({ tab: 'conflict', open: true })
+    const conflict = conflicts.find((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
+    if (conflict) openConflictReview(conflict.id)
+    setBottomPanel({ tab: 'conflict', open: true, conflictMode: 'check' })
   }
 
   // Preview's "Edit in Assemble": select the element being reviewed, bring
@@ -255,7 +257,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   // Assemble edits live.
   function editInAssemble({ layerId }) {
     setWizardStep(2)
-    setDeckCollapsed(false)
+    setFilesWindow({ open: true, tab: 'inspect' })
     setDeckTabRequest({ tab: 'assemble', nonce: Date.now() })
     requestMergeFocus({ itemId: item.id, layerId, openDeck: true, label: 'Edit in Assemble' })
   }
@@ -461,7 +463,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     const { layerId, fileId, line, keepDeck, openDeck: forceOpen } = mergeFocus.target
     if (layerId) selectLayer(layerId, { openDeck: forceOpen ?? !keepDeck })
     else if (fileId && line) selectLine(fileId, line, { openDeck: forceOpen ?? !keepDeck })
-    if (!keepDeck && !forceOpen) setDeckOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeFocus, item?.id])
 
@@ -662,14 +663,17 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   ]
   // A fresh selection re-expands a collapsed Block Deck, so its
   // context-aware content is visible right away.
-  useEffect(() => setDeckCollapsed(false), [deckLayerId])
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
 
   // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
   const openWizardRef = useRef(null)
-  openWizardRef.current = () => openWizard()
+  openWizardRef.current = () => {
+    const related = conflicts.filter((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
+    if (mergeBlockReason({ conflicts: related, item })) openWizard()
+    else completeMerge(item.id)
+  }
   const mergedNow = item?.tag === 'Merged'
-  const ctaCount = Object.keys(resolutions).length + Object.keys(manualCode).length + annotationsSnap.filter((a) => a.status === 'done').length
+  const ctaCount = mergedNow ? 0 : mergeChangeCount(changesSummary, codeMergeVariants[item?.id], manualCode, annotationsSnap)
   useEffect(() => {
     if (!item) {
       setMergeCta(null)
@@ -679,7 +683,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     return () => setMergeCta(null)
   }, [item, mergedNow, ctaCount, setMergeCta])
 
-  const deckReserve = deckOpen && !deckCollapsed && !deckFloating ? DECK_RESERVE : 0
+  const deckReserve = 0
   // The step flow no longer floats over the canvas (it's docked in the
   // bottom panel), so it has nothing to reserve space for — only the Block
   // Deck does.
@@ -712,24 +716,6 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           merged={item.tag === 'Merged'}
           inReview={item.tag === 'In Review'}
-          headerAction={
-            <>
-              {deckOpen && deckCollapsed && (
-                <button
-                  type="button"
-                  onClick={() => setDeckCollapsed(false)}
-                  title="Show Block Deck"
-                  className={cn(
-                    'flex h-10 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted animate-in fade-in zoom-in-95 duration-200',
-                    FLOATING_PILL
-                  )}
-                >
-                  <Blocks className="size-4 text-slate-400" />
-                  Block Deck
-                </button>
-              )}
-            </>
-          }
           stage={WIZARD_STEPS[wizardStep].id}
           assemblies={assemblies}
           resolutions={resolutions}
@@ -798,15 +784,13 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
         editedLayerIds={new Set([...Object.keys(assemblies), ...Object.keys(copyEdits(frame0, manualCode))])}
       />
 
-      {item && (
+      {item && deckElement && createPortal(
         <BlockDeckPanel
+          embedded
           driftEffect={deckLayerId ? variantPreviews?.[deckLayerId] : undefined}
           textSlots={textSlots}
           onEditText={editText}
-          open={deckOpen}
-          onFloat={() => setDeckFloating(true)}
-          collapsed={deckCollapsed}
-          onCollapse={() => setDeckCollapsed(true)}
+          open
           item={item}
           selectedLayerId={deckLayerId}
           selectedLayerName={selectedLayer?.name}
@@ -824,12 +808,12 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
           onInsertComponent={insertComponent}
           onApplyPreset={(preset) => setAppliedPreset(preset ? { ...preset, layerId: deckLayerId } : null)}
           tabRequest={deckTabRequest}
-          onMerge={() => openWizard()}
           changeCounts={{
             assemble: Object.keys(assemblies).length,
             library: addedLayers.length,
           }}
-        />
+        />,
+        deckElement
       )}
 
       {/* The selected canvas element: bounding box handles to move / resize

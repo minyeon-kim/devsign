@@ -1,3 +1,4 @@
+import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useRef, useState } from 'react'
@@ -116,9 +117,10 @@ function zoneRect(rect, zone) {
 // everything that opens, closes or focuses panels through `dockApi`
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
-function WorkspaceSplitLayout() {
+function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride } = useWorkspace()
   const { dockApi, store } = useFloatingDockApi()
+  const [deckElement, setDeckElement] = useState(null)
   const [dock, setDock] = useState(null) // { groupId, target, zone, rect } while dragging a window
   const rootRef = useRef(null)
   const didInit = useRef(false)
@@ -134,6 +136,50 @@ function WorkspaceSplitLayout() {
     didInit.current = true
     buildInitialLayout(dockApi)
   }, [dockApi])
+
+  // Keep the same dock and side-panel instances across both work modes.
+  // Reopen the shared panels if they were closed before entering the studio.
+  useEffect(() => {
+    if (!mergeStudio) return
+    if (!dockApi.getPanel(panelById.canvas.id)) addDockPanel(dockApi, panelById.canvas)
+    if (!dockApi.getPanel(panelById.chat.id)) {
+      addDockPanel(dockApi, panelById.chat, {
+        position: { direction: 'left', referencePanel: panelById.canvas.id },
+        initialWidth: 420,
+      })
+    }
+    const canvasGroupId = store.panels[panelById.canvas.id]?.groupId
+    for (const [id, side] of [[panelById.chat.id, 'left'], [panelById.navigator.id, 'right']]) {
+      if (store.panels[id]?.groupId === canvasGroupId) dockApi.dockPanel(id, canvasGroupId, side)
+    }
+    if (canvasGroupId) dockApi.minimizeGroup(canvasGroupId, false)
+    dockApi.getPanel(panelById.chat.id)?.api.setActive()
+    setFilesWindow({ open: true })
+  }, [mergeStudio, dockApi, setFilesWindow, store])
+
+  const studioGroup = Object.values(store.groups).find((group) =>
+    group.open && group.panelIds.includes(panelById.canvas.id)
+  )
+
+  const floatingGroups = useRef(new Set())
+  useEffect(() => {
+    if (!mergeStudio) {
+      floatingGroups.current.clear()
+      return
+    }
+    const bounds = rootRef.current?.getBoundingClientRect()
+    if (!bounds) return
+    for (const [id, right] of [[panelById.chat.id, false], [panelById.navigator.id, true]]) {
+      const groupId = store.panels[id]?.groupId
+      if (!groupId || floatingGroups.current.has(groupId)) continue
+      floatingGroups.current.add(groupId)
+      const width = Math.min(right ? 380 : 360, bounds.width * 0.3)
+      const height = Math.max(180, Math.min(560, bounds.height - 160))
+      dockApi.moveGroup(groupId, right ? bounds.width - width - 16 : 16, 64)
+      dockApi.resizeGroup(groupId, width, height)
+      dockApi.minimizeGroup(groupId, false)
+    }
+  }, [mergeStudio, dockApi, store, filesWindow.open, studioGroup?.id])
 
   // The navigator (Files / Layers / Assets) is an ordinary pane, kept in
   // step with `filesWindow.open`: opening it (palette, `+`, …) docks it at
@@ -174,13 +220,14 @@ function WorkspaceSplitLayout() {
       if (key === focusKey.current) return
       focusKey.current = key
       const component = top && store.panels[top.activeId]?.component
+      if (mergeStudio) return
       if (component === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
       if (component === 'canvas' && filesTab.current === 'files') setFilesWindow({ tab: 'layers' })
     }
     sync()
     const disposable = dockApi.onDidLayoutChange(sync)
     return () => disposable.dispose()
-  }, [dockApi, store, setFilesWindow])
+  }, [dockApi, store, setFilesWindow, mergeStudio])
 
   // Drag a window by its header — or one of its tabs — past a small
   // threshold, then track the pane under the pointer and the zone on it;
@@ -291,30 +338,39 @@ function WorkspaceSplitLayout() {
     if (node.type === 'leaf') {
       const group = store.groups[node.id]
       if (!group || !group.open || group.panelIds.length === 0) return null
-      if (group.minimized) return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
+      const showStudio = mergeStudio && group.id === studioGroup?.id
+      const floatingSide = mergeStudio && group.panelIds.some((id) => [panelById.chat.id, panelById.navigator.id].includes(id))
+      if (group.minimized && !showStudio) return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
       return (
-        <div data-leaf={group.id} className="flex size-full min-h-0 min-w-0">
+        <div data-leaf={group.id} className={cn(
+          'min-h-0 min-w-0',
+          mergeStudio ? (showStudio ? 'absolute inset-0 flex' : floatingSide ? 'pointer-events-none absolute inset-0 z-40' : 'hidden') : 'relative flex size-full'
+        )}>
+          <div className={cn('size-full min-h-0 min-w-0', showStudio && 'hidden', floatingSide && '[&>[data-window]]:pointer-events-auto')} inert={showStudio || undefined}>
           <FloatingWindow
             group={group}
             panelsById={store.panels}
             dockApi={dockApi}
             components={components}
-            docked
+            docked={!mergeStudio}
             onDockDragStart={startDockDrag}
           />
+          </div>
+          {showStudio && <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>}
         </div>
       )
     }
-    return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} />
+    return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} />
   }
 
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
-    <div className={cn('absolute inset-0 bg-[#070708] px-0 pt-[var(--ds-chrome-size)] pr-2', bottomPanel.open ? 'pb-2' : 'pb-0')}>
+    <MergeDeckSlotContext.Provider value={{ element: deckElement, setElement: setDeckElement }}>
+    <div className={cn('absolute inset-0 bg-[#070708] px-0 pr-2', mergeStudio ? 'pt-0 pb-0' : 'pt-[var(--ds-chrome-size)]', !mergeStudio && bottomPanel.open ? 'pb-2' : 'pb-0')}>
       <div ref={rootRef} onDragOver={documentDrop} onDrop={(event) => documentDrop(event, true)} onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setDock(null)
       }} onDragEnd={() => setDock(null)} className="relative isolate flex size-full min-w-0">
-        <div className="flex min-w-0 flex-1">
+        <div className={mergeStudio ? "contents" : "flex min-w-0 flex-1"}>
           {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}
         </div>
 
@@ -333,6 +389,7 @@ function WorkspaceSplitLayout() {
         )}
       </div>
     </div>
+    </MergeDeckSlotContext.Provider>
   )
 }
 
@@ -363,7 +420,7 @@ function EmptyFrame({ dockApi }) {
 
 // One split of the tree: its children side by side ('row') or stacked
 // ('col'), with a splitter between each neighboring pair.
-function SplitNode({ node, dockApi, store, renderNode }) {
+function SplitNode({ node, dockApi, store, renderNode, floating = false }) {
   const ref = useRef(null)
   const drag = useRef(null)
   const row = node.dir === 'row'
@@ -397,14 +454,14 @@ function SplitNode({ node, dockApi, store, renderNode }) {
   }
 
   return (
-    <div ref={ref} className={cn('flex size-full min-h-0 min-w-0', row ? 'flex-row' : 'flex-col')}>
+    <div ref={ref} className={floating ? 'contents' : cn('flex size-full min-h-0 min-w-0', row ? 'flex-row' : 'flex-col')}>
       {visible.map((child, i) => {
         const index = node.children.indexOf(child)
         const prev = visible[i - 1]
         const resizable = prev && !isMinimized(prev) && !isMinimized(child)
         return (
           <div key={child.id} className="contents">
-            {prev &&
+            {prev && !floating &&
               (resizable ? (
                 <SplitHandle
                   label="Resize panes"
@@ -427,8 +484,8 @@ function SplitNode({ node, dockApi, store, renderNode }) {
             ) : (
               <div
                 data-split-child={index}
-                className="flex min-h-0 min-w-0"
-                style={{ flex: `${((node.sizes[index] ?? 1) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
+                className={floating ? "contents" : "flex min-h-0 min-w-0"}
+                style={floating ? undefined : { flex: `${((node.sizes[index] ?? 1) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
               >
                 {renderNode(child, node.dir)}
               </div>

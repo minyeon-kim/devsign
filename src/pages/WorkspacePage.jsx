@@ -86,28 +86,12 @@ function WorkspacePage() {
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
-    // A single full-bleed surface: the split-pane frame (Code Editor |
-    // Canvas, see WorkspaceSplitLayout) or Merge Studio fills the view and
-    // every other piece of chrome —
-    // top bar, follow-me banner, inspector, chat — is an absolutely
-    // positioned overlay on top of it, instead of a flex row/column that carves the viewport into fixed
-    // bands. Nothing here pushes the canvas around anymore.
-    // `@container` lets floating chrome (e.g. the TopBar search) size itself
-    // against this view's width, which shrinks when the sidebar drawer opens.
-    //
-    // Below it, outside that overlay area, sits the docked bottom panel
-    // (Terminal / Console / Conflict Points), so it never floats over the
-    // canvas and the bottom-row chrome (save status, zoom) sits just above it.
+    // One persistent dock owns the AI and navigator panels in both modes.
+    // Merge Studio replaces only its canvas pane and owns its bottom panel.
     <div className="ds-workspace flex h-full flex-col overflow-hidden bg-[#070708] text-foreground">
       <div className="@container relative min-h-0 flex-1 overflow-hidden">
-        {inMergeStudio ? (
-          // MergeStudioView/MergeStudioWorkspace size themselves with
-          // flex-1 + min-h-0, expecting a flex-column ancestor with a
-          // definite height to cascade from (the old layout nested it
-          // several flex levels deep under h-screen) — this root is
-          // `relative`, not `flex`, so it needs its own properly-sized flex
-          // wrapper here instead of relying on the root itself.
-          <div className="absolute inset-0 flex flex-col">
+        <WorkspaceSplitLayout mergeStudio={inMergeStudio}>
+          {inMergeStudio && (
             <ErrorBoundary
               key={location.key}
               fallback={(error, reset) => (
@@ -130,10 +114,8 @@ function WorkspacePage() {
             >
               <MergeStudioView />
             </ErrorBoundary>
-          </div>
-        ) : (
-          <WorkspaceSplitLayout />
-        )}
+          )}
+        </WorkspaceSplitLayout>
 
         <TopBar project={project} onOpenPalette={() => setPaletteOpen(true)} />
         {!inMergeStudio && <FollowMeBanner />}

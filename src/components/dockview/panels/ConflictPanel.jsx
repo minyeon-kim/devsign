@@ -132,17 +132,23 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   if (reviewConflict) {
     return (
       <div className="h-full min-h-0 min-w-0 bg-card">
-        {reviewConflictIsOpenItem ? (
-          <MergeStepFlow {...mergeStepFlowProps} onBack={() => openConflictReview(null)} />
+        {reviewConflictIsOpenItem && bottomPanel.conflictMode === 'check' ? (
+          <MergeStepFlow {...mergeStepFlowProps} onBack={() => setBottomPanel({ conflictMode: 'overview' })} />
         ) : (
           <ConflictReviewPanel
             conflict={reviewConflict}
+            mergeActionLabel={inMergeStudio && reviewConflictItemId ? 'Continue to Check' : undefined}
             onOpenChange={(open) => !open && openConflictReview(null)}
             onUpdate={updateConflict}
             onApprove={approveConflict}
             onRequestChanges={requestChanges}
             onResolve={resolveConflict}
             onOpenMergeStudio={(conflict) => {
+              if (inMergeStudio && reviewConflictIsOpenItem) {
+                mergeStepFlowProps.onStepChange(1)
+                setBottomPanel({ conflictMode: 'check', open: true })
+                return
+              }
               openConflictReview(null)
               // `conflict` here is always `reviewConflict`, so its item id
               // is `reviewConflictItemId` — most conflicts only carry the
@@ -229,14 +235,15 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                 return (
                   <Fragment key={conflict.id}>
                   <tr
-                    onClick={() => openConflictReview(conflict.id)}
+                    onClick={() => { setBottomPanel({ conflictMode: 'overview' }); openConflictReview(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) return
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        openConflictReview(conflict.id)
+                        setBottomPanel({ conflictMode: 'overview' })
+                    openConflictReview(conflict.id)
                       }
                     }}
                     aria-selected={reviewConflictId === conflict.id}

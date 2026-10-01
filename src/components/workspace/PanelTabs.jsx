@@ -61,7 +61,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       key: id,
       label,
       icon: <Icon className="size-3.5 shrink-0" />,
-      active: panelActive && workspace.filesWindow.tab === id,
+      active: panelActive && (workspace.filesWindow.tab === id || (id === 'inspect' && workspace.filesWindow.tab === 'blockDeck')),
       select: () => workspace.setFilesWindow({ tab: id }),
       close: null,
     }))

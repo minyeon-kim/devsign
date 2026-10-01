@@ -121,7 +121,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
           data-window-header={docked ? group.id : undefined}
           className="@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 border-b border-white/[0.06] px-2 active:cursor-grabbing"
         >
-          {docked ? (
+          {docked || isNavigatorGroup ? (
             // The real tabs — open files, canvas pages, the navigator's
             // views, other views by name (PanelTabs) — then `+` right after
             // the last one. The navigator's tabs (Files/Layers/Assets) are
@@ -170,7 +170,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             ref={setHeaderSlot}
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
-          {docked ? (
+          {docked || isNavigatorGroup ? (
             // Docked panes carry no window controls — each tab closes
             // itself. The one exception: a maximized pane (Layout: Focus
             // Editor) needs a way back.
@@ -212,7 +212,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
 
       <div className="min-h-0 flex-1 overflow-hidden bg-card">
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
-          <WindowTabsContext.Provider value={docked}>
+          <WindowTabsContext.Provider value={docked || isNavigatorGroup}>
             {ActiveContent && <ActiveContent params={activePanel.params} />}
           </WindowTabsContext.Provider>
         </WindowHeaderSlotContext.Provider>

@@ -1005,7 +1005,7 @@ function HistoryCheckpointTimeline({ workspace }) {
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
 // your own sign-off (approving never changes code); `onResolve(id)` merges
 // an Approved conflict — the only step that applies the change.
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio }) {
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
   const workspace = useWorkspaceOptional()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
@@ -1204,7 +1204,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/15 px-3.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-400/25 hover:text-emerald-200"
                   >
                     <GitMerge className="size-3.5" />
-                    Open in Merge Studio
+                    {mergeActionLabel}
                   </TooltipTrigger>
                   <TooltipContent side="top">Edit or combine elements before merging.</TooltipContent>
                 </Tooltip>

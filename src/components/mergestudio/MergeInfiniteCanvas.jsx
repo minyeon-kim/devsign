@@ -1,18 +1,17 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, History, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Hand, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
-import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupContent'
-import { COPY_FILE_ID, copyEntries, parseCopyLine } from '@/components/mergestudio/copyFile'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
-import { COUNT_BADGE, FLOATING_PANEL, STUDIO_PILL as FLOATING_PILL, PANEL_LABEL, PANEL_RADIUS, PANEL_ROWS, PANEL_SURFACE, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { COUNT_BADGE, STUDIO_PILL as FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
@@ -1008,7 +1007,7 @@ function defaultLayout(frame) {
 // at `top-[60px]`, ~104px to its bottom edge) plus breathing room, so a freshly
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
-// Clear the 40px help and Changes Log pills plus their bottom inset.
+// Clear the 40px help pill plus its bottom inset.
 const BOTTOM_CONTROLS_CLEARANCE = 76
 // Fitting may zoom past 100% so the comparison fills the available canvas
 // on large screens instead of sitting small in the middle of it.
@@ -1296,149 +1295,6 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
   )
 }
 
-// Compare-stage "Changes log": every modification so far — variant
-// selections, Block Assemble / Design System edits, presets, AI notes — as
-// rows you can Undo individually, or click to pan the canvas to the element
-// (or code line) they touch; then the code files with pending changes.
-//
-// Laid out like the studio's other panels: a header (title + count, and
-// the Version history link), then labeled groups on grouped surfaces with
-// hairline rows — one bright line per row (what changed) over one quiet
-// line (the detail), and quiet ghost actions.
-function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenHistory }) {
-  const total = entries.length
-  return (
-    // `relative`, sized to just the button — the expanded panel is
-    // `absolute` (popped up above it via `bottom-full`), so opening it
-    // never changes this wrapper's own layout box.
-    <div className="relative">
-      {open && (
-        <div
-          className={cn(
-            'absolute right-0 bottom-full mb-2 flex max-h-[min(440px,calc(100vh-160px))] w-[340px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden',
-            PANEL_RADIUS,
-            FLOATING_PANEL
-          )}
-        >
-          {/* Header. Version history lives here (it used to be on the app's
-              right-hand toolbar): saved versions sit right next to the
-              unsaved changes. */}
-          <div className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
-            <span className="text-sm font-semibold text-foreground">Changes</span>
-            <span className="text-xs font-medium text-slate-500 tabular-nums">{total}</span>
-            {onOpenHistory && (
-              <button
-                type="button"
-                onClick={onOpenHistory}
-                className="ml-auto flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
-              >
-                <History className="size-3.5" />
-                Version history
-                <ChevronRight className="size-3 text-slate-500" />
-              </button>
-            )}
-          </div>
-
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-            {total === 0 && codeRows.length === 0 && (
-              <p className={cn(PANEL_SURFACE, 'px-4 py-5 text-center text-xs leading-relaxed text-slate-400')}>
-                No changes yet — pick or edit values, edit code, assemble blocks, or annotate.
-              </p>
-            )}
-
-            {total > 0 && (
-              <section>
-                <p className={PANEL_LABEL}>
-                  Edits
-                  <span className="text-slate-500 tabular-nums">{total}</span>
-                </p>
-                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-                  {entries.map((e) => {
-                    const canJump = Boolean(e.layerId || e.fileId)
-                    return (
-                      <li key={e.id} className="group/row flex items-center gap-2 pr-1.5 transition-colors hover:bg-white/[0.03]">
-                        <button
-                          type="button"
-                          disabled={!canJump}
-                          onClick={() => onJump(e)}
-                          title={canJump ? 'Jump to element' : undefined}
-                          className="min-w-0 flex-1 py-2.5 pl-3 text-left disabled:cursor-default"
-                        >
-                          <span className="block truncate text-[13px] font-medium text-slate-100">{e.title}</span>
-                          <span className={cn('mt-0.5 block truncate text-xs', e.kind === 'annotation' || e.kind === 'code' ? 'text-emerald-300/90' : 'text-slate-400')}>{e.detail}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUndo(e)}
-                          title="Undo this change"
-                          aria-label={`Undo: ${e.title}`}
-                          className="flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors group-hover/row:text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                        >
-                          <Undo2 className="size-3.5" />
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            )}
-
-            {codeRows.length > 0 && (
-              <section>
-                <p className={PANEL_LABEL}>
-                  Code files
-                  <span className="text-slate-500 tabular-nums">{codeRows.length}</span>
-                </p>
-                <ul className={cn(PANEL_SURFACE, PANEL_ROWS)}>
-                  {codeRows.map((f) => {
-                    const meta = getFileIconMeta(f.name)
-                    const parts = [
-                      f.aiLines > 0 && `${f.aiLines} AI edit${f.aiLines === 1 ? '' : 's'}`,
-                      f.manualLines > 0 && `${f.manualLines} manual edit${f.manualLines === 1 ? '' : 's'}`,
-                    ].filter(Boolean)
-                    return (
-                      <li key={f.id} className="flex items-center gap-2.5 px-3 py-2.5">
-                        <meta.Icon className="size-4 shrink-0 text-slate-400" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium text-slate-100">{f.name}</span>
-                          <span className="mt-0.5 block truncate text-xs text-slate-400">
-                            {parts.length > 0 ? parts.join(' · ') : 'Incoming from the Current Implementation'}
-                          </span>
-                        </span>
-                        {/* The headline count, spelled out ("2 changes") —
-                            same wording as the Merge List's file rows. */}
-                        {f.changed > 0 && (
-                          <span title="Incoming changed lines" className="shrink-0 text-xs font-semibold whitespace-nowrap text-emerald-400 tabular-nums">
-                            {f.changed} change{f.changed === 1 ? '' : 's'}
-                          </span>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            )}
-          </div>
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        // Text + count only; the open state is a soft fill, not an icon.
-        className={cn(
-          'ml-auto flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors',
-          FLOATING_PILL,
-          open ? 'bg-white/[0.1]' : 'hover:bg-muted'
-        )}
-      >
-        Changes log
-        <span className={cn(COUNT_BADGE, 'bg-emerald-400/20 text-emerald-300')}>{total}</span>
-      </button>
-    </div>
-  )
-}
-
 const MACRO_STEPS = [
   { id: 'compare', label: 'Compare' },
   { id: 'check', label: 'Check' },
@@ -1513,7 +1369,6 @@ function MergeInfiniteCanvas({
   inReview,
   headerAction,
   assemblies,
-  resolutions,
   extraLayers,
   manualCode,
   syncedCode,
@@ -1522,7 +1377,6 @@ function MergeInfiniteCanvas({
   onLiveEditCode,
   onEditText,
   codeReveal,
-  onUndoChange,
   annotations = [],
   onAnnotationsChange,
   stage = 'compare',
@@ -1532,10 +1386,9 @@ function MergeInfiniteCanvas({
   onSelectFrame,
   onFocusSource,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, requestHistoryDrawer, otherMembers } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
-  const [summaryOpen, setSummaryOpen] = useState(false)
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(() =>
     defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
@@ -2687,67 +2540,7 @@ function MergeInfiniteCanvas({
           workspace panels position it. */}
       <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
 
-      {/* Changes Log stays anchored to the bottom-right corner. */}
-      <div className="absolute right-3 bottom-5 z-20 flex items-end gap-3">
-        {stage === 'compare' && (() => {
-          const presetObj =
-            appliedPreset?.layerId
-              ? appliedPreset
-              : null
-          const summary = buildSummary(item, resolutions ?? {}, annotations, presetObj, assemblies ?? {}, extraLayers ?? [], manualCode ?? {}, files.filter((f) => f.id === COPY_FILE_ID))
-          const entries = [
-            ...summary.design.map((d) => {
-              let kind = 'variant'
-              let layerId = d.key.slice(0, d.key.indexOf(':'))
-              if (d.key.startsWith('assembly-')) [kind, layerId] = ['assembly', d.key.slice(9)]
-              else if (d.key.startsWith('added-')) [kind, layerId] = ['component', d.key.slice(6)]
-              else if (d.key === 'preset') [kind, layerId] = ['preset', presetObj?.layerId]
-              return { id: d.key, key: d.key, kind, layerId, title: d.text, detail: d.choice }
-            }),
-            ...Object.entries(manualCode ?? {}).map(([key, text]) => {
-              const split = key.lastIndexOf(':')
-              const fileId = key.slice(0, split)
-              const line = Number(key.slice(split + 1))
-              const name = files.find((f) => f.id === fileId)?.name ?? fileId
-              // copy.json lines read as the text they changed, not raw JSON.
-              const entry = fileId === COPY_FILE_ID ? copyEntries(frame)[line - 2] : null
-              const parsed = entry ? parseCopyLine(text) : null
-              if (entry && parsed) return { id: `code-${key}`, kind: 'code', layerId: entry.layerId, fileId, line, title: `${entry.name} · text`, detail: `“${parsed.value}”` }
-              return { id: `code-${key}`, kind: 'code', fileId, line, title: `${name} · line ${line}`, detail: `Edited: ${text.trim() || '(empty line)'}` }
-            }),
-            ...annotations.map((a) => ({
-              id: a.id,
-              kind: 'annotation',
-              layerId: a.layerId,
-              fileId: a.fileId,
-              line: a.line,
-              title: `“${a.text}”`,
-              detail: a.status === 'done' ? a.summary : a.status === 'thinking' ? 'AI is updating…' : 'Not applied yet',
-            })),
-          ]
-          return (
-            <ChangesLog
-              entries={entries}
-              codeRows={summary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0)}
-              open={summaryOpen}
-              onToggle={() => setSummaryOpen((v) => !v)}
-              onOpenHistory={() => {
-                setSummaryOpen(false)
-                requestHistoryDrawer()
-              }}
-              onJump={(e) =>
-                requestMergeFocus({
-                  itemId: item.id,
-                  keepDeck: true,
-                  label: e.title,
-                  ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
-                })
-              }
-              onUndo={(e) => (e.kind === 'annotation' ? deleteAnnotation(e.id) : onUndoChange?.(e))}
-            />
-          )
-        })()}
-      </div>
+
     </div>
   )
 }
