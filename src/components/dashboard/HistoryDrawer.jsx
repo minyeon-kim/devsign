@@ -123,26 +123,34 @@ function HistoryDrawer({ project }) {
         {query && <button type="button" aria-label="Clear history search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
       </div>
 
-      {/* Kind + target filters — every checkpoint in this project's
-          History, across every file it touched, otherwise shows in one
-          undifferentiated list. Both also narrow the History page's
-          playback timeline (see `historyFilter` in WorkspaceProvider). */}
-      <div className="mb-2 flex flex-wrap items-center gap-1 px-1">
-        {['all', ...HISTORY_KINDS].map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            aria-pressed={historyFilter.kind === kind}
-            onClick={() => setHistoryFilter({ kind })}
+      {/* Kind + target filters, both as dropdowns — one consistent filter
+          language instead of a pill row next to a dropdown. Every
+          checkpoint in this project's History, across every file it
+          touched, otherwise shows in one undifferentiated list. Both also
+          narrow the History page's playback timeline (see `historyFilter`
+          in WorkspaceProvider). */}
+      <div className="mb-2 flex items-center gap-1.5 px-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger
             className={cn(
-              'flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-              historyFilter.kind === kind ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+              'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+              historyFilter.kind !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
             )}
           >
-            {kind !== 'all' && <KindBadge kind={kind} />}
-            {kind === 'all' ? 'All kinds' : KIND_LABEL[kind]}
-          </button>
-        ))}
+            {historyFilter.kind !== 'all' && <KindBadge kind={historyFilter.kind} />}
+            <span className="truncate">{historyFilter.kind === 'all' ? 'All kinds' : KIND_LABEL[historyFilter.kind]}</span>
+            <ChevronDown className="size-3" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => setHistoryFilter({ kind: 'all' })}>All kinds</DropdownMenuItem>
+            {HISTORY_KINDS.map((kind) => (
+              <DropdownMenuItem key={kind} onClick={() => setHistoryFilter({ kind })} className="gap-1.5">
+                <KindBadge kind={kind} />
+                {KIND_LABEL[kind]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {targets.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger

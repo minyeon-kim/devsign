@@ -808,8 +808,12 @@ Show Merge List|병합 목록 표시
 Hide Merge List|병합 목록 숨기기
 Merge List|병합 목록
 Search…|검색…
-Add files — start a merge item from your open files|파일 추가 · 열린 파일로 병합 항목 만들기
+Add files — start a merge item from your project's files|파일 추가 · 프로젝트 파일로 병합 항목 만들기
 Add files|파일 추가
+Start a merge item from|다음 파일로 병합 항목 만들기
+Find files…|파일 찾기…
+Designer|디자이너
+Developer|개발자
 No merge items match these filters.|필터와 일치하는 병합 항목이 없습니다.
 Back to Merge List|병합 목록으로 돌아가기
 Mobile|모바일

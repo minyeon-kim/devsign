@@ -100,10 +100,16 @@ function AssigneePicker({ items, value, onChange }) {
                 {on && <Check className="size-3" />}
               </span>
               <Avatar person={p} className="size-5 text-[8px]" />
-              <span className="min-w-0 flex-1 truncate">
-                {p.name}
-                {p.role && <span className="ml-1.5 text-[10px] text-muted-foreground">{p.role}</span>}
-              </span>
+              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+              {/* Its own pill, not inline text — so a long name truncating
+                  never takes the role with it, and "Designer"/"Developer"
+                  stays a clearly separate, always-visible fact about who
+                  you're filtering by, not an easy-to-miss suffix. */}
+              {p.role && (
+                <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                  {p.role}
+                </span>
+              )}
               <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">{p.count}</span>
             </button>
           )

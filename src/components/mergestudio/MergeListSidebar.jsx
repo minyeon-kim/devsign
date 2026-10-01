@@ -4,7 +4,6 @@ import {
   ChartLine,
   CircleDot,
   CircleUser,
-  FilePlus2,
   Files,
   Frame,
   Image,
@@ -27,6 +26,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { allPeople, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
+import AddFilesMenu from '@/components/mergestudio/AddFilesMenu'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
 import { itemSeverity } from '@/components/mergestudio/mergeSummary'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -396,7 +396,6 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
     mergeItems,
     selectedMergeItemId,
     setSelectedMergeItemId,
-    startMergeFromOpenFiles,
     mergeListCollapsed,
     setMergeListCollapsed,
     exitMergeStudio,
@@ -540,16 +539,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
                 {/* Add files lives with the list's own controls. */}
-                <button
-                  type="button"
-                  data-guide="add-files"
-                  title="Add files — start a merge item from your open files"
-                  aria-label="Add files"
-                  onClick={startMergeFromOpenFiles}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#09090A] text-slate-300 transition-colors hover:bg-[#161618] hover:text-white"
-                >
-                  <FilePlus2 className="size-4" />
-                </button>
+                <AddFilesMenu />
               </div>
               <ActiveFilterChips
                 value={filters}

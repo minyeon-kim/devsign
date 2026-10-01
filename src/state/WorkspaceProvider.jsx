@@ -441,34 +441,54 @@ export function WorkspaceProvider({ children, projectId }) {
     [setNotifications, currentUser.id]
   )
 
+  // Shared by `startMergeFromOpenFiles` (the Merge Studio menu's one-click
+  // "Start New with Current Work") and `startMergeFromFiles` (the Merge
+  // List's "Add files" picker, see AddFilesMenu) — builds a fresh Merge
+  // List entry from a set of files, selects it, and enters Merge Studio
+  // already looking at it.
+  const startMergeFromFileIds = useCallback(
+    (fileIds, fileLabels) => {
+      if (!fileIds.length) return
+      const id = nextId('merge')
+      registerMergeVariants(id, activePageId)
+      setMergeItems((prev) => [
+        {
+          id,
+          title: 'New Merge — Current Work',
+          subtitle: `${fileLabels.length} file${fileLabels.length === 1 ? '' : 's'} · ${fileLabels.join(', ')}`,
+          tag: 'Draft',
+          updatedLabel: 'Just now',
+          fileIds,
+          hasDesign: true,
+          designPageId: activePageId,
+          category: 'Workspace',
+          conflictLevel: 'None',
+          dueLabel: 'No due date',
+          dueBucket: 'none',
+          assigneeId: currentUser.id,
+        },
+        ...prev,
+      ])
+      setSelectedMergeItemId(id)
+      setActiveView('mergeStudio')
+    },
+    [activePageId, setSelectedMergeItemId, setMergeItems, currentUser.id]
+  )
+
   // "Start New with Current Work" — snapshots whatever's open in the editor
-  // right now into a fresh Merge List entry, selects it, and enters Merge
-  // Studio already looking at it.
+  // right now into a fresh Merge List entry.
   const startMergeFromOpenFiles = useCallback(() => {
-    const id = nextId('merge')
-    registerMergeVariants(id, activePageId)
-    const fileNames = openFiles.map((f) => f.name)
-    setMergeItems((prev) => [
-      {
-        id,
-        title: 'New Merge — Current Work',
-        subtitle: `${fileNames.length} file${fileNames.length === 1 ? '' : 's'} · ${fileNames.join(', ')}`,
-        tag: 'Draft',
-        updatedLabel: 'Just now',
-        fileIds: openFiles.map((f) => f.id),
-        hasDesign: true,
-        designPageId: activePageId,
-        category: 'Workspace',
-        conflictLevel: 'None',
-        dueLabel: 'No due date',
-        dueBucket: 'none',
-        assigneeId: currentUser.id,
-      },
-      ...prev,
-    ])
-    setSelectedMergeItemId(id)
-    setActiveView('mergeStudio')
-  }, [activePageId, setSelectedMergeItemId, setMergeItems, currentUser.id])
+    startMergeFromFileIds(openFiles.map((f) => f.id), openFiles.map((f) => f.name))
+  }, [startMergeFromFileIds])
+
+  // "Add files" — the same, but from a hand-picked set of this project's
+  // files rather than only ever whatever's currently open.
+  const startMergeFromFiles = useCallback(
+    (fileIds) => {
+      startMergeFromFileIds(fileIds, fileIds.map((fid) => files.find((f) => f.id === fid)?.name ?? fid))
+    },
+    [startMergeFromFileIds, files]
+  )
 
   const appendTerminalLines = useCallback((lines, stagger = 140) => {
     lines.forEach((text, i) => {
@@ -1444,6 +1464,7 @@ export function WorkspaceProvider({ children, projectId }) {
     openMergeStudio,
     exitMergeStudio,
     startMergeFromOpenFiles,
+    startMergeFromFiles,
     completeMerge,
     updateMergeItem,
     mergeDrawer,
