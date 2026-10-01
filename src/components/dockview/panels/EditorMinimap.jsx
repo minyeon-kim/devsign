@@ -43,7 +43,7 @@ function EditorMinimap({ lines, viewport, onJump }) {
       onPointerCancel={() => { dragging.current = false }}
       title="Minimap — drag or click to navigate"
       aria-label="Code minimap. Drag or click to navigate the file."
-      className="relative hidden h-full min-h-0 w-14 shrink-0 cursor-pointer touch-none select-none overflow-hidden bg-[#0B0B0D] sm:block"
+      className="relative hidden h-full min-h-0 w-14 shrink-0 cursor-pointer touch-none select-none overflow-hidden bg-card/30 backdrop-blur-[2px] sm:block"
     >
       <div className="absolute top-2 left-0 w-full overflow-hidden px-2" style={{ height: Math.max(0, mapHeight - 16) }}>
         {lines.map((line, index) => {
@@ -51,11 +51,11 @@ function EditorMinimap({ lines, viewport, onJump }) {
           return (
             <span
               key={index}
-              className="absolute left-2 h-px rounded-full bg-slate-300/45"
+              className="absolute left-2 h-px rounded-full bg-slate-300/50"
               style={{
                 top: `${index * LINE_HEIGHT}px`,
                 width: `${width}%`,
-                opacity: line.trim() ? 0.3 + Math.min(line.length / MAX_LINE_WIDTH_CHARS, 1) * 0.55 : 0,
+                opacity: line.trim() ? 0.12 + Math.min(line.length / MAX_LINE_WIDTH_CHARS, 1) * 0.3 : 0,
               }}
             />
           )
@@ -64,7 +64,7 @@ function EditorMinimap({ lines, viewport, onJump }) {
 
       {viewport && (
         <div
-          className="pointer-events-none absolute inset-x-0 rounded-[3px] bg-white/[0.08]"
+          className="pointer-events-none absolute inset-x-0 rounded-[3px] bg-white/[0.045] ring-1 ring-inset ring-white/[0.04]"
           style={{
             top: `${8 + viewport.top * Math.max(0, mapHeight - 16)}px`,
             height: `${Math.max(viewport.height * Math.max(0, mapHeight - 16), 8)}px`,

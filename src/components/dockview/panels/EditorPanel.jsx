@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { MessageSquarePlus, Save, Send, Sparkles, X } from 'lucide-react'
+import { ChevronRight, MessageSquarePlus, Save, Send, Sparkles, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import { getFileIconMeta } from '@/lib/fileIcons'
@@ -18,12 +18,13 @@ const languageLabels = {
 
 function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, isPinOpen, onTogglePin }) {
   const tokens = tokenizeLine(line, language)
+  const indentColumns = (line.match(/^[\t ]*/)?.[0] ?? '').replaceAll('\t', '  ').length
 
   return (
     <div
       onClick={() => onSelect(lineNumber, line.length + 1)}
       className={cn(
-        'group flex cursor-text items-start gap-2 px-2 hover:bg-muted/40',
+        'group flex cursor-text items-start gap-0 px-0 hover:bg-muted/40',
         isActive && 'bg-muted/60'
       )}
     >
@@ -35,18 +36,28 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
           onTogglePin(lineNumber)
         }}
         className={cn(
-          'editor-line-comment mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full transition-opacity hover:text-foreground',
+          'editor-line-comment mt-0.5 flex size-3 shrink-0 items-center justify-center rounded-full transition-opacity hover:text-foreground',
           pinCount > 0 || isPinOpen
             ? 'text-emerald-300 opacity-100'
             : 'text-muted-foreground opacity-0 group-hover:opacity-100'
         )}
       >
-        <MessageSquarePlus className="size-3" />
+        <MessageSquarePlus className="size-2.5" />
       </button>
-      <span className="w-6 shrink-0 text-right text-muted-foreground/50 select-none">
+      <span className="w-5 shrink-0 text-right text-muted-foreground/50 select-none">
         {lineNumber}
       </span>
-      <span className="flex-1 whitespace-pre">
+      <span className="relative flex-1 whitespace-pre">
+        {indentColumns >= 2 && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0"
+            style={{
+              width: `${indentColumns}ch`,
+              backgroundImage: 'repeating-linear-gradient(to right, transparent 0 calc(2ch - 1px), rgb(255 255 255 / 9%) calc(2ch - 1px) 2ch)',
+            }}
+          />
+        )}
         {line.length === 0 ? (
           ' '
         ) : (
@@ -334,8 +345,15 @@ function EditorPanel() {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex h-7 shrink-0 items-center justify-between border-b bg-card/60 px-3 font-sans text-[11px] text-muted-foreground">
-            <span className="truncate">{activeFile?.path}</span>
+          <div className="flex h-7 shrink-0 items-center justify-between bg-transparent px-3 font-sans text-[11px] text-muted-foreground">
+            <nav aria-label="File path" className="flex min-w-0 items-center overflow-hidden">
+              {(activeFile?.path?.split(/[\\/]/).filter(Boolean) ?? []).map((part, index, parts) => (
+                <span key={`${part}-${index}`} className="flex min-w-0 shrink-0 items-center">
+                  {index > 0 && <ChevronRight aria-hidden="true" className="mx-0.5 size-3 shrink-0 text-muted-foreground/50" />}
+                  <span className={cn('truncate', index === parts.length - 1 && 'text-foreground/80')}>{part}</span>
+                </span>
+              ))}
+            </nav>
             <div className="flex shrink-0 items-center gap-3">
               {isEditing ? (
                 <>
