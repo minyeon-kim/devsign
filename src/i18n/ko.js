@@ -17,6 +17,58 @@ JA|수
 JD|지
 MI|소
 All members|전체 구성원
+Overview|개요
+Diff|변경 내용
+Detected|감지됨
+Screens|영향 화면
+Project|프로젝트
+Reply|답글
+Dashboard|대시보드
+You're a required reviewer|필수 검토자로 지정됨
+Applied to the code|코드에 적용됨
+Keep Original Design|원본 디자인 값 유지
+Take Current Implementation|현재 구현 값 사용
+Accessibility|접근성
+Refresh Explorer|탐색기 새로고침
+New File...|새 파일…
+New Folder...|새 폴더…
+Quick diff|빠른 비교
+Drag to reorder|끌어서 순서 바꾸기
+Share project|프로젝트 공유
+Documentation|문서
+Archived|보관됨
+Place order button · Height & color|주문 버튼 · 높이와 색상
+Divider / Color|구분선 / 색상
+Label / Letter spacing|라벨 / 자간
+Icon / Stroke width|아이콘 / 선 굵기
+Button / Height|버튼 / 높이
+Card / Radius|카드 / 모서리
+Spacing scale mismatch|간격 스케일 불일치
+Checkout · Payment step|결제 · 결제 단계
+Onboarding · Welcome|온보딩 · 환영
+Settings · Profile|설정 · 프로필
+40px (default size)|40px(기본 크기)
+#7c3aed (fixed hex)|#7c3aed(고정 색상값)
+44px (button.height.lg)|44px(button.height.lg)
+color.primary (Indigo 500)|color.primary(인디고 500)
+Indigo 500|인디고 500
+Violet 500|바이올렛 500
+Height token|높이 토큰
+hard-coded h-9|하드코딩된 h-9
+Checkout|결제
+Step 3 of 3 · Payment|3/3단계 · 결제
+Order summary|주문 요약
+2 items · $128.00|상품 2개 · $128.00
+Card number|카드 번호
+Standard shipping · 3–5 days|일반 배송 · 3~5일
+Total $128.00|합계 $128.00
+Total|합계
+Place order|주문하기
+Continue|계속하기
+Small|작게
+Checkout design specifies button.height.lg = 44px|결제 화면 디자인은 button.height.lg = 44px를 지정합니다
+Design system size/md = 40px|디자인 시스템 size/md = 40px
+Use the shared token|공용 토큰을 사용합니다
 Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.|결제 플로우의 비주얼 리뉴얼입니다 — 결제 단계 레이아웃, 버튼과 카드 스타일을 Figma 디자인과 동기화된 상태로 유지합니다.
 Shared components and design tokens used across every product surface, kept consistent between Figma and code.|모든 제품 화면에서 쓰이는 공용 컴포넌트와 디자인 토큰입니다. Figma와 코드 간 일관성을 유지합니다.
 Issue summary|이슈 요약
@@ -33,15 +85,15 @@ Use the lg button size and remove the fixed background so the button uses the pr
 The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 화면 디자인은 large 크기의 primary 버튼을 지정합니다. 하드코딩된 hex 값은 테마를 우회합니다.
 Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 Place order가 44px 높이, primary 색상으로 렌더링됩니다.
 Button height in code (36px) drifts from the design system token (40px).|코드의 Button 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
-Order summary card|Order summary 카드
+Order summary card|주문 요약 카드
 Radius & weight|반경·굵기
-Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|Order summary 카드 시안 세 개가 나란히 열려 있습니다 — 김수연, 한소민, 이지훈의 시안이 모서리 반경과 제목 굵기에서 차이가 있습니다.
-a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면 Order summary 카드의 스타일 선택입니다 — 어느 쪽을 선택해도 로직이나 데이터는 바뀌지 않습니다.
-Opened a second draft of the Order summary card|Order summary 카드의 두 번째 시안을 열었습니다
+Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|주문 요약 카드 시안 세 개가 나란히 열려 있습니다 — 김수연, 한소민, 이지훈의 시안이 모서리 반경과 제목 굵기에서 차이가 있습니다.
+a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면 주문 요약 카드의 스타일 선택입니다 — 어느 쪽을 선택해도 로직이나 데이터는 바뀌지 않습니다.
+Opened a second draft of the Order summary card|주문 요약 카드의 두 번째 시안을 열었습니다
 Three open drafts on the same element|같은 요소에 열려 있는 시안 세 개
 Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|한소민의 시안을 사용하세요 — 16px 반경과 700 굵기의 제목이 결제 화면의 다른 카드들과 일치합니다.
 Every other card on this screen already uses a 16px radius and a 700-weight title.|이 화면의 다른 모든 카드는 이미 16px 반경과 700 굵기의 제목을 사용하고 있습니다.
-One Order summary card style, used consistently across the checkout flow.|결제 플로우 전체에서 하나의 Order summary 카드 스타일을 일관되게 사용합니다.
+One Order summary card style, used consistently across the checkout flow.|결제 플로우 전체에서 하나의 주문 요약 카드 스타일을 일관되게 사용합니다.
 Jane’s draft|김수연의 시안
 Min’s draft|한소민의 시안
 James’s draft|이지훈의 시안
@@ -50,15 +102,15 @@ James’s draft|이지훈의 시안
 700 (Min’s draft)|700 (한소민의 시안)
 600 (Jane’s draft)|600 (김수연의 시안)
 Title weight|제목 굵기
-Merged Order summary card style|Order summary 카드 스타일 병합됨
+Merged Order summary card style|주문 요약 카드 스타일 병합됨
 More drafts:|추가 시안:
 the shared Button component — a height change reaches every screen that uses it.|공유 Button 컴포넌트입니다 — 높이 변경이 이를 사용하는 모든 화면에 영향을 미칩니다.
 Pushed new changes to Button.jsx|Button.jsx에 새 변경사항을 푸시함
 Swap the hard-coded h-9 for the size token so the button follows the design system height.|하드코딩된 h-9를 size 토큰으로 교체해 버튼이 디자인 시스템 높이를 따르도록 하세요.
 The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.|디자인 시스템은 size/md를 --button-height-md(40px)로 정의합니다. h-9는 36px로 하드코딩되어 토큰을 우회합니다.
 Every Button renders 40px tall from --button-height-md.|모든 Button이 --button-height-md로 40px 높이로 렌더링됩니다.
-a merge conflict — both branches edited the same lines, so one side’s change could be lost.|머지 충돌입니다 — 두 브랜치가 같은 줄을 수정해 한쪽의 변경 사항이 사라질 수 있습니다.
-Merge conflict between local and remote branch (lines 9-14).|로컬 브랜치와 원격 브랜치 사이에 머지 충돌이 있습니다 (9-14행).
+a merge conflict — both branches edited the same lines, so one side’s change could be lost.|병합 충돌입니다 — 두 브랜치가 같은 줄을 수정해 한쪽의 변경 사항이 사라질 수 있습니다.
+Merge conflict between local and remote branch (lines 9-14).|로컬 브랜치와 원격 브랜치 사이에 병합 충돌이 있습니다 (9-14행).
 Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.|두 브랜치 모두 frame-mapping 블록을 수정했습니다. 원격의 key prop 변경을 유지하고 그 위에 로컬의 onSelect 핸들러를 다시 적용하세요.
 a corner radius on the Card container; no layout or behavior change.|Card 컨테이너의 모서리 반경입니다. 레이아웃이나 동작 변경은 없습니다.
 Card corner radius (8px) is smaller than the design system radius (12px).|Card 모서리 반경(8px)이 디자인 시스템 반경(12px)보다 작습니다.
@@ -107,7 +159,7 @@ Height & color|높이·색상
 Editing button sizes in tokens.json|tokens.json에서 버튼 크기 편집 중
 Reviewing Order summary in Checkout|결제 화면에서 Order summary 검토 중
 Reviewing color tokens in tokens.json|tokens.json에서 색상 토큰 검토 중
-Editing Order summary card in Checkout|결제 화면에서 Order summary 카드 편집 중
+Editing Order summary card in Checkout|결제 화면에서 주문 요약 카드 편집 중
 Viewing the Checkout payment screen|결제 화면 보는 중
 Editing md size in Button.jsx|Button.jsx에서 md 크기 편집 중
 Checking --button-height-md in tokens.css|tokens.css에서 --button-height-md 확인 중
@@ -153,7 +205,7 @@ Language|언어
 Applies to the entire app. Code, file paths and your content stay in their original language.|앱 전체에 적용됩니다. 코드, 파일 경로와 사용자 콘텐츠는 원문을 유지합니다.
 Workspace data|워크스페이스 데이터
 Reset workspace data|워크스페이스 데이터 초기화
-Reset all drafts, reviews and history for every project?|모든 프로젝트의 초안, 검토와 기록을 초기화할까요?
+Reset all drafts, reviews and history for every project?|모든 프로젝트의 초안, 검토와 히스토리를 초기화할까요?
 Changes could not be saved|변경 사항을 저장하지 못했습니다
 Storage is unavailable or full. Changes remain in this tab; allow browser storage before refreshing.|저장 공간을 사용할 수 없거나 가득 찼습니다. 변경 내용은 이 탭에 남아 있습니다. 새로고침 전에 브라우저 저장소를 허용하세요.
 Reset failed. Allow access to browser storage and try again.|초기화하지 못했습니다. 브라우저 저장소 접근을 허용한 뒤 다시 시도하세요.
@@ -166,7 +218,7 @@ Open|열기
 Status|상태
 Preview|미리보기
 All|전체
-History|기록
+History|히스토리
 Design|디자인
 Done|완료
 Send|보내기
@@ -177,15 +229,15 @@ AI edit|AI 편집
 Rollback|롤백
 Conflict detected|충돌 감지됨
 All kinds|전체 종류
-All files|전체 파일
+All files|모든 파일
 No checkpoints match this filter.|이 필터에 맞는 체크포인트가 없습니다.
 No checkpoints yet.|아직 체크포인트가 없습니다.
 No matching checkpoints.|일치하는 체크포인트가 없습니다.
 — every other checkpoint is filtered out of this playback.|— 나머지 체크포인트는 이 재생에서 제외됩니다.
-Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. History 드로어에서 종류나 파일로 필터링할 수 있습니다.
+Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. 히스토리에서 종류나 파일로 걸러 볼 수 있습니다.
 Merged|병합 완료
 Compare latest|최신 버전과 비교
-Merge Studio|머지 스튜디오
+Merge Studio|병합 스튜디오
 Notifications|알림
 Original Design|원본 디자인
 Restore|복원
@@ -221,7 +273,7 @@ All projects|모든 프로젝트
 This week|이번 주
 Last week|지난 주
 This month|이번 달
-Earlier|이전 기록
+Earlier|이전 히스토리
 Conflict|충돌
 Comment|댓글
 Conflicts|충돌
@@ -239,12 +291,12 @@ View profile|프로필 보기
 All docs|모든 문서
 Design System Updates|디자인 시스템 업데이트
 Archive|보관함
-Restore to History|기록으로 복원
+Restore to History|히스토리로 복원
 Bring designs, code and data into|디자인, 코드와 데이터 가져오기
 Delete|삭제
 Approved · Pending merge|승인됨 · 병합 대기
 Forward|앞으로
-Agent checkpoints (History)|에이전트 체크포인트 (기록)
+Agent checkpoints (History)|에이전트 체크포인트 (히스토리)
 No comments yet.|아직 댓글이 없습니다.
 Clear selection|선택 해제
 Copied|복사됨
@@ -266,9 +318,9 @@ Upload files|파일 업로드
 Width|너비
 Height|높이
 Label|레이블
-Version History|버전 기록
+Version History|버전 히스토리
 Checkpoint ·|체크포인트 ·
-Play history|기록 재생
+Play history|히스토리 재생
 Version|버전
 Rollback to checkpoint|체크포인트로 되돌리기
 Code files|코드 파일
@@ -327,8 +379,8 @@ Mentions|멘션
 Pipeline|처리 과정
 Doc|문서
 Generate documentation|문서 생성
-Archive to history|기록에 보관
-Changes to the design system are written up as documentation, then recorded in the project's history.|디자인 시스템 변경을 문서로 작성한 뒤 프로젝트 기록에 보관합니다.
+Archive to history|히스토리에 보관
+Changes to the design system are written up as documentation, then recorded in the project's history.|디자인 시스템 변경을 문서로 작성한 뒤 프로젝트 히스토리에 보관합니다.
 No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 충돌 지점을 해결하면 시작됩니다.
 Spec|명세
 Guide|안내
@@ -430,7 +482,7 @@ Other changes|기타 변경
 Resize code and canvas|코드와 캔버스 크기 조절
 Canvas version|캔버스 버전
 Preview props|미리보기 속성
-History playback|기록 재생
+History playback|히스토리 재생
 Pause playback|재생 일시 정지
 Pause|일시 정지
 Previous version|이전 버전
@@ -440,7 +492,7 @@ Next version (→)|다음 버전 (→)
 Current version|현재 버전
 Restore to here|여기까지 복원
 Always|항상
-Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.|작업을 이 체크포인트 당시로 복원하고 새 체크포인트로 저장합니다. 이후 기록은 삭제하지 않습니다.
+Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.|작업을 이 체크포인트 당시로 복원하고 새 체크포인트로 저장합니다. 이후 히스토리는 삭제하지 않습니다.
 Preview ·|미리보기 ·
 vs. current|현재 버전과 비교
 The code is the same as the current version.|현재 버전과 코드가 같습니다.
@@ -715,7 +767,7 @@ Delete annotation|주석 삭제
 AI is updating design & code…|AI가 디자인과 코드를 수정하고 있습니다…
 Waiting — use Apply with AI|대기 중 · AI로 적용을 사용하세요
 Save|저장
-Version history|버전 기록
+Version history|버전 히스토리
 No changes yet — pick or edit values, edit code, assemble blocks, or annotate.|아직 변경이 없습니다. 값을 선택하거나 편집하고, 코드를 수정하거나 블록을 조합하거나 주석을 추가하세요.
 Edits|편집 사항
 Jump to element|요소로 이동
@@ -843,13 +895,13 @@ Approve change|변경 승인
 Merge change|변경 병합
 Reopen|다시 열기
 Approval does not merge the changes.|승인만으로 변경 사항이 병합되지 않습니다.
-Merging applies the change and saves a History checkpoint.|병합하면 변경을 적용하고 기록에 체크포인트를 저장합니다.
+Merging applies the change and saves a History checkpoint.|병합하면 변경을 적용하고 히스토리에 체크포인트를 저장합니다.
 Risk|위험도
 Conflict details|충돌 상세
-Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 기록에서 확인할 수 있습니다.
-Open History|기록 열기
-Open in Merge Studio|머지 스튜디오에서 열기
-Edit or combine elements in Merge Studio before merging.|병합 전에 머지 스튜디오에서 요소를 편집하거나 조합하세요.
+Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 히스토리에서 확인할 수 있습니다.
+Open History|히스토리 열기
+Open in Merge Studio|병합 스튜디오에서 열기
+Edit or combine elements in Merge Studio before merging.|병합 전에 병합 스튜디오에서 요소를 편집하거나 조합하세요.
 Create new project|새 프로젝트 만들기
 Set up a new workspace for your team.|팀을 위한 새 워크스페이스를 만드세요.
 Project name|프로젝트 이름
@@ -875,7 +927,7 @@ Needs your review ·|검토할 항목 ·
 No views open|열린 화면이 없습니다
 Resize panes|패널 크기 조절
 All activities|모든 활동
-What your team is doing across every project. For one project's saved versions, open its Archive → History.|모든 프로젝트의 팀 활동입니다. 프로젝트의 저장된 버전은 보관함 → 기록에서 확인하세요.
+What your team is doing across every project. For one project's saved versions, open its Archive → History.|모든 프로젝트의 팀 활동입니다. 프로젝트의 저장된 버전은 보관함 → 히스토리에서 확인하세요.
 No activity matches this filter.|필터와 일치하는 활동이 없습니다.
 Open in Workspace|워크스페이스에서 열기
 Open Workspace|워크스페이스 열기
@@ -933,17 +985,17 @@ Review and approve|검토 후 승인
 Waiting on changes|변경 대기 중
 Can't merge yet|아직 병합할 수 없습니다
 Every required reviewer has to approve the latest changes first.|먼저 모든 필수 검토자가 최신 변경 사항을 승인해야 합니다.
-Resolve the conflicting blocks in Merge Studio’s Check step first.|먼저 머지 스튜디오의 확인 단계에서 충돌 블록을 해결하세요.
+Resolve the conflicting blocks in Merge Studio’s Check step first.|먼저 병합 스튜디오의 확인 단계에서 충돌 블록을 해결하세요.
 Unresolved conflict markers remain in the code.|코드에 미해결 충돌 표시가 남아 있습니다.
 This change is already merged.|이미 병합된 변경입니다.
 
 Document updates|문서 업데이트
 Document update|문서 변경사항
 Approve update|변경사항 승인
-Record in history|기록에 저장
+Record in history|히스토리에 저장
 Affected docs|관련 문서
 Waiting for earlier updates|이전 변경사항 처리 대기
-System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|Conflict·Merge에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 History에 기록합니다.
+System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|충돌·병합에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 히스토리에 기록합니다.
 No document updates yet. Resolving a Conflict Point or merging system changes adds an update automatically.|문서 업데이트가 없습니다. Conflict 해결 또는 시스템 변경사항 Merge 시 자동 등록됩니다.
 Create new document|새 문서 생성
 Created document|생성된 문서
@@ -969,11 +1021,11 @@ Fixed it — the Continue button now uses 12px/24px padding to match the design 
 Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
 Where should I start?|어떤 것부터 확인할까요?
-Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 머지 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
+Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 **Follow these steps:**|**이렇게 진행해보세요:**
 1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌 지점**에서 \`Place order 버튼\` 이슈를 선택하세요.
 2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.|2. 요약을 읽은 뒤 **차이 보기**를 열어 40px 구현과 44px 디자인을 비교하세요.
-3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **머지 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
+3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **병합 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
 4. Use **Assemble** for further styling.|4. 스타일을 더 다듬고 싶으면 **조합**을 사용하세요.
 5. Open **Merge Changes** to inspect the result and request review.|5. **변경 사항 병합**에서 결과를 확인하고 검토를 요청하세요.
 Match Place order to design|주문 버튼을 디자인에 맞추기
@@ -982,17 +1034,17 @@ What happens after my edit?|수정한 다음에는 뭘 해야 하나요?
 What happens after my design edit?|버튼을 수정했어요. 다음에는 뭘 해야 하나요?
 AI edits create a draft checkpoint — review and approval are required before it merges.|AI 수정은 초안 체크포인트를 만들어요 — 병합 전에 검토와 승인이 필요해요.
 **What happens after an AI edit:**|**AI가 수정한 뒤에는 이렇게 진행돼요:**
-- It creates a **draft** and a **History checkpoint** — it does not merge automatically.|- **초안**과 **기록 체크포인트**가 생성돼요 — 자동으로 병합되지 않아요.
+- It creates a **draft** and a **History checkpoint** — it does not merge automatically.|- **초안**과 **히스토리 체크포인트**가 생성돼요 — 자동으로 병합되지 않아요.
 - Inspect the visual comparison and code diff before approving.|- 승인하기 전에 비교 화면과 코드 차이를 확인하세요.
 - **Request review** and collect the required approvals, then merge.|- **검토를 요청**하고 필요한 승인을 받은 뒤 병합하세요.
-- Use **History** to inspect or roll back the saved checkpoint anytime.|- **기록**에서 저장된 버전을 언제든 확인하거나 되돌릴 수 있어요.
+- Use **History** to inspect or roll back the saved checkpoint anytime.|- **히스토리**에서 저장된 버전을 언제든 확인하거나 되돌릴 수 있어요.
 Guide me through code review|버튼 코드 검토 시작하기
-Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 머지 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
+Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 병합 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
 1. Open the **Button / Height** conflict from the project overview.|1. 프로젝트 홈에서 **Button / Height** 충돌을 여세요.
 2. Inspect **Diff** — the implementation uses \`h-9\` while the design system requires the medium height token.|2. **차이 보기**를 확인하세요 — 현재 코드는 \`h-9\`를 쓰지만 디자인 시스템 기준은 medium 높이 토큰이에요.
-3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.|3. **워크스페이스**에서 관련 파일을 확인한 뒤 **머지 스튜디오 비교**로 차이를 해결하세요.
+3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.|3. **워크스페이스**에서 관련 파일을 확인한 뒤 **병합 스튜디오 비교**로 차이를 해결하세요.
 4. Review the resulting code in **Merge Changes**, assign reviewers, and request review.|4. **변경 사항 병합**에서 결과 코드를 확인하고 검토자를 지정해 검토를 요청하세요.
-5. After approvals, merge and inspect **History**.|5. 승인을 받으면 병합하고 **기록**에서 확인하세요.
+5. After approvals, merge and inspect **History**.|5. 승인을 받으면 병합하고 **히스토리**에서 확인하세요.
 Use the size token for Button|버튼 높이에 토큰 적용하기
 Use the size token for the Button height|Button의 높이에 디자인 시스템 토큰을 적용해주세요
 Why use a shared token?|높이를 토큰으로 관리하는 이유
@@ -1004,11 +1056,11 @@ A shared Button token avoids fixing every screen separately — review affected 
 - This is a **shared component** with wider impact than a single page edit — review the component diff and affected screens before merging.|- 여러 화면에 영향을 주는 **공용 컴포넌트**이니, 병합 전에 코드 차이와 영향받는 화면을 함께 확인하세요.
 How do I verify and roll back?|변경 이력 확인하고 되돌리기
 How do I verify and roll back the change?|수정한 내용을 확인하고 이전 상태로 되돌리려면 어떻게 하나요?
-Verify in Merge Changes, then use History → Rollback if something looks wrong.|변경 사항 병합에서 확인한 뒤, 문제가 있으면 기록 → 롤백을 사용하세요.
+Verify in Merge Changes, then use History → Rollback if something looks wrong.|변경 사항 병합에서 확인한 뒤, 문제가 있으면 히스토리 → 롤백을 사용하세요.
 **How to verify and roll back:**|**확인하고 되돌리는 방법:**
 1. Check the final code and visual preview in **Merge Changes**.|1. **변경 사항 병합**에서 최종 코드와 미리보기를 확인하세요.
 2. Note that **approval** and **merge** are separate steps.|2. **승인**과 **병합**은 별도의 단계예요.
-3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.|3. 병합 후에는 **기록**에서 새 체크포인트를 선택해 변경된 파일을 확인하세요.
+3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.|3. 병합 후에는 **히스토리**에서 새 체크포인트를 선택해 변경된 파일을 확인하세요.
 4. Use **Rollback** to restore a previous checkpoint if the result is wrong.|4. 결과가 잘못됐다면 **롤백**으로 이전 체크포인트를 복원하세요.
 Should the CTA use the violet accent or stay neutral here?|CTA에 violet 강조색을 쓸까요, 아니면 중립색을 유지할까요?
 Padding looks tight on the mobile frame — can we match the 24px spec?|모바일 프레임에서 패딩이 좁아 보입니다 — 24px 스펙에 맞출 수 있을까요?
@@ -1065,7 +1117,7 @@ Object.assign(ko, {
   'Viewing profile': '프로필 보기', 'Signed out': '로그아웃됨', 'Project created': '프로젝트 생성됨',
   'Team created': '팀 생성됨', 'Figma file linked': 'Figma 파일 연결됨', 'Nothing to import.': '가져올 항목이 없습니다.',
   'Restored this version': '이 버전 복원됨', 'Checkpoint archived': '체크포인트 보관됨',
-  'Checkpoint restored to History': '체크포인트를 기록에 복원했습니다', 'Rolled back to checkpoint': '체크포인트로 되돌렸습니다',
+  'Checkpoint restored to History': '체크포인트를 히스토리에 복원했습니다', 'Rolled back to checkpoint': '체크포인트로 되돌렸습니다',
   "Can't archive the entry you're currently on — roll back to a different one first.": '현재 적용 중인 항목은 보관할 수 없습니다. 먼저 다른 체크포인트로 되돌리세요.',
   'e.g. Alex Kim': '예: 김민수', 'e.g. Checkout Redesign': '예: 결제 화면 리디자인', 'e.g. Design Team': '예: 디자인 팀',
   'Focus Editor': '편집기 집중', 'Design Review': '디자인 검토', 'Debug': '디버그',
