@@ -219,61 +219,7 @@ function Provenance({ conflict, className }) {
   )
 }
 
-// The AI's proposal, split into what it proposes, why, what it's based on
-// (only references that exist in the project) and the expected result.
-// Approving signs off on this proposal; nothing is applied until merge.
-function SuggestionCard({ conflict, onViewDiff }) {
-  const rows = [
-    ['Proposal', conflict.suggestion],
-    ['Why', conflict.suggestionReason],
-    ['Expected result', conflict.expectedResult],
-  ].filter(([, text]) => text)
-
-  return (
-    <div className={REVIEW_DETAIL_CARD}>
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-        <Sparkles className="size-3.5" />
-        AI suggestion
-      </p>
-      <dl className="space-y-2.5">
-        {rows.map(([label, text]) => (
-          <div key={label} className={REVIEW_INFO_GRID}>
-            <dt className={REVIEW_INFO_LABEL}>{label}</dt>
-            <dd className={REVIEW_DETAIL_COPY}>{text}</dd>
-          </div>
-        ))}
-        {conflict.references?.length > 0 && (
-          <div className={REVIEW_INFO_GRID}>
-            <dt className={REVIEW_INFO_LABEL}>References</dt>
-            <dd className="flex flex-wrap gap-1.5">
-              {conflict.references.map((ref) => (
-                <span key={ref.label} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-slate-200">
-                  <span className="font-mono">{ref.label}</span>
-                  {ref.source && <span className="text-slate-500"> · {ref.source}</span>}
-                </span>
-              ))}
-            </dd>
-          </div>
-        )}
-      </dl>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        {onViewDiff && (
-          <button
-            type="button"
-            onClick={onViewDiff}
-            className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium', GHOST_BUTTON)}
-          >
-            <Code2 className="size-3.5" />
-            View code diff
-          </button>
-        )}
-        <p className="text-[11px] text-slate-500">Approving signs off on this proposal. It is applied to the code only when merged.</p>
-      </div>
-    </div>
-  )
-}
-
-function OverviewTab({ conflict, onViewDiff }) {
+function OverviewTab({ conflict }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -321,8 +267,6 @@ function OverviewTab({ conflict, onViewDiff }) {
           />
         </section>
       )}
-
-      {conflict.suggestion && <SuggestionCard conflict={conflict} onViewDiff={onViewDiff} />}
     </div>
   )
 }
@@ -1175,9 +1119,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
 
               <div className={cn('grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] p-3', REVIEW_GUTTER)}>
-                <div className="scroll-fade-bottom min-h-0 min-w-0 overflow-auto" role="tabpanel">
+                <div className="min-h-0 min-w-0 overflow-auto" role="tabpanel">
                     {tab === 'overview' && (
-                      <OverviewTab conflict={conflict} onViewDiff={conflict.diff ? () => openTab('diff') : null} />
+                      <OverviewTab conflict={conflict} />
                     )}
                     {tab === 'diff' && <DiffTab conflict={conflict} />}
                     {tab === 'history' && (
