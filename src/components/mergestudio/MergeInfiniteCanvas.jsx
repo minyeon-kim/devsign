@@ -1009,7 +1009,7 @@ function defaultLayout(frame) {
 // opened merge target never lands underneath them.
 const TOP_CONTROLS_CLEARANCE = 124
 // Room kept free below the cards for the bottom AI bar (~135px tall at
-// `bottom-5`), zoom controls and Changes Log, so fitted artboards never sit
+// `bottom-5`) and Changes Log, so fitted artboards never sit
 // underneath them.
 const BOTTOM_CONTROLS_CLEARANCE = 150
 // Fitting may zoom past 100% so the comparison fills the available canvas
@@ -1312,8 +1312,7 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
   return (
     // `relative`, sized to just the button — the expanded panel is
     // `absolute` (popped up above it via `bottom-full`), so opening it
-    // never changes this wrapper's own layout box (the zoom pill to its
-    // left never moves).
+    // never changes this wrapper's own layout box.
     <div className="relative">
       {open && (
         <div
@@ -1428,7 +1427,6 @@ function ChangesLog({ entries, codeRows, open, onToggle, onJump, onUndo, onOpenH
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        // `h-11` explicitly, matching the adjacent zoom pill's own height.
         // Text + count only; the open state is a soft fill, not an icon.
         className={cn(
           'ml-auto flex h-11 items-center justify-center gap-2 rounded-full pr-3.5 pl-4.5 text-sm font-semibold text-foreground transition-colors',
@@ -1583,11 +1581,11 @@ function MergeInfiniteCanvas({
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
   const [links, setLinks] = useState({ paths: [], anchor: null, pins: [], boxes: [] })
-  const [zoomRowRight, setZoomRowRight] = useState(12)
+  const [logRowRight, setLogRowRight] = useState(12)
   const anchorMetaRef = useRef({})
   const viewportRef = useRef(null)
   const containerRef = useRef(null)
-  const zoomRowRef = useRef(null)
+  const logRowRef = useRef(null)
   const viewRef = useRef(view)
   const highlightRef = useRef(null)
   const anchorElRef = useRef(null)
@@ -2275,7 +2273,7 @@ function MergeInfiniteCanvas({
   // axis instead of jumping sideways each time the drawer toggles.
   const leftInset = 16
 
-  // Zoom pill + Changes Log placement: right-anchored at `right-3` by
+  // Changes Log placement: right-anchored at `right-3` by
   // default, but the AI chat bar is independently centered on the *whole*
   // viewport — at narrower windows its right edge can reach past where
   // that default would put this row. Measuring the AI bar's actual rect
@@ -2286,18 +2284,18 @@ function MergeInfiniteCanvas({
   // some widths.
   useLayoutEffect(() => {
     function recompute() {
-      const row = zoomRowRef.current
+      const row = logRowRef.current
       const aiBar = document.querySelector('[data-ai-bar]')
       if (!row || !aiBar) return
       const aiRight = aiBar.getBoundingClientRect().right
       const rowWidth = row.getBoundingClientRect().width
       const minLeft = aiRight + 12
       const desiredLeft = window.innerWidth - 12 - rowWidth
-      setZoomRowRight(desiredLeft < minLeft ? Math.max(12, window.innerWidth - minLeft - rowWidth) : 12)
+      setLogRowRight(desiredLeft < minLeft ? Math.max(12, window.innerWidth - minLeft - rowWidth) : 12)
     }
     recompute()
     const ro = new ResizeObserver(recompute)
-    if (zoomRowRef.current) ro.observe(zoomRowRef.current)
+    if (logRowRef.current) ro.observe(logRowRef.current)
     window.addEventListener('resize', recompute)
     return () => {
       ro.disconnect()
@@ -2628,19 +2626,10 @@ function MergeInfiniteCanvas({
           </div>
         </div>
 
-        {/* Contextual sub-toolbar directly under the header: the drift
-            navigator (when there's more than one) sits right next to the
-            main [Merge Changes] CTA, so review and merge live in the same
-            row instead of the CTA being off in the top header. Hidden
-            entirely once the wizard modal takes over (`stage` stops being
-            'compare') — its own header already covers the same ground
-            (step progress instead of the pager, since drift detail now
-            lives in the Block Deck), so leaving this up too would just be
-            redundant, clashing UI. */}
-        {stage === 'compare' && (
+        {/* Canvas controls share the upper toolbar and its 40px pill height. */}
         <div className="pointer-events-none absolute top-[60px] left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
-            {drifts.length > 1 && (
+            {stage === 'compare' && drifts.length > 1 && (
               <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-xs', FLOATING_PILL)}>
                 <button
                   type="button"
@@ -2671,44 +2660,20 @@ function MergeInfiniteCanvas({
               </div>
             )}
 
-          </div>
-        </div>
-        )}
-      </div>
-
-      {/* Same "someone else is here" simulation the normal workspace's
-          Editor/Canvas panels use (see WorkspaceProvider's getViewersForFile
-          /getViewersForCanvasPage) — unscoped here (defaults to every
-          teammate) since Merge Studio's presence stack already treats the
-          whole session as one shared room rather than a per-file/page
-          viewport. Sits as a sibling overlay (not inside the
-          pan/zoom-transformed content) so cursors track real screen
-          position regardless of canvas pan/zoom, matching how the
-          workspace panels position it. */}
-      <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
-
-      {/* Bottom-right row: zoom pill sits directly beside the Changes Log
-          toggle (both `items-end`-aligned so the zoom pill's bottom edge
-          always lines up with the log's own button, whether or not its
-          panel is open), pushed clear of the centered AI chat bar's
-          measured right edge (`zoomRowRight`, see the layout effect above)
-          instead of a fixed `right-3` that could overlap it at narrower
-          window widths. `bottom-5` — not `bottom-3` — to sit on the exact
-          same baseline as the AI chat bar (`fixed bottom-5` in
-          MergeAiBar.jsx), instead of 8px higher. */}
-      <div ref={zoomRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: zoomRowRight }}>
-        <div className={cn('flex h-11 items-center gap-1.5 rounded-full px-2 text-sm', FLOATING_PILL)}>
+        <div className={cn('flex h-10 items-center gap-1 rounded-full px-1.5 text-[13px]', FLOATING_PILL)}>
           <button
             type="button"
             onClick={() => zoomFromCenter(-ZOOM_STEP)}
+            aria-label="Zoom out"
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Minus className="size-4" />
           </button>
-          <span className="w-12 text-center text-sm tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
+          <span className="w-12 text-center text-[13px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
           <button
             type="button"
             onClick={() => zoomFromCenter(ZOOM_STEP)}
+            aria-label="Zoom in"
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Plus className="size-4" />
@@ -2747,7 +2712,23 @@ function MergeInfiniteCanvas({
             </>
           )}
         </div>
+          </div>
+        </div>
+      </div>
 
+      {/* Same "someone else is here" simulation the normal workspace's
+          Editor/Canvas panels use (see WorkspaceProvider's getViewersForFile
+          /getViewersForCanvasPage) — unscoped here (defaults to every
+          teammate) since Merge Studio's presence stack already treats the
+          whole session as one shared room rather than a per-file/page
+          viewport. Sits as a sibling overlay (not inside the
+          pan/zoom-transformed content) so cursors track real screen
+          position regardless of canvas pan/zoom, matching how the
+          workspace panels position it. */}
+      <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
+
+      {/* Changes Log stays above the bottom edge, clear of the AI chat bar. */}
+      <div ref={logRowRef} className="absolute bottom-5 z-20 flex items-end gap-3" style={{ right: logRowRight }}>
         {stage === 'compare' && (() => {
           const presetObj =
             appliedPreset?.layerId
