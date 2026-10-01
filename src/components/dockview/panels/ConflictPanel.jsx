@@ -74,11 +74,16 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   // never called `requestMergeFocus` at all, so the canvas never populated.
   useEffect(() => {
     if (!inMergeStudio || !reviewConflict || !reviewConflictItemId) return
-    if (!reviewConflict.layerId && !(reviewConflict.fileId && reviewConflict.line)) return
+    // A conflict with neither still switches the item open (so it's at
+    // least on canvas to look at) — it just lands without a pinpoint pan.
     requestMergeFocus({
       itemId: reviewConflictItemId,
       label: reviewConflict.title,
-      ...(reviewConflict.layerId ? { layerId: reviewConflict.layerId } : { fileId: reviewConflict.fileId, line: reviewConflict.line }),
+      ...(reviewConflict.layerId
+        ? { layerId: reviewConflict.layerId }
+        : reviewConflict.fileId && reviewConflict.line
+          ? { fileId: reviewConflict.fileId, line: reviewConflict.line }
+          : {}),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])

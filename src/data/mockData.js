@@ -195,7 +195,28 @@ export const projects = [
     thumbnailType: 'design-system',
     activityCount: 9,
   },
-
+  {
+    id: 'mobile-nav-revamp',
+    name: 'Mobile Nav Revamp',
+    description: 'Bottom navigation redesign — icon sizing and gesture affordances kept in sync between the Figma prototype and the app.',
+    ownerId: 'james',
+    memberIds: ['james', 'jane'],
+    updatedAtLabel: 'Yesterday',
+    filesCount: 4,
+    thumbnailType: 'mobile-nav',
+    activityCount: 4,
+  },
+  {
+    id: 'onboarding-flow',
+    name: 'Onboarding Flow',
+    description: 'First-run welcome screens and progress steps, kept in sync between the onboarding design and the app.',
+    ownerId: 'min',
+    memberIds: ['min', currentUser.id],
+    updatedAtLabel: '2 days ago',
+    filesCount: 4,
+    thumbnailType: 'onboarding',
+    activityCount: 3,
+  },
 ]
 
 // Dashboard-only mock data below — none of it is read by the workspace
@@ -276,6 +297,9 @@ export const conflictChecklist = [
     riskReason: 'High: a merge conflict — both branches edited the same lines, so one side’s change could be lost.',
     impact: { components: ['DesignCanvas'], files: ['src/components/DesignCanvas.jsx'] },
     uxNote: 'Without the merged version, frames either lose their selection handler or their stable key.',
+    mergeItemId: 'merge-ds-canvas-conflict',
+    fileId: 'canvas',
+    line: 10,
     message: 'Merge conflict between local and remote branch (lines 9-14).',
     branches: { local: 'feature/canvas-frames', remote: 'main' },
     linkedCommentId: 'comment-1',
@@ -320,6 +344,9 @@ export const conflictChecklist = [
       before: { radius: 8 },
       after: { radius: 12 },
     },
+    mergeItemId: 'merge-ds-card-radius',
+    fileId: 'card',
+    line: 2,
     message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
     branches: { local: 'Card.jsx', remote: 'Card · Default (Figma)' },
     suggestion: 'Use the radius-lg token on the card container instead of rounded-lg.',
@@ -345,6 +372,10 @@ export const conflictChecklist = [
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.',
     preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
+    mergeItemId: 'merge-mobile-nav-icon',
+    layerId: 'tab-bar',
+    fileId: 'app',
+    line: 10,
     message: 'Nav icons render at 20px in code but 24px in the redesigned nav frame.',
     branches: { local: 'BottomNav.jsx', remote: 'Nav · Tab bar (Figma)' },
     suggestion: 'Bump the nav icon size to 24px and keep the 44px hit area.',
@@ -376,6 +407,10 @@ export const conflictChecklist = [
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'The primary color is a slightly different shade from the brand color.',
     preview: { kind: 'swatch', before: { color: '#5B5BD6' }, after: { color: '#5E6AD2' } },
+    mergeItemId: 'merge-onboarding-color',
+    layerId: 'primary-button',
+    fileId: 'color-tokens',
+    line: 2,
     message: 'Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).',
     branches: { local: 'tokens.css', remote: 'Color · Primary (Figma)' },
     suggestion: 'Point --primary at the brand token instead of the hard-coded hex.',
@@ -402,6 +437,9 @@ export const conflictChecklist = [
     impact: { components: ['Input'], files: ['src/components/ui/Input.jsx'] },
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Input text sits 2px closer to the edge than in the design.',
+    mergeItemId: 'merge-ds-input-padding',
+    fileId: 'input',
+    line: 2,
     message: 'Input horizontal padding (10px) differs from the design system (12px).',
     branches: { local: 'Input.jsx', remote: 'Input · Default (Figma)' },
     linkedCommentId: 'comment-2',
@@ -429,6 +467,9 @@ export const conflictChecklist = [
     impact: { screens: ['Checkout · Payment step'], components: ['CheckoutForm'], files: ['src/components/checkout/CheckoutForm.jsx'] },
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Form fields sit 2px closer together than the 8px spacing scale.',
+    mergeItemId: 'merge-checkout-form-spacing',
+    fileId: 'checkout-form',
+    line: 3,
     message: 'Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.',
     branches: { local: 'CheckoutForm.jsx', remote: 'Checkout · Form (Figma)' },
     suggestion: 'Replace gap-1.5 with gap-2 so the form sits on the 8px scale.',
@@ -467,6 +508,10 @@ export const conflictChecklist = [
         { label: 'Dark theme', surface: '#18181b', before: '#e2e8f0', after: '#27272a' },
       ],
     },
+    mergeItemId: 'merge-checkout-divider',
+    layerId: 'order-summary',
+    fileId: 'divider',
+    line: 4,
     message: 'The order summary divider uses slate-200 instead of the border token.',
     branches: { local: 'OrderSummary.jsx', remote: 'Checkout · Summary (Figma)' },
     suggestion: 'Use border-border on the divider so it follows the theme.',
@@ -492,7 +537,10 @@ export const conflictChecklist = [
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Field labels read slightly wider-spaced than the rest of the form.',
     preview: { kind: 'text', label: 'Card number', before: { letterSpacing: '0.025em' }, after: { letterSpacing: 'normal' } },
+    mergeItemId: 'merge-checkout-payment-label',
     layerId: 'payment-label',
+    fileId: 'payment-form',
+    line: 4,
     message: 'Field labels use tracking-wide; the design system label style has normal tracking.',
     branches: { local: 'PaymentForm.jsx', remote: 'Checkout · Payment (Figma)' },
     suggestion: 'Drop tracking-wide from the field labels.',
@@ -518,6 +566,10 @@ export const conflictChecklist = [
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'Shipping icons look heavier than the rest of the icon set.',
     preview: { kind: 'icon', before: { size: 16, stroke: 2.5 }, after: { size: 16, stroke: 2 } },
+    mergeItemId: 'merge-checkout-shipping-icon',
+    layerId: 'shipping-label',
+    fileId: 'shipping',
+    line: 4,
     message: 'Shipping option icons render at stroke 2.5; the icon set is drawn at 2.',
     branches: { local: 'ShippingOptions.jsx', remote: 'Checkout · Shipping (Figma)' },
     suggestion: 'Use the default stroke width on the shipping icons.',
@@ -1012,10 +1064,155 @@ export const mergeListItems = [
     subtitle: '1 file · Code',
     tag: 'Needs Review',
     updatedLabel: 'Yesterday',
-    fileIds: ['app'],
+    fileIds: ['card'],
     hasDesign: false,
     category: 'Design System',
     conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'min',
+  },
+  // Already resolved (cc-2 is a plain git merge conflict with no design
+  // counterpart) — tag/conflictLevel read as settled, not a pending ask.
+  {
+    id: 'merge-ds-canvas-conflict',
+    projectId: 'design-system-v2',
+    conflictId: 'cc-2',
+    title: 'DesignCanvas merge conflict',
+    subtitle: '1 file · Code',
+    tag: 'Merged',
+    updatedLabel: '4h ago',
+    fileIds: ['canvas'],
+    hasDesign: false,
+    category: 'Design System',
+    conflictLevel: 'None',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'james',
+  },
+  {
+    id: 'merge-ds-input-padding',
+    projectId: 'design-system-v2',
+    conflictId: 'cc-6',
+    title: 'Input / Padding',
+    subtitle: '1 file · Code',
+    tag: 'Merged',
+    updatedLabel: '3 days ago',
+    fileIds: ['input'],
+    hasDesign: false,
+    category: 'Design System',
+    conflictLevel: 'None',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+  },
+  // Checkout Redesign's remaining Conflict Points, same project as
+  // merge-checkout-cta/merge-checkout-designer-pair above — cc-7 is
+  // already resolved; cc-8/cc-9/cc-10 are still open.
+  {
+    id: 'merge-checkout-form-spacing',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-7',
+    title: 'Checkout form spacing',
+    subtitle: '1 file · Code',
+    tag: 'Merged',
+    updatedLabel: '4 days ago',
+    fileIds: ['checkout-form'],
+    hasDesign: false,
+    category: 'Checkout',
+    conflictLevel: 'None',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'james',
+  },
+  {
+    id: 'merge-checkout-divider',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-8',
+    title: 'Order summary divider',
+    subtitle: '1 file · Design + Code',
+    tag: 'Needs Review',
+    updatedLabel: '2 hours ago',
+    fileIds: ['divider'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'min',
+  },
+  {
+    id: 'merge-checkout-payment-label',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-9',
+    title: 'Payment label tracking',
+    subtitle: '1 file · Design + Code',
+    tag: 'Needs Review',
+    updatedLabel: '3 hours ago',
+    fileIds: ['payment-form'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'james',
+  },
+  {
+    id: 'merge-checkout-shipping-icon',
+    projectId: 'checkout-redesign',
+    conflictId: 'cc-10',
+    title: 'Shipping icon stroke',
+    subtitle: '1 file · Design + Code',
+    tag: 'Needs Review',
+    updatedLabel: 'Yesterday',
+    fileIds: ['shipping'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'min',
+  },
+  // Mobile Nav Revamp's own item for Conflict Point cc-4 — reuses page-1
+  // (the shared Mobile App canvas) directly by id for its design side,
+  // since this project has no canvasPages entry of its own; `tab-bar`
+  // stands in for the redesigned bottom nav.
+  {
+    id: 'merge-mobile-nav-icon',
+    projectId: 'mobile-nav-revamp',
+    conflictId: 'cc-4',
+    title: 'Nav icon size',
+    subtitle: '1 file · Design + Code',
+    tag: 'Needs Review',
+    updatedLabel: 'Yesterday',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-1',
+    category: 'Navigation',
+    conflictLevel: 'Medium',
+    dueLabel: 'Due tomorrow',
+    dueBucket: 'soon',
+    assigneeId: 'james',
+  },
+  // Onboarding Flow's own item for Conflict Point cc-5 — also resolved,
+  // also reuses page-1 directly (no canvasPages entry of its own);
+  // `primary-button` stands in for anything reading the --primary token.
+  {
+    id: 'merge-onboarding-color',
+    projectId: 'onboarding-flow',
+    conflictId: 'cc-5',
+    title: 'Primary color token',
+    subtitle: '1 file · Design + Code',
+    tag: 'Merged',
+    updatedLabel: '2 days ago',
+    fileIds: ['color-tokens'],
+    hasDesign: true,
+    designPageId: 'page-1',
+    category: 'Onboarding',
+    conflictLevel: 'None',
     dueLabel: 'No due date',
     dueBucket: 'none',
     assigneeId: 'min',
@@ -1152,6 +1349,108 @@ export const designMergeVariants = {
       'button-md': { fileId: 'app', line: 6, span: 1 },
     },
   },
+  'merge-checkout-divider': {
+    layerDiffs: {
+      'order-summary': [
+        {
+          id: 'divider-color',
+          label: 'Divider color',
+          optionA: 'Border token',
+          optionB: 'slate-200 (hard-coded)',
+          optionAClass: 'bg-border',
+          optionBClass: 'bg-slate-200',
+          recommended: 'A',
+          reason: 'Follows light / dark theme automatically',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'order-summary': { fileId: 'divider', line: 4, span: 1 },
+    },
+  },
+  'merge-checkout-payment-label': {
+    layerDiffs: {
+      'payment-label': [
+        {
+          id: 'label-tracking',
+          label: 'Letter spacing',
+          optionA: 'Normal',
+          optionB: '0.025em (tracking-wide)',
+          recommended: 'A',
+          reason: 'Design system label style uses normal tracking',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'payment-label': { fileId: 'payment-form', line: 4, span: 1 },
+    },
+  },
+  // `shipping-label` stands in for the (unmodeled) Truck icon — page-checkout
+  // has no dedicated icon layer, same reasoning as tab-bar/primary-button.
+  'merge-checkout-shipping-icon': {
+    layerDiffs: {
+      'shipping-label': [
+        {
+          id: 'icon-stroke',
+          label: 'Icon stroke',
+          optionA: '2',
+          optionB: '2.5',
+          recommended: 'A',
+          reason: 'Matches the rest of the icon set',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'shipping-label': { fileId: 'shipping', line: 4, span: 1 },
+    },
+  },
+  'merge-mobile-nav-icon': {
+    layerDiffs: {
+      // Two diffs, not one — driftSeverity (mergeSummary.js) reads 2 diffs
+      // as Medium, matching cc-4's declared severity (same reasoning as
+      // merge-ds-button-height above; one diff alone would compute Low).
+      'tab-bar': [
+        {
+          id: 'nav-icon-size',
+          label: 'Icon size',
+          optionA: '24px',
+          optionB: '20px',
+          recommended: 'A',
+          reason: 'Redesigned tab bar uses 24px icons with the same 44px tap area',
+        },
+        {
+          id: 'nav-icon-hit-area',
+          label: 'Tap area',
+          optionA: '44px',
+          optionB: '44px',
+          recommended: 'A',
+          reason: 'Unchanged — only the icon glyph grows, not the hit target',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'tab-bar': { fileId: 'app', line: 10, span: 1 },
+    },
+  },
+  'merge-onboarding-color': {
+    layerDiffs: {
+      'primary-button': [
+        {
+          id: 'primary-color',
+          label: 'Primary color',
+          optionA: 'Brand 500 (#5E6AD2)',
+          optionB: '#5B5BD6 (hard-coded)',
+          optionAClass: 'bg-[#5E6AD2]',
+          optionBClass: 'bg-[#5B5BD6]',
+          recommended: 'A',
+          reason: 'Use the brand token so theme updates propagate',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'primary-button': { fileId: 'color-tokens', line: 2, span: 1 },
+    },
+  },
   'merge-flowbank': {
     layerDiffs: {
       'hero-heading': [
@@ -1285,6 +1584,18 @@ export const codeMergeVariants = {
   'merge-ds-button-height': {
     app: [{ id: 'button-md-height', line: 6, incoming: "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' }," }],
     tokens: [{ id: 'button-height-token', line: 6, incoming: '  --button-height-md: 40px;' }],
+  },
+  'merge-checkout-divider': {
+    divider: [{ id: 'order-summary-divider', line: 4, incoming: '      <hr className="border-border" />' }],
+  },
+  'merge-checkout-payment-label': {
+    'payment-form': [{ id: 'payment-label-tracking', line: 4, incoming: '      <label className="text-xs font-medium">Card number</label>' }],
+  },
+  'merge-checkout-shipping-icon': {
+    shipping: [{ id: 'shipping-icon-stroke', line: 4, incoming: '      <Truck className="size-4" />' }],
+  },
+  'merge-mobile-nav-icon': {
+    app: [{ id: 'nav-icon-size', line: 10, incoming: '          <Icon className="size-6" />' }],
   },
   'merge-flowbank': {
     app: [
@@ -1538,6 +1849,64 @@ export const projectFileSets = {
       ],
     },
     openFiles[3],
+    // Extra files beyond the 4 standard ids — cc-7, cc-8, cc-9 and cc-10
+    // each name a different checkout file than PlaceOrderButton.jsx (the
+    // 'app' slot, already cc-11's), so they get their own real files
+    // instead of sharing one that doesn't match their own diff.
+    {
+      id: 'checkout-form',
+      name: 'CheckoutForm.jsx',
+      path: 'src/components/checkout/CheckoutForm.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-7's fix, already resolved — gap-2 sits on the 8px spacing scale.
+      lines: ['export function CheckoutForm() {', '  return (', '    <form className="flex flex-col gap-2">', '      {/* fields */}', '    </form>', '  )', '}'],
+    },
+    {
+      id: 'divider',
+      name: 'OrderSummary.jsx',
+      path: 'src/components/checkout/OrderSummary.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-8's current state — the divider is still hard-coded slate-200.
+      lines: ['export function OrderSummary() {', '  return (', '    <div className="order-summary">', '      <hr className="border-slate-200" />', '    </div>', '  )', '}'],
+    },
+    {
+      id: 'payment-form',
+      name: 'PaymentForm.jsx',
+      path: 'src/components/checkout/PaymentForm.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-9's current state — the label still carries tracking-wide.
+      lines: [
+        'export function PaymentForm() {',
+        '  return (',
+        '    <div>',
+        '      <label className="text-xs font-medium tracking-wide">Card number</label>',
+        '      <input />',
+        '    </div>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      id: 'shipping',
+      name: 'ShippingOptions.jsx',
+      path: 'src/components/checkout/ShippingOptions.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-10's current state — the Truck icon still renders at stroke 2.5.
+      lines: [
+        'export function ShippingOptions() {',
+        '  return (',
+        '    <div>',
+        '      <Truck className="size-4" strokeWidth={2.5} />',
+        '      <span>Standard shipping</span>',
+        '    </div>',
+        '  )',
+        '}',
+      ],
+    },
   ],
   'design-system-v2': [
     {
@@ -1615,6 +1984,60 @@ export const projectFileSets = {
         "    print(audit('background: #6d70ad;'))",
       ],
     },
+    // Extra files beyond the 4 standard ids, added so Conflict Points cc-2,
+    // cc-3 and cc-6 — which name files this project's 4 standard slots
+    // don't cover — each have a real file to open and jump to in Merge
+    // Studio, without repurposing app/theme/tokens/sync-script (see the
+    // comment on `projectFileSets` above: those 4 ids are load-bearing for
+    // other features and keep their own project's content).
+    {
+      id: 'canvas',
+      name: 'DesignCanvas.jsx',
+      path: 'src/components/DesignCanvas.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-2's merge conflict, already resolved — both branches' changes
+      // (the key prop and the onSelect handler) kept together.
+      lines: [
+        "import { useState } from 'react'",
+        "import { Button } from '@/components/ui/button'",
+        '',
+        'export function DesignCanvas({ frames }) {',
+        '  const [selected, setSelected] = useState(null)',
+        '',
+        '  return (',
+        '    <section className="canvas-root">',
+        '      {frames.map((frame) => (',
+        '        <Frame key={frame.id} data={frame} onSelect={() => setSelected(frame.id)} />',
+        '      ))}',
+        '      <Button onClick={() => setSelected(null)}>Deselect</Button>',
+        '    </section>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      id: 'input',
+      name: 'Input.jsx',
+      path: 'src/components/ui/Input.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-6's fix, already resolved — px-3 matches the 12px design padding.
+      lines: [
+        'export function Input(props) {',
+        '  return <input {...props} className="h-9 px-3 rounded-lg" />',
+        '}',
+      ],
+    },
+    {
+      id: 'card',
+      name: 'Card.jsx',
+      path: 'src/components/ui/Card.jsx',
+      language: 'jsx',
+      iconName: 'FileCode',
+      // cc-3's current state — rounded-lg (8px), not yet the 12px radius.
+      lines: ['export function Card({ children }) {', '  return <div className="rounded-lg border bg-card p-4">{children}</div>', '}'],
+    },
   ],
   'onboarding-flow': [
     {
@@ -1687,6 +2110,17 @@ export const projectFileSets = {
         '    print(track("welcome", "jane"))',
       ],
     },
+    // Extra file beyond the 4 standard ids — cc-5 names a styles file none
+    // of onboarding-flow's own slots cover (its 'tokens' slot is
+    // steps.json, not CSS), so it gets its own, already resolved.
+    {
+      id: 'color-tokens',
+      name: 'tokens.css',
+      path: 'src/styles/tokens.css',
+      language: 'css',
+      iconName: 'Braces',
+      lines: [':root {', '  --primary: var(--brand-500); /* #5E6AD2 */', '  --background: #ffffff;', '}'],
+    },
   ],
   'mobile-nav-revamp': [
     {
@@ -1703,7 +2137,7 @@ export const projectFileSets = {
         '    <nav className="bottom-nav">',
         '      {TABS.map((Icon, i) => (',
         '        <button key={i} onClick={() => onChange(i)} data-active={active === i}>',
-        '          <Icon size={20} />',
+        '          <Icon className="size-5" />',
         '        </button>',
         '      ))}',
         '    </nav>',
