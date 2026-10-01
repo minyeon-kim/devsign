@@ -1,6 +1,6 @@
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Blocks } from 'lucide-react'
+import { ArrowLeft, Blocks, ListChecks, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -9,7 +9,7 @@ import MergeListSidebar from '@/components/mergestudio/MergeListSidebar'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel, { DECK_WIDTH } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
-import { buildDrifts } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeExecutionModal, { WIZARD_RESERVE } from '@/components/mergestudio/MergeExecutionModal'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -17,7 +17,10 @@ import MergeAiBar from '@/components/mergestudio/MergeAiBar'
 import MergeGuide from '@/components/mergestudio/MergeGuide'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
-import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine } from '@/components/mergestudio/copyFile'
+import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine, parseCopyLine } from '@/components/mergestudio/copyFile'
+import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
+import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
+import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -95,6 +98,7 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
     setMergeDrawer,
     mergeFocus,
     requestMergeFocus,
+    requestHistoryDrawer,
     mergePreviewOpen,
     setMergePreviewOpen,
     setMergeCta,
@@ -534,6 +538,75 @@ function MergeStudioWorkspace({ item, listNavigation, onListNavigation }) {
   const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
   const copy = copyFile(frame0)
   const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)).map((f) => ({ ...f, lines: getFileLines(f.id) })), ...(copy ? [copy] : [])] : []
+
+  // Bottom panel's "Changes" tab: the same derivation MergeInfiniteCanvas's
+  // floating Changes Log uses (see its `ChangesLog`/`entries` there) — kept
+  // here too so the docked panel can show it without poking into the canvas
+  // component's own render.
+  const changesPreset = appliedPreset?.layerId ? appliedPreset : null
+  const changesSummary = item ? buildSummary(item, resolutions, annotationsSnap, changesPreset, assemblies, addedLayers, manualCode, copy ? [copy] : []) : null
+  const changesEntries = changesSummary
+    ? [
+        ...changesSummary.design.map((d) => {
+          let kind = 'variant'
+          let layerId = d.key.slice(0, d.key.indexOf(':'))
+          if (d.key.startsWith('assembly-')) [kind, layerId] = ['assembly', d.key.slice(9)]
+          else if (d.key.startsWith('added-')) [kind, layerId] = ['component', d.key.slice(6)]
+          else if (d.key === 'preset') [kind, layerId] = ['preset', changesPreset?.layerId]
+          return { id: d.key, key: d.key, kind, layerId, title: d.text, detail: d.choice }
+        }),
+        ...Object.entries(manualCode ?? {}).map(([key, text]) => {
+          const split = key.lastIndexOf(':')
+          const fileId = key.slice(0, split)
+          const line = Number(key.slice(split + 1))
+          const name = files.find((f) => f.id === fileId)?.name ?? fileId
+          // copy.json lines read as the text they changed, not raw JSON.
+          const entry = fileId === COPY_FILE_ID ? copyEntries(frame0)[line - 2] : null
+          const parsed = entry ? parseCopyLine(text) : null
+          if (entry && parsed) return { id: `code-${key}`, kind: 'code', layerId: entry.layerId, fileId, line, title: `${entry.name} · text`, detail: `“${parsed.value}”` }
+          return { id: `code-${key}`, kind: 'code', fileId, line, title: `${name} · line ${line}`, detail: `Edited: ${text.trim() || '(empty line)'}` }
+        }),
+        ...annotationsSnap.map((a) => ({
+          id: a.id,
+          kind: 'annotation',
+          layerId: a.layerId,
+          fileId: a.fileId,
+          line: a.line,
+          title: `“${a.text}”`,
+          detail: a.status === 'done' ? a.summary : a.status === 'thinking' ? 'AI is updating…' : 'Not applied yet',
+        })),
+      ]
+    : []
+  const changesCodeRows = changesSummary ? changesSummary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0) : []
+
+  // Merge Studio's own bottom panel: Conflict Points (same as the
+  // Workspace's) plus this item's Changes log, instead of Terminal/Console
+  // — there's no code execution context here to make those meaningful.
+  const bottomPanelTabs = [
+    { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
+    {
+      id: 'changes',
+      label: 'Changes',
+      icon: ListChecks,
+      Panel: () => (
+        <MergeChangesPanel
+          entries={changesEntries}
+          codeRows={changesCodeRows}
+          onJump={(e) =>
+            item &&
+            requestMergeFocus({
+              itemId: item.id,
+              keepDeck: true,
+              label: e.title,
+              ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
+            })
+          }
+          onUndo={(e) => (e.kind === 'annotation' ? setAnnotationsSnap((prev) => prev.filter((a) => a.id !== e.id)) : undoChange(e))}
+          onOpenHistory={requestHistoryDrawer}
+        />
+      ),
+    },
+  ]
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)

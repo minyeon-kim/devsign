@@ -9,7 +9,7 @@ import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/componen
 import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const TABS = [
+const DEFAULT_TABS = [
   { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, Panel: TerminalPanel },
   { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
@@ -28,11 +28,11 @@ const MIN_CANVAS = 220
 // a Problems tab, its open count badged on the tab. Drag the top edge to
 // resize; switching tabs preserves the user's height, and content scrolls
 // inside each panel rather than resizing this dock to fit it.
-function WorkspaceBottomPanel() {
+function WorkspaceBottomPanel({ tabs = DEFAULT_TABS }) {
   const { bottomPanel, setBottomPanel, conflicts } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
-  const [tabOrder, setTabOrder] = useState(() => TABS.map((t) => t.id))
+  const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
   const draggedTab = useRef(null)
   const [availableHeight, setAvailableHeight] = useState(480)
 
@@ -55,7 +55,7 @@ function WorkspaceBottomPanel() {
     const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
     return Math.max(MIN_HEIGHT, parentHeight - MIN_CANVAS)
   }
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0]
+  const active = tabs.find((t) => t.id === tab) ?? tabs[0]
 
   function pickTab(id) {
     if (id === tab && open) setBottomPanel({ open: false })
@@ -117,7 +117,7 @@ function WorkspaceBottomPanel() {
           setBottomPanel({ open: !open })
         }}
       >
-        {tabOrder.map((id) => TABS.find((t) => t.id === id)).map(({ id, label, icon: Icon }) => (
+        {tabOrder.map((id) => tabs.find((t) => t.id === id)).filter(Boolean).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
