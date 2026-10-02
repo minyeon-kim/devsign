@@ -10,9 +10,9 @@ button.ai-chat-submit {
   flex-shrink: 0 !important;
   padding: 0 !important;
   border: none !important;
-  background-color: #0E201C !important;
+  background-color: #5EEAB5 !important;
   background-image: none !important;
-  color: #D1FAE5 !important;
+  color: #06281D !important;
   opacity: 1 !important;
   filter: none !important;
   box-shadow: none !important;
@@ -23,7 +23,7 @@ button.ai-chat-submit:hover {
   filter: none !important;
 }
 button.ai-chat-submit svg {
-  color: #D1FAE5 !important;
+  color: #06281D !important;
 }
 
 button.ai-chat-submit::before,
@@ -33,4 +33,36 @@ button.ai-chat-submit::after {
 button.ai-chat-submit:focus-visible {
   outline: 2px solid #5EEAB5;
   outline-offset: 3px;
+}
+
+button.ai-chat-submit:disabled {
+  background-color: #31584A !important;
+  color: #B7E8D5 !important;
+}
+button.ai-chat-submit svg {
+  color: inherit !important;
+}
+button.ai-chat-submit:not(:disabled):hover {
+  background-color: #86F5CE !important;
+}
+
+.ai-chat-auto-switch[data-slot="switch"] {
+  width: 30px;
+  height: 18px;
+  padding: 2px;
+  border: 0;
+  background-color: #52525B;
+}
+.ai-chat-auto-switch[data-checked] {
+  background-color: #5EEAB5;
+}
+.ai-chat-auto-switch [data-slot="switch-thumb"] {
+  width: 14px;
+  height: 14px;
+  background-color: #F4F4F5;
+  transform: translateX(0);
+}
+.ai-chat-auto-switch[data-checked] [data-slot="switch-thumb"] {
+  background-color: #06281D;
+  transform: translateX(12px);
 }

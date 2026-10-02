@@ -281,7 +281,7 @@ function TypingBubble() {
 function ActionButton({ label, pressed, disabled, onClick, children }) {
   return (
     <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}
-      className={cn('inline-flex size-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
+      className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
       {children}
     </button>
   )
@@ -389,7 +389,7 @@ function ChatConversation() {
       <div className="relative flex min-h-0 flex-1">
         <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3" style={{ '--scroll-fade-size': '14px', '--scroll-fade-edge': 'rgb(0 0 0 / 30%)' }}>
         {chatMessages.map((message, index) => (
-          <div key={message.id} className={cn('group/chat flex w-full flex-col gap-1.5', message.role === 'user' ? 'items-end' : 'items-start')}>
+          <div key={message.id} className={cn('group/chat flex w-full flex-col', message.role === 'user' ? 'items-end gap-1.5' : 'items-start gap-0.5')}>
             <div
               className={cn(
                 'max-w-[88%] rounded-2xl px-4 py-3 text-[13px]',
@@ -536,7 +536,7 @@ function ChatConversation() {
                   checked={autoMode}
                   onCheckedChange={setAutoMode}
                   size="sm"
-                  className="data-checked:bg-primary data-unchecked:bg-white/15"
+                  className="ds-intrinsic ai-chat-auto-switch"
                 />
               </label>
               <Button
@@ -546,7 +546,7 @@ function ChatConversation() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !target}
                 title={target ? 'Send' : 'Choose a target first'}
-                style={{ borderRadius: '9999px', width: 40, height: 40, backgroundColor: '#0E201C', color: '#D1FAE5' }}
+                style={{ borderRadius: '9999px', width: 40, height: 40, backgroundColor: '#5EEAB5', color: '#06281D' }}
                 className="ai-chat-submit ds-chat-submit"
               >
                 <ArrowUp className="size-5" />

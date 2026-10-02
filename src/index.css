@@ -427,9 +427,9 @@
   padding: 0 !important;
   border: none !important;
   border-radius: 9999px !important;
-  background-color: #0E201C !important;
+  background-color: #5EEAB5 !important;
   background-image: none !important;
-  color: #D1FAE5 !important;
+  color: #06281D !important;
   transition: filter 150ms ease;
 }
 .ds-chat-submit:hover { filter: none; }
