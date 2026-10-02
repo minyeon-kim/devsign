@@ -162,6 +162,8 @@ function plural(n, word) {
 // element ("View changes") and the Conflict Point now awaiting review
 // ("Review changes"). A request that changed nothing says so, and has no
 // checkpoint.
+const RESULT_ACTION = 'ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-md border border-white/15 bg-white/[0.05] px-3 text-[11px] font-medium leading-none text-slate-100 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/10 focus-visible:outline-2 focus-visible:outline-emerald-300'
+
 function ResultCard({ result, messageId }) {
   const { focusChange, setBottomPanel, openConflictReview, applyPendingAiEdit, discardPendingAiEdit } = useWorkspace()
   const status = RESULT_STATUS[result.status] ?? RESULT_STATUS.done
@@ -171,20 +173,22 @@ function ResultCard({ result, messageId }) {
   const first = result.changes?.[0]
 
   return (
-    <div className="mt-1.5 w-[92%] rounded-xl border border-white/10 bg-white/[0.025] p-3 text-xs">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="mt-1.5 w-[92%] rounded-xl border border-white/10 bg-white/[0.025] p-4 text-xs">
+      <div className="flex min-w-0 items-start gap-2.5">
         <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06]', status.className)}>
           <StatusIcon className="size-3.5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold text-slate-100">{changed ? result.title : status.label}</p>
-          {result.target && <p className="truncate text-[10px] text-slate-500">{result.target.label}</p>}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-xs leading-5 font-semibold text-slate-100">{changed ? result.title : status.label}</p>
+            {changed && <span className={cn('text-[10px] font-medium', status.className)}>{status.label}</span>}
+          </div>
+          {result.target && <p className="mt-1 truncate text-[11px] leading-4 text-slate-400">{result.target.label}</p>}
         </div>
-        {changed && <span className={cn('shrink-0 text-[10px] font-medium', status.className)}>{status.label}</span>}
       </div>
       {changed && (
         <>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <span className="text-[10px] font-medium text-amber-200">
               {pending ? 'Proposed · not applied' : 'Draft · not merged'}
             </span>
@@ -192,68 +196,62 @@ function ResultCard({ result, messageId }) {
               {plural(result.fileCount, 'file')} · {plural(result.elementCount, 'element')}
             </span>
           </div>
-          <ul className="mt-3 space-y-2">
+          <ul className="my-4 space-y-3">
             {result.changes.map((c, i) => (
-              <li key={i} className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4 text-slate-200">
+              <li key={i} className="flex min-w-0 flex-col gap-1.5 text-xs leading-5 text-slate-200">
                 <span className="min-w-0 break-words">{c.summary}</span>
-                <span className="shrink-0 truncate font-mono text-[10px] text-slate-500">
+                <span className="shrink-0 truncate font-mono text-[11px] text-slate-400">
                   {c.fileName}{c.line ? `:${c.line}` : ''}
                 </span>
               </li>
             ))}
           </ul>
-          {result.reviewItems.length > 0 && (
-            <p className="mt-2 text-[10px] font-medium text-emerald-300">
-              {plural(result.reviewItems.length, 'change')} ready for review
-            </p>
-          )}
           {result.note && <p className="mt-1 text-[11px] text-amber-400/90">{result.note}</p>}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-3">
+            {result.reviewItems.length > 0 && (
+              <p className="mb-1 w-full text-[11px] leading-4 text-slate-300">
+                {plural(result.reviewItems.length, 'change')} ready for review
+              </p>
+            )}
             {pending ? (
               <>
-                <Button
+                <button
                   type="button"
-                  size="xs"
-                  className="ds-intrinsic h-6 min-h-6 rounded-md bg-emerald-300 px-2 text-[10px] font-medium text-emerald-950 hover:bg-emerald-200"
+                  className={RESULT_ACTION}
                   onClick={() => applyPendingAiEdit(messageId)}
                 >
                   Apply change
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  size="xs"
-                  variant="outline"
-                  className="ds-intrinsic h-6 min-h-6 rounded-md border-transparent bg-transparent px-2 text-[10px]"
+                  className={RESULT_ACTION}
                   onClick={() => discardPendingAiEdit(messageId)}
                 >
                   Discard
-                </Button>
+                </button>
               </>
             ) : (
               <>
                 {first && (
-                  <Button
+                  <button
                     type="button"
-                    size="xs"
-                    variant="outline"
-                    className="ds-intrinsic h-6 min-h-6 rounded-md border-transparent bg-transparent px-2 text-[10px]"
+                    className={RESULT_ACTION}
                     onClick={() => focusChange({ fileId: first.fileId, line: first.line, layerId: result.target?.layerId })}
                   >
                     View changes
-                  </Button>
+                  </button>
                 )}
                 {result.reviewItems.length > 0 && (
-                  <Button
+                  <button
                     type="button"
-                    size="xs"
-                    className="ds-intrinsic h-6 min-h-6 rounded-md bg-emerald-300 px-2 text-[10px] font-medium text-emerald-950 hover:bg-emerald-200"
+                    className={RESULT_ACTION}
                     onClick={() => {
                       setBottomPanel({ tab: 'conflict', open: true })
                       openConflictReview(result.reviewItems[0].conflictId)
                     }}
                   >
                     Review changes
-                  </Button>
+                  </button>
                 )}
               </>
             )}
