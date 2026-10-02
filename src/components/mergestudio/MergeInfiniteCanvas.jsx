@@ -974,10 +974,10 @@ const CARD_GAP = 96
 // Sizes are in world units. Artboards leave h null until first resized
 // (they then derive their height from the frame's aspect ratio).
 // Design-first layout: Original Design and Current Implementation side by
-// side across the top, with a compact, full-width code window underneath
-// acting as the inspector. Artboards are as wide as ARTBOARD_PREVIEW_WIDTH
-// allows while staying under ARTBOARD_MAX_H tall, so a tall mobile frame
-// doesn't push the code window off screen.
+// side. (`code` is only placed for a code-only item — with a design, the
+// code is edited in the conflict's review instead; see the render below.)
+// Artboards are as wide as ARTBOARD_PREVIEW_WIDTH allows while staying
+// under ARTBOARD_MAX_H tall.
 const ARTBOARD_MAX_H = 760
 const RIGHT_TOOLBAR_CLEARANCE = 64
 const ARTBOARD_LABEL_H = 30
@@ -1013,8 +1013,8 @@ function defaultLayoutForKeys(frame, keys) {
   return layout
 }
 // Room for the top floating controls and a little breathing space.
-const TOP_CONTROLS_CLEARANCE = 76
-// Clear the 40px help pill plus its bottom inset.
+const TOP_CONTROLS_CLEARANCE = 56
+// Clear the bottom canvas controls (32px pills) plus their inset.
 const BOTTOM_CONTROLS_CLEARANCE = 76
 // Fitting may zoom past 100% so the comparison fills the available canvas
 // on large screens instead of sitting small in the middle of it.
@@ -1348,7 +1348,7 @@ function MergeInfiniteCanvas({
   // code window. See MergeStudioWorkspace for how entries are built.
   designCompare = null,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [view, setView] = useState(DEFAULT_VIEW)
@@ -1424,7 +1424,7 @@ function MergeInfiniteCanvas({
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
     const compareFrame = designCompare?.frame
-    const cards = designCompare ? designCompare.entries.map((e) => e.key) : ['code', ...(frame ? ['a', 'b'] : [])]
+    const cards = designCompare ? designCompare.entries.map((e) => e.key) : frame ? ['a', 'b'] : ['code']
     const box = (k) =>
       k === 'code'
         ? { l: lay.code.x, t: lay.code.y, r: lay.code.x + lay.code.w, b: lay.code.y + lay.code.h }
@@ -1438,11 +1438,24 @@ function MergeInfiniteCanvas({
     const minY = Math.min(...cards.map((k) => box(k).t))
     const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
     const worldH = Math.max(...cards.map((k) => box(k).b)) - minY
-    const startX = 16
-    // Clear of the right-edge canvas tools and the docked Block Deck.
-    const visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - layoutReserve
-    const availW = visRight - startX
-    const availH = rect.height - TOP_CONTROLS_CLEARANCE - BOTTOM_CONTROLS_CLEARANCE
+    // The canvas area actually left visible: clear of the floating windows
+    // (AI Chat on the left, the navigator on the right), the bottom panel
+    // floating over the canvas, the right-edge tools and the docked Block
+    // Deck — measured, since all of those move and resize.
+    const GAP = 24
+    let startX = 16
+    let visRight = rect.width - RIGHT_TOOLBAR_CLEARANCE - layoutReserve
+    let visBottom = rect.height - BOTTOM_CONTROLS_CLEARANCE
+    for (const el of document.querySelectorAll('[data-window], section[aria-label="Bottom panel"]')) {
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const l = r.left - rect.left, rr = r.right - rect.left, t = r.top - rect.top
+      if (el.tagName === 'SECTION') { visBottom = Math.min(visBottom, t - GAP); continue }
+      if (rr <= rect.width / 2) startX = Math.max(startX, rr + GAP)
+      else if (l >= rect.width / 2) visRight = Math.min(visRight, l - GAP)
+    }
+    const availW = Math.max(160, visRight - startX)
+    const availH = Math.max(160, visBottom - TOP_CONTROLS_CLEARANCE)
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
@@ -1465,7 +1478,8 @@ function MergeInfiniteCanvas({
     const lay = designCompare
       ? defaultLayoutForKeys(designCompare.frame, designCompare.entries.map((e) => e.key))
       : defaultLayout(frame)
-    setView(fitView(lay))
+    const firstFit = fitView(lay)
+    setView(firstFit)
     setLayout(lay)
     setOrder(designCompare ? Object.fromEntries(designCompare.entries.map((e, i) => [e.key, i + 1])) : { code: 1, a: 2, b: 3 })
     setHover(null)
@@ -1473,6 +1487,13 @@ function MergeInfiniteCanvas({
     setAiStage(null)
     setOpenNote(null)
     setDriftIdx(-1)
+    // The floating windows the fit steers around settle into place just
+    // after the studio mounts — fit once more when they have, unless the
+    // user has already moved the view.
+    const timer = window.setTimeout(() => {
+      if (viewRef.current === firstFit) setView(fitView(lay))
+    }, 150)
+    return () => window.clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, designCompare])
 
@@ -1602,6 +1623,16 @@ function MergeInfiniteCanvas({
       label: d.label,
       ...(d.kind === 'design' ? { layerId: d.layerId } : { fileId: d.fileId, line: d.line }),
     })
+    // The drift's conflict follows along in the bottom panel's review
+    // (where its code is edited) — only when Conflict Points is already
+    // showing, so paging drifts never pops the panel open on its own.
+    if (bottomPanel.open && bottomPanel.tab === 'conflict') {
+      const linked = conflicts.filter((c) => (c.mergeItemId === item.id || c.id === item.conflictId) && c.reviewStage !== 'resolved')
+      const match = d.kind === 'design'
+        ? linked.find((c) => c.layerId === d.layerId)
+        : linked.find((c) => c.fileId === d.fileId && c.line === d.line)
+      if (match) openConflictReview(match.id)
+    }
   }
 
   const driftLayerIds = new Set(Object.keys(designMergeVariants[item.id]?.layerDiffs ?? {}))
@@ -2114,7 +2145,12 @@ function MergeInfiniteCanvas({
             }}
           >
             <div className="pointer-events-auto">
-              {!designCompare && files.length > 0 && (
+              {/* The canvas is for comparing designs: with a design frame,
+                  the code lives in the conflict's own review (editable
+                  After diff, bottom panel) instead of a card that scales
+                  with zoom. A code-only item has nothing else to show,
+                  so it keeps the code card. */}
+              {!designCompare && !frame && files.length > 0 && (
                 <CodeWindowCard
                   itemId={item.id}
                   files={files}

@@ -69,7 +69,7 @@ function matchesConflictFilters(conflict, filters) {
 function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   const navigate = useNavigate()
   const { projectId, conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    updateConflict, approveConflict, requestChanges, resolveConflict, revertConflict, currentUser, requestMergeFocus } =
+    updateConflict, approveConflict, requestChanges, resolveConflict, revertConflict, currentUser, requestMergeFocus, mergeFocus } =
     useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
   // A conflict links to its merge item either way round — its own
@@ -94,6 +94,13 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   // never called `requestMergeFocus` at all, so the canvas never populated.
   useEffect(() => {
     if (!inMergeStudio || !reviewConflict || !reviewConflictItemId) return
+    // Opened by the canvas's own drift pager, which already focused this
+    // element (without panning) — don't refocus and yank the camera.
+    const focused = mergeFocus?.target
+    if (focused?.itemId === reviewConflictItemId && (
+      (reviewConflict.layerId && focused.layerId === reviewConflict.layerId) ||
+      (!reviewConflict.layerId && focused.fileId === reviewConflict.fileId && focused.line === reviewConflict.line)
+    )) return
     // A conflict with neither still switches the item open (so it's at
     // least on canvas to look at) — it just lands without a pinpoint pan.
     requestMergeFocus({
@@ -186,7 +193,8 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                 setBottomPanel({ conflictMode: 'check', open: true })
                 return
               }
-              openConflictReview(null)
+              // The review stays open: it carries over into Merge Studio's
+              // bottom panel, beside the canvas showing this item.
               // `conflict` here is always `reviewConflict`, so its item id
               // is `reviewConflictItemId` — most conflicts only carry the
               // reverse link (see its definition above), never their own
@@ -194,7 +202,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               // Studio with nothing selected (a near-black empty canvas)
               // for most conflicts.
               navigate(`/projects/${projectId}/workspace`, {
-                state: { openMergeStudio: true, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
+                state: { openMergeStudio: true, conflictId: conflict.id, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
               })
             }}
           />

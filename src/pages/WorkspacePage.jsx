@@ -35,8 +35,10 @@ function WorkspacePage() {
 
   // Arriving with an intent in router state:
   //  · `openMergeStudio` (a Conflict Point's "Open in Merge Studio") — Merge
-  //    Studio on that conflict's item, its element (or line) focused; with
-  //    no linked item nothing is pre-selected (never an unrelated default);
+  //    Studio on that conflict's item, its element (or line) focused, and
+  //    the conflict's review kept open in the bottom panel (`conflictId`);
+  //    with no linked item nothing is pre-selected (never an unrelated
+  //    default);
   //  · `openConflictId` (Dashboard / overview links) — the Conflict Points
   //    tab, that conflict's review window, and its element and file.
   // Handled once per navigation (location.key).
@@ -52,6 +54,10 @@ function WorkspacePage() {
       const item = state.mergeItemId && mergeItems.find((i) => i.id === state.mergeItemId)
       setSelectedMergeItemId(item ? item.id : null)
       openMergeStudio()
+      if (state.conflictId) {
+        setBottomPanel({ open: true, tab: 'conflict' })
+        openConflictReview(state.conflictId)
+      }
       if (item) {
         requestMergeFocus({
           itemId: item.id,

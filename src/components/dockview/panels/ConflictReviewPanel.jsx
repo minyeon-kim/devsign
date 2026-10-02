@@ -34,6 +34,8 @@ import { diffLines } from '@/lib/lineDiff'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
+import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
+import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
@@ -348,9 +350,11 @@ function CodeDiffColumns({ rows }) {
   )
 }
 
-// The proposed change as an inline diff — review only. Nothing here is
-// applied: the fix reaches the workspace when the change is merged.
-function DiffTab({ conflict }) {
+// The proposed change. Its code shows in its file (`code`, see
+// ConflictCodeView) — editable, and what merging applies — or, when the
+// change can't be placed in the file, as the plain Before / After snippet.
+// Nothing reaches the workspace before the change is merged.
+function DiffTab({ conflict, code }) {
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
       <div className="h-full">
@@ -426,7 +430,7 @@ function DiffTab({ conflict }) {
             )}
             {conflict.diff && (
               <div className="min-w-0 pt-2">
-                <CodeDiffColumns rows={rows} />
+                {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
               </div>
             )}
           </div>
@@ -750,6 +754,31 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
 
+  // Editing the change's code (its file, in the review's code view). A
+  // change already in review or approved goes back to review with every
+  // sign-off reset — what gets merged must be what was approved. The AI's
+  // own suggestion (`diff`) is left as it was; the edited file is kept as
+  // the conflict's `workingFile`, and that's what merging applies.
+  function handleSaveCode(lines) {
+    const reviewed = stage === 'in_review' || stage === 'approved'
+    const hadSignOffs = conflict.reviewers.some((r) => r.status !== 'pending')
+    update({
+      workingFile: lines ?? undefined,
+      ...(reviewed && {
+        reviewStage: 'in_review',
+        reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending', remindedAt: undefined })),
+      }),
+    })
+    toast('Code updated', {
+      description: reviewed && hadSignOffs ? 'Approvals were reset — the change is back in review.' : conflict.title,
+    })
+  }
+
+  function handleOpenFile() {
+    workspace.focusChange({ fileId: conflict.fileId, line: conflict.line })
+    if (workspace.dockApi) openOrFocusPanel(workspace.dockApi, panelById.editor)
+  }
+
   function handleMerge() {
     if (onResolve) onResolve(conflict.id)
     else update({ reviewStage: 'resolved' })
@@ -788,6 +817,22 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   const stage = conflict?.reviewStage
   const myReview = conflict ? needsReviewFrom(conflict) : false
+
+  // The change placed in its file, for the editable code view — only
+  // inside a workspace (which has the files) and while the file still
+  // holds the original lines (a merged change no longer does).
+  const fileLines = workspace && conflict?.fileId ? workspace.getFileLines(conflict.fileId) : null
+  const generatedFile = fileLines && conflict.diff
+    ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], conflict.diff.after ?? [])
+    : null
+  const codeView = generatedFile && {
+    fileName: conflict.file,
+    base: fileLines,
+    generated: generatedFile,
+    working: conflict.workingFile ?? null,
+    onSave: stage !== 'resolved' ? handleSaveCode : undefined,
+    onOpenFile: handleOpenFile,
+  }
 
   // The one primary action for where the review is — or none, when it's
   // waiting on someone else (the Status card says who).
@@ -895,7 +940,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <DiffTab conflict={conflict} />
+                          <DiffTab conflict={conflict} code={codeView} />
                         </div>
                       </section>
                     </div>

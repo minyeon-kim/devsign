@@ -49,6 +49,7 @@ const rules = [
   [/^(.+) home$/, (_, name) => `${core(name)} 홈`],
   // Korean-mode sweep: dynamic copy that was still showing in English.
   [/^Edited (.+)$/, (_, when) => `${core(when)} 수정됨`],
+  [/^(\d+) unchanged lines?$/, (_, n) => `변경 없는 ${n}줄`],
   [/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d{1,2}):(\d{2}) (AM|PM)$/, (_, day, h, m, ampm) => {
     const DAYS = { Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토', Sun: '일' }
     return `${DAYS[day]}요일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`

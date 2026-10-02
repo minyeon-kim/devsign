@@ -1398,4 +1398,11 @@ Object.assign(ko, {
   'Hide quick diff': '빠른 비교 숨기기',
   // Assets
   'Show components': '컴포넌트 표시',
+  // Editing a conflict's code in its review
+  'Code updated': '코드를 수정했어요',
+  'Open in editor': '에디터에서 열기',
+  'Show changes only': '변경 부분만 보기',
+  'Show full file': '전체 파일 보기',
+  'Approvals were reset — the change is back in review.': '승인이 초기화되어 다시 검토 단계로 돌아갔어요.',
+  '⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review.': '⌘↵ 저장 · Esc 취소. 저장하면 승인이 초기화되고 다시 검토 단계로 돌아가요.',
 })

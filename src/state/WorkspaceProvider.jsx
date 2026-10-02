@@ -1,3 +1,4 @@
+import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
@@ -698,6 +699,24 @@ export function WorkspaceProvider({ children, projectId }) {
       }
     } else if (fix) {
       finalFiles[fix.fileId] = draftChanges[fix.fileId] ? fileOverrides[fix.fileId] : fix.lines
+    }
+    // Code edited in the conflict's own review (its `workingFile` — the
+    // whole file as the reviewer left it; see ConflictReviewPanel) wins over
+    // the generated change. Only the stretch that differs from the AI's
+    // version is spliced in, so whatever else this merge wrote into the same
+    // file (an item's other changes) stays.
+    for (const c of related) {
+      if (!c.workingFile || c.revertOf || !c.fileId || !c.line || !c.diff) continue
+      const original = fileOverrides[c.fileId] ?? files.find((f) => f.id === c.fileId)?.lines ?? []
+      const generated = placeChange(original, c.line, c.diff.before, c.diff.after) ?? original
+      const working = c.workingFile
+      let head = 0
+      while (head < generated.length && head < working.length && generated[head] === working[head]) head++
+      let tail = 0
+      while (tail < generated.length - head && tail < working.length - head
+        && generated[generated.length - 1 - tail] === working[working.length - 1 - tail]) tail++
+      const target = finalFiles[c.fileId] ?? generated
+      finalFiles[c.fileId] = [...target.slice(0, head), ...working.slice(head, working.length - tail), ...target.slice(target.length - tail)]
     }
     const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
