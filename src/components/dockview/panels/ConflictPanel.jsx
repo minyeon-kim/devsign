@@ -6,7 +6,6 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
 import { STAGE_DOT_CLASS, STAGE_LABEL, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
-import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -209,17 +208,23 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
-        <div className="mt-1 flex shrink-0 flex-wrap items-center gap-2 border-t border-white/[0.06] px-4 pt-2 pb-2" role="group" aria-label="Filter conflicts">
+        // Filters are plain text toggles, not pills — the pills belong to the
+        // bottom panel's tabs above, and repeating them here read as a
+        // second row of tabs instead of a filter on this one.
+        <div className="mt-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-1.5 pb-1.5" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               aria-pressed={f.id === filter.id}
               onClick={() => setBottomPanel({ conflictFilter: f.id })}
-              className={cn(CATEGORY_TAB, 'h-6 gap-1 px-2 text-[10.5px]', f.id === filter.id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+              className={cn(
+                'inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors',
+                f.id === filter.id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
+              )}
             >
               <LocalizedText text={f.label} />
-              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
+              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-600')}>
                 {counts[f.count]}
               </span>
             </button>
