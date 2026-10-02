@@ -221,6 +221,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
             </button>
           ))}
           <MergeFilterButton
+            compact
             value={advancedFilters}
             onChange={setAdvancedFilters}
             items={filterItems}

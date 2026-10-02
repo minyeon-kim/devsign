@@ -3,7 +3,7 @@ import { ArrowLeft, CalendarDays, Check, Search, SlidersHorizontal, X } from 'lu
 import { cn } from 'cn'
 import { allPeople, mergeConflictLevels, mergeFilterTags } from '@/data/mockData'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, COUNT_BADGE } from '@/components/mergestudio/floatingStyles'
 import { RangeCalendar, dueSummary } from '@/components/mergestudio/RangeCalendar'
 import { DUE_PRESETS, EMPTY_DUE, EMPTY_FILTERS, activeFilterCount, isDueActive } from '@/components/mergestudio/mergeFilters'
 import { LocalizedText } from '@/i18n/runtime'
@@ -126,7 +126,7 @@ function AssigneePicker({ items, value, onChange }) {
 // compact — the custom-range calendar is its own view, opened from "Custom
 // range…" with a Back button, rather than always taking up the menu. An
 // item passes when it matches every category that has a selection.
-export function MergeFilterButton({ value, onChange, items = [], markedDays = [] }) {
+export function MergeFilterButton({ value, onChange, items = [], markedDays = [], compact = false }) {
   const [view, setView] = useState('main')
   const count = activeFilterCount(value)
   const set = (key, v) => onChange({ ...value, [key]: v })
@@ -136,15 +136,25 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
       <PopoverTrigger
         title="Filter"
         aria-label={count ? `Filter (${count} active)` : 'Filter'}
-        // A pill matching the search input beside it: same 32px height,
-        // fully rounded, same borderless soft fill.
-        className={cn(
-          'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
-          // Borderless soft fill, matching the search field beside it.
-          count ? 'bg-white/[0.09] text-[#FFFFFF]' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.08] hover:text-white'
-        )}
+        className={
+          compact
+            ? // Sized to match the small category-tab chips it sits beside
+              // (ConflictPanel's filter row) instead of its own, bulkier
+              // 32px pill meant for standing next to a search field.
+              cn(
+                CATEGORY_TAB,
+                'h-6 gap-1 px-2 text-[10.5px]',
+                count ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE
+              )
+            : // A pill matching the search input beside it: same 32px height,
+              // fully rounded, same borderless soft fill.
+              cn(
+                'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+                count ? 'bg-white/[0.09] text-[#FFFFFF]' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+              )
+        }
       >
-        <SlidersHorizontal className="size-3.5" />
+        <SlidersHorizontal className={compact ? 'size-3' : 'size-3.5'} />
         Filter
         {count > 0 && <span className={cn(COUNT_BADGE, 'h-4 min-w-4 bg-foreground px-1 text-[9px] text-background')}>{count}</span>}
       </PopoverTrigger>
