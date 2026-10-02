@@ -33,7 +33,7 @@ export default function SettingsDialog({ triggerClassName }) {
   const [open, setOpen] = useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName} onClick={() => setOpen(!open)}>
+      <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName}>
         <Settings className="size-[18px]" />
       </PopoverTrigger>
       <PopoverContent side="right" align="end" sideOffset={12} className="w-64 max-h-[80vh] overflow-y-auto rounded-2xl border-white/10 bg-[#121212] p-3 shadow-xl">
