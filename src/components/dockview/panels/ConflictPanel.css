@@ -1,11 +1,12 @@
 /* Shared tracks prevent header/body drift as the bottom panel resizes. */
 .conflict-list-table {
-  /* Description gives up some of its share so Status fits its longest
-     label ("Approved · Pending merge") on one line. */
-  --conflict-columns: 90px minmax(200px, 1fr) minmax(220px, 1.6fr) minmax(190px, 0.5fr) 110px;
+  /* Severity · Issue · Description (one line) · Status · Author ·
+     Reviewers · Updated. Status keeps room for its longest label
+     ("Approved · Pending merge") on one line. */
+  --conflict-columns: 90px minmax(200px, 1fr) minmax(160px, 1.1fr) minmax(170px, 0.5fr) 52px 92px 76px;
   display: block;
   width: 100%;
-  min-width: 906px;
+  min-width: 1000px;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;

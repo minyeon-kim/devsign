@@ -79,19 +79,26 @@ function ChangePreview({ preview, side, showLabels = true }) {
     )
   }
 
+  // Text and icons are drawn the way the product shows them — dark on a
+  // light surface — not as dark-on-dark, where a letter-spacing or stroke
+  // difference couldn't be seen at all.
   if (kind === 'text') {
     const sample = (s) => (
-      <span className="text-sm font-medium text-slate-700" style={{ letterSpacing: s.letterSpacing }}>
-        <LocalizedText text={preview.label} />
+      <span className="flex w-full items-center justify-center rounded-lg bg-white px-3 py-3">
+        <span className="text-base font-medium text-slate-800" style={{ letterSpacing: s.letterSpacing }}>
+          <LocalizedText text={preview.label} />
+        </span>
       </span>
     )
     return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />
   }
 
   if (kind === 'icon') {
+    // Magnified (the stroke scales with it), so a 2.5 vs 2 stroke reads.
+    const ZOOM = 2
     const sample = (s) => (
-      <span className="flex items-center justify-center">
-        <Truck className="text-slate-700" style={{ width: s.size, height: s.size }} strokeWidth={s.stroke} />
+      <span className="flex w-full items-center justify-center rounded-lg bg-white py-2">
+        <Truck className="text-slate-800" style={{ width: s.size * ZOOM, height: s.size * ZOOM }} strokeWidth={s.stroke} />
       </span>
     )
     return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />

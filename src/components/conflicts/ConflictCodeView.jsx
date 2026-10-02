@@ -27,7 +27,11 @@ const MARKS = { same: ' ', add: '+', edited: '+', remove: '−' }
 // visible lines become a text area, and saving writes the result back as
 // the conflict's working file (`onSave(lines)`, or `onSave(null)` when
 // it's back to exactly the AI's change).
-export default function ConflictCodeView({ fileName, base, generated, working, onSave, onOpenFile }) {
+// `merged`: the change is already in the file — `base` is the file as it
+// was before the merge, `generated` the file now — shown read-only.
+// `compact` (the Conflict Points list's quick diff): just the change and
+// `context` lines around it, no header, nothing to expand or edit.
+export default function ConflictCodeView({ fileName, base, generated, working, onSave, onOpenFile, merged = false, compact = false, context = CONTEXT }) {
   const current = working ?? generated
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -51,8 +55,8 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
   const changed = rows.map((row, i) => (row.kind === 'same' ? -1 : i)).filter((i) => i >= 0)
   const first = changed.length ? changed[0] : 0
   const last = changed.length ? changed[changed.length - 1] : rows.length - 1
-  const from = expanded ? 0 : Math.max(0, first - CONTEXT)
-  const to = expanded ? rows.length - 1 : Math.min(rows.length - 1, last + CONTEXT)
+  const from = expanded ? 0 : Math.max(0, first - context)
+  const to = expanded ? rows.length - 1 : Math.min(rows.length - 1, last + context)
   const shown = rows.slice(from, to + 1)
   const hiddenAbove = from
   const hiddenBelow = rows.length - 1 - to
@@ -81,10 +85,12 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
 
   return (
     <div className="min-w-0 space-y-2">
+      {!compact && (
       <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
         <FileCode2 className="size-3 shrink-0" />
         <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{fileName}</span>
         {working && <span className="shrink-0 text-amber-200/80"><LocalizedText text="Edited" /></span>}
+        {merged && <span className="shrink-0 text-emerald-300/80"><LocalizedText text="Merged" /></span>}
         <span className="ml-auto flex shrink-0 items-center gap-3">
           {!editing && (
             <>
@@ -118,6 +124,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
           )}
         </span>
       </div>
+      )}
 
       {editing ? (
         <div className="min-w-0 space-y-1">
@@ -140,7 +147,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
         </div>
       ) : (
         <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed', expanded && 'max-h-[360px]')}>
-          {hiddenAbove > 0 && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
+          {hiddenAbove > 0 && !compact && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
           {shown.map((row, i) => (
             <div
               key={from + i}
@@ -150,7 +157,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
               <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{row.newNo ?? row.oldNo}</span>
               <span className="w-3.5 shrink-0 opacity-70 select-none">{MARKS[row.kind]}</span>
               <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-              {row.kind === 'add' && from + i === changed.find((c) => rows[c].kind === 'add') && (
+              {!merged && !compact && row.kind === 'add' && from + i === changed.find((c) => rows[c].kind === 'add') && (
                 <span className="ml-2 inline-flex shrink-0 items-center gap-1 self-start pt-0.5 font-sans text-[9.5px] text-emerald-300/80 select-none">
                   <Sparkles className="size-2.5" />
                   <LocalizedText text="AI" />
@@ -158,7 +165,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
               )}
             </div>
           ))}
-          {hiddenBelow > 0 && <HiddenLines count={hiddenBelow} onExpand={() => setExpanded(true)} />}
+          {hiddenBelow > 0 && !compact && <HiddenLines count={hiddenBelow} onExpand={() => setExpanded(true)} />}
         </div>
       )}
     </div>

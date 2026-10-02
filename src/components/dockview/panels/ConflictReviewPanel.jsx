@@ -1045,14 +1045,23 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const generatedFile = fileLines && conflict.diff
     ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], conflict.diff.after ?? [])
     : null
-  const codeView = generatedFile && {
-    fileName: conflict.file,
-    base: fileLines,
-    generated: generatedFile,
-    working: conflict.workingFile ?? null,
-    onSave: stage !== 'resolved' ? handleSaveCode : undefined,
-    onOpenFile: handleOpenFile,
-  }
+  // Already merged: the file holds the change, so rebuild the file as it
+  // was before (the change placed in reverse) and show the merge read-only.
+  const preMergeFile = !generatedFile && stage === 'resolved' && fileLines && conflict.diff
+    ? placeChange(fileLines, conflict.line, conflict.diff.after ?? [], conflict.diff.before ?? [])
+    : null
+  const codeView = generatedFile
+    ? {
+        fileName: conflict.file,
+        base: fileLines,
+        generated: generatedFile,
+        working: conflict.workingFile ?? null,
+        onSave: stage !== 'resolved' ? handleSaveCode : undefined,
+        onOpenFile: handleOpenFile,
+      }
+    : preMergeFile
+      ? { fileName: conflict.file, base: preMergeFile, generated: fileLines, working: null, merged: true, onOpenFile: handleOpenFile }
+      : null
 
   // The one primary action for where the review is — or none, when it's
   // waiting on someone else (the Status card says who).
