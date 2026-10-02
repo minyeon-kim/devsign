@@ -256,33 +256,35 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors',
+        'flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors',
         comment && group.unread ? 'bg-emerald-400/[0.035] hover:bg-emerald-400/[0.07]' : 'hover:bg-white/[0.04]'
       )}
     >
-      <span className="mt-0.5 shrink-0">
+      <span className="shrink-0">
         {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? (
-          <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
+          <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
             <MessageSquare className="size-3.5" />
           </span>
         ) : <CheckCheck className="size-4 text-slate-500" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
+          <span className="shrink-0 text-[11px] text-slate-500">{group.timeLabel}</span>
+        </span>
         {comment ? <>
           {itemName && itemName !== group.target.label && <span className="block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-1.5 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-2.5 py-1.5 text-xs leading-5 text-slate-200">
+          <span className="mt-1 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-2 py-1 text-xs leading-5 text-slate-200">
             <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
           </span>
-          <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+          <span className="mt-1 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-slate-500">
             {comment.comments > 0 && <span className="text-emerald-300/80">{`${comment.comments} comments`}</span>}
             {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
             {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
           </span>
         </> : <span className="block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
-        <span className="mt-1 block text-[11px] text-slate-500">{group.timeLabel}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-2 pt-1">
+      <span className="flex shrink-0 items-center gap-1.5">
         {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
         <ChevronRight className="size-3.5 text-slate-500" />
       </span>
