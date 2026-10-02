@@ -906,7 +906,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-8 shrink-0 items-center gap-2 bg-[#121212] px-2.5">
+            <div className="flex h-11 shrink-0 items-center gap-3 bg-[#121212] px-2.5">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -922,6 +922,27 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
               </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {primary}
+              </div>
+              {stage !== 'resolved' && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger
+                      type="button"
+                      onClick={() => onOpenMergeStudio?.(conflict)}
+                      className={cn(
+                        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap',
+                        GHOST_BUTTON
+                      )}
+                    >
+                      <GitMerge className="size-3.5" />
+                      {mergeActionLabel}
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Review merge impact and automated checks. This does not approve or merge the change.</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
@@ -966,31 +987,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-3 px-5 pt-1 pb-2.5">
-              <div className="min-w-0 flex-1" />
-              <div className="flex shrink-0 items-center gap-1.5">
-                {primary}
-              </div>
-              {stage !== 'resolved' && (
-                <div className="flex shrink-0 items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger
-                      type="button"
-                      onClick={() => onOpenMergeStudio?.(conflict)}
-                      className={cn(
-                        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap',
-                        GHOST_BUTTON
-                      )}
-                    >
-                      <GitMerge className="size-3.5" />
-                      {mergeActionLabel}
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Review merge impact and automated checks. This does not approve or merge the change.</TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
             </div>
           </>
         )}
