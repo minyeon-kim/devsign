@@ -8,9 +8,6 @@ import { useEffect, useState } from 'react'
 // step re-mounts the caret with a short fade instead of gliding across the
 // panel, so it never pulls the eye.
 
-// Same editor gutter as CodeLine: px-2 (8) + comment pin (16) + gap (8) +
-// line number (24) + gap (8).
-const GUTTER_PX = 64
 const STEP_MS = 9000
 
 function hash(text) {
@@ -81,7 +78,7 @@ export function RemoteCaretsOnLine({ viewers, lineNumber, lines }) {
         key={`${member.id}:${lineNumber}`}
         aria-hidden
         className="pointer-events-none absolute top-0 bottom-0 z-10 animate-in fade-in duration-500 motion-reduce:animate-none"
-        style={{ left: `calc(${GUTTER_PX}px + ${col}ch)` }}
+        style={{ left: `calc(var(--editor-code-start) + ${col}ch)` }}
       >
         <span className="absolute top-0.5 bottom-0.5 w-[2px] rounded-full" style={{ backgroundColor: member.cursorColor }} />
         <span

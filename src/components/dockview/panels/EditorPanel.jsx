@@ -44,7 +44,7 @@ function CodeLine({ line, language, lineNumber, isActive, onSelect, pinCount, is
       >
         <MessageSquarePlus className="size-2.5" />
       </button>
-      <span className="w-5 shrink-0 text-right text-muted-foreground/50 select-none">
+      <span className="mr-3 w-[var(--editor-line-number-width)] shrink-0 pr-1.5 text-right text-muted-foreground/80 tabular-nums select-none">
         {lineNumber}
       </span>
       <span className="relative flex-1 whitespace-pre">
@@ -409,7 +409,11 @@ function EditorPanel() {
               <div
                 ref={codeAreaRef}
                 onScroll={updateViewport}
-                className="flex-1 overflow-auto py-2 text-xs leading-relaxed"
+                className="min-w-0 flex-1 overflow-auto py-2 text-xs leading-relaxed"
+                style={{
+                  '--editor-line-number-width': `max(20px, calc(${String(activeLines.length).length}ch + 6px))`,
+                  '--editor-code-start': 'calc(12px + var(--editor-line-number-width) + 12px)',
+                }}
               >
                 {activeLines.map((line, i) => {
                   const lineNumber = i + 1
