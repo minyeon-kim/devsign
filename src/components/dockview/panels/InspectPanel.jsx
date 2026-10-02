@@ -35,7 +35,7 @@ function RowAction({ icon: Icon, label, show, onClick }) {
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute top-[calc(100%+5px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-[#121212] px-2 py-1 text-[11px] text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/tip:opacity-100"
+        className="pointer-events-none absolute top-[calc(100%+5px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-card px-2 py-1 text-[11px] text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/tip:opacity-100"
       >
         {label}
       </span>

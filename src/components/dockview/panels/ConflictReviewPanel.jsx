@@ -839,7 +839,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-10 shrink-0 items-center gap-3 bg-[#121212] px-3">
+            <div className="flex h-10 shrink-0 items-center gap-3 bg-card px-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"

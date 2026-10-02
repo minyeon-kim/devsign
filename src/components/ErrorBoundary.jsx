@@ -20,7 +20,7 @@ class ErrorBoundary extends Component {
     if (!this.state.error) return this.props.children
     if (this.props.fallback) return this.props.fallback(this.state.error, () => this.setState({ error: null }))
     return (
-      <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-[#070708] p-6 text-center text-slate-400">
+      <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-background p-6 text-center text-slate-400">
         <TriangleAlert className="size-5 text-amber-400" />
         <p className="text-sm font-medium text-slate-300">Something went wrong showing this.</p>
         <button

@@ -2,7 +2,7 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ACCENT_CTA, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { ACCENT_CTA, FLOATING_PILL, PAGE_CARD, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { conflictCounts, isOpen, needsReviewFrom } from '@/lib/conflicts'
 import { historyMeta } from '@/lib/historyMeta'
@@ -16,7 +16,7 @@ import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInb
 
 function Section({ title, action, children }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className={cn(PAGE_CARD, 'min-w-0 overflow-hidden p-6')}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-[13px] font-semibold text-white">{title}</h2>
         {action}
@@ -43,7 +43,7 @@ function Stat({ label, value, hint, title, tone, onClick }) {
       type="button"
       onClick={onClick}
       title={title}
-      className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
+      className={cn(PAGE_CARD, 'min-w-0 overflow-hidden p-6 text-left transition-colors hover:border-emerald-400/25 hover:bg-muted/60')}
     >
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn('mt-1.5 text-[22px] font-semibold tabular-nums', tone ?? 'text-white')}>{value}</p>
@@ -109,7 +109,7 @@ function ProjectOverviewPage() {
   const stageCounts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
 
   return (
-    <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
+    <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto bg-background text-foreground">
       <div className="mx-auto flex w-full min-w-0 max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
         <nav aria-label="Project navigation" className="flex items-center gap-2 text-xs text-slate-400">
           <Link to="/dashboard" className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Dashboard</Link>

@@ -68,8 +68,11 @@
 }
 
 :root {
-    --ds-bg-base: #0A0A0A;
-    --ds-surface-card: #121212;
+    /* The one app background (activity bar, pages, the Workspace's gutters)
+       and the card surface on it (Workspace windows, page cards, popups).
+       Lifted from #070708 / #121212, keeping the step between them. */
+    --ds-bg-base: #0E0E10;
+    --ds-surface-card: #151517;
     --ds-surface-raised: #1B1B1D;
     --ds-border-subtle: rgb(255 255 255 / 8%);
     --ds-chrome-size: 48px;
@@ -357,8 +360,10 @@
   height: var(--ds-control-height);
   min-height: var(--ds-control-height);
 }
-/* Merge Studio's top and bottom pills share geometry even inside compact
-   workspace chrome. Keep panel controls and avatar artwork independent. */
+/* Merge Studio's top and bottom pills — every one of them (Workspace,
+   Drift, the session pill, undo/redo, zoom, help) — share one surface and
+   geometry: card color, 10% hairline, 40px, a light lift off the canvas.
+   Keep panel controls and avatar artwork independent. */
 .ds-workspace .ds-merge-pill.ds-merge-pill {
   height: 40px;
   min-height: 40px;
@@ -369,12 +374,12 @@
   box-sizing: border-box;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 9999px;
-  background-color: #09090a;
+  background-color: var(--ds-surface-card);
   color: var(--foreground);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 50%);
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 .ds-workspace .ds-merge-pill.ds-merge-pill[class~="size-10"] {
@@ -388,7 +393,7 @@
 .ds-workspace .ds-merge-pill[aria-expanded="true"],
 .ds-workspace .ds-merge-pill[aria-pressed="true"],
 .ds-workspace .ds-merge-pill.ds-merge-pill-active {
-  background-color: #161618;
+  background-color: var(--ds-surface-raised);
   border-color: rgb(255 255 255 / 16%);
 }
 .ds-workspace .ds-merge-pill > button,
@@ -480,18 +485,26 @@ button.conflict-checkbox {
 }
 
 /* Workspace and dashboard header surfaces. */
+/* Workspace header: the pills sit straight on the app background, so they
+   have no surface of their own until hovered. The search field keeps a
+   fill — it's an input, and needs to read as one at rest. */
 .ds-header-pill,
 .workspace-canvas-toolbar > .group\/action-tooltip > button,
-.workspace-canvas-toolbar > button,
+.workspace-canvas-toolbar > button {
+  background-color: transparent;
+  box-shadow: none;
+  transition: background-color 150ms ease;
+}
 input.ds-header-search {
-  background-color: #09090A;
+  background-color: var(--ds-surface-card);
   transition: background-color 150ms ease;
 }
 .ds-header-pill:hover,
 .workspace-canvas-toolbar > .group\/action-tooltip > button:hover,
 .workspace-canvas-toolbar > button:hover,
+.workspace-canvas-toolbar > button[data-popup-open],
 input.ds-header-search:hover,
-input.ds-header-search:focus-visible { background-color: #161618; }
+input.ds-header-search:focus-visible { background-color: var(--ds-surface-raised); }
 button.editor-line-comment {
   width: 16px !important;
   height: 16px !important;
@@ -622,13 +635,12 @@ button.editor-line-comment {
 }
 
 /* Compact canvas utilities stay independent of workspace button sizing. */
-.ds-workspace .merge-canvas-controls button {
+.ds-workspace .merge-canvas-controls button:not(.ds-merge-pill) {
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;
 }
-.ds-workspace .merge-canvas-controls button[class~="size-7"],
-.ds-workspace .merge-canvas-controls .merge-help-inline {
+.ds-workspace .merge-canvas-controls button[class~="size-8"]:not(.ds-merge-pill) {
   width: 32px !important;
   min-width: 32px !important;
   max-width: 32px !important;

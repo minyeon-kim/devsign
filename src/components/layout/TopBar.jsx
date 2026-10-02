@@ -2,7 +2,7 @@ import '@/components/dockview/panels/CanvasToolbar.css'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import { HeaderCommandSearch } from '@/components/layout/CommandPalette'
-import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
@@ -45,7 +45,7 @@ function ActionTooltip({ label, children }) {
   return (
     <div className="group/action-tooltip relative flex shrink-0">
       {children}
-      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-[#121212] px-3 py-1.5 text-xs text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/action-tooltip:opacity-100 group-focus-within/action-tooltip:opacity-100">
+      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-[100] -translate-x-1/2 whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-card px-3 py-1.5 text-xs text-[#FAFAFA] opacity-0 shadow-lg transition-opacity duration-75 group-hover/action-tooltip:opacity-100 group-focus-within/action-tooltip:opacity-100">
         {label}
       </span>
     </div>
@@ -80,7 +80,7 @@ function TopBar({ project }) {
           palette (⌘K, the search field) and each window's `+` — the only
           place Preview opens from. */}
       <div className="workspace-canvas-toolbar absolute top-2 right-4 z-40 flex items-center gap-2">
-        <div className={cn('ds-header-pill flex h-8 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0')}>
+        <div className="ds-header-pill flex h-8 items-center gap-2 rounded-full px-2">
           <span className={PRESENCE_STACK}>
             <UserPresence />
           </span>

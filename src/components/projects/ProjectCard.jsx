@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
+import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
 import ProjectThumbnail from '@/components/dashboard/ProjectThumbnail'
 import { allPeople } from '@/data/mockData'
@@ -69,7 +70,8 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
       type="button"
       onClick={handleActivate}
       className={cn(
-        'group flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:border-primary/40',
+        PAGE_CARD,
+        'group flex w-full flex-col overflow-hidden text-left transition-colors hover:border-primary/40',
         selected && 'border-primary ring-2 ring-primary/40'
       )}
     >
@@ -105,7 +107,7 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
         </AvatarGroup>
       </div>
     </button>
-    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-[#121212]/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#242427] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
+    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-card/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#242427] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
 import ConflictRow from '@/components/conflicts/ConflictRow'
-import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
+import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE, PAGE_CARD } from '@/components/mergestudio/floatingStyles'
 import { isOpen, isPendingMerge, needsReviewFrom, reviewerFor } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
 
@@ -38,7 +38,7 @@ function ReviewQueue() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6">
+    <section className={cn(PAGE_CARD, 'p-6')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-[13px] font-semibold text-white">Your queue</h2>
         <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Queue">

@@ -23,7 +23,11 @@ function MergeStudioMenu({ standalone = false, borderless = false }) {
         data-control-tooltip="off"
         className={
           standalone
-            ? cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL, borderless && 'border-0')
+            ? borderless
+              // The Workspace header: a bare 32px pill like its neighbors,
+              // surfaced only on hover / while open (see .ds-header-pill).
+              ? 'ds-header-pill flex h-8 items-center gap-2 rounded-full px-3 text-[13px] font-semibold text-foreground'
+              : cn('flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)
             : 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
         }
       >

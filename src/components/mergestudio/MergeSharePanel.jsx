@@ -60,7 +60,7 @@ function MergeShareButton({ item, title = item?.title, link: linkProp, inline = 
               // presence pill) — same `ds-header-pill` surface and 32px
               // height as its neighbors, not Merge Studio's taller bordered
               // one, so it reads as one row instead of an odd one out.
-              ? 'ds-header-pill flex h-8 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted'
+              ? 'ds-header-pill flex h-8 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-semibold text-foreground transition-colors'
               : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)
         }
       >

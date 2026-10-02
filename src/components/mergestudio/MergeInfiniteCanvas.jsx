@@ -2333,39 +2333,9 @@ function MergeInfiniteCanvas({
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
-          {/* Same presence cluster as the main Workspace TopBar (teammate
-              avatars that follow-on-click + your own profile menu) — that
-              bar is hidden in Merge Studio, so it lives here instead, in a
-              pill matched to the zoom and Preview controls' 40px height. */}
-          <div className={cn('flex h-10 items-center gap-1.5 rounded-full pr-2 pl-1.5', FLOATING_PILL)}>
-            {/* Studio-scoped styling for the shared presence stack (the
-                component itself is untouched): left-on-top order and the
-                soft surface-colored ring. */}
-            <span className={PRESENCE_STACK}>
-              <UserPresence />
-            </span>
-          </div>
           {/* The collapsed Block Deck lives here, in the header, as a
-              toggle pill next to Share (see MergeStudioWorkspace). */}
+              toggle pill (see MergeStudioWorkspace). */}
           {headerAction}
-          <MergeShareButton item={item} />
-          <button
-            type="button"
-            onClick={() => setMergePreviewOpen((v) => !v)}
-            title={mergePreviewOpen ? 'Close preview' : 'Preview'}
-            aria-label="Preview"
-            aria-pressed={mergePreviewOpen}
-            className={cn(
-              // Icon-only, same 40px height as the notifications/avatars
-              // pill beside it.
-              'flex size-10 items-center justify-center rounded-full transition-colors',
-              FLOATING_PILL,
-              mergePreviewOpen ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-muted'
-            )}
-          >
-            {/* Outline play triangle, nudged 1px right to sit optically centered. */}
-            <Play className="size-4 translate-x-px" />
-          </button>
           {annotations.length > 0 && (
             <button
               type="button"
@@ -2382,25 +2352,52 @@ function MergeInfiniteCanvas({
               )}
             </button>
           )}
-          <button
-            type="button"
-            title="Notifications"
-            aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-            aria-expanded={mergeDrawer === 'inbox'}
-            onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
-            className={cn(
-              'relative flex size-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted',
-              FLOATING_PILL,
-              mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
-            )}
-          >
-            <Bell className="size-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+          {/* One pill for the session controls — presence (the Workspace
+              TopBar's stack, hidden in Merge Studio), Share, Preview and
+              Notifications — instead of four separate floating pieces.
+              It keeps a surface: artboards pan underneath it. */}
+          <div className={cn('flex h-10 items-center gap-0.5 rounded-full pr-1 pl-1.5', FLOATING_PILL)}>
+            {/* Studio-scoped styling for the shared presence stack (the
+                component itself is untouched): left-on-top order and the
+                soft surface-colored ring. */}
+            <span className={cn(PRESENCE_STACK, 'pr-1')}>
+              <UserPresence />
+            </span>
+            <span aria-hidden className="mx-1 h-5 w-px bg-white/10" />
+            <MergeShareButton item={item} inline />
+            <button
+              type="button"
+              onClick={() => setMergePreviewOpen((v) => !v)}
+              title={mergePreviewOpen ? 'Close preview' : 'Preview'}
+              aria-label="Preview"
+              aria-pressed={mergePreviewOpen}
+              className={cn(
+                'flex size-8 items-center justify-center rounded-full transition-colors',
+                mergePreviewOpen ? 'bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-white/10'
+              )}
+            >
+              {/* Outline play triangle, nudged 1px right to sit optically centered. */}
+              <Play className="size-4 translate-x-px" />
+            </button>
+            <button
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+              aria-expanded={mergeDrawer === 'inbox'}
+              onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
+              className={cn(
+                'relative flex size-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/10',
+                mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
+              )}
+            >
+              <Bell className="size-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
           </div>
         </div>
 

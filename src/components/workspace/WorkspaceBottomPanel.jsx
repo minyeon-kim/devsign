@@ -122,7 +122,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
         portal ? 'absolute inset-x-0 bottom-0' : 'relative',
         open
           ? 'z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
-          : 'rounded-none border-transparent bg-[#050506] shadow-none',
+          : 'rounded-none border-transparent bg-background shadow-none',
         className
       )}
     >

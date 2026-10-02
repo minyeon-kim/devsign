@@ -48,7 +48,7 @@ function AppShell({ topBar, project, children }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         project={project}
         drawer={drawer}

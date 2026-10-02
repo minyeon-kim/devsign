@@ -22,6 +22,8 @@ import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, optionEffects } from '@/components/mergestudio/DesignComparison'
+import { cn } from 'cn'
+import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -813,7 +815,7 @@ function MergeStudioWorkspace({ item }) {
       <button
         type="button"
         onClick={exitMergeStudio}
-        className="absolute top-3 left-4 z-40 flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-[#121212]/90 px-4 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-muted"
+        className={cn(STUDIO_PILL, 'absolute top-3 left-4 z-40 flex items-center justify-center gap-2 px-4')}
       >
         <ArrowLeft className="size-4" />
         Workspace
@@ -827,7 +829,7 @@ function MergeStudioWorkspace({ item }) {
           // Compare's drafts now render as real frames on the infinite
           // canvas below (see `designCompare`), so this is just the "what
           // am I looking at / how do I leave" strip for that mode.
-          <div className="absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-[#121212]/90 py-2 pr-2 pl-4 text-[13px] shadow-lg backdrop-blur-sm">
+          <div className={cn(STUDIO_PILL, 'absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-1 pl-4 font-normal')}>
             <span className="min-w-0 truncate text-slate-200">
               <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
               <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>

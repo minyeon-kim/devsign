@@ -82,7 +82,10 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
     <div
       className={cn(
         'flex h-full w-[var(--ds-chrome-size)] shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
-        drawer ? 'bg-[#0B0B0E]' : 'bg-[#050506]'
+        // The app background (--ds-bg-base, same as the Workspace) on its own; with the
+        // drawer open it takes the drawer's card surface so both read as
+        // one panel.
+        drawer ? 'bg-card' : 'bg-background'
       )}
     >
       <div className="group/project relative flex h-9 shrink-0 items-center">
@@ -257,7 +260,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
         <aside
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
           style={{ width }}
-          className="relative flex h-full flex-col bg-[#0B0B0E] pb-2"
+          className="relative flex h-full flex-col bg-card pb-2"
         >
           <SplitHandle
             label="Resize sidebar"

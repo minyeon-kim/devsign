@@ -43,7 +43,7 @@ const PANEL_ROWS = 'space-y-0.5 [&>*]:overflow-hidden [&>*]:rounded-lg'
 const CATEGORY_TAB = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-[16px] px-3 text-xs transition-colors'
 const CATEGORY_TAB_ACTIVE = 'bg-white/[0.09] text-white'
 const CATEGORY_TAB_IDLE = 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-const FLOATING_PANEL = 'border border-white/[0.08] bg-[#121212] shadow-lg shadow-black/20'
+const FLOATING_PANEL = 'border border-white/[0.08] bg-card shadow-lg shadow-black/20'
 const PANEL_RADIUS = 'rounded-[16px]'
 
 // Merge List sections, in the order that needs attention first. Anything

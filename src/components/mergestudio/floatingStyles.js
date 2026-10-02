@@ -13,7 +13,14 @@
 export const FLOATING_PANEL =
   'border border-white/10 bg-card shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_24px_64px_-16px_rgba(0,0,0,0.7),0_8px_20px_-8px_rgba(0,0,0,0.5)]'
 export const PANEL_RADIUS = 'rounded-[20px]'
-export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-lg backdrop-blur-md'
+// A page section or card outside the Workspace (Dashboard, Project home):
+// the Workspace window's surface — card charcoal, 10% hairline, 20px
+// corners — on the same app background (--ds-bg-base), minus the floating
+// shadow since it sits in the page flow rather than over a canvas.
+export const PAGE_CARD = 'rounded-[20px] border border-white/10 bg-card'
+// A light lift only: enough to separate a pill from an artboard passing
+// underneath, without the heavy drop of a full floating panel.
+export const FLOATING_PILL = 'border border-white/10 bg-card/90 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur-md'
 
 // Studio chrome has fixed geometry independent of compact workspace buttons.
 export const STUDIO_PILL = 'ds-merge-pill'
