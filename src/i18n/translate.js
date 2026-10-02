@@ -7,9 +7,14 @@ const rules = [
   [/^(.+) goes back to this checkpoint \(\+(\d+) −(\d+) lines\)\.$/, (_, file, added, removed) => `${file}을 이 버전으로 되돌려요. ${added}줄 추가, ${removed}줄 삭제돼요.`],
   [/^Forget the (\d+) agent messages? after this checkpoint\.$/, (_, n) => `이 버전 이후에 나눈 AI 대화 ${n}개를 삭제해요.`],
   [/^(\d+) (days?|weeks?|months?) ago$/, (_, n, unit) => `${n}${unit.startsWith('day') ? '일' : unit.startsWith('week') ? '주' : '개월'} 전`],
-  [/^(Today|Yesterday)(?:, (\d{1,2}):(\d{2}) (AM|PM))?$/, (_, day, h, m, ampm) => {
-    const dayKo = day === 'Today' ? '오늘' : '어제'
+  [/^(Today|Yesterday|Last week)(?:, (\d{1,2}):(\d{2}) (AM|PM))?$/, (_, day, h, m, ampm) => {
+    const dayKo = day === 'Today' ? '오늘' : day === 'Yesterday' ? '어제' : '지난 주'
     return h ? `${dayKo} ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}` : dayKo
+  }],
+  // Absolute seed-history timestamps ("Mar 2, 9:14 AM").
+  [/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2}), (\d{1,2}):(\d{2}) (AM|PM)$/, (_, mon, day, h, m, ampm) => {
+    const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 }
+    return `${MONTHS[mon]}월 ${day}일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`
   }],
   [/^(\d+) comments$/, (_, n) => `코멘트 ${n}개`],
   [/^(\d+) automated notes$/, (_, n) => `자동 피드백 ${n}개`],
