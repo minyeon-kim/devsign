@@ -10,7 +10,7 @@ button.ai-chat-submit {
   flex-shrink: 0 !important;
   padding: 0 !important;
   border: none !important;
-  background-color: #5EEAB5 !important;
+  background-color: #20F5A6 !important;
   background-image: none !important;
   color: #06281D !important;
   opacity: 1 !important;
@@ -21,9 +21,6 @@ button.ai-chat-submit {
 
 button.ai-chat-submit:hover {
   filter: none !important;
-}
-button.ai-chat-submit svg {
-  color: #06281D !important;
 }
 
 button.ai-chat-submit::before,
@@ -36,8 +33,8 @@ button.ai-chat-submit:focus-visible {
 }
 
 button.ai-chat-submit:disabled {
-  background-color: #31584A !important;
-  color: #B7E8D5 !important;
+  background-color: #20F5A6 !important;
+  color: #06281D !important;
 }
 button.ai-chat-submit svg {
   color: inherit !important;
@@ -60,9 +57,12 @@ button.ai-chat-submit:not(:disabled):hover {
   width: 14px;
   height: 14px;
   background-color: #F4F4F5;
+  /* Tailwind's translate is independent of transform; reset it so the
+     checked thumb moves only once and stays inside the track. */
+  translate: none;
   transform: translateX(0);
 }
 .ai-chat-auto-switch[data-checked] [data-slot="switch-thumb"] {
-  background-color: #06281D;
+  background-color: #FFFFFF;
   transform: translateX(12px);
 }
