@@ -200,7 +200,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // The docked bottom panel (Terminal / Console / Conflict Points): which
   // tab is showing, whether it's expanded or collapsed to its tab strip,
   // and its expanded height (dragged from its top edge).
-  const [bottomPanel, setBottomPanelState] = useState({ tab: 'terminal', open: true, height: 240 })
+  // Start on Conflict Points; keep each project's last panel selection.
+  const [bottomPanel, setBottomPanelState] = useDemoState(`project:${projectId}:bottomPanel`, { tab: 'conflict', open: true, height: 320 })
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
