@@ -306,8 +306,8 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
           <span className="shrink-0 text-[11px] text-slate-500">{group.timeLabel}</span>
         </span>
         {comment ? <>
-          {itemName && itemName !== group.target.label && <span className="mt-0.5 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-1.5 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-1.5 py-2 text-xs leading-5 text-slate-200">
+          {itemName && itemName !== group.target.label && <span className="mt-1.5 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
+          <span className="mt-2 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-1.5 py-2 text-xs leading-5 text-slate-200">
             <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
           </span>
           <span className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-slate-500">
@@ -315,7 +315,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
             {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
             {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
           </span>
-        </> : <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
+        </> : <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
       </span>
       <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
         {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
