@@ -167,7 +167,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         )}
       </nav>
 
-      <div className="mt-auto flex flex-col gap-1">
+      {/* Match the 48px bottom tab strip so the icon centers align. */}
+      <div className="mt-auto flex h-12 shrink-0 items-center">
         <SettingsDialog triggerClassName={iconButtonClass} />
       </div>
     </div>
