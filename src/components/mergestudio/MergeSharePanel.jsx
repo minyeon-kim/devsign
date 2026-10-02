@@ -55,7 +55,13 @@ function MergeShareButton({ item, title = item?.title, link: linkProp, inline = 
         className={
           inline
             ? 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
-            : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL, borderless && 'border-0')
+            : borderless
+              // The Workspace header's own pill language (see TopBar's
+              // presence pill) — same `ds-header-pill` surface and 32px
+              // height as its neighbors, not Merge Studio's taller bordered
+              // one, so it reads as one row instead of an odd one out.
+              ? 'ds-header-pill flex h-8 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-semibold text-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted'
+              : cn('flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', FLOATING_PILL)
         }
       >
         <Share2 className={inline ? 'size-3.5' : 'size-4'} />

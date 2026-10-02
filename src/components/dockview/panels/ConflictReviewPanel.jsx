@@ -966,7 +966,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
               {stage !== 'resolved' && (
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="hidden text-[10px] text-slate-500 sm:inline">Review first</span>
                   <Tooltip>
                     <TooltipTrigger
                       type="button"

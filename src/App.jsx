@@ -62,7 +62,12 @@ function App() {
         <LocalCursor />
       </BrowserRouter>
       </ConflictStoreProvider>
-      <Toaster position="bottom-right" />
+      {/* Lifted well clear of the bottom-right corner — the Workspace and
+          Merge Studio both dock real chrome there (the bottom panel, a
+          conflict's footer actions, the presence pill), so a toast sitting
+          flush in the corner (Sonner's default) covers whatever button is
+          already there instead of appearing above it. */}
+      <Toaster position="bottom-right" offset={{ bottom: 96, right: 20 }} />
     </TooltipProvider>
     </LanguageProvider>
   )

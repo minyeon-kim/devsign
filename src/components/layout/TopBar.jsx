@@ -1,5 +1,5 @@
 import '@/components/dockview/panels/CanvasToolbar.css'
-import { Bell, LayoutGrid } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,30 +21,23 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // (see MergeStudioView) has its own floating chrome, so this hides itself
 // entirely while activeView is 'mergeStudio' rather than trying to host
 // both sets of controls at once.
-// The project's title as a floating Linear-style breadcrumb
-// ("Project / Workspace"), always shown — there's no project sidebar to
-// carry the name instead.
+// The project's name as a floating title, always shown — there's no
+// project sidebar to carry it instead. Just the name, not a full
+// "Dashboard / Project / Workspace" breadcrumb: the activity rail (see
+// Sidebar.jsx) is the app's actual navigation — it already has its own
+// Dashboard button and a Workspace button that highlights while you're
+// here — so repeating both of those a few pixels away added nothing
+// (the old "Workspace" segment even linked to the page already open).
+// This keeps just what the rail can't show: which project you're in.
 function ProjectTitle({ project }) {
   return (
-    <div
-      className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-2 text-[13px]"
-    >
-      <Link to="/dashboard" title="Dashboard" aria-label="Dashboard" className="ds-header-pill flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-white/[0.06] hover:text-white"><LayoutGrid className="size-4" /></Link>
-      <span className="shrink-0 text-muted-foreground/60">/</span>
+    <div className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center text-[13px]">
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}
         className="ds-header-pill flex h-8 min-w-0 items-center truncate rounded-full px-3 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
       >
         {project?.name}
-      </Link>
-      <span className="shrink-0 text-muted-foreground/60">/</span>
-      <Link
-        to={`/projects/${project?.id}/workspace`}
-        title="Open workspace"
-        className="ds-header-pill flex h-8 shrink-0 items-center rounded-full px-3 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
-      >
-        Workspace
       </Link>
     </div>
   )

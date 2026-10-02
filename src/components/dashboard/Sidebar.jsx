@@ -1,7 +1,7 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, PanelLeftClose, Users, PanelTop } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutDashboard, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -109,15 +109,19 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
           <>
-            <RailButton label="Dashboard" icon={LayoutGrid} render={<Link to="/dashboard" />} />
+            {/* Home (outside a project) and this button lead to the same
+                /dashboard route — give them the same icon so it reads as
+                one destination in both places, not two different ones. */}
+            <RailButton label="Dashboard" icon={House} render={<Link to="/dashboard" />} />
             <RailButton
               label={`${project.name} home`}
-              icon={House}
+              icon={LayoutDashboard}
               render={<Link to={overviewPath} />}
               aria-current={path === overviewPath ? 'page' : undefined}
               className={cn(path === overviewPath && !drawer && activeClass)}
             />
-            <RailButton label="Workspace" icon={PanelTop} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
+            {/* The split code-editor/canvas layout, same shape as the icon. */}
+            <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
             <RailButton
               label="Docs"
               icon={BookOpen}

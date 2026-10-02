@@ -44,6 +44,10 @@ const rules = [
   [/^No one matches “(.+)”$/, (_, name) => `“${name}”와 일치하는 사람이 없습니다`],
   [/^No files match “(.+)”\.$/, (_, name) => `“${name}”와 일치하는 파일이 없습니다.`],
   [/^Start merge · (\d+) files?$/, (_, n) => `병합 시작 · 파일 ${n}개`],
+  // Must sit above the generic action-rename rule just below — "Remove X
+  // for design review" would otherwise match THAT rule first (action
+  // "Remove", name "X for design review") and never reach this one.
+  [/^(Assign|Remove) (.+) for (code|design) review$/, (_, action, name, scope) => `${core(name)} ${core(scope)} 검토 ${action === 'Assign' ? '배정' : '제외'}`],
   [/^(Close|Select|Restore|Remove|Open|Resize) (.+)$/, (_, action, name) => `${core(name)} ${ko[action] ?? action}`],
   [/^(.+) · Drag to reorder or move$/, (_, name) => `${core(name)} · 드래그하여 순서 변경 또는 이동`],
   [/^(.+) · Drag to split or move$/, (_, name) => `${core(name)} · 드래그하여 분할 또는 이동`],
@@ -55,6 +59,26 @@ const rules = [
   [/^(\d+)d ago$/, (_, n) => `${n}일 전`],
   [/^I couldn’t turn that into a specific change in (.+)\. Nothing was changed\.$/, (_, where) => `${core(where)}에서 구체적인 변경으로 바꾸지 못했습니다. 아무것도 변경되지 않았습니다.`],
   [/^This needs review because (.+)$/, (_, why) => `검토가 필요한 이유: ${core(why)}`],
+  // Conflict/History review sweep — dynamic strings a static ko.js entry
+  // can't cover (a name, a count, or a joined list inside otherwise-fixed
+  // copy). Specific patterns sit above the generic "Review X" catch-all
+  // below so e.g. "Review requested from …" / "Review status: …" don't
+  // fall into it first.
+  [/^(Before|After) code$/, (_, w) => `${ko[w]} 코드`],
+  [/^Review status: (.+), step (\d+) of (\d+)$/, (_, label, n, m) => `검토 상태: ${core(label)}, ${m}단계 중 ${n}단계`],
+  [/^Review progress: (.+); current step (\d+) of (\d+)$/, (_, labels, n, m) => `검토 진행 상태: ${labels.split(' → ').map(core).join(' → ')}; ${m}단계 중 ${n}단계`],
+  [/^Review requested from (.+)$/, (_, names) => `${names.split(', ').map(core).join(', ')}에게 검토 요청`],
+  [/^Remind (.+)$/, (_, name) => `${core(name)}에게 알림`],
+  [/^Reminded (.+)$/, (_, when) => `${core(when)}에 알림 보냄`],
+  [/^Reply to (.+)$/, (_, name) => `${core(name)}에게 답글`],
+  [/^(.+) — saved as a new checkpoint$/, (_, label) => `${core(label)} — 새 체크포인트로 저장됨`],
+  [/^(\d+) checks need attention$/, (_, n) => `확인 필요한 검사 ${n}개`],
+  [/^(\d+) controls? under 24px$/, (_, n) => `24px 미만 컨트롤 ${n}개`],
+  [/^(\d+) AI edits? applied$/, (_, n) => `적용된 AI 편집 ${n}개`],
+  [/^(\d+) AI notes? not applied$/, (_, n) => `적용되지 않은 AI 메모 ${n}개`],
+  [/^Button text contrast (.+):1$/, (_, ratio) => `버튼 텍스트 대비 ${ratio}:1`],
+  [/^(.+) with white text is below WCAG AA \(4\.5:1\)\.$/, (_, color) => `${core(color)}에 흰색 텍스트를 사용하면 WCAG AA 기준(4.5:1)에 못 미칩니다.`],
+  [/^Review (.+)$/, (_, name) => `${core(name)} 검토`],
 ]
 
 function core(text) {

@@ -1255,3 +1255,56 @@ Object.assign(ko, {
   'Checkout - Payment step': '결제 화면',
   'Button · Size': '버튼 · 크기',
 })
+
+// New projects/merge items (Mobile Nav Revamp, Onboarding Flow and every
+// Conflict Point now reachable from Merge Studio) and a Conflict/History
+// translation sweep — every literal UI string these added or that the
+// sweep found uncovered. "Drift" itself stays in English everywhere (see
+// the `drift`/`drifts` fragment above) — nothing here touches that word.
+Object.assign(ko, {
+  'Design + Code': '디자인 + 코드',
+  'ShippingOptions': '배송 옵션',
+  'Onboarding': '온보딩',
+  'Due tomorrow': '내일 마감',
+  'Bottom navigation redesign — icon sizing and gesture affordances kept in sync between the Figma prototype and the app.':
+    '하단 내비게이션 리디자인입니다 — 아이콘 크기와 제스처 요소를 Figma 프로토타입과 동기화된 상태로 유지합니다.',
+  "First-run welcome screens and progress steps, kept in sync between the onboarding design and the app.":
+    '첫 실행 시 보여지는 환영 화면과 진행 단계를 온보딩 디자인과 동기화된 상태로 유지합니다.',
+  'Review impact & checks': '영향 및 검사 검토',
+  'Hide quick diff': '빠른 비교 숨기기',
+  'Review status': '검토 상태',
+  'Review summary': '검토 요약',
+  'No comments yet': '아직 댓글이 없습니다',
+  'Cancel reply': '답글 취소',
+  'Write a reply': '답글 작성',
+  'Send reply': '답글 보내기',
+  'Back to list': '목록으로 돌아가기',
+  'Your decision': '내 결정',
+  'Review merge impact and automated checks. This does not approve or merge the change.':
+    '병합 영향과 자동 검사를 확인합니다. 이 동작은 변경 사항을 승인하거나 병합하지 않습니다.',
+  'Review first': '먼저 검토하세요',
+  'Remind': '알림 보내기',
+  'Latest Design System token': '최신 디자인 시스템 토큰',
+  'Uses updated token references': '최신 토큰 참조 사용',
+  'DESIGN SYSTEM V2': '디자인 시스템 V2',
+  'Original and merged': '원본 및 병합본',
+  'This change is in code and has no design element.': '이 변경은 코드에만 있으며 디자인 요소가 없습니다.',
+  'No design preview for this item.': '이 항목에는 미리 볼 디자인이 없습니다.',
+  'Checks pass': '검사 통과',
+  'Shown as “In review” in the Merge List': '병합 목록에 “검토 중”으로 표시됩니다',
+  'Back to conflict list': '충돌 목록으로 돌아가기',
+  'Merge complete': '병합 완료',
+  'Merge steps': '병합 단계',
+  'Changes already merged': '이미 병합된 변경 사항',
+  'This item is complete. It can’t be submitted or merged again.': '이 항목은 이미 완료되어 다시 제출하거나 병합할 수 없습니다.',
+  'Back to conflict': '충돌로 돌아가기',
+  'Draft changes': '변경 초안',
+  'Reviews': '검토',
+  'Waiting': '대기 중',
+  'AI draft': 'AI 초안',
+  'Auto-deploy after merge': '병합 후 자동 배포',
+  'Search project history': '프로젝트 히스토리 검색',
+  'Search history...': '히스토리 검색...',
+  'Clear history search': '히스토리 검색 지우기',
+  'No matching archived checkpoints.': '일치하는 보관된 체크포인트가 없습니다.',
+})
