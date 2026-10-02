@@ -1,12 +1,10 @@
 import '@/components/dockview/panels/CanvasToolbar.css'
-import { Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import SearchField from '@/components/layout/SearchField'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
-import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
+import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -40,37 +38,6 @@ function ProjectTitle({ project }) {
         {project?.name}
       </Link>
     </div>
-  )
-}
-
-// The bell: opens the same Inbox panel Merge Studio uses (MergeInboxDrawer
-// — All / Unread / Approvals / Comments), styled like Merge
-// Studio's own bell, with the unread count badged on it.
-function InboxButton({ open, onToggle }) {
-  const { notifications } = useWorkspace()
-  const unreadCount = notifications.filter((n) => n.unread).length
-
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        type="button"
-        aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
-        aria-expanded={open}
-        onClick={onToggle}
-        className={cn(
-          'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
-          open && 'bg-emerald-400/20 text-emerald-300'
-        )}
-      >
-        <Bell className="size-4" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
-            {unreadCount}
-          </span>
-        )}
-      </TooltipTrigger>
-      <TooltipContent>Inbox{unreadCount ? ` · ${unreadCount} unread` : ''}</TooltipContent>
-    </Tooltip>
   )
 }
 

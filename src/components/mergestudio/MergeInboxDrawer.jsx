@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Bell, CheckCheck, ChevronRight, MessageSquare, Smile } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { commentGroupSummary, groupInboxNotifications } from '@/lib/inboxNotifications'
@@ -12,6 +13,38 @@ import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/componen
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { LocalizedText } from '@/i18n/runtime'
+
+// The bell that opens this same drawer everywhere it appears (the
+// Workspace/Merge Studio header, a project's own overview) — same content
+// and design in every host, not a separate simpler notifications widget
+// per page. Each host owns its own open/close state and passes it in.
+export function InboxButton({ open, onToggle }) {
+  const { notifications } = useWorkspace()
+  const unreadCount = notifications.filter((n) => n.unread).length
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(
+          'relative flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground',
+          open && 'bg-emerald-400/20 text-emerald-300'
+        )}
+      >
+        <Bell className="size-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
+            {unreadCount}
+          </span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent>Inbox{unreadCount ? ` · ${unreadCount} unread` : ''}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 // Filter tabs. "Unread" is a filter too (Linear / Slack style), with its
 // count as a badge.

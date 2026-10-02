@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ACCENT_CTA } from '@/components/mergestudio/floatingStyles'
+import { ACCENT_CTA, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { conflictCounts, isOpen, needsReviewFrom } from '@/lib/conflicts'
 import { historyMeta } from '@/lib/historyMeta'
@@ -12,6 +13,7 @@ import { DOCUMENT_STAGES as DS_STAGES } from '@/lib/documentChanges'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import UserPresence from '@/components/layout/UserPresence'
+import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 
 function Section({ title, action, children }) {
   return (
@@ -75,6 +77,12 @@ function ProjectOverviewPage() {
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
+  // The same Inbox bell + drawer as the Workspace/Merge Studio header
+  // (MergeInboxDrawer) — Project home had no notifications at all before,
+  // not a smaller version of this one. An item here isn't on-screen yet,
+  // so jumping to it goes through the Workspace's own nav-state handler
+  // (see WorkspacePage) instead of focusing the canvas directly.
+  const [inboxOpen, setInboxOpen] = useState(false)
 
   // Everything below counts from the shared conflict store with the same
   // rules as the Workspace list (lib/conflicts), so the numbers, the list
@@ -100,7 +108,7 @@ function ProjectOverviewPage() {
   const stageCounts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
 
   return (
-    <div className="h-full overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
+    <div className="relative h-full overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
       <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
         <nav aria-label="Project navigation" className="flex items-center gap-2 text-xs text-slate-400">
           <Link to="/dashboard" className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Dashboard</Link>
@@ -108,12 +116,18 @@ function ProjectOverviewPage() {
           <span aria-current="page" className="text-white">Project home</span>
           <ChevronRight className="size-3" />
           <Link to={workspacePath} className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Workspace</Link>
-          {/* Same profile popover as the Workspace's top bar — Project home
-              had no way to switch user or see who's on the project until
-              you opened the Workspace; this closes that gap instead of
-              growing a third, separate implementation of it. */}
-          <span className="ml-auto flex items-center">
-            <UserPresence />
+          {/* Same profile popover and Inbox as the Workspace's top bar —
+              Project home had no way to switch user, see who's on the
+              project, or check notifications until you opened the
+              Workspace; this closes that gap instead of growing separate,
+              smaller implementations of them. */}
+          <span className="ml-auto flex items-center gap-2">
+            <div className={cn('flex h-8 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0 bg-white/[0.04]')}>
+              <span className={PRESENCE_STACK}>
+                <UserPresence />
+              </span>
+            </div>
+            <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
           </span>
         </nav>
         {/* Header */}
@@ -283,6 +297,27 @@ function ProjectOverviewPage() {
           </div>
         </div>
       </div>
+      {inboxOpen && (
+        <MergeInboxDrawer
+          onJump={(n) => {
+            setInboxOpen(false)
+            if (n.target.conflictId) {
+              navigate(workspacePath, { state: { openConflictId: n.target.conflictId } })
+              return
+            }
+            navigate(workspacePath, {
+              state: {
+                openMergeStudio: true,
+                mergeItemId: n.target.itemId,
+                layerId: n.target.layerId,
+                fileId: n.target.fileId,
+                line: n.target.line,
+              },
+            })
+          }}
+          onClose={() => setInboxOpen(false)}
+        />
+      )}
     </div>
   )
 }
