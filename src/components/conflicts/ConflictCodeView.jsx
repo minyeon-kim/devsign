@@ -13,9 +13,9 @@ const ACTION = 'ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] te
 
 const TONES = {
   same: 'text-slate-400',
-  add: 'bg-emerald-400/[0.08] text-emerald-200',
-  edited: 'bg-amber-300/[0.07] text-amber-100',
-  remove: 'bg-destructive/[0.08] text-red-300',
+  add: 'bg-emerald-500/[0.18] text-emerald-200',
+  edited: 'bg-amber-400/[0.16] text-amber-100',
+  remove: 'bg-red-500/[0.18] text-red-300',
 }
 const MARKS = { same: ' ', add: '+', edited: '+', remove: '−' }
 

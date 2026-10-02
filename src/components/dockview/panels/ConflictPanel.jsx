@@ -518,10 +518,10 @@ function BatchApproveDialog({ open, onOpenChange, conflicts, comments, onApprove
                 {Array.isArray(conflict.diff?.before) && (
                   <div className="mt-2 space-y-px overflow-hidden rounded-md bg-black/25 py-1 font-mono text-[10.5px] leading-4">
                     {(conflict.diff.before ?? []).map((line, i) => (
-                      <p key={`b${i}`} className="truncate bg-destructive/[0.08] px-2 text-red-300" title={line}>− {line.trim()}</p>
+                      <p key={`b${i}`} className="truncate bg-red-500/[0.18] px-2 text-red-300" title={line}>− {line.trim()}</p>
                     ))}
                     {(conflict.diff.after ?? []).map((line, i) => (
-                      <p key={`a${i}`} className="truncate bg-emerald-400/[0.08] px-2 text-emerald-300" title={line}>+ {line.trim()}</p>
+                      <p key={`a${i}`} className="truncate bg-emerald-500/[0.18] px-2 text-emerald-300" title={line}>+ {line.trim()}</p>
                     ))}
                   </div>
                 )}

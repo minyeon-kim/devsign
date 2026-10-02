@@ -8,8 +8,8 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const ROW_TONES = {
   same: 'text-slate-500',
-  add: 'bg-emerald-400/[0.08] text-emerald-300',
-  remove: 'bg-destructive/[0.08] text-red-300',
+  add: 'bg-emerald-500/[0.18] text-emerald-300',
+  remove: 'bg-red-500/[0.18] text-red-300',
 }
 const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 
