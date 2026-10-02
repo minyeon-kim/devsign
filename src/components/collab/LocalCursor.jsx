@@ -78,8 +78,11 @@ function LocalCursor({ containerRef }) {
 
   return (
     <div
+      // Above everything, popups included (they sit at z-[1000]): the OS
+      // cursor is hidden app-wide, so anything drawn over this hides the
+      // pointer itself.
       className={cn(
-        'pointer-events-none z-[999]',
+        'pointer-events-none z-[10000]',
         containerRef ? 'absolute' : 'fixed'
       )}
       style={{ left: pos.x, top: pos.y }}
