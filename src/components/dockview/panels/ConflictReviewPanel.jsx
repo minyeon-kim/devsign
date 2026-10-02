@@ -332,9 +332,12 @@ function CodeDiffColumns({ rows }) {
   ]
 
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)] gap-3">
-      <div className="flex items-start gap-1.5 pt-0.5 text-[10px] font-medium text-slate-400">
-        <Sparkles className="mt-0.5 size-3 shrink-0 text-emerald-300" />
+    <div className="min-w-0 space-y-2">
+      {/* Its own row, not a leading column beside the diff — a column
+          there pushed the whole grid-cols-2 diff right of where the
+          comparison cards above it start, so the two never lined up. */}
+      <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+        <Sparkles className="size-3 shrink-0 text-emerald-300" />
         <LocalizedText text="AI suggestion" />
       </div>
       <div className="grid min-w-0 grid-cols-2 gap-3">
