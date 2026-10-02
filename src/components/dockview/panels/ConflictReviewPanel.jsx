@@ -777,7 +777,7 @@ function CommentThread({ conflict, workspace }) {
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
 // your own sign-off (approving never changes code); `onResolve(id)` merges
 // an Approved conflict — the only step that applies the change.
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onReopen, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
   const workspace = useWorkspaceOptional()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
@@ -823,8 +823,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     else update({ reviewStage: 'resolved' })
   }
 
-  function handleReopen() {
-    if (onReopen) onReopen(conflict.id)
+  function handleRevert() {
+    if (onRevert) onRevert(conflict.id)
     else update({
       reviewStage: 'detected',
       diffInspected: false,
@@ -893,11 +893,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       primary = (
         <button
           type="button"
-          onClick={handleReopen}
+          onClick={handleRevert}
           className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
         >
           <RotateCcw className="size-3.5" />
-          Reopen
+          Revert
         </button>
       )
     }

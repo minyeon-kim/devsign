@@ -2,7 +2,10 @@
 export function mergeBlockReason({ conflicts = [], item, lines = [] }) {
   if (item?.tag === 'Merged' || (conflicts.length && conflicts.every((c) => c.reviewStage === 'resolved'))) return 'This change is already merged.'
   if (conflicts.length) {
-    if (conflicts.some((c) => c.reviewStage !== 'approved' || !c.reviewers?.length || c.reviewers.some((r) => r.status !== 'approved'))) {
+    // An already-resolved conflict (e.g. an earlier merge still linked to
+    // this item, with a revert now pending beside it) doesn't need to be
+    // re-approved — only the ones still actually in play do.
+    if (conflicts.some((c) => c.reviewStage !== 'resolved' && (c.reviewStage !== 'approved' || !c.reviewers?.length || c.reviewers.some((r) => r.status !== 'approved')))) {
       return 'Every required reviewer has to approve the latest changes first.'
     }
   } else if (!item?.reviewers?.length || item.reviewers.some((r) => r.status !== 'approved')) {

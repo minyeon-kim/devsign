@@ -7,6 +7,7 @@ const EVENT_ACTION = {
   approve: 'approved',
   changes: 'requested changes on',
   merge: 'merged',
+  revert: 'opened a revert of',
 }
 
 // Review / merge actions taken this session (ConflictStore events), shaped

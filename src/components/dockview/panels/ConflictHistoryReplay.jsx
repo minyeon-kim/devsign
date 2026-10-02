@@ -14,6 +14,7 @@ const EVENT_COPY = {
   changes: { action: 'requested changes', Icon: MessageSquare },
   merge: { action: 'merged this change', Icon: GitMerge },
   reopened: { action: 'reopened this issue', Icon: RotateCcw },
+  revert: { action: 'opened a revert of this change', Icon: RotateCcw },
   code_change: { action: 'pushed code changes', Icon: Code2 },
   comment: { action: 'commented on this issue', Icon: MessageSquare },
 }

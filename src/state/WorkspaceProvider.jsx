@@ -678,7 +678,18 @@ export function WorkspaceProvider({ children, projectId }) {
     const draft = mergeDrafts.current[item?.id] ?? {}
     const finalFiles = {}
     const fix = conflict && aiEditScenarios.find((sc) => sc.resolvesConflictId === conflict.id && (!sc.projectId || sc.projectId === projectId))
-    if (item) {
+    if (conflict?.revertOf && conflict.fileId && conflict.line) {
+      // A revert's own diff (not the item's codeMergeVariants, which still
+      // only knows the forward change) is the source of truth for what it
+      // actually applies — just this conflict's line(s), back to its
+      // pre-merge content.
+      const base = fileOverrides[conflict.fileId] ?? files.find((f) => f.id === conflict.fileId)?.lines ?? []
+      const revertLines = conflict.diff?.after ?? []
+      finalFiles[conflict.fileId] = base.map((line, i) => {
+        const offset = i + 1 - conflict.line
+        return offset >= 0 && offset < revertLines.length ? revertLines[offset] : line
+      })
+    } else if (item) {
       for (const fileId of item.fileIds ?? []) {
         const incoming = new Map((codeMergeVariants[item.id]?.[fileId] ?? []).map((d) => [d.line, d.incoming]))
         const ai = new Map((draft.annotations ?? []).filter((a) => a.status === 'done' && a.fileId === fileId).map((a) => [a.line, a.summary]))
@@ -788,27 +799,42 @@ export function WorkspaceProvider({ children, projectId }) {
     [conflicts, logEvent, projectId, setConflicts, currentUser.id]
   )
 
-  // Reopening an already-merged conflict undoes it: the conflict itself
-  // goes back to pending review, but the merge it was part of also set its
-  // linked merge item's tag to 'Merged' (see commitMerge) — left alone,
-  // that stale tag keeps tripping mergeBlockReason's "already merged"
-  // check forever, so re-approving and merging again always fails. Reset
-  // both together so a reopened conflict can actually be merged again.
-  const reopenConflict = useCallback(
+  // A merged conflict is history, not a draft — real tools never flip it
+  // back to "open" in place (its merge commit already happened). Reverting
+  // it is its own new change: a fresh Conflict Point proposing the inverse
+  // edit, with its own review from scratch, left permanently linked back
+  // to what it reverts. The original stays exactly as merged.
+  const revertConflict = useCallback(
     (conflictId) => {
       const conflict = conflicts.find((c) => c.id === conflictId)
-      if (!conflict) return
-      setConflicts((prev) =>
-        prev.map((c) =>
-          c.id === conflictId
-            ? { ...c, reviewStage: 'detected', diffInspected: false, reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) }
-            : c
-        )
-      )
+      if (!conflict || conflict.reviewStage !== 'resolved') return
+      const invertedDiff = conflict.diff && { before: conflict.diff.after, after: conflict.diff.before }
+      const invertedFields = conflict.comparisonFields?.map((f) => ({ ...f, expected: f.current, current: f.expected }))
+      const revert = {
+        ...conflict,
+        id: `revert-${crypto.randomUUID()}`,
+        title: `Revert: ${conflict.title}`,
+        message: `Reverts the change merged as ${conflict.title} (#${conflict.id}).`,
+        reviewStage: 'detected',
+        diffInspected: false,
+        resolved: false,
+        resolvedAtLabel: undefined,
+        mergedBy: undefined,
+        detectedAt: timeLabel(),
+        timestamp: 'Just now',
+        reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
+        diff: invertedDiff,
+        comparisonFields: invertedFields,
+        revertOf: conflict.id,
+      }
+      setConflicts((prev) => [...prev, revert])
       const item = mergeItems.find((mi) => mi.id === conflict.mergeItemId || mi.conflictId === conflict.id)
       if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'Needs Review', updatedLabel: 'Just now' })
+      logEvent({ kind: 'revert', projectId, conflictId: revert.id, actorId: currentUser.id, title: revert.title })
+      appendTerminalLines([`$ devsign revert "${conflict.title}" --as-new-review`])
+      return revert
     },
-    [conflicts, mergeItems, setConflicts, updateMergeItem]
+    [appendTerminalLines, conflicts, logEvent, mergeItems, projectId, setConflicts, updateMergeItem, currentUser.id]
   )
 
   // Batch approval (the Conflict Points list): your sign-off on several
@@ -1523,7 +1549,7 @@ export function WorkspaceProvider({ children, projectId }) {
     resolveConflict,
     approveConflict,
     requestChanges,
-    reopenConflict,
+    revertConflict,
     batchApproveConflicts,
     projectPages,
     memberViewports,
