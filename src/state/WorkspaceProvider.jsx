@@ -82,6 +82,13 @@ function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+// How long another required reviewer takes to catch up and approve
+// behind you (see `approveConflict`) — only one real person is ever
+// testing this, so nobody else is around to click their own Approve;
+// long enough to read as "a little later", short enough not to stall a
+// live test session waiting on it.
+const TEAMMATE_APPROVAL_DELAY_MS = 6000
+
 export function WorkspaceProvider({ children, projectId }) {
   // Who "you" are on this project (Jane on the designer track, James on
   // the developer track) — every reviewer/approval/"(you)" surface in this
@@ -742,6 +749,24 @@ export function WorkspaceProvider({ children, projectId }) {
       setConflicts((prev) => prev.map((c) => (c.id === conflictId ? next : c)))
       logEvent({ kind: 'approve', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
       appendTerminalLines([`$ devsign review approve "${conflict.title}" --as ${currentUser.id}`])
+      // There's only ever one real person testing this, so any other
+      // required reviewer never gets a turn to click their own Approve —
+      // bring their sign-off in shortly after instead, the same as it'd
+      // land in a real session with the rest of the team online. Checked
+      // against live state when it fires, not the snapshot above, so it's
+      // a no-op if the conflict moved on (resolved, reopened, changes
+      // requested) in the meantime.
+      if (reviewers.some((r) => r.status === 'pending')) {
+        window.setTimeout(() => {
+          setConflicts((prev) =>
+            prev.map((c) => {
+              if (c.id !== conflictId || c.reviewStage !== 'in_review') return c
+              const caughtUp = { ...c, reviewers: c.reviewers.map((r) => (r.status === 'pending' ? { ...r, status: 'approved' } : r)) }
+              return { ...caughtUp, reviewStage: allReviewersApproved(caughtUp) ? 'approved' : 'in_review' }
+            })
+          )
+        }, TEAMMATE_APPROVAL_DELAY_MS)
+      }
       return next
     },
     [appendTerminalLines, conflicts, logEvent, projectId, setConflicts, currentUser.id]
