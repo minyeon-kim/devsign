@@ -50,6 +50,10 @@ const rules = [
   // Korean-mode sweep: dynamic copy that was still showing in English.
   [/^Edited (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^(\d+) unchanged lines?$/, (_, n) => `변경 없는 ${n}줄`],
+  [/^Removed (.+) as a reviewer$/, (_, name) => `${core(name)}님을 검토자에서 뺐어요`],
+  [/^Dismissed (.+)'s change request: ([\s\S]+)$/, (_, name, why) => `${core(name)}님의 변경 요청을 무효화했어요: ${why}`],
+  [/^Why dismiss (.+)'s request\? \(required\)$/, (_, name) => `${core(name)}님의 요청을 무효화하는 이유 (필수)`],
+  [/^Dismiss (.+)'s change request$/, (_, name) => `${core(name)}님의 변경 요청 무효화`],
   [/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d{1,2}):(\d{2}) (AM|PM)$/, (_, day, h, m, ampm) => {
     const DAYS = { Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토', Sun: '일' }
     return `${DAYS[day]}요일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`

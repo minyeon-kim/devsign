@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
+  Ban,
   Bell,
   Bot,
   Check,
@@ -79,7 +80,7 @@ const TABS = [
   ['history', 'History'],
 ]
 
-const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-2 gap-y-1 sm:grid-cols-[88px_minmax(0,1fr)]'
+const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[68px_minmax(0,1fr)]'
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
@@ -283,10 +284,12 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
           </div>
         )}
       </div>
+      {/* The stage line above already says Merged — this only notes what
+          the values below are, as one quiet line, not a banner. */}
       {conflict.reviewStage === 'resolved' && (
-        <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
-          <Check className="size-3.5" strokeWidth={2.5} />
-          Merged — the code now matches the proposed change. Values below are as they were before the merge.
+        <p className="mb-4 flex items-center gap-1.5 text-[11px] leading-4 text-slate-400">
+          <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />
+          Values below are from before the merge.
         </p>
       )}
       {(summary || hasMetadata) && (
@@ -459,8 +462,11 @@ const iconActionClass =
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate }) {
+function ReviewersSection({ conflict, onUpdate, onDismiss }) {
   const viewerId = currentUserFor(conflict.projectId).id
+  // The change request being dismissed (its reviewer id) and the reason.
+  const [dismissing, setDismissing] = useState(null)
+  const [reason, setReason] = useState('')
   const { reviewers, reviewStage } = conflict
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
   const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== viewerId)
@@ -475,6 +481,25 @@ function ReviewersSection({ conflict, onUpdate }) {
       [...reviewers, { id: person.id, status: 'pending' }],
       reviewStage === 'approved' ? { reviewStage: 'in_review' } : {}
     )
+  }
+
+  // Only someone who hasn't reviewed yet can be taken off — a change
+  // request or an approval is a decision, not a slot to clear. Undo for a
+  // few seconds, in case the X was hit by accident.
+  function removeReviewer(reviewer, name) {
+    const before = reviewers
+    setReviewers(reviewers.filter((r) => r.id !== reviewer.id))
+    toast(`Removed ${name} as a reviewer`, {
+      description: conflict.title,
+      action: { label: 'Undo', onClick: () => onUpdate({ reviewers: before }) },
+    })
+  }
+
+  function confirmDismiss() {
+    if (!reason.trim()) return
+    onDismiss(conflict.id, dismissing, reason)
+    setDismissing(null)
+    setReason('')
   }
 
   function remind(ids) {
@@ -532,7 +557,8 @@ function ReviewersSection({ conflict, onUpdate }) {
             if (!person) return null
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
-              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_112px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
+              <Fragment key={reviewer.id}>
+              <div className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_112px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <PersonAvatar person={person} />
                   <span className="min-w-0 truncate font-medium text-slate-200">
@@ -541,7 +567,9 @@ function ReviewersSection({ conflict, onUpdate }) {
                   </span>
                 </div>
                 <span className={cn('w-28 truncate text-right text-[11px]', status.className)}>
-                  {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
+                  {reviewer.status === 'pending' && reviewer.dismissedAt
+                    ? 'Request dismissed'
+                    : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
                 <div className="flex w-[72px] shrink-0 items-center justify-end gap-0">
                   {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && (
@@ -555,13 +583,25 @@ function ReviewersSection({ conflict, onUpdate }) {
                       <Bell className="size-3.5" />
                     </button>
                   )}
-                  {(reviewStage === 'detected' ||
-                    (reviewStage === 'in_review' && reviewer.status !== 'approved' && reviewers.length > 1)) && (
+                  {reviewer.status === 'changes_requested' && reviewStage === 'in_review' && onDismiss && reviewer.id !== viewerId && (
+                    <button
+                      type="button"
+                      aria-label={`Dismiss ${person.name}'s change request`}
+                      title="Dismiss change request…"
+                      aria-expanded={dismissing === reviewer.id}
+                      onClick={() => { setDismissing(dismissing === reviewer.id ? null : reviewer.id); setReason('') }}
+                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100')}
+                    >
+                      <Ban className="size-3.5" />
+                    </button>
+                  )}
+                  {reviewer.status === 'pending' &&
+                    (reviewStage === 'detected' || (reviewStage === 'in_review' && reviewers.length > 1)) && (
                     <button
                       type="button"
                       aria-label={`Remove ${person.name}`}
                       title="Remove reviewer"
-                      onClick={() => setReviewers(reviewers.filter((r) => r.id !== reviewer.id))}
+                      onClick={() => removeReviewer(reviewer, person.name)}
                       className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
                     >
                       <X className="size-3.5" />
@@ -569,6 +609,39 @@ function ReviewersSection({ conflict, onUpdate }) {
                   )}
                 </div>
               </div>
+              {dismissing === reviewer.id && (
+                // Dismissing a change request needs a reason: it's posted to
+                // Comments and logged in History, and the reviewer stays on
+                // the change (back to pending).
+                <div className="mb-1 space-y-1.5 rounded-lg bg-white/[0.03] p-2">
+                  <textarea
+                    autoFocus
+                    rows={2}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setDismissing(null)
+                      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); confirmDismiss() }
+                    }}
+                    placeholder={`Why dismiss ${person.name}'s request? (required)`}
+                    className="block w-full resize-none bg-transparent text-xs leading-5 text-white outline-none placeholder:text-slate-500"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <button type="button" onClick={() => setDismissing(null)} className="h-7 rounded-md px-2.5 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!reason.trim()}
+                      onClick={confirmDismiss}
+                      className="h-7 rounded-md bg-amber-400/15 px-2.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-400/25 disabled:opacity-40"
+                    >
+                      Dismiss request
+                    </button>
+                  </div>
+                </div>
+              )}
+              </Fragment>
             )
           })}
         </div>
@@ -980,7 +1053,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     thread keeps a usable minimum height. */}
                 <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-y-auto', REVIEW_GUTTER)}>
                   <div className={cn('shrink-0', REVIEW_CONTEXT_CARD)}>
-                    <ReviewersSection conflict={conflict} onUpdate={update} />
+                    <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
                   </div>
                   <div className={cn('flex min-h-[220px] flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>

@@ -13,6 +13,7 @@ import { toast } from '@/i18n/toast'
 import { translateText } from '@/i18n/translate'
 import {
   aiEditScenarios,
+  allPeople,
   chatSuggestions,
   canvasPages,
   conflictChecklist,
@@ -1586,6 +1587,36 @@ export function WorkspaceProvider({ children, projectId }) {
     ])
   }, [conflicts, currentUser.id, logEvent, projectId])
 
+  // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
+  // never silent — it needs a reason, which is posted to the conflict's
+  // Comments and logged to its History. The reviewer stays on the change,
+  // back to pending, so their sign-off is still required.
+  const dismissChangeRequest = useCallback((conflictId, reviewerId, reason) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    const trimmed = reason.trim()
+    if (!conflict || !trimmed) return
+    const reviewer = conflict.reviewers.find((r) => r.id === reviewerId && r.status === 'changes_requested')
+    if (!reviewer) return
+    const name = allPeople.find((p) => p.id === reviewerId)?.name ?? reviewerId
+    setConflicts((prev) => prev.map((c) => (c.id === conflictId
+      ? { ...c, reviewers: c.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'pending', dismissedAt: 'Just now' } : r)) }
+      : c)))
+    logEvent({ kind: 'dismiss', projectId, conflictId, actorId: currentUser.id, title: conflict.title, detail: `${name}: ${trimmed}` })
+    setComments((prev) => [
+      ...prev,
+      {
+        id: nextId('comment'),
+        authorId: currentUser.id,
+        timeLabel: 'Just now',
+        text: `Dismissed ${name}'s change request: ${trimmed}`,
+        status: 'open',
+        likes: 0,
+        replies: 0,
+        target: { conflictId },
+      },
+    ])
+  }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
+
   const value = {
     projectId,
     currentUser,
@@ -1620,6 +1651,7 @@ export function WorkspaceProvider({ children, projectId }) {
     resolveConflict,
     approveConflict,
     requestChanges,
+    dismissChangeRequest,
     revertConflict,
     batchApproveConflicts,
     projectPages,

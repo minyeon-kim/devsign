@@ -1408,6 +1408,12 @@ Object.assign(ko, {
   'What’s left before merging?': '머지 전에 남은 일은?',
   'Draft a review request': '검토 요청 메시지 써줘',
   'Use as comment': '코멘트로 쓰기',
+  'Values below are from before the merge.': '아래 값은 병합 전 상태예요.',
+  // Reviewer removal / dismissing a change request
+  'Request dismissed': '요청 무효화됨',
+  'Dismiss request': '요청 무효화',
+  'Dismiss change request…': '변경 요청 무효화…',
+  'dismissed a change request': '변경 요청을 무효화했어요',
   'Approvals were reset — the change is back in review.': '승인이 초기화되어 다시 검토 단계로 돌아갔어요.',
   '⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review.': '⌘↵ 저장 · Esc 취소. 저장하면 승인이 초기화되고 다시 검토 단계로 돌아가요.',
 })

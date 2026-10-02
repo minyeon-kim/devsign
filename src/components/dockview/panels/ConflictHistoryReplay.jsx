@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send } from 'lucide-react'
+import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
@@ -12,6 +12,7 @@ const EVENT_COPY = {
   review_requested: { action: 'requested a review', Icon: Send },
   approve: { action: 'approved this change', Icon: Check },
   changes: { action: 'requested changes', Icon: MessageSquare },
+  dismiss: { action: 'dismissed a change request', Icon: XCircle },
   merge: { action: 'merged this change', Icon: GitMerge },
   reopened: { action: 'reopened this issue', Icon: RotateCcw },
   revert: { action: 'opened a revert of this change', Icon: RotateCcw },
