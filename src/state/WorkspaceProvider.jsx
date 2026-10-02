@@ -1058,7 +1058,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // right away (Auto mode) or later from `applyPendingAiEdit`, once the
   // person approves the proposal sitting in chat.
   const commitAiScenario = useCallback(
-    (scenario, target, trimmed) => {
+    (scenario, target, trimmed, appliedBy = null) => {
       const changedLayerId = scenario.target?.layerId
       const layerHit = changedLayerId && findCanvasTarget(changedLayerId)
       const firstChange = scenario.changes?.[0]
@@ -1079,8 +1079,12 @@ export function WorkspaceProvider({ children, projectId }) {
                   ...c,
                   reviewStage: c.reviewers.length ? 'in_review' : 'detected',
                   reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
-                  // The change under review is now the AI's.
-                  changedBy: { type: 'ai', what: `${scenario.title} (requested by ${currentUser.name} in AI chat)` },
+                  // Preserve AI authorship separately from the person applying the draft.
+                  source: 'ai',
+                  applicationMode: appliedBy ? 'manual' : 'auto',
+                  changedBy: appliedBy
+                    ? { type: 'person', id: appliedBy.id, what: scenario.title }
+                    : { type: 'ai', what: scenario.title },
                 }
               : c
           )
@@ -1090,7 +1094,7 @@ export function WorkspaceProvider({ children, projectId }) {
           kind: 'code_change',
           projectId,
           conflictId: reopened.id,
-          actorId: 'system',
+          actorId: appliedBy?.id ?? 'system',
           title: reopened.title,
           detail: scenario.title,
         })
@@ -1148,8 +1152,10 @@ export function WorkspaceProvider({ children, projectId }) {
         label: scenario.title,
         kind: 'ai-edit',
         ...(reopened ? { conflictIds: [reopened.id] } : {}),
-        actorId: currentUser.id,
-        actorLabel: 'Devsign AI',
+        actorId: appliedBy?.id ?? 'system',
+        actorLabel: appliedBy?.name ?? 'Devsign AI',
+        source: 'ai',
+        applicationMode: appliedBy ? 'manual' : 'auto',
         target: target?.label ?? changes.map((c) => c.fileName).join(', '),
         prompt: trimmed,
         timestamp: timeLabel(),
@@ -1295,10 +1301,10 @@ export function WorkspaceProvider({ children, projectId }) {
       const message = chatMessages.find((m) => m.id === messageId)
       if (!message?.pendingEdit) return
       const { scenario, target, trimmed } = message.pendingEdit
-      const { result, historyId, reply } = commitAiScenario(scenario, target, trimmed)
+      const { result, historyId, reply } = commitAiScenario(scenario, target, trimmed, currentUser)
       setChatMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: reply, result, historyId, pendingEdit: null } : m)))
     },
-    [chatMessages, commitAiScenario, setChatMessages]
+    [chatMessages, commitAiScenario, setChatMessages, currentUser]
   )
 
   // Declines a proposal: nothing was ever written (files/canvas/History all

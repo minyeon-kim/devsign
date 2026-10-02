@@ -11,18 +11,18 @@ const topics = [
   ['Finish the merge', 'Click Merge Changes to check conflicts, preview changes and request a review.'],
 ]
 
-function MergeHelp() {
+function MergeHelp({ inline = false }) {
   return (
-    <div className="absolute bottom-5 left-4 z-40">
+    <div className={inline ? "shrink-0" : "absolute bottom-5 left-4 z-40"}>
       <Popover>
         <PopoverTrigger
           aria-label="Merge Studio help"
           title="Merge Studio help"
-          className={cn('flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)}
+          className={cn(inline && 'merge-help-inline', 'flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted data-[popup-open]:bg-muted', FLOATING_PILL)}
         >
           <span aria-hidden>?</span>
         </PopoverTrigger>
-        <PopoverContent side="top" align="start" sideOffset={12} className={cn('w-80 max-w-[calc(100vw-32px)] gap-4 p-4', FLOATING_PANEL, PANEL_RADIUS)}>
+        <PopoverContent side="top" align="end" sideOffset={12} className={cn('w-80 max-w-[calc(100vw-32px)] gap-4 p-4', FLOATING_PANEL, PANEL_RADIUS)}>
           <div className="flex items-center justify-between gap-2">
             <PopoverTitle>Merge Studio help</PopoverTitle>
             <PopoverClose aria-label="Close help" className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">

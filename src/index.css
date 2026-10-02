@@ -244,16 +244,16 @@
     }
   }
   .scroll-fade-bottom[data-scroll-before='true'][data-scroll-after='true'] {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, var(--scroll-fade-edge, transparent) 0, #000 var(--scroll-fade-size, 24px), #000 calc(100% - var(--scroll-fade-size, 24px)), var(--scroll-fade-edge, transparent) 100%);
+    mask-image: linear-gradient(to bottom, var(--scroll-fade-edge, transparent) 0, #000 var(--scroll-fade-size, 24px), #000 calc(100% - var(--scroll-fade-size, 24px)), var(--scroll-fade-edge, transparent) 100%);
   }
   .scroll-fade-bottom[data-scroll-before='true']:not([data-scroll-after='true']) {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
+    -webkit-mask-image: linear-gradient(to bottom, var(--scroll-fade-edge, transparent) 0, #000 var(--scroll-fade-size, 24px));
+    mask-image: linear-gradient(to bottom, var(--scroll-fade-edge, transparent) 0, #000 var(--scroll-fade-size, 24px));
   }
   .scroll-fade-bottom[data-scroll-after='true']:not([data-scroll-before='true']) {
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--scroll-fade-size, 24px)), var(--scroll-fade-edge, transparent) 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - var(--scroll-fade-size, 24px)), var(--scroll-fade-edge, transparent) 100%);
   }
 }
 
@@ -615,4 +615,24 @@ button.editor-line-comment {
 }
 .ai-gen-badge {
   animation: ai-layer-badge-in 1.1s ease-in-out infinite;
+}
+
+/* Compact canvas utilities stay independent of workspace button sizing. */
+.ds-workspace .merge-canvas-controls button {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+}
+.ds-workspace .merge-canvas-controls button[class~="size-7"],
+.ds-workspace .merge-canvas-controls .merge-help-inline {
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+}
+
+/* Black outer corners overlay the studio; the infinite canvas keeps its full size. */
+.merge-canvas-corner-frame {
+  border-radius: 20px;
+  box-shadow: 0 0 0 20px #070708;
+  border: 1px solid rgb(255 255 255 / 8%);
 }

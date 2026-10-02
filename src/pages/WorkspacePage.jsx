@@ -124,6 +124,7 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
       </div>
+      {inMergeStudio && <div aria-hidden className="merge-canvas-corner-frame pointer-events-none absolute inset-0 z-[600]" />}
       {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>
     </WorkspaceBottomPanelPortalContext.Provider>

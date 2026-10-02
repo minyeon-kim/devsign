@@ -149,6 +149,35 @@ function MergeStudioWorkspace({ item }) {
   // win over incoming and AI-edited text everywhere the merged code shows.
   const [manualCode, setManualCode] = useState(savedDraft.manualCode ?? {})
 
+  const editSnapshot = useMemo(() => ({ resolutions, assemblies, assemblySources, addedLayers, manualCode, annotations: annotationsSnap, appliedPreset }), [resolutions, assemblies, assemblySources, addedLayers, manualCode, annotationsSnap, appliedPreset])
+  const [editTimeline, setEditTimeline] = useState({ past: [], present: editSnapshot, future: [] })
+  const restoringEdit = useRef(false)
+  useEffect(() => {
+    if (restoringEdit.current) { restoringEdit.current = false; return }
+    setEditTimeline((timeline) => signature(timeline.present) === signature(editSnapshot) ? timeline : {
+      past: [...timeline.past, timeline.present].slice(-100), present: editSnapshot, future: [],
+    })
+  }, [editSnapshot])
+  function restoreEdit(direction) {
+    const undo = direction === 'undo'
+    const source = undo ? editTimeline.past : editTimeline.future
+    if (!source.length || item?.tag === 'Merged') return
+    const snapshot = undo ? source[source.length - 1] : source[0]
+    restoringEdit.current = true
+    setEditTimeline(undo
+      ? { past: source.slice(0, -1), present: snapshot, future: [editTimeline.present, ...editTimeline.future] }
+      : { past: [...editTimeline.past, editTimeline.present], present: snapshot, future: source.slice(1) })
+    setResolutions(snapshot.resolutions)
+    setAssemblies(snapshot.assemblies)
+    setAssemblySources(snapshot.assemblySources)
+    setAddedLayers(snapshot.addedLayers)
+    setManualCode(snapshot.manualCode)
+    setAnnotationsSnap(snapshot.annotations)
+    setAppliedPreset(snapshot.appliedPreset)
+    setReviewMarks({})
+    setLiveCode(null)
+  }
+
   useEffect(() => {
     setDesignCompareItemId(item?.id ?? null)
     setDesignCompareKeys([])
@@ -811,6 +840,7 @@ function MergeStudioWorkspace({ item }) {
           </div>
         )}
         <MergeInfiniteCanvas
+          editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={reserve}
           layoutReserve={deckReserve}
           guidesVisible={guidesVisible}
@@ -955,7 +985,7 @@ function MergeStudioWorkspace({ item }) {
         />
       )}
 
-      <MergeHelp />
+      {!item && <MergeHelp />}
       </div>
 
       <WorkspaceBottomPanel tabs={bottomPanelTabs} portal />

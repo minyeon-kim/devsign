@@ -189,7 +189,14 @@ function personName(id, viewerId) {
 // screens / components / files it reaches — only what the record knows.
 function Provenance({ conflict, className }) {
   const viewerId = currentUserFor(conflict.projectId).id
-  const { changedBy, detectedBy, impact } = conflict
+  const { detectedBy, impact } = conflict
+  // Older user-applied drafts stored AI as the actor; honor the recorded requester.
+  const legacyRequester = conflict.changedBy?.type === 'ai' && !conflict.applicationMode
+    ? allPeople.find((person) => conflict.changedBy.what?.includes(`(requested by ${person.name} in AI chat)`))
+    : null
+  const changedBy = legacyRequester
+    ? { type: 'person', id: legacyRequester.id, what: conflict.changedBy.what.replace(/ \(requested by .* in AI chat\)$/, '') }
+    : conflict.changedBy
   const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
   const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
   const impactRows = [
@@ -261,10 +268,18 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
     <div className="flex h-full flex-col">
       <div className="mb-4 min-w-0">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/[0.055] px-2.5 py-1 text-[11px] font-semibold text-slate-100">
             <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
             <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
           </span>
+          {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/[0.035] px-2.5 py-1 text-[10px] font-medium text-slate-400">
+              <Sparkles className="size-3 shrink-0" aria-hidden />
+              <LocalizedText text="AI draft" />
+            </span>
+          )}
+          </div>
           {severity && (
             <p className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.035] px-2.5 py-1 text-[10px]">
               <span className="text-slate-500"><LocalizedText text="Severity" /></span>
@@ -292,12 +307,6 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-400/[0.06] px-4 py-2.5 text-xs text-emerald-200">
           <Check className="size-3.5" strokeWidth={2.5} />
           Merged — the code now matches the proposed change. Values below are as they were before the merge.
-        </p>
-      )}
-      {conflict.reviewStage !== 'resolved' && conflict.changedBy?.type === 'ai' && (
-        <p className="flex items-center gap-1.5 rounded-xl bg-sky-400/[0.07] px-4 py-2.5 text-xs text-sky-200">
-          <Bot className="size-3.5 shrink-0" />
-          Devsign AI already made this change in the workspace. It becomes final only when approved and merged.
         </p>
       )}
       {(summary || hasMetadata) && (

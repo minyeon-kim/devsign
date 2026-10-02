@@ -1362,3 +1362,9 @@ Object.assign(ko, {
   'Prepared the canvas scaffold': '캔버스 뼈대 준비',
   'Scaffold review with the team': '팀과 함께 뼈대 검토',
 })
+
+Object.assign(ko, {
+  'Zoom to 100%': '100%로 보기',
+  'Zoom to Fit': '전체 맞춤',
+  'Zoom to Selection': '선택 영역 맞춤',
+})

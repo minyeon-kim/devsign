@@ -39,7 +39,10 @@ try {
   assert.ok(explorer.includes('aria-label="checkout"'))
   assert.ok(explorer.includes('PlaceOrderButton.jsx'))
   const bottom = render(BottomPanel)
-  assert.equal((bottom.match(/aria-label="Collapse panel"/g) ?? []).length, 1)
+  assert.equal((bottom.match(/aria-label="Bottom panel"/g) ?? []).length, 1)
+  assert.equal((bottom.match(/aria-label="Resize bottom panel"/g) ?? []).length, 1)
+  assert.ok(bottom.includes('role="tablist"'))
+  assert.ok(bottom.includes('role="tabpanel"'))
   assert.ok(!bottom.includes('Maximize panel'))
   console.log('Passed: path-based file tree, rename/root handling, tab reordering and panel render checks.')
 } finally {

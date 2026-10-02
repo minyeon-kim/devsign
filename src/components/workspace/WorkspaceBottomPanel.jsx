@@ -114,12 +114,11 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       style={{ height: open ? height : STRIP_HEIGHT }}
       className={cn(
         'flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        // Studio panels overlay the full canvas rather than reducing its height.
+        portal ? 'absolute inset-x-0 bottom-0 z-[550] mr-2 mb-2 rounded-2xl border border-white/10 bg-card' : 'relative',
         open
-          ? 'relative z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
-          : cn(
-              'relative border-transparent bg-[#050506] shadow-none',
-              activeView === 'mergeStudio' ? 'rounded-b-2xl' : 'rounded-none'
-            ),
+          ? 'z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
+          : portal ? 'shadow-none' : 'rounded-none border-transparent bg-[#050506] shadow-none',
         className
       )}
     >

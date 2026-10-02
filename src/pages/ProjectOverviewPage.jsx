@@ -17,7 +17,7 @@ import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInb
 
 function Section({ title, action, children }) {
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-[13px] font-semibold text-white">{title}</h2>
         {action}
@@ -29,7 +29,7 @@ function Section({ title, action, children }) {
 
 function SectionLink({ to, state, children }) {
   return (
-    <Link to={to} state={state} className="flex items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white">
+    <Link to={to} state={state} className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white">
       {children}
       <ChevronRight className="size-3.5" />
     </Link>
@@ -44,7 +44,7 @@ function Stat({ label, value, hint, title, tone, onClick }) {
       type="button"
       onClick={onClick}
       title={title}
-      className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
+      className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-left transition-colors hover:border-emerald-400/20 hover:bg-white/[0.05]"
     >
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn('mt-1.5 text-[22px] font-semibold tabular-nums', tone ?? 'text-white')}>{value}</p>
@@ -108,8 +108,8 @@ function ProjectOverviewPage() {
   const stageCounts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
 
   return (
-    <div className="relative h-full overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
-      <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
+    <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto bg-[#070708] text-foreground" style={{ backgroundColor: '#070708' }}>
+      <div className="mx-auto flex w-full min-w-0 max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
         <nav aria-label="Project navigation" className="flex items-center gap-2 text-xs text-slate-400">
           <Link to="/dashboard" className="rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-white">Dashboard</Link>
           <ChevronRight className="size-3" />
@@ -141,8 +141,8 @@ function ProjectOverviewPage() {
             {project.name.charAt(0)}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-semibold tracking-tight text-white">{project.name}</h1>
-            <p className="mt-1 text-[13px] text-slate-400">{project.description}</p>
+            <h1 className="break-words [overflow-wrap:anywhere] text-xl font-semibold tracking-tight text-white">{project.name}</h1>
+            <p className="mt-1 break-words [overflow-wrap:anywhere] text-[13px] text-slate-400">{project.description}</p>
             <div className="mt-3 flex items-center gap-2">
               <div className="flex -space-x-1.5">
                 {project.memberIds.map((id) => (
@@ -186,15 +186,15 @@ function ProjectOverviewPage() {
           <Stat label="Merged" value={counts.merged} hint="Applied to the code" onClick={() => openList('merged')} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-4">
             <Section
               title="Open Conflict Points"
               action={
                 <button
                   type="button"
                   onClick={() => openList('open')}
-                  className="flex items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white"
+                  className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white"
                 >
                   In Workspace
                   <ChevronRight className="size-3.5" />
@@ -217,7 +217,7 @@ function ProjectOverviewPage() {
             </Section>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <Section
               title="Document updates"
               action={
@@ -257,7 +257,7 @@ function ProjectOverviewPage() {
                     className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-slate-300 transition-colors hover:bg-white/[0.04] hover:text-white"
                   >
                     <BookOpen className="size-3.5 shrink-0 text-slate-500" />
-                    <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+                    <span title={doc.title} className="min-w-0 flex-1 truncate">{doc.title}</span>
                     <span className="shrink-0 text-[11px] text-slate-500">{doc.updatedAtLabel}</span>
                   </Link>
                 ))}
@@ -282,7 +282,7 @@ function ProjectOverviewPage() {
                   >
                     <GitMerge className="size-3.5 shrink-0 text-slate-500" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{entry.label}</span>
+                      <span title={entry.label} className="block truncate">{entry.label}</span>
                       <span className="block truncate text-[11px] text-slate-500">
                         {[historyMeta(entry, currentUser.id), entry.timestamp].filter(Boolean).join(' · ')}
                       </span>

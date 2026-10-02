@@ -1,5 +1,6 @@
+import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, Eye, EyeOff, House, Mail, Maximize, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, House, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -17,7 +18,6 @@ import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
-const ZOOM_STEP = 10
 const CODE_DIFF_WIDTH = 820
 const ARTBOARD_PREVIEW_WIDTH = 600
 // Option B's own fixed accent — a simple, permanent visual reminder that
@@ -1310,6 +1310,7 @@ function AnnotationPin({ pin, annotation, open, onToggle, onSave, onDelete }) {
 // between the code window and the related design element(s) and opens an
 // inline AI edit bar on the clicked element.
 function MergeInfiniteCanvas({
+  editHistory,
   item,
   files,
   syncSelection,
@@ -2332,58 +2333,6 @@ function MergeInfiniteCanvas({
               swallows clicks meant for it, since a transparent box still
               hit-tests above whatever's underneath it. */}
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
-        <div className={cn('ds-canvas-zoom-control flex h-8 items-center gap-0.5 rounded-full pr-1 pl-1 text-[11px]', FLOATING_PILL)}>
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(-ZOOM_STEP)}
-            aria-label="Zoom out"
-            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
-          >
-            <Minus className="size-3.5" />
-          </button>
-          <span className="w-9 text-center text-[11px] tabular-nums text-foreground">{Math.round(view.zoom)}%</span>
-          <button
-            type="button"
-            onClick={() => zoomFromCenter(ZOOM_STEP)}
-            aria-label="Zoom in"
-            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
-          >
-            <Plus className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Reset view and layout"
-            onClick={() => {
-              const lay = defaultLayout(frame)
-              setView(fitView(lay))
-              setLayout(lay)
-            }}
-            className="ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full text-foreground hover:bg-muted"
-          >
-            <Maximize className="size-3.5" />
-          </button>
-          {/* Show / hide every selection box, link line, size readout and
-              drift / hover outline on the canvas (moved here from the old
-              right-edge toolbar). */}
-          {onToggleGuides && (
-            <>
-              <span aria-hidden className="mx-0.5 h-3 w-px bg-white/10" />
-              <button
-                type="button"
-                title={guidesVisible ? 'Hide selection guides' : 'Show selection guides'}
-                aria-label="Selection guides"
-                aria-pressed={guidesVisible}
-                onClick={onToggleGuides}
-                className={cn(
-                  'ds-canvas-zoom-button flex size-6 items-center justify-center rounded-full transition-colors',
-                  guidesVisible ? 'text-foreground hover:bg-muted' : 'bg-white/10 text-foreground'
-                )}
-              >
-                {guidesVisible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-              </button>
-            </>
-          )}
-        </div>
           {/* Same presence cluster as the main Workspace TopBar (teammate
               avatars that follow-on-click + your own profile menu) — that
               bar is hidden in Merge Studio, so it lives here instead, in a
@@ -2505,6 +2454,17 @@ function MergeInfiniteCanvas({
           position regardless of canvas pan/zoom, matching how the
           workspace panels position it. */}
       <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
+      <MergeCanvasControls
+        zoom={view.zoom}
+        onZoomBy={zoomFromCenter}
+        onResetZoom={() => zoomFromCenter(100 - view.zoom)}
+        onFit={() => setView(fitView(layout))}
+        hasSelection={Boolean(syncSelection?.layerId || syncSelection?.fileId || frameSel)}
+        onSelection={() => requestMergeFocus({ itemId: item.id, ...syncSelection, card: frameSel, keepDeck: true })}
+        history={editHistory}
+        guidesVisible={guidesVisible}
+        onToggleGuides={onToggleGuides}
+      />
 
 
     </div>
