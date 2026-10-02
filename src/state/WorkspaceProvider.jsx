@@ -1,3 +1,4 @@
+import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
@@ -223,7 +224,10 @@ export function WorkspaceProvider({ children, projectId }) {
       }),
     [setAssetAssemblies]
   )
-  const [chatMessages, setChatMessages] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
+  // The Workspace's conversation. Merge Studio keeps one per merge item
+  // (`mergeChats`, below) — see `chatThread`.
+  const [workspaceChat, setWorkspaceChat] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
+  const [mergeChats, setMergeChats] = useDemoState(`project:${projectId}:mergeChats`, {})
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [previewVersion, setPreviewVersion] = useState(0)
   const [previewProps, setPreviewProps] = useDemoState(`project:${projectId}:previewProps`, DEFAULT_PREVIEW_PROPS)
@@ -262,6 +266,27 @@ export function WorkspaceProvider({ children, projectId }) {
     for (const item of mergeItems) if (item.category === 'Workspace') registerMergeVariants(item.id, item.designPageId)
   }, [mergeItems])
   const [selectedMergeItemId, setSelectedMergeItemId] = useDemoState(`project:${projectId}:selectedMergeItemId`, null)
+
+  // Which conversation AI Chat shows: the Workspace's, or — in Merge Studio
+  // with an item open — that item's own, opening on the item it's about
+  // (see lib/mergeChat). `setChatMessagesFor(thread)` writes to one thread
+  // regardless of which is on screen, so a reply that lands after you've
+  // switched items still goes to the conversation it answers.
+  const chatThread = activeView === 'mergeStudio' && selectedMergeItemId ? selectedMergeItemId : null
+  const chatThreadItem = chatThread ? mergeItems.find((item) => item.id === chatThread) ?? null : null
+  const threadStart = useCallback((itemId) => {
+    const item = mergeItems.find((candidate) => candidate.id === itemId)
+    return item ? mergeChatIntro(item, itemConflicts(item, conflicts)) : initialChatMessages
+  }, [mergeItems, conflicts])
+  const chatMessages = chatThread ? mergeChats[chatThread] ?? threadStart(chatThread) : workspaceChat
+  const setChatMessagesFor = useCallback((thread) => (update) => {
+    if (!thread) return setWorkspaceChat(update)
+    setMergeChats((prev) => {
+      const current = prev[thread] ?? threadStart(thread)
+      return { ...prev, [thread]: typeof update === 'function' ? update(current) : update }
+    })
+  }, [setWorkspaceChat, setMergeChats, threadStart])
+  const setChatMessages = useMemo(() => setChatMessagesFor(chatThread), [setChatMessagesFor, chatThread])
   // Merge Studio collaboration: which right-hand drawer is open, the inbox,
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
@@ -644,8 +669,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // checkpoint so a rollback can also rewind the agent's memory to it.
   const chatLengthRef = useRef(initialChatMessages.length)
   useEffect(() => {
-    chatLengthRef.current = chatMessages.length
-  }, [chatMessages])
+    chatLengthRef.current = workspaceChat.length
+  }, [workspaceChat])
 
   const recordHistory = useCallback((entry) => {
     const id = nextId('h')
@@ -1064,7 +1089,7 @@ export function WorkspaceProvider({ children, projectId }) {
       // Agent memory: forget the conversation after the checkpoint (older
       // checkpoints without a recorded length go back to the opening one).
       const keep = snapshot.chatLength ?? initialChatMessages.length
-      if (agentMemory) setChatMessages((prev) => prev.slice(0, keep))
+      if (agentMemory) setWorkspaceChat((prev) => prev.slice(0, keep))
       setSelectedLayerId(snapshot.selectedLayerId ?? null)
 
       const restoredId = recordHistory({
@@ -1250,6 +1275,8 @@ export function WorkspaceProvider({ children, projectId }) {
     (text, target = null, options = {}) => {
       const trimmed = text.trim()
       if (!trimmed) return
+      // Every write below goes to the thread this was asked in.
+      const setChatMessages = setChatMessagesFor(chatThread)
 
       if (options.includeUser !== false) setChatMessages((prev) => [...prev, { id: nextId('m'), role: 'user', text: trimmed, target }])
       const appendAssistant = (message) => setChatMessages((prev) => {
@@ -1261,7 +1288,8 @@ export function WorkspaceProvider({ children, projectId }) {
       })
       setIsAiTyping(true)
 
-      const documentReply = target?.kind === 'document' ? answerDocumentQuestion(allReferenceDocs.find((doc) => doc.id === target.docId), trimmed) : null
+      const mergeReply = chatThreadItem ? mergeChatAnswer(chatThreadItem, itemConflicts(chatThreadItem, conflicts), trimmed) : null
+      const documentReply = mergeReply ?? (target?.kind === 'document' ? answerDocumentQuestion(allReferenceDocs.find((doc) => doc.id === target.docId), trimmed) : null)
       const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && [q.prompt, translateText(q.prompt, 'ko')].some((prompt) => prompt.toLowerCase() === trimmed.toLowerCase()))
       const lower = trimmed.toLowerCase()
       const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
@@ -1270,7 +1298,7 @@ export function WorkspaceProvider({ children, projectId }) {
       window.setTimeout(() => {
         if (documentReply) {
           setIsAiTyping(false)
-          appendAssistant({ id: nextId('m'), role: 'assistant', text: documentReply, target })
+          appendAssistant({ id: nextId('m'), role: 'assistant', text: documentReply, ...(!mergeReply && { target }) })
           return
         }
         if (answer) {
@@ -1358,7 +1386,7 @@ export function WorkspaceProvider({ children, projectId }) {
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allReferenceDocs, commitAiScenario, conflicts, fileOverrides, previewProps, projectId]
+    [allReferenceDocs, chatThread, chatThreadItem, commitAiScenario, conflicts, fileOverrides, previewProps, projectId, setChatMessagesFor]
   )
 
   // Commits a proposal the person approved: same write path as Auto mode's
@@ -1594,6 +1622,8 @@ export function WorkspaceProvider({ children, projectId }) {
     chatTargetOverride,
     setChatTargetOverride,
     chatMessages,
+    chatThread,
+    chatThreadItem,
     isAiTyping,
     sendChatMessage,
     applyPendingAiEdit,

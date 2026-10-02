@@ -1403,6 +1403,10 @@ Object.assign(ko, {
   'Open in editor': '에디터에서 열기',
   'Show changes only': '변경 부분만 보기',
   'Show full file': '전체 파일 보기',
+  // Merge Studio's per-item AI Chat
+  'Explain this change': '이 변경 설명해줘',
+  'What’s left before merging?': '머지 전에 남은 일은?',
+  'Draft a review request': '검토 요청 메시지 써줘',
   'Approvals were reset — the change is back in review.': '승인이 초기화되어 다시 검토 단계로 돌아갔어요.',
   '⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review.': '⌘↵ 저장 · Esc 취소. 저장하면 승인이 초기화되고 다시 검토 단계로 돌아가요.',
 })

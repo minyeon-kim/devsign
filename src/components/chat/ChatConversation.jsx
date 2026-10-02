@@ -15,6 +15,7 @@ import {
   Crosshair,
   FileCode,
   FileText,
+  GitMerge,
   MessageCircle,
   Paperclip,
   Pin,
@@ -46,6 +47,8 @@ import { aiModels, chatSuggestions, findCanvasTarget, forProject, projectChatGre
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { mergeChatSuggestions } from '@/lib/mergeChat'
+import { LocalizedText } from '@/i18n/runtime'
 
 const suggestionIcons = { MessageCircle, Sparkles, Pin }
 
@@ -301,12 +304,15 @@ function ChatConversation() {
     chatTargetOverride,
     setChatTargetOverride,
     workspaceFiles,
+    chatThreadItem,
   } = workspace
   const options = targetOptions(workspace)
   const key = selectionKey(workspace)
   const picked = (chatTargetOverride?.key?.startsWith('document:') || chatTargetOverride?.selection === key) ? options.find((o) => o.key === chatTargetOverride.key) : null
   const target = picked ?? options.find((o) => o.kind === 'element') ?? null
-  const suggestions = forProject(chatSuggestions, projectId)
+  // In Merge Studio the conversation is the open item's own (see
+  // WorkspaceProvider's `chatThread`), with prompts about that item.
+  const suggestions = chatThreadItem ? mergeChatSuggestions() : forProject(chatSuggestions, projectId)
   const attachablePool = workspaceFiles.map((f) => f.name)
   const [attachments, setAttachments] = useState([])
   const [codeBlockMode, setCodeBlockMode] = useState(false)
@@ -372,6 +378,14 @@ function ChatConversation() {
     <div className="flex min-h-0 flex-1 flex-col">
       <RollbackCheckpointModal key={rollbackId} entryId={rollbackId} onOpenChange={(open) => !open && setRollbackId(null)} />
 
+      {chatThreadItem && (
+        <p className="flex shrink-0 items-center gap-1.5 px-5 pt-2.5 text-[10.5px] text-slate-500">
+          <GitMerge className="size-3 shrink-0 text-emerald-300/80" />
+          <LocalizedText text="Merge" />
+          <span className="text-slate-600">·</span>
+          <span className="min-w-0 truncate text-slate-300"><LocalizedText text={chatThreadItem.title} /></span>
+        </p>
+      )}
       <div className="relative flex min-h-0 flex-1">
         <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3" style={{ '--scroll-fade-size': '14px', '--scroll-fade-edge': 'rgb(0 0 0 / 30%)' }}>
         {chatMessages.map((message, index) => (
