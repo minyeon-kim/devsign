@@ -422,6 +422,18 @@ function ChatConversation() {
               <ActionButton label="Share" onClick={() => shareMessage(message)}><Share2 className="size-3.5" /></ActionButton>
             </div>}
             {message.result && <ResultCard result={message.result} messageId={message.id} />}
+            {/* A drafted review note: into the conflict's Comments box —
+                sending, and requesting the review, stay in the review. */}
+            {message.commentDraft && (
+              <button
+                type="button"
+                onClick={() => workspace.draftCommentFromChat(message.commentDraft)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-white transition-colors hover:bg-white/[0.1]"
+              >
+                <MessageCircle className="size-3.5 text-emerald-300" />
+                <LocalizedText text="Use as comment" />
+              </button>
+            )}
             {message.historyId && <ChatCheckpoint historyId={message.historyId} onRollback={setRollbackId} />}
           </div>
         ))}

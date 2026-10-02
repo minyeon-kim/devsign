@@ -272,8 +272,15 @@ export function WorkspaceProvider({ children, projectId }) {
   // (see lib/mergeChat). `setChatMessagesFor(thread)` writes to one thread
   // regardless of which is on screen, so a reply that lands after you've
   // switched items still goes to the conversation it answers.
-  const chatThread = activeView === 'mergeStudio' && selectedMergeItemId ? selectedMergeItemId : null
-  const chatThreadItem = chatThread ? mergeItems.find((item) => item.id === chatThread) ?? null : null
+  // The item Merge Studio has open: the selection, or else the next
+  // unmerged item (what the studio opens by default). One answer for the
+  // canvas (MergeStudioView) and the chat thread, so they never disagree.
+  const openMergeItem = mergeItems.find((item) => item.id === selectedMergeItemId)
+    ?? mergeItems.find((item) => item.tag !== 'Merged')
+    ?? mergeItems[0]
+    ?? null
+  const chatThread = activeView === 'mergeStudio' && openMergeItem ? openMergeItem.id : null
+  const chatThreadItem = chatThread ? openMergeItem : null
   const threadStart = useCallback((itemId) => {
     const item = mergeItems.find((candidate) => candidate.id === itemId)
     return item ? mergeChatIntro(item, itemConflicts(item, conflicts)) : initialChatMessages
@@ -1288,7 +1295,8 @@ export function WorkspaceProvider({ children, projectId }) {
       })
       setIsAiTyping(true)
 
-      const mergeReply = chatThreadItem ? mergeChatAnswer(chatThreadItem, itemConflicts(chatThreadItem, conflicts), trimmed) : null
+      const mergeAnswer = chatThreadItem ? mergeChatAnswer(chatThreadItem, itemConflicts(chatThreadItem, conflicts), trimmed, currentUser.id) : null
+      const mergeReply = typeof mergeAnswer === 'string' ? mergeAnswer : mergeAnswer?.text ?? null
       const documentReply = mergeReply ?? (target?.kind === 'document' ? answerDocumentQuestion(allReferenceDocs.find((doc) => doc.id === target.docId), trimmed) : null)
       const answer = forProject(chatSuggestions, projectId).find((q) => q.reply && [q.prompt, translateText(q.prompt, 'ko')].some((prompt) => prompt.toLowerCase() === trimmed.toLowerCase()))
       const lower = trimmed.toLowerCase()
@@ -1298,7 +1306,13 @@ export function WorkspaceProvider({ children, projectId }) {
       window.setTimeout(() => {
         if (documentReply) {
           setIsAiTyping(false)
-          appendAssistant({ id: nextId('m'), role: 'assistant', text: documentReply, ...(!mergeReply && { target }) })
+          appendAssistant({
+            id: nextId('m'),
+            role: 'assistant',
+            text: documentReply,
+            ...(!mergeReply && { target }),
+            ...(mergeAnswer?.commentDraft && { commentDraft: mergeAnswer.commentDraft }),
+          })
           return
         }
         if (answer) {
@@ -1386,7 +1400,7 @@ export function WorkspaceProvider({ children, projectId }) {
       }, 900)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allReferenceDocs, chatThread, chatThreadItem, commitAiScenario, conflicts, fileOverrides, previewProps, projectId, setChatMessagesFor]
+    [allReferenceDocs, chatThread, chatThreadItem, commitAiScenario, conflicts, currentUser.id, fileOverrides, previewProps, projectId, setChatMessagesFor]
   )
 
   // Commits a proposal the person approved: same write path as Auto mode's
@@ -1410,6 +1424,16 @@ export function WorkspaceProvider({ children, projectId }) {
       prev.map((m) => (m.id === messageId ? { ...m, result: { ...m.result, status: 'discarded' }, pendingEdit: null } : m))
     )
   }, [setChatMessages])
+
+  // An AI-written note headed for a conflict's Comments box (see
+  // mergeChat's review-request draft): opens that conflict's review in the
+  // bottom panel and hands the text to its comment composer to send.
+  const [commentDraftRequest, setCommentDraftRequest] = useState(null)
+  const draftCommentFromChat = useCallback(({ conflictId, text }) => {
+    setBottomPanel({ open: true, tab: 'conflict' })
+    setReviewConflictId(conflictId)
+    setCommentDraftRequest({ conflictId, text, nonce: nextId('comment-draft') })
+  }, [setBottomPanel])
 
   const getFileLines = useCallback(
     (fileId) => {
@@ -1624,6 +1648,9 @@ export function WorkspaceProvider({ children, projectId }) {
     chatMessages,
     chatThread,
     chatThreadItem,
+    openMergeItem,
+    commentDraftRequest,
+    draftCommentFromChat,
     isAiTyping,
     sendChatMessage,
     applyPendingAiEdit,

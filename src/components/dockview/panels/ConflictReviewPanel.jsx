@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   Bell,
   Bot,
@@ -584,6 +584,16 @@ function CommentThread({ conflict, workspace }) {
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyDraft, setReplyDraft] = useState('')
+  const composerRef = useRef(null)
+
+  // A note drafted in AI Chat (its "Use as comment") lands here to review
+  // and send — the composer is where every comment is sent from.
+  const request = workspace?.commentDraftRequest
+  useEffect(() => {
+    if (!request || request.conflictId !== conflict.id) return
+    setDraft(request.text)
+    requestAnimationFrame(() => composerRef.current?.focus())
+  }, [request?.nonce, conflict.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!workspace) {
     return <p className="text-xs text-slate-500">Open the project's workspace to see and reply to its thread.</p>
@@ -625,7 +635,7 @@ function CommentThread({ conflict, workspace }) {
                     <PersonRole person={author} viewerId={viewerId} />
                     <span className="text-[11px] text-slate-500"><LocalizedText text={comment.timeLabel} /></span>
                   </p>
-                  <p className="mt-0.5 leading-relaxed text-slate-300"><LocalizedText text={comment.text} /></p>
+                  <p className="mt-0.5 leading-relaxed whitespace-pre-line text-slate-300"><LocalizedText text={comment.text} /></p>
                   <button
                     type="button"
                     onClick={() => {
@@ -683,16 +693,29 @@ function CommentThread({ conflict, workspace }) {
         })}
       </div>
 
-      {/* Merge Studio's pill input: Write a comment · Send. */}
+      {/* Write a comment · Send. Grows with what's typed up to four lines
+          (a pill at one line, a rounded box past it), then scrolls; Enter
+          sends, Shift+Enter breaks a line. */}
       <form
         onSubmit={handleSend}
-        className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:bg-white/[0.07]"
+        className={cn(
+          'flex shrink-0 items-end gap-1 bg-white/[0.04] py-1 pr-1 pl-4 transition-colors focus-within:bg-white/[0.07]',
+          draft.includes('\n') ? 'rounded-2xl' : 'rounded-[20px]'
+        )}
       >
-        <input
+        <textarea
+          ref={composerRef}
           value={draft}
+          rows={Math.min(4, Math.max(1, draft.split('\n').length))}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              handleSend(event)
+            }
+          }}
           placeholder="Write a comment"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-500"
+          className="max-h-[88px] min-w-0 flex-1 resize-none self-center overflow-y-auto bg-transparent py-1.5 text-[13px] leading-5 text-white outline-none placeholder:text-slate-500"
         />
         <button
           type="submit"
@@ -951,12 +974,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                 </div>
 
-                {/* All three review columns now start beneath the shared tab row. */}
-                <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden', REVIEW_GUTTER)}>
-                  <div className={cn('min-h-0 max-h-[48%] shrink-0 overflow-y-auto', REVIEW_CONTEXT_CARD)}>
+                {/* All three review columns now start beneath the shared tab row.
+                    In a short bottom panel (Merge Studio's) the column scrolls
+                    as a whole rather than squeezing Comments to nothing: the
+                    thread keeps a usable minimum height. */}
+                <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-y-auto', REVIEW_GUTTER)}>
+                  <div className={cn('shrink-0', REVIEW_CONTEXT_CARD)}>
                     <ReviewersSection conflict={conflict} onUpdate={update} />
                   </div>
-                  <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
+                  <div className={cn('flex min-h-[220px] flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />
                     </p>

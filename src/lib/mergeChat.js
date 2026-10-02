@@ -59,8 +59,11 @@ function reviewerLine(conflict) {
 }
 
 // The reply to one of the item's prompts, or null for anything else (the
-// usual chat handling takes over).
-export function mergeChatAnswer(item, related, text) {
+// usual chat handling takes over). Usually just text; the review-request
+// draft also carries `commentDraft` — the same message as plain text, for
+// the conflict's Comments box (see WorkspaceProvider's draftCommentFromChat):
+// sending stays in the review, the AI only writes the note.
+export function mergeChatAnswer(item, related, text, viewerId) {
   const asked = text.trim().toLowerCase()
   const is = (prompt) => asked === prompt.toLowerCase()
   const open = related.filter((c) => c.reviewStage !== 'resolved')
@@ -101,23 +104,27 @@ export function mergeChatAnswer(item, related, text) {
   }
 
   if (is(PROMPTS.request)) {
-    const reviewers = [...new Set(open.flatMap((c) => c.reviewers.map((r) => nameOf(r.id))))]
-    if (isKo()) {
-      return [
-        '보낼 수 있는 검토 요청 메시지예요.',
-        '',
-        `> ${reviewers.length ? reviewers.join(', ') : '팀'}님, **${tr(item.title)}** 검토 부탁드려요.`,
-        ...open.map((c) => `> - ${tr(c.title)}${c.message ? `: ${tr(c.message)}` : ''}`),
-        '> 병합 스튜디오 → 충돌 지점에서 확인할 수 있어요. 감사합니다!',
-      ].join('\n')
+    // Addressed to the other reviewers — never to yourself.
+    const reviewers = [...new Set(open.flatMap((c) => c.reviewers.filter((r) => r.id !== viewerId).map((r) => nameOf(r.id))))]
+    const body = isKo()
+      ? [
+          `${reviewers.length ? reviewers.join(', ') : '팀'}님, ${tr(item.title)} 검토 부탁드려요.`,
+          ...open.map((c) => `- ${tr(c.title)}${c.message ? `: ${tr(c.message)}` : ''}`),
+        ]
+      : [
+          `Hi ${reviewers.length ? reviewers.join(', ') : 'team'} — could you review ${item.title}?`,
+          ...open.map((c) => `- ${c.title}${c.message ? `: ${c.message}` : ''}`),
+        ]
+    const intro = isKo()
+      ? '검토 요청과 함께 남길 메시지예요. **코멘트로 쓰기**를 누르면 충돌의 Comments에 들어가요.'
+      : 'Here’s a note to go with the review request — **Use as comment** puts it in the conflict’s Comments.'
+    const target = open[0]
+    return {
+      // Chat markdown has no blockquotes — the draft is set off by the
+      // blank line and the button under it instead.
+      text: [intro, '', ...body].join('\n'),
+      commentDraft: target ? { conflictId: target.id, text: body.join('\n') } : null,
     }
-    return [
-      'Here’s a review request you can send:',
-      '',
-      `> Hi ${reviewers.length ? reviewers.join(', ') : 'team'} — could you review **${item.title}**?`,
-      ...open.map((c) => `> - ${c.title}${c.message ? `: ${c.message}` : ''}`),
-      '> It’s in Merge Studio → Conflict Points. Thanks!',
-    ].join('\n')
   }
 
   return null
