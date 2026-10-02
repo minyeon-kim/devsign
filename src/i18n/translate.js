@@ -39,11 +39,14 @@ const rules = [
   [/^(\d+) pending$/, (_, n) => `대기 ${n}개`],
   [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '병합 충돌'}`],
   [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
-  [/^Waiting for (.+)$/, (_, name) => `${name} 대기 중`],
-  [/^Approved by (.+)$/, (_, name) => `${name === 'you' ? '내가' : name} 승인함`],
-  [/^Changes requested by (.+)$/, (_, name) => `${name} 변경 요청`],
-  [/^Projects \(current: (.+)\)$/, (_, name) => `프로젝트 (현재: ${name})`],
-  [/^(.+) home$/, (_, name) => `${name} 홈`],
+  [/^Waiting for (.+)$/, (_, name) => `${core(name)} 대기 중`],
+  [/^Approved by (.+)$/, (_, name) => `${name === 'you' ? '내가' : core(name)} 승인함`],
+  [/^Changes requested by (.+)$/, (_, name) => `${core(name)} 변경 요청`],
+  [/^Projects \(current: (.+)\)$/, (_, name) => `프로젝트 (현재: ${core(name)})`],
+  // Was `${name} 홈` — left the captured part (e.g. "Project") untranslated
+  // since it never ran back through core(), producing "Project 홈" instead
+  // of "프로젝트 홈".
+  [/^(.+) home$/, (_, name) => `${core(name)} 홈`],
   [/^Notifications \((\d+) unread\)$/, (_, n) => `알림 (읽지 않음 ${n}개)`],
   [/^Inbox \((\d+) unread\)$/, (_, n) => `받은 알림 (읽지 않음 ${n}개)`],
   [/^No one matches “(.+)”$/, (_, name) => `“${name}”와 일치하는 사람이 없습니다`],
