@@ -91,10 +91,11 @@ function EmptyNote({ children }) {
   return <p className="rounded-xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">{children}</p>
 }
 
+// 20px — the same size as the header's presence avatars.
 function PersonAvatar({ person }) {
   return (
-    <Avatar size="sm">
-      <AvatarFallback className={cn('text-[10px] font-semibold text-white', person.colorClass)}>
+    <Avatar size="xs">
+      <AvatarFallback className={cn('font-semibold text-white', person.colorClass)}>
         <LocalizedText text={person.initials} />
       </AvatarFallback>
     </Avatar>
@@ -224,7 +225,7 @@ function Provenance({ conflict, className }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject }) {
+function OverviewTab({ conflict, severity, stage, showProject, reviewers }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -291,6 +292,13 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
           <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />
           Values below are from before the merge.
         </p>
+      )}
+      {/* Who the stage is waiting on, right under it. */}
+      {reviewers && (
+        <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
+          <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1.5')}>Reviewers</p>
+          {reviewers}
+        </div>
       )}
       {(summary || hasMetadata) && (
         <section className="min-w-0 flex-1">
@@ -452,8 +460,10 @@ const PRIMARY_BUTTON = cn(
 )
 const REQUEST_REVIEW_BUTTON = 'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-medium whitespace-nowrap ds-review-cta disabled:opacity-45'
 
+const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-6 items-center gap-1 text-[10.5px] text-slate-500 transition-colors hover:text-white data-[popup-open]:text-white'
+
 const iconActionClass =
-  'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
+  'ds-intrinsic flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
 // Reviewers sign off here. Assigning is open until the conflict is
 // resolved — a new reviewer on an Approved conflict sends it back to In
@@ -509,69 +519,36 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
     toast(`Reminder sent to ${names.join(', ')}`, { description: conflict.title })
   }
 
+  // Compact, for the overview's label grid (the "Reviewers" label sits in
+  // the grid's own label column): one short row per reviewer — avatar,
+  // name, status — with its actions on hover, and Assign / Remind all as
+  // quiet text actions underneath.
   return (
-    <div>
-      <div className={cn(PANEL_LABEL, 'ds-review-context-heading justify-between')}>
-        <span>Reviewers</span>
-        <span className="flex items-center gap-1">
-        {canRemind && pending.length > 1 && (
-          <button
-            type="button"
-            onClick={() => remind(pending.map((r) => r.id))}
-            className="flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            <Bell className="size-3" />
-            Remind all
-          </button>
-        )}
-        {reviewStage !== 'resolved' && assignable.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
-              <Plus className="size-3" />
-              Assign
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {assignable.map((person) => (
-                <DropdownMenuItem
-                  key={person.id}
-                  onClick={() => assign(person)}
-                  className="gap-2"
-                >
-                  <PersonAvatar person={person} />
-                  {person.name}
-                  {person.id === viewerId && <span className="text-muted-foreground">(you)</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        </span>
-      </div>
-
+    <div className="min-w-0">
       {reviewers.length === 0 ? (
-        <p className="text-[11px] leading-4 text-slate-500">No reviewers assigned</p>
+        <p className="py-1.5 text-[11px] leading-4 text-slate-500">No reviewers assigned</p>
       ) : (
-        <div className="space-y-1">
+        <div>
           {reviewers.map((reviewer) => {
             const person = allPeople.find((p) => p.id === reviewer.id)
             if (!person) return null
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
               <Fragment key={reviewer.id}>
-              <div className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_112px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <PersonAvatar person={person} />
-                  <span className="min-w-0 truncate font-medium text-slate-200">
-                    {person.name}
-                    {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
-                  </span>
-                </div>
-                <span className={cn('w-28 truncate text-right text-[11px]', status.className)}>
+              <div className="group/rev -mx-1 flex h-7 min-w-0 items-center gap-2 rounded-md px-1 text-xs hover:bg-white/[0.03]">
+                <PersonAvatar person={person} />
+                <span className="min-w-0 flex-1 truncate font-medium text-slate-200">
+                  {person.name}
+                  {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
+                </span>
+                <span className={cn('shrink-0 truncate text-[10.5px]', status.className)}>
                   {reviewer.status === 'pending' && reviewer.dismissedAt
                     ? 'Request dismissed'
                     : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
-                <div className="flex w-[72px] shrink-0 items-center justify-end gap-0">
+                {/* A fixed slot (room for two actions) on every row, so the
+                    statuses line up whether or not a row has actions. */}
+                <div className="flex w-12 shrink-0 items-center justify-end opacity-0 transition-opacity group-hover/rev:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
                   {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && (
                     <button
                       type="button"
@@ -590,7 +567,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                       title="Dismiss change request…"
                       aria-expanded={dismissing === reviewer.id}
                       onClick={() => { setDismissing(dismissing === reviewer.id ? null : reviewer.id); setReason('') }}
-                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100')}
+                      className={iconActionClass}
                     >
                       <Ban className="size-3.5" />
                     </button>
@@ -602,7 +579,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                       aria-label={`Remove ${person.name}`}
                       title="Remove reviewer"
                       onClick={() => removeReviewer(reviewer, person.name)}
-                      className={cn(iconActionClass, 'opacity-0 group-hover/rev:opacity-100 focus-visible:opacity-100')}
+                      className={iconActionClass}
                     >
                       <X className="size-3.5" />
                     </button>
@@ -646,6 +623,33 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
           })}
         </div>
       )}
+      {(canRemind && pending.length > 1) || (reviewStage !== 'resolved' && assignable.length > 0) ? (
+        <div className="mt-0.5 flex items-center gap-3">
+          {reviewStage !== 'resolved' && assignable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className={REVIEWER_TEXT_ACTION}>
+                <Plus className="size-3" />
+                Assign
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                {assignable.map((person) => (
+                  <DropdownMenuItem key={person.id} onClick={() => assign(person)} className="gap-2">
+                    <PersonAvatar person={person} />
+                    {person.name}
+                    {person.id === viewerId && <span className="text-muted-foreground">(you)</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {canRemind && pending.length > 1 && (
+            <button type="button" onClick={() => remind(pending.map((r) => r.id))} className={REVIEWER_TEXT_ACTION}>
+              <Bell className="size-3" />
+              Remind all
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -890,9 +894,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   const detailTabs = (
-    // Same plain text toggles as the Conflict Points list filters — no
-    // underline, no rule under the row.
-    <div className="flex shrink-0 items-center gap-x-4 pb-1" role="tablist" aria-label="Conflict details">
+    // Same plain text toggles as the Conflict Points list filters, in the
+    // title row right after the id — no row of their own.
+    <div className="ml-3 flex shrink-0 items-center gap-x-4" role="tablist" aria-label="Conflict details">
       {TABS.map(([id, label]) => (
         <button
           key={id}
@@ -995,6 +999,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <LocalizedText text={conflict.title} />
                 </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
+                {detailTabs}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 {primary}
@@ -1017,11 +1022,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
-              {/* Indented to the title's first letter: back button (24px) +
-                  its gap (8px), on the header's 12px inset. */}
-              <div className="shrink-0 pl-8">
-                {detailTabs}
-              </div>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
@@ -1031,7 +1031,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <OverviewTab conflict={conflict} severity={severity} stage={stage} showProject={!workspace} />
+                          <OverviewTab
+                            conflict={conflict}
+                            severity={severity}
+                            stage={stage}
+                            showProject={!workspace}
+                            reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
+                          />
                         </div>
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
@@ -1047,15 +1053,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                 </div>
 
-                {/* All three review columns now start beneath the shared tab row.
-                    In a short bottom panel (Merge Studio's) the column scrolls
-                    as a whole rather than squeezing Comments to nothing: the
-                    thread keeps a usable minimum height. */}
-                <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-y-auto', REVIEW_GUTTER)}>
-                  <div className={cn('shrink-0', REVIEW_CONTEXT_CARD)}>
-                    <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
-                  </div>
-                  <div className={cn('flex min-h-[220px] flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
+                {/* All three review columns start beneath the shared tab row.
+                    Reviewers live in the overview (beside the stage they
+                    gate), so this column is the conversation alone. */}
+                <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
+                  <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />
                     </p>

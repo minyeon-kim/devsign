@@ -55,8 +55,8 @@ function UserPresence() {
           aria-label={`${currentUser.name} profile`}
           className="relative z-40 flex size-5 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80"
         >
-          <Avatar size="sm" className="size-5">
-            <AvatarFallback className={cn('text-[9px] font-medium text-white', currentUser.colorClass)}>
+          <Avatar size="xs">
+            <AvatarFallback className={cn('font-medium text-white', currentUser.colorClass)}>
               {currentUser.initials}
             </AvatarFallback>
           </Avatar>
@@ -152,9 +152,9 @@ function UserPresence() {
                   active && 'ring-2 ring-primary ring-offset-0 ring-offset-card'
                 )}
               >
-                <Avatar size="sm" className="size-5">
+                <Avatar size="xs">
                   <AvatarFallback
-                    className={cn('text-[10px] font-medium text-white', member.colorClass)}
+                    className={cn('font-medium text-white', member.colorClass)}
                   >
                     {member.initials}
                   </AvatarFallback>

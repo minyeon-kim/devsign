@@ -377,8 +377,8 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                       {reviewers.length ? (
                         <div className="flex flex-wrap justify-start gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
-                            <Avatar key={person.id} size="sm" className="size-5 ring-2 ring-card" title={person.name}>
-                              <AvatarFallback className={cn('text-[10px] font-medium text-white', person.colorClass)}>
+                            <Avatar key={person.id} size="xs" className="ring-2 ring-card" title={person.name}>
+                              <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>
                                 {person.initials}
                               </AvatarFallback>
                             </Avatar>
