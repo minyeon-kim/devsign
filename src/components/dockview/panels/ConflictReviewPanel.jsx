@@ -962,9 +962,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             <div className="flex shrink-0 items-center gap-3 px-5 pt-1 pb-2.5">
               <div className="min-w-0 flex-1" />
               <div className="flex shrink-0 items-center gap-1.5">
-                {stage === 'in_review' && myReview && (
-                  <span className="mr-1 hidden text-[10px] text-slate-500 sm:inline">Your decision</span>
-                )}
                 {primary}
               </div>
               {stage !== 'resolved' && (
