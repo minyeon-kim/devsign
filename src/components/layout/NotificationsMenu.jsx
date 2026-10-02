@@ -65,7 +65,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
           </button>
         }
       />
-      <DropdownMenuContent align="end" sideOffset={10} positionerClassName="z-[700]" className="w-80 gap-0 p-0">
+      <DropdownMenuContent align="end" sideOffset={10} positionerClassName="z-[700]" className="w-[380px] gap-0 p-0">
         <p className="px-4 py-3 text-xs font-medium text-muted-foreground">Notifications</p>
         <div className="max-h-96 space-y-1 overflow-y-auto px-2 pb-2">
           {recentNotifications.map((activity) => {
