@@ -1278,6 +1278,84 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
             <p className={cn('shrink-0 font-semibold text-amber-300', step === 1 || step === 2 || step === 3 ? 'text-[10px]' : 'text-xs')}>Draft changes</p>
           </div>
         </section>
+
+        <div className="flex shrink-0 items-center justify-end gap-2 pb-2">
+          {run === 'success' ? (
+            <button
+              type="button"
+              onClick={() => {
+                setRun('idle')
+                onRequestComplete?.()
+              }}
+              className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
+            >
+              Done
+            </button>
+          ) : (
+            <>
+              {step === 3 && action.kind === 'check' ? (
+                <span className="mr-auto text-xs text-amber-300">{action.reason}</span>
+              ) : step === 3 && action.kind === 'request' && !reviewValid ? (
+                <span className="mr-auto text-[13px] text-amber-500">
+                  {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
+                </span>
+              ) : step === 2 && review.drifts.length > 0 ? (
+                <span className={cn('mr-auto text-[13px] tabular-nums', unreviewedCount ? 'text-amber-300' : 'text-emerald-300')}>
+                  {unreviewedCount
+                    ? `${unreviewedCount} of ${review.drifts.length} change${review.drifts.length === 1 ? '' : 's'} not yet reviewed`
+                    : 'All changes reviewed'}
+                </span>
+              ) : (
+                <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
+                  Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={busy || step === 0}
+                onClick={() => onStepChange(step - 1)}
+                className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+              >
+                <ChevronLeft className="size-4" />
+                Back
+              </button>
+              {!last ? (
+                <button
+                  type="button"
+                  disabled={!canNext}
+                  onClick={() => onStepChange(step + 1)}
+                  className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+                >
+                  Continue to {WIZARD_STEPS[step + 1].label}
+                  <ArrowRight className="size-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy || action.disabled || (action.kind === 'request' && !reviewValid)}
+                  onClick={() => {
+                    if (action.kind === 'approve') {
+                      if (action.linked.length) action.linked.forEach((c) => approveConflict(c.id))
+                      else updateMergeItem(item.id, { reviewers: item.reviewers.map((r) => r.id === currentUser.id ? { ...r, status: 'approved' } : r) })
+                    } else if (action.kind === 'check') {
+                      onStepChange(1)
+                    } else if (action.kind === 'merge') {
+                      onFinalMerge()
+                    } else {
+                      setProgress(0)
+                      setRun('progress')
+                    }
+                  }}
+                  className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                >
+                  <GitPullRequest className="size-4" />
+                  {action.label} {action.progress}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
         {run === 'idle' && step === 0 && (
           item.hasDesign ? (
             <VariantCompareTab item={item} selectedLayerId={selectedLayerId} resolutions={resolutions} onResolve={onResolveDiff} onHoverDiff={onHoverDiff} />
@@ -1367,94 +1445,11 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
 
         </div>
 
-        <div className="flex shrink-0 flex-col px-4 py-3">
-          <div className="flex items-center justify-end gap-2">
-            {run === 'success' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setRun('idle')
-                  onRequestComplete?.()
-                }}
-                className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
-              >
-                Done
-              </button>
-            ) : (
-              <>
-                {step === 3 && action.kind === 'check' ? (
-                  <span className="mr-auto text-xs text-amber-300">{action.reason}</span>
-                ) : step === 3 && action.kind === 'request' && !reviewValid ? (
-                  <span className="mr-auto text-[13px] text-amber-500">
-                    {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
-                  </span>
-                ) : step === 2 && review.drifts.length > 0 ? (
-                  // Preview never blocks moving on (the existing policy) — it
-                  // just says plainly how much is left to look at. Continuing
-                  // opens the Review step; nothing is merged until the PR
-                  // there is opened and approved.
-                  <span className={cn('mr-auto text-[13px] tabular-nums', unreviewedCount ? 'text-amber-300' : 'text-emerald-300')}>
-                    {unreviewedCount
-                      ? `${unreviewedCount} of ${review.drifts.length} change${review.drifts.length === 1 ? '' : 's'} not yet reviewed`
-                      : 'All changes reviewed'}
-                  </span>
-                ) : (
-                  <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
-                    Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  disabled={busy || step === 0}
-                  onClick={() => onStepChange(step - 1)}
-                  className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
-                >
-                  <ChevronLeft className="size-4" />
-                  Back
-                </button>
-                {!last ? (
-                  <button
-                    type="button"
-                    disabled={!canNext}
-                    onClick={() => onStepChange(step + 1)}
-                    className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
-                  >
-                    Continue to {WIZARD_STEPS[step + 1].label}
-                    <ArrowRight className="size-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busy || action.disabled || (action.kind === 'request' && !reviewValid)}
-                    onClick={() => {
-                      if (action.kind === 'approve') {
-                        if (action.linked.length) action.linked.forEach((c) => approveConflict(c.id))
-                        else updateMergeItem(item.id, { reviewers: item.reviewers.map((r) => r.id === currentUser.id ? { ...r, status: 'approved' } : r) })
-                      } else if (action.kind === 'check') {
-                        onStepChange(1)
-                      } else if (action.kind === 'merge') {
-                        onFinalMerge()
-                      } else {
-                        setProgress(0)
-                        setRun('progress')
-                      }
-                    }}
-                    className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
-                  >
-                    <GitPullRequest className="size-4" />
-                    {action.label} {action.progress}
-
-                  </button>
-                )}
-              </>
-            )}
+        {step === 3 && action.kind === 'waiting' && (
+          <div className="flex shrink-0 px-4 py-2 text-center text-xs text-slate-400">
+            Awaiting approval · {action.pending.map((id) => allPeople.find((p) => p.id === id)?.name ?? id).join(', ')}
           </div>
-          {step === 3 && action.kind === 'waiting' && (
-            <div className="mt-2 text-center text-xs text-slate-400">
-              Awaiting approval · {action.pending.map((id) => allPeople.find((p) => p.id === id)?.name ?? id).join(', ')}
-            </div>
-          )}
-        </div>
+        )}
         </>
         )}
       </div>

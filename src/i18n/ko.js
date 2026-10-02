@@ -1368,3 +1368,5 @@ Object.assign(ko, {
   'Zoom to Fit': '전체 맞춤',
   'Zoom to Selection': '선택 영역 맞춤',
 })
+
+Object.assign(ko, { 'Request review': '검토 요청 보내기', 'Awaiting approval': '승인 대기', 'Not requested': '요청 전', 'Continue to Check': '확인 단계로 이동' })

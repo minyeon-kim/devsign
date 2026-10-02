@@ -1,3 +1,4 @@
+import { mergeAction } from '@/lib/mergeAction'
 import { mergeChangeCount } from '@/lib/mergeChangeCount'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
@@ -106,6 +107,8 @@ function MergeStudioWorkspace({ item }) {
     completeMerge,
     conflicts,
     updateConflict,
+    currentUser,
+    approveConflict,
     mergeItems,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
@@ -694,7 +697,7 @@ function MergeStudioWorkspace({ item }) {
     onComplete: (reviewerIds) => {
       if (item?.tag === 'Merged') return
       updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
-      for (const conflict of conflicts.filter((c) => c.mergeItemId === item.id && c.reviewStage !== 'resolved')) {
+      for (const conflict of conflicts.filter((c) => (c.mergeItemId === item.id || c.id === item.conflictId) && c.reviewStage !== 'resolved')) {
         const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
         updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
       }
@@ -762,11 +765,20 @@ function MergeStudioWorkspace({ item }) {
   // context-aware content is visible right away.
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
 
+  const action = mergeAction(item, conflicts, currentUser.id)
+
   // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
   const openWizardRef = useRef(null)
   openWizardRef.current = () => {
     if (item?.tag === 'Merged') return
-    openWizard()
+    if (action.kind === 'merge') finishMerge(item.id)
+    else if (action.kind === 'approve') {
+      if (action.linked.length) action.linked.forEach((c) => approveConflict(c.id))
+      else updateMergeItem(item.id, { reviewers: item.reviewers.map((r) => r.id === currentUser.id ? { ...r, status: 'approved' } : r) })
+    } else {
+      openWizard()
+      if (action.kind === 'request') setWizardStep(3)
+    }
   }
   const mergedNow = item?.tag === 'Merged'
   const ctaCount = mergedNow ? 0 : mergeChangeCount(changesSummary, codeMergeVariants[item?.id], manualCode, annotationsSnap)
@@ -775,9 +787,9 @@ function MergeStudioWorkspace({ item }) {
       setMergeCta(null)
       return
     }
-    setMergeCta({ merged: mergedNow, count: ctaCount, open: () => openWizardRef.current?.() })
+    setMergeCta({ label: action.label, disabled: action.disabled, progress: action.progress, merged: mergedNow, count: ctaCount, open: () => openWizardRef.current?.() })
     return () => setMergeCta(null)
-  }, [item, mergedNow, ctaCount, setMergeCta])
+  }, [item, mergedNow, ctaCount, setMergeCta, action.label, action.disabled, action.progress])
 
   const deckReserve = 0
   // The step flow no longer floats over the canvas (it's docked in the
