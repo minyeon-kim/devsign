@@ -53,7 +53,7 @@ export default function SettingsDialog({ triggerClassName }) {
       <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName}>
         <Settings className="size-[18px]" />
       </PopoverTrigger>
-      <PopoverContent side="right" align="end" sideOffset={14} alignOffset={8} className="w-56 gap-1 rounded-xl border-white/10 bg-card p-1.5 shadow-xl">
+      <PopoverContent side="right" align="end" sideOffset={14} alignOffset={8} className="w-56 gap-1 rounded-xl border-white/10 bg-popover p-1.5 shadow-xl">
         <PopoverTitle className="px-2 pt-1 pb-0.5 text-[11px] font-medium text-slate-500">Settings</PopoverTitle>
         <SettingsContent />
       </PopoverContent>

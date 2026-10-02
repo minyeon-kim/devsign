@@ -811,7 +811,7 @@ function MergeStudioWorkspace({ item }) {
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-canvas">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-background">
       <button
         type="button"
         onClick={exitMergeStudio}
@@ -892,7 +892,7 @@ function MergeStudioWorkspace({ item }) {
         <div
           className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center"
           style={{
-            backgroundColor: 'var(--canvas)',
+            backgroundColor: 'var(--ds-bg-base)',
             backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)',
             backgroundSize: '18px 18px',
           }}

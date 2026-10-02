@@ -10,8 +10,11 @@
 // stays crisp), a 10% white hairline border, a faint inner top highlight,
 // and a layered soft shadow that lifts it off the canvas. Pair with
 // PANEL_RADIUS.
+// The lift is kept short: the card-vs-background step already separates
+// the panel, and a long soft shadow pooled on the canvas around it — the
+// strip between the activity bar and a panel read darker than the bar.
 export const FLOATING_PANEL =
-  'border border-white/10 bg-card shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_24px_64px_-16px_rgba(0,0,0,0.7),0_8px_20px_-8px_rgba(0,0,0,0.5)]'
+  'border border-white/10 bg-card shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_4px_12px_-6px_rgba(0,0,0,0.5)]'
 export const PANEL_RADIUS = 'rounded-[20px]'
 // A page section or card outside the Workspace (Dashboard, Project home):
 // the Workspace window's surface — card charcoal, 10% hairline, 20px

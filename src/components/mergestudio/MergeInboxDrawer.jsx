@@ -254,7 +254,7 @@ function InboxItem({ n, onJump }) {
             <button
               type="submit"
               disabled={!draft.trim()}
-              className="flex h-8 items-center justify-center rounded-full bg-[#2c2c31] px-4 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-colors hover:bg-[#38383e] disabled:text-slate-500 disabled:hover:bg-[#2c2c31]"
+              className="flex h-8 items-center justify-center rounded-full bg-[#2E2E2E] px-4 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500 disabled:hover:bg-[#2E2E2E]"
             >
               Send
             </button>

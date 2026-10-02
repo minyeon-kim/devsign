@@ -107,7 +107,7 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
         </AvatarGroup>
       </div>
     </button>
-    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-card/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#242427] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
+    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-card/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#252525] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
     </div>
   )
 }

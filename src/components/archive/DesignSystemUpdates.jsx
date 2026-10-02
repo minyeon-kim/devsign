@@ -120,7 +120,7 @@ function DocumentDestination({ update, affectedDocs, createdDoc, onChangeCategor
       </div>
       {pending && editing && <label className="mt-3 grid gap-1.5 text-[11px] text-slate-400">
         Document category
-        <select value={categoryId} onChange={(event) => onChangeCategory(event.target.value)} className="h-8 w-full rounded-lg border border-white/10 bg-[#09090A] px-3 text-xs text-slate-200 outline-none focus:border-emerald-300/50">
+        <select value={categoryId} onChange={(event) => onChangeCategory(event.target.value)} className="h-8 w-full rounded-lg border border-white/10 bg-[#090909] px-3 text-xs text-slate-200 outline-none focus:border-emerald-300/50">
           {categories.map((entry) => <option key={entry.id} value={entry.id}>{entry.path.join(' / ')}</option>)}
         </select>
       </label>}

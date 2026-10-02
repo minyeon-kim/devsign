@@ -2079,10 +2079,12 @@ function MergeInfiniteCanvas({
   const leftInset = 16
 
   return (
-    // The shared infinite-canvas tone (`bg-canvas`, one shade above the
-    // panel/sidebar surface), same as the Workspace canvas — panels and
-    // the code window sit on the surface tone (`bg-card`).
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas">
+    // Merge Studio's canvas is the app background itself (`bg-background`,
+    // same as the activity bar beside it), so the two read as one ground
+    // and the floating panels / pills (`bg-card`) lift clearly off it; the
+    // dot grid is what marks it as canvas. The Workspace's Canvas window
+    // keeps `bg-canvas`, since it sits inside a card.
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         {/* Hand tool: a pan surface over the whole canvas (floating
             controls sit above it at z-20 and stay clickable). */}

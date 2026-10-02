@@ -176,7 +176,7 @@ function DashboardTopBar() {
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>Settings</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64 max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-card p-3 shadow-xl">
+              <DropdownMenuSubContent className="w-64 max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
                 <p className="mb-3 text-xs font-medium text-muted-foreground">Settings</p>
                 <SettingsContent />
               </DropdownMenuSubContent>

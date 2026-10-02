@@ -68,12 +68,20 @@
 }
 
 :root {
-    /* The one app background (activity bar, pages, the Workspace's gutters)
-       and the card surface on it (Workspace windows, page cards, popups).
-       Lifted from #070708 / #121212, keeping the step between them. */
-    --ds-bg-base: #0E0E10;
-    --ds-surface-card: #151517;
-    --ds-surface-raised: #1B1B1D;
+    /* Dark elevation: each level up is one even step lighter.
+       0 base     — activity bar, pages, Merge Studio's canvas
+       1 card     — Workspace windows, page cards, floating pills
+       2 raised   — hover / selected fills, input wells
+       3 overlay  — popovers, menus, tooltips (above cards, so they still
+                    separate when they open over one)
+       overlay-hover — a menu item's highlight inside an overlay.
+       Pure neutral grays (R = G = B): a blue-leaning gray fights the green
+       accent, so the levels differ in lightness only. */
+    --ds-bg-base: #111111;
+    --ds-surface-card: #181818;
+    --ds-surface-raised: #1F1F1F;
+    --ds-surface-overlay: #1F1F1F;
+    --ds-surface-overlay-hover: #2A2A2A;
     --ds-border-subtle: rgb(255 255 255 / 8%);
     --ds-chrome-size: 48px;
     --ds-control-height: 32px;
@@ -130,12 +138,10 @@
 }
 
 .dark {
-    /* Two-step dark hierarchy. The canvas (--background) sits deepest;
-       every raised surface — activity bar, drawer, floating panels and
-       windows, code editor, canvas containers, dropdowns, popovers,
-       dialogs, Merge Studio's panels — shares one surface tone (--card =
-       --popover = --sidebar), so nothing reads as a lighter, muddier gray
-       box. Hover/selected fills (--muted) sit one step above that. */
+    /* Dark hierarchy (see the --ds-* levels in :root): --background is the
+       base, --card / --sidebar the surface on it, --muted the hover fill,
+       and --popover a level above cards so menus and popovers still read
+       as on top when they open over a window. */
     --background: var(--ds-bg-base);
     /* The infinite canvas behind the Workspace and Merge Studio windows —
        a touch lighter than --background, so navigation and panels (layer
@@ -146,7 +152,7 @@
     --foreground: #FAFAFA;
     --card: var(--ds-surface-card);
     --card-foreground: #FAFAFA;
-    --popover: var(--ds-surface-card);
+    --popover: var(--ds-surface-overlay);
     --popover-foreground: #FAFAFA;
     --primary: var(--ds-primary);
     --primary-foreground: var(--ds-primary-foreground);
@@ -154,7 +160,7 @@
     --secondary-foreground: #FAFAFA;
     --muted: var(--ds-surface-raised);
     --muted-foreground: #A1A1AA;
-    --accent: var(--ds-surface-raised);
+    --accent: var(--ds-surface-overlay-hover);
     --accent-foreground: #FAFAFA;
     --destructive: oklch(0.704 0.191 22.216);
     --border: var(--ds-border-subtle);
@@ -427,7 +433,7 @@
 
 /* Portal surfaces keep the same opaque dark treatment across callers. */
 [data-slot="tooltip-content"], [data-slot="popover-content"] {
-  background-color: var(--ds-surface-card) !important;
+  background-color: var(--ds-surface-overlay) !important;
   background-image: none !important;
   color: var(--popover-foreground) !important;
   border: 1px solid var(--ds-border-subtle) !important;

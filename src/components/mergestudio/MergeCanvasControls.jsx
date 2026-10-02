@@ -24,7 +24,7 @@ export default function MergeCanvasControls({ zoom, onZoomBy, onResetZoom, onFit
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger aria-label="Zoom" className={cn(STUDIO_PILL, 'min-w-16 px-4 tabular-nums')}>{Math.round(zoom)}%</DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="end" sideOffset={8} className="w-52 rounded-xl border border-white/10 bg-card p-1.5">
+        <DropdownMenuContent side="top" align="end" sideOffset={8} className="w-52 rounded-xl border border-white/10 bg-popover p-1.5">
           {actions.map(([label, action, disabled]) => <DropdownMenuItem key={label} onClick={action} disabled={disabled}>{label}</DropdownMenuItem>)}
           {onToggleGuides && <DropdownMenuItem onClick={onToggleGuides}>{guidesVisible ? 'Hide selection guides' : 'Show selection guides'}</DropdownMenuItem>}
         </DropdownMenuContent>

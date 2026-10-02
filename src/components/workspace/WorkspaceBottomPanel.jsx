@@ -186,7 +186,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
               {id === 'conflict' && openConflicts > 0 && (
                 <span
                   title={`${openConflicts} open`}
-                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[9px] leading-none font-bold text-[#050506] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
+                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[9px] leading-none font-bold text-[#050505] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
                 >
                   {openConflicts}
                 </span>

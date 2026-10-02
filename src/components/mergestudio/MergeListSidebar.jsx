@@ -122,7 +122,7 @@ function MiniPeople({ item }) {
           </span>
         ))}
         {extra > 0 && (
-          <span style={{ zIndex: 1 }} className={cn(MINI_AVATAR, 'w-auto min-w-4 bg-[#3b3b42] px-0.5 font-medium text-slate-200 tabular-nums')}>
+          <span style={{ zIndex: 1 }} className={cn(MINI_AVATAR, 'w-auto min-w-4 bg-[#3D3D3D] px-0.5 font-medium text-slate-200 tabular-nums')}>
             +{extra}
           </span>
         )}
@@ -524,7 +524,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                       setQuery(event.target.value)
                     }}
                     placeholder="Search…"
-                    className="h-8 w-full rounded-full border border-white/10 bg-[#09090A] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:border-white/25 focus:ring-1 focus:ring-white/20"
+                    className="h-8 w-full rounded-full border border-white/10 bg-[#090909] pr-3 pl-9 text-[13px] text-white outline-none placeholder:text-slate-500 focus:border-white/25 focus:ring-1 focus:ring-white/20"
                   />
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />

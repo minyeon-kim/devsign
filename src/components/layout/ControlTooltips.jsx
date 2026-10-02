@@ -73,7 +73,7 @@ function ControlTooltips() {
   if (!tip || tip.routeKey !== location.key) return null
   return createPortal(
     <div className="pointer-events-none fixed z-[200] flex w-[260px] justify-center" style={{ left: tip.left, top: tip.top, transform: tip.above ? 'translateY(-100%)' : undefined }}>
-      <div role="tooltip" className="w-fit max-w-full rounded-md border border-white/[0.08] bg-card px-3 py-1.5 text-xs leading-4 text-[#FAFAFA] shadow-lg">{tip.text}</div>
+      <div role="tooltip" className="w-fit max-w-full rounded-md border border-white/[0.08] bg-popover px-3 py-1.5 text-xs leading-4 text-[#FAFAFA] shadow-lg">{tip.text}</div>
     </div>, document.body
   )
 }

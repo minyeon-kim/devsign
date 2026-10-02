@@ -668,7 +668,7 @@ function CommentThread({ conflict, workspace }) {
                     type="submit"
                     aria-label="Send reply"
                     disabled={!replyDraft.trim()}
-                    className="flex size-6 items-center justify-center rounded-full bg-[#2c2c31] text-white ring-1 ring-white/10 ring-inset transition-colors hover:bg-[#38383e] disabled:text-slate-500"
+                    className="flex size-6 items-center justify-center rounded-full bg-[#2E2E2E] text-white ring-1 ring-white/10 ring-inset transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500"
                   >
                     <Send className="size-3" />
                   </button>
@@ -694,7 +694,7 @@ function CommentThread({ conflict, workspace }) {
           type="submit"
           aria-label="Send"
           disabled={!draft.trim()}
-          className="flex size-8 items-center justify-center rounded-full bg-[#2c2c31] text-white ring-1 ring-white/10 ring-inset transition-colors hover:bg-[#38383e] disabled:text-slate-500"
+          className="flex size-8 items-center justify-center rounded-full bg-[#2E2E2E] text-white ring-1 ring-white/10 ring-inset transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500"
         >
           <Send className="size-3.5" />
         </button>
