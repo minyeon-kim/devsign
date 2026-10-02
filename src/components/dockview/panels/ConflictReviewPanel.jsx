@@ -558,14 +558,7 @@ function ReviewersSection({ conflict, onUpdate }) {
         )}
         {reviewStage !== 'resolved' && assignable.length > 0 && (
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className="flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                />
-              }
-            >
+            <DropdownMenuTrigger className="flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
               <Plus className="size-3" />
               Assign
             </DropdownMenuTrigger>
@@ -596,7 +589,7 @@ function ReviewersSection({ conflict, onUpdate }) {
             if (!person) return null
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
-              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_64px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
+              <div key={reviewer.id} className="group/rev grid h-9 grid-cols-[minmax(0,1fr)_112px_72px] items-center gap-1 rounded-lg text-xs hover:bg-white/[0.03]">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <PersonAvatar person={person} />
                   <span className="min-w-0 truncate font-medium text-slate-200">
@@ -604,7 +597,7 @@ function ReviewersSection({ conflict, onUpdate }) {
                     {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
                   </span>
                 </div>
-                <span className={cn('w-16 truncate text-right text-[11px]', status.className)}>
+                <span className={cn('w-28 truncate text-right text-[11px]', status.className)}>
                   {reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
                 <div className="flex w-[72px] shrink-0 items-center justify-end gap-0">
