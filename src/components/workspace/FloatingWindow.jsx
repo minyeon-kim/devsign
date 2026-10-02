@@ -2,11 +2,9 @@ import { useRef, useState } from 'react'
 import { Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
 import {
-  CATEGORY_TAB,
-  CATEGORY_TAB_ACTIVE,
-  CATEGORY_TAB_IDLE,
   FLOATING_PANEL,
   PANEL_RADIUS,
+  WORKSPACE_TAB_RADIUS,
 } from '@/components/mergestudio/floatingStyles'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
 import { WindowHeaderSlotContext, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
@@ -144,7 +142,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
               {!isNavigatorGroup && <AddViewMenu group={group} dockApi={dockApi} />}
             </>
           ) : (
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1">
             {group.panelIds.map((pid) => {
               const p = panelsById[pid]
               if (!p) return null
@@ -157,7 +155,17 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                   onClick={() => dockApi.setActiveTab(group.id, pid)}
                   onPointerDown={(e) => docked && e.button === 0 && onDockDragStart?.({ groupId: group.id, panelId: pid }, e)}
                   title={docked ? 'Drag to split or move' : undefined}
-                  className={cn(CATEGORY_TAB, 'gap-1.5', active ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+                  // Same look as a docked window's own tabs (PanelTabs) —
+                  // floating here only because Merge Studio keeps this
+                  // panel undocked, not because it's a different kind of
+                  // tab. It used to be the smaller, fully-rounded
+                  // CATEGORY_TAB pill instead, reading as cramped next to
+                  // the docked navigator's roomier tabs elsewhere.
+                  className={cn(
+                    'flex h-7 min-w-0 items-center gap-1.5 px-2.5 text-xs transition-colors',
+                    WORKSPACE_TAB_RADIUS,
+                    active ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+                  )}
                 >
                   {Icon && <Icon className="size-3.5 shrink-0" />}
                   <span className="max-w-[140px] truncate">{p.title}</span>
