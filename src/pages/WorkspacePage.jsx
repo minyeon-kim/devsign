@@ -120,7 +120,7 @@ function WorkspacePage() {
           )}
         </WorkspaceSplitLayout>
 
-        <TopBar project={project} onOpenPalette={() => setPaletteOpen(true)} />
+        <TopBar project={project} />
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
       </div>

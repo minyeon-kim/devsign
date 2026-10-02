@@ -5,12 +5,17 @@ import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingS
 // Shared shell for Merge Studio's right-hand drawers (Version History,
 // Inbox): a floating card (same style as the Merge List and Block Deck),
 // inset from the edges and below the top toolbar row, sliding in over the
-// canvas above the Block Deck.
-function MergeDrawer({ icon: Icon, title, aside, onClose, children }) {
+// canvas above the Block Deck. `inset` overrides where it sits, so a host
+// can line its edges up with its own windows (the Workspace's split panes
+// sit on different insets than Merge Studio's floating panels).
+const DEFAULT_INSET = 'top-[60px] right-4 bottom-4'
+
+function MergeDrawer({ icon: Icon, title, aside, onClose, inset = DEFAULT_INSET, children }) {
   return (
     <div
       className={cn(
-        'absolute top-[60px] right-4 bottom-4 z-[700] flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        'absolute z-[700] flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200',
+        inset,
         PANEL_RADIUS,
         FLOATING_PANEL
       )}

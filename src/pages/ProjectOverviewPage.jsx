@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
@@ -73,7 +72,7 @@ function Person({ id }) {
 function ProjectOverviewPage() {
   const { project } = useOutletContext()
   const navigate = useNavigate()
-  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel, currentUser } = useWorkspace()
+  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
@@ -82,7 +81,9 @@ function ProjectOverviewPage() {
   // not a smaller version of this one. An item here isn't on-screen yet,
   // so jumping to it goes through the Workspace's own nav-state handler
   // (see WorkspacePage) instead of focusing the canvas directly.
-  const [inboxOpen, setInboxOpen] = useState(false)
+  // Shared with the Workspace (mergeDrawer) so the high-priority banners
+  // know when the Inbox is already open and stay out of its way.
+  const inboxOpen = mergeDrawer === 'inbox'
 
   // Everything below counts from the shared conflict store with the same
   // rules as the Workspace list (lib/conflicts), so the numbers, the list
@@ -127,7 +128,7 @@ function ProjectOverviewPage() {
                 <UserPresence />
               </span>
             </div>
-            <InboxButton open={inboxOpen} onToggle={() => setInboxOpen((open) => !open)} />
+            <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
           </span>
         </nav>
         {/* Header */}
@@ -300,7 +301,7 @@ function ProjectOverviewPage() {
       {inboxOpen && (
         <MergeInboxDrawer
           onJump={(n) => {
-            setInboxOpen(false)
+            setMergeDrawer(null)
             if (n.target.conflictId) {
               navigate(workspacePath, { state: { openConflictId: n.target.conflictId } })
               return
@@ -315,7 +316,7 @@ function ProjectOverviewPage() {
               },
             })
           }}
-          onClose={() => setInboxOpen(false)}
+          onClose={() => setMergeDrawer(null)}
         />
       )}
     </div>

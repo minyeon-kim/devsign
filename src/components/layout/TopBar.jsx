@@ -1,7 +1,7 @@
 import '@/components/dockview/panels/CanvasToolbar.css'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
-import SearchField from '@/components/layout/SearchField'
+import { HeaderCommandSearch } from '@/components/layout/CommandPalette'
 import { FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
@@ -52,8 +52,8 @@ function ActionTooltip({ label, children }) {
   )
 }
 
-function TopBar({ project, onOpenPalette }) {
-  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+function TopBar({ project }) {
+  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
   if (activeView === 'mergeStudio') return null
 
@@ -69,19 +69,9 @@ function TopBar({ project, onOpenPalette }) {
           of center (the ~600px action cluster + its 16px inset + a 12px gap)
           and steps aside entirely when the view is too narrow to fit a
           usable field between the pills, so it never collides with them.
-          It opens the command palette (⌘K) rather than taking text itself. */}
-      <SearchField
-        className="absolute top-2 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden"
-        placeholder="Search files, commands..."
-        readOnly
-        aria-haspopup="dialog"
-        onClick={onOpenPalette}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpenPalette?.()}
-      >
-        <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md bg-white/[0.06] px-1.5 py-0.5 font-sans text-[10.5px] text-muted-foreground">
-          ⌘K
-        </kbd>
-      </SearchField>
+          It is the command palette: typing filters commands, and the
+          results drop down under it (⌘K focuses it). */}
+      <HeaderCommandSearch className="absolute top-2 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden" />
 
       {/* The action cluster, built exactly like Merge Studio's header:
           separate floating pieces rather than one long bar — the people
@@ -105,6 +95,10 @@ function TopBar({ project, onOpenPalette }) {
 
       {inboxOpen && (
         <MergeInboxDrawer
+          // Same edges as the docked windows (WorkspaceSplitLayout): below
+          // the chrome row, the 8px right gutter, and 8px above the bottom
+          // panel when it's open — flush otherwise.
+          inset={cn('top-[var(--ds-chrome-size)] right-2', bottomPanel.open ? 'bottom-2' : 'bottom-0')}
           // Inbox items point at a Conflict Point (open its review window,
           // with the Conflict Points tab up behind it) or at a Merge Studio
           // target (jump there, focused).

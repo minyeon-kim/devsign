@@ -1,12 +1,44 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, X } from 'lucide-react'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
+// Where the banners stack when the page has no Inbox bell (Merge Studio,
+// Docs, …): the top-right corner, under the header row.
+const FALLBACK_ANCHOR = { top: 56, right: 16 }
+
+// The on-screen Inbox bell (InboxButton tags itself), if any.
+function findBell() {
+  return document.querySelector('[data-inbox-button]')
+}
+
+// Banners hang just under the bell — they're Inbox items, so they appear
+// where the Inbox opens from — right edges aligned. The bell sits in a
+// different place per page (Workspace's top-right toolbar, Project home's
+// centered header), so it's measured, and re-measured on resize/scroll.
+function useBellAnchor(active) {
+  const [anchor, setAnchor] = useState(FALLBACK_ANCHOR)
+  useLayoutEffect(() => {
+    if (!active) return
+    function measure() {
+      const rect = findBell()?.getBoundingClientRect()
+      setAnchor(rect ? { top: rect.bottom + 8, right: window.innerWidth - rect.right } : FALLBACK_ANCHOR)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [active])
+  return anchor
+}
+
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { notifications, projectId, setMergeDrawer } = useWorkspace()
+  const { notifications, projectId, mergeDrawer, setMergeDrawer } = useWorkspace()
   const navigate = useNavigate()
   const seen = useRef(new Set())
   const [visibleIds, setVisibleIds] = useState([])
@@ -29,15 +61,21 @@ export default function HighReviewNotifications() {
     setVisibleIds(ids => ids.filter(entry => entry !== id))
   }
   const banners = visibleIds.map(id => notifications.find(n => n.id === id && n.unread)).filter(Boolean)
-  if (!banners.length) return null
+  // With the Inbox open the same items are already on screen, in the spot
+  // the banners would cover.
+  const show = banners.length > 0 && mergeDrawer !== 'inbox'
+  const anchor = useBellAnchor(show)
+  if (!show) return null
 
   return (
-    <aside aria-label="High priority notifications" aria-live="polite" className="pointer-events-none fixed top-14 right-4 z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
-      {banners.map(n => <div key={n.id} className="pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#242427]/95 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-right-4 duration-300 motion-reduce:animate-none">
+    <aside aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+      {banners.map(n => <div key={n.id} className="pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#242427]/95 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none">
         <button type="button" onClick={() => {
           dismiss(n.id)
           setMergeDrawer('inbox')
-          navigate(`/projects/${projectId}/workspace`)
+          // Open it right here when this page has a bell; otherwise go to
+          // the Workspace, where the Inbox lives.
+          if (!findBell()) navigate(`/projects/${projectId}/workspace`)
         }} className="flex w-full items-start gap-3 p-4 pr-9 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.07]"><Bell className="size-4 text-primary" /></span>
           <span className="min-w-0 flex-1">

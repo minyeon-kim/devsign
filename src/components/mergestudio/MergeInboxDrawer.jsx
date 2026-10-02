@@ -26,6 +26,8 @@ export function InboxButton({ open, onToggle }) {
     <Tooltip>
       <TooltipTrigger
         type="button"
+        // HighReviewNotifications anchors its banners under this.
+        data-inbox-button=""
         aria-label={unreadCount ? `Inbox (${unreadCount} unread)` : 'Inbox'}
         aria-expanded={open}
         onClick={onToggle}
@@ -183,12 +185,15 @@ function InboxItem({ n, onJump }) {
                 {meta}
               </span>
               <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
-                {isThread && <span className="shrink-0 rounded bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">Comment</span>}
+                {isThread && <span className="shrink-0 text-emerald-300/80">Comment</span>}
                 {!isThread && source && <span className="shrink-0 text-slate-500">{source}</span>}
                 <span className="truncate text-slate-400">· {target}</span>
               </span>
               {isThread ? (
-                <span className="mt-2 block rounded-lg border-l-2 border-emerald-400/60 bg-white/[0.035] px-3 py-2 text-[13px] leading-relaxed text-slate-100">
+                // The comment is the one soft surface in the item — no rail,
+                // no border. Pulled left under the avatar slot (w-8 + gap-3)
+                // so it spans the full row, not just the text column.
+                <span className="mt-2 -ml-11 block rounded-lg bg-white/[0.04] px-3 py-2 text-[13px] leading-relaxed text-slate-100">
                   <CondensedText text={n.text} />
                 </span>
               ) : (
@@ -230,7 +235,7 @@ function InboxItem({ n, onJump }) {
       {/* Pill input: Write a comment · emoji · solid dark Send. */}
       {isThread && (
         <form onSubmit={send} className="relative mt-4 ml-11">
-          <div className="flex h-10 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:border-white/25">
+          <div className="flex h-10 items-center gap-1 rounded-full bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:bg-white/[0.07]">
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -289,7 +294,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left ring-1 ring-white/[0.05] transition-colors',
+        'flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left transition-colors',
         comment && group.unread ? 'bg-emerald-400/[0.05] hover:bg-emerald-400/[0.08]' : 'bg-white/[0.025] hover:bg-white/[0.05]'
       )}
     >
@@ -307,7 +312,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
         </span>
         {comment ? <>
           {itemName && itemName !== group.target.label && <span className="mt-1.5 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-2 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-1.5 py-2 text-xs leading-5 text-slate-200">
+          <span className="mt-1.5 block line-clamp-2 text-xs leading-5 text-slate-300">
             <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
           </span>
           <span className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-slate-500">
@@ -326,7 +331,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
 }
 
 // Notifications open their scoped list first; individual rows open the target.
-function MergeInboxDrawer({ onJump, onClose }) {
+function MergeInboxDrawer({ onJump, onClose, inset }) {
   const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('unread')
   const [selected, setSelected] = useState(null)
@@ -349,20 +354,20 @@ function MergeInboxDrawer({ onJump, onClose }) {
   const reviewItems = selectedGroup?.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean) ?? []
 
   return (
-    <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} aside={
+    <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} inset={inset} aside={
       <button type="button" onClick={() => { markAllNotificationsRead(); setUnreadIds(new Set()) }} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
         <CheckCheck className="size-3.5" /> Mark all read
       </button>
     }>
       {selectedGroup ? <>
-        <div className="shrink-0 border-b border-white/[0.07] px-5 pb-3">
+        <div className="shrink-0 px-5 pb-2">
           <button type="button" onClick={() => setSelected(null)} className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"><ArrowLeft className="size-3.5" /> Back to notifications</button>
           <h3 className="text-[13px] leading-5 font-medium text-white">{selectedGroup.kind === 'comment' ? mergeItems.find(item => item.id === selectedGroup.target.itemId)?.title ?? selectedGroup.target.label : selectedGroup.text}</h3>
           <p className="mt-1 text-xs text-slate-400">{selectedGroup.reviewConflictIds ? 'Select a change to open its review.' : selectedGroup.kind === 'approval' ? 'Approval activity for this target.' : 'Comments and feedback for this target.'}</p>
         </div>
         <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-5 pb-3">
-          {selectedGroup.reviewConflictIds ? <div className="divide-y divide-white/[0.06]">
-            {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 py-4 text-left">
+          {selectedGroup.reviewConflictIds ? <div className="-mx-2 space-y-0.5">
+            {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-white/[0.04]">
               <RiskBadge severity={conflict.severity} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-medium text-white"><LocalizedText text={conflict.title} /></span>

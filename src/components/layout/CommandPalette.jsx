@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AppWindow,
   Component,
@@ -15,7 +15,10 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
-import CommandModal from '@/components/layout/CommandModal'
+import { cn } from 'cn'
+import CommandModal, { CommandResults, useCommandSearch } from '@/components/layout/CommandModal'
+import SearchField from '@/components/layout/SearchField'
+import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { applyLayoutPreset } from '@/components/layout/LayoutMenu'
 import { layoutPresets } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -93,19 +96,33 @@ function useCommands() {
   ]
 }
 
+// The header search field, when it's on screen (it steps aside in narrow
+// views — see TopBar).
+function visibleHeaderSearch() {
+  const field = document.querySelector('[data-command-search]')
+  return field && field.offsetParent !== null ? field : null
+}
+
 // The Workspace's quick command palette (⌘K / Ctrl+K, or the header's
-// search field) — a CommandModal over the commands above. It's how a view —
-// Files, Terminal, Browser, Canvas, AI Chat, … — is opened without hunting
-// for its button; splitting is done by dragging a tab (see
-// WorkspaceSplitLayout).
+// search field). It's how a view — Files, Terminal, Browser, Canvas, AI
+// Chat, … — is opened without hunting for its button; splitting is done by
+// dragging a tab (see WorkspaceSplitLayout). With the header search on
+// screen, ⌘K just focuses it (HeaderCommandSearch); otherwise it opens the
+// CommandModal.
 function CommandPalette({ open, onOpenChange }) {
   const commands = useCommands()
 
-  // ⌘K / Ctrl+K toggles it from anywhere in the Workspace.
+  // ⌘K / Ctrl+K from anywhere in the Workspace.
   useEffect(() => {
     function onKey(event) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
+        const field = visibleHeaderSearch()
+        if (field && !open) {
+          if (document.activeElement === field) field.blur()
+          else field.focus()
+          return
+        }
         onOpenChange(!open)
       }
     }
@@ -121,6 +138,55 @@ function CommandPalette({ open, onOpenChange }) {
       title="Command palette"
       placeholder="Open a view or run a command…"
     />
+  )
+}
+
+// The header search as the palette itself: type straight into the field,
+// and only the results drop down under it, edge to edge with it — no
+// second input, nothing over the middle of the view. Open while focused.
+export function HeaderCommandSearch({ className }) {
+  const commands = useCommands()
+  const inputRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const search = useCommandSearch(commands, () => inputRef.current?.blur())
+
+  return (
+    <SearchField
+      ref={inputRef}
+      data-command-search=""
+      className={className}
+      placeholder="Search files, commands..."
+      role="combobox"
+      aria-expanded={open}
+      aria-haspopup="listbox"
+      aria-label="Command palette"
+      value={search.query}
+      onChange={(e) => search.setQuery(e.target.value)}
+      onFocus={() => {
+        search.setQuery('')
+        setOpen(true)
+      }}
+      onBlur={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          inputRef.current?.blur()
+          return
+        }
+        search.onKeyDown(e)
+      }}
+    >
+      {!open && (
+        <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md bg-white/[0.06] px-1.5 py-0.5 font-sans text-[10.5px] text-muted-foreground">
+          ⌘K
+        </kbd>
+      )}
+      {open && (
+        <div className={cn('absolute inset-x-0 top-full mt-1.5 overflow-hidden bg-card animate-in fade-in slide-in-from-top-1 duration-100', PANEL_RADIUS, FLOATING_PANEL)}>
+          <CommandResults search={search} />
+        </div>
+      )}
+    </SearchField>
   )
 }
 
