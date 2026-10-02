@@ -119,7 +119,7 @@ function InboxItem({ n, onJump }) {
   )
 
   return (
-    <div className={cn('group', isEvent ? 'py-3.5' : 'py-4')}>
+    <div className={cn('group', isEvent ? 'py-2.5' : 'py-3')}>
       <button
         type="button"
         title={n.target.conflictId ? `Open the review of ${n.target.label}` : `Jump to ${n.target.label} on the canvas`}
@@ -256,7 +256,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex w-full items-start gap-3 rounded-xl px-3 py-3.5 text-left transition-colors',
+        'flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors',
         comment && group.unread ? 'bg-emerald-400/[0.035] hover:bg-emerald-400/[0.07]' : 'hover:bg-white/[0.04]'
       )}
     >
@@ -270,17 +270,17 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
         {comment ? <>
-          {itemName && itemName !== group.target.label && <span className="mt-1 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-2 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-2.5 py-1.5 text-xs leading-5 text-slate-200">
+          {itemName && itemName !== group.target.label && <span className="block truncate text-[11px] text-slate-500">{group.target.label}</span>}
+          <span className="mt-1.5 block line-clamp-2 rounded-lg border-l-2 border-emerald-400/50 bg-black/15 px-2.5 py-1.5 text-xs leading-5 text-slate-200">
             <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
           </span>
-          <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+          <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
             {comment.comments > 0 && <span className="text-emerald-300/80">{`${comment.comments} comments`}</span>}
             {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
             {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
           </span>
-        </> : <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
-        <span className="mt-2 block text-[11px] text-slate-500">{group.timeLabel}</span>
+        </> : <span className="block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
+        <span className="mt-1 block text-[11px] text-slate-500">{group.timeLabel}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2 pt-1">
         {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
@@ -344,7 +344,7 @@ function MergeInboxDrawer({ onJump, onClose }) {
           })}
         </div>
       </> : <>
-        <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-3" role="tablist" aria-label="Filter notifications">
+        <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-2" role="tablist" aria-label="Filter notifications">
           {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
             <span className="truncate">{label}</span>
             {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
