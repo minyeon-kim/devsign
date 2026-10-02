@@ -20,7 +20,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, DesignComparisonCanvas } from '@/components/mergestudio/DesignComparison'
+import { DesignComparePanel, optionEffects } from '@/components/mergestudio/DesignComparison'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -166,6 +166,29 @@ function MergeStudioWorkspace({ item }) {
     setDesignComparison({ item: compareItem, options })
     setBottomPanel({ open: false })
   }
+  // Design Compare's selected drafts, reshaped as frames for
+  // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
+  // + per-option overrides" shape Option A/B already use there, so the
+  // drafts land as real, selectable, draggable artboards on the actual
+  // infinite canvas instead of a separate static comparison view.
+  // Memoized so toggling/leaving Design Compare doesn't hand
+  // MergeInfiniteCanvas a new object identity on every unrelated
+  // re-render, which would otherwise reset its pan/zoom/layout each time.
+  const designCompare = useMemo(() => {
+    if (!designComparison) return null
+    const { item: compareItem, options } = designComparison
+    const framePage = canvasPages.find((p) => p.id === compareItem.designPageId)
+    const compareFrame = framePage?.frames[0]
+    if (!compareFrame) return null
+    return {
+      frame: compareFrame,
+      entries: options.map((option) => ({
+        key: option.key,
+        label: option.label,
+        overrides: optionEffects(compareItem, option),
+      })),
+    }
+  }, [designComparison])
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -756,18 +779,37 @@ function MergeStudioWorkspace({ item }) {
       </button>
       <div className="relative flex min-h-0 flex-1">
 
-      {designComparison ? (
-        <DesignComparisonCanvas
-          item={designComparison.item}
-          options={designComparison.options}
-          onBack={() => {
-            setDesignComparison(null)
-            setBottomPanel({ tab: 'design-compare', open: true })
-          }}
-          onExit={() => setDesignComparison(null)}
-        />
-      ) : item ? (
+      {item ? (
         <div className="flex min-h-0 flex-1">
+        {designComparison && (
+          // Floating over the canvas rather than its own screen — Design
+          // Compare's drafts now render as real frames on the infinite
+          // canvas below (see `designCompare`), so this is just the "what
+          // am I looking at / how do I leave" strip for that mode.
+          <div className="absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-[#121212]/90 py-2 pr-2 pl-4 text-[13px] shadow-lg backdrop-blur-sm">
+            <span className="min-w-0 truncate text-slate-200">
+              <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
+              <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setDesignComparison(null)
+                setBottomPanel({ tab: 'design-compare', open: true })
+              }}
+              className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              Change selection
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesignComparison(null)}
+              className="shrink-0 rounded-full bg-white/[0.07] px-3 py-1.5 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.12]"
+            >
+              Back to merge canvas
+            </button>
+          </div>
+        )}
         <MergeInfiniteCanvas
           reserve={reserve}
           layoutReserve={deckReserve}
@@ -776,6 +818,7 @@ function MergeStudioWorkspace({ item }) {
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           stage={WIZARD_STEPS[wizardStep].id}
+          designCompare={designCompare}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}

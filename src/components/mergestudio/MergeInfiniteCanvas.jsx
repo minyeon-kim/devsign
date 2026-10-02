@@ -1000,6 +1000,18 @@ function defaultLayout(frame) {
     code: { x: 0, y: ARTBOARD_LABEL_H + artH + CODE_GAP_Y, w: codeW, h: CODE_H },
   }
 }
+// Design Compare's layout: N artboards in a row, same sizing rule as the
+// normal pair, no code card underneath — there's no single "code" side to
+// a set of sibling design drafts.
+function defaultLayoutForKeys(frame, keys) {
+  if (!frame || !keys.length) return {}
+  const artW = Math.round(Math.min(ARTBOARD_PREVIEW_WIDTH, (ARTBOARD_MAX_H * frame.width) / frame.height))
+  const layout = {}
+  keys.forEach((key, i) => {
+    layout[key] = { x: i * (artW + CARD_GAP), y: 0, w: artW, h: null }
+  })
+  return layout
+}
 // Room for the top floating controls and a little breathing space.
 const TOP_CONTROLS_CLEARANCE = 76
 // Clear the 40px help pill plus its bottom inset.
@@ -1329,13 +1341,20 @@ function MergeInfiniteCanvas({
   onSelectLayer,
   onSelectLine,
   onSelectFrame,
+  // Design Compare: { frame, entries: [{ key, label, overrides }] } — N
+  // variant drafts of the same base frame, each its own StaticFrame in
+  // this same pan/zoom space instead of the normal Option A/B pair and
+  // code window. See MergeStudioWorkspace for how entries are built.
+  designCompare = null,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [view, setView] = useState(DEFAULT_VIEW)
   const [layout, setLayout] = useState(() =>
-    defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
+    designCompare
+      ? defaultLayoutForKeys(designCompare.frame, designCompare.entries.map((e) => e.key))
+      : defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
   )
   const [panning, setPanning] = useState(false)
   // Canvas tool (keyboard only — there's no on-canvas toolbar): 'select'
@@ -1370,8 +1389,10 @@ function MergeInfiniteCanvas({
     }
   }, [])
   const [hover, setHover] = useState(null) // { layerId, fileId, line }
-  const [order, setOrder] = useState({ code: 1, a: 2, b: 3 })
-  const [frameSel, setFrameSel] = useState(null) // 'a' | 'b'
+  const [order, setOrder] = useState(() =>
+    designCompare ? Object.fromEntries(designCompare.entries.map((e, i) => [e.key, i + 1])) : { code: 1, a: 2, b: 3 }
+  )
+  const [frameSel, setFrameSel] = useState(null) // 'a' | 'b' | a Design Compare entry key
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
@@ -1401,11 +1422,17 @@ function MergeInfiniteCanvas({
     if (!c) return DEFAULT_VIEW
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
-    const cards = ['code', ...(frame ? ['a', 'b'] : [])]
+    const compareFrame = designCompare?.frame
+    const cards = designCompare ? designCompare.entries.map((e) => e.key) : ['code', ...(frame ? ['a', 'b'] : [])]
     const box = (k) =>
       k === 'code'
         ? { l: lay.code.x, t: lay.code.y, r: lay.code.x + lay.code.w, b: lay.code.y + lay.code.h }
-        : { l: lay[k].x, t: lay[k].y, r: lay[k].x + artW(k), b: lay[k].y + ARTBOARD_LABEL_H + (lay[k].h ?? (frame.height * artW(k)) / frame.width) }
+        : {
+            l: lay[k].x,
+            t: lay[k].y,
+            r: lay[k].x + artW(k),
+            b: lay[k].y + ARTBOARD_LABEL_H + (lay[k].h ?? ((compareFrame ?? frame).height * artW(k)) / (compareFrame ?? frame).width),
+          }
     const minX = Math.min(...cards.map((k) => box(k).l))
     const minY = Math.min(...cards.map((k) => box(k).t))
     const worldW = Math.max(...cards.map((k) => box(k).r)) - minX
@@ -1434,16 +1461,19 @@ function MergeInfiniteCanvas({
   }
 
   useEffect(() => {
-    const lay = defaultLayout(frame)
+    const lay = designCompare
+      ? defaultLayoutForKeys(designCompare.frame, designCompare.entries.map((e) => e.key))
+      : defaultLayout(frame)
     setView(fitView(lay))
     setLayout(lay)
+    setOrder(designCompare ? Object.fromEntries(designCompare.entries.map((e, i) => [e.key, i + 1])) : { code: 1, a: 2, b: 3 })
     setHover(null)
     setFrameSel(null)
     setAiStage(null)
     setOpenNote(null)
     setDriftIdx(-1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id])
+  }, [item?.id, designCompare])
 
   // When the (overlay) Block Deck opens over its default spot, refit if it
   // would cover the rightmost artboard; otherwise leave the user's pan alone.
@@ -1703,9 +1733,11 @@ function MergeInfiniteCanvas({
   const selectionKey = `${syncSelection?.layerId}|${syncSelection?.fileId}|${syncSelection?.line}|${frameSel}`
   const hasSelection = Boolean(syncSelection?.layerId || syncSelection?.line || frameSel)
   const selectionLabel = frameSel
-    ? frameSel === 'a'
-      ? frameLabelA
-      : frameLabelB
+    ? designCompare
+      ? (designCompare.entries.find((e) => e.key === frameSel)?.label ?? frameSel)
+      : frameSel === 'a'
+        ? frameLabelA
+        : frameLabelB
     : (frame?.layers.find((l) => l.id === syncSelection?.layerId)?.name ??
       (syncSelection?.line ? `line ${syncSelection.line}` : 'selection'))
 
@@ -1725,7 +1757,10 @@ function MergeInfiniteCanvas({
         const paths = []
         const codeEl = find('[data-card="code"]')
 
-        if (hasSelection) {
+        // Design Compare's N sibling variants have no single code<->design
+        // or original<->implementation relationship to draw a connector
+        // for, unlike the normal Option A/B pair — skip entirely.
+        if (hasSelection && !designCompare) {
           // Links attach to the *card edges* (never inside a card), at the
           // height of the selected element clamped to the card's body, so
           // curves run through the empty gap between cards only.
@@ -1835,7 +1870,7 @@ function MergeInfiniteCanvas({
         const push = (r, strong, key, size) =>
           boxes.push({ key, x: Math.round(r.left - 3), y: Math.round(r.top - 3), w: Math.round(r.right - r.left + 6), h: Math.round(r.bottom - r.top + 6), strong, size })
 
-        for (const fk of ['a', 'b']) {
+        for (const fk of designCompare ? designCompare.entries.map((e) => e.key) : ['a', 'b']) {
           const frameBox = find(`[data-frame-key="${fk}"] [data-frame-box]`)
           if (!frameBox) continue
           const fr = rel(frameBox.getBoundingClientRect())
@@ -1879,7 +1914,7 @@ function MergeInfiniteCanvas({
     }
     raf = requestAnimationFrame(measure)
     return () => cancelAnimationFrame(raf)
-  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel, annotations, item.id])
+  }, [hasSelection, selectionKey, syncSelection?.layerId, frameSel, annotations, item.id, designCompare])
 
   const zoomAt = useCallback((nextZoom, cx, cy) => {
     setView((v) => {
@@ -2076,7 +2111,7 @@ function MergeInfiniteCanvas({
             }}
           >
             <div className="pointer-events-auto">
-              {files.length > 0 && (
+              {!designCompare && files.length > 0 && (
                 <CodeWindowCard
                   itemId={item.id}
                   files={files}
@@ -2106,7 +2141,28 @@ function MergeInfiniteCanvas({
                 />
               )}
 
-              {frame && (
+              {designCompare ? (
+                designCompare.entries.map((entry) => (
+                  <StaticFrame
+                    key={entry.key}
+                    frameKey={entry.key}
+                    frame={designCompare.frame}
+                    label={entry.label}
+                    x={layout[entry.key]?.x}
+                    y={layout[entry.key]?.y}
+                    w={layout[entry.key]?.w}
+                    h={layout[entry.key]?.h}
+                    onResizeStart={startResize(entry.key)}
+                    z={order[entry.key]}
+                    onDragStart={startCardDrag(entry.key)}
+                    onClickCapture={swallowDragClick}
+                    selectedLayerId={syncSelection?.layerId}
+                    overrides={entry.overrides}
+                    onSelectLayer={pickLayer}
+                    onSelectFrame={pickFrame}
+                  />
+                ))
+              ) : frame && (
                 <>
                   <StaticFrame
                     frameKey="a"

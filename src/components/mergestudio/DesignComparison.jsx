@@ -275,7 +275,7 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
   )
 }
 
-function optionEffects(item, option) {
+export function optionEffects(item, option) {
   const diffsByLayer = designMergeVariants[item.id]?.layerDiffs ?? {}
   return Object.fromEntries(Object.entries(diffsByLayer).map(([layerId, diffs]) => {
     const merged = {}
@@ -306,76 +306,4 @@ function optionEffects(item, option) {
   }))
 }
 
-function DesignComparisonCanvas({ item, options, onBack, onExit }) {
-  const page = canvasPages.find((candidate) => candidate.id === item?.designPageId)
-  const frame = page?.frames[0]
-  const effects = options.map((option) => optionEffects(item, option))
-  const boardRefs = useRef(new Map())
-  const [boardWidths, setBoardWidths] = useState({})
-
-  useEffect(() => {
-    const observers = options.map((option) => {
-      const element = boardRefs.current.get(option.key)
-      if (!element) return null
-      const observer = new ResizeObserver(([entry]) => {
-        const nextWidth = entry.contentRect.width
-        setBoardWidths((current) => current[option.key] === nextWidth ? current : { ...current, [option.key]: nextWidth })
-      })
-      observer.observe(element)
-      return observer
-    })
-    return () => observers.forEach((observer) => observer?.disconnect())
-  }, [options])
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] bg-card/80 px-4 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-slate-200">Comparing: {item.title}</p>
-          <p className="text-[10px] text-slate-500">{options.length} designs · {page?.name ?? 'Design preview'}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={onBack} className="rounded-full px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08]">
-            Change selection
-          </button>
-          <button type="button" onClick={onExit} className="rounded-full px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08]">
-            Back to merge canvas
-          </button>
-        </div>
-      </div>
-      {!frame ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center text-xs text-slate-500">This design set has no canvas preview.</div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-            {options.map((option, index) => {
-              const width = boardWidths[option.key] ?? 300
-              const scale = Math.min(1, width / frame.width)
-              return (
-                <section key={option.key} className="min-w-0">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="flex size-5 items-center justify-center rounded-md bg-emerald-300 text-[10px] font-semibold text-slate-950">{String.fromCharCode(65 + index)}</span>
-                    <span className="truncate text-[11px] font-medium text-slate-200">{option.label}</span>
-                  </div>
-                  <div
-                    ref={(element) => element ? boardRefs.current.set(option.key, element) : boardRefs.current.delete(option.key)}
-                    className="relative mx-auto w-full overflow-hidden rounded-xl bg-white shadow-xl shadow-black/30 ring-1 ring-slate-200/80"
-                    style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
-                  >
-                    <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
-                      {frame.layers.map((layer) => (
-                        <StaticLayer key={layer.id} layer={layer} override={effects[index][layer.id]} onSelect={() => {}} />
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export { DesignComparePanel, DesignComparisonCanvas }
+export { DesignComparePanel }
