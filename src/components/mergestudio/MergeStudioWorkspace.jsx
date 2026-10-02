@@ -815,7 +815,7 @@ function MergeStudioWorkspace({ item }) {
       <button
         type="button"
         onClick={exitMergeStudio}
-        className={cn(STUDIO_PILL, 'absolute top-3 left-4 z-40 flex items-center justify-center gap-2 px-4')}
+        className={cn(STUDIO_PILL, 'absolute top-2 left-4 z-40 flex items-center justify-center gap-2 px-3')}
       >
         <ArrowLeft className="size-4" />
         Workspace
@@ -829,7 +829,7 @@ function MergeStudioWorkspace({ item }) {
           // Compare's drafts now render as real frames on the infinite
           // canvas below (see `designCompare`), so this is just the "what
           // am I looking at / how do I leave" strip for that mode.
-          <div className={cn(STUDIO_PILL, 'absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-1 pl-4 font-normal')}>
+          <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-0.5 pl-4 font-normal')}>
             <span className="min-w-0 truncate text-slate-200">
               <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
               <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>

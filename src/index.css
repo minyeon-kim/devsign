@@ -344,15 +344,16 @@
 
 /* Compact workspace chrome only; content rows and canvas art stay intrinsic.
    `.ds-intrinsic` opts a control out (switches, inline text toggles, a
-   media bar's small buttons) where a 32px box would distort it. */
+   media bar's small buttons) where a 32px box would distort it; controls
+   inside a Merge Studio pill keep their own (28px) size too. */
 .ds-workspace :is(button, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, [role="tab"]):is(
   [class~="h-5"], [class~="h-6"], [class~="h-7"], [class~="h-8"], [class~="h-9"], [class~="h-10"],
   [class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]
-):not(.ds-merge-pill):not(.ds-intrinsic) {
+):not(.ds-merge-pill):not(.ds-intrinsic):not(.ds-merge-pill *) {
   height: var(--ds-control-height);
   min-height: var(--ds-control-height);
 }
-.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]):not(.ds-merge-pill):not(.ds-intrinsic) {
+.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]):not(.ds-merge-pill):not(.ds-intrinsic):not(.ds-merge-pill *) {
   width: var(--ds-control-height);
   min-width: var(--ds-control-height);
 }
@@ -368,12 +369,14 @@
 }
 /* Merge Studio's top and bottom pills — every one of them (Workspace,
    Drift, the session pill, undo/redo, zoom, help) — share one surface and
-   geometry: card color, 10% hairline, 40px, a light lift off the canvas.
+   geometry: card color, 10% hairline, a light lift off the canvas, and the
+   Workspace header's 32px height, so switching modes doesn't resize or
+   shift the header. Controls inside a pill are 28px (size-7).
    Keep panel controls and avatar artwork independent. */
 .ds-workspace .ds-merge-pill.ds-merge-pill {
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
   padding-top: 0;
   padding-bottom: 0;
   flex-shrink: 0;
@@ -389,9 +392,9 @@
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 .ds-workspace .ds-merge-pill.ds-merge-pill[class~="size-10"] {
-  width: 40px;
-  min-width: 40px;
-  max-width: 40px;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   padding: 0;
 }
 .ds-workspace button.ds-merge-pill:hover,
@@ -642,12 +645,12 @@ button.editor-line-comment {
 
 /* Compact canvas utilities stay independent of workspace button sizing. */
 .ds-workspace .merge-canvas-controls button:not(.ds-merge-pill) {
-  height: 32px !important;
-  min-height: 32px !important;
-  max-height: 32px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
 }
-.ds-workspace .merge-canvas-controls button[class~="size-8"]:not(.ds-merge-pill) {
-  width: 32px !important;
-  min-width: 32px !important;
-  max-width: 32px !important;
+.ds-workspace .merge-canvas-controls button[class~="size-7"]:not(.ds-merge-pill) {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
 }

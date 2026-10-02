@@ -54,7 +54,7 @@ function MergeShareButton({ item, title = item?.title, link: linkProp, inline = 
       <PopoverTrigger
         className={
           inline
-            ? 'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
+            ? 'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10'
             : borderless
               // The Workspace header's own pill language (see TopBar's
               // presence pill) — same `ds-header-pill` surface and 32px

@@ -8,7 +8,7 @@ import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingS
 // canvas above the Block Deck. `inset` overrides where it sits, so a host
 // can line its edges up with its own windows (the Workspace's split panes
 // sit on different insets than Merge Studio's floating panels).
-const DEFAULT_INSET = 'top-[60px] right-4 bottom-4'
+const DEFAULT_INSET = 'top-12 right-4 bottom-4'
 
 function MergeDrawer({ icon: Icon, title, aside, onClose, inset = DEFAULT_INSET, children }) {
   return (

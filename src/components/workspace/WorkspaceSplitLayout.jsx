@@ -204,7 +204,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       floatingGroups.current.add(groupId)
       const width = Math.min(right ? NAVIGATOR_W : 360, bounds.width * 0.3)
       const height = Math.max(180, Math.min(560, bounds.height - 160))
-      dockApi.moveGroup(groupId, right ? bounds.width - width - 16 : 16, 64)
+      // Just under the 32px studio header row (8px + 32px + 8px gap) —
+      // the same 48px line the Workspace's windows start on.
+      dockApi.moveGroup(groupId, right ? bounds.width - width - 16 : 16, 48)
       dockApi.resizeGroup(groupId, width, height)
       dockApi.minimizeGroup(groupId, false)
     }

@@ -2320,8 +2320,8 @@ function MergeInfiniteCanvas({
             merge wizard both open below this row (60px), so neither pushes
             it aside. */}
         <div
-          className="pointer-events-none absolute top-3 z-20 flex h-10 items-center"
-          style={{ left: leftInset, right: 12 }}
+          className="pointer-events-none absolute top-2 z-20 flex h-8 items-center"
+          style={{ left: leftInset, right: 16 }}
         >
           {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
               cluster that used to live here moved up to
@@ -2358,7 +2358,7 @@ function MergeInfiniteCanvas({
               TopBar's stack, hidden in Merge Studio), Share, Preview and
               Notifications — instead of four separate floating pieces.
               It keeps a surface: artboards pan underneath it. */}
-          <div className={cn('flex h-10 items-center gap-0.5 rounded-full pr-1 pl-1.5', FLOATING_PILL)}>
+          <div className={cn('flex items-center gap-0.5 rounded-full pr-0.5 pl-1', FLOATING_PILL)}>
             {/* Studio-scoped styling for the shared presence stack (the
                 component itself is untouched): left-on-top order and the
                 soft surface-colored ring. */}
@@ -2374,7 +2374,7 @@ function MergeInfiniteCanvas({
               aria-label="Preview"
               aria-pressed={mergePreviewOpen}
               className={cn(
-                'flex size-8 items-center justify-center rounded-full transition-colors',
+                'flex size-7 items-center justify-center rounded-full transition-colors',
                 mergePreviewOpen ? 'bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-white/10'
               )}
             >
@@ -2388,7 +2388,7 @@ function MergeInfiniteCanvas({
               aria-expanded={mergeDrawer === 'inbox'}
               onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
               className={cn(
-                'relative flex size-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/10',
+                'relative flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/10',
                 mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
               )}
             >
@@ -2404,10 +2404,10 @@ function MergeInfiniteCanvas({
         </div>
 
         {/* Drift navigation replaces the redundant workflow stepper. */}
-        <div className="pointer-events-none absolute top-3 left-1/2 z-20 flex -translate-x-1/2 justify-center">
+        <div className="pointer-events-none absolute top-2 left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
             {stage === 'compare' && (
-              <div className={cn('relative flex h-10 items-center gap-1 rounded-full p-1.5 text-[13px]', FLOATING_PILL)}>
+              <div className={cn('relative flex items-center gap-1 rounded-full px-0.5 text-[13px]', FLOATING_PILL)}>
                 <button
                   type="button"
                   onClick={() => {

@@ -451,7 +451,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
           present, with a comfortable gap. The toggle is click-only (no
           hover flyout, no auto-close): the window stays open until it's
           toggled here or closed from its own header. */}
-      <div className="absolute top-3 left-4 z-40 flex items-center gap-2">
+      <div className="absolute top-2 left-4 z-40 flex items-center gap-2">
         <button
           type="button"
           // Straight back, no confirmation wall — merge progress is kept
@@ -489,7 +489,7 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
       className={cn(
         // Sized to its content, capped 16px above the bottom edge (then the
         // body scrolls) — not stretched to the bottom regardless of content.
-        'absolute top-[60px] left-4 z-30 flex max-h-[calc(100%-76px)] w-[304px] flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
+        'absolute top-12 left-4 z-30 flex max-h-[calc(100%-64px)] w-[304px] flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
         PANEL_RADIUS,
         FLOATING_PANEL,
         mergeListCollapsed ? 'pointer-events-none -translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'

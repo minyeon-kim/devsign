@@ -114,7 +114,7 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
           utilities — each on its own track, split by dividers. */}
       <div
         className={cn(
-          'absolute top-3 left-1/2 z-10 flex h-12 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center overflow-x-auto rounded-full px-2 [scrollbar-width:none]',
+          'absolute top-2 left-1/2 z-10 flex h-12 max-w-[calc(100%-2rem)] -translate-x-1/2 items-center overflow-x-auto rounded-full px-2 [scrollbar-width:none]',
           FLOATING_PILL
         )}
       >
