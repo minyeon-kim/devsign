@@ -124,6 +124,10 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
       </div>
+      {/* The floating panel's own mb-2 leaves a sliver of full-size canvas
+          visible below it — paint that sliver the same color as the
+          activity rail it's flush against, instead of the canvas's dot grid. */}
+      {inMergeStudio && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[551] h-3 bg-[#050506]" />}
       {!inMergeStudio && <WorkspaceBottomPanel />}
     </div>
     </WorkspaceBottomPanelPortalContext.Provider>

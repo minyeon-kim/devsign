@@ -113,10 +113,13 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       aria-label="Bottom panel"
       style={{ height: open ? height : STRIP_HEIGHT }}
       className={cn(
-        // Merge Studio and plain Workspace share this exact styling — same
-        // in-flow positioning, same rounding/margins when open, same flush
-        // strip when closed. No portal-only branch, so they can't drift.
-        'relative flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        // Merge Studio and plain Workspace share the exact same look (same
+        // rounding/margins/border when open, same flush strip when closed)
+        // — only *positioning* differs: Merge Studio floats the panel over
+        // a full-size canvas instead of shrinking it, so the infinite
+        // canvas never resizes under the user while panel height changes.
+        'flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        portal ? 'absolute inset-x-0 bottom-0' : 'relative',
         open
           ? 'z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
           : 'rounded-none border-transparent bg-[#050506] shadow-none',
