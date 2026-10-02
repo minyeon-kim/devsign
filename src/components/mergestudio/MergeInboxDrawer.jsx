@@ -289,7 +289,7 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex w-full items-start gap-2 rounded-xl px-2.5 py-2.5 text-left ring-1 ring-white/[0.05] transition-colors',
+        'flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left ring-1 ring-white/[0.05] transition-colors',
         comment && group.unread ? 'bg-emerald-400/[0.05] hover:bg-emerald-400/[0.08]' : 'bg-white/[0.025] hover:bg-white/[0.05]'
       )}
     >
