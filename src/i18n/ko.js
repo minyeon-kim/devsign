@@ -1414,6 +1414,15 @@ Object.assign(ko, {
   'Dismiss request': '요청 무효화',
   'Dismiss change request…': '변경 요청 무효화…',
   'dismissed a change request': '변경 요청을 무효화했어요',
+  // The review decision popover
+  'Your review': '내 검토',
+  'Submit approval': '승인하기',
+  'The change is good to merge.': '이대로 병합해도 좋아요.',
+  'Something needs fixing before it merges.': '병합 전에 고쳐야 할 부분이 있어요.',
+  'What needs to change? (required)': '무엇을 고쳐야 하나요? (필수)',
+  'Leave a comment (optional)': '코멘트 남기기 (선택)',
+  'Adjust in Merge Studio': '병합 스튜디오에서 조정',
+  "Adjust the design in Merge Studio. This doesn't approve or merge the change.": '병합 스튜디오에서 디자인을 조정해요. 승인이나 병합은 되지 않아요.',
   'Approvals were reset — the change is back in review.': '승인이 초기화되어 다시 검토 단계로 돌아갔어요.',
   '⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review.': '⌘↵ 저장 · Esc 취소. 저장하면 승인이 초기화되고 다시 검토 단계로 돌아가요.',
 })

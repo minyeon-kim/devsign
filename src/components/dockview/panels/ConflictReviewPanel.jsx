@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
+  ArrowUpRight,
   Ban,
   Bell,
   Bot,
   Check,
+  ChevronDown,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +30,7 @@ import { allPeople, currentUserFor } from '@/data/mockData'
 import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
-  needsReviewFrom,
+  approvalStatus,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
@@ -365,7 +367,7 @@ function CodeDiffColumns({ rows }) {
 // ConflictCodeView) — editable, and what merging applies — or, when the
 // change can't be placed in the file, as the plain Before / After snippet.
 // Nothing reaches the workspace before the change is merged.
-function DiffTab({ conflict, code }) {
+function DiffTab({ conflict, code, studioAction }) {
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
       <div className="h-full">
@@ -379,6 +381,22 @@ function DiffTab({ conflict, code }) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Going to work on it, not a decision: next to the comparison it's
+          about, the way "Open in editor" sits on the code. */}
+      {studioAction && (
+        <div className="-mt-1 mb-1 flex justify-end">
+          <button
+            type="button"
+            title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
+            onClick={studioAction.onClick}
+            className="ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] text-slate-400 transition-colors hover:text-white"
+          >
+            <GitMerge className="size-3" />
+            <LocalizedText text={studioAction.label} />
+            <ArrowUpRight className="size-3" />
+          </button>
+        </div>
+      )}
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
@@ -807,6 +825,78 @@ function CommentThread({ conflict, workspace }) {
   )
 }
 
+// Your sign-off, as one button (GitHub's "Review changes"): pick Approve or
+// Request changes and leave a note. Requesting changes needs one — the
+// author has to know what to fix — and the note goes to the conflict's
+// Comments either way.
+function ReviewButton({ onSubmit }) {
+  const [open, setOpen] = useState(false)
+  const [decision, setDecision] = useState('approve')
+  const [note, setNote] = useState('')
+  const needsNote = decision === 'changes'
+  const ready = !needsNote || note.trim()
+
+  function submit() {
+    if (!ready) return
+    onSubmit(decision, note.trim())
+    setOpen(false)
+    setNote('')
+    setDecision('approve')
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className={cn(PRIMARY_BUTTON, 'gap-1')}>
+        <LocalizedText text="Review" />
+        <ChevronDown className="size-3.5" />
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={8} className="w-72 gap-2 rounded-xl p-2">
+        <div role="radiogroup" aria-label="Your review" className="space-y-0.5">
+          {[
+            ['approve', 'Approve', 'The change is good to merge.'],
+            ['changes', 'Request changes', 'Something needs fixing before it merges.'],
+          ].map(([id, label, hint]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={decision === id}
+              onClick={() => setDecision(id)}
+              className={cn('flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors', decision === id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]')}
+            >
+              <span className={cn('mt-1 flex size-3 shrink-0 items-center justify-center rounded-full ring-1', decision === id ? 'ring-emerald-300' : 'ring-white/30')}>
+                {decision === id && <span className="size-1.5 rounded-full bg-emerald-300" />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-white"><LocalizedText text={label} /></span>
+                <span className="block text-[11px] leading-4 text-slate-500"><LocalizedText text={hint} /></span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <textarea
+          rows={3}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); submit() } }}
+          placeholder={needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)'}
+          className="block w-full resize-none rounded-lg bg-white/[0.04] px-2.5 py-2 text-xs leading-5 text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.06]"
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={submit}
+            className={cn('inline-flex h-7 items-center rounded-full px-3 text-xs font-semibold', decision === 'approve' ? ACCENT_CTA : 'bg-amber-400/15 text-amber-200 hover:bg-amber-400/25', 'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none')}
+          >
+            <LocalizedText text={decision === 'approve' ? 'Submit approval' : 'Request changes'} />
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // ─── Inline review view ────────────────────────────────────────────────
 //
 // `onUpdate(id, patch)` applies review edits (stage, reviewers) to
@@ -879,6 +969,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (workspace.dockApi) openOrFocusPanel(workspace.dockApi, panelById.editor)
   }
 
+  function handleReview(decision, note) {
+    if (note && workspace) workspace.addComment(note, { conflictId: conflict.id })
+    if (decision === 'approve') handleApprove()
+    else onRequestChanges?.(conflict.id)
+  }
+
   function handleMerge() {
     if (onResolve) onResolve(conflict.id)
     else update({ reviewStage: 'resolved' })
@@ -916,7 +1012,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   )
 
   const stage = conflict?.reviewStage
-  const myReview = conflict ? needsReviewFrom(conflict) : false
+  const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === currentUserFor(conflict.projectId).id) : null
+  const canReview = Boolean(myReviewer && myReviewer.status !== 'approved')
 
   // The change placed in its file, for the editable code view — only
   // inside a workspace (which has the files) and while the file still
@@ -944,21 +1041,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           Request review
         </button>
       )
-    } else if (stage === 'in_review' && myReview) {
-      primary = (
-        <>
-          <button
-            type="button"
-            onClick={() => onRequestChanges?.(conflict.id)}
-            className={cn('inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-medium whitespace-nowrap', GHOST_BUTTON)}
-          >
-            Request changes
-          </button>
-          <button type="button" onClick={handleApprove} className={PRIMARY_BUTTON}>
-            Approve change
-          </button>
-        </>
-      )
+    } else if (stage === 'in_review' && canReview) {
+      // Yours to decide — also after requesting changes, so you can approve
+      // once they're fixed (or change your mind).
+      primary = <ReviewButton onSubmit={handleReview} />
+    } else if (stage === 'in_review') {
+      // Not your move: say whose it is instead of leaving the slot empty.
+      const waitingOn = approvalStatus(conflict).lines.filter((line) => !/^(Approved by you|You requested changes)$/.test(line))
+      primary = waitingOn.length ? (
+        <span className="text-[11px] text-slate-500"><LocalizedText text={waitingOn.join(' · ')} /></span>
+      ) : null
     } else if (stage === 'approved') {
       primary = (
         <button type="button" onClick={handleMerge} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
@@ -1004,21 +1096,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               <div className="flex shrink-0 items-center gap-1.5">
                 {primary}
               </div>
-              {stage !== 'resolved' && (
-                <div className="flex shrink-0 items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger
-                      type="button"
-                      onClick={() => onOpenMergeStudio?.(conflict)}
-                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200"
-                    >
-                      <GitMerge className="size-3.5" />
-                      {mergeActionLabel}
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Review merge impact and automated checks. This does not approve or merge the change.</TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
@@ -1042,7 +1119,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <DiffTab conflict={conflict} code={codeView} />
+                          <DiffTab
+                            conflict={conflict}
+                            code={codeView}
+                            studioAction={stage !== 'resolved' && onOpenMergeStudio
+                              ? { label: mergeActionLabel === 'Open in Merge Studio' ? 'Adjust in Merge Studio' : mergeActionLabel, onClick: () => onOpenMergeStudio(conflict) }
+                              : null}
+                          />
                         </div>
                       </section>
                     </div>
