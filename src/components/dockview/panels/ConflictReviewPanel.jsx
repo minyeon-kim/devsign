@@ -927,15 +927,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {primary}
               </div>
               {stage !== 'resolved' && (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 border-l border-white/[0.08] pl-2.5">
                   <Tooltip>
                     <TooltipTrigger
                       type="button"
                       onClick={() => onOpenMergeStudio?.(conflict)}
-                      className={cn(
-                        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap',
-                        GHOST_BUTTON
-                      )}
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200"
                     >
                       <GitMerge className="size-3.5" />
                       {mergeActionLabel}
