@@ -629,10 +629,3 @@ button.editor-line-comment {
   min-width: 32px !important;
   max-width: 32px !important;
 }
-
-/* Black outer corners overlay the studio; the infinite canvas keeps its full size. */
-.merge-canvas-corner-frame {
-  border-radius: 20px;
-  box-shadow: 0 0 0 20px #070708;
-  border: 1px solid rgb(255 255 255 / 8%);
-}
