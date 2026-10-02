@@ -788,6 +788,29 @@ export function WorkspaceProvider({ children, projectId }) {
     [conflicts, logEvent, projectId, setConflicts, currentUser.id]
   )
 
+  // Reopening an already-merged conflict undoes it: the conflict itself
+  // goes back to pending review, but the merge it was part of also set its
+  // linked merge item's tag to 'Merged' (see commitMerge) — left alone,
+  // that stale tag keeps tripping mergeBlockReason's "already merged"
+  // check forever, so re-approving and merging again always fails. Reset
+  // both together so a reopened conflict can actually be merged again.
+  const reopenConflict = useCallback(
+    (conflictId) => {
+      const conflict = conflicts.find((c) => c.id === conflictId)
+      if (!conflict) return
+      setConflicts((prev) =>
+        prev.map((c) =>
+          c.id === conflictId
+            ? { ...c, reviewStage: 'detected', diffInspected: false, reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) }
+            : c
+        )
+      )
+      const item = mergeItems.find((mi) => mi.id === conflict.mergeItemId || mi.conflictId === conflict.id)
+      if (item?.tag === 'Merged') updateMergeItem(item.id, { tag: 'Needs Review', updatedLabel: 'Just now' })
+    },
+    [conflicts, mergeItems, setConflicts, updateMergeItem]
+  )
+
   // Batch approval (the Conflict Points list): your sign-off on several
   // low-risk, open conflicts at once — you only ever approve as yourself
   // (added as a reviewer where you weren't one). A conflict whose every
@@ -1500,6 +1523,7 @@ export function WorkspaceProvider({ children, projectId }) {
     resolveConflict,
     approveConflict,
     requestChanges,
+    reopenConflict,
     batchApproveConflicts,
     projectPages,
     memberViewports,

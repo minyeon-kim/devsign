@@ -70,7 +70,7 @@ function matchesConflictFilters(conflict, filters) {
 function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   const navigate = useNavigate()
   const { projectId, conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    updateConflict, approveConflict, requestChanges, resolveConflict, currentUser, requestMergeFocus } =
+    updateConflict, approveConflict, requestChanges, resolveConflict, reopenConflict, currentUser, requestMergeFocus } =
     useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
   // A conflict links to its merge item either way round — its own
@@ -177,6 +177,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
             onApprove={approveConflict}
             onRequestChanges={requestChanges}
             onResolve={resolveConflict}
+            onReopen={reopenConflict}
             onOpenMergeStudio={(conflict) => {
               if (inMergeStudio && reviewConflictIsOpenItem) {
                 mergeStepFlowProps.onStepChange(1)

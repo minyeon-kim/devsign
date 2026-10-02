@@ -777,7 +777,7 @@ function CommentThread({ conflict, workspace }) {
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
 // your own sign-off (approving never changes code); `onResolve(id)` merges
 // an Approved conflict — the only step that applies the change.
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onReopen, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
   const workspace = useWorkspaceOptional()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
@@ -824,7 +824,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   function handleReopen() {
-    update({
+    if (onReopen) onReopen(conflict.id)
+    else update({
       reviewStage: 'detected',
       diffInspected: false,
       reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
