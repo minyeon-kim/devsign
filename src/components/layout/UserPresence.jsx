@@ -51,7 +51,7 @@ function UserPresence() {
   }
 
   return (
-    <AvatarGroup className="ds-user-presence flex w-max flex-nowrap items-center -space-x-1.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-0">
+    <AvatarGroup className="ds-user-presence flex w-max flex-nowrap items-center -space-x-0.5 [&>*]:relative [&>*]:shrink-0 [&>*]:ring-2 [&>*]:ring-background [&>[data-following=true]]:ring-primary [&>[data-following=true]]:ring-offset-0">
       {/* Avatars open profile details; following is an explicit action inside. */}
       <Popover>
         <PopoverTrigger
