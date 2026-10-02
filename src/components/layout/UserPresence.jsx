@@ -1,6 +1,5 @@
 import { Headset } from 'lucide-react'
 import { cn } from 'cn'
-import { useNavigate } from 'react-router-dom'
 import {
   Avatar,
   AvatarBadge,
@@ -14,11 +13,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
-import { viewerPersonas } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 function UserPresence() {
-  const navigate = useNavigate()
   const {
     followingMe,
     followedMemberId,
@@ -66,9 +63,9 @@ function UserPresence() {
         </PopoverTrigger>
 
         <PopoverContent align="end" sideOffset={10} className="w-64 gap-0 p-0">
-          {/* You — same avatar size as everyone else below (Switch user,
-              Team activity): only the ring on the Switch user row marks
-              you out, not a bigger icon. */}
+          {/* You — same header row shape as a teammate's own popover below
+              (avatar, name + role, an action on the right), so both read
+              as the same component instead of two different designs. */}
           <div className="flex items-center gap-2 p-3">
             <Avatar size="sm">
               <AvatarFallback
@@ -91,34 +88,6 @@ function UserPresence() {
             >
               {followingMe ? 'Following' : 'Follow me'}
             </Button>
-          </div>
-
-          {/* UT-only: each persona has a fully scripted project — picking
-              one takes you straight there instead of leaving you to find
-              the right project for the role you're testing. */}
-          <div className="border-t px-3 py-2.5">
-            <p className="mb-1.5 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</p>
-            <div className="flex items-center gap-1.5">
-              {viewerPersonas.map(({ projectId, person }) => (
-                <button
-                  key={projectId}
-                  type="button"
-                  aria-label={person.name}
-                  title={person.name}
-                  onClick={() => navigate(`/projects/${projectId}`)}
-                  className={cn(
-                    'flex size-7 items-center justify-center rounded-full ring-1 ring-inset transition-opacity hover:opacity-80',
-                    person.id === currentUser.id ? 'ring-primary' : 'ring-transparent'
-                  )}
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className={cn('text-xs font-medium text-white', person.colorClass)}>
-                      {person.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              ))}
-            </div>
           </div>
 
           <Separator />
@@ -189,17 +158,34 @@ function UserPresence() {
                   {member.online && <AvatarBadge className="bg-emerald-500" />}
                 </Avatar>
               </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={10} className="w-64 gap-2 rounded-2xl p-3">
-                <p className="font-medium">
-                  {active ? `Following ${member.name}` : member.name}
-                  <span className="font-normal text-muted-foreground"> · {currentView.status}</span>
-                </p>
-                {currentView.label && <p>{currentView.label}</p>}
-                {currentView?.file && <p className="font-mono text-muted-foreground">{currentView.file}</p>}
-                <p className="text-xs text-muted-foreground">{member.role}</p>
-                <Button size="sm" variant={active ? 'secondary' : 'outline'} className="mt-1 w-full" onClick={() => followMember(member.id)}>
-                  {active ? 'Stop following' : 'Follow'}
-                </Button>
+              {/* Same card shape as the "You" popover above (header row —
+                  avatar, name + role, an action — then a detail section
+                  below a divider) instead of its own smaller, differently
+                  laid out one. */}
+              <PopoverContent align="end" sideOffset={10} className="w-64 gap-0 p-0">
+                <div className="flex items-center gap-2 p-3">
+                  <Avatar size="sm">
+                    <AvatarFallback className={cn('text-xs font-medium text-white', member.colorClass)}>
+                      {member.initials}
+                    </AvatarFallback>
+                    {member.online && <AvatarBadge className="bg-emerald-500" />}
+                  </Avatar>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <div className="font-medium">
+                      {member.name} <span className="font-normal text-muted-foreground">· {currentView.status}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{member.role}</div>
+                  </div>
+                  <Button size="sm" variant={active ? 'secondary' : 'outline'} onClick={() => followMember(member.id)}>
+                    {active ? 'Stop following' : 'Follow'}
+                  </Button>
+                </div>
+                {(currentView.label || currentView?.file) && (
+                  <div className="border-t px-3 py-2.5 text-xs text-muted-foreground">
+                    {currentView.label && <p>{currentView.label}</p>}
+                    {currentView?.file && <p className="mt-0.5 font-mono">{currentView.file}</p>}
+                  </div>
+                )}
               </PopoverContent>
             </Popover>
           )
