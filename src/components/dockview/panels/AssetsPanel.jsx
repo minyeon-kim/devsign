@@ -80,7 +80,7 @@ function AssembleView() {
   const { layer, frameWidth } = useSelectedLayer()
   const [appliedPresetId, setAppliedPresetId] = useState(null)
   return (
-    <div className="flex min-h-0 flex-1 flex-col [&_.col-span-2]:col-span-3 [&_.h-7]:h-6 [&_.px-5]:px-3 [&_.py-2\.5]:py-1.5 [&_.size-7]:size-6 [&_.text-sm]:text-xs">
+    <div className="ds-compact-inspector flex min-h-0 flex-1 flex-col">
       <BlockAssembleTab
         selectedLayer={layer}
         frameWidth={frameWidth}

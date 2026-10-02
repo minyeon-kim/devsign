@@ -275,7 +275,7 @@ function DeckScroll({ innerClassName, children }) {
 
 function InspectorSection({ title, action, children }) {
   return (
-    <div className="space-y-2 px-5 py-2.5">
+    <div className="ds-inspector-section space-y-2 px-5 py-2.5">
       <div className="flex h-5 items-center gap-2">
         <p className="text-xs font-medium text-slate-200">{title}</p>
         {action && <span className="ml-auto">{action}</span>}
@@ -1472,7 +1472,7 @@ function BlockDeckPanel({
         ...anchor,
         maxHeight: `calc(100% - ${DECK_TOP + 16}px)`,
       }}
-      className={embedded ? 'flex h-full min-h-0 flex-col overflow-hidden bg-card' : cn(
+      className={embedded ? 'ds-compact-inspector flex h-full min-h-0 flex-col overflow-hidden bg-card' : cn(
         'absolute z-30 flex flex-col overflow-hidden transition-[translate,opacity] duration-300 ease-in-out will-change-transform',
         PANEL_RADIUS,
         FLOATING_PANEL,

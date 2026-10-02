@@ -654,3 +654,25 @@ button.editor-line-comment {
   min-width: 28px !important;
   max-width: 28px !important;
 }
+
+/* Shared narrow navigator scale for Workspace and embedded Merge Studio. */
+.ds-compact-inspector { font-size: 11px; }
+.ds-compact-inspector .px-5 { padding-inline: 12px; }
+.ds-compact-inspector .text-sm { font-size: 12px; line-height: 18px; }
+.ds-compact-inspector .text-xs,
+.ds-compact-inspector [class~="text-[12px]"] { font-size: 11px; line-height: 16px; }
+.ds-compact-inspector :is(.h-7, .size-7) { height: 24px !important; min-height: 24px !important; }
+.ds-compact-inspector .size-7 { width: 24px !important; min-width: 24px !important; }
+.ds-compact-inspector :is(button.h-6, button.h-5) { height: 22px !important; min-height: 22px !important; }
+.ds-compact-inspector input { height: 22px !important; min-height: 0 !important; }
+.ds-compact-inspector .col-span-2 { grid-column: span 3 / span 3; }
+.ds-compact-inspector .ds-inspector-section {
+  padding: 12px;
+  border-top: 1px solid rgb(255 255 255 / 6%);
+}
+.ds-compact-inspector .ds-inspector-section > .h-5 { height: 16px; }
+.ds-compact-inspector .ds-inspector-section > .h-5 > p {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
