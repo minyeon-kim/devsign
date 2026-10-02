@@ -8,7 +8,7 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // already loaded the app once kept its *original* historyEntries from
 // localStorage forever, never picking up any of it — including Playback's
 // own position in that array, so it looked unrelated to it).
-export const DEMO_VERSION = 4
+export const DEMO_VERSION = 5
 
 export function readDemo(key, fallback) {
   try {

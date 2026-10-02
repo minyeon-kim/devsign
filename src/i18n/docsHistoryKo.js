@@ -72,7 +72,6 @@ export const docsHistoryKo = {
   "Archive this checkpoint": "이 버전 보관",
   "No archived checkpoints.": "보관된 버전이 없습니다.",
   "Agent checkpoints (History)": "AI 작업 히스토리",
-  "Agent memory": "AI 대화 기록",
   "Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.": "작업을 선택한 버전의 상태로 되돌리고 새 버전으로 저장합니다. 이후에 쌓인 변경 이력은 삭제되지 않고 그대로 남습니다.",
   "Nothing to forget — the agent conversation hasn’t moved on since.": "이 버전 이후에 진행된 AI 대화가 없습니다.",
   "Preview settings and the canvas selection at this checkpoint.": "이 버전의 미리보기 설정과 캔버스 선택 상태를 복원합니다.",
