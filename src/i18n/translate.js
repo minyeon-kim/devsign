@@ -47,6 +47,20 @@ const rules = [
   // since it never ran back through core(), producing "Project 홈" instead
   // of "프로젝트 홈".
   [/^(.+) home$/, (_, name) => `${core(name)} 홈`],
+  // Korean-mode sweep: dynamic copy that was still showing in English.
+  [/^Edited (.+)$/, (_, when) => `${core(when)} 수정됨`],
+  [/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d{1,2}):(\d{2}) (AM|PM)$/, (_, day, h, m, ampm) => {
+    const DAYS = { Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토', Sun: '일' }
+    return `${DAYS[day]}요일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`
+  }],
+  [/^(\d+) more teammates?$/, (_, n) => `팀원 ${n}명 더 보기`],
+  [/^(.+) profile$/, (_, name) => `${core(name)} 프로필`],
+  [/^Layout: (.+)$/, (_, name) => `레이아웃: ${core(name)}`],
+  [/^Only components that fit (.+)$/, (_, name) => `${core(name)}에 맞는 컴포넌트만`],
+  [/^Open the review of (.+)$/, (_, name) => `${core(name)} 검토 열기`],
+  [/^Jump to (.+) on the canvas$/, (_, name) => `캔버스에서 ${core(name)}(으)로 이동`],
+  // A tool or action with its one-key shortcut: "Move (V)" → "이동 (V)".
+  [/^(.+) \(([A-Z])\)$/, (_, name, key) => `${core(name)} (${key})`],
   [/^Notifications \((\d+) unread\)$/, (_, n) => `알림 (읽지 않음 ${n}개)`],
   [/^Inbox \((\d+) unread\)$/, (_, n) => `받은 알림 (읽지 않음 ${n}개)`],
   [/^No one matches “(.+)”$/, (_, name) => `“${name}”와 일치하는 사람이 없습니다`],

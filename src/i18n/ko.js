@@ -1364,3 +1364,38 @@ Object.assign(ko, {
 })
 
 Object.assign(ko, { 'Request review': '검토 요청 보내기', 'Awaiting approval': '승인 대기', 'Not requested': '요청 전', 'Continue to Check': '확인 단계로 이동' })
+
+// Korean-mode sweep: UI copy that was still showing in English.
+Object.assign(ko, {
+  // Command palette
+  'Views': '보기',
+  'Go to': '이동',
+  'Focus Editor': '에디터 집중',
+  'Terminal Below': '터미널 아래',
+  // Canvas tools (the shortcut key is kept by a rule in translate.js)
+  'Move': '이동',
+  'Hand tool': '손 도구',
+  'Frame': '프레임',
+  'Rectangle': '사각형',
+  // Navigation / chrome
+  'Drawer': '사이드 패널',
+  'Project navigation': '프로젝트 메뉴',
+  'Notifications alt+T': '알림 alt+T',
+  'High priority notifications': '중요 알림',
+  'Dismiss notification': '알림 닫기',
+  // Layers
+  'Toggle layer locking': '레이어 잠금 전환',
+  'Toggle layer visibility': '레이어 표시 전환',
+  // Conflict review
+  'Summary': '요약',
+  'Current implementation': '현재 구현',
+  'Design reference': '디자인 기준',
+  'Local branch': '로컬 브랜치',
+  'Remote branch': '원격 브랜치',
+  'AI draft': 'AI 초안',
+  'Back to list': '목록으로',
+  'Replay content': '재생 내용',
+  'Hide quick diff': '빠른 비교 숨기기',
+  // Assets
+  'Show components': '컴포넌트 표시',
+})
