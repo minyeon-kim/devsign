@@ -136,7 +136,10 @@ function UserPresence() {
         </PopoverContent>
       </Popover>
 
-        {teamMembers.slice(0, 2).map((member) => {
+        {/* Caps the whole stack at 2 avatars — You above, plus one
+            teammate here — then "+N" for the rest, not 2 teammates on top
+            of You (3 individual avatars read as cluttered). */}
+        {teamMembers.slice(0, 1).map((member) => {
           const active = followedMemberId === member.id
           const currentView = contextFor(member)
           return (
@@ -190,16 +193,16 @@ function UserPresence() {
             </Popover>
           )
         })}
-        {teamMembers.length > 2 && (
+        {teamMembers.length > 1 && (
           <Popover>
             <PopoverTrigger
-              aria-label={`${teamMembers.length - 2} more teammates`}
+              aria-label={`${teamMembers.length - 1} more teammates`}
               className="relative z-20 flex size-5 items-center justify-center rounded-full bg-white/[0.1] text-[9px] font-medium text-slate-300"
             >
-              +{teamMembers.length - 2}
+              +{teamMembers.length - 1}
             </PopoverTrigger>
             <PopoverContent align="end" sideOffset={10} className="w-64 rounded-2xl p-2">
-              {teamMembers.slice(2).map((member) => (
+              {teamMembers.slice(1).map((member) => (
                 <button key={member.id} type="button" onClick={() => followMember(member.id)} className="flex items-center gap-2 rounded-lg p-2 text-left hover:bg-muted">
                   <Avatar size="sm"><AvatarFallback className={cn('text-[10px] text-white', member.colorClass)}>{member.initials}</AvatarFallback></Avatar>
                   <span className="flex-1"><span className="block text-xs font-medium">{member.name}</span><span className="block text-[11px] text-muted-foreground">{contextFor(member).label ?? member.role}</span></span>
