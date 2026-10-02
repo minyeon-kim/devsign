@@ -55,6 +55,19 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     setBottomPanel({ open: true, height: target })
   }, [reviewConflictId, setBottomPanel])
 
+  // Opening Conflict Points itself (the list, before any row is picked)
+  // needs more room than the panel's small resting height — a fresh
+  // session starts on Terminal at 240px, which is cramped for the list's
+  // columns. Only grows, and only on the open transition itself, so it
+  // never fights a height the user later drags down, and never re-fires
+  // just from height changing while the tab stays open.
+  useEffect(() => {
+    if (tab !== 'conflict' || !open) return
+    const target = Math.max(320, Math.round(window.innerHeight * 0.36))
+    if (height < target) setBottomPanel({ height: target })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, open])
+
   useLayoutEffect(() => {
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
   }, [open, height, availableHeight, setBottomPanel])
