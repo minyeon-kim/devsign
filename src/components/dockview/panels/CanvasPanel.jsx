@@ -376,7 +376,7 @@ function CanvasPanel() {
     dockApi,
     canvasTool,
     setCanvasTool,
-    setAssetsTab,
+    setFilesWindow,
     comments,
     addComment,
     getViewersForCanvasPage,
@@ -436,11 +436,9 @@ function CanvasPanel() {
     const target = findCanvasTarget(id)
     if (target) {
       openLayerInspectTab(dockApi, target.layer ?? target.frame)
-      // Editing a selected element happens in the Assets panel's Assemble
-      // tab, not a floating toolbar over the canvas — bring it forward
-      // and switch to it, the same way selecting already opens Inspect.
-      setAssetsTab('assemble')
-      openOrFocusPanel(dockApi, panelById.assets)
+      // Selection editing belongs to Properties; Assets stays a library.
+      setFilesWindow({ tab: 'inspect', open: true })
+      openOrFocusPanel(dockApi, panelById.navigator)
     }
   }
 

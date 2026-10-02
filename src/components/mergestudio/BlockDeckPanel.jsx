@@ -1,3 +1,4 @@
+import AssetsLibrary from '@/components/dockview/panels/AssetsLibrary'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   ArrowDown,
@@ -32,7 +33,7 @@ import {
   designSystemMeta,
   inspectorSpecsByType,
 } from '@/data/mockData'
-import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { ComponentPreview } from '@/components/mergestudio/ComponentPreview'
 import { buildDrifts, driftSeverity } from '@/components/mergestudio/mergeSummary'
 import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLayers, isCustomResolution, libraryCompat, recommendAssembly } from '@/components/mergestudio/mergeEffects'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -1141,23 +1142,6 @@ export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEff
 // "Insert") or pull a fresh instance onto both artboards ("Add").
 // Thumbnail: the live component on a small white (light-mode canvas)
 // tile, scaled to fit — 56×36, so a row stays one slim line.
-export function ComponentPreview({ def, box = { w: 48, h: 28 } }) {
-  const k = Math.min(1, box.w / def.width, box.h / def.height)
-  // `name` matters: some layer types (avatars) render from it — without it
-  // an avatar preview crashed the whole Library tab.
-  const layer = { id: def.id, name: def.name, type: def.type, label: def.label, x: 0, y: 0, width: def.width, height: def.height }
-  const override = { ...assemblyToOverride(def.assembly, layer), static: true }
-  return (
-    <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-white" style={{ width: box.w + 8, height: box.h + 8 }}>
-      <div className="relative" style={{ width: def.width * k, height: def.height * k }}>
-        <div className="absolute top-0 left-0" style={{ width: def.width, height: def.height, transform: `scale(${k})`, transformOrigin: 'top left' }}>
-          <StaticLayer layer={layer} override={override} onSelect={() => {}} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Library row actions: same 28px / 6px spec as the inspector controls,
 // medium weight. The contextual action (Replace / Insert) is a soft fill;
 // Add is a quiet outline.
@@ -1386,6 +1370,7 @@ const DECK_TOP = 60
 
 function BlockDeckPanel({
   embedded = false,
+  activeTab,
   open,
   onFloat,
   item,
@@ -1502,7 +1487,7 @@ function BlockDeckPanel({
           Assets view and the Conflict Points filters) — in the navigator's
           Inspect slot this sits right under the window's own tabs, where
           a second row of pills read as tabs under tabs. */}
-      <div className="flex shrink-0 items-center gap-x-4 px-5 pb-2">
+      {!embedded && <div className="flex shrink-0 items-center gap-x-4 px-5 pb-2">
         {[
           ['assemble', 'Assemble'],
           ['library', 'Library'],
@@ -1518,11 +1503,11 @@ function BlockDeckPanel({
             {changeCounts[id] > 0 && <span className="text-slate-600 tabular-nums">{changeCounts[id]}</span>}
           </button>
         ))}
-      </div>
+      </div>}
       {/* No per-tab description line — each tab's content starts right
           under the tab bar. */}
-      {tab === 'library' ? (
-        <ComponentsTab selectedLayer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
+      {(activeTab ?? tab) === 'library' ? (
+        <AssetsLibrary layer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
       ) : (
         <BlockAssembleTab
           selectedLayer={selectedLayer}

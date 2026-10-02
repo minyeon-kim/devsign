@@ -89,6 +89,7 @@ function MergeStudioWorkspace({ item }) {
   const {
     setActiveFileId,
     setFilesWindow,
+    filesWindow,
     getFileLines,
     setActivePageId,
     updateMergeItem,
@@ -912,6 +913,7 @@ function MergeStudioWorkspace({ item }) {
       {item && deckElement && createPortal(
         <BlockDeckPanel
           embedded
+          activeTab={filesWindow.tab === 'assets' ? 'library' : 'assemble'}
           driftEffect={deckLayerId ? variantPreviews?.[deckLayerId] : undefined}
           textSlots={textSlots}
           onEditText={editText}
