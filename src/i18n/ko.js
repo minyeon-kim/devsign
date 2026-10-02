@@ -1416,6 +1416,8 @@ Object.assign(ko, {
   'dismissed a change request': '변경 요청을 무효화했어요',
   // The review decision popover
   'Your review': '내 검토',
+  'You can’t review your own change': '본인 변경은 검토할 수 없어요',
+  'Author · not required': '작성자 · 승인 불필요',
   'Submit approval': '승인하기',
   'The change is good to merge.': '이대로 병합해도 좋아요.',
   'Something needs fixing before it merges.': '병합 전에 고쳐야 할 부분이 있어요.',

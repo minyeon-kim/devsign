@@ -48,9 +48,16 @@ export function isPendingMerge(conflict) {
   return conflict.reviewStage === 'approved'
 }
 
+// The reviewers whose sign-off a change needs: everyone listed except its
+// author (who can't review their own change — see authorOf).
+export function requiredReviewers(conflict) {
+  const author = authorOf(conflict)
+  return (conflict.reviewers ?? []).filter((r) => r.id !== author)
+}
+
 export function allReviewersApproved(conflict) {
-  const reviewers = conflict.reviewers ?? []
-  return reviewers.length > 0 && reviewers.every((r) => r.status === 'approved')
+  const required = requiredReviewers(conflict)
+  return required.length > 0 && required.every((r) => r.status === 'approved')
 }
 
 // Every helper below takes an optional `userId` — omit it and it resolves
@@ -69,7 +76,8 @@ export function reviewerFor(conflict, userId) {
 // "Needs your review": you're one of its required approvers, it's in
 // review, and you haven't approved (or requested changes) yet.
 export function needsReviewFrom(conflict, userId) {
-  return conflict.reviewStage === 'in_review' && reviewerFor(conflict, userId)?.status === 'pending'
+  const reviewer = reviewerFor(conflict, userId)
+  return conflict.reviewStage === 'in_review' && reviewer?.status === 'pending' && reviewer.id !== authorOf(conflict)
 }
 
 function nameOf(id, viewerId) {
@@ -108,7 +116,7 @@ export function approvalStatus(conflict, userId) {
   if (mine?.status === 'changes_requested') lines.push('You requested changes')
   const changes = reviewers.filter((r) => r.status === 'changes_requested' && r.id !== viewerId).map((r) => r.id)
   if (changes.length) lines.push(`Changes requested by ${joinNames(changes, viewerId)}`)
-  const waiting = reviewers.filter((r) => r.status === 'pending' && r.id !== viewerId).map((r) => r.id)
+  const waiting = reviewers.filter((r) => r.status === 'pending' && r.id !== viewerId && r.id !== authorOf(conflict)).map((r) => r.id)
   if (waiting.length) lines.push(`Waiting for ${joinNames(waiting, viewerId)}`)
   return { tone: mine?.status === 'pending' ? 'action' : 'waiting', lines }
 }
@@ -164,4 +172,18 @@ export function conflictCounts(conflicts, userId) {
     merged: conflicts.filter((c) => c.reviewStage === 'resolved').length,
     highOpen: conflicts.filter((c) => isOpen(c) && c.severity === 'high').length,
   }
+}
+
+// The person who made a change — who a review decision goes to, and who
+// can't review it themselves. A person's change, or an AI draft someone
+// applied (older records note the requester in `changedBy.what`). Null
+// for an AI change nobody applied: there's no person to notify or bar.
+export function authorOf(conflict) {
+  const changedBy = conflict?.changedBy
+  if (!changedBy) return null
+  if (changedBy.type === 'person') return changedBy.id ?? null
+  if (changedBy.type === 'ai' && !conflict.applicationMode) {
+    return allPeople.find((person) => changedBy.what?.includes(`(requested by ${person.name} in AI chat)`))?.id ?? null
+  }
+  return null
 }

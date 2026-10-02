@@ -1,3 +1,4 @@
+import { authorOf } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -310,6 +311,8 @@ export function WorkspaceProvider({ children, projectId }) {
     }))
     const pendingIds = new Set(alerts.flatMap(alert => alert.reviewConflictIds))
     return [...alerts, ...storedNotifications.filter((n) => n.notificationType !== 'review_request'
+      // Addressed to someone else (e.g. a review decision sent to its author).
+      && (!n.recipientId || n.recipientId === currentUser.id)
       && !(n.kind === 'approval' && pendingIds.has(n.target?.conflictId))) ]
   }, [conflicts, storedNotifications, notificationDay, currentUser.id])
   // The AI chat's unsent draft and an explicitly picked request target,
@@ -798,6 +801,24 @@ export function WorkspaceProvider({ children, projectId }) {
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
 
+  // A review decision lands in its author's Inbox (not yours): "Taylor
+  // requested changes on Place order button". Skipped when there's no
+  // human author, or you'd be notifying yourself.
+  const notifyAuthor = useCallback((conflict, text, kind) => {
+    const authorId = authorOf(conflict)
+    if (!authorId || authorId === currentUser.id) return
+    setNotifications((prev) => [{
+      id: nextId('n'),
+      kind,
+      authorId: currentUser.id,
+      recipientId: authorId,
+      text,
+      timeLabel: 'Just now',
+      unread: true,
+      target: { conflictId: conflict.id, label: conflict.title },
+    }, ...prev])
+  }, [currentUser.id, setNotifications])
+
   // Your own sign-off on a conflict in review (approving never changes
   // code). You approve as yourself only; it moves to Approved when every
   // required reviewer has approved — the same rule batch approval uses.
@@ -811,6 +832,7 @@ export function WorkspaceProvider({ children, projectId }) {
       const next = { ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }
       setConflicts((prev) => prev.map((c) => (c.id === conflictId ? next : c)))
       logEvent({ kind: 'approve', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+      notifyAuthor(conflict, `approved ${conflict.title}`, 'approval')
       appendTerminalLines([`$ devsign review approve "${conflict.title}" --as ${currentUser.id}`])
       // There's only ever one real person testing this, so any other
       // required reviewer never gets a turn to click their own Approve —
@@ -832,7 +854,7 @@ export function WorkspaceProvider({ children, projectId }) {
       }
       return next
     },
-    [appendTerminalLines, conflicts, logEvent, projectId, setConflicts, currentUser.id]
+    [appendTerminalLines, conflicts, logEvent, notifyAuthor, projectId, setConflicts, currentUser.id]
   )
 
   const requestChanges = useCallback(
@@ -847,8 +869,9 @@ export function WorkspaceProvider({ children, projectId }) {
         )
       )
       logEvent({ kind: 'changes', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+      notifyAuthor(conflict, `requested changes on ${conflict.title}`, 'comment')
     },
-    [conflicts, logEvent, projectId, setConflicts, currentUser.id]
+    [conflicts, logEvent, notifyAuthor, projectId, setConflicts, currentUser.id]
   )
 
   // A merged conflict is history, not a draft — real tools never flip it

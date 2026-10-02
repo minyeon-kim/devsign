@@ -1,6 +1,12 @@
+import { authorOf } from '@/lib/conflicts'
 // Alerts contain only changes still awaiting this user's review.
 export function reviewAlerts(conflicts, userId, day) {
-  const pending = conflicts.filter(c => c.reviewStage === 'in_review' && c.reviewers?.some(r => r.id === userId && r.status === 'pending'))
+  // Changes waiting on you — not ones you requested review on yourself, and
+  // never your own change (you can't review it).
+  const pending = conflicts.filter(c => c.reviewStage === 'in_review'
+    && c.requestedBy !== userId
+    && c.reviewers?.some(r => r.id === userId && r.status === 'pending')
+    && authorOf(c) !== userId)
   const alerts = pending.filter(c => c.severity === 'high').map(c => ({
     id: `review-high-${c.id}`, kind: 'approval', notificationType: 'review_request', severity: 'high',
     text: `Immediate review · High risk: ${c.title}`, timeLabel: c.createdAtLabel ?? 'Now', unread: true,

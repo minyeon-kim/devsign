@@ -31,6 +31,7 @@ import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
   approvalStatus,
+  authorOf,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { diffLines } from '@/lib/lineDiff'
@@ -496,8 +497,10 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
   const [dismissing, setDismissing] = useState(null)
   const [reason, setReason] = useState('')
   const { reviewers, reviewStage } = conflict
-  const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id))
-  const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== viewerId)
+  // The author can't review their own change, so they're never offered.
+  const author = authorOf(conflict)
+  const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id) && p.id !== author)
+  const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== viewerId && r.id !== authorOf(conflict))
   const canRemind = reviewStage === 'in_review' || reviewStage === 'detected'
 
   function setReviewers(next, patch = {}) {
@@ -559,15 +562,17 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                   {person.name}
                   {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
                 </span>
-                <span className={cn('shrink-0 truncate text-[10.5px]', status.className)}>
-                  {reviewer.status === 'pending' && reviewer.dismissedAt
+                <span className={cn('shrink-0 truncate text-[10.5px]', reviewer.id === author ? 'text-slate-500' : status.className)}>
+                  {reviewer.id === author
+                    ? 'Author · not required'
+                    : reviewer.status === 'pending' && reviewer.dismissedAt
                     ? 'Request dismissed'
                     : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
                 </span>
                 {/* A fixed slot (room for two actions) on every row, so the
                     statuses line up whether or not a row has actions. */}
                 <div className="flex w-12 shrink-0 items-center justify-end opacity-0 transition-opacity group-hover/rev:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
-                  {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && (
+                  {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && reviewer.id !== author && (
                     <button
                       type="button"
                       aria-label={`Remind ${person.name}`}
@@ -829,7 +834,7 @@ function CommentThread({ conflict, workspace }) {
 // Request changes and leave a note. Requesting changes needs one — the
 // author has to know what to fix — and the note goes to the conflict's
 // Comments either way.
-function ReviewButton({ onSubmit }) {
+function ReviewButton({ onSubmit, authorName }) {
   const [open, setOpen] = useState(false)
   const [decision, setDecision] = useState('approve')
   const [note, setNote] = useState('')
@@ -874,6 +879,11 @@ function ReviewButton({ onSubmit }) {
             </button>
           ))}
         </div>
+        {authorName && (
+          <p className="px-2 text-[11px] text-slate-500">
+            <LocalizedText text={`${authorName} (author) will be notified.`} />
+          </p>
+        )}
         <textarea
           rows={3}
           value={note}
@@ -929,10 +939,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   function handleRequestReview() {
     // A fresh review round: earlier "changes requested" go back to pending.
+    // The request goes to the other reviewers — never back to you, and never
+    // to the author — so you're recorded as the requester (no alert for you).
     update({
       reviewStage: 'in_review',
+      requestedBy: viewerId,
       reviewers: conflict.reviewers.map((r) => (r.status === 'changes_requested' ? { ...r, status: 'pending' } : r)),
     })
+    const to = conflict.reviewers
+      .filter((r) => r.id !== viewerId && r.id !== authorId)
+      .map((r) => allPeople.find((p) => p.id === r.id)?.name)
+      .filter(Boolean)
+    toast(to.length ? `Review requested from ${to.join(', ')}` : 'Review requested', { description: conflict.title })
   }
 
   function handleApprove() {
@@ -1012,8 +1030,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   )
 
   const stage = conflict?.reviewStage
-  const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === currentUserFor(conflict.projectId).id) : null
-  const canReview = Boolean(myReviewer && myReviewer.status !== 'approved')
+  const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
+  const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
+  const authorId = conflict ? authorOf(conflict) : null
+  const ownChange = Boolean(authorId && authorId === viewerId)
+  const authorName = authorId && !ownChange ? allPeople.find((p) => p.id === authorId)?.name : null
+  // Never your own change (the GitHub rule) — someone else signs off.
+  const canReview = Boolean(myReviewer && myReviewer.status !== 'approved' && !ownChange)
 
   // The change placed in its file, for the editable code view — only
   // inside a workspace (which has the files) and while the file still
@@ -1044,7 +1067,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     } else if (stage === 'in_review' && canReview) {
       // Yours to decide — also after requesting changes, so you can approve
       // once they're fixed (or change your mind).
-      primary = <ReviewButton onSubmit={handleReview} />
+      primary = <ReviewButton onSubmit={handleReview} authorName={authorName} />
+    } else if (stage === 'in_review' && myReviewer && ownChange) {
+      primary = <span className="text-[11px] text-slate-500"><LocalizedText text="You can’t review your own change" /></span>
     } else if (stage === 'in_review') {
       // Not your move: say whose it is instead of leaving the slot empty.
       const waitingOn = approvalStatus(conflict).lines.filter((line) => !/^(Approved by you|You requested changes)$/.test(line))
