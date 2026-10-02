@@ -1267,7 +1267,7 @@ Object.assign(ko, {
   'Review impact & checks': '영향 및 검사 검토',
   'Hide quick diff': '빠른 비교 숨기기',
   'Review status': '검토 상태',
-  'Review summary': '검토 요약',
+  'Summary': '요약',
   'No comments yet': '아직 댓글이 없습니다',
   'Cancel reply': '답글 취소',
   'Write a reply': '답글 작성',

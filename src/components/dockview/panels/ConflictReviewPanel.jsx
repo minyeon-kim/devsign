@@ -313,7 +313,7 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
         <section className="min-w-0 flex-1">
           {summary && (
             <div className={REVIEW_INFO_GRID}>
-              <p className={REVIEW_INFO_LABEL}>Review summary</p>
+              <p className={REVIEW_INFO_LABEL}>Summary</p>
               <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}><LocalizedText text={summary} /></p>
             </div>
           )}
