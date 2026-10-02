@@ -14,11 +14,11 @@ export const brand = {
 
 // The global default viewer — used outside any project (Dashboard, Team
 // page, a modal with no project in scope). Inside a project, the viewer is
-// `currentUserFor(projectId)` instead (see below): Jane on the designer
-// track, James on the developer track.
+// `currentUserFor(projectId)` instead (see below): Taylor on the designer
+// track, Jordan on the developer track.
 export const currentUser = {
   id: 'jane',
-  name: 'Jane',
+  name: 'Taylor',
   role: 'You',
   team: 'Design Team',
   initials: 'JA',
@@ -40,7 +40,7 @@ export const currentUser = {
 export const teamMembers = [
   {
     id: 'jane',
-    name: 'Jane',
+    name: 'Taylor',
     role: 'Designer',
     team: 'Design Team',
     initials: 'JA',
@@ -55,7 +55,7 @@ export const teamMembers = [
   },
   {
     id: 'james',
-    name: 'James',
+    name: 'Jordan',
     role: 'Developer',
     team: 'Engineering',
     initials: 'JD',
@@ -71,7 +71,7 @@ export const teamMembers = [
   },
   {
     id: 'min',
-    name: 'Min',
+    name: 'Alex',
     role: 'Designer',
     team: 'Product',
     initials: 'MI',
@@ -119,9 +119,9 @@ export const projectViewportSequences = {
   },
 }
 
-// Which teammate is "you" on each project — Jane on the designer track,
-// James on the developer track. A project with no entry falls back to the
-// global `currentUser` default (Jane).
+// Which teammate is "you" on each project — Taylor on the designer track,
+// Jordan on the developer track. A project with no entry falls back to the
+// global `currentUser` default (Taylor).
 export const projectViewerIds = {
   'checkout-redesign': 'jane',
   'design-system-v2': 'james',
@@ -663,7 +663,7 @@ export const conflictChecklist = [
     timestamp: 'Just now',
     resolved: false,
     severity: 'medium',
-    message: 'Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.',
+    message: 'Three drafts of the Order summary card are open side by side — Taylor’s, Alex’s and Jordan’s disagree on corner radius and title weight.',
     riskReason: 'Medium: a visible style choice on the checkout’s order summary card — no logic or data changes either way.',
     impact: {
       screens: ['Checkout · Payment step'],
@@ -673,8 +673,8 @@ export const conflictChecklist = [
     changedBy: { type: 'person', id: 'min', what: 'Opened a second draft of the Order summary card' },
     detectedBy: 'Three open drafts on the same element',
     uxNote: 'Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.',
-    branches: { local: 'Jane’s draft', remote: 'Min’s draft' },
-    suggestion: 'Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.',
+    branches: { local: 'Taylor’s draft', remote: 'Alex’s draft' },
+    suggestion: 'Use Alex’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.',
     suggestionReason: 'Every other card on this screen already uses a 16px radius and a 700-weight title.',
     expectedResult: 'One Order summary card style, used consistently across the checkout flow.',
     reviewStage: 'in_review',
@@ -683,8 +683,8 @@ export const conflictChecklist = [
       { id: 'min', status: 'pending' },
     ],
     comparisonFields: [
-      { label: 'Radius', expected: '16px (Min’s draft)', current: '12px (Jane’s draft)' },
-      { label: 'Title weight', expected: '700 (Min’s draft)', current: '600 (Jane’s draft)' },
+      { label: 'Radius', expected: '16px (Alex’s draft)', current: '12px (Taylor’s draft)' },
+      { label: 'Title weight', expected: '700 (Alex’s draft)', current: '600 (Taylor’s draft)' },
     ],
     preview: {
       kind: 'card',
@@ -739,7 +739,7 @@ export const activities = [
     id: 'activity-co-3',
     type: 'conflict',
     actorId: 'james',
-    actorName: 'James',
+    actorName: 'Jordan',
     actorInitials: 'JD',
     actorColorClass: 'bg-sky-500',
     action: 'requested your review on',
@@ -754,7 +754,7 @@ export const activities = [
     id: 'activity-co-4',
     type: 'comment',
     actorId: 'min',
-    actorName: 'Min',
+    actorName: 'Alex',
     actorInitials: 'MI',
     actorColorClass: 'bg-emerald-500',
     action: 'commented on',
@@ -797,7 +797,7 @@ export const activities = [
     id: 'activity-co-1',
     type: 'changes',
     actorId: 'james',
-    actorName: 'James',
+    actorName: 'Jordan',
     actorInitials: 'JD',
     actorColorClass: 'bg-sky-500',
     action: 'changed the Place order button background in',
@@ -812,7 +812,7 @@ export const activities = [
     id: 'activity-2',
     type: 'conflict',
     actorId: 'min',
-    actorName: 'Min',
+    actorName: 'Alex',
     actorInitials: 'MI',
     actorColorClass: 'bg-emerald-500',
     action: 'approved',
@@ -841,7 +841,7 @@ export const activities = [
     id: 'activity-7',
     type: 'changes',
     actorId: currentUser.id,
-    actorName: 'Jane',
+    actorName: 'Taylor',
     actorInitials: 'JA',
     actorColorClass: 'bg-indigo-500',
     action: 'pushed new changes to',
@@ -855,7 +855,7 @@ export const activities = [
     id: 'activity-5',
     type: 'file',
     actorId: 'min',
-    actorName: 'Min',
+    actorName: 'Alex',
     actorInitials: 'MI',
     actorColorClass: 'bg-emerald-500',
     action: 'added a new file to',
@@ -869,7 +869,7 @@ export const activities = [
     id: 'activity-8',
     type: 'mention',
     actorId: 'james',
-    actorName: 'James',
+    actorName: 'Jordan',
     actorInitials: 'JD',
     actorColorClass: 'bg-sky-500',
     action: 'mentioned you in a comment on',
@@ -1028,9 +1028,9 @@ export const mergeListItems = [
     // pair). The Compare view's pair picker (ConflictResolutionModal)
     // resolves any two of these at a time against each other.
     variants: [
-      { key: 'jane', authorId: 'jane', label: 'Jane’s draft' },
-      { key: 'min', authorId: 'min', label: 'Min’s draft' },
-      { key: 'james', authorId: 'james', label: 'James’s draft' },
+      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
+      { key: 'min', authorId: 'min', label: 'Alex’s draft' },
+      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
     ],
   },
   // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
@@ -1314,7 +1314,7 @@ export const designMergeVariants = {
     layerDiffs: {
       // `values` carries every variant (keyed like mergeListItems'
       // `variants`); `optionA`/`optionB` stay too, as the default pair
-      // (Jane vs Min) for callers that don't resolve a specific pair —
+      // (Taylor vs Alex) for callers that don't resolve a specific pair —
       // existing behavior is unchanged unless a pair is actually picked.
       'order-summary': [
         { id: 'os-radius', label: 'Radius', optionA: '12px', optionB: '16px', values: { jane: '12px', min: '16px', james: '20px' } },
@@ -3613,9 +3613,9 @@ export const referenceDocs = [
         type: 'table',
         columns: ['Topic', 'Person'],
         rows: [
-          ['Design tokens & brand', 'Min'],
-          ['Sync API & builds', 'James'],
-          ['Anything else', 'Jane'],
+          ['Design tokens & brand', 'Alex'],
+          ['Sync API & builds', 'Jordan'],
+          ['Anything else', 'Taylor'],
         ],
       },
     ],

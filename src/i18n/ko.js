@@ -7,9 +7,6 @@ Follow|화면 따라가기
 Stop following|따라가기 중지
 Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.|주문 버튼을 디자인에 맞게 다듬어볼까요? Place order 버튼의 높이와 색상을 비교하고, 스타일을 수정한 뒤 검토를 요청할 수 있어요. 아래 질문을 선택하면 순서대로 안내해드릴게요.
 Let’s check the shared Button height. Compare the code with the design token, review the affected screens, then check the saved version after merging.|공통 버튼의 높이가 디자인 시스템 기준과 맞는지 확인해볼까요? Button 코드를 높이 토큰에 맞게 수정하고, 다른 화면에 미치는 영향도 살펴보세요. 검토와 병합을 마친 뒤에는 저장된 버전까지 확인할 수 있어요.
-Jane|제인
-James|제임스
-Min|민
 All members|전체 구성원
 Overview|개요
 Diff|변경 내용
@@ -52,9 +49,9 @@ Proposal|제안
 Why|이유
 Expected result|예상 결과
 Radius & weight|반경·굵기
-Jane’s draft|제인의 시안
-Min’s draft|민의 시안
-James’s draft|제임스의 시안
+Taylor’s draft|Taylor의 시안
+Alex’s draft|Alex의 시안
+Jordan’s draft|Jordan의 시안
 More drafts:|추가 시안:
 Reviewing|검토 중
 Viewing|보는 중
@@ -872,7 +869,7 @@ The order summary divider uses slate-200 instead of the border token.|주문 요
 Field labels use tracking-wide; the design system label style has normal tracking.|필드 레이블에 tracking-wide가 적용되어 있습니다. 디자인 시스템에서는 기본 자간을 사용합니다.
 Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 옵션 아이콘의 선 두께는 2.5지만, 아이콘 세트 기준은 2입니다.
 The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|주문 버튼은 높이가 40px이고 보라색 배경(#7c3aed)이 고정되어 있습니다. 결제 디자인은 높이 44px의 large 버튼과 기본 색상 토큰을 사용합니다.
-Three drafts of the Order summary card are open side by side — Jane’s, Min’s and James’s disagree on corner radius and title weight.|주문 요약 카드 초안 세 개가 나란히 열려 있습니다. Jane, Min, James의 초안은 모서리 반경과 제목 글자 두께가 서로 다릅니다.
+Three drafts of the Order summary card are open side by side — Taylor’s, Alex’s and Jordan’s disagree on corner radius and title weight.|주문 요약 카드 초안 세 개가 나란히 열려 있습니다. Taylor, Alex, Jordan의 초안은 모서리 반경과 제목 글자 두께가 서로 다릅니다.
 Buttons render 4px shorter than the design system’s medium size.|버튼 높이가 디자인 시스템의 medium 크기보다 4px 낮습니다.
 Without the merged version, frames either lose their selection handler or their stable key.|병합하지 않으면 프레임에서 선택 핸들러나 안정적인 key 중 하나가 누락됩니다.
 Cards look slightly sharper than the rest of the design system.|카드 모서리가 디자인 시스템의 다른 요소보다 조금 더 각져 보입니다.
@@ -926,10 +923,10 @@ Stroke|선 두께
 Background|배경
 color.primary (Indigo 500)|color.primary (인디고 500)
 #7c3aed (fixed hex)|#7c3aed (고정 색상)
-16px (Min’s draft)|16px (Min 초안)
-12px (Jane’s draft)|12px (Jane 초안)
-700 (Min’s draft)|700 (Min 초안)
-600 (Jane’s draft)|600 (Jane 초안)
+16px (Alex’s draft)|16px (Alex 초안)
+12px (Taylor’s draft)|12px (Taylor 초안)
+700 (Alex’s draft)|700 (Alex 초안)
+600 (Taylor’s draft)|600 (Taylor 초안)
 Checkout · Payment step (Figma)|결제 · 결제 단계 (Figma)
 Button · Size/MD (Figma)|Button · 크기/MD (Figma)
 Card · Default (Figma)|카드 · 기본값 (Figma)
@@ -970,7 +967,7 @@ Reset the shipping icon stroke width|배송 아이콘 선 두께를 기본값으
 Use the lg button size and remove the fixed background so the button uses the primary color token.|버튼에 lg 크기를 적용하고 고정 배경을 제거해 기본 색상 토큰을 사용하세요.
 The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 디자인은 큰 기본 버튼을 지정하지만, 고정된 HEX 값은 테마를 따르지 않습니다.
 Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 주문 버튼이 기본 색상으로 높이 44px에 표시됩니다.
-Use Min’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|Min의 초안을 사용하세요. 모서리 반경 16px와 제목 두께 700이 결제 화면의 다른 카드와 일치합니다.
+Use Alex’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|Alex의 초안을 사용하세요. 모서리 반경 16px와 제목 두께 700이 결제 화면의 다른 카드와 일치합니다.
 One Order summary card style, used consistently across the checkout flow.|결제 흐름 전체에서 일관되게 사용하는 하나의 주문 요약 카드 스타일입니다.
 Merged Button height to size token|Button 높이를 크기 토큰에 맞춰 병합
 Merged Place order button size and color|주문 버튼의 크기와 색상 병합

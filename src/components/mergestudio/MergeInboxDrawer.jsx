@@ -107,7 +107,7 @@ function splitSource(text) {
 // a natural rhythm instead of identical blocks:
 //   comment  — a conversation: name · role ··· time, "commented on Target",
 //              the message in white, replies, and the comment bar;
-//   approval — a compact one-line event ("Min approved … Hero CTA");
+//   approval — a compact one-line event ("Alex approved … Hero CTA");
 //   feedback — AI / CI notes: a small source label and the note as
 //              secondary text, paths condensed.
 // No pills in the header: role and target are plain inline text. Unread is

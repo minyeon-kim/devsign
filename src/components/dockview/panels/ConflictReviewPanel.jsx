@@ -459,7 +459,7 @@ function DiffTab({ conflict }) {
 // ─── Right: the review ─────────────────────────────────────────────────
 
 // Where the review stands, in plain lines from the actual required
-// reviewers ("Approved by you", "Waiting for Min", "All required approvals
+// reviewers ("Approved by you", "Waiting for Alex", "All required approvals
 // received", "Pending merge", "Merged") — shown instead of a disabled
 // button once there's nothing left for you to do.
 function StatusCard({ conflict }) {

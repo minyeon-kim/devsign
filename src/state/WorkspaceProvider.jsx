@@ -90,7 +90,7 @@ function timeLabel() {
 const TEAMMATE_APPROVAL_DELAY_MS = 6000
 
 export function WorkspaceProvider({ children, projectId }) {
-  // Who "you" are on this project (Jane on the designer track, James on
+  // Who "you" are on this project (Taylor on the designer track, Jordan on
   // the developer track) — every reviewer/approval/"(you)" surface in this
   // provider keys off this instead of the global default. `otherMembers` is
   // the roster minus the viewer: the simulated teammates whose presence,
