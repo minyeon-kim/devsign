@@ -211,7 +211,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
         // Filters are plain text toggles, not pills — the pills belong to the
         // bottom panel's tabs above, and repeating them here read as a
         // second row of tabs instead of a filter on this one.
-        <div className="mt-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-1.5 pb-1.5" role="group" aria-label="Filter conflicts">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-0 pb-1.5" role="group" aria-label="Filter conflicts">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -219,7 +219,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               aria-pressed={f.id === filter.id}
               onClick={() => setBottomPanel({ conflictFilter: f.id })}
               className={cn(
-                'inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors',
+                'ds-intrinsic inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors',
                 f.id === filter.id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
               )}
             >
@@ -350,11 +350,14 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                         {!conflict.message && !expandable && <span className="text-slate-500">—</span>}
                       </div>
                     </td>
-                    {/* Status wraps within its own column. */}
+                    {/* The dot and stage label stay on one line; only the
+                        "Needs your review" chip wraps under them. */}
                     <td className="px-1.5 py-2">
                       <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
-                        <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
-                        <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
+                        <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+                          <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
+                          <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
+                        </span>
                         {needsReviewFrom(conflict) && (
                             <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">
                             Needs your review

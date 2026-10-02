@@ -25,10 +25,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUserFor } from '@/data/mockData'
 import {
-  REVIEW_STAGES,
   STAGE_DOT_CLASS,
   STAGE_LABEL,
-  approvalStatus,
   needsReviewFrom,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
@@ -56,10 +54,11 @@ import {
 // reviewer has approved, and merging is a separate, explicit step.
 
 // Visually it's a Merge Studio floating panel: the same opaque card,
-// 20px radius, borderless content on a 20px inset, pill category tabs,
-// sentence-case group labels and the single mint accent. What to do next
-// lives in one place — the Status card at the top of the review column
-// and the single primary action in the footer.
+// 20px radius, borderless content on a 20px inset, plain text tabs,
+// sentence-case group labels and the single mint accent. One level of
+// cards only: inside them, hierarchy comes from type and color, with
+// spacing instead of rules. What to do next lives in one place — the
+// single primary action in the header.
 
 const severityConfig = {
   high: { label: 'High' },
@@ -102,32 +101,8 @@ function PersonAvatar({ person }) {
 function PersonRole({ person, viewerId }) {
   if (!person?.role || person.id === viewerId) return null
   return (
-    <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
+    <span className="text-[10px] text-slate-500">
       <LocalizedText text={person.role} />
-    </span>
-  )
-}
-
-// ─── Stage progress ────────────────────────────────────────────────────
-
-// Where the review is, as one compact pill: the stage's dot, its name and
-// the step count ("In review · 2/4") — no full-width progress line.
-function StagePill({ stage }) {
-  const index = Math.max(
-    0,
-    REVIEW_STAGES.findIndex((s) => s.id === stage)
-  )
-  return (
-    <span
-      title="Review status"
-      aria-label={`Review status: ${STAGE_LABEL[stage]}, step ${index + 1} of ${REVIEW_STAGES.length}`}
-      className="inline-flex h-5 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[11px] font-semibold text-slate-200"
-    >
-      <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[stage])} />
-      {STAGE_LABEL[stage]}
-      <span className="font-medium text-slate-500 tabular-nums">
-        {index + 1}/{REVIEW_STAGES.length}
-      </span>
     </span>
   )
 }
@@ -171,8 +146,8 @@ function ComparisonTable({ fields, sources }) {
         <div key={field.label} className="space-y-1.5">
           <p className="text-[11px] text-slate-500"><LocalizedText text={field.label} /></p>
           <div className="grid grid-cols-2 gap-3">
-            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300"><LocalizedText text={field.current} /></span>
-            <span className="min-w-0 rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200"><LocalizedText text={field.expected} /></span>
+            <span className="min-w-0 text-xs font-medium text-red-300"><LocalizedText text={field.current} /></span>
+            <span className="min-w-0 text-xs font-medium text-emerald-200"><LocalizedText text={field.expected} /></span>
           </div>
         </div>
       ))}
@@ -229,12 +204,13 @@ function Provenance({ conflict, className }) {
       {impactRows.map(([label, list]) => (
         <Fragment key={label}>
           <span className={REVIEW_INFO_LABEL}><LocalizedText text={label} /></span>
-          <span className="flex min-w-0 flex-wrap gap-1">
-            {list.map((item) => (
+          <span className="min-w-0 text-[11px] leading-4 text-slate-200">
+            {list.map((item, i) => (
               <span
                 key={item}
-                className={cn('min-w-0 break-words rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] leading-4 text-slate-200 [overflow-wrap:anywhere]', label === 'Files' && 'font-mono')}
+                className={cn('break-words [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[10.5px] text-slate-300')}
               >
+                {i > 0 && <span className="font-sans text-slate-500">, </span>}
                 <LocalizedText text={item} />
               </span>
             ))}
@@ -267,26 +243,28 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
   return (
     <div className="flex h-full flex-col">
       <div className="mb-4 min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/[0.055] px-2.5 py-1 text-[11px] font-semibold text-slate-100">
+        {/* Stage · severity · AI draft as one plain line, not three pills. */}
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-slate-500">
+          <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-slate-100">
             <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
             <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
           </span>
-          {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/[0.035] px-2.5 py-1 text-[10px] font-medium text-slate-400">
-              <Sparkles className="size-3 shrink-0" aria-hidden />
-              <LocalizedText text="AI draft" />
-            </span>
-          )}
-          </div>
           {severity && (
-            <p className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.035] px-2.5 py-1 text-[10px]">
-              <span className="text-slate-500"><LocalizedText text="Severity" /></span>
-              <span className={cn('font-semibold', severityTone)}><LocalizedText text={severity.label} /></span>
-            </p>
+            <>
+              <span aria-hidden>·</span>
+              <span className={cn('font-medium', severityTone)}><LocalizedText text={severity.label} /></span>
+            </>
           )}
-        </div>
+          {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="inline-flex items-center gap-1 text-slate-400">
+                <Sparkles className="size-3 shrink-0" aria-hidden />
+                <LocalizedText text="AI draft" />
+              </span>
+            </>
+          )}
+        </p>
         {((showProject && conflict.projectName) || conflict.detectedAt) && (
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
             {showProject && conflict.projectName && (
@@ -319,7 +297,7 @@ function OverviewTab({ conflict, severity, stage, showProject }) {
           )}
           <Provenance
             conflict={conflict}
-            className={cn(summary && hasMetadata && 'mt-4 border-t border-white/[0.08] pt-4')}
+            className={cn(summary && hasMetadata && 'mt-4')}
           />
         </section>
       )}
@@ -395,12 +373,14 @@ function DiffTab({ conflict }) {
                   { side: 'before', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
                 ].map(({ side, source, tone, value }) => (
-                  <div key={side} className="flex min-w-0 flex-col gap-2 rounded-lg bg-white/[0.025] p-3">
+                  // Each side keeps one soft surface so its source, preview and
+                  // values read as a group; the values inside stay plain text.
+                  <div key={side} className="flex min-w-0 flex-col gap-2 rounded-lg bg-white/[0.03] p-3">
                     {source && <ComparisonSource {...source} />}
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
                       {conflict.comparisonFields.map((field) => (
-                        <div key={field.label} className="flex min-w-0 items-center justify-between gap-2 border-t border-white/[0.06] pt-1.5 text-xs">
+                        <div key={field.label} className="flex min-w-0 items-center justify-between gap-2 text-xs">
                           <dt className="min-w-0 truncate text-[10px] text-slate-500"><LocalizedText text={field.label} /></dt>
                           <dd className={cn('shrink-0 font-medium', tone)}><LocalizedText text={value(field)} /></dd>
                         </div>
@@ -428,8 +408,8 @@ function DiffTab({ conflict }) {
                       <div key={field.label} className="grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)] items-center gap-3">
                         <span className="text-[11px] text-slate-400"><LocalizedText text={field.label} /></span>
                         <div className="grid min-w-0 grid-cols-2 gap-3">
-                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-red-300" title={field.current}><LocalizedText text={field.current} /></span>
-                          <span className="min-w-0 truncate rounded-lg bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-emerald-200" title={field.expected}><LocalizedText text={field.expected} /></span>
+                          <span className="min-w-0 truncate text-xs font-medium text-red-300" title={field.current}><LocalizedText text={field.current} /></span>
+                          <span className="min-w-0 truncate text-xs font-medium text-emerald-200" title={field.expected}><LocalizedText text={field.expected} /></span>
                         </div>
                       </div>
                     ))}
@@ -445,7 +425,7 @@ function DiffTab({ conflict }) {
               </div>
             )}
             {conflict.diff && (
-              <div className="min-w-0 border-t border-white/[0.06] pt-3">
+              <div className="min-w-0 pt-2">
                 <CodeDiffColumns rows={rows} />
               </div>
             )}
@@ -457,47 +437,6 @@ function DiffTab({ conflict }) {
 }
 
 // ─── Right: the review ─────────────────────────────────────────────────
-
-// Where the review stands, in plain lines from the actual required
-// reviewers ("Approved by you", "Waiting for Alex", "All required approvals
-// received", "Pending merge", "Merged") — shown instead of a disabled
-// button once there's nothing left for you to do.
-function StatusCard({ conflict }) {
-  const status = approvalStatus(conflict)
-  const currentStep = REVIEW_STAGES.findIndex((step) => step.id === conflict.reviewStage)
-  return (
-    <div className={cn('min-w-0', REVIEW_CONTEXT_CARD)}>
-      <ol
-        aria-label={`Review progress: ${REVIEW_STAGES.map((step) => step.label).join(' → ')}; current step ${currentStep + 1} of ${REVIEW_STAGES.length}`}
-        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)_12px_minmax(0,1fr)] items-center gap-x-0"
-      >
-        {REVIEW_STAGES.map((step, index) => {
-          const current = index === currentStep
-          return (
-            <Fragment key={step.id}>
-              {index > 0 && <li aria-hidden="true" className="text-center text-[10px] text-slate-600">→</li>}
-              <li aria-current={current ? 'step' : undefined} className="flex min-w-0 items-center justify-center">
-                <span className={cn(
-                  'max-w-full truncate text-[10px] leading-4 font-semibold whitespace-nowrap',
-                  current ? 'inline-flex items-center rounded-full bg-emerald-300 px-1.5 py-0.5 text-[#050506]' : 'text-slate-400'
-                )}>
-                  {step.label}
-                </span>
-              </li>
-            </Fragment>
-          )
-        })}
-      </ol>
-      {conflict.reviewStage === 'in_review' && status.lines.length > 0 && (
-        <ul className="mt-2 space-y-1">
-          {status.lines.map((line) => (
-            <li key={line} className="text-xs leading-4 text-slate-300">{line}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 const PRIMARY_BUTTON = cn(
   'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-semibold whitespace-nowrap',
@@ -696,7 +635,7 @@ function CommentThread({ conflict, workspace }) {
                 </div>
               </div>
               {replies.length > 0 && (
-                <div className="ml-7 space-y-2 border-l border-white/[0.08] pl-3">
+                <div className="ml-[34px] space-y-2">
                   {replies.map((reply) => {
                     const replyAuthor = allPeople.find((person) => person.id === reply.authorId)
                     return (
@@ -716,7 +655,7 @@ function CommentThread({ conflict, workspace }) {
                 </div>
               )}
               {replyingTo === comment.id && (
-                <form onSubmit={(event) => handleReply(event, comment.id)} className="ml-7 flex h-8 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] pr-1 pl-3 focus-within:border-white/25">
+                <form onSubmit={(event) => handleReply(event, comment.id)} className="ml-[34px] flex h-8 items-center gap-1 rounded-full bg-white/[0.04] pr-1 pl-3 transition-colors focus-within:bg-white/[0.07]">
                   <input
                     autoFocus
                     value={replyDraft}
@@ -743,7 +682,7 @@ function CommentThread({ conflict, workspace }) {
       {/* Merge Studio's pill input: Write a comment · Send. */}
       <form
         onSubmit={handleSend}
-        className="flex h-10 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:border-white/25"
+        className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:bg-white/[0.07]"
       >
         <input
           value={draft}
@@ -826,7 +765,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   const detailTabs = (
-    <div className="flex shrink-0 items-center gap-7 border-b border-white/[0.07]" role="tablist" aria-label="Conflict details">
+    // Same plain text toggles as the Conflict Points list filters — no
+    // underline, no rule under the row.
+    <div className="flex shrink-0 items-center gap-x-4 pb-1" role="tablist" aria-label="Conflict details">
       {TABS.map(([id, label]) => (
         <button
           key={id}
@@ -835,10 +776,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           aria-selected={tab === id}
           onClick={() => openTab(id)}
           className={cn(
-            'relative -mb-px inline-flex h-9 shrink-0 items-center border-b-2 px-2 text-xs font-medium whitespace-nowrap transition-colors',
-            tab === id
-              ? 'border-emerald-300 text-white'
-              : 'border-transparent text-slate-500 hover:text-slate-200'
+            'ds-intrinsic inline-flex h-5 shrink-0 items-center text-[10.5px] whitespace-nowrap transition-colors',
+            tab === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
           )}
         >
           <LocalizedText text={label} />
@@ -900,14 +839,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-11 shrink-0 items-center gap-3 bg-[#121212] px-2.5">
+            <div className="flex h-10 shrink-0 items-center gap-3 bg-[#121212] px-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
                   title="Back to list"
                   aria-label="Back to list"
-                  className="flex size-6 shrink-0 items-center justify-center text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                  className="ds-intrinsic flex size-6 shrink-0 items-center justify-center text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                 >
                   <ChevronLeft className="size-5" />
                 </button>
@@ -920,7 +859,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {primary}
               </div>
               {stage !== 'resolved' && (
-                <div className="flex shrink-0 items-center gap-2 border-l border-white/[0.08] pl-2.5">
+                <div className="flex shrink-0 items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger
                       type="button"
@@ -937,11 +876,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
-              <div className="shrink-0 px-1">
+              {/* Indented to the title's first letter: back button (24px) +
+                  its gap (8px), on the header's 12px inset. */}
+              <div className="shrink-0 pl-8">
                 {detailTabs}
               </div>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-2 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
               )}>
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">

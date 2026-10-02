@@ -112,7 +112,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
           <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Issue activity" /></h3>
-          <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/[0.07] px-1.5 text-[10px] font-medium tabular-nums text-slate-300">
+          <span className="ml-auto text-[11px] tabular-nums text-slate-500">
             {activity.length}
           </span>
         </div>
@@ -146,11 +146,12 @@ function ConflictHistoryReplay({ conflict, workspace }) {
 
       <section aria-label="Conflict change replay" className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
-          <History className="size-3.5 text-emerald-300" />
+          <History className="size-3.5 text-slate-500" />
           <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Change replay" /></h3>
           {selected && <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{selected.label}</span>}
           {selected && (
-            <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Replay content">
+            // Plain text toggles, like the review's Overview / History.
+            <div className="flex shrink-0 items-center gap-x-3" role="tablist" aria-label="Replay content">
               {[
                 ['code', Code2, 'Code'],
                 ['preview', Eye, 'Preview'],
@@ -161,7 +162,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
                   role="tab"
                   aria-selected={view === id}
                   onClick={() => setView(id)}
-                  className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-medium', view === id ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200')}
+                  className={cn('ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] transition-colors', view === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300')}
                 >
                   <Icon className="size-3" />
                   <LocalizedText text={label} />
@@ -170,7 +171,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
             </div>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-hidden border-y border-white/[0.05]">
+        <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? view === 'code' ? (
             <div className="h-full overflow-auto py-2 font-mono text-[10px] leading-relaxed">
               {rows.length ? rows.map((row, index) => (

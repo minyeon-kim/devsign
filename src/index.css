@@ -333,15 +333,17 @@
   cursor: none !important;
 }
 
-/* Compact workspace chrome only; content rows and canvas art stay intrinsic. */
+/* Compact workspace chrome only; content rows and canvas art stay intrinsic.
+   `.ds-intrinsic` opts a control out (switches, inline text toggles, a
+   media bar's small buttons) where a 32px box would distort it. */
 .ds-workspace :is(button, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, [role="tab"]):is(
   [class~="h-5"], [class~="h-6"], [class~="h-7"], [class~="h-8"], [class~="h-9"], [class~="h-10"],
   [class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]
-):not(.ds-merge-pill) {
+):not(.ds-merge-pill):not(.ds-intrinsic) {
   height: var(--ds-control-height);
   min-height: var(--ds-control-height);
 }
-.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]):not(.ds-merge-pill) {
+.ds-workspace button:is([class~="size-4"], [class~="size-5"], [class~="size-6"], [class~="size-7"], [class~="size-8"], [class~="size-9"], [class~="size-10"]):not(.ds-merge-pill):not(.ds-intrinsic) {
   width: var(--ds-control-height);
   min-width: var(--ds-control-height);
 }
@@ -434,10 +436,12 @@
 .ds-review-context {
   padding: var(--ds-padding-row-compact);
 }
+/* Shorter than a control row: the Reviewers / Comments labels sit tight
+   on their cards so the bottom panel's limited height goes to content. */
 .ds-review-context-heading {
-  height: var(--ds-control-height);
+  height: 24px;
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* Header tabs are compact rectangles; their close controls are an explicit

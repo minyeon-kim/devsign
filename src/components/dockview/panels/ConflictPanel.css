@@ -1,9 +1,11 @@
 /* Shared tracks prevent header/body drift as the bottom panel resizes. */
 .conflict-list-table {
-  --conflict-columns: 90px minmax(180px, 0.85fr) minmax(220px, 1.85fr) 140px 120px;
+  /* Description gives up some of its share so Status fits its longest
+     label ("Approved · Pending merge") on one line. */
+  --conflict-columns: 90px minmax(200px, 1fr) minmax(220px, 1.6fr) minmax(190px, 0.5fr) 110px;
   display: block;
   width: 100%;
-  min-width: 846px;
+  min-width: 906px;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;

@@ -54,27 +54,32 @@ function HistoryTimeline({
         disabled={count < 2}
         aria-label={playing ? 'Pause playback' : 'Play history'}
         title={playing ? 'Pause' : 'Play history'}
-        className={cn('flex shrink-0 items-center justify-center rounded-full bg-white text-slate-950 transition-colors hover:bg-slate-200 disabled:opacity-35', compact ? 'size-7' : 'size-9')}
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-35',
+          compact ? 'ds-intrinsic size-6 bg-white/[0.08] text-white hover:bg-white/[0.14]' : 'size-9 bg-white text-slate-950 hover:bg-slate-200'
+        )}
       >
-        {playing ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}
+        {playing
+          ? <Pause className={cn('fill-current', compact ? 'size-3' : 'size-4')} />
+          : <Play className={cn('ml-0.5 fill-current', compact ? 'size-3' : 'size-4')} />}
       </button>
 
       {/* Keep the step indicator beside playback for quick, precise navigation. */}
-      <div className="flex shrink-0 items-center rounded-full bg-white/[0.04] p-0.5">
-        <button type="button" aria-label="Previous version" title="Previous version (←)" disabled={index <= 0} onClick={() => go(index - 1)} className={cn(STEP_BUTTON, compact && 'size-5')}>
-          <ChevronLeft className="size-4" />
+      <div className={cn('flex shrink-0 items-center', !compact && 'rounded-full bg-white/[0.04] p-0.5')}>
+        <button type="button" aria-label="Previous version" title="Previous version (←)" disabled={index <= 0} onClick={() => go(index - 1)} className={cn(STEP_BUTTON, compact && 'ds-intrinsic size-5')}>
+          <ChevronLeft className={compact ? 'size-3.5' : 'size-4'} />
         </button>
         <span className={cn('text-center text-slate-500 tabular-nums', compact ? 'min-w-9 text-[10px]' : 'min-w-[64px] text-[12px]')}>
           <span className="font-semibold text-white">{index + 1}</span> / {count}
         </span>
-        <button type="button" aria-label="Next version" title="Next version (→)" disabled={index >= count - 1} onClick={() => go(index + 1)} className={cn(STEP_BUTTON, compact && 'size-5')}>
-          <ChevronRight className="size-4" />
+        <button type="button" aria-label="Next version" title="Next version (→)" disabled={index >= count - 1} onClick={() => go(index + 1)} className={cn(STEP_BUTTON, compact && 'ds-intrinsic size-5')}>
+          <ChevronRight className={compact ? 'size-3.5' : 'size-4'} />
         </button>
       </div>
 
       {/* The slider */}
       <div className={cn('group/slider relative min-w-0 flex-1', compact ? 'h-6' : 'h-9')} title={selected ? `${selected.timestamp} · ${selected.label}` : undefined}>
-        <div className="absolute inset-x-2 top-1/2 h-2 -translate-y-1/2 rounded-full bg-white/[0.08]">
+        <div className={cn('absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-full bg-white/[0.08]', compact ? 'h-1' : 'h-2')}>
           <div
             className={cn('h-full rounded-full bg-emerald-400/70', !playing && 'transition-[width] duration-150')}
             style={{ width: `${progress}%` }}
@@ -94,7 +99,10 @@ function HistoryTimeline({
             ))}
           <span
             className={cn(
-              'absolute top-1/2 size-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_4px_rgba(52,211,153,0.28),0_2px_8px_rgba(0,0,0,0.5)] transition-transform group-hover/slider:scale-110',
+              'absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-transform group-hover/slider:scale-110',
+              compact
+                ? 'size-3 shadow-[0_1px_4px_rgba(0,0,0,0.5)]'
+                : 'size-[18px] shadow-[0_0_0_4px_rgba(52,211,153,0.28),0_2px_8px_rgba(0,0,0,0.5)]',
               !playing && 'transition-[left,transform] duration-150'
             )}
             style={{ left: `${progress}%` }}
@@ -116,7 +124,7 @@ function HistoryTimeline({
 
       {!compact && <span className="h-6 w-px shrink-0 bg-white/[0.08]" />}
 
-      <label className={cn('flex shrink-0 cursor-pointer items-center whitespace-nowrap font-medium text-slate-300 select-none', compact ? 'gap-1 text-[10px]' : 'gap-2 text-[12px]')}>
+      <label className={cn('flex shrink-0 cursor-pointer items-center whitespace-nowrap select-none', compact ? 'gap-1.5 text-[10.5px] text-slate-400' : 'gap-2 text-[12px] font-medium text-slate-300')}>
         Compare latest
         <button
           type="button"
@@ -124,12 +132,17 @@ function HistoryTimeline({
           aria-checked={compareLatest}
           aria-label="Compare latest"
           onClick={() => onCompareLatestChange(!compareLatest)}
-          className={cn('relative h-5 w-9 rounded-full transition-colors', compareLatest ? 'bg-emerald-400' : 'bg-white/[0.14]')}
+          className={cn(
+            'ds-intrinsic relative shrink-0 rounded-full p-0 transition-colors',
+            compact ? 'h-4 w-7' : 'h-5 w-9',
+            compareLatest ? 'bg-emerald-400' : 'bg-white/[0.14]'
+          )}
         >
           <span
             className={cn(
-              'absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform',
-              compareLatest && 'translate-x-4'
+              'absolute top-0.5 left-0.5 rounded-full bg-white shadow transition-transform',
+              compact ? 'size-3' : 'size-4',
+              compareLatest && (compact ? 'translate-x-3' : 'translate-x-4')
             )}
           />
         </button>
