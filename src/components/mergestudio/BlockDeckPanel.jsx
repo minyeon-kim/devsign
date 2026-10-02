@@ -38,9 +38,6 @@ import { ASSEMBLY_FILLS, SHAPES, assemblyToOverride, blockTemplates, frameWithLa
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
-  CATEGORY_TAB,
-  CATEGORY_TAB_ACTIVE,
-  CATEGORY_TAB_IDLE,
   FLOATING_PANEL,
   PANEL_RADIUS,
   GHOST_BUTTON,
@@ -1127,11 +1124,14 @@ export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEff
           onReset={onAssembleReset}
         />
       ) : (
-        <p className="px-5 py-4 text-center text-sm text-muted-foreground">
+        // A quiet hint on the content inset, not a centered body-size
+        // message competing with the section headers.
+        <p className="px-5 py-2 text-[11px] leading-relaxed text-slate-500">
           Select an element on the canvas to assemble its shape, size and layout.
         </p>
       )}
-      <AiSuggestionsSection {...suggestionProps} />
+      {/* Suggestions style the selection — nothing to offer without one. */}
+      {selectedLayer && <AiSuggestionsSection {...suggestionProps} />}
     </DeckScroll>
   )
 }
@@ -1498,10 +1498,11 @@ function BlockDeckPanel({
       </div>}
 
       <>
-      {/* Tabs: the shared category-tab pills (same as the Merge List's
-          Files / Layers switch and the Inbox filters), straight under the
-          title — no rules above or below, just spacing. */}
-      <div className="flex shrink-0 items-center gap-1 px-5 pb-3">
+      {/* Plain text toggles under the title (same as the Workspace's
+          Assets view and the Conflict Points filters) — in the navigator's
+          Inspect slot this sits right under the window's own tabs, where
+          a second row of pills read as tabs under tabs. */}
+      <div className="flex shrink-0 items-center gap-x-4 px-5 pb-2">
         {[
           ['assemble', 'Assemble'],
           ['library', 'Library'],
@@ -1511,10 +1512,10 @@ function BlockDeckPanel({
             type="button"
             aria-pressed={tab === id}
             onClick={() => switchTab(id)}
-            className={cn(CATEGORY_TAB, tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+            className={cn('ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors', tab === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300')}
           >
             {label}
-            {changeCounts[id] > 0 && <span className="ml-1 rounded-full bg-white/[0.08] px-1.5 text-[10px] leading-4 text-slate-300">{changeCounts[id]}</span>}
+            {changeCounts[id] > 0 && <span className="text-slate-600 tabular-nums">{changeCounts[id]}</span>}
           </button>
         ))}
       </div>

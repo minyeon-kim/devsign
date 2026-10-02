@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import { cn } from 'cn'
 import { designSystemComponents, inspectorSpecsByType } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { BlockAssembleTab, ComponentPreview, Segmented } from '@/components/mergestudio/BlockDeckPanel'
+import { BlockAssembleTab, ComponentPreview } from '@/components/mergestudio/BlockDeckPanel'
 import { libraryCompat } from '@/components/mergestudio/mergeEffects'
-import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ListFilter } from 'lucide-react'
 
@@ -27,10 +26,10 @@ function AssetsPanel() {
 
   return (
     <div className="flex h-full flex-col bg-card text-xs text-muted-foreground">
-      {/* Same shape as the window header's workspace tabs (PanelTabs) —
-          this panel's own Files/Layers/Assets/Inspect tabs included —
-          instead of Merge Studio's larger rounded-full category pills. */}
-      <div className="flex shrink-0 items-center gap-1 px-3 pt-2 pb-1.5">
+      {/* Plain text toggles, not tabs: the window header's Files / Layers /
+          Assets / Inspect tabs sit right above, and a second row of the
+          same shape read as tabs under tabs. */}
+      <div className="flex shrink-0 items-center gap-x-4 px-3 pt-2 pb-1">
         {SUB_TABS.map(([id, label]) => (
           <button
             key={id}
@@ -38,9 +37,8 @@ function AssetsPanel() {
             aria-pressed={tab === id}
             onClick={() => setTab(id)}
             className={cn(
-              'flex h-7 items-center px-2 text-xs transition-colors',
-              WORKSPACE_TAB_RADIUS,
-              tab === id ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
+              'ds-intrinsic flex h-5 items-center text-[10.5px] whitespace-nowrap transition-colors',
+              tab === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
             )}
           >
             {label}
@@ -196,16 +194,30 @@ function LibraryView() {
 
         {layer ? (
           <div className="space-y-1.5">
+            {/* A filter on the list, so text toggles like the sub-tabs
+                above rather than a third row of segmented tabs. */}
             {!nothingFits && (
-              <Segmented
-                className="w-full"
-                value={showAll ? 'all' : 'fit'}
-                onChange={(v) => setShowAll(v === 'all')}
-                options={[
-                  { id: 'fit', label: 'Compatible', count: fitting.length, title: `Only components that fit ${layer.name}` },
-                  { id: 'all', label: 'All', count: designSystemComponents.length, title: 'Every component' },
-                ]}
-              />
+              <div className="flex items-center gap-x-4" role="group" aria-label="Show components">
+                {[
+                  ['fit', 'Compatible', fitting.length, `Only components that fit ${layer.name}`],
+                  ['all', 'All', designSystemComponents.length, 'Every component'],
+                ].map(([id, label, count, title]) => {
+                  const on = (showAll ? 'all' : 'fit') === id
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      title={title}
+                      aria-pressed={on}
+                      onClick={() => setShowAll(id === 'all')}
+                      className={cn('ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors', on ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300')}
+                    >
+                      {label}
+                      <span className="text-slate-600 tabular-nums">{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
             )}
             <p className="truncate text-[11px] text-slate-500" title={layer.name}>
               {nothingFits ? (
