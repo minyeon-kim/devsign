@@ -198,8 +198,8 @@ function ExplorerPanel() {
         >
           <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />
           <span className="truncate">{name}</span>
-          {(draftChanges[file.id] || editorDirtyFiles[file.id]) && <span className="size-1.5 shrink-0 rounded-full bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
-          {file.imported && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-emerald-400" aria-label="Imported" />}
+          {(draftChanges[file.id] || editorDirtyFiles[file.id]) && <span className="ds-status-dot bg-[#5EEAB5]" role="img" aria-label="Uncommitted or unsaved changes" />}
+          {file.imported && <span className="ds-status-dot ml-auto bg-emerald-400" aria-label="Imported" />}
         </button>
       )
     })
