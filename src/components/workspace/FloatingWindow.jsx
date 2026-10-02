@@ -206,9 +206,15 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
               </button>
               <button
                 type="button"
-                title="Close"
-                aria-label="Close"
-                onClick={() => activeHandle?.api.close()}
+                title={docked ? 'Close' : 'Minimize'}
+                aria-label={docked ? 'Close' : 'Minimize'}
+                // Docked (normal Workspace): closing a view is meant to be
+                // final — reopen it from `+` or the command palette.
+                // Floating (Merge Studio's chat/navigator): there's no such
+                // reopen path there, so "closing" would just lose it for
+                // the rest of the session — minimize instead, same as a
+                // real window's X in that context.
+                onClick={() => (docked ? activeHandle?.api.close() : dockApi.minimizeGroup(group.id, true))}
                 className="flex size-7 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-destructive/15 hover:text-destructive"
               >
                 <X className="size-3.5" />

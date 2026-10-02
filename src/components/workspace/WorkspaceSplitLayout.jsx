@@ -70,6 +70,35 @@ function MinimizedStrip({ group, panelsById, dockApi, dir }) {
   )
 }
 
+// Merge Studio's own minimized state for a floating chat/navigator window:
+// its panes sit absolutely positioned over the canvas rather than docked
+// in the split tree MinimizedStrip expects to be a flex sibling of, so
+// restoring it is its own small floating pill instead — bottom-left,
+// clear of the canvas's other floating chrome (zoom controls, help,
+// Merge List), same surface language as the rest of Merge Studio's pills.
+function FloatingRestorePill({ group, panelsById, dockApi }) {
+  const panel = panelsById[group.activeId]
+  const Icon = PANEL_ICONS[panel?.params?.iconName]
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40">
+      <button
+        type="button"
+        title={`Restore ${panel?.title ?? 'window'}`}
+        aria-label={`Restore ${panel?.title ?? 'window'}`}
+        onClick={() => dockApi.minimizeGroup(group.id, false)}
+        className={cn(
+          'pointer-events-auto absolute bottom-4 left-4 flex h-10 items-center gap-2 px-4 text-[13px] font-medium text-slate-300 transition-colors hover:text-white',
+          PANEL_RADIUS,
+          FLOATING_PANEL
+        )}
+      >
+        {Icon && <Icon className="size-4 shrink-0" />}
+        {panel?.title}
+      </button>
+    </div>
+  )
+}
+
 // Where a dragged window would land on the pane under the pointer.
 function dropZone(rect, x, y) {
   const fx = (x - rect.left) / rect.width
@@ -340,7 +369,15 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       if (!group || !group.open || group.panelIds.length === 0) return null
       const showStudio = mergeStudio && group.id === studioGroup?.id
       const floatingSide = mergeStudio && group.panelIds.some((id) => [panelById.chat.id, panelById.navigator.id].includes(id))
-      if (group.minimized && !showStudio) return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
+      if (group.minimized && !showStudio) {
+        // MinimizedStrip is a flex sibling meant for the normal docked
+        // split tree — Merge Studio's chat/navigator panes are absolutely
+        // positioned over the canvas instead, so they get their own small
+        // floating restore pill rather than a strip with nowhere in the
+        // flex layout to actually sit.
+        if (floatingSide) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} />
+        return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
+      }
       return (
         <div data-leaf={group.id} className={cn(
           'min-h-0 min-w-0',
