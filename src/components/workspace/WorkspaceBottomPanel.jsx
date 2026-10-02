@@ -191,18 +191,6 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
           </Fragment>
         ))}
         </div>
-        {activeView === 'mergeStudio' && tabs.some((entry) => entry.id === 'changes') && (
-          <button
-            type="button"
-            onClick={() => mergeCta?.open()}
-            disabled={!mergeCta || mergeCta.merged || mergeCta.count === 0}
-            className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-[11px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:opacity-40"
-          >
-            <GitPullRequest className="size-3.5" />
-            <span>{mergeCta?.merged ? 'Merged' : 'Merge changes'}</span>
-            <span className="rounded-full bg-black/10 px-1.5 text-[10px] tabular-nums">{mergeCta?.count ?? 0}</span>
-          </button>
-        )}
       </div>
 
       {open && (

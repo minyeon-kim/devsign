@@ -1,3 +1,4 @@
+import { mergeAction } from '@/lib/mergeAction'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
@@ -977,7 +978,7 @@ function PreviewStep({ item, resolutions, annotations, preset, assemblies = {}, 
 }
 
 // ----- Step 3: Review --------------------------------------------------
-function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
+function ReviewerSection({ reviewers, setReviewers, needCode, needDesign, approvalRecords = [], requested = false }) {
   function toggleScope(id, scope) {
     setReviewers((prev) => {
       const current = prev[id] ?? []
@@ -1015,6 +1016,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
               <AvatarFallback className={cn('text-[8px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-200" title={person.role}>{person.name}</span>
+            <span className="text-[10px] text-slate-400">{!requested ? 'Not requested' : approvalRecords.some((r) => r.id === person.id && r.status === 'changes_requested') ? 'Changes requested' : approvalRecords.some((r) => r.id === person.id) ? approvalRecords.filter((r) => r.id === person.id).every((r) => r.status === 'approved') ? 'Approved' : 'Waiting' : 'Not requested'}</span>
             {['code', 'design'].map((scope) => {
               const selected = Boolean(reviewers[person.id]?.includes(scope))
               const meta = scopeMeta[scope]
@@ -1024,6 +1026,7 @@ function ReviewerSection({ reviewers, setReviewers, needCode, needDesign }) {
                   key={scope}
                   type="button"
                   onClick={() => toggleScope(person.id, scope)}
+                  disabled={requested}
                   aria-pressed={selected}
                   aria-label={`${selected ? 'Remove' : 'Assign'} ${person.name} for ${meta.label.toLowerCase()} review`}
                   title={`${meta.label} review`}
@@ -1111,7 +1114,8 @@ function SuccessView({ prTitle, reviewerNames, deploy, prNumber }) {
 function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, assemblySources = {}, extraLayers, manualCode = {}, onResolveDiff, onHoverDiff, selectedLayerId, reviewMarks = {}, onSetReviewMark, onEditInAssemble, step, onStepChange, onComplete, onRequestComplete, onFinalMerge, onEditCode, onBack }) {
   const merged = item.tag === 'Merged'
   const summary = useMemo(() => buildSummary(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode), [item, resolutions, annotations, preset, assemblies, extraLayers, manualCode])
-  const { getFileLines, conflicts } = useWorkspace()
+  const { getFileLines, conflicts, currentUser, approveConflict, updateMergeItem } = useWorkspace()
+  const action = mergeAction(item, conflicts, currentUser.id)
   const linkedConflicts = conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId)
   const review = useMemo(
     () => buildReviewModel({ item, resolutions, annotations, preset, assemblies, assemblySources, extraLayers, manualCode, reviewMarks, getFileLines }),
@@ -1273,24 +1277,6 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
           <div className="flex min-w-0 items-center">
             <p className={cn('shrink-0 font-semibold text-amber-300', step === 1 || step === 2 || step === 3 ? 'text-[10px]' : 'text-xs')}>Draft changes</p>
           </div>
-          {item.tag === 'In Review' && (
-            <>
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                <span className="mr-1 text-[10px] text-slate-500">Reviews</span>
-                  {approvalRecords.map((reviewer) => (
-                    <span
-                      key={`${reviewer.conflictId ?? item.id}:${reviewer.id}`}
-                      className={cn(
-                        'inline-flex h-5 items-center text-[10px] leading-none font-medium',
-                        reviewer.status === 'approved' ? 'text-emerald-300' : 'text-slate-400'
-                      )}
-                    >
-                      {reviewer.status === 'approved' ? 'Approved' : 'Waiting'} · {allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id}
-                    </span>
-                  ))}
-              </div>
-            </>
-          )}
         </section>
         {run === 'idle' && step === 0 && (
           item.hasDesign ? (
@@ -1325,7 +1311,7 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
                 <SummarySection summary={summary} />
               </div>
               <div className="min-w-0 rounded-xl bg-white/[0.03] p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
-                <ReviewerSection reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
+                <ReviewerSection approvalRecords={approvalRecords} requested={item.tag === 'In Review'} reviewers={reviewers} setReviewers={setReviewers} needCode={needCode} needDesign={needDesign} />
               </div>
               <section className="min-w-0 rounded-xl bg-white/[0.03] p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
                 <SectionTitle
@@ -1381,86 +1367,92 @@ function MergeStepFlow({ item, resolutions, annotations, preset, assemblies, ass
 
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 px-4 py-3">
-          {run === 'success' ? (
-            <button
-              type="button"
-              onClick={() => {
-                setRun('idle')
-                onRequestComplete?.()
-              }}
-              className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
-            >
-              Done
-            </button>
-          ) : (
-            <>
-              {step === 3 && !reviewValid ? (
-                <span className="mr-auto text-[13px] text-amber-500">
-                  {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
-                </span>
-              ) : step === 2 && review.drifts.length > 0 ? (
-                // Preview never blocks moving on (the existing policy) — it
-                // just says plainly how much is left to look at. Continuing
-                // opens the Review step; nothing is merged until the PR
-                // there is opened and approved.
-                <span className={cn('mr-auto text-[13px] tabular-nums', unreviewedCount ? 'text-amber-300' : 'text-emerald-300')}>
-                  {unreviewedCount
-                    ? `${unreviewedCount} of ${review.drifts.length} change${review.drifts.length === 1 ? '' : 's'} not yet reviewed`
-                    : 'All changes reviewed'}
-                </span>
-              ) : (
-                <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
-                  Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
-                </span>
-              )}
+        <div className="flex shrink-0 flex-col px-4 py-3">
+          <div className="flex items-center justify-end gap-2">
+            {run === 'success' ? (
               <button
                 type="button"
-                disabled={busy || step === 0}
-                onClick={() => onStepChange(step - 1)}
-                className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                onClick={() => {
+                  setRun('idle')
+                  onRequestComplete?.()
+                }}
+                className="inline-flex h-8 items-center justify-center rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950"
               >
-                <ChevronLeft className="size-4" />
-                Back
+                Done
               </button>
-              {!last ? (
+            ) : (
+              <>
+                {step === 3 && action.kind === 'check' ? (
+                  <span className="mr-auto text-xs text-amber-300">{action.reason}</span>
+                ) : step === 3 && action.kind === 'request' && !reviewValid ? (
+                  <span className="mr-auto text-[13px] text-amber-500">
+                    {!reviewersOk ? 'Assign at least one Code and one Design reviewer.' : 'Commit message and PR title are required.'}
+                  </span>
+                ) : step === 2 && review.drifts.length > 0 ? (
+                  // Preview never blocks moving on (the existing policy) — it
+                  // just says plainly how much is left to look at. Continuing
+                  // opens the Review step; nothing is merged until the PR
+                  // there is opened and approved.
+                  <span className={cn('mr-auto text-[13px] tabular-nums', unreviewedCount ? 'text-amber-300' : 'text-emerald-300')}>
+                    {unreviewedCount
+                      ? `${unreviewedCount} of ${review.drifts.length} change${review.drifts.length === 1 ? '' : 's'} not yet reviewed`
+                      : 'All changes reviewed'}
+                  </span>
+                ) : (
+                  <span className="mr-auto text-[13px] text-muted-foreground tabular-nums">
+                    Step {step + 1} of {WIZARD_STEPS.length} · {WIZARD_STEPS[step].label}
+                  </span>
+                )}
                 <button
                   type="button"
-                  disabled={!canNext}
-                  onClick={() => onStepChange(step + 1)}
-                  className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+                  disabled={busy || step === 0}
+                  onClick={() => onStepChange(step - 1)}
+                  className="flex h-8 items-center justify-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                 >
-                  Continue to {WIZARD_STEPS[step + 1].label}
-                  <ArrowRight className="size-4" />
+                  <ChevronLeft className="size-4" />
+                  Back
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busy || (item.tag === 'In Review' ? false : !reviewValid)}
-                  onClick={() => {
-                    if (item.tag === 'In Review') {
-                      onFinalMerge()
-                    } else {
-                      setProgress(0)
-                      setRun('progress')
-                    }
-                  }}
-                  className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
-                >
-                  {item.tag === 'In Review' ? (
-                    <>
-                      <GitMerge className="size-4" />
-                      Merge approved changes
-                    </>
-                  ) : (
-                    <>
-                      <GitPullRequest className="size-4" />
-                      Open PR &amp; Request Review
-                    </>
-                  )}
-                </button>
-              )}
-            </>
+                {!last ? (
+                  <button
+                    type="button"
+                    disabled={!canNext}
+                    onClick={() => onStepChange(step + 1)}
+                    className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-slate-700 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-slate-600 disabled:opacity-40"
+                  >
+                    Continue to {WIZARD_STEPS[step + 1].label}
+                    <ArrowRight className="size-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy || action.disabled || (action.kind === 'request' && !reviewValid)}
+                    onClick={() => {
+                      if (action.kind === 'approve') {
+                        if (action.linked.length) action.linked.forEach((c) => approveConflict(c.id))
+                        else updateMergeItem(item.id, { reviewers: item.reviewers.map((r) => r.id === currentUser.id ? { ...r, status: 'approved' } : r) })
+                      } else if (action.kind === 'check') {
+                        onStepChange(1)
+                      } else if (action.kind === 'merge') {
+                        onFinalMerge()
+                      } else {
+                        setProgress(0)
+                        setRun('progress')
+                      }
+                    }}
+                    className="flex h-8 items-center justify-center gap-1.5 rounded-full ds-primary-cta px-3.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 disabled:opacity-40"
+                  >
+                    <GitPullRequest className="size-4" />
+                    {action.label} {action.progress}
+
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          {step === 3 && action.kind === 'waiting' && (
+            <div className="mt-2 text-center text-xs text-slate-400">
+              Awaiting approval · {action.pending.map((id) => allPeople.find((p) => p.id === id)?.name ?? id).join(', ')}
+            </div>
           )}
         </div>
         </>
