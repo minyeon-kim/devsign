@@ -27,7 +27,6 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
-import { ACCENT_CTA } from '@/components/mergestudio/floatingStyles'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -172,32 +171,31 @@ function ResultCard({ result, messageId }) {
   const first = result.changes?.[0]
 
   return (
-    <div className="mt-2 w-[92%] rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-xs">
+    <div className="mt-1.5 w-[92%] rounded-xl border border-white/10 bg-white/[0.025] p-3 text-xs">
       <div className="flex min-w-0 items-center gap-2">
-        <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06]', status.className)}>
+        <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06]', status.className)}>
           <StatusIcon className="size-3.5" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-semibold text-slate-100">{changed ? result.title : status.label}</p>
           {result.target && <p className="truncate text-[10px] text-slate-500">{result.target.label}</p>}
         </div>
-        <span className={cn('shrink-0 text-[10px] font-medium', status.className)}>{status.label}</span>
+        {changed && <span className={cn('shrink-0 text-[10px] font-medium', status.className)}>{status.label}</span>}
       </div>
       {changed && (
         <>
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-medium text-amber-200">
               {pending ? 'Proposed · not applied' : 'Draft · not merged'}
             </span>
             <span className="text-[10px] text-slate-500">
               {plural(result.fileCount, 'file')} · {plural(result.elementCount, 'element')}
             </span>
           </div>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-3 space-y-2">
             {result.changes.map((c, i) => (
-              <li key={i} className="flex min-w-0 items-baseline gap-1.5 text-[11px] leading-4 text-slate-300">
-                <span className="size-1 shrink-0 rounded-full bg-emerald-300/80" />
-                <span className="min-w-0 truncate">{c.summary}</span>
+              <li key={i} className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4 text-slate-200">
+                <span className="min-w-0 break-words">{c.summary}</span>
                 <span className="shrink-0 truncate font-mono text-[10px] text-slate-500">
                   {c.fileName}{c.line ? `:${c.line}` : ''}
                 </span>
@@ -210,13 +208,13 @@ function ResultCard({ result, messageId }) {
             </p>
           )}
           {result.note && <p className="mt-1 text-[11px] text-amber-400/90">{result.note}</p>}
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-2">
             {pending ? (
               <>
                 <Button
                   type="button"
                   size="xs"
-                  className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
+                  className="ds-intrinsic h-6 min-h-6 rounded-md bg-emerald-300 px-2 text-[10px] font-medium text-emerald-950 hover:bg-emerald-200"
                   onClick={() => applyPendingAiEdit(messageId)}
                 >
                   Apply change
@@ -225,7 +223,7 @@ function ResultCard({ result, messageId }) {
                   type="button"
                   size="xs"
                   variant="outline"
-                  className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
+                  className="ds-intrinsic h-6 min-h-6 rounded-md border-transparent bg-transparent px-2 text-[10px]"
                   onClick={() => discardPendingAiEdit(messageId)}
                 >
                   Discard
@@ -238,7 +236,7 @@ function ResultCard({ result, messageId }) {
                     type="button"
                     size="xs"
                     variant="outline"
-                    className="h-6 rounded-full border-white/10 bg-white/[0.04] px-2.5 text-[10px]"
+                    className="ds-intrinsic h-6 min-h-6 rounded-md border-transparent bg-transparent px-2 text-[10px]"
                     onClick={() => focusChange({ fileId: first.fileId, line: first.line, layerId: result.target?.layerId })}
                   >
                     View changes
@@ -248,7 +246,7 @@ function ResultCard({ result, messageId }) {
                   <Button
                     type="button"
                     size="xs"
-                    className={cn('h-6 px-2.5 text-[10px] font-semibold', ACCENT_CTA)}
+                    className="ds-intrinsic h-6 min-h-6 rounded-md bg-emerald-300 px-2 text-[10px] font-medium text-emerald-950 hover:bg-emerald-200"
                     onClick={() => {
                       setBottomPanel({ tab: 'conflict', open: true })
                       openConflictReview(result.reviewItems[0].conflictId)
@@ -281,7 +279,7 @@ function TypingBubble() {
 function ActionButton({ label, pressed, disabled, onClick, children }) {
   return (
     <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}
-      className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
+      className={cn('ds-intrinsic inline-flex size-5 items-center justify-center rounded-md [&>svg]:size-3 text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
       {children}
     </button>
   )
@@ -546,10 +544,10 @@ function ChatConversation() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !target}
                 title={target ? 'Send' : 'Choose a target first'}
-                style={{ borderRadius: '9999px', width: 40, height: 40, backgroundColor: '#5EEAB5', color: '#06281D' }}
+                style={{ borderRadius: '9999px', width: 32, height: 32, backgroundColor: '#5EEAB5', color: '#06281D' }}
                 className="ai-chat-submit ds-chat-submit"
               >
-                <ArrowUp className="size-5" />
+                <ArrowUp className="size-4" />
               </Button>
             </div>
           </div>
