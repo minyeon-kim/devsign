@@ -1,8 +1,9 @@
 import { mergeBlockReason } from './mergePolicy.js'
+import { requiredReviewers } from './conflicts.js'
 
 export function mergeAction(item, conflicts, userId) {
   const linked = conflicts.filter((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
-  const records = linked.length ? linked.flatMap((c) => c.reviewers ?? []) : item?.reviewers ?? []
+  const records = linked.length ? linked.filter((c) => c.reviewStage !== 'resolved').flatMap(requiredReviewers) : item?.reviewers ?? []
   const ids = [...new Set(records.map((r) => r.id))]
   const approved = ids.filter((id) => records.filter((r) => r.id === id).every((r) => r.status === 'approved')).length
   const pending = ids.filter((id) => records.some((r) => r.id === id && r.status !== 'approved'))

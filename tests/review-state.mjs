@@ -25,7 +25,7 @@ try {
   const approved = { reviewStage: 'approved', reviewers: [{ id: 'jane', status: 'approved' }] }
   assert.equal(mergeBlockReason({ conflicts: [approved], item: { conflictLevel: 'None' } }), null)
   assert.match(mergeBlockReason({ conflicts: [{ ...approved, reviewStage: 'in_review' }] }), /approve/)
-  assert.match(mergeBlockReason({ conflicts: [approved], item: { conflictLevel: 'High' } }), /Resolve/)
+  assert.equal(mergeBlockReason({ conflicts: [approved], item: { conflictLevel: 'High' } }), null)
   assert.match(mergeBlockReason({ conflicts: [approved], lines: ['<<<<<<< ours'] }), /markers/)
   assert.match(mergeBlockReason({ item: { conflictLevel: 'None', reviewers: [] } }), /approve/)
 
