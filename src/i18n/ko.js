@@ -1603,4 +1603,6 @@ Object.assign(ko, {
   'Couldn’t open the file': '파일을 열지 못했어요',
   'Pick the file again.': '파일을 다시 선택해 주세요.',
   'Figma file': 'Figma 파일',
+  'Not picked': '안 고름',
+  'Keep current': '기존 그대로',
 })

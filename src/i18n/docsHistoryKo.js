@@ -332,7 +332,7 @@ export const docsHistoryKo = {
   "Merge Studio is the canvas for design decisions. Open it from a conflict (Adjust in Merge Studio, or Compare in Merge Studio for drafts) and it opens on that item, with its conflict in the bottom panel.": "병합 스튜디오는 디자인을 결정하는 캔버스입니다. 충돌에서 열면(병합 스튜디오에서 조정, 시안은 병합 스튜디오에서 비교) 그 항목으로 바로 열리고, 하단 패널에 해당 충돌이 함께 보입니다.",
   "Design Compare puts the drafts side by side (A, B, C, D) with a Result artboard.": "디자인 비교는 시안(A, B, C, D)과 결과 아트보드를 나란히 보여줍니다.",
   "When drafts share a layout, take each element's value from a draft. When their layouts differ, take each part of the screen — header, summary, payment, checkout bar — whole, from any draft.": "구성이 같은 시안은 요소마다 값을 고릅니다. 구성이 다른 시안은 헤더, 요약, 결제 수단, 결제 바 같은 화면 영역을 통째로 원하는 시안에서 가져옵니다.",
-  "Flip each part of the Result with ‹ ›, or take a whole draft from the bar above (the table is there too). Select anything on the Result to adjust it in Properties or add from Assets.": "결과 아트보드에서 영역마다 ‹ › 로 시안을 넘기거나, 위쪽 막대에서 시안 전체를 고릅니다(표도 열 수 있어요). 결과의 요소를 선택하면 속성에서 조절하거나 에셋에서 요소를 추가할 수 있습니다.",
+  "In the Mix panel above the canvas, flip each part with ‹ › or take a whole draft with its letter. Select anything on the Result to adjust it in Properties or add from Assets.": "캔버스 위 조합 창에서 영역마다 ‹ › 로 시안을 넘기거나, 글자 버튼으로 시안 전체를 고릅니다. 결과의 요소를 선택하면 속성에서 조절하거나 에셋에서 요소를 추가할 수 있습니다.",
   "Finish mix returns to the item with its conflict open — request review from there.": "조합 완료를 누르면 항목으로 돌아가 충돌이 열립니다. 거기서 검토를 요청합니다.",
   "Comments on a draft go to the conflict's Comments, tagged with the draft and element — one thread per change.": "시안에 남긴 코멘트는 시안과 요소 태그가 붙어 충돌의 코멘트에 들어갑니다. 변경마다 대화는 하나입니다.",
   "Review and approval": "검토와 승인",

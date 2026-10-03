@@ -13,6 +13,7 @@ import {
   GitMerge,
   Layers3,
   MapPin,
+  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -541,13 +542,13 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
           {/* Who changed it, what found it, what it touches — useful, but
               not what you act on, so folded under one quiet toggle. */}
           {hasMetadata && (
-            <div className={cn(REVIEW_INFO_GRID, summary && 'mt-3')}>
-              <span />
+            <div className={cn(summary && 'mt-3')}>
+              {/* In the label column, like Reviewers / Checks / Summary above. */}
               <button
                 type="button"
                 aria-expanded={showDetails}
                 onClick={() => setShowDetails((v) => !v)}
-                className="ds-intrinsic inline-flex h-6 w-fit items-center gap-1 text-[11px] text-slate-500 transition-colors hover:text-white"
+                className={cn(REVIEW_INFO_LABEL, 'ds-intrinsic inline-flex h-6 w-fit items-center gap-1 transition-colors hover:text-white')}
               >
                 <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
                 <ChevronDown className={cn('size-3 transition-transform', showDetails && 'rotate-180')} />
@@ -1114,35 +1115,31 @@ function ReviewButton({ onSubmit, authorName }) {
         <LocalizedText text="Review" />
         <ChevronDown className="size-3.5" />
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-72 gap-2 rounded-xl p-2">
-        <div role="radiogroup" aria-label="Your review" className="space-y-0.5">
+      <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 rounded-xl p-3">
+        {/* One choice as two equal buttons, then the note, then who hears
+            about it beside the send button. */}
+        <p className="mb-2 text-xs font-medium text-white"><LocalizedText text="Your review" /></p>
+        <div role="radiogroup" aria-label="Your review" className="grid grid-cols-2 gap-1 rounded-lg bg-white/[0.04] p-1">
           {[
-            ['approve', 'Approve', 'The change is good to merge.'],
-            ['changes', 'Request changes', 'Something needs fixing before it merges.'],
-          ].map(([id, label, hint]) => (
+            ['approve', 'Approve', Check, 'bg-emerald-400/15 text-emerald-200'],
+            ['changes', 'Request changes', Pencil, 'bg-amber-400/15 text-amber-200'],
+          ].map(([id, label, Icon, on]) => (
             <button
               key={id}
               type="button"
               role="radio"
               aria-checked={decision === id}
               onClick={() => setDecision(id)}
-              className={cn('flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors', decision === id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]')}
+              className={cn('ds-intrinsic flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors', decision === id ? on : 'text-slate-400 hover:bg-white/[0.05] hover:text-white')}
             >
-              <span className={cn('mt-1 flex size-3 shrink-0 items-center justify-center rounded-full ring-1', decision === id ? 'ring-emerald-300' : 'ring-white/30')}>
-                {decision === id && <span className="size-1.5 rounded-full bg-emerald-300" />}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-medium text-white"><LocalizedText text={label} /></span>
-                <span className="block text-[11px] leading-4 text-slate-500"><LocalizedText text={hint} /></span>
-              </span>
+              <Icon className="size-3.5" />
+              <LocalizedText text={label} />
             </button>
           ))}
         </div>
-        {authorName && (
-          <p className="px-2 text-[11px] text-slate-500">
-            <LocalizedText text={`${authorName} (author) will be notified.`} />
-          </p>
-        )}
+        <p className="mt-1.5 mb-2 px-0.5 text-[11px] leading-4 text-slate-500">
+          <LocalizedText text={decision === 'approve' ? 'The change is good to merge.' : 'Something needs fixing before it merges.'} />
+        </p>
         <textarea
           rows={3}
           value={note}
@@ -1151,12 +1148,18 @@ function ReviewButton({ onSubmit, authorName }) {
           placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
           className="block w-full resize-none rounded-lg bg-white/[0.04] px-2.5 py-2 text-xs leading-5 text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.06]"
         />
-        <div className="flex justify-end">
+        <div className="mt-2.5 flex items-center gap-2">
+          {authorName && (
+            <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
+              <Bell className="size-3 shrink-0" />
+              <span className="truncate"><LocalizedText text={`${authorName} (author) will be notified.`} /></span>
+            </span>
+          )}
           <button
             type="button"
             disabled={!ready}
             onClick={submit}
-            className={cn('inline-flex h-7 items-center rounded-full px-3 text-xs font-semibold', decision === 'approve' ? ACCENT_CTA : 'bg-amber-400/15 text-amber-200 hover:bg-amber-400/25', 'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none')}
+            className={cn('ml-auto inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-xs font-semibold', decision === 'approve' ? ACCENT_CTA : 'bg-amber-400 text-slate-950 hover:bg-amber-300', 'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none')}
           >
             <LocalizedText text={decision === 'approve' ? 'Submit approval' : 'Request changes'} />
           </button>
@@ -1421,7 +1424,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
                   {tab === 'overview' ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[38%] xl:min-w-[190px] xl:max-w-[360px] xl:shrink-0')}>
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[46%] xl:min-w-[240px] xl:max-w-[460px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
                             conflict={conflict}

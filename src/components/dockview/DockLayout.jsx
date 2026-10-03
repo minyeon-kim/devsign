@@ -105,7 +105,7 @@ export function buildInitialLayout(api) {
   })
   addDockPanel(api, panelById.canvas, {
     position: { direction: 'right', referencePanel: panelById.chat.id },
-    share: 0.6,
+    share: 0.68,
   })
   addDockPanel(api, panelById.preview, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },

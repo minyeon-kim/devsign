@@ -626,48 +626,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-// The Result's in-place switcher: over each region of a mixed screen, the
-// draft it comes from with ‹ › to flip through the others — choosing by
-// looking at the result itself. Drawn in the frame's own coordinates but
-// counter-scaled (`uiScale`) so it stays readable at any zoom.
-function RegionSwitcher({ frame, regionSwitch, uiScale }) {
-  const { options, onCycle } = regionSwitch
-  return (regionSwitch.regions ?? frame.regions ?? []).map((region) => {
-    // A screen region spans the frame (switcher inside its top-right); an
-    // element gets it just above its own top-right corner.
-    const element = region.x != null
-    const index = options.findIndex((o) => o.key === region.draftKey)
-    const option = options[index]
-    return (
-      <div
-        key={region.id}
-        className="group/region pointer-events-none absolute"
-        style={element ? { left: region.x, top: region.y, width: region.width, height: region.height } : { left: 0, width: '100%', top: region.y, height: region.height }}
-      >
-        <div className={cn('absolute rounded-md ring-emerald-400/70 transition-shadow group-hover/region:ring-2', element ? '-inset-1' : 'inset-x-1 inset-y-0')} />
-        <div
-          className={cn('pointer-events-auto absolute flex items-center rounded-full bg-slate-900/90 text-white shadow-lg ring-1 ring-white/10', element ? 'right-0 bottom-full mb-1 origin-bottom-right' : 'top-0 right-1 origin-top-right')}
-          style={{ transform: `scale(${uiScale})` }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button type="button" aria-label={`Previous draft for ${region.label}`} onClick={() => onCycle(region.id, -1)} className="flex size-6 items-center justify-center rounded-full hover:bg-white/15">
-            <ChevronLeft className="size-3.5" />
-          </button>
-          <span className="flex items-center gap-1.5 px-1 text-[11px] whitespace-nowrap">
-            <span className={cn('flex size-4 items-center justify-center rounded text-[9.5px] font-semibold', region.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/20')}>{option?.letter ?? '–'}</span>
-            <LocalizedText text={region.label} />
-          </span>
-          <button type="button" aria-label={`Next draft for ${region.label}`} onClick={() => onCycle(region.id, 1)} className="flex size-6 items-center justify-center rounded-full hover:bg-white/15">
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      </div>
-    )
-  })
-}
-
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionSwitch, zoom }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -733,7 +692,6 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
               />
             )
           })}
-          {regionSwitch && (regionSwitch.regions || frame.regions) && <RegionSwitcher frame={frame} regionSwitch={regionSwitch} uiScale={100 / (scale * (zoom ?? 100))} />}
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
       </div>
@@ -1142,9 +1100,9 @@ function MergeInfiniteCanvas({
   // layout (draftScreens): its first draft and the mix so far.
   frameOverrideA = null,
   frameOverrideB = null,
-  // { options: [{ key, letter, name }], onCycle(regionId, dir) } — the
-  // Result's region switcher, for drafts mixed by region.
-  regionSwitch = null,
+  // Drafts mixed by region: the Result is the studio's own working screen,
+  // drawn with its edits (Assemble, added components) like Option B.
+  composedResult = false,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel, decisionsFor } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1270,7 +1228,7 @@ function MergeInfiniteCanvas({
     }
     const availW = Math.max(160, visRight - startX)
     // Comparing drafts, the mix panel sits under the header — start below it.
-    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 110 : 0)
+    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 230 : 0)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
@@ -1990,9 +1948,7 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag(entry.key)}
                     onClickCapture={swallowDragClick}
                     selectedLayerId={syncSelection?.layerId}
-                    overrides={entry.key === 'result' && regionSwitch?.composed ? overrides : (compareOverrides?.[entry.key] ?? entry.overrides)}
-                    regionSwitch={entry.key === 'result' ? regionSwitch : null}
-                    zoom={view.zoom}
+                    overrides={entry.key === 'result' && composedResult ? overrides : (compareOverrides?.[entry.key] ?? entry.overrides)}
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                   />
@@ -2040,8 +1996,6 @@ function MergeInfiniteCanvas({
                     onHoverLayer={hoverLayer}
                     selectedLayerId={syncSelection?.layerId}
                     overrides={overrides}
-                    regionSwitch={regionSwitch}
-                    zoom={view.zoom}
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                   />

@@ -3656,7 +3656,7 @@ export const referenceDocs = [
         "items": [
           "Design Compare puts the drafts side by side (A, B, C, D) with a Result artboard.",
           "When drafts share a layout, take each element's value from a draft. When their layouts differ, take each part of the screen — header, summary, payment, checkout bar — whole, from any draft.",
-          "Flip each part of the Result with ‹ ›, or take a whole draft from the bar above (the table is there too). Select anything on the Result to adjust it in Properties or add from Assets.",
+          "In the Mix panel above the canvas, flip each part with ‹ › or take a whole draft with its letter. Select anything on the Result to adjust it in Properties or add from Assets.",
           "Finish mix returns to the item with its conflict open — request review from there."
         ]
       },

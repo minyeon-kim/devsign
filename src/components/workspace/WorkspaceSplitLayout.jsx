@@ -202,13 +202,13 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       const groupId = store.panels[id]?.groupId
       if (!groupId || floatingGroups.current.has(groupId)) continue
       floatingGroups.current.add(groupId)
-      // AI Chat a little narrower than a docked pane, and both windows
-      // close to the edges (8px), leaving the canvas the middle.
+      // AI Chat a little narrower than a docked pane, and both windows flush
+      // with the bottom panel's left and right edges (the same column).
       const width = Math.min(right ? NAVIGATOR_W : 300, bounds.width * 0.3)
       const height = Math.max(180, Math.min(560, bounds.height - 160))
       // Just under the 32px studio header row (8px + 32px + 8px gap) —
       // the same 48px line the Workspace's windows start on.
-      dockApi.moveGroup(groupId, right ? bounds.width - width - 8 : 8, 48)
+      dockApi.moveGroup(groupId, right ? bounds.width - width : 0, 48)
       dockApi.resizeGroup(groupId, width, height)
       dockApi.minimizeGroup(groupId, false)
     }
