@@ -1423,6 +1423,11 @@ Object.assign(ko, {
   // Checks (run on their own; gate merging)
   'Checks': '검사',
   'Blocks merge': '병합 차단',
+  'Use a design': '이 시안으로 정하기',
+  'Layout risk': '레이아웃 위험도',
+  'All checks passed': '검사 모두 통과',
+  'Checks need attention': '확인이 필요한 검사가 있어요',
+  'Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.': '코드의 충돌 줄(<<<<<<< / >>>>>>>)에서 버전을 고르세요.',
   'Decide them in Merge Studio’s Drifts tab — undecided ones ship the Current Implementation’s value.': '병합 스튜디오의 드리프트 탭에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
   'Drifts': '드리프트',
   'Open a merge item to decide its drifts.': '머지 항목을 열어 드리프트를 결정하세요.',

@@ -1,3 +1,6 @@
+import { toast } from '@/i18n/toast'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
@@ -20,6 +23,7 @@ import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, optionEffects } from '@/components/mergestudio/DesignComparison'
+import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 
@@ -103,6 +107,7 @@ function MergeStudioWorkspace({ item }) {
     mergeDrawer,
     setMergeDrawer,
     mergeFocus,
+    linesOfFile,
     requestMergeFocus,
     requestHistoryDrawer,
     mergePreviewOpen,
@@ -201,6 +206,35 @@ function MergeStudioWorkspace({ item }) {
   function openDesignComparison(compareItem, options) {
     setDesignComparison({ item: compareItem, options })
     setBottomPanel({ open: false })
+  }
+  // "Use this design": every drift takes the chosen draft's value — the
+  // design's own (A), the current implementation's (B), or the draft's
+  // value as a custom one — the same decisions the Drifts tab records,
+  // made in one go. Not a commit: it's the item's working choices, and
+  // the checks re-run on them; merging is what records it.
+  // Comparing another item's drafts: its choices are saved to that item's
+  // draft and the studio switches to it (they're applied on load).
+  function applyDesignOption(option) {
+    const target = designComparison?.item ?? item
+    const layerDiffs = designMergeVariants[target.id]?.layerDiffs ?? {}
+    const picks = {}
+    for (const [layerId, diffs] of Object.entries(layerDiffs)) {
+      for (const diff of diffs) {
+        const value = option.side ? null : diff.values?.[option.key]
+        picks[`${layerId}:${diff.id}`] = option.side
+          ?? (value === undefined || value === diff.optionA ? 'A' : value === diff.optionB ? 'B' : { custom: value })
+      }
+    }
+    if (target.id === item.id) {
+      setResolutions((prev) => ({ ...prev, ...picks }))
+    } else {
+      const saved = mergeDrafts.current[target.id] ?? {}
+      saveMergeDraft(target.id, { ...saved, resolutions: { ...(saved.resolutions ?? {}), ...picks } })
+      requestMergeFocus({ itemId: target.id, overview: true })
+    }
+    setDesignComparison(null)
+    const count = Object.keys(picks).length
+    toast(`Using ${option.label}`, { description: `${count} value${count === 1 ? '' : 's'} set — see Drifts to adjust.` })
   }
   // Design Compare's selected drafts, reshaped as frames for
   // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
@@ -623,6 +657,9 @@ function MergeStudioWorkspace({ item }) {
     : []
   const changesCodeRows = changesSummary ? changesSummary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0) : []
 
+  // This item's checks, live: from the choices on screen right now (not the
+  // saved draft), so deciding a drift or editing updates them at once.
+  const liveChecks = item ? checksFor(item, { resolutions, annotations: annotationsSnap }, linesOfFile) : null
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
@@ -739,6 +776,20 @@ function MergeStudioWorkspace({ item }) {
               <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
               <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>
             </span>
+            {(
+              <DropdownMenu>
+                <DropdownMenuTrigger className="shrink-0 rounded-full bg-emerald-400/15 px-3 py-1.5 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 data-[popup-open]:bg-emerald-400/25">
+                  <LocalizedText text="Use a design" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-52">
+                  {designComparison.options.map((option) => (
+                    <DropdownMenuItem key={option.key} onClick={() => applyDesignOption(option)}>
+                      <LocalizedText text={option.label} />
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -767,6 +818,7 @@ function MergeStudioWorkspace({ item }) {
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
           stage="compare"
+          checks={liveChecks}
           designCompare={designCompare}
           assemblies={assemblies}
           resolutions={resolutions}

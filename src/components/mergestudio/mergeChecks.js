@@ -143,7 +143,9 @@ export function assessMerge(item, resolutions, summary) {
 // (mergeBlockReason).
 const BLOCKING_GROUPS = new Set(['Design system', 'Accessibility'])
 
-export function checksFor(item, draft = {}) {
+// `linesOf(fileId)`: the item's files as they are now, for the conflict-
+// marker check (a real merge conflict left in the code blocks the merge).
+export function checksFor(item, draft = {}, linesOf = () => []) {
   if (!item) return null
   const annotations = draft.annotations ?? []
   const summary = {
@@ -151,8 +153,22 @@ export function checksFor(item, draft = {}) {
     applied: annotations.filter((a) => a.status === 'done'),
     files: item.fileIds ?? [],
   }
-  const checks = assessMerge(item, draft.resolutions ?? {}, summary).checks.filter((c) => c.id !== 'conflict')
+  const assessed = assessMerge(item, draft.resolutions ?? {}, summary)
+  const markerFiles = (item.fileIds ?? []).filter((id) => (linesOf(id) ?? []).some((line) => /^(<<<<<<<|=======|>>>>>>>)(?:\s|$)/.test(line)))
+  const checks = [
+    {
+      id: 'markers',
+      group: 'Merge',
+      ok: markerFiles.length === 0,
+      title: markerFiles.length ? `Merge conflict in ${markerFiles.length} file${markerFiles.length === 1 ? '' : 's'}` : 'No merge conflicts',
+      hint: markerFiles.length ? 'Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.' : null,
+    },
+    ...assessed.checks.filter((c) => c.id !== 'conflict'),
+  ]
   const failing = checks.filter((c) => !c.ok)
-  const blocking = failing.filter((c) => BLOCKING_GROUPS.has(c.group))
-  return { checks, passed: checks.length - failing.length, failing, blocking }
+  const blocking = failing.filter((c) => c.id === 'markers' || BLOCKING_GROUPS.has(c.group))
+  // What the change touches, from the same assessment — the old Check
+  // step's impact numbers.
+  const impact = { screens: assessed.screens, consistency: assessed.consistency, risk: assessed.risk, breaking: assessed.breaking.length }
+  return { checks, passed: checks.length - failing.length, failing, blocking, impact }
 }

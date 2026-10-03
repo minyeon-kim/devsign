@@ -339,11 +339,12 @@ export function WorkspaceProvider({ children, projectId }) {
   const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, {}))
   // A conflict's checks, from its merge item and that item's draft (the
   // choices made in Merge Studio) — run fresh wherever they're shown.
+  const linesOfFile = useCallback((fileId) => fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? [], [fileOverrides, files])
   const conflictChecks = useCallback((conflict) => {
     if (!conflict) return null
     const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
-    return item ? checksFor(item, mergeDrafts.current[item.id]) : null
-  }, [mergeItems])
+    return item ? checksFor(item, mergeDrafts.current[item.id], linesOfFile) : null
+  }, [mergeItems, linesOfFile])
   const saveMergeDraft = useCallback((id, draft) => {
     const content = (d = {}) => ({ resolutions: d.resolutions ?? {}, assemblies: d.assemblies ?? {},
       assemblySources: d.assemblySources ?? {}, addedLayers: d.addedLayers ?? [], manualCode: d.manualCode ?? {},
@@ -770,7 +771,7 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     // Checks gate the merge (not the review request): failing design-system
     // or accessibility checks, or a merge conflict, keep it from landing.
-    const blocking = item ? checksFor(item, draft).blocking : []
+    const blocking = item ? checksFor(item, draft, (id) => finalFiles[id] ?? fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []).blocking : []
     const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
       ?? (blocking.length ? `${blocking.length} check${blocking.length === 1 ? '' : 's'} failing: ${blocking.map((c) => c.title).join(' · ')}` : null)
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
@@ -1762,6 +1763,7 @@ export function WorkspaceProvider({ children, projectId }) {
     mergeDrafts,
     saveMergeDraft,
     conflictChecks,
+    linesOfFile,
     draftChanges,
     editorDirtyFiles,
     setEditorDirtyFiles,
