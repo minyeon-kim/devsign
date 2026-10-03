@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, GitCompareArrows, Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ChevronDown, GitCompareArrows, Layers3, ListChecks, MousePointerClick, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -22,7 +22,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, optionEffects } from '@/components/mergestudio/DesignComparison'
+import { DesignComparePanel, designCompareOptions, optionEffects } from '@/components/mergestudio/DesignComparison'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -108,6 +108,8 @@ function MergeStudioWorkspace({ item }) {
     setMergeDrawer,
     mergeFocus,
     linesOfFile,
+    designCompareRequest,
+    setDesignCompareRequest,
     requestMergeFocus,
     requestHistoryDrawer,
     mergePreviewOpen,
@@ -203,10 +205,27 @@ function MergeStudioWorkspace({ item }) {
       current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]
     )
   }
+  // Comparing drafts is about one item, so the studio is on that item while
+  // it does: another item's drafts switch to it first (the comparison is
+  // picked up once it loads), and the compared element is selected.
   function openDesignComparison(compareItem, options) {
-    setDesignComparison({ item: compareItem, options })
     setBottomPanel({ open: false })
+    const layerId = Object.keys(designMergeVariants[compareItem.id]?.layerDiffs ?? {})[0]
+    if (compareItem.id !== item.id) {
+      setDesignCompareRequest({ itemId: compareItem.id, keys: options.map((option) => option.key) })
+      requestMergeFocus({ itemId: compareItem.id, ...(layerId && { layerId }), noPan: true })
+      return
+    }
+    setDesignComparison({ item: compareItem, options })
+    if (layerId) requestMergeFocus({ itemId: item.id, layerId, noPan: true })
   }
+  useEffect(() => {
+    if (!item || designCompareRequest?.itemId !== item.id) return
+    const options = designCompareOptions(item).filter((option) => designCompareRequest.keys.includes(option.key))
+    setDesignCompareRequest(null)
+    if (options.length) setDesignComparison({ item, options })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, designCompareRequest])
   // "Use this design": every drift takes the chosen draft's value — the
   // design's own (A), the current implementation's (B), or the draft's
   // value as a custom one — the same decisions the Drifts tab records,
@@ -254,7 +273,11 @@ function MergeStudioWorkspace({ item }) {
       frame: compareFrame,
       entries: options.map((option) => ({
         key: option.key,
-        label: option.label,
+        // The draft's values next to its name — what actually differs.
+        label: [option.label, ...Object.values(designMergeVariants[compareItem.id]?.layerDiffs ?? {}).flat().map((diff) => {
+          const value = option.side ? (option.side === 'A' ? diff.optionA : diff.optionB) : diff.values?.[option.key] ?? diff.optionA
+          return `${diff.label} ${value}`
+        })].join(' · '),
         overrides: optionEffects(compareItem, option),
       })),
     }
@@ -772,40 +795,43 @@ function MergeStudioWorkspace({ item }) {
           // canvas below (see `designCompare`), so this is just the "what
           // am I looking at / how do I leave" strip for that mode.
           <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-0.5 pl-4 font-normal')}>
-            <span className="min-w-0 truncate text-slate-200">
+            <span className="whitespace-nowrap text-slate-200">
               <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
               <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>
             </span>
-            {(
-              <DropdownMenu>
-                <DropdownMenuTrigger className="shrink-0 rounded-full bg-emerald-400/15 px-3 py-1.5 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 data-[popup-open]:bg-emerald-400/25">
-                  <LocalizedText text="Use a design" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-52">
-                  {designComparison.options.map((option) => (
-                    <DropdownMenuItem key={option.key} onClick={() => applyDesignOption(option)}>
-                      <LocalizedText text={option.label} />
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            {/* One primary action (pick a draft); changing the drafts is a
+                quiet text action, and leaving is the close button. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full bg-emerald-400/15 px-3 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 data-[popup-open]:bg-emerald-400/25">
+                <LocalizedText text="Use a design" />
+                <ChevronDown className="size-3 opacity-80" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-52">
+                {designComparison.options.map((option) => (
+                  <DropdownMenuItem key={option.key} onClick={() => applyDesignOption(option)}>
+                    <LocalizedText text={option.label} />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               type="button"
               onClick={() => {
                 setDesignComparison(null)
                 setBottomPanel({ tab: 'design-compare', open: true })
               }}
-              className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+              className="ds-intrinsic h-7 shrink-0 rounded-full px-2.5 text-[12px] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
             >
-              Change selection
+              <LocalizedText text="Change drafts" />
             </button>
             <button
               type="button"
+              title="Exit comparison"
+              aria-label="Exit comparison"
               onClick={() => setDesignComparison(null)}
-              className="shrink-0 rounded-full bg-white/[0.07] px-3 py-1.5 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.12]"
+              className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
             >
-              Back to merge canvas
+              <X className="size-3.5" />
             </button>
           </div>
         )}

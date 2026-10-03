@@ -1,6 +1,6 @@
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, TriangleAlert, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, House, TriangleAlert, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -41,6 +41,7 @@ function ChecksPill({ checks }) {
       >
         {failing ? <TriangleAlert className="size-3.5" /> : <CircleCheck className="size-3.5" />}
         <LocalizedText text={failing ? `${failing} check${failing === 1 ? '' : 's'}` : 'Checks passed'} />
+        <ChevronDown className="size-3 opacity-70" />
       </PopoverTrigger>
       <PopoverContent align="center" sideOffset={8} className="w-80 gap-3 rounded-xl p-3">
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -1065,15 +1066,26 @@ function MergeInfiniteCanvas({
   // code window. See MergeStudioWorkspace for how entries are built.
   designCompare = null,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [view, setView] = useState(DEFAULT_VIEW)
-  const [layout, setLayout] = useState(() =>
-    designCompare
-      ? defaultLayoutForKeys(designCompare.frame, designCompare.entries.map((e) => e.key))
-      : defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
-  )
+  const layoutFor = (compare) => compare
+    ? defaultLayoutForKeys(compare.frame, compare.entries.map((e) => e.key))
+    : defaultLayout(item.hasDesign ? frameWithLayers(canvasPages.find((p) => p.id === item.designPageId)?.frames[0], extraLayers) : null)
+  const [layoutState, setLayout] = useState(() => layoutFor(designCompare))
+  // Entering or leaving a draft comparison swaps which cards exist (the
+  // drafts' keys vs a / b). Swap the layout in this very render — waiting
+  // for the effect below left a render drawing a / b from the drafts'
+  // layout (no `layout.a`), which crashed Merge Studio ("reading 'x'") on
+  // "Use a design" / "Back to merge canvas".
+  const [layoutCompare, setLayoutCompare] = useState(designCompare)
+  let layout = layoutState
+  if (layoutCompare !== designCompare) {
+    layout = layoutFor(designCompare)
+    setLayoutCompare(designCompare)
+    setLayout(layout)
+  }
   const [panning, setPanning] = useState(false)
   // Canvas tool (keyboard only — there's no on-canvas toolbar): 'select'
   // (V) is the normal click-to-select canvas; 'hand' (H) turns the whole
@@ -2114,7 +2126,8 @@ function MergeInfiniteCanvas({
         {/* Drift navigation replaces the redundant workflow stepper. */}
         <div className="pointer-events-none absolute top-2 left-1/2 z-20 flex -translate-x-1/2 justify-center">
           <div className="pointer-events-auto flex items-center gap-2">
-            {stage === 'compare' && (
+            {stage === 'compare' && !designCompare && (
+              // While comparing drafts, the comparison strip takes this spot.
               // One pill for "what to decide" (drift paging) and "is the
               // result OK" (checks, live as you edit) — deciding a drift
               // visibly moves the checks count beside it.
@@ -2134,9 +2147,15 @@ function MergeInfiniteCanvas({
                 {/* Plain label, not a button — drift detail now lives inline
                     in the Block Deck's Compare tab (no more floating
                     popover here for this to show/hide). */}
-                <span className="min-w-20 rounded-full px-1.5 text-center font-semibold text-foreground tabular-nums">
+                {/* The pill's main action: open the Drifts tab to decide them. */}
+                <button
+                  type="button"
+                  title="Decide drifts"
+                  onClick={() => setBottomPanel({ tab: 'drifts', open: true })}
+                  className="ds-intrinsic h-7 min-w-20 rounded-full px-2 text-center font-semibold text-foreground tabular-nums transition-colors hover:bg-white/10"
+                >
                   <LocalizedText text="Drift" /> {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
-                </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {

@@ -307,6 +307,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio collaboration: which right-hand drawer is open, the inbox,
   // and a "pan the canvas to this" request (consumed by MergeStudioWorkspace).
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
+  // Design Compare asked for on an item that isn't open yet: Merge Studio
+  // switches to it, then picks this up on load ({ itemId, keys }).
+  const [designCompareRequest, setDesignCompareRequest] = useState(null)
   // Merge Studio's feed plus this project's Conflict Points items.
   const [storedNotifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
     ...conflictNotifications.filter((n) => n.projectId === projectId),
@@ -1764,6 +1767,8 @@ export function WorkspaceProvider({ children, projectId }) {
     saveMergeDraft,
     conflictChecks,
     linesOfFile,
+    designCompareRequest,
+    setDesignCompareRequest,
     draftChanges,
     editorDirtyFiles,
     setEditorDirtyFiles,

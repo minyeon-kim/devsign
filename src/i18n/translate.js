@@ -55,6 +55,7 @@ const rules = [
   [/^approved (.+)$/, (_, title) => `${core(title)}을(를) 승인했어요`],
   [/^Approve (\d+) low-risk changes?$/, (_, n) => `위험도 낮음 변경 ${n}개 승인`],
   [/^Approve (\d+)$/, (_, n) => `${n}개 승인`],
+  [/^Fix (\d+) checks? to merge$/, (_, n) => `검사 ${n}개를 해결해야 병합할 수 있어요`],
   [/^Merge conflict in (\d+) files?$/, (_, n) => `파일 ${n}개에 병합 충돌`],
   [/^Using (.+)$/, (_, label) => `${core(label)} 적용`],
   [/^(\d+) values? set — see Drifts to adjust\.$/, (_, n) => `값 ${n}개를 정했어요 — 드리프트 탭에서 조정할 수 있어요.`],

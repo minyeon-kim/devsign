@@ -1149,11 +1149,20 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         <span className="text-[11px] text-slate-500"><LocalizedText text={waitingOn.join(' · ')} /></span>
       ) : null
     } else if (stage === 'approved') {
+      // Approved but a check blocks it: say so before the click, not after.
+      const blocking = checks?.blocking ?? []
       primary = (
-        <button type="button" onClick={handleMerge} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
-          <GitMerge className="size-3.5" />
-          Merge change
-        </button>
+        <>
+          {blocking.length > 0 && (
+            <span className="text-[11px] text-amber-200" title={blocking.map((c) => c.title).join(' · ')}>
+              <LocalizedText text={`Fix ${blocking.length} check${blocking.length === 1 ? '' : 's'} to merge`} />
+            </span>
+          )}
+          <button type="button" onClick={handleMerge} disabled={blocking.length > 0} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
+            <GitMerge className="size-3.5" />
+            Merge change
+          </button>
+        </>
       )
     } else if (stage === 'resolved') {
       primary = (
