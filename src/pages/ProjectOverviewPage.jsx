@@ -1,3 +1,4 @@
+import { notificationDestination } from '@/lib/inboxNotifications'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
 import { cn } from 'cn'
@@ -72,7 +73,7 @@ function Person({ id }) {
 function ProjectOverviewPage() {
   const { project } = useOutletContext()
   const navigate = useNavigate()
-  const { conflicts, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, dsUpdates, historyEntries, activeHistoryId, referenceDocs, setBottomPanel, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
@@ -301,20 +302,12 @@ function ProjectOverviewPage() {
       {inboxOpen && (
         <MergeInboxDrawer
           onJump={(n) => {
+            const destination = notificationDestination(n.target, conflicts, mergeItems)
+            if (!destination) return
             setMergeDrawer(null)
-            if (n.target.conflictId) {
-              navigate(workspacePath, { state: { openConflictId: n.target.conflictId } })
-              return
-            }
-            navigate(workspacePath, {
-              state: {
-                openMergeStudio: true,
-                mergeItemId: n.target.itemId,
-                layerId: n.target.layerId,
-                fileId: n.target.fileId,
-                line: n.target.line,
-              },
-            })
+            navigate(workspacePath, { state: destination.conflictId
+              ? { openConflictId: destination.conflictId }
+              : { ...destination.mergeTarget, openMergeStudio: true, mergeItemId: destination.mergeTarget.itemId } })
           }}
           onClose={() => setMergeDrawer(null)}
         />

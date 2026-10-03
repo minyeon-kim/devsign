@@ -1,3 +1,4 @@
+import { notificationDestination } from '@/lib/inboxNotifications'
 import { mergeAction } from '@/lib/mergeAction'
 import { mergeChangeCount } from '@/lib/mergeChangeCount'
 import { createPortal } from 'react-dom'
@@ -987,15 +988,16 @@ function MergeStudioWorkspace({ item }) {
       {mergeDrawer === 'inbox' && (
         <MergeInboxDrawer
           onJump={(n) => {
-            // A Conflict Point item: back to the Workspace, its review open.
-            if (n.target.conflictId) {
-              setMergeDrawer(null)
+            const destination = notificationDestination(n.target, conflicts, mergeItems)
+            if (!destination) return
+            setMergeDrawer(null)
+            if (destination.conflictId) {
               exitMergeStudio()
               setBottomPanel({ tab: 'conflict', open: true })
-              openConflictReview(n.target.conflictId)
+              openConflictReview(destination.conflictId)
               return
             }
-            requestMergeFocus({ ...n.target, pulse: true })
+            requestMergeFocus(destination.mergeTarget)
           }}
           onClose={() => setMergeDrawer(null)}
         />

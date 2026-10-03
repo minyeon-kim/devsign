@@ -1,3 +1,4 @@
+import { notificationDestination } from '@/lib/inboxNotifications'
 import '@/components/dockview/panels/CanvasToolbar.css'
 import { Link } from 'react-router-dom'
 import { cn } from 'cn'
@@ -53,7 +54,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
-  const { activeView, requestMergeFocus, openMergeStudio, openConflictReview, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictReview, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
   if (activeView === 'mergeStudio') return null
 
@@ -103,13 +104,16 @@ function TopBar({ project }) {
           // with the Conflict Points tab up behind it) or at a Merge Studio
           // target (jump there, focused).
           onJump={(n) => {
+            const destination = notificationDestination(n.target, conflicts, mergeItems)
+            if (!destination) return
             setMergeDrawer(null)
-            if (n.target.conflictId) {
+            if (destination.conflictId) {
+              exitMergeStudio()
               setBottomPanel({ tab: 'conflict', open: true })
-              openConflictReview(n.target.conflictId)
+              openConflictReview(destination.conflictId)
               return
             }
-            requestMergeFocus({ ...n.target, pulse: true })
+            requestMergeFocus(destination.mergeTarget)
             openMergeStudio()
           }}
           onClose={() => setMergeDrawer(null)}

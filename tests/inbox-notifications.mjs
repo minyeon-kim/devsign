@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { reviewAlerts, groupInboxNotifications } from '../src/lib/inboxNotifications.js'
+import { createServer } from 'vite'
+const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
+try {
+const { reviewAlerts, groupInboxNotifications, notificationDestination } = await server.ssrLoadModule('/src/lib/inboxNotifications.js')
 const conflict = (id, severity, extra = {}) => ({ id, title: `Change ${id}`, severity, reviewStage: 'in_review', reviewers: [{ id: 'me', status: 'pending' }], ...extra })
 const conflicts = [conflict('h1', 'high'), conflict('m1', 'medium'), conflict('m2', 'medium'), conflict('m3', 'medium'), conflict('other', 'high', { reviewers: [{ id: 'other', status: 'pending' }] }), conflict('done', 'high', { reviewStage: 'approved' }), conflict('low', 'low')]
 const alerts = reviewAlerts(conflicts, 'me', '2026-09-30')
@@ -20,10 +23,21 @@ assert.equal(groups[2].unread, true)
 assert.equal(groups[3].notifications.length, 1)
 assert.deepEqual(groups[1].reviewConflictIds, ['m1', 'm2', 'm3'])
 console.log('Passed: high immediate alerts, medium digest scope/counts, reviewer isolation, completed exclusion and comment/feedback drill-down grouping.')
-const { commentGroupSummary } = await import('../src/lib/inboxNotifications.js')
+const { commentGroupSummary } = await server.ssrLoadModule('/src/lib/inboxNotifications.js')
 const summary = commentGroupSummary({ notifications: [{ ...notes[0], replies: [{ id: 'r1' }, { id: 'r2' }] }, notes[1]] })
 assert.equal(summary.comments, 1)
 assert.equal(summary.feedback, 1)
 assert.equal(summary.replies, 2)
 assert.equal(summary.latest.id, 'c1')
 console.log('Passed: comment/automated feedback/reply counts and summary source.')
+
+const items = [{ id: 'merge1', conflictId: 'h1' }, { id: 'merge2' }, { id: 'merge3' }]
+assert.deepEqual(notificationDestination({ conflictId: 'm1' }, conflicts, items), { conflictId: 'm1' })
+assert.deepEqual(notificationDestination({ itemId: 'merge1' }, conflicts, items), { conflictId: 'h1' })
+assert.deepEqual(notificationDestination({ itemId: 'merge2' }, [{ id: 'linked', mergeItemId: 'merge2' }], items), { conflictId: 'linked' })
+assert.deepEqual(notificationDestination({ itemId: 'merge3', fileId: 'app', line: 4 }, conflicts, items), { mergeTarget: { itemId: 'merge3', fileId: 'app', line: 4, pulse: true, openDeck: true } })
+assert.equal(notificationDestination({ itemId: 'missing' }, conflicts, items), null)
+console.log('Passed: notification links resolve direct and linked reviews or the exact merge target.')
+} finally {
+  await server.close()
+}

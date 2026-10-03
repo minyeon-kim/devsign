@@ -58,3 +58,12 @@ export function commentGroupSummary(group) {
     replies: notes.reduce((total, n) => total + (n.replies?.length ?? 0), 0),
   }
 }
+
+// Prefer the linked review record over a generic canvas destination.
+export function notificationDestination(target, conflicts, mergeItems) {
+  if (target?.conflictId) return { conflictId: target.conflictId }
+  const item = mergeItems.find(item => item.id === target?.itemId)
+  const conflict = item && conflicts.find(conflict => conflict.id === item.conflictId || conflict.mergeItemId === item.id)
+  if (conflict) return { conflictId: conflict.id }
+  return item ? { mergeTarget: { ...target, itemId: item.id, pulse: true, openDeck: true } } : null
+}
