@@ -1292,7 +1292,15 @@ function MergeInfiniteCanvas({
       // element center in world coordinates
       const wx = (r.left + r.width / 2 - base.left - from.x) / k0
       const wy = (r.top + r.height / 2 - base.top - from.y) / k0
-      const zoom = clampZoom(Math.max(from.zoom, layerId || line ? 110 : 80))
+      // Selecting a target never zooms the canvas — it keeps the zoom the
+      // user is at, and only pans when the target is off-screen (a jump
+      // that suddenly enlarged everything read as the canvas glitching).
+      const visible = r.left >= base.left + 16 && r.right <= base.right - reserve - 16 && r.top >= base.top + 56 && r.bottom <= base.bottom - 16
+      if (!overview && visible) {
+        if (focus.target.pulse) pulseTarget()
+        return
+      }
+      const zoom = from.zoom
       const k1 = zoom / 100
       // Center within the *visible* area, not the full container — when a
       // right-docked panel (Block Deck, or the Merge Changes wizard)

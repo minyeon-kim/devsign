@@ -1583,4 +1583,5 @@ Object.assign(ko, {
   'Order summary shown': '주문 요약 있음',
   'The screen never says what’s being paid for.': '무엇을 결제하는지 화면에 나오지 않아요.',
   'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.': '충돌 검토에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
+  'Use one draft': '한 시안 통째로 쓰기',
 })

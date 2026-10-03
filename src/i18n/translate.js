@@ -110,6 +110,7 @@ const rules = [
   [/^(\d+) accent colors mixed$/, (_, n) => `강조 색 ${n}개가 섞임`],
   [/^(.+) — the parts come from drafts with different accents\.$/, (_, list) => `${list} — 강조 색이 다른 시안의 영역이 섞였어요.`],
   [/^(\$[\d.]+(?: vs \$[\d.]+)+) — (.+) show different totals\.$/, (_, amounts, parts) => `${amounts} — ${parts.split(', ').map((p) => core(p)).join(', ')}의 합계가 달라요.`],
+  [/^(\d+) of (\d+) drafts$/, (_, a, b) => `시안 ${b}개 중 ${a}개`],
   [/^Pin comment to (.+)$/, (_, name) => `${core(name)}에 코멘트 고정`],
   [/^(\d+) designs selected for comparison\.$/, (_, n) => `시안 ${n}개를 비교해요.`],
   [/^(\d+) selected$/, (_, n) => `${n}개 선택됨`],

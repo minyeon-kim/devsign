@@ -4,6 +4,7 @@ import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { canvasPages, designMergeVariants } from '@/data/mockData'
+import { draftFrame, draftScreens } from '@/data/draftScreens'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { toast } from '@/i18n/toast'
 
@@ -93,7 +94,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
           </div>
         </section>
 
-        <section className="min-h-0 overflow-auto rounded-xl bg-white/[0.03] p-3">
+        <section className="flex min-h-0 flex-col overflow-auto rounded-xl bg-white/[0.03] p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="truncate text-[11px] font-semibold text-slate-300">{item?.title ?? 'Choose a design set'}</h2>
             {item && <span className="shrink-0 text-[10px] text-slate-500">Select 2 or more</span>}
@@ -128,7 +129,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             </form>
           )}
           {item && (
-            <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+            // Every draft in view at once: one row, each preview fit to the
+            // panel's height rather than its width.
+            <div className="grid min-h-[180px] flex-1 grid-cols-2 gap-2.5 lg:grid-cols-4 lg:grid-rows-[minmax(0,1fr)]">
               {options.map((option, index) => {
                 const selected = selectedKeys.includes(option.key)
                 return (
@@ -144,7 +147,11 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                       setCommentAnchor(null)
                     }}
                     onSelectLayer={(layer) => chooseLayer(option, layer)}
-                    frame={canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]}
+                    frame={(() => {
+                      const base = canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]
+                      // Drafts with their own layout show their own screen.
+                      return base && draftScreens[item.id] ? draftFrame(item.id, base, option.key) : base
+                    })()}
                     effects={optionEffects(item, option)}
                   />
                 )
@@ -172,21 +179,22 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
 
 function DesignOptionCard({ option, index, selected, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects }) {
   const boardRef = useRef(null)
-  const [boardWidth, setBoardWidth] = useState(0)
+  const [box, setBox] = useState({ width: 0, height: 0 })
 
   useEffect(() => {
     if (!boardRef.current) return undefined
-    const observer = new ResizeObserver(([entry]) => setBoardWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(boardRef.current)
     return () => observer.disconnect()
   }, [])
 
   const letter = String.fromCharCode(65 + index)
-  const scale = frame && boardWidth ? Math.min(1, boardWidth / frame.width) : 1
+  // The whole screen, fit inside the preview box (by width and height).
+  const scale = frame && box.width && box.height ? Math.min(box.width / frame.width, box.height / frame.height) : 0
 
   return (
-    <article className={cn('min-w-0 overflow-hidden rounded-xl border transition-colors', selected ? 'border-emerald-400/50 bg-emerald-400/[0.05]' : 'border-white/[0.07] bg-black/10')}>
-      <div className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+    <article className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border transition-colors', selected ? 'border-emerald-400/50 bg-emerald-400/[0.05]' : 'border-white/[0.07] bg-black/10')}>
+      <div className="flex min-w-0 shrink-0 items-center gap-2 px-2.5 py-1.5">
         <button
           type="button"
           role="checkbox"
@@ -224,13 +232,14 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
             onToggle()
           }}
           ref={boardRef}
-          className={cn('relative mx-2 mb-2 block w-[calc(100%-1rem)] overflow-hidden rounded-lg bg-white text-left shadow-lg shadow-black/20 ring-1 ring-slate-200/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', commentMode && 'cursor-crosshair')}
-          style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
+          className={cn('relative mx-2 mb-2 flex min-h-0 flex-1 justify-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', commentMode && 'cursor-crosshair')}
         >
+          <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: frame.height * scale }}>
           <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
             {frame.layers.map((layer) => (
               <StaticLayer key={layer.id} layer={layer} override={effects[layer.id]} onSelect={() => onSelectLayer(layer)} />
             ))}
+          </div>
           </div>
         </div>
       ) : (

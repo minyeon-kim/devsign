@@ -911,17 +911,40 @@ function MergeStudioWorkspace({ item }) {
           // Compare's drafts now render as real frames on the infinite
           // canvas below (see `designCompare`), so this is just the "what
           // am I looking at / how do I leave" strip for that mode.
-          <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-0.5 pl-4 font-normal')}>
-            <span className="whitespace-nowrap text-slate-200">
-              <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
-              <span className="ml-1.5 text-slate-500">{`· ${designComparison.options.length} designs`}</span>
+          // Three groups, divided: what's being compared (and leaving it),
+          // the alternatives (other drafts, one whole draft), and the one
+          // primary action — finishing the mix.
+          <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 px-1 font-normal')}>
+            <button
+              type="button"
+              title="Exit comparison"
+              aria-label="Exit comparison"
+              onClick={() => endComparison()}
+              className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              <X className="size-3.5" />
+            </button>
+            <span className="flex items-baseline gap-2 pr-2 pl-0.5 whitespace-nowrap">
+              <span className="text-[13px] font-semibold text-white"><LocalizedText text={designComparison.item.title} /></span>
+              <span className="text-[11px] text-slate-500">
+                <LocalizedText text={`${designComparison.options.length} of ${designCompareOptions(designComparison.item).length} drafts`} />
+              </span>
             </span>
-            {/* One primary action (pick a draft); changing the drafts is a
-                quiet text action, and leaving is the close button. */}
+            <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => {
+                endComparison()
+                setBottomPanel({ tab: 'design-compare', open: true })
+              }}
+              className="ds-intrinsic h-7 shrink-0 rounded-full px-3 text-[12px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              <LocalizedText text="Change drafts" />
+            </button>
             <DropdownMenu>
-              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.06] px-3 text-[12px] font-medium text-slate-200 transition-colors hover:bg-white/[0.12] data-[popup-open]:bg-white/[0.12]">
-                <LocalizedText text="Use a design" />
-                <ChevronDown className="size-3 opacity-80" />
+              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full px-3 text-[12px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white data-[popup-open]:bg-white/[0.08] data-[popup-open]:text-white">
+                <LocalizedText text="Use one draft" />
+                <ChevronDown className="size-3 opacity-70" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="w-52">
                 {designComparison.options.map((option) => (
@@ -931,6 +954,7 @@ function MergeStudioWorkspace({ item }) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
             {/* The primary action: done mixing — enabled once anything's
                 been picked from a draft. */}
             <button
@@ -938,28 +962,10 @@ function MergeStudioWorkspace({ item }) {
               disabled={mixPicked === 0}
               title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
               onClick={finishMix}
-              className="ds-intrinsic h-7 shrink-0 rounded-full bg-emerald-400/15 px-3 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 disabled:cursor-default disabled:bg-white/[0.04] disabled:text-slate-500"
+              className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:bg-white/[0.06] disabled:font-medium disabled:text-slate-500"
             >
+              <Check className="size-3.5" strokeWidth={2.5} />
               <LocalizedText text="Finish mix" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                endComparison()
-                setBottomPanel({ tab: 'design-compare', open: true })
-              }}
-              className="ds-intrinsic h-7 shrink-0 rounded-full px-2.5 text-[12px] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <LocalizedText text="Change drafts" />
-            </button>
-            <button
-              type="button"
-              title="Exit comparison"
-              aria-label="Exit comparison"
-              onClick={() => endComparison()}
-              className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <X className="size-3.5" />
             </button>
           </div>
         )}
