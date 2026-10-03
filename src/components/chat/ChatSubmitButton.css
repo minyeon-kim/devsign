@@ -33,8 +33,8 @@ button.ai-chat-submit:focus-visible {
 }
 
 button.ai-chat-submit:disabled {
-  background-color: transparent !important;
-  color: #71717A !important;
+  background-color: #353535 !important;
+  color: #A1A1AA !important;
 }
 button.ai-chat-submit svg {
   color: inherit !important;
