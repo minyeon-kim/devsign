@@ -232,6 +232,18 @@ export function WorkspaceProvider({ children, projectId }) {
   const [workspaceChat, setWorkspaceChat] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
   const [mergeChats, setMergeChats] = useDemoState(`project:${projectId}:mergeChats`, {})
   const [isAiTyping, setIsAiTyping] = useState(false)
+  const chatGeneration = useRef(null)
+  const stopChatGeneration = useCallback(() => {
+    if (chatGeneration.current) window.clearTimeout(chatGeneration.current.timer)
+    chatGeneration.current = null
+    setIsAiTyping(false)
+    setAiGenerating(null)
+  }, [])
+  useEffect(() => () => {
+    if (chatGeneration.current) window.clearTimeout(chatGeneration.current.timer)
+    chatGeneration.current = null
+  }, [])
+
   const [previewVersion, setPreviewVersion] = useState(0)
   const [previewProps, setPreviewProps] = useDemoState(`project:${projectId}:previewProps`, DEFAULT_PREVIEW_PROPS)
   const [comments, setComments] = useState(() => forProject(seedComments, projectId))
@@ -1300,7 +1312,13 @@ export function WorkspaceProvider({ children, projectId }) {
   const sendChatMessage = useCallback(
     (text, target = null, options = {}) => {
       const trimmed = text.trim()
-      if (!trimmed) return
+      if (!trimmed || chatGeneration.current) return
+      const generation = { timer: null }
+      chatGeneration.current = generation
+      const finish = () => {
+        chatGeneration.current = null
+        setIsAiTyping(false)
+      }
       // Every write below goes to the thread this was asked in.
       const setChatMessages = setChatMessagesFor(chatThread)
 
@@ -1322,9 +1340,10 @@ export function WorkspaceProvider({ children, projectId }) {
       const scenario = forProject(aiEditScenarios, projectId).find((s) => s.keywords.some((k) => lower.includes(k))) ?? null
       const fits = scenario && scenarioFitsTarget(scenario, target)
 
-      window.setTimeout(() => {
+      generation.timer = window.setTimeout(() => {
+        if (chatGeneration.current !== generation) return
         if (documentReply) {
-          setIsAiTyping(false)
+          finish()
           appendAssistant({
             id: nextId('m'),
             role: 'assistant',
@@ -1335,12 +1354,12 @@ export function WorkspaceProvider({ children, projectId }) {
           return
         }
         if (answer) {
-          setIsAiTyping(false)
+          finish()
           appendAssistant({ id: nextId('m'), role: 'assistant', text: answer.reply, summary: answer.summary })
           return
         }
         if (!scenario || !fits) {
-          setIsAiTyping(false)
+          finish()
           const where = target?.label ?? 'the current target'
           const reason = !scenario
             ? `I couldn’t turn that into a specific change in ${where}. Nothing was changed.`
@@ -1352,12 +1371,12 @@ export function WorkspaceProvider({ children, projectId }) {
         const live = aiStateRef.current
         const currentLines = live.fileOverrides[scenario.fileId] ?? files.find((f) => f.id === scenario.fileId)?.lines ?? []
         if (!Array.isArray(scenario.lines) || scenario.lines.some((line) => typeof line !== 'string')) {
-          setIsAiTyping(false)
+          finish()
           appendAssistant({ id: nextId('m'), role: 'assistant', text: 'I couldn’t apply this change. Try rephrasing the request, or edit the target directly in Assemble.', result: { status: 'failed', target } })
           return
         }
         if (signature(currentLines) === signature(scenario.lines) && Object.entries(scenario.previewProps ?? {}).every(([key, value]) => signature(live.previewProps[key]) === signature(value))) {
-          setIsAiTyping(false)
+          finish()
           appendAssistant({ id: nextId('m'), role: 'assistant', text: 'The target already matches this result. No files or approvals were changed.', result: { status: 'no_change', target } })
           return
         }
@@ -1383,8 +1402,9 @@ export function WorkspaceProvider({ children, projectId }) {
           })
         }
 
-        window.setTimeout(() => {
-          setIsAiTyping(false)
+        generation.timer = window.setTimeout(() => {
+          if (chatGeneration.current !== generation) return
+          finish()
           setAiGenerating(null)
 
           // The proposal sits in chat as a draft otherwise — files, canvas
@@ -1703,6 +1723,7 @@ export function WorkspaceProvider({ children, projectId }) {
     draftCommentFromChat,
     isAiTyping,
     sendChatMessage,
+    stopChatGeneration,
     applyPendingAiEdit,
     discardPendingAiEdit,
     previewVersion,

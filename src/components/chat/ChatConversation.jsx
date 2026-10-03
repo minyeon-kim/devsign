@@ -11,6 +11,7 @@ import {
   CircleMinus,
   Copy,
   ArrowUp,
+  Square,
   Code2,
   Crosshair,
   FileCode,
@@ -294,6 +295,7 @@ function ChatConversation() {
     chatMessages,
     isAiTyping,
     sendChatMessage,
+    stopChatGeneration,
     projectId,
     chatDraft: input,
     setChatDraft: setInput,
@@ -539,13 +541,14 @@ function ChatConversation() {
                 type="button"
                 size="icon"
                 variant="ghost"
-                onClick={() => handleSend()}
-                disabled={!input.trim() || !target}
-                title={target ? 'Send' : 'Choose a target first'}
+                onClick={() => isAiTyping ? stopChatGeneration() : handleSend()}
+                disabled={!isAiTyping && (!input.trim() || !target)}
+                aria-label={isAiTyping ? 'Stop generating' : 'Send'}
+                title={isAiTyping ? 'Stop generating' : target ? 'Send' : 'Choose a target first'}
                 style={{ borderRadius: '9999px', width: 32, height: 32, backgroundColor: '#5EEAB5', color: '#06281D' }}
                 className="ai-chat-submit ds-chat-submit"
               >
-                <ArrowUp className="size-4" />
+                {isAiTyping ? <Square className="size-3 fill-current" /> : <ArrowUp className="size-4" />}
               </Button>
             </div>
           </div>

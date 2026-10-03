@@ -3,6 +3,7 @@ import { docsHistoryKo } from './docsHistoryKo'
 // UI copy and seeded conflict-review content shown to Korean-language users.
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
+Stop generating|답변 생성 중지
 Follow|화면 따라가기
 Stop following|따라가기 중지
 Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.|주문 버튼을 디자인에 맞게 다듬어볼까요? Place order 버튼의 높이와 색상을 비교하고, 스타일을 수정한 뒤 검토를 요청할 수 있어요. 아래 질문을 선택하면 순서대로 안내해드릴게요.
