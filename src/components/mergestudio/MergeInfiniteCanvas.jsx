@@ -1117,11 +1117,12 @@ function MergeInfiniteCanvas({
   // for the effect below left a render drawing a / b from the drafts'
   // layout (no `layout.a`), which crashed Merge Studio ("reading 'x'") on
   // "Use a design" / "Back to merge canvas".
-  const [layoutCompare, setLayoutCompare] = useState(designCompare)
+  const comparisonKey = `${item.id}:${designCompare?.entries.map((entry) => entry.key).join(',') ?? 'default'}`
+  const [layoutCompare, setLayoutCompare] = useState(comparisonKey)
   let layout = layoutState
-  if (layoutCompare !== designCompare) {
+  if (layoutCompare !== comparisonKey) {
     layout = layoutFor(designCompare)
-    setLayoutCompare(designCompare)
+    setLayoutCompare(comparisonKey)
     setLayout(layout)
   }
   const [panning, setPanning] = useState(false)
@@ -1269,19 +1270,9 @@ function MergeInfiniteCanvas({
     }, 150)
     return () => window.clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id, designCompare])
+  }, [comparisonKey])
 
-  // When the (overlay) Block Deck opens over its default spot, refit if it
-  // would cover the rightmost artboard; otherwise leave the user's pan alone.
-  useEffect(() => {
-    const c = containerRef.current
-    if (!c) return
-    const width = c.getBoundingClientRect().width
-    const bw = layout.b.w ?? ARTBOARD_PREVIEW_WIDTH
-    const right = viewRef.current.x + (layout.b.x + bw) * (viewRef.current.zoom / 100)
-    if (frame && right > width - layoutReserve - 24) setView(fitView(layout))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutReserve])
+  // Opening Properties or selecting a frame must preserve the user's view.
 
   // Inbox jump: after the target is selected (and the code tab has had a
   // moment to switch), ease the view so the element sits at the center of

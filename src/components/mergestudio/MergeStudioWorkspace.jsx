@@ -1,3 +1,5 @@
+import { translateText } from '@/i18n/translate'
+import { useLanguage } from '@/i18n/language'
 import { toast } from '@/i18n/toast'
 import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
@@ -57,14 +59,14 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 // One draft's version of one screen region, drawn small — what a pick
 // card in the Mix panel shows.
 function RegionPreview({ part, width = 132 }) {
-  const scale = width / 280
+  const scale = Math.min(width / 280, 88 / ((part?.height ?? 0) + 16))
   if (!part?.layers.length) {
     return <div className="flex h-10 items-center justify-center rounded-md bg-white text-[10px] text-slate-400" style={{ width }}><LocalizedText text="Nothing here" /></div>
   }
   const h = part.height + 16
   return (
     <div className="relative overflow-hidden rounded-md bg-white" style={{ width, height: Math.max(32, h * scale) }}>
-      <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: 280, height: h, transform: `scale(${scale})` }}>
+      <div className="pointer-events-none absolute top-0 origin-top-left" style={{ left: (width - 280 * scale) / 2, width: 280, height: h, transform: `scale(${scale})` }}>
         {part.layers.map((layer) => (
           <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />
         ))}
@@ -74,11 +76,12 @@ function RegionPreview({ part, width = 132 }) {
 }
 
 // Mixing drafts one part at a time: the current part's version from every
-// compared draft side by side — pick one and it moves on to the next part.
-// The dots on top jump between parts (green once decided); the letters take
+// compared draft side by side; picking keeps the same part open for comparison.
+// The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
 function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
+  const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
   const columns = rows[0]?.options ?? []
@@ -97,12 +100,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
   function pick(option) {
-    onDecide(current.key, option.picked ? null : option.decision)
-    if (option.picked) return
-    // On to the next part still to decide (or the next one).
-    const after = rows.findIndex((row, i) => i > step && !row.decided)
-    if (after >= 0) setStep(after)
-    else if (step < rows.length - 1) setStep(step + 1)
+    onDecide(current.key, option.decision)
   }
   if (!current) return null
 
@@ -110,20 +108,14 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
     <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-white"><LocalizedText text="Mix" /></span>
-        {/* One dot per part: where you are, and what's decided. */}
-        <span className="flex items-center gap-1">
-          {rows.map((row, i) => (
-            <button
-              key={row.key}
-              type="button"
-              title={row.label}
-              aria-label={row.label}
-              aria-current={i === step || undefined}
-              onClick={() => setStep(i)}
-              className={cn('ds-intrinsic h-1.5 rounded-full transition-all', i === step ? 'w-5' : 'w-1.5', row.decided ? 'bg-emerald-400' : i === step ? 'bg-white/70' : 'bg-white/20 hover:bg-white/40')}
-            />
-          ))}
-        </span>
+        <select
+          aria-label={language === 'ko' ? '화면 영역 선택' : 'Choose screen region'}
+          value={step}
+          onChange={(event) => setStep(Number(event.target.value))}
+          className="ds-intrinsic h-7 min-w-32 rounded-md border border-white/10 bg-card px-2 text-xs text-slate-200 outline-none focus:border-emerald-300/60"
+        >
+          {rows.map((row, i) => <option key={row.key} value={i}>{translateText(row.label, language)}{row.decided ? ' ✓' : ''}</option>)}
+        </select>
         <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
         <span className="ml-4 text-[10.5px] text-slate-500"><LocalizedText text="Use all of" /></span>
         {columns.map((column) => (
@@ -164,7 +156,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
             </span>
             <span className="ml-1.5 tabular-nums">{`${step + 1}/${rows.length}`}</span>
           </p>
-          <div className="flex gap-2">
+          <div className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto p-1">
             {current.options.map((option) => (
               <button
                 key={option.key}
@@ -173,12 +165,12 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
                 onClick={() => pick(option)}
                 title={option.name}
                 className={cn(
-                  'ds-intrinsic flex flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors',
+                  'ds-intrinsic flex w-40 shrink-0 flex-col gap-2 rounded-lg border border-white/10 p-2 text-left transition-colors',
                   option.picked ? 'bg-emerald-400/15 ring-2 ring-emerald-400' : 'bg-white/[0.04] hover:bg-white/[0.08]'
                 )}
               >
                 {current.region
-                  ? <RegionPreview part={screen.drafts[option.key]?.[current.region.id]} />
+                  ? <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
                   : (
                     <span className="flex h-12 w-28 items-center justify-center rounded-md bg-white/[0.06] text-sm font-semibold text-white" {...(option.literal && { translate: 'no' })}>
                       {option.literal ? option.value : <LocalizedText text={option.value} />}
@@ -494,10 +486,7 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function selectLayer(layerId, { openDeck = true } = {}) {
-    // Comparing drafts with different layouts: clicking a part of a draft
-    // (on the canvas — not a selection made for you) takes that whole region.
-    const from = designComparison && draftScreens[item?.id] ? layerSource(layerId) : null
-    if (from && designComparison.options.some((o) => o.key === from.draftKey)) decide(regionKey(from.regionId), { custom: from.draftKey })
+    // Selecting never applies a draft; choices are made explicitly in Mix.
     const target = codeTargetFor(layerId)
     setSyncSelection({
       layerId,
@@ -839,7 +828,7 @@ function MergeStudioWorkspace({ item }) {
     dropSources(selId, ['dx', 'dy', 'width', 'height'])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId])
-  const handleBoards = useMemo(() => (selIsAdded ? ['a', 'b'] : ['b']), [selIsAdded])
+  const handleBoards = useMemo(() => designComparison ? ['result'] : (selIsAdded ? ['a', 'b'] : ['b']), [designComparison, selIsAdded])
   const copy = copyFile(frame0)
   const files = item ? [...mergeFilesFor(item).filter((f) => item.fileIds?.includes(f.id)).map((f) => ({ ...f, lines: getFileLines(f.id) })), ...(copy ? [copy] : [])] : []
 

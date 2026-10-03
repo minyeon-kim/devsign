@@ -85,6 +85,22 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
     return () => window.removeEventListener('keydown', key)
   }, [onDelete])
 
+  // Arrow keys nudge in frame pixels, independent of canvas zoom.
+  useEffect(() => {
+    function nudge(event) {
+      if (isTyping() || event.metaKey || event.ctrlKey || event.altKey || drag.current) return
+      const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key]
+      if (!delta || event.target?.closest?.('button, select, [role="dialog"]')) return
+      const board = measureBoards(boards, layerId, frame)[0]
+      if (!board) return
+      event.preventDefault()
+      const step = event.shiftKey ? 10 : 1
+      onChange({ ...board.geom, x: board.geom.x + delta[0] * step, y: board.geom.y + delta[1] * step })
+    }
+    window.addEventListener('keydown', nudge)
+    return () => window.removeEventListener('keydown', nudge)
+  }, [boards, layerId, frame, onChange])
+
   function start(e, handle, board) {
     if (e.button !== 0) return
     e.preventDefault()
