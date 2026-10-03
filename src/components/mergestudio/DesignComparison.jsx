@@ -95,9 +95,24 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         </section>
 
         <section className="flex min-h-0 flex-col overflow-auto rounded-xl bg-white/[0.03] p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="truncate text-[11px] font-semibold text-slate-300">{item?.title ?? 'Choose a design set'}</h2>
-            {item && <span className="shrink-0 text-[10px] text-slate-500">Select 2 or more</span>}
+          {/* Title, how many are picked, and the action — at the top, like
+              the other panels' actions. */}
+          <div className="mb-2.5 flex items-center gap-2">
+            <h2 className="truncate text-xs font-medium text-slate-200">{item?.title ?? 'Choose a design set'}</h2>
+            {item && (
+              <span className={cn('shrink-0 text-[11px] tabular-nums', selectedOptions.length >= 2 ? 'text-emerald-300' : 'text-slate-500')}>
+                {selectedOptions.length < 2 ? 'Select 2 or more' : `${selectedOptions.length} selected`}
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={!item || selectedOptions.length < 2}
+              onClick={() => onCompare(item, selectedOptions)}
+              className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-slate-500 disabled:ring-white/10"
+            >
+              <Layers3 className="size-3.5" />
+              Compare on canvas
+            </button>
           </div>
           {commentModeVariantKey && (
             <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
@@ -158,20 +173,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               })}
             </div>
           )}
-          {item && <p className="mt-3 text-[10px] text-slate-500">{selectedOptions.length < 2 ? 'Select at least two designs to compare.' : `${selectedOptions.length} designs selected for comparison.`}</p>}
         </section>
-      </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.06] px-3 py-2">
-        <span className="text-[10px] text-slate-500">{`${selectedOptions.length} selected`}</span>
-        <button
-          type="button"
-          disabled={!item || selectedOptions.length < 2}
-          onClick={() => onCompare(item, selectedOptions)}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-[11px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Play className="size-3" />
-          Compare on canvas
-        </button>
       </div>
     </div>
   )

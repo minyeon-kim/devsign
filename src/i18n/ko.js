@@ -1584,4 +1584,9 @@ Object.assign(ko, {
   'The screen never says what’s being paid for.': '무엇을 결제하는지 화면에 나오지 않아요.',
   'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.': '충돌 검토에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
   'Use one draft': '한 시안 통째로 쓰기',
+  'Back to drafts': '시안 고르기로 돌아가기',
+  'Reset picks': '고른 것 초기화',
+  'Mix': '조합',
+  'Pick a cell, a draft’s name for all of it, or click a part on the canvas.': '칸을 고르거나, 시안 이름을 눌러 전체를 쓰거나, 캔버스에서 영역을 클릭하세요.',
+  'Pick a cell, a draft’s name for all of it, or click an element on the canvas.': '칸을 고르거나, 시안 이름을 눌러 전체를 쓰거나, 캔버스에서 요소를 클릭하세요.',
 })

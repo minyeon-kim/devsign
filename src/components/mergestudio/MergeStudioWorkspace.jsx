@@ -1,12 +1,11 @@
 import { toast } from '@/i18n/toast'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -58,29 +57,46 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
+  const columns = rows[0]?.options ?? []
   const source = layerSource(selectedLayerId)
   const activeKey = source ? regionKey(source.regionId) : rows.find((row) => row.key.startsWith(`${selectedLayerId}:`))?.key
   const decided = rows.filter((row) => row.decided).length
-  const grid = { gridTemplateColumns: `minmax(96px, 0.8fr) repeat(${options.length}, minmax(0, 1fr))` }
+  // A draft's name takes all of it (every row from that draft) — the
+  // "use one draft whole" shortcut, where the drafts already are.
+  const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
+  const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
+  const grid = { gridTemplateColumns: `88px repeat(${columns.length}, minmax(0, 1fr))` }
 
   return (
-    <div className="absolute top-12 left-1/2 z-40 w-[min(720px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <p className="text-xs font-semibold text-white"><LocalizedText text={rows[0]?.region ? 'Take each part from a draft' : 'Take each value from a draft'} /></p>
-        <span className={cn('text-[10.5px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
-        <span className="ml-auto text-[10.5px] text-slate-500"><LocalizedText text={rows[0]?.region ? 'Or click a part on a draft' : 'Or click an element on a draft'} /></span>
+    <div className="absolute top-12 left-1/2 z-40 w-[min(680px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover px-3 pt-2.5 pb-2 shadow-xl">
+      <div className="grid items-center gap-x-1" style={grid}>
+        <span className="flex items-baseline gap-1.5 px-1">
+          <span className="text-[11px] font-medium text-slate-300"><LocalizedText text="Mix" /></span>
+          <span className={cn('text-[10.5px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
+        </span>
+        {columns.map((column) => {
+          const all = wholeFrom(column.key)
+          return (
+            <button
+              key={column.key}
+              type="button"
+              title={`Use all of ${column.letter}`}
+              onClick={() => takeAll(column.key)}
+              className={cn(
+                'ds-intrinsic flex h-7 min-w-0 items-center gap-1.5 rounded-lg px-2 text-left text-[11px] transition-colors',
+                all ? 'bg-emerald-400/15 text-emerald-100' : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+              )}
+            >
+              <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', all ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{column.letter}</span>
+              <span className="truncate"><LocalizedText text={column.name} /></span>
+            </button>
+          )
+        })}
       </div>
-      <div className="grid items-center gap-x-1 gap-y-1" style={grid}>
-        <span />
-        {rows[0]?.options.map((option) => (
-          <span key={option.key} className="flex min-w-0 items-center gap-1.5 px-1 text-[10.5px] text-slate-400">
-            <span className="flex size-4 shrink-0 items-center justify-center rounded bg-white/[0.08] text-[9.5px] font-semibold text-slate-200">{option.letter}</span>
-            <span className="truncate"><LocalizedText text={option.name} /></span>
-          </span>
-        ))}
+      <div className="mt-1 divide-y divide-white/[0.05]">
         {rows.map((row) => (
-          <Fragment key={row.key}>
-            <span className={cn('truncate rounded-md px-1 text-[11px]', row.key === activeKey ? 'text-white' : 'text-slate-400')}>
+          <div key={row.key} className="grid items-center gap-x-1 py-0.5" style={grid}>
+            <span className={cn('truncate px-1 text-[11px]', row.key === activeKey ? 'font-medium text-white' : 'text-slate-500')}>
               {row.element && <><LocalizedText text={row.element} /> · </>}
               <LocalizedText text={row.label} />
             </span>
@@ -91,17 +107,32 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
                 aria-pressed={option.picked}
                 onClick={() => onDecide(row.key, option.picked ? null : option.decision)}
                 className={cn(
-                  'ds-intrinsic flex h-7 min-w-0 items-center gap-1 rounded-md px-2 text-left text-[11px] transition-colors',
-                  option.picked ? 'bg-emerald-400/15 font-medium text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white',
-                  row.key === activeKey && !option.picked && 'bg-white/[0.07]'
+                  'ds-intrinsic flex h-7 min-w-0 items-center gap-1 rounded-lg px-2 text-left text-[11px] transition-colors',
+                  option.picked ? 'bg-emerald-400/15 font-medium text-emerald-100' : 'text-slate-400 hover:bg-white/[0.07] hover:text-white'
                 )}
               >
                 {option.picked && <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />}
                 <span className="truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
               </button>
             ))}
-          </Fragment>
+          </div>
         ))}
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 px-1">
+        <span className="text-[10.5px] text-slate-500">
+          <LocalizedText text={rows[0]?.region ? 'Pick a cell, a draft’s name for all of it, or click a part on the canvas.' : 'Pick a cell, a draft’s name for all of it, or click an element on the canvas.'} />
+        </span>
+        {/* Start over: clears these picks (the Result goes back to the
+            current screen). */}
+        <button
+          type="button"
+          disabled={decided === 0}
+          onClick={() => rows.forEach((row) => row.decided && onDecide(row.key, null))}
+          className="ds-intrinsic ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[10.5px] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+        >
+          <RotateCcw className="size-3" />
+          <LocalizedText text="Reset picks" />
+        </button>
       </div>
     </div>
   )
@@ -272,6 +303,15 @@ function MergeStudioWorkspace({ item }) {
     setDesignComparison({ item: compareItem, options })
     if (layerId) requestMergeFocus({ itemId: item.id, layerId, noPan: true })
   }
+  function backToDrafts() {
+    const compared = designComparison
+    endComparison()
+    if (compared) {
+      setDesignCompareItemId(compared.item.id)
+      setDesignCompareKeys(compared.options.map((option) => option.key))
+    }
+    setBottomPanel({ tab: 'design-compare', open: true })
+  }
   function endComparison() {
     setDesignComparison(null)
     setDesignCompareRequest(null)
@@ -289,38 +329,6 @@ function MergeStudioWorkspace({ item }) {
     setBottomPanel({ open: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, designCompareRequest])
-  // "Use this design": every drift takes the chosen draft's value — the
-  // design's own (A), the current implementation's (B), or the draft's
-  // value as a custom one — the same decisions the conflict's Decide row records,
-  // made in one go. Not a commit: it's the item's working choices, and
-  // the checks re-run on them; merging is what records it.
-  // Comparing another item's drafts: its choices are saved to that item's
-  // draft and the studio switches to it (they're applied on load).
-  function applyDesignOption(option) {
-    const target = designComparison?.item ?? item
-    const layerDiffs = designMergeVariants[target.id]?.layerDiffs ?? {}
-    const picks = {}
-    for (const region of draftScreens[target.id]?.regions ?? []) picks[regionKey(region.id)] = { custom: option.key }
-    for (const [layerId, diffs] of Object.entries(layerDiffs)) {
-      for (const diff of diffs) {
-        const value = option.side ? null : diff.values?.[option.key]
-        picks[`${layerId}:${diff.id}`] = option.side
-          ?? (value === undefined || value === diff.optionA ? 'A' : value === diff.optionB ? 'B' : { custom: value })
-      }
-    }
-    if (target.id === item.id) {
-      setResolutions((prev) => ({ ...prev, ...picks }))
-    } else {
-      const saved = mergeDrafts.current[target.id] ?? {}
-      saveMergeDraft(target.id, { ...saved, resolutions: { ...(saved.resolutions ?? {}), ...picks } })
-      requestMergeFocus({ itemId: target.id, overview: true })
-    }
-    endComparison()
-    openReviewFor(target)
-    if (target.id === item.id) requestMergeFocus({ itemId: item.id, overview: true })
-    const count = Object.keys(picks).length
-    toast(`Using ${option.label}`, { description: `${count} value${count === 1 ? '' : 's'} set — adjust them in the conflict’s Decide row.` })
-  }
   // Finishing a mix: back to the item's own canvas (the original next to
   // the result) with its conflict review open — the Decide row lists what
   // was taken from where, and requesting review is the next step there.
@@ -915,45 +923,32 @@ function MergeStudioWorkspace({ item }) {
           // the alternatives (other drafts, one whole draft), and the one
           // primary action — finishing the mix.
           <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 px-1 font-normal')}>
+            {/* Leaving goes back to picking drafts (the Design Compare tab,
+                with these drafts still ticked) — picks so far are kept. */}
             <button
               type="button"
-              title="Exit comparison"
-              aria-label="Exit comparison"
-              onClick={() => endComparison()}
+              title="Back to drafts"
+              aria-label="Back to drafts"
+              onClick={backToDrafts}
               className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
             >
               <X className="size-3.5" />
             </button>
             <span className="flex items-baseline gap-2 pr-2 pl-0.5 whitespace-nowrap">
               <span className="text-[13px] font-semibold text-white"><LocalizedText text={designComparison.item.title} /></span>
-              <span className="text-[11px] text-slate-500">
-                <LocalizedText text={`${designComparison.options.length} of ${designCompareOptions(designComparison.item).length} drafts`} />
+              {/* Which drafts are side by side, as their letters (the same
+                  as on the artboards). */}
+              <span className="flex items-center gap-1 self-center">
+                {designComparison.options.map((option) => {
+                  const index = designCompareOptions(designComparison.item).findIndex((o) => o.key === option.key)
+                  return (
+                    <span key={option.key} title={option.label} className="flex size-5 items-center justify-center rounded-md bg-white/[0.08] text-[10px] font-semibold text-slate-200">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                  )
+                })}
               </span>
             </span>
-            <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
-            <button
-              type="button"
-              onClick={() => {
-                endComparison()
-                setBottomPanel({ tab: 'design-compare', open: true })
-              }}
-              className="ds-intrinsic h-7 shrink-0 rounded-full px-3 text-[12px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <LocalizedText text="Change drafts" />
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full px-3 text-[12px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white data-[popup-open]:bg-white/[0.08] data-[popup-open]:text-white">
-                <LocalizedText text="Use one draft" />
-                <ChevronDown className="size-3 opacity-70" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-52">
-                {designComparison.options.map((option) => (
-                  <DropdownMenuItem key={option.key} onClick={() => applyDesignOption(option)}>
-                    <LocalizedText text={option.label} />
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
             <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
             {/* The primary action: done mixing — enabled once anything's
                 been picked from a draft. */}

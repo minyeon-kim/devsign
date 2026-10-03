@@ -1266,7 +1266,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             tab === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:text-white'
           )}
         >
-          {id === 'history' && <Clock3 className="size-3.5" />}
           <LocalizedText text={label} />
         </button>
       ))}
