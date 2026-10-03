@@ -275,12 +275,12 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
   )
 }
 
-export function optionEffects(item, option) {
-  const diffsByLayer = designMergeVariants[item.id]?.layerDiffs ?? {}
+export function optionEffects(item, option, valueOf = null, diffsOverride = null) {
+  const diffsByLayer = diffsOverride ?? designMergeVariants[item.id]?.layerDiffs ?? {}
   return Object.fromEntries(Object.entries(diffsByLayer).map(([layerId, diffs]) => {
     const merged = {}
     for (const diff of diffs) {
-      const value = option.side ? null : diff.values?.[option.key]
+      const value = valueOf ? valueOf(diff, layerId) : option.side ? null : diff.values?.[option.key]
       const side = option.side ?? (value === undefined ? 'A' : value === diff.optionB ? 'B' : 'A')
       const effect = diffEffect(diff, side)
       if (value !== undefined && !option.side) {
@@ -304,6 +304,30 @@ export function optionEffects(item, option) {
     }
     return [layerId, merged]
   }))
+}
+
+// Mixing drafts: the value a draft gives one property, and the decision
+// (A / B / custom) that takes it — the same shape the Drifts tab records,
+// so a mix flows into checks and merging like any other decision.
+export function draftValue(diff, option) {
+  if (option.side) return option.side === 'A' ? diff.optionA : diff.optionB
+  return diff.values?.[option.key] ?? diff.optionA
+}
+export function decisionFor(diff, value) {
+  return value === diff.optionA ? 'A' : value === diff.optionB ? 'B' : { custom: value }
+}
+// The value a property currently resolves to, or undefined when undecided.
+export function decidedValue(diff, resolution) {
+  if (resolution == null) return undefined
+  if (typeof resolution === 'object') return resolution.custom
+  return resolution === 'B' ? diff.optionB : diff.optionA
+}
+
+// The "Result" artboard: the current picks drawn the way a draft is
+// (undecided properties keep the design's value).
+export function resolvedEffects(item, resolutions) {
+  const diffsByLayer = designMergeVariants[item.id]?.layerDiffs ?? {}
+  return optionEffects({ id: item.id }, { key: '__result', values: true }, (diff, layerId) => decidedValue(diff, resolutions[`${layerId}:${diff.id}`]) ?? diff.optionA, diffsByLayer)
 }
 
 export { DesignComparePanel }

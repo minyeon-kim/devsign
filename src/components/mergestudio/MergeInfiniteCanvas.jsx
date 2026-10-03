@@ -1065,6 +1065,9 @@ function MergeInfiniteCanvas({
   // this same pan/zoom space instead of the normal Option A/B pair and
   // code window. See MergeStudioWorkspace for how entries are built.
   designCompare = null,
+  // Live overrides for some comparison entries (the mix's "Result"), kept
+  // out of `designCompare` so picking doesn't reset the comparison view.
+  compareOverrides = null,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1185,7 +1188,9 @@ function MergeInfiniteCanvas({
       else if (l >= rect.width / 2) visRight = Math.min(visRight, l - GAP)
     }
     const availW = Math.max(160, visRight - startX)
-    const availH = Math.max(160, visBottom - TOP_CONTROLS_CLEARANCE)
+    // Comparing drafts, the mix panel sits under the header — start below it.
+    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 150 : 0)
+    const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
@@ -1200,7 +1205,7 @@ function MergeInfiniteCanvas({
       x: left - minX * k,
       // Below the top controls, vertically centered in what's left when the
       // content is shorter than the available height.
-      y: TOP_CONTROLS_CLEARANCE + Math.max(0, (availH - worldH * k) / 2) - minY * k,
+      y: top + Math.max(0, (availH - worldH * k) / 2) - minY * k,
     }
   }
 
@@ -1880,7 +1885,7 @@ function MergeInfiniteCanvas({
                     onDragStart={startCardDrag(entry.key)}
                     onClickCapture={swallowDragClick}
                     selectedLayerId={syncSelection?.layerId}
-                    overrides={entry.overrides}
+                    overrides={compareOverrides?.[entry.key] ?? entry.overrides}
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                   />

@@ -22,7 +22,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, designCompareOptions, optionEffects } from '@/components/mergestudio/DesignComparison'
+import { DesignComparePanel, decidedValue, decisionFor, designCompareOptions, draftValue, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -42,6 +42,84 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 // choice is made, then the chosen value (Original / Current / custom). The
 // hovered option beats the committed choice for the same diff, so hovering
 // previews without committing.
+// Mixing drafts, under the comparison strip: the selected element's
+// properties, each with every compared draft's value to take — or the
+// whole element from one draft — and a summary of where each element's
+// values come from. Picks are ordinary drift decisions (A / B / custom),
+// so the Result artboard, the Drifts tab, checks and merging all follow.
+function MixPanel({ item, options, layers, selectedLayerId, resolutions, onPick }) {
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const diffs = selectedLayerId ? layerDiffs[selectedLayerId] : null
+  const nameOf = (layerId) => layers.find((l) => l.id === layerId)?.name ?? layerId
+  const shortLabel = (option) => option.label.replace(/[’']s draft$/, '')
+  // Which draft each element's current values match (one, or "mixed").
+  const sources = Object.entries(layerDiffs).map(([layerId, list]) => {
+    const values = list.map((diff) => decidedValue(diff, resolutions[`${layerId}:${diff.id}`]))
+    if (values.some((v) => v === undefined)) return null
+    const from = options.find((option) => list.every((diff, i) => draftValue(diff, option) === values[i]))
+    return { layerId, from: from ? shortLabel(from) : 'mixed' }
+  }).filter(Boolean)
+  const pickAll = (layerId, option) => layerDiffs[layerId].forEach((diff) => onPick(layerId, diff.id, decisionFor(diff, draftValue(diff, option))))
+
+  return (
+    <div className="absolute top-12 left-1/2 z-40 w-[min(560px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
+      {!diffs ? (
+        <p className="text-center text-xs text-slate-400">
+          <LocalizedText text="Click an element on a draft to take it from that draft — or mix its properties." />
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 truncate text-xs font-semibold text-white"><LocalizedText text={nameOf(selectedLayerId)} /></p>
+            <span className="shrink-0 text-[10.5px] text-slate-500"><LocalizedText text="Whole element from" /></span>
+            {options.map((option) => (
+              <button key={option.key} type="button" onClick={() => pickAll(selectedLayerId, option)} className="ds-intrinsic h-6 shrink-0 rounded-full bg-white/[0.06] px-2.5 text-[11px] text-slate-200 transition-colors hover:bg-white/[0.12]">
+                <LocalizedText text={shortLabel(option)} />
+              </button>
+            ))}
+          </div>
+          {diffs.map((diff) => {
+            const current = decidedValue(diff, resolutions[`${selectedLayerId}:${diff.id}`])
+            return (
+              <div key={diff.id} className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-[11px] text-slate-500"><LocalizedText text={diff.label} /></span>
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                  {options.map((option) => {
+                    const value = draftValue(diff, option)
+                    const on = current === value
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => onPick(selectedLayerId, diff.id, decisionFor(diff, value))}
+                        className={cn('ds-intrinsic h-7 rounded-lg px-2.5 text-[11px] transition-colors', on ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]')}
+                      >
+                        <span className="font-medium tabular-nums">{value}</span>
+                        <span className="ml-1 text-slate-500"><LocalizedText text={shortLabel(option)} /></span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {sources.length > 0 && (
+        <p className="mt-2 border-t border-white/[0.06] pt-2 text-[10.5px] text-slate-500">
+          {sources.map((source, i) => (
+            <span key={source.layerId}>
+              {i > 0 && ' · '}
+              <span className="text-slate-300"><LocalizedText text={nameOf(source.layerId)} /></span> ← <LocalizedText text={source.from} />
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // The bottom panel's Drifts tab (a stable component, see bottomPanelTabs).
 function DriftsPanel({ item, ...props }) {
   if (!item) return <p className="p-6 text-center text-xs text-slate-500">Open a merge item to decide its drifts.</p>
@@ -279,7 +357,12 @@ function MergeStudioWorkspace({ item }) {
           return `${diff.label} ${value}`
         })].join(' · '),
         overrides: optionEffects(compareItem, option),
-      })),
+      })).concat({
+        // The mix so far, beside the drafts it's drawn from.
+        key: 'result',
+        label: 'Result — your picks',
+        overrides: {},
+      }),
     }
   }, [designComparison])
   // The line being typed in the code window right now ({ key, text }), so
@@ -835,6 +918,16 @@ function MergeStudioWorkspace({ item }) {
             </button>
           </div>
         )}
+        {designComparison && (
+          <MixPanel
+            item={item}
+            options={designComparison.options}
+            layers={frame0?.layers ?? []}
+            selectedLayerId={syncSelection?.layerId}
+            resolutions={resolutions}
+            onPick={resolveDiff}
+          />
+        )}
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={reserve}
@@ -846,6 +939,7 @@ function MergeStudioWorkspace({ item }) {
           stage="compare"
           checks={liveChecks}
           designCompare={designCompare}
+          compareOverrides={designCompare ? { result: resolvedEffects(item, resolutions) } : null}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}

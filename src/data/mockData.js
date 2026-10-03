@@ -1034,6 +1034,32 @@ export const mergeListItems = [
       { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
     ],
   },
+  // Three designers' takes on the payment step, each changing *different*
+  // elements — the case for mixing: the card from one draft, the input from
+  // another, the button from a third (Design Compare → pick per element).
+  {
+    id: 'merge-checkout-payment-drafts',
+    projectId: 'checkout-redesign',
+    title: 'Payment step · 3 drafts',
+    subtitle: 'Design · 3 drafts',
+    tag: 'Needs Review',
+    updatedLabel: '1h ago',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-checkout',
+    category: 'Checkout',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+    authorAId: 'jane',
+    authorBId: 'min',
+    variants: [
+      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
+      { key: 'min', authorId: 'min', label: 'Alex’s draft' },
+      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
+    ],
+  },
   // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
   // lands here). Original Design = the design system's Size/MD spec (40px,
   // --button-height-md); Current Implementation = Button.jsx (36px, h-9).
@@ -1323,6 +1349,20 @@ export const designMergeVariants = {
       'order-summary': [
         { id: 'os-radius', label: 'Radius', optionA: '12px', optionB: '16px', values: { jane: '12px', min: '16px', james: '20px' } },
         { id: 'os-title-weight', label: 'Title weight', optionA: '600', optionB: '700', values: { jane: '600', min: '700', james: '800' } },
+      ],
+    },
+  },
+  // Each draft differs on a different element (see the item above).
+  'merge-checkout-payment-drafts': {
+    layerDiffs: {
+      'order-summary': [
+        { id: 'mix-card-radius', label: 'Radius', optionA: '12px', optionB: '16px', values: { jane: '12px', min: '16px', james: '20px' } },
+      ],
+      'card-input': [
+        { id: 'mix-input-radius', label: 'Radius', optionA: '8px', optionB: '12px', values: { jane: '8px', min: '12px', james: '999px' } },
+      ],
+      'place-order': [
+        { id: 'mix-cta-size', label: 'Height', optionA: '44px', optionB: '48px', values: { jane: '44px', min: '48px', james: '40px' } },
       ],
     },
   },
