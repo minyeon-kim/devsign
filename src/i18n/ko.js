@@ -157,7 +157,7 @@ Resolved|해결됨
 High|높음
 Medium|보통
 Low|낮음
-Conflict Points|충돌 지점
+Conflict Points|충돌
 Assets|에셋
 Terminal|터미널
 Console|콘솔
@@ -286,7 +286,7 @@ Doc|문서
 Generate documentation|문서 생성
 Archive to history|히스토리에 보관
 Changes to the design system are written up as documentation, then recorded in the project's history.|디자인 시스템 변경을 문서로 작성한 뒤 프로젝트 히스토리에 보관합니다.
-No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 충돌 지점을 해결하면 시작됩니다.
+No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 충돌을 해결하면 시작됩니다.
 Spec|명세
 Guide|안내
 Target:|대상:
@@ -493,16 +493,16 @@ No design tokens found|디자인 토큰이 없습니다
 AI recommends|AI 추천
 Apply recommendation|추천 적용
 No drifts — this item matches the Original Design.|차이가 없습니다. 원본 디자인과 일치합니다.
-drifts resolved|Drift 해결
+drifts resolved|드리프트 해결
 design ·|디자인 ·
-Detected drifts|감지된 Drift
+Detected drifts|감지된 드리프트
 Collapse|접기
 Show property diffs|속성 차이 표시
 Not resolved yet|아직 해결되지 않음
 All properties resolved|모든 속성 해결됨
 Incoming|들어오는 변경
 Edit this line directly in the code window.|코드 창에서 이 줄을 직접 편집하세요.
-Open a drift to compare and resolve its properties right here.|Drift를 열어 속성을 비교하고 바로 해결하세요.
+Open a drift to compare and resolve its properties right here.|드리프트를 열어 속성을 비교하고 바로 해결하세요.
 Text|텍스트
 Synced to copy.json|copy.json에 동기화됨
 Dismiss suggestion|추천 닫기
@@ -608,7 +608,7 @@ Both at|공통 배율
 Staging preview|최종안 미리보기
 Review the final result before merging.|병합 전에 최종 결과를 검토하세요.
 Live|실시간
-This drift has no design element — its change is in the code below.|이 Drift는 디자인 요소와 관련이 없습니다. 아래 코드에서 확인하세요.
+This drift has no design element — its change is in the code below.|이 드리프트는 디자인 요소와 관련이 없습니다. 아래 코드에서 확인하세요.
 Output files|출력 파일
 Needs at least one reviewer|검토자가 한 명 이상 필요합니다
 Not required|필수 아님
@@ -629,7 +629,7 @@ PR title|PR 제목
 PR description|PR 설명
 Describe this merge, or use Generate with AI…|병합 내용을 설명하거나 AI로 생성하세요…
 Deploy automatically once approved and merged|승인 및 병합 후 자동 배포
-Assign at least one Code and one Design reviewer.|코드 검토자와 디자인 검토자를 각각 한 명 이상 배정하세요.
+Assign at least one Code and one Design reviewer.|코드 검토자와 디자인 검토자를 각각 한 명 이상 추가하세요.
 Commit message and PR title are required.|커밋 메시지와 PR 제목이 필요합니다.
 Back to Compare|비교로 돌아가기
 Continue to|다음 단계:
@@ -645,7 +645,7 @@ Clear all filters|모든 필터 해제
 Showing|표시 중
 Clear filters|필터 해제
 Open a merge item|병합 항목 열기
-Step through drifts|Drift를 순서대로 살펴보기
+Step through drifts|드리프트를 순서대로 살펴보기
 Edit & bind in the Block Deck|블록 덱에서 편집 및 연결
 Finish the merge|병합 마무리
 Skip guide|안내 건너뛰기
@@ -683,9 +683,9 @@ Changes log|변경 히스토리
 Design changes|디자인 변경
 Close preview|미리보기 닫기
 Apply with AI|AI로 적용
-Previous drift|이전 Drift
-Drift|Drift
-Next drift|다음 Drift
+Previous drift|이전 드리프트
+Drift|드리프트
+Next drift|다음 드리프트
 Merge Changes|변경 사항 병합
 Reset view and layout|보기와 레이아웃 초기화
 Hide selection guides|선택 안내선 숨기기
@@ -925,10 +925,10 @@ Stroke|선 두께
 Background|배경
 color.primary (Indigo 500)|color.primary (인디고 500)
 #7c3aed (fixed hex)|#7c3aed (고정 색상)
-16px (Alex’s draft)|16px (Alex 초안)
-12px (Taylor’s draft)|12px (Taylor 초안)
-700 (Alex’s draft)|700 (Alex 초안)
-600 (Taylor’s draft)|600 (Taylor 초안)
+16px (Alex’s draft)|16px (Alex의 시안)
+12px (Taylor’s draft)|12px (Taylor의 시안)
+700 (Alex’s draft)|700 (Alex의 시안)
+600 (Taylor’s draft)|600 (Taylor의 시안)
 Checkout · Payment step (Figma)|결제 · 결제 단계 (Figma)
 Button · Size/MD (Figma)|Button · 크기/MD (Figma)
 Card · Default (Figma)|카드 · 기본값 (Figma)
@@ -980,6 +980,9 @@ Next:|다음:
 your review|내 검토
 Remind all|모두에게 알림
 Assign|배정
+Add reviewer|검토자 추가
+No reviewers yet|아직 검토자 없음
+Add reviewers|검토자 추가
 No reviewers yet.|아직 검토자가 없습니다.
 Remind|알림 보내기
 Remove reviewer|검토자 제거
@@ -1029,10 +1032,10 @@ Open in Workspace|워크스페이스에서 열기
 Open Workspace|워크스페이스 열기
 Open design ↔ code differences|디자인 ↔ 코드 차이 열기
 None high risk|고위험 항목 없음
-Conflict Points not merged yet|아직 병합되지 않은 충돌 지점
+Conflict Points not merged yet|아직 병합되지 않은 충돌
 Open Conflict Points|해결할 충돌
 In Workspace|워크스페이스에서
-No open Conflict Points.|미해결 충돌 지점이 없습니다.
+No open Conflict Points.|미해결 충돌이 없습니다.
 Recent activity|최근 활동
 All activity|모든 활동
 Design system pipeline|디자인 시스템 처리 과정
@@ -1071,7 +1074,7 @@ Approved changes|승인된 변경
 All changes|모든 변경
 Untitled|제목 없음
 Close sidebar|사이드바 닫기
-No reviewers assigned|배정된 검토자 없음
+No reviewers assigned|아직 검토자 없음
 Your approval is needed|내 승인이 필요합니다
 You requested changes|변경을 요청했습니다
 Review not requested yet|아직 검토를 요청하지 않았습니다
@@ -1128,9 +1131,9 @@ Fixed it — the Continue button now uses 12px/24px padding to match the design 
 Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
 Where should I start?|어떤 것부터 확인할까요?
-Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 지점 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
+Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 **Follow these steps:**|**이렇게 진행해보세요:**
-1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌 지점**에서 \`Place order 버튼\` 이슈를 선택하세요.
+1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌**에서 \`Place order 버튼\` 이슈를 선택하세요.
 2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.|2. 요약을 읽은 뒤 **차이 보기**를 열어 40px 구현과 44px 디자인을 비교하세요.
 3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **병합 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
 4. Use **Assemble** for further styling.|4. 스타일을 더 다듬고 싶으면 **조합**을 사용하세요.
@@ -1203,7 +1206,7 @@ mentioned you in a comment on|댓글에서 언급했습니다 ·
 Object.assign(ko, {
   'of': '/', 'file': '파일', 'files': '파일', 'change': '변경', 'changes': '변경',
   'code': '코드', 'design': '디자인', 'layers': '레이어', 'copy': '복사',
-  'drift': 'Drift', 'drifts': 'Drift', 'conflict': '충돌', 'conflicts': '충돌',
+  'drift': '드리프트', 'drifts': '드리프트', 'conflict': '충돌', 'conflicts': '충돌',
   'element': '요소', 'elements': '요소', 'propert': '속성', 'ies': '',
   'note': '메모', 'notes': '메모', 'checkpoints': '체크포인트', 's': '',
   'resolve': '해결', 'resolved': '해결됨', 'reviewed': '검토 완료', 'stale': '검토 후 변경됨',
@@ -1255,8 +1258,8 @@ Object.assign(ko, {
 // New projects/merge items (Mobile Nav Revamp, Onboarding Flow and every
 // Conflict Point now reachable from Merge Studio) and a Conflict/History
 // translation sweep — every literal UI string these added or that the
-// sweep found uncovered. "Drift" itself stays in English everywhere (see
-// the `drift`/`drifts` fragment above) — nothing here touches that word.
+// sweep found uncovered. "Drift" is 드리프트 everywhere in Korean (see
+// the `drift`/`drifts` fragment above).
 Object.assign(ko, {
   'Design + Code': '디자인 + 코드',
   'ShippingOptions': '배송 옵션',
@@ -1458,4 +1461,30 @@ Object.assign(ko, {
   "Adjust the design in Merge Studio. This doesn't approve or merge the change.": '병합 스튜디오에서 디자인을 조정해요. 승인이나 병합은 되지 않아요.',
   'Approvals were reset — the change is back in review.': '승인이 초기화되어 다시 검토 단계로 돌아갔어요.',
   '⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review.': '⌘↵ 저장 · Esc 취소. 저장하면 승인이 초기화되고 다시 검토 단계로 돌아가요.',
+  'Design Compare': '디자인 비교',
+  'Design sets': '시안 목록',
+  'Original design': '원본 디자인',
+  'Design comments': '디자인 코멘트',
+  'Pin a comment to a design element to start a focused thread.': '디자인 요소에 코멘트를 고정하면 그 요소에 대한 대화가 시작돼요.',
+  'Compare on canvas': '캔버스에서 비교',
+  'Cancel pinning': '고정 취소',
+  'Choose a design set to view its comments.': '시안을 고르면 코멘트를 볼 수 있어요.',
+  'No design preview': '디자인 미리보기 없음',
+  'No design sets are available in this project yet.': '이 프로젝트에는 아직 시안이 없어요.',
+  'Post design comment': '디자인 코멘트 등록',
+  'Select 2 or more': '2개 이상 선택',
+  'Write a design comment': '디자인 코멘트 작성',
+  'Select at least two designs to compare.': '비교할 시안을 2개 이상 고르세요.',
+  'Comparing:': '비교 중:',
+  'Minimize': '최소화',
+  'Redo': '다시 실행',
+  'Zoom': '확대/축소',
+  "Matches the glow treatment already used on this file's primary CTAs.": '이 파일의 주요 CTA에 쓰인 글로우 효과와 맞춰요.',
+  "Applies the same indigo → violet gradient found across the design system's hero buttons.": '디자인 시스템 히어로 버튼의 인디고 → 바이올렛 그라데이션을 적용해요.',
+  'Reduces visual weight to match the calmer surfaces used in lower-priority actions.': '우선순위가 낮은 동작의 차분한 표면에 맞춰 시각적 무게를 줄여요.',
+  'Conflict Points are where the design and the code differ — review each one, then merge.': '충돌은 디자인과 코드가 달라진 곳이에요. 하나씩 검토한 뒤 병합하세요.',
+  'Review Conflict Points': '충돌 검토하기',
+  'Later': '나중에',
+  'Author': '작성자',
+  'Dismiss': '닫기',
 })

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, X } from 'lucide-react'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/layout/ConflictEntryPrompt'
 
 // Where the banners stack when the page has no Inbox bell (Merge Studio,
 // Docs, …): the top-right corner, under the header row.
@@ -60,15 +61,19 @@ export default function HighReviewNotifications() {
   function dismiss(id) {
     setVisibleIds(ids => ids.filter(entry => entry !== id))
   }
-  const banners = visibleIds.map(id => notifications.find(n => n.id === id && n.unread)).filter(Boolean)
+  // The entry prompt (see ConflictEntryPrompt) sits on top of the stack;
+  // a review banner for a conflict it already lists would say it twice.
+  const entry = useConflictEntryPrompt()
+  const banners = visibleIds.map(id => notifications.find(n => n.id === id && n.unread)).filter(n => n && !entry.conflictIds.has(n.target?.conflictId))
   // With the Inbox open the same items are already on screen, in the spot
   // the banners would cover.
-  const show = banners.length > 0 && mergeDrawer !== 'inbox'
+  const show = (banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
   const anchor = useBellAnchor(show)
   if (!show) return null
 
   return (
     <aside aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+      {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={entry.close} />}
       {banners.map(n => <div key={n.id} className="pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#252525]/95 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none">
         <button type="button" onClick={() => {
           dismiss(n.id)

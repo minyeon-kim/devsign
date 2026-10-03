@@ -176,7 +176,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         </section>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.06] px-3 py-2">
-        <span className="text-[10px] text-slate-500">{selectedOptions.length} selected</span>
+        <span className="text-[10px] text-slate-500">{`${selectedOptions.length} selected`}</span>
         <button
           type="button"
           disabled={!item || selectedOptions.length < 2}

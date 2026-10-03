@@ -880,7 +880,7 @@ function MergeStudioWorkspace({ item }) {
           <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 pr-0.5 pl-4 font-normal')}>
             <span className="whitespace-nowrap text-slate-200">
               <span className="font-semibold text-white">Comparing:</span> {designComparison.item.title}
-              <span className="ml-1.5 text-slate-500">· {designComparison.options.length} designs</span>
+              <span className="ml-1.5 text-slate-500">{`· ${designComparison.options.length} designs`}</span>
             </span>
             {/* One primary action (pick a draft); changing the drafts is a
                 quiet text action, and leaving is the close button. */}

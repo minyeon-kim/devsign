@@ -909,7 +909,7 @@ export const activityDateGroups = [
 // sample feed, not the full week's history).
 export const activityOverviewStats = [
   { id: 'changes', label: 'Changes', value: 12, tone: 'bg-sky-400' },
-  { id: 'conflicts', label: 'Conflicts', value: 6, tone: 'bg-destructive' },
+  { id: 'conflicts', label: 'Conflict Points', value: 6, tone: 'bg-destructive' },
   { id: 'merges', label: 'Merges', value: 5, tone: 'bg-violet-400' },
   { id: 'comments', label: 'Comments', value: 6, tone: 'bg-muted-foreground' },
 ]

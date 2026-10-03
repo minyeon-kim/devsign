@@ -37,7 +37,7 @@ export const ACTIVITY_TYPE_META = {
 export const ACTIVITY_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'changes', label: 'Changes' },
-  { id: 'conflict', label: 'Conflicts' },
+  { id: 'conflict', label: 'Conflict Points' },
   { id: 'merge', label: 'Merges' },
   { id: 'comment', label: 'Comments' },
   { id: 'file', label: 'Files' },

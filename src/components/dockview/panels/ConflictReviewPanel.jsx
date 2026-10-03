@@ -600,12 +600,12 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
 
   // Compact, for the overview's label grid (the "Reviewers" label sits in
   // the grid's own label column): one short row per reviewer — avatar,
-  // name, status — with its actions on hover, and Assign / Remind all as
+  // name, status — with its actions on hover, and Add reviewer / Remind all as
   // quiet text actions underneath.
   return (
     <div className="min-w-0">
       {reviewers.length === 0 ? (
-        <p className="py-1.5 text-[11px] leading-4 text-slate-500">No reviewers assigned</p>
+        <p className="py-1.5 text-[11px] leading-4 text-slate-500">No reviewers yet</p>
       ) : (
         <div>
           {reviewers.map((reviewer) => {
@@ -710,7 +710,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
             <DropdownMenu>
               <DropdownMenuTrigger className={REVIEWER_TEXT_ACTION}>
                 <Plus className="size-3" />
-                Assign
+                Add reviewer
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
                 {assignable.map((person) => (

@@ -127,7 +127,7 @@ export function nextActionFor(conflict, userId) {
   if (conflict.reviewStage === 'resolved') return { label: 'Merged', mine: false }
   if (conflict.reviewStage === 'approved') return { label: 'Merge the approved change', mine: false }
   if (conflict.reviewStage === 'detected') {
-    return { label: conflict.reviewers?.length ? 'Request review' : 'Assign reviewers', mine: false }
+    return { label: conflict.reviewers?.length ? 'Request review' : 'Add reviewers', mine: false }
   }
   if (needsReviewFrom(conflict, viewerId)) return { label: 'Review and approve', mine: true }
   const waiting = (conflict.reviewers ?? []).filter((r) => r.status === 'pending').map((r) => r.id)

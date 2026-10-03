@@ -1,6 +1,6 @@
 import { ko } from './ko'
 
-const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: 'Drift', drifts: 'Drift', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
+const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
   [/^(\d+) docs found$/, (_, n) => `문서 ${n}개를 찾았어요.`],
   [/^(\d+) checkpoints?$/, (_, n) => `저장된 버전 ${n}개`],
@@ -87,7 +87,18 @@ const rules = [
   // Must sit above the generic action-rename rule just below — "Remove X
   // for design review" would otherwise match THAT rule first (action
   // "Remove", name "X for design review") and never reach this one.
-  [/^(Assign|Remove) (.+) for (code|design) review$/, (_, action, name, scope) => `${core(name)} ${core(scope)} 검토 ${action === 'Assign' ? '배정' : '제외'}`],
+  [/^(\d+) high-risk conflicts? needs? a look$/, (_, n) => `확인이 필요한 위험도 높음 충돌 ${n}개`],
+  [/^(\d+) changes? waiting on your review$/, (_, n) => `내 검토를 기다리는 변경 ${n}개`],
+  [/^(\d+) open Conflict Points?$/, (_, n) => `해결할 충돌 ${n}개`],
+  [/^\+ (\d+) more$/, (_, n) => `외 ${n}개`],
+  [/^Pin comment to (.+)$/, (_, name) => `${core(name)}에 코멘트 고정`],
+  [/^(\d+) designs selected for comparison\.$/, (_, n) => `시안 ${n}개를 비교해요.`],
+  [/^(\d+) selected$/, (_, n) => `${n}개 선택됨`],
+  [/^· (\d+) designs?$/, (_, n) => `· 시안 ${n}개`],
+  [/^(\d+) designs?$/, (_, n) => `시안 ${n}개`],
+  [/^Align (top|middle|bottom) (left|center|right)$/, (_, v, h) => `${{ top: '위', middle: '가운데', bottom: '아래' }[v]} ${{ left: '왼쪽', center: '가운데', right: '오른쪽' }[h]} 정렬`],
+  [/^Dismiss (Neo Glow|Gradient Pill|Soft Card)$/, (_, name) => `${name} 닫기`],
+  [/^(Assign|Remove) (.+) for (code|design) review$/, (_, action, name, scope) => `${core(name)} ${core(scope)} 검토 ${action === 'Assign' ? '추가' : '제외'}`],
   [/^(Close|Select|Restore|Remove|Open|Resize) (.+)$/, (_, action, name) => `${core(name)} ${ko[action] ?? action}`],
   [/^(.+) · Drag to reorder or move$/, (_, name) => `${core(name)} · 드래그하여 순서 변경 또는 이동`],
   [/^(.+) · Drag to split or move$/, (_, name) => `${core(name)} · 드래그하여 분할 또는 이동`],
