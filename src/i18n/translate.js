@@ -2,6 +2,8 @@ import { ko } from './ko'
 
 const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
+  // People are counted, not itemized (ahead of the generic count rule).
+  [/^(\d+) members?$/, (_, n) => `구성원 ${n}명`],
   [/^(\d+) docs found$/, (_, n) => `문서 ${n}개를 찾았어요.`],
   [/^(\d+) checkpoints?$/, (_, n) => `저장된 버전 ${n}개`],
   [/^(.+) goes back to this checkpoint \(\+(\d+) −(\d+) lines\)\.$/, (_, file, added, removed) => `${file}을 이 버전으로 되돌려요. ${added}줄 추가, ${removed}줄 삭제돼요.`],
@@ -111,6 +113,20 @@ const rules = [
   [/^(.+) — the parts come from drafts with different accents\.$/, (_, list) => `${list} — 강조 색이 다른 시안의 영역이 섞였어요.`],
   [/^(\$[\d.]+(?: vs \$[\d.]+)+) — (.+) show different totals\.$/, (_, amounts, parts) => `${amounts} — ${parts.split(', ').map((p) => core(p)).join(', ')}의 합계가 달라요.`],
   [/^(\d+) of (\d+) drafts$/, (_, a, b) => `시안 ${b}개 중 ${a}개`],
+  [/^Comparing (\d+) drafts$/, (_, n) => `시안 ${n}개 비교 중`],
+  [/^(Previous|Next) draft for (.+)$/, (_, dir, name) => `${core(name)} ${dir === 'Previous' ? '이전' : '다음'} 시안`],
+  // Toasts.
+  [/^Deleted (\d+) projects?$/, (_, n) => `프로젝트 ${n}개를 삭제했어요`],
+  [/^Reminder sent to (.+)$/, (_, names) => `${names}에게 알림을 보냈어요`],
+  [/^Waiting on (\d+) more reviewers?\.$/, (_, n) => `검토자 ${n}명의 승인을 더 기다리고 있어요.`],
+  [/^Approved (\d+) as (.+)$/, (_, n, name) => `${name} 이름으로 ${n}개를 승인했어요`],
+  [/^(\d+) ready to resolve$/, (_, n) => `${n}개 병합 가능`],
+  [/^(\d+) still waiting on other reviewers$/, (_, n) => `${n}개는 다른 검토자를 기다리는 중`],
+  [/^(\d+) files? added to the file tree$/, (_, n) => `파일 ${n}개를 파일 트리에 추가했어요`],
+  [/^(.+) added to Assets$/, (_, what) => `${core(what)}을(를) 에셋에 추가했어요`],
+  [/^(.+) imported$/, (_, what) => `${core(what)}을(를) 가져왔어요`],
+  [/^Manage access for (.+)$/, (_, name) => `${name}의 접근 권한 관리`],
+  [/^Why dismiss (.+)'s request\? \(required\)$/, (_, name) => `${name}님의 요청을 해제하는 이유 (필수)`],
   [/^Pin comment to (.+)$/, (_, name) => `${core(name)}에 코멘트 고정`],
   [/^(\d+) designs selected for comparison\.$/, (_, n) => `시안 ${n}개를 비교해요.`],
   [/^(\d+) selected$/, (_, n) => `${n}개 선택됨`],

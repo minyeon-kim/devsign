@@ -119,6 +119,9 @@ export function composeDraftFrame(itemId, base, picks, fallback = null) {
   const screen = draftScreens[itemId]
   if (!screen || !base) return base
   const layers = [STATUS_BAR]
+  // Where each region landed (for the in-place switcher on the Result):
+  // its band on the screen and the draft it came from.
+  const regions = []
   let y = TOP
   for (const region of screen.regions) {
     const draftKey = picks[region.id] ?? fallback
@@ -127,9 +130,11 @@ export function composeDraftFrame(itemId, base, picks, fallback = null) {
     for (const layer of part.layers) {
       layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, y: y + layer.y, regionId: region.id, draftKey })
     }
+    regions.push({ id: region.id, label: region.label, y: y - GAP / 2, height: Math.max(part.height, 24) + GAP, draftKey, picked: Boolean(picks[region.id]) })
     if (part.height) y += part.height + GAP
+    else y += 24 + GAP
   }
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}`, layers }
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}`, layers, regions }
 }
 
 // A whole draft as a screen.

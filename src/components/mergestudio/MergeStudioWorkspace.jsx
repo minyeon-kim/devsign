@@ -21,8 +21,8 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, designCompareOptions, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
-import { draftRows } from '@/lib/driftDecisions'
+import { DesignComparePanel, decidedValue, decisionFor, designCompareOptions, draftValue, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
+import { draftRows, isRealDiff } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftFrame, draftScreens, layerSource, regionKey, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
@@ -58,82 +58,97 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
   const columns = rows[0]?.options ?? []
+  const byRegion = Boolean(rows[0]?.region)
+  // Mixing by region happens on the Result itself (its ‹ › switchers), so
+  // the table starts folded away; by value, the table is the way to pick.
+  const [open, setOpen] = useState(!byRegion)
   const source = layerSource(selectedLayerId)
   const activeKey = source ? regionKey(source.regionId) : rows.find((row) => row.key.startsWith(`${selectedLayerId}:`))?.key
   const decided = rows.filter((row) => row.decided).length
-  // A draft's name takes all of it (every row from that draft) — the
-  // "use one draft whole" shortcut, where the drafts already are.
+  // Taking a whole draft: every row from it.
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
   const grid = { gridTemplateColumns: `88px repeat(${columns.length}, minmax(0, 1fr))` }
 
   return (
-    <div className="absolute top-12 left-1/2 z-40 w-[min(680px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover px-3 pt-2.5 pb-2 shadow-xl">
-      <div className="grid items-center gap-x-1" style={grid}>
+    <div className="absolute top-12 left-1/2 z-40 w-[min(680px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover px-2.5 py-2 shadow-xl">
+      <div className="flex items-center gap-1.5">
         <span className="flex items-baseline gap-1.5 px-1">
           <span className="text-[11px] font-medium text-slate-300"><LocalizedText text="Mix" /></span>
           <span className={cn('text-[10.5px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
         </span>
+        <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
+        <span className="text-[10.5px] text-slate-500"><LocalizedText text="Use all of" /></span>
         {columns.map((column) => {
           const all = wholeFrom(column.key)
           return (
             <button
               key={column.key}
               type="button"
-              title={`Use all of ${column.letter}`}
+              title={column.name}
+              aria-pressed={all}
               onClick={() => takeAll(column.key)}
               className={cn(
-                'ds-intrinsic flex h-7 min-w-0 items-center gap-1.5 rounded-lg px-2 text-left text-[11px] transition-colors',
+                'ds-intrinsic flex h-7 min-w-0 items-center gap-1.5 rounded-full px-2 text-[11px] transition-colors',
                 all ? 'bg-emerald-400/15 text-emerald-100' : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
               )}
             >
               <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', all ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{column.letter}</span>
-              <span className="truncate"><LocalizedText text={column.name} /></span>
+              <span className="max-w-20 truncate"><LocalizedText text={column.name} /></span>
             </button>
           )
         })}
-      </div>
-      <div className="mt-1 divide-y divide-white/[0.05]">
-        {rows.map((row) => (
-          <div key={row.key} className="grid items-center gap-x-1 py-0.5" style={grid}>
-            <span className={cn('truncate px-1 text-[11px]', row.key === activeKey ? 'font-medium text-white' : 'text-slate-500')}>
-              {row.element && <><LocalizedText text={row.element} /> · </>}
-              <LocalizedText text={row.label} />
-            </span>
-            {row.options.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                aria-pressed={option.picked}
-                onClick={() => onDecide(row.key, option.picked ? null : option.decision)}
-                className={cn(
-                  'ds-intrinsic flex h-7 min-w-0 items-center gap-1 rounded-lg px-2 text-left text-[11px] transition-colors',
-                  option.picked ? 'bg-emerald-400/15 font-medium text-emerald-100' : 'text-slate-400 hover:bg-white/[0.07] hover:text-white'
-                )}
-              >
-                {option.picked && <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />}
-                <span className="truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="mt-1.5 flex items-center gap-2 px-1">
-        <span className="text-[10.5px] text-slate-500">
-          <LocalizedText text={rows[0]?.region ? 'Pick a cell, a draft’s name for all of it, or click a part on the canvas.' : 'Pick a cell, a draft’s name for all of it, or click an element on the canvas.'} />
-        </span>
-        {/* Start over: clears these picks (the Result goes back to the
-            current screen). */}
+        <span className="ml-auto" />
         <button
           type="button"
           disabled={decided === 0}
+          title="Reset picks"
+          aria-label="Reset picks"
           onClick={() => rows.forEach((row) => row.decided && onDecide(row.key, null))}
-          className="ds-intrinsic ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[10.5px] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+          className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
-          <RotateCcw className="size-3" />
-          <LocalizedText text="Reset picks" />
+          <RotateCcw className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+        >
+          <LocalizedText text="Table" />
+          <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
         </button>
       </div>
+      {!open && byRegion && (
+        <p className="mt-1 px-1 text-[10.5px] text-slate-500"><LocalizedText text="Flip each part of the Result with ‹ › — or take a whole draft above." /></p>
+      )}
+      {open && (
+        <div className="mt-1.5 divide-y divide-white/[0.05] border-t border-white/[0.06] pt-1">
+          {rows.map((row) => (
+            <div key={row.key} className="grid items-center gap-x-1 py-0.5" style={grid}>
+              <span className={cn('truncate px-1 text-[11px]', row.key === activeKey ? 'font-medium text-white' : 'text-slate-500')}>
+                {row.element && <><LocalizedText text={row.element} /> · </>}
+                <LocalizedText text={row.label} />
+              </span>
+              {row.options.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={option.picked}
+                  onClick={() => onDecide(row.key, option.picked ? null : option.decision)}
+                  className={cn(
+                    'ds-intrinsic flex h-7 min-w-0 items-center gap-1 rounded-lg px-2 text-left text-[11px] transition-colors',
+                    option.picked ? 'bg-emerald-400/15 font-medium text-emerald-100' : 'text-slate-400 hover:bg-white/[0.07] hover:text-white'
+                  )}
+                >
+                  <span className={cn('flex size-3.5 shrink-0 items-center justify-center rounded text-[8.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-400')}>{option.letter}</span>
+                  <span className="truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -348,6 +363,52 @@ function MergeStudioWorkspace({ item }) {
     const conflict = conflicts.find((c) => c.mergeItemId === target.id || c.id === target.conflictId)
     if (conflict) openConflictReview(conflict.id)
     setBottomPanel({ tab: 'conflict', open: true })
+  }
+  // The Result's ‹ › switchers: flip a part of the result through the
+  // drafts (the ones being compared, or all of them outside a comparison),
+  // letters as on the artboards. Drafts with different layouts flip a whole
+  // screen region; otherwise each drifted element flips all of its values
+  // to that draft's — same gesture for every item.
+  // (A function — it reads frame0, defined further down; called at render.)
+  function buildRegionSwitch() {
+    if (!item) return null
+    const all = designCompareOptions(item)
+    const shown = designComparison ? designComparison.options : all
+    const options = shown.map((option) => ({ ...option, letter: String.fromCharCode(65 + all.findIndex((o) => o.key === option.key)), name: option.label }))
+    const keys = options.map((o) => o.key)
+    const step = (index, dir) => (index < 0 ? (dir > 0 ? 0 : keys.length - 1) : (index + dir + keys.length) % keys.length)
+    if (draftScreens[item.id]) {
+      return {
+        composed: true,
+        options,
+        onCycle: (regionId, dir) => {
+          // Undecided shows the first draft's part, so flip on from there.
+          const index = keys.indexOf(resolutions[regionKey(regionId)]?.custom ?? item.authorAId)
+          decide(regionKey(regionId), { custom: keys[step(index, dir)] })
+        },
+      }
+    }
+    const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+    const elements = Object.entries(layerDiffs)
+      .map(([layerId, diffs]) => ({ layerId, diffs: diffs.filter(isRealDiff), layer: frame0?.layers.find((l) => l.id === layerId) }))
+      .filter((e) => e.diffs.length && e.layer)
+    if (!elements.length) return null
+    // What an element shows now: its decided values, else the side the
+    // artboard defaults to (the Result: the design's; Current: the code's).
+    const valueNow = (layerId, diff) => decidedValue(diff, resolutions[`${layerId}:${diff.id}`]) ?? (designComparison ? diff.optionA : diff.optionB)
+    const sourceOf = (e) => options.find((o) => e.diffs.every((diff) => draftValue(diff, o) === valueNow(e.layerId, diff)))?.key ?? null
+    return {
+      options,
+      regions: elements.map((e) => ({
+        id: e.layerId, label: e.layer.name, x: e.layer.x, y: e.layer.y, width: e.layer.width, height: e.layer.height,
+        draftKey: sourceOf(e), picked: e.diffs.every((diff) => resolutions[`${e.layerId}:${diff.id}`] != null),
+      })),
+      onCycle: (layerId, dir) => {
+        const e = elements.find((x) => x.layerId === layerId)
+        const option = options[step(keys.indexOf(sourceOf(e)), dir)]
+        for (const diff of e.diffs) decide(`${layerId}:${diff.id}`, decisionFor(diff, draftValue(diff, option)))
+      },
+    }
   }
   const mixPicked = designComparison && item ? draftRows({}, item, resolutions).filter((row) => row.decided).length : 0
   // Design Compare's selected drafts, reshaped as frames for
@@ -705,7 +766,12 @@ function MergeStudioWorkspace({ item }) {
   }, [mergeFocus, item?.id])
 
   const baseFrame = item?.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
-  const frame0 = frameWithLayers(baseFrame, addedLayers)
+  // Drafts mixed by region work on the composed screen itself — the Block
+  // Deck, Assets and text edits all act on its layers — so the mix can be
+  // adjusted and added to like any design.
+  const frame0 = baseFrame && draftScreens[item?.id]
+    ? frameWithLayers(composeDraftFrame(item.id, baseFrame, regionPicks(item.id, resolutions), item.authorAId), addedLayers)
+    : frameWithLayers(baseFrame, addedLayers)
 
   // Direct manipulation of the selected canvas element (LayerTransformHandles).
   // - A layer added from the Library is ours: moves / resizes are written
@@ -855,6 +921,7 @@ function MergeStudioWorkspace({ item }) {
           setDesignCompareKeys([])
         },
         onToggleVariant: toggleDesignCompareOption,
+        onSelectAll: setDesignCompareKeys,
         onCompare: openDesignComparison,
       },
     },
@@ -936,18 +1003,6 @@ function MergeStudioWorkspace({ item }) {
             </button>
             <span className="flex items-baseline gap-2 pr-2 pl-0.5 whitespace-nowrap">
               <span className="text-[13px] font-semibold text-white"><LocalizedText text={designComparison.item.title} /></span>
-              {/* Which drafts are side by side, as their letters (the same
-                  as on the artboards). */}
-              <span className="flex items-center gap-1 self-center">
-                {designComparison.options.map((option) => {
-                  const index = designCompareOptions(designComparison.item).findIndex((o) => o.key === option.key)
-                  return (
-                    <span key={option.key} title={option.label} className="flex size-5 items-center justify-center rounded-md bg-white/[0.08] text-[10px] font-semibold text-slate-200">
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                  )
-                })}
-              </span>
             </span>
             <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
             {/* The primary action: done mixing — enabled once anything's
@@ -985,9 +1040,10 @@ function MergeStudioWorkspace({ item }) {
           checks={liveChecks}
           designCompare={designCompare}
           compareOverrides={designCompare ? { result: resolvedEffects(item, resolutions) } : null}
-          compareFrames={designCompare && draftScreens[item.id] ? { result: composeDraftFrame(item.id, designCompare.frame, regionPicks(item.id, resolutions), item.authorAId) } : null}
-          frameOverrideA={frame0 && draftScreens[item.id] ? draftFrame(item.id, frame0, item.authorAId) : null}
-          frameOverrideB={frame0 && draftScreens[item.id] ? composeDraftFrame(item.id, frame0, regionPicks(item.id, resolutions), item.authorAId) : null}
+          compareFrames={designCompare && draftScreens[item.id] ? { result: frame0 } : null}
+          frameOverrideA={baseFrame && draftScreens[item.id] ? draftFrame(item.id, baseFrame, item.authorAId) : null}
+          frameOverrideB={draftScreens[item.id] ? frame0 : null}
+          regionSwitch={buildRegionSwitch()}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}

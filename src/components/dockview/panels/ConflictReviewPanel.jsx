@@ -22,6 +22,12 @@ import {
 } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
+import { translateText } from '@/i18n/translate'
+import { getLanguage } from '@/i18n/language'
+
+// Text fields skip the JSX translation pass (what's typed is the user's),
+// so their placeholders are translated here.
+const tr = (text) => translateText(text, getLanguage())
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
@@ -437,6 +443,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
 }
 
 function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks, decisions }) {
+  const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -458,42 +465,41 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
   return (
     <div className="flex h-full flex-col">
       <div className="mb-4 min-w-0">
-        {/* Stage · severity · AI draft as one plain line, not three pills. */}
-        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-slate-500">
-          <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-slate-100">
-            <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
-            <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
-          </span>
-          {severity && (
-            <>
-              <span aria-hidden>·</span>
-              <span className={cn('font-medium', severityTone)}><LocalizedText text={severity.label} /></span>
-            </>
-          )}
-          {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1 text-slate-400">
-                <Sparkles className="size-3 shrink-0" aria-hidden />
-                <LocalizedText text="AI draft" />
-              </span>
-            </>
-          )}
-        </p>
-        {((showProject && conflict.projectName) || conflict.detectedAt) && (
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-            {showProject && conflict.projectName && (
-              <span className="min-w-0 break-words [overflow-wrap:anywhere]">
-                <LocalizedText text="Project" /> · <LocalizedText text={conflict.projectName} />
-              </span>
+        {/* Stage · severity · AI draft on the left, when it was detected on
+            the right — one line, the card's header. */}
+        <div className="flex min-w-0 items-center gap-3">
+          <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-slate-500">
+            <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-slate-100">
+              <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
+              <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
+            </span>
+            {severity && (
+              <>
+                <span aria-hidden>·</span>
+                <span className={cn('font-medium', severityTone)}><LocalizedText text={severity.label} /></span>
+              </>
             )}
-            {conflict.detectedAt && (
-              <span className="inline-flex items-center gap-1">
-                <Clock3 className="size-3 shrink-0" />
-                <LocalizedText text="Detected" /> · <LocalizedText text={conflict.detectedAt} />
-              </span>
+            {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1 text-slate-400">
+                  <Sparkles className="size-3 shrink-0" aria-hidden />
+                  <LocalizedText text="AI draft" />
+                </span>
+              </>
             )}
-          </div>
+          </p>
+          {conflict.detectedAt && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-slate-500" title="Detected">
+              <Clock3 className="size-3 shrink-0" />
+              <LocalizedText text={conflict.detectedAt} />
+            </span>
+          )}
+        </div>
+        {showProject && conflict.projectName && (
+          <p className="mt-1.5 min-w-0 break-words text-[11px] text-slate-500 [overflow-wrap:anywhere]">
+            <LocalizedText text="Project" /> · <LocalizedText text={conflict.projectName} />
+          </p>
         )}
       </div>
       {/* The stage line above already says Merged — this only notes what
@@ -532,10 +538,28 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
               <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}><LocalizedText text={summary} /></p>
             </div>
           )}
-          <Provenance
-            conflict={conflict}
-            className={cn(summary && hasMetadata && 'mt-4')}
-          />
+          {/* Who changed it, what found it, what it touches — useful, but
+              not what you act on, so folded under one quiet toggle. */}
+          {hasMetadata && (
+            <div className={cn(REVIEW_INFO_GRID, summary && 'mt-3')}>
+              <span />
+              <button
+                type="button"
+                aria-expanded={showDetails}
+                onClick={() => setShowDetails((v) => !v)}
+                className="ds-intrinsic inline-flex h-6 w-fit items-center gap-1 text-[11px] text-slate-500 transition-colors hover:text-white"
+              >
+                <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
+                <ChevronDown className={cn('size-3 transition-transform', showDetails && 'rotate-180')} />
+              </button>
+            </div>
+          )}
+          {showDetails && (
+            <Provenance
+              conflict={conflict}
+              className="mt-2"
+            />
+          )}
         </section>
       )}
     </div>
@@ -793,7 +817,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                 </span>
                 <span className={cn('shrink-0 truncate text-[10.5px]', reviewer.id === author ? 'text-slate-500' : status.className)}>
                   {reviewer.id === author
-                    ? 'Author · not required'
+                    ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
                     ? 'Request dismissed'
                     : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : status.label}
@@ -852,7 +876,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                       if (event.key === 'Escape') setDismissing(null)
                       if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); confirmDismiss() }
                     }}
-                    placeholder={`Why dismiss ${person.name}'s request? (required)`}
+                    placeholder={tr(`Why dismiss ${person.name}'s request? (required)`)}
                     className="block w-full resize-none bg-transparent text-xs leading-5 text-white outline-none placeholder:text-slate-500"
                   />
                   <div className="flex items-center justify-end gap-1">
@@ -1009,7 +1033,7 @@ function CommentThread({ conflict, workspace }) {
                     autoFocus
                     value={replyDraft}
                     onChange={(event) => setReplyDraft(event.target.value)}
-                    placeholder="Write a reply"
+                    placeholder={tr('Write a reply')}
                     aria-label={`Reply to ${author?.name ?? 'comment'}`}
                     className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
                   />
@@ -1049,7 +1073,7 @@ function CommentThread({ conflict, workspace }) {
               handleSend(event)
             }
           }}
-          placeholder="Write a comment"
+          placeholder={tr('Write a comment')}
           className="max-h-[88px] min-w-0 flex-1 resize-none self-center overflow-y-auto bg-transparent py-1.5 text-[13px] leading-5 text-white outline-none placeholder:text-slate-500"
         />
         <button
@@ -1124,7 +1148,7 @@ function ReviewButton({ onSubmit, authorName }) {
           value={note}
           onChange={(event) => setNote(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); submit() } }}
-          placeholder={needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)'}
+          placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
           className="block w-full resize-none rounded-lg bg-white/[0.04] px-2.5 py-2 text-xs leading-5 text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.06]"
         />
         <div className="flex justify-end">

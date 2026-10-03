@@ -7,6 +7,7 @@ import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
+import { assemblyToOverride, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { reviewAlerts } from '@/lib/inboxNotifications'
 import { useDemoState } from '@/state/useDemoState'
@@ -819,10 +820,18 @@ export function WorkspaceProvider({ children, projectId }) {
     if (item && draftScreens[item.id]) {
       const base = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]
       // A revert of that merge puts the page's own frame back.
-      const composed = base && (conflict?.revertOf ? base : composeDraftFrame(item.id, base, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId))
+      // The mix as worked on in Merge Studio: plus any components added to
+      // it and the Assemble edits made to its layers.
+      const composed = base && (conflict?.revertOf ? base : frameWithLayers(composeDraftFrame(item.id, base, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId), draft.addedLayers ?? []))
       if (composed) {
         const frame = { ...composed, id: base.id }
-        mergedDesign = { ...(design ?? {}), overrides: {}, frame }
+        const overrides = conflict?.revertOf ? {} : Object.fromEntries(Object.entries(draft.assemblies ?? {})
+          .map(([layerId, assembly]) => {
+            const layer = frame.layers.find((l) => l.id === layerId)
+            return [layerId, layer && assemblyToOverride(assembly, layer)]
+          })
+          .filter(([, o]) => o))
+        mergedDesign = { ...(design ?? {}), overrides, frame }
         setMergedFrames((prev) => {
           const next = { ...prev }
           if (conflict?.revertOf) delete next[base.id]

@@ -62,12 +62,10 @@ function App() {
         <LocalCursor />
       </BrowserRouter>
       </ConflictStoreProvider>
-      {/* Lifted well clear of the bottom-right corner — the Workspace and
-          Merge Studio both dock real chrome there (the bottom panel, a
-          conflict's footer actions, the presence pill), so a toast sitting
-          flush in the corner (Sonner's default) covers whatever button is
-          already there instead of appearing above it. */}
-      <Toaster position="bottom-right" offset={{ bottom: 96, right: 20 }} />
+      {/* Under the Inbox bell, top-right — where the app's other notices
+          (the Inbox, the entry prompt) appear. The bottom-right corner is
+          taken by real work: the bottom panel's comment box and actions. */}
+      <Toaster position="top-right" offset={{ top: 52, right: 16 }} />
     </TooltipProvider>
     </LanguageProvider>
   )

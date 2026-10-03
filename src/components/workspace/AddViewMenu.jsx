@@ -59,7 +59,7 @@ function AddViewMenu({ group, dockApi }) {
       if (result.code) openHere(dockApi, group, panelById.editor)
       changeOpen(false)
     } catch {
-      toast('파일을 열지 못했습니다', { description: '파일을 다시 선택해 주세요.' })
+      toast('Couldn’t open the file', { description: 'Pick the file again.' })
     } finally { setLoading(false) }
   }
 

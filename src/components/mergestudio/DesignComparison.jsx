@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Layers3, MapPin, MessageSquarePlus, Play, Send, X } from 'lucide-react'
+import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Play, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -22,7 +22,7 @@ export function designCompareOptions(item) {
   ]
 }
 
-function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onCompare }) {
+function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare }) {
   const { conflicts, addComment, openConflictReview, setBottomPanel } = useWorkspace()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
@@ -103,6 +103,18 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               <span className={cn('shrink-0 text-[11px] tabular-nums', selectedOptions.length >= 2 ? 'text-emerald-300' : 'text-slate-500')}>
                 {selectedOptions.length < 2 ? 'Select 2 or more' : `${selectedOptions.length} selected`}
               </span>
+            )}
+            {/* Every draft at once (or none again). */}
+            {item && onSelectAll && (
+              <button
+                type="button"
+                aria-pressed={selectedOptions.length === options.length}
+                onClick={() => onSelectAll(selectedOptions.length === options.length ? [] : options.map((option) => option.key))}
+                className="ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-white"
+              >
+                <CheckCheck className="size-3.5" />
+                {selectedOptions.length === options.length ? 'Clear selection' : 'Select all'}
+              </button>
             )}
             <button
               type="button"
