@@ -803,7 +803,6 @@ function MergeStudioWorkspace({ item }) {
   // Committed manual code plus the in-progress keystrokes: what the canvas,
   // Preview and wizard render the Current Implementation from.
   const syncedCode = deferredLive ? { ...manualCode, [deferredLive.key]: deferredLive.text } : manualCode
-  const codeWindowCode = deferredLive?.source === 'design' ? syncedCode : manualCode
   // The selected layer's text slots with their current (edited) values, for
   // the Block Deck's Text section.
   const layerCopy = deckLayerId ? copyEdits(frame0, syncedCode)[deckLayerId] : null
@@ -870,7 +869,7 @@ function MergeStudioWorkspace({ item }) {
           extraLayers={addedLayers}
           manualCode={manualCode}
           syncedCode={syncedCode}
-          codeWindowCode={codeWindowCode}
+          onOpenCodeReview={openWizard}
           onEditCode={editCodeLine}
           onLiveEditCode={liveEditCodeLine}
           onEditText={editText}

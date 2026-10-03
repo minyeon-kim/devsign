@@ -7,8 +7,6 @@ import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupContent'
-import { getFileIconMeta } from '@/lib/fileIcons'
-import { tokenClassName, tokenizeLine } from '@/lib/syntaxHighlight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
 import UserPresence from '@/components/layout/UserPresence'
@@ -26,224 +24,6 @@ const ARTBOARD_PREVIEW_WIDTH = 600
 // previewing on that exact layer (see `previewOverride`).
 const OPTION_B_ACCENT = 'bg-violet-500'
 
-function CodeLine({ lineNumber, lineKey, text, language, highlighted, accentClass, diffMark, onClick, lineRef, linked, hovered, onHover, onEdit, onLive, edited, dimmed }) {
-  const tokens = tokenizeLine(text, language)
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(text)
-  const doneRef = useRef(false)
-
-  function startEdit(e) {
-    e.stopPropagation()
-    doneRef.current = false
-    setDraft(text)
-    setEditing(true)
-  }
-  function finish(save) {
-    if (doneRef.current) return
-    doneRef.current = true
-    setEditing(false)
-    onLive?.(null)
-    if (save && draft !== text) onEdit(draft)
-  }
-
-  return (
-    <div
-      ref={lineRef}
-      data-code-line={lineKey}
-      data-changed={accentClass ? 'true' : undefined}
-      data-selected={highlighted ? 'true' : undefined}
-      onClick={editing ? undefined : onClick}
-      onDoubleClick={onEdit && !editing ? startEdit : undefined}
-      onPointerEnter={linked ? () => onHover?.(lineNumber) : undefined}
-      onPointerLeave={linked ? () => onHover?.(null) : undefined}
-      className={cn(
-        'group/line flex cursor-pointer gap-2 border-l border-transparent px-3 transition-opacity duration-200 hover:bg-muted/40',
-        // The diff tint (red/green background) stays on regardless of
-        // selection — only the left border changes to show the emerald
-        // selection state on top of it. Dropping `accentClass` here used to
-        // wash the row back to plain/untinted the moment it was selected,
-        // hiding exactly the red/green diff it was selected to review.
-        accentClass,
-        // Spotlight: while a block is selected every other row recedes, so
-        // the selection reads at full strength without any glow; hovering
-        // brings a row back.
-        dimmed && !hovered && 'opacity-45 hover:opacity-100',
-        hovered && !highlighted && 'border-emerald-400/60',
-        highlighted && 'border-emerald-400'
-      )}
-    >
-      <span className="w-5 shrink-0 text-right text-muted-foreground/40 select-none">{lineNumber}</span>
-      {/* The unified diff's own gutter mark — a bare `-`/`+` (no line
-          renumbering, git-diff style) — separate from the line number
-          above, which stays the file's real line for every row. */}
-      <span
-        className={cn(
-          'w-3 shrink-0 text-center font-bold select-none',
-          diffMark === '-' && 'text-destructive',
-          diffMark === '+' && 'text-emerald-400'
-        )}
-      >
-        {diffMark}
-      </span>
-      {/* min-w-0 lets this span actually shrink below its content's
-          intrinsic width so pre-wrap can kick in, instead of the row
-          growing past the card and needing horizontal scroll. */}
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          spellCheck={false}
-          onChange={(e) => {
-            setDraft(e.target.value)
-            // Streams every keystroke to the canvas for live preview; only
-            // Enter / blur commits it as a manual edit.
-            onLive?.(e.target.value)
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            if (e.key === 'Enter') finish(true)
-            else if (e.key === 'Escape') finish(false)
-          }}
-          onBlur={() => finish(true)}
-          className="min-w-0 flex-1 rounded-sm bg-slate-950 px-1 font-mono text-[11px] text-foreground outline-none ring-1 ring-emerald-400"
-        />
-      ) : (
-        <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-          {text.length === 0 ? (
-            ' '
-          ) : (
-            tokens.map((token, j) => (
-              <span key={j} className={tokenClassName(token.type)}>
-                {token.text}
-              </span>
-            ))
-          )}
-        </span>
-      )}
-      {edited && !editing && (
-        <span title="Edited by hand" className="mt-0.5 flex h-4 shrink-0 items-center gap-0.5 self-start rounded-full bg-emerald-400/20 px-1.5 text-[9px] font-semibold text-emerald-300 select-none">
-          <Pencil className="size-2" /> edited
-        </span>
-      )}
-      {onEdit && !editing && (
-        <button
-          type="button"
-          title="Edit this line"
-          onClick={startEdit}
-          className="mt-0.5 flex size-4 shrink-0 items-center justify-center self-start rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-emerald-400/20 hover:text-emerald-300"
-        >
-          <Pencil className="size-2.5" />
-        </button>
-      )}
-    </div>
-  )
-}
-
-// A single vertical, git-style unified diff — no more Code A / Code B
-// columns (or file tabs' worth of split panes) to compare side by side.
-// An unchanged line renders once, plain. A changed line renders as a
-// removed row (`-`, red) directly above the added row (`+`, green) it was
-// replaced by, so the whole file reads top-to-bottom in one pass.
-// Every line is editable in place (double-click, or the pencil on hover):
-// editing a `+` row rewrites what gets merged; editing an unchanged row
-// turns it into a new `-`/`+` pair. Typing a line back to what it would be
-// anyway drops the manual edit.
-function UnifiedDiffView({ incomingEdits, manualCode, onEditLine, onLiveLine, file, lines, diffs, highlightLine, highlightEnd, onSelectLine, highlightRef, linkedLines, hoverLine, hoverEnd, hoverFileId, onHoverLine }) {
-  const inRange = (n, start, end) => start != null && n >= start && n <= (end ?? start)
-  const diffByLine = new Map((diffs ?? []).map((d) => [d.line, d.incoming]))
-  function edit(lineNumber, original, text) {
-    const key = `${file.id}:${lineNumber}`
-    const fallback = incomingEdits?.[key] ?? diffByLine.get(lineNumber) ?? original
-    onEditLine?.(file.id, lineNumber, text === fallback ? null : text)
-  }
-
-  return (
-    <div
-      data-code-scroll
-      className="relative min-h-0 flex-1 overflow-auto bg-card font-mono text-[11px] leading-relaxed"
-    >
-      <div className="py-2">
-        {lines.map((line, i) => {
-          const lineNumber = i + 1
-          const key = `${file.id}:${lineNumber}`
-          const edited = manualCode?.[key] !== undefined
-          const incoming = manualCode?.[key] ?? incomingEdits?.[key] ?? diffByLine.get(lineNumber)
-          const changed = incoming !== undefined
-          const onEdit = onEditLine ? (text) => edit(lineNumber, line, text) : undefined
-          const onLive = onLiveLine ? (text) => onLiveLine(file.id, lineNumber, text) : undefined
-          const isHighlighted = inRange(lineNumber, highlightLine, highlightEnd)
-          const dimmed = highlightLine != null && !isHighlighted
-          const isHovered = hoverFileId === file.id && inRange(lineNumber, hoverLine, hoverEnd)
-          const linked = linkedLines?.has(`${file.id}:${lineNumber}`)
-          const onHover = (n) => onHoverLine?.(file.id, n)
-          const onClick = (e) => onSelectLine?.(file.id, lineNumber, e.currentTarget)
-
-          if (!changed) {
-            return (
-              <CodeLine
-                key={i}
-                lineRef={isHighlighted ? highlightRef : undefined}
-                lineKey={`${file.id}:${lineNumber}`}
-                lineNumber={lineNumber}
-                text={line}
-                language={file.language}
-                highlighted={isHighlighted}
-                onClick={onClick}
-                linked={linked}
-                hovered={isHovered}
-                onHover={onHover}
-                onEdit={onEdit}
-                onLive={onLive}
-                dimmed={dimmed}
-              />
-            )
-          }
-          return (
-            <div key={i} data-diff-pair={changed ? 'true' : undefined}>
-              <CodeLine
-                lineRef={isHighlighted ? highlightRef : undefined}
-                lineKey={`${file.id}:${lineNumber}`}
-                lineNumber={lineNumber}
-                text={line}
-                language={file.language}
-                highlighted={isHighlighted}
-                accentClass="border-destructive/60 bg-destructive/10"
-                diffMark="-"
-                onClick={onClick}
-                linked={linked}
-                hovered={isHovered}
-                onHover={onHover}
-                dimmed={dimmed}
-              />
-              <CodeLine
-                lineNumber={lineNumber}
-                text={incoming}
-                lineKey={`${file.id}:${lineNumber}:incoming`}
-                language={file.language}
-                highlighted={isHighlighted}
-                accentClass={edited ? 'border-emerald-200/70 bg-emerald-200/[0.06]' : 'border-emerald-500/60 bg-emerald-500/10'}
-                diffMark="+"
-                onClick={onClick}
-                linked={linked}
-                hovered={isHovered}
-                onHover={onHover}
-                onEdit={onEdit}
-                onLive={onLive}
-                edited={edited}
-                dimmed={dimmed}
-              />
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// Edge + corner resize handles for a card. Rendered inside the card so
-// overflow-hidden doesn't clip them; each stops propagation so grabbing a
-// handle never starts a card drag.
 function ResizeHandles({ onResizeStart }) {
   return (
     <>
@@ -270,117 +50,8 @@ function ResizeHandles({ onResizeStart }) {
 // Current beside Code B · Incoming. A single tab row (with a drag grip)
 // switches files — there is no second title bar. Reverse sync (clicking a
 // linked design layer) switches the active tab to that layer's file.
-function CodeWindowCard({ incomingEdits, manualCode, onEditLine, onLiveLine, reveal, itemId, files, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, hoverLine, hoverFileId, onHoverLine, linkedLines, highlightFileId, highlightLine, highlightEnd, hoverEnd, onSelectLine, highlightRef }) {
-  const { getFileLines } = useWorkspace()
-  // Merge Studio's virtual copy.json carries its own lines.
-  const linesOf = (file) => file.lines ?? getFileLines(file.id)
-  const rootRef = useRef(null)
-  const [activeFileId, setActiveFileId] = useState(files[0]?.id)
-
-  useEffect(() => {
-    if (files.length && !files.some((f) => f.id === activeFileId)) {
-      setActiveFileId(files[0]?.id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files])
-
-  useEffect(() => {
-    if (highlightFileId) setActiveFileId(highlightFileId)
-  }, [highlightFileId, highlightLine])
-
-  const activeFile = files.find((f) => f.id === activeFileId) ?? files[0]
-
-  // A design-side text edit reveals the copy.json line it's writing to, so
-  // the code updating in step with the canvas is actually visible.
-  useEffect(() => {
-    if (!reveal) return
-    setActiveFileId(reveal.fileId)
-    const raf = requestAnimationFrame(() => {
-      const el = rootRef.current?.querySelector(`[data-code-line="${reveal.fileId}:${reveal.line}"]`)
-      const scroller = el?.closest('[data-code-scroll]')
-      if (el && scroller) scroller.scrollTo({ top: Math.max(0, el.offsetTop - scroller.clientHeight / 3), behavior: 'smooth' })
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [reveal])
-
-  // Bring the selected block into view once the right file tab has actually
-  // rendered (scrolling from the canvas ran before the tab switched).
-  useEffect(() => {
-    if (!activeFile || highlightFileId !== activeFile.id || !highlightLine) return
-    const raf = requestAnimationFrame(() => {
-      const el = rootRef.current?.querySelector('[data-selected]')
-      const scroller = el?.closest('[data-code-scroll]')
-      if (!el || !scroller) return
-      scroller.scrollTo({ top: Math.max(0, el.offsetTop - scroller.clientHeight / 3), behavior: 'smooth' })
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [activeFile?.id, highlightFileId, highlightLine, highlightEnd])
-
-  if (!activeFile) return null
-
-  return (
-    <div
-      ref={rootRef}
-      data-card="code"
-      className="absolute top-0 left-0 flex cursor-grab flex-col overflow-hidden rounded-2xl border border-white/10 bg-card shadow-lg will-change-transform active:cursor-grabbing"
-      style={{ transform: `translate(${x}px, ${y}px)`, zIndex: z, width: w, height: h }}
-      onPointerDown={onDragStart}
-      onClickCapture={onClickCapture}
-    >
-      <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b bg-background px-1.5 pt-1.5">
-        {files.map((file) => {
-          const meta = getFileIconMeta(file.name)
-          const active = file.id === activeFile.id
-          return (
-            <button
-              key={file.id}
-              type="button"
-              onClick={() => setActiveFileId(file.id)}
-              className={cn(
-                'flex shrink-0 items-center justify-center gap-1 rounded-t-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors',
-                active ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <meta.Icon className="size-3 shrink-0 text-slate-400" />
-              <span className="max-w-[120px] truncate">{file.name}</span>
-            </button>
-          )
-        })}
-        <span title="Double-click a line to edit it" className="ml-auto flex shrink-0 items-center px-2 pb-1 text-muted-foreground/60">
-          <Pencil className="size-3" />
-        </span>
-      </div>
-
-      <UnifiedDiffView
-        incomingEdits={incomingEdits}
-        manualCode={manualCode}
-        onEditLine={onEditLine}
-        onLiveLine={onLiveLine}
-        file={activeFile}
-        lines={linesOf(activeFile)}
-        diffs={codeMergeVariants[itemId]?.[activeFile.id]}
-        highlightLine={highlightFileId === activeFile.id ? highlightLine : undefined}
-        highlightEnd={highlightEnd}
-        hoverEnd={hoverEnd}
-        onSelectLine={onSelectLine}
-        highlightRef={highlightRef}
-        linkedLines={linkedLines}
-        hoverLine={hoverLine}
-        hoverFileId={hoverFileId}
-        onHoverLine={onHoverLine}
-      />
-      <ResizeHandles onResizeStart={onResizeStart} />
-    </div>
-  )
-}
-
-// Text slots each layer type exposes for editing; the first is what a
-// double-click anywhere else on the layer edits.
 const TEXT_SLOTS = { text: ['text'], button: ['label'], chip: ['label'], input: ['label'], card: ['title', 'body'] }
 
-// In-place text editor for one slot: inherits the surrounding typography so
-// editing looks like typing into the design itself. Streams every keystroke
-// (`onLive`), commits on Enter / blur, cancels on Escape.
 function SlotEditor({ value, onLive, onCommit, onCancel, className, style }) {
   const [draft, setDraft] = useState(value)
   const doneRef = useRef(false)
@@ -1325,22 +996,17 @@ function MergeInfiniteCanvas({
   guidesVisible = true,
   onToggleGuides,
   focus,
-  resolutionCount,
   headerAction,
   assemblies,
   extraLayers,
   manualCode,
   syncedCode,
-  codeWindowCode,
-  onEditCode,
-  onLiveEditCode,
+  onOpenCodeReview,
   onEditText,
-  codeReveal,
   annotations = [],
   onAnnotationsChange,
   stage = 'compare',
   onSelectLayer,
-  onSelectLine,
   onSelectFrame,
   // Design Compare: { frame, entries: [{ key, label, overrides }] } — N
   // variant drafts of the same base frame, each its own StaticFrame in
@@ -1424,7 +1090,8 @@ function MergeInfiniteCanvas({
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
     const compareFrame = designCompare?.frame
-    const cards = designCompare ? designCompare.entries.map((e) => e.key) : frame ? ['a', 'b'] : ['code']
+    const cards = designCompare ? designCompare.entries.map((e) => e.key) : frame ? ['a', 'b'] : []
+    if (!cards.length) return DEFAULT_VIEW
     const box = (k) =>
       k === 'code'
         ? { l: lay.code.x, t: lay.code.y, r: lay.code.x + lay.code.w, b: lay.code.y + lay.code.h }
@@ -1639,25 +1306,10 @@ function MergeInfiniteCanvas({
   const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
   const linkedLayerIds = new Set(Object.keys(layerCodeMap))
   const spanEnd = (t) => t.line + (t.span ?? 1) - 1
-  const linkedLines = new Set(
-    Object.values(layerCodeMap).flatMap((t) =>
-      Array.from({ length: t.span ?? 1 }, (_, i) => `${t.fileId}:${t.line + i}`)
-    )
-  )
   function hoverLayer(layerId) {
     const t = layerId ? layerCodeMap[layerId] : null
     setHover(layerId ? { layerId, fileId: t?.fileId, line: t?.line, endLine: t && spanEnd(t) } : null)
   }
-  function hoverLine(fileId, line) {
-    const layerId = line
-      ? Object.keys(layerCodeMap).find(
-          (id) => layerCodeMap[id].fileId === fileId && line >= layerCodeMap[id].line && line <= spanEnd(layerCodeMap[id])
-        )
-      : null
-    const t = layerId ? layerCodeMap[layerId] : null
-    setHover(line ? { layerId, fileId, line: t ? t.line : line, endLine: t ? spanEnd(t) : line } : null)
-  }
-
   // Selection wrappers: remember the clicked element (inline-AI anchor) and
   // open the inline bar.
   function pickLayer(layerId, el) {
@@ -1666,13 +1318,6 @@ function MergeInfiniteCanvas({
     setFrameSel(null)
     setAiStage('badge')
     onSelectLayer(layerId)
-  }
-  function pickLine(fileId, line, el) {
-    anchorElRef.current = el
-    anchorMetaRef.current = { kind: 'line' }
-    setFrameSel(null)
-    setAiStage('badge')
-    onSelectLine(fileId, line)
   }
   function pickFrame(key, el) {
     anchorElRef.current = el
@@ -2101,7 +1746,6 @@ function MergeInfiniteCanvas({
       className: base?.className ?? e.className,
     }
   }
-  const selId = syncSelection?.layerId
   if (appliedPreset?.layerId) overrides[appliedPreset.layerId] = { ...overrides[appliedPreset.layerId], className: appliedPreset.previewClass }
 
   const scale = view.zoom / 100
@@ -2117,6 +1761,14 @@ function MergeInfiniteCanvas({
     // keeps `bg-canvas`, since it sits inside a card.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
+        {!frame && !designCompare && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div className="pointer-events-auto max-w-64 space-y-3 text-center">
+              <p className="text-xs leading-5 text-slate-400">Code changes are available in the review panel.</p>
+              <button type="button" onClick={onOpenCodeReview} className="ds-intrinsic h-7 rounded-md bg-white/[0.06] px-3 text-xs text-slate-200 hover:bg-white/10">Review changes</button>
+            </div>
+          </div>
+        )}
         {/* Hand tool: a pan surface over the whole canvas (floating
             controls sit above it at z-20 and stay clickable). */}
         {handActive && (
@@ -2145,41 +1797,6 @@ function MergeInfiniteCanvas({
             }}
           >
             <div className="pointer-events-auto">
-              {/* The canvas is for comparing designs: with a design frame,
-                  the code lives in the conflict's own review (editable
-                  After diff, bottom panel) instead of a card that scales
-                  with zoom. A code-only item has nothing else to show,
-                  so it keeps the code card. */}
-              {!designCompare && !frame && files.length > 0 && (
-                <CodeWindowCard
-                  itemId={item.id}
-                  files={files}
-                  x={layout.code.x}
-                  y={layout.code.y}
-                  w={layout.code.w}
-                  h={layout.code.h}
-                  onResizeStart={startResize('code')}
-                  z={order.code}
-                  onDragStart={startCardDrag('code')}
-                  onClickCapture={swallowDragClick}
-                  linkedLines={linkedLines}
-                  hoverLine={hover?.line}
-                  hoverEnd={hover?.endLine}
-                  hoverFileId={hover?.fileId}
-                  onHoverLine={hoverLine}
-                  highlightFileId={syncSelection?.fileId}
-                  highlightLine={syncSelection?.line}
-                  highlightEnd={syncSelection?.endLine}
-                  onSelectLine={pickLine}
-                  incomingEdits={codeEdits}
-                  manualCode={codeWindowCode ?? manualCode}
-                  reveal={codeReveal}
-                  onEditLine={onEditCode}
-                  onLiveLine={onLiveEditCode}
-                  highlightRef={highlightRef}
-                />
-              )}
-
               {designCompare ? (
                 designCompare.entries.map((entry) => (
                   <StaticFrame

@@ -3,6 +3,7 @@ import { docsHistoryKo } from './docsHistoryKo'
 // UI copy and seeded conflict-review content shown to Korean-language users.
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
+Code changes are available in the review panel.|코드 변경 내역은 검토 패널에서 확인할 수 있습니다.
 Stop generating|답변 생성 중지
 Follow|화면 따라가기
 Stop following|따라가기 중지
