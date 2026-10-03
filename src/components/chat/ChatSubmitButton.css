@@ -10,9 +10,9 @@ button.ai-chat-submit {
   flex-shrink: 0 !important;
   padding: 0 !important;
   border: none !important;
-  background-color: #20F5A6 !important;
+  background-color: #353535 !important;
   background-image: none !important;
-  color: #06281D !important;
+  color: #F4F4F5 !important;
   opacity: 1 !important;
   filter: none !important;
   box-shadow: none !important;
@@ -33,36 +33,12 @@ button.ai-chat-submit:focus-visible {
 }
 
 button.ai-chat-submit:disabled {
-  background-color: #20F5A6 !important;
-  color: #06281D !important;
+  background-color: transparent !important;
+  color: #71717A !important;
 }
 button.ai-chat-submit svg {
   color: inherit !important;
 }
 button.ai-chat-submit:not(:disabled):hover {
-  background-color: #86F5CE !important;
-}
-
-.ai-chat-auto-switch[data-slot="switch"] {
-  width: 30px;
-  height: 18px;
-  padding: 2px;
-  border: 0;
-  background-color: #52525B;
-}
-.ai-chat-auto-switch[data-checked] {
-  background-color: #5EEAB5;
-}
-.ai-chat-auto-switch [data-slot="switch-thumb"] {
-  width: 14px;
-  height: 14px;
-  background-color: #F4F4F5;
-  /* Tailwind's translate is independent of transform; reset it so the
-     checked thumb moves only once and stays inside the track. */
-  translate: none;
-  transform: translateX(0);
-}
-.ai-chat-auto-switch[data-checked] [data-slot="switch-thumb"] {
-  background-color: #FFFFFF;
-  transform: translateX(12px);
+  background-color: #454545 !important;
 }

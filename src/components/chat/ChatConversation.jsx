@@ -29,7 +29,6 @@ import {
 } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -315,10 +314,6 @@ function ChatConversation() {
   const [attachments, setAttachments] = useState([])
   const [codeBlockMode, setCodeBlockMode] = useState(false)
   const [model, setModel] = useState(aiModels[1] ?? aiModels[0])
-  // Off by default: an AI change sits in chat as a proposal (Apply /
-  // Discard) until approved, rather than landing on canvas/files straight
-  // away. Turning this on restores the old immediate-apply behavior.
-  const [autoMode, setAutoMode] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
   const [feedback, setFeedback] = useState({})
   // The checkpoint whose inline "Rollback here" was clicked (confirming).
@@ -331,7 +326,7 @@ function ChatConversation() {
 
   function handleSend(text = input, overrideTarget) {
     if (!text.trim() || isAiTyping) return
-    sendChatMessage(text, overrideTarget ?? target, { autoApply: autoMode })
+    sendChatMessage(text, overrideTarget ?? target, { autoApply: false })
     setInput('')
     setAttachments([])
     setCodeBlockMode(false)
@@ -414,7 +409,7 @@ function ChatConversation() {
               </div>
             ) : <div className="flex w-full items-center justify-start gap-1 px-1 opacity-0 transition-opacity group-hover/chat:opacity-100 focus-within:opacity-100">
               <ActionButton label={copiedId === message.id ? 'Copied' : 'Copy'} onClick={() => copyMessage(message)}>{copiedId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</ActionButton>
-              <ActionButton label="Regenerate" disabled={isAiTyping || Boolean(message.historyId) || Boolean(message.pendingEdit) || !chatMessages.slice(0, index).some((m) => m.role === 'user')} onClick={() => { const previous = chatMessages.slice(0, index).reverse().find((m) => m.role === 'user'); if (previous) sendChatMessage(previous.text, previous.target, { includeUser: false, replaceMessageId: message.id, autoApply: autoMode }) }}><RotateCw className="size-3.5" /></ActionButton>
+              <ActionButton label="Regenerate" disabled={isAiTyping || Boolean(message.historyId) || Boolean(message.pendingEdit) || !chatMessages.slice(0, index).some((m) => m.role === 'user')} onClick={() => { const previous = chatMessages.slice(0, index).reverse().find((m) => m.role === 'user'); if (previous) sendChatMessage(previous.text, previous.target, { includeUser: false, replaceMessageId: message.id, autoApply: false }) }}><RotateCw className="size-3.5" /></ActionButton>
               <ActionButton label="Thumbs up" pressed={feedback[message.id] === 'up'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'up' ? null : 'up' }))}><ThumbsUp className="size-3.5" /></ActionButton>
               <ActionButton label="Thumbs down" pressed={feedback[message.id] === 'down'} onClick={() => setFeedback((f) => ({ ...f, [message.id]: f[message.id] === 'down' ? null : 'down' }))}><ThumbsDown className="size-3.5" /></ActionButton>
               <ActionButton label="Share" onClick={() => shareMessage(message)}><Share2 className="size-3.5" /></ActionButton>
@@ -525,18 +520,6 @@ function ChatConversation() {
             </div>
 
             <div className="flex items-center gap-2">
-              <label
-                className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                title={autoMode ? 'Auto-apply AI changes without asking first' : 'AI changes wait for your approval before they apply'}
-              >
-                Auto
-                <Switch
-                  checked={autoMode}
-                  onCheckedChange={setAutoMode}
-                  size="sm"
-                  className="ds-intrinsic ai-chat-auto-switch"
-                />
-              </label>
               <Button
                 type="button"
                 size="icon"
@@ -545,8 +528,7 @@ function ChatConversation() {
                 disabled={!isAiTyping && (!input.trim() || !target)}
                 aria-label={isAiTyping ? 'Stop generating' : 'Send'}
                 title={isAiTyping ? 'Stop generating' : target ? 'Send' : 'Choose a target first'}
-                style={{ borderRadius: '9999px', width: 32, height: 32, backgroundColor: '#5EEAB5', color: '#06281D' }}
-                className="ai-chat-submit ds-chat-submit"
+                className="ai-chat-submit"
               >
                 {isAiTyping ? <Square className="size-3 fill-current" /> : <ArrowUp className="size-4" />}
               </Button>
