@@ -3,6 +3,9 @@ import { docsHistoryKo } from './docsHistoryKo'
 // UI copy and seeded conflict-review content shown to Korean-language users.
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
+Request review again|재검토 요청
+Approvals received. Resolve the failing checks before merging.|승인을 받았습니다. 병합 전에 필수 검사 문제를 해결하세요.
+Assign a reviewer other than the author to request review.|작성자 외의 검토자를 배정하면 검토를 요청할 수 있습니다.
 Result preview|결과 미리보기
 Code changes are available in the review panel.|코드 변경 내역은 검토 패널에서 확인할 수 있습니다.
 Stop generating|답변 생성 중지

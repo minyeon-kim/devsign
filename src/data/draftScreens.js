@@ -265,6 +265,7 @@ export function compositionChecks(itemId, picks, fallback) {
   return [
     {
       id: 'picked',
+      regionIds: parts.filter((p) => !picks[p.region.id]).map((p) => p.region.id),
       group: 'Merge',
       ok: picked === screen.regions.length,
       title: picked === screen.regions.length ? `All ${picked} parts picked` : `${screen.regions.length - picked} of ${screen.regions.length} parts not picked`,
@@ -272,6 +273,7 @@ export function compositionChecks(itemId, picks, fallback) {
     },
     {
       id: 'amounts',
+      regionIds: parts.filter((p) => p.meta.amount).map((p) => p.region.id),
       group: 'Content',
       ok: amounts.length <= 1,
       title: amounts.length <= 1 ? 'Amounts agree' : 'Amounts disagree',
@@ -279,6 +281,7 @@ export function compositionChecks(itemId, picks, fallback) {
     },
     {
       id: 'accents',
+      regionIds: parts.filter((p) => p.meta.accent).map((p) => p.region.id),
       group: 'Consistency',
       ok: accents.length <= 1,
       title: accents.length <= 1 ? 'One accent color' : `${accents.length} accent colors mixed`,
@@ -286,6 +289,7 @@ export function compositionChecks(itemId, picks, fallback) {
     },
     screen.regions.some((r) => r.id === 'summary') && {
       id: 'summary-missing',
+      regionIds: ['summary'],
       group: 'Consistency',
       ok: !parts.some((p) => p.region.id === 'summary' && p.empty),
       title: parts.some((p) => p.region.id === 'summary' && p.empty) ? 'No order summary' : 'Order summary shown',

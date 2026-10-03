@@ -1,6 +1,7 @@
+import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, House, TriangleAlert, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -13,7 +14,6 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { getLanguage } from '@/i18n/language'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { COUNT_BADGE, STUDIO_PILL as FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -31,54 +31,6 @@ const OPTION_B_ACCENT = 'bg-violet-500'
 
 // The checks half of the header's Drift pill: a status that opens the
 // checks (what's failing and how to fix it) and what the change touches.
-function ChecksPill({ checks }) {
-  const failing = checks.failing.length
-  const { impact } = checks
-  return (
-    <Popover>
-      <PopoverTrigger
-        title={failing ? 'Checks need attention' : 'All checks passed'}
-        className={cn(
-          'ds-intrinsic flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors hover:bg-white/10 data-[popup-open]:bg-white/10',
-          failing ? 'text-amber-200' : 'text-emerald-300'
-        )}
-      >
-        {failing ? <TriangleAlert className="size-3.5" /> : <CircleCheck className="size-3.5" />}
-        <LocalizedText text={failing ? `${failing} check${failing === 1 ? '' : 's'}` : 'Checks passed'} />
-        <ChevronDown className="size-3 opacity-70" />
-      </PopoverTrigger>
-      <PopoverContent align="center" sideOffset={8} className="w-80 gap-3 rounded-xl p-3">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {[
-            [impact.screens.length, 'Screens'],
-            [`${impact.consistency}%`, 'Token consistency'],
-            [impact.risk, 'Layout risk'],
-          ].map(([value, label]) => (
-            <div key={label} className="rounded-lg bg-white/[0.04] px-2 py-2">
-              <p className="text-sm font-semibold text-white tabular-nums"><LocalizedText text={String(value)} /></p>
-              <p className="mt-0.5 text-[10px] text-slate-500"><LocalizedText text={label} /></p>
-            </div>
-          ))}
-        </div>
-        <ul className="space-y-1.5">
-          {checks.checks.map((check) => (
-            <li key={check.id} className="flex gap-2 text-[11.5px] leading-4">
-              {check.ok
-                ? <CircleCheck className="mt-px size-3.5 shrink-0 text-emerald-300/80" />
-                : <TriangleAlert className="mt-px size-3.5 shrink-0 text-amber-300" />}
-              <span className="min-w-0">
-                <span className={check.ok ? 'text-slate-400' : 'text-slate-100'}><LocalizedText text={check.title} /></span>
-                {!check.ok && checks.blocking.includes(check) && <span className="ml-1.5 text-[10px] text-amber-300/80"><LocalizedText text="Blocks merge" /></span>}
-                {!check.ok && check.hint && <span className="block text-[10.5px] text-slate-500"><LocalizedText text={check.hint} /></span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 function ResizeHandles({ onResizeStart }) {
   return (
     <>
@@ -2259,7 +2211,7 @@ function MergeInfiniteCanvas({
                 {checks && (
                   <>
                     {(drifts.length > 0 || decisionKeys.length > 0) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
-                    <ChecksPill checks={checks} />
+                    <CheckStatus checks={checks} onFix={() => openDecisions()} />
                   </>
                 )}
               </div>

@@ -1,7 +1,7 @@
 import { canvasPages, designMergeVariants } from '@/data/mockData'
-import { buildDrifts } from '@/components/mergestudio/mergeSummary'
+import { buildDrifts, buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { isCustomResolution } from '@/components/mergestudio/mergeEffects'
-import { compositionChecks, draftScreens, regionPicks } from '@/data/draftScreens'
+import { compositionChecks, composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 
 // ----- Merge impact & health assessment (the Check step) --------------
 // Everything is derived from the item's own data and the current choices,
@@ -36,8 +36,8 @@ function relLuminance(hex) {
 }
 const contrastOnWhite = (hex) => 1.05 / (relLuminance(hex) + 0.05)
 
-export function assessMerge(item, resolutions, summary) {
-  const frame = item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null
+export function assessMerge(item, resolutions, summary, evaluatedFrame) {
+  const frame = evaluatedFrame ?? (item.hasDesign ? canvasPages.find((p) => p.id === item.designPageId)?.frames[0] : null)
   const layers = frame?.layers ?? []
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
   const drifts = buildDrifts(item, frame)
@@ -94,6 +94,7 @@ export function assessMerge(item, resolutions, summary) {
     },
     {
       id: 'tokens',
+      layerId: offScale[0]?.layerId,
       group: 'Design system',
       ok: offScale.length === 0,
       title: offScale.length === 0 ? 'All values on the token scale' : `${offScale.length} value${offScale.length === 1 ? '' : 's'} off the token scale`,
@@ -101,6 +102,7 @@ export function assessMerge(item, resolutions, summary) {
     },
     worstAccent && {
       id: 'contrast',
+      layerId: props.find((p) => /accent/i.test(p.diff.label))?.layerId,
       group: 'Accessibility',
       ok: worstAccent.ratio >= 4.5,
       title: `Button text contrast ${worstAccent.ratio.toFixed(1)}:1`,
@@ -108,6 +110,7 @@ export function assessMerge(item, resolutions, summary) {
     },
     {
       id: 'targets',
+      layerId: smallTargets[0]?.id,
       group: 'Accessibility',
       ok: smallTargets.length === 0,
       title: smallTargets.length === 0 ? `Target size ≥ 24px on all ${interactive.length} controls` : `${smallTargets.length} control${smallTargets.length === 1 ? '' : 's'} under 24px`,
@@ -115,6 +118,7 @@ export function assessMerge(item, resolutions, summary) {
     },
     fontSizes.length > 0 && {
       id: 'text',
+      layerId: props.find((p) => /font size/i.test(p.diff.label) && parseFloat(p.value) < 12)?.layerId,
       group: 'Accessibility',
       ok: fontSizes.every((n) => n >= 12),
       title: fontSizes.every((n) => n >= 12) ? 'Text sizes ≥ 12px' : 'Text below 12px',
@@ -156,11 +160,19 @@ export function checksFor(item, draft = {}, linesOf = () => []) {
     applied: annotations.filter((a) => a.status === 'done'),
     files: item.fileIds ?? [],
   }
-  const assessed = assessMerge(item, draft.resolutions ?? {}, summary)
+  const built = buildOverrides(item, draft.resolutions ?? {}, annotations.filter((a) => a.status === 'done'), draft.appliedPreset, draft.assemblies, draft.addedLayers, draft.manualCode, linesOf)
+  const frame = draftScreens[item.id] ? composeDraftFrame(item.id, built.frame, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId) : built.frame
+  const evaluatedFrame = frame && { ...frame, layers: frame.layers.map((layer) => ({
+    ...layer,
+    width: draft.assemblies?.[layer.id]?.width ?? layer.width + (built.overrides[layer.id]?.dw ?? 0),
+    height: draft.assemblies?.[layer.id]?.height ?? layer.height + (built.overrides[layer.id]?.dh ?? 0),
+  })) }
+  const assessed = assessMerge(item, draft.resolutions ?? {}, summary, evaluatedFrame)
   const markerFiles = (item.fileIds ?? []).filter((id) => (linesOf(id) ?? []).some((line) => /^(<<<<<<<|=======|>>>>>>>)(?:\s|$)/.test(line)))
   const checks = [
     {
       id: 'markers',
+      fileId: markerFiles[0],
       group: 'Merge',
       ok: markerFiles.length === 0,
       title: markerFiles.length ? `Merge conflict in ${markerFiles.length} file${markerFiles.length === 1 ? '' : 's'}` : 'No merge conflicts',

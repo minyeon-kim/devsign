@@ -354,7 +354,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const conflictChecks = useCallback((conflict) => {
     if (!conflict) return null
     const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
-    return item ? checksFor(item, mergeDrafts.current[item.id], linesOfFile) : null
+    return item ? checksFor(item, mergeDrafts.current[item.id], (id) => id === conflict.fileId && conflict.workingFile ? conflict.workingFile : linesOfFile(id)) : null
   }, [mergeItems, linesOfFile])
   const saveMergeDraft = useCallback((id, draft) => {
     const content = (d = {}) => ({ resolutions: d.resolutions ?? {}, assemblies: d.assemblies ?? {},

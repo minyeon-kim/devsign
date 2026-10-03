@@ -1,3 +1,4 @@
+import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   ArrowUpRight,
@@ -6,8 +7,6 @@ import {
   Bot,
   Check,
   ChevronDown,
-  TriangleAlert,
-  CircleCheck,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -44,6 +43,7 @@ import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
   approvalStatus,
+  requiredReviewers,
   authorOf,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
@@ -244,45 +244,6 @@ function Provenance({ conflict, className }) {
 // A change's checks, as a status: they run on their own (see
 // mergeChecks), so this only reports — all passing, or which need
 // attention and why. Blocking ones (they keep it from merging) say so.
-function ChecksRow({ checks }) {
-  const [open, setOpen] = useState(false)
-  if (!checks) return null
-  const total = checks.checks.length
-  if (!checks.failing.length) {
-    return (
-      <p className="flex items-center gap-1.5 py-0.5 text-xs text-emerald-300/90">
-        <CircleCheck className="size-3.5 shrink-0" />
-        <LocalizedText text={`All ${total} checks passed`} />
-      </p>
-    )
-  }
-  return (
-    <div className="min-w-0">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="ds-intrinsic flex h-6 items-center gap-1.5 text-xs text-amber-200 transition-colors hover:text-amber-100"
-      >
-        <TriangleAlert className="size-3.5 shrink-0" />
-        <LocalizedText text={`${checks.failing.length} of ${total} checks need attention`} />
-        <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
-      </button>
-      {open && (
-        <ul className="mt-1 space-y-1.5">
-          {checks.failing.map((check) => (
-            <li key={check.id} className="text-[11px] leading-4">
-              <span className="text-slate-200"><LocalizedText text={check.title} /></span>
-              {checks.blocking.includes(check) && <span className="ml-1.5 text-[10px] text-amber-300/80"><LocalizedText text="Blocks merge" /></span>}
-              {check.hint && <span className="block text-slate-500"><LocalizedText text={check.hint} /></span>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
 // The conflict's drifts as one decision each: ship the design's value or
 // keep the code's (or, for an item with several drafts, any draft's) — the
 // first thing to settle before asking for review. Shared with Merge Studio
@@ -443,7 +404,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks, decisions }) {
+function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks, decisions, onFixCheck }) {
   const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
@@ -528,7 +489,7 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
       {checks && stage !== 'resolved' && (
         <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
           <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
-          <ChecksRow checks={checks} />
+          <CheckStatus checks={checks} onFix={onFixCheck} />
         </div>
       )}
       {(summary || hasMetadata) && (
@@ -1226,9 +1187,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   function handleApprove() {
     const next = onApprove?.(conflict.id)
     if (!next) return
-    const waiting = next.reviewers.filter((r) => r.status === 'pending').length
+    const waiting = requiredReviewers(next).filter((r) => r.status !== 'approved').length
     toast(next.reviewStage === 'approved' ? 'All approvals received' : 'Approved by you', {
-      description: next.reviewStage === 'approved' ? 'Ready to merge.' : `Waiting on ${waiting} more reviewer${waiting === 1 ? '' : 's'}.`,
+      description: next.reviewStage === 'approved' ? (checks?.blocking.length ? 'Approvals received. Resolve the failing checks before merging.' : 'Ready to merge.') : `Waiting on ${waiting} more reviewer${waiting === 1 ? '' : 's'}.`,
     })
   }
 
@@ -1261,6 +1222,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (note && workspace) workspace.addComment(note, { conflictId: conflict.id })
     if (decision === 'approve') handleApprove()
     else onRequestChanges?.(conflict.id)
+  }
+
+  function fixCheck(check) {
+    if (!workspace) return
+    if (check.fileId || check.id === 'markers') { handleOpenFile(); return }
+    if (driftItem && check.regionIds?.length && driftItem.variants?.length) {
+      workspace.setDesignCompareRequest({ itemId: driftItem.id, keys: driftItem.variants.map((variant) => variant.key), regionId: check.regionIds[0] })
+    } else if (driftItem) {
+      workspace.requestMergeFocus({ itemId: driftItem.id, ...(check.layerId ? { layerId: check.layerId } : { overview: true }), keepDeck: true })
+    }
+    if (!inMergeStudio) onOpenMergeStudio?.(conflict)
+    else workspace.setBottomPanel({ open: false })
   }
 
   function handleMerge() {
@@ -1341,10 +1314,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   if (conflict) {
     if (stage === 'detected') {
       primary = (
-        <button type="button" disabled={!conflict.reviewers.length} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}>
-          Request review
-        </button>
+        <>
+          {!requiredReviewers(conflict).length && <span className={STATUS_NOTE}><LocalizedText text="Assign a reviewer other than the author to request review." /></span>}
+          <button type="button" disabled={!requiredReviewers(conflict).length} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}>
+            Request review
+          </button>
+        </>
       )
+    } else if (stage === 'in_review' && (ownChange || conflict.requestedBy === viewerId) && requiredReviewers(conflict).some((reviewer) => reviewer.status === 'changes_requested')) {
+      primary = <button type="button" onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request review again" /></button>
     } else if (stage === 'in_review' && canReview) {
       // Yours to decide — also after requesting changes, so you can approve
       // once they're fixed (or change your mind).
@@ -1365,11 +1343,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       const blocking = checks?.blocking ?? []
       primary = (
         <>
-          {blocking.length > 0 && (
-            <span className="text-[11px] text-amber-200" title={blocking.map((c) => c.title).join(' · ')}>
-              <LocalizedText text={`Fix ${blocking.length} check${blocking.length === 1 ? '' : 's'} to merge`} />
-            </span>
-          )}
+          {blocking.length > 0 && <CheckStatus checks={checks} onFix={fixCheck} />}
           <button type="button" onClick={handleMerge} disabled={blocking.length > 0} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
             <GitMerge className="size-3.5" />
             Merge change
@@ -1433,6 +1407,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
                             checks={checks}
+                            onFixCheck={stage !== 'resolved' && workspace ? fixCheck : undefined}
                             decisions={driftItem && !draftColumns(driftItem) && <DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} />}
                           />
                         </div>

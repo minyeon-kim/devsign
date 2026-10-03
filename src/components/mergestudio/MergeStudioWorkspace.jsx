@@ -1,3 +1,4 @@
+import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { toast } from '@/i18n/toast'
@@ -80,7 +81,7 @@ function RegionPreview({ part, width = 132 }) {
 // The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -97,6 +98,13 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
     if (index >= 0) setStep(index)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
+  useEffect(() => {
+    if (!requestedRegion) return
+    const index = rows.findIndex((row) => row.region?.id === requestedRegion)
+    if (index >= 0) setStep(index)
+    // Region requests arrive from a failed check in the review panel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedRegion])
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
   function pick(option) {
@@ -190,12 +198,17 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
           <ChevronRight className="size-4" />
         </button>
       </div>
-      <div className="mt-3 flex items-center gap-2 border-t border-white/[0.08] pt-2.5 text-[11px]">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-2.5 text-[11px]">
         <span className="flex items-center gap-1 text-emerald-200">
           {decided === rows.length && <Check className="size-3" />}
           {language === 'ko' ? `${decided}/${rows.length} 영역 선택` : `${decided}/${rows.length} regions selected`}
         </span>
         <span className="text-slate-400">{language === 'ko' ? '선택한 시안이 결과 화면에 반영됩니다.' : 'Your choices appear in the result preview.'}</span>
+        <CheckStatus checks={checks} onFix={(check) => {
+          const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
+          if (index >= 0) setStep(index)
+          else onFix(check)
+        }} />
       </div>
     </div>
   )
@@ -878,7 +891,7 @@ function MergeStudioWorkspace({ item }) {
 
   // This item's checks, live: from the choices on screen right now (not the
   // saved draft), so deciding a drift or editing updates them at once.
-  const liveChecks = item ? checksFor(item, { resolutions, annotations: annotationsSnap }, linesOfFile) : null
+  const liveChecks = item ? checksFor(item, { resolutions, annotations: annotationsSnap, assemblies, addedLayers, manualCode, appliedPreset }, linesOfFile) : null
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
@@ -1021,6 +1034,13 @@ function MergeStudioWorkspace({ item }) {
             decisions={resolutions}
             selectedLayerId={syncSelection?.layerId}
             onDecide={decide}
+            checks={liveChecks}
+            requestedRegion={designCompareRequest?.regionId}
+            onFix={(check) => {
+              if (check.fileId) { openReviewFor(item); return }
+              const layerId = check.layerId ?? defaultLayerFor(item)
+              if (layerId) { selectLayer(layerId); requestMergeFocus({ itemId: item.id, layerId, keepDeck: true }) }
+            }}
           />
         )}
         <MergeInfiniteCanvas
