@@ -644,17 +644,17 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
           'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
-          editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
+          frameKey === 'result' ? 'bg-emerald-300 text-slate-950' : editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
         )}
       >
-        {label}
+        {frameKey === 'result' ? <><CircleCheck className="size-3" /><LocalizedText text="Result preview" /></> : label}
         {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
         data-frame-box
         // Pristine light product surface inside the dark studio.
-        className="relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40 ring-1 ring-slate-200/80"
+        className={cn('relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40', frameKey === 'result' ? 'ring-2 ring-emerald-300 ring-offset-4 ring-offset-background' : 'ring-1 ring-slate-200/80')}
         style={{ width: boxW, height: boxH }}
       >
         <div

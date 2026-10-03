@@ -106,38 +106,43 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
 
   return (
     <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-white"><LocalizedText text="Mix" /></span>
+      <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
+        <nav aria-label={language === 'ko' ? '영역 선택' : 'Screen regions'} className="flex items-center gap-1.5">
+          {rows.map((row, i) => (
+            <button key={row.key} type="button" onClick={() => setStep(i)}
+              title={translateText(row.label, language)}
+              aria-label={`${i + 1}. ${translateText(row.label, language)}`}
+              aria-current={step === i ? 'step' : undefined}
+              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-full border text-[11px] font-medium transition-colors',
+                step === i ? 'border-emerald-300 bg-emerald-300 text-slate-950' : row.decided ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200' : 'border-white/15 text-slate-400 hover:bg-white/10')}>
+              {i + 1}
+            </button>
+          ))}
+        </nav>
         <select
           aria-label={language === 'ko' ? '화면 영역 선택' : 'Choose screen region'}
           value={step}
           onChange={(event) => setStep(Number(event.target.value))}
-          className="ds-intrinsic h-7 min-w-32 rounded-md border border-white/10 bg-card px-2 text-xs text-slate-200 outline-none focus:border-emerald-300/60"
+          className="ds-intrinsic h-7 min-w-28 rounded-md bg-transparent px-1 text-xs font-medium text-slate-100 outline-none focus-visible:ring-1 focus-visible:ring-emerald-300"
         >
-          {rows.map((row, i) => <option key={row.key} value={i}>{translateText(row.label, language)}{row.decided ? ' ✓' : ''}</option>)}
+          {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{translateText(row.label, language)}</option>)}
         </select>
-        <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
-        <span className="ml-4 text-[10.5px] text-slate-500"><LocalizedText text="Use all of" /></span>
-        {columns.map((column) => (
-          <button
-            key={column.key}
-            type="button"
-            title={column.name}
-            aria-label={`Use all of ${column.letter}`}
-            aria-pressed={wholeFrom(column.key)}
-            onClick={() => takeAll(column.key)}
-            className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[10.5px] font-semibold transition-colors', wholeFrom(column.key) ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07] text-slate-300 hover:bg-white/[0.14] hover:text-white')}
-          >
-            {column.letter}
-          </button>
-        ))}
+        <select
+          aria-label={language === 'ko' ? '모든 영역에 시안 적용' : 'Apply a draft to all regions'}
+          value={columns.find((column) => wholeFrom(column.key))?.key ?? ''}
+          onChange={(event) => { if (event.target.value) takeAll(event.target.value) }}
+          className="ds-intrinsic ml-auto h-7 max-w-52 rounded-md border border-white/10 bg-card px-2 text-[11px] text-slate-300 outline-none focus-visible:ring-1 focus-visible:ring-emerald-300"
+        >
+          <option value="" disabled>{language === 'ko' ? '모든 영역에 시안 적용…' : 'Apply a draft to all regions…'}</option>
+          {columns.map((column) => <option key={column.key} value={column.key}>{language === 'ko' ? `모든 영역에 시안 ${column.letter} 적용` : `Apply draft ${column.letter} to all regions`}</option>)}
+        </select>
         <button
           type="button"
           disabled={decided === 0}
           title="Reset picks"
           aria-label="Reset picks"
           onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); setStep(0) }}
-          className="ds-intrinsic ml-auto flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+          className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" />
         </button>
@@ -149,13 +154,6 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
           <ChevronLeft className="size-4" />
         </button>
         <div className="min-w-0">
-          <p className="mb-1.5 px-0.5 text-[11px] text-slate-400">
-            <span className="font-medium text-white">
-              {current.element && <><LocalizedText text={current.element} /> · </>}
-              <LocalizedText text={current.label} />
-            </span>
-            <span className="ml-1.5 tabular-nums">{`${step + 1}/${rows.length}`}</span>
-          </p>
           <div className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto p-1">
             {current.options.map((option) => (
               <button
@@ -165,12 +163,12 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
                 onClick={() => pick(option)}
                 title={option.name}
                 className={cn(
-                  'ds-intrinsic flex w-40 shrink-0 flex-col gap-2 rounded-lg border border-white/10 p-2 text-left transition-colors',
-                  option.picked ? 'bg-emerald-400/15 ring-2 ring-emerald-400' : 'bg-white/[0.04] hover:bg-white/[0.08]'
+                  'ds-intrinsic flex w-40 shrink-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
+                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
                 )}
               >
                 {current.region
-                  ? <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
+                  ? <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
                   : (
                     <span className="flex h-12 w-28 items-center justify-center rounded-md bg-white/[0.06] text-sm font-semibold text-white" {...(option.literal && { translate: 'no' })}>
                       {option.literal ? option.value : <LocalizedText text={option.value} />}
@@ -190,9 +188,13 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
           <ChevronRight className="size-4" />
         </button>
       </div>
-      {decided === rows.length && (
-        <p className="mt-2 px-1 text-[10.5px] text-emerald-300/90"><LocalizedText text="Every part is picked — Finish mix when the Result looks right." /></p>
-      )}
+      <div className="mt-3 flex items-center gap-2 border-t border-white/[0.08] pt-2.5 text-[11px]">
+        <span className="flex items-center gap-1 text-emerald-200">
+          {decided === rows.length && <Check className="size-3" />}
+          {language === 'ko' ? `${decided}/${rows.length} 영역 선택` : `${decided}/${rows.length} regions selected`}
+        </span>
+        <span className="text-slate-400">{language === 'ko' ? '선택한 시안이 결과 화면에 반영됩니다.' : 'Your choices appear in the result preview.'}</span>
+      </div>
     </div>
   )
 }
