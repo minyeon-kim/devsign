@@ -7,8 +7,12 @@ import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { codeOverrides } from '@/components/mergestudio/codeSync'
 import { LAYER_MOCKUP, isSecondaryLayer } from '@/components/mergestudio/mockupContent'
+import { isRealDiff } from '@/lib/driftDecisions'
+import { draftScreens, regionKey } from '@/data/draftScreens'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
+import { translateText } from '@/i18n/translate'
+import { getLanguage } from '@/i18n/language'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
@@ -259,8 +263,11 @@ function TransactionsTable({ style, className }) {
 // titles/bodies) can be edited in place by double-clicking it. A non-static
 // override renders a small badge so the change reads as a live preview
 // rather than a permanent edit.
-export function StaticLayer({ layer, override, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged, generating, genProgress = 0 }) {
+export function StaticLayer({ layer, override: overrideProp, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged, generating, genProgress = 0 }) {
   const [editingSlot, setEditingSlot] = useState(null)
+  // A draft layer's own look (draftScreens), under any override — wherever
+  // the layer is drawn (canvas, preview, Merge Studio).
+  const override = layer.look ? mergeOverride(layer.look, overrideProp) : overrideProp
   const style = {
     left: layer.x + (override?.dx ?? 0),
     top: layer.y + (override?.dy ?? 0),
@@ -298,7 +305,7 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
 
   // Realistic product content for this layer (see mockupContent.js); a
   // layer swapped to another component type falls back to type defaults.
-  const mock = override?.asType ? {} : (LAYER_MOCKUP[layer.id] ?? {})
+  const mock = override?.asType ? {} : (LAYER_MOCKUP[layer.id] ?? layer.mock ?? {})
   const slots = override?.asType || (layer.type === 'card' && !mock.title) ? [] : (TEXT_SLOTS[layer.type] ?? [])
   const canEdit = Boolean(onEditText) && slots.length > 0
   // A text slot's content: plain text, or the in-place editor while that
@@ -567,7 +574,8 @@ export function StaticLayer({ layer, override, selected, onSelect, linked, hover
             }
           : undefined
       }
-      title={canEdit ? 'Double-click to edit text' : undefined}
+      // Layers skip the JSX translation pass (their content is the design's), so the tooltip is translated here.
+      title={canEdit ? translateText('Double-click to edit text', getLanguage()) : undefined}
       onPointerEnter={linked ? () => onHover?.(layer.id) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
@@ -660,7 +668,9 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         >
           {frame.layers.map((layer) => {
             const o = overrides?.[layer.id]
-            const primary = layer.type === 'button' && !isSecondaryLayer(layer.id)
+            // The Option B accent marks the page's own primary button — not a
+            // draft's, which brings its own look (draftScreens).
+            const primary = layer.type === 'button' && !isSecondaryLayer(layer.id) && !layer.draftKey
             const override = o
               ? { ...o, className: o.className ?? (primary ? accentClass : undefined) }
               : primary && accentClass
@@ -1068,6 +1078,13 @@ function MergeInfiniteCanvas({
   // Live overrides for some comparison entries (the mix's "Result"), kept
   // out of `designCompare` so picking doesn't reset the comparison view.
   compareOverrides = null,
+  // Live frames for some entries (a region mix's "Result") — drafts with
+  // different layouts each bring their own frame (entry.frame).
+  compareFrames = null,
+  // The normal A / B artboards' frames, when the item's drafts differ in
+  // layout (draftScreens): its first draft and the mix so far.
+  frameOverrideA = null,
+  frameOverrideB = null,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel, decisionsFor } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1193,7 +1210,7 @@ function MergeInfiniteCanvas({
     }
     const availW = Math.max(160, visRight - startX)
     // Comparing drafts, the mix panel sits under the header — start below it.
-    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 150 : 0)
+    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 210 : 0)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
     const k = zoom / 100
@@ -1348,7 +1365,9 @@ function MergeInfiniteCanvas({
   // How many drifted design values have a decision — the pill's count; the
   // decisions themselves are made in the conflict's review (Decide row).
   const decisionMap = (item && decisionsFor?.(item.id)) ?? {}
-  const decisionKeys = drifts.filter((d) => d.kind === 'design').flatMap((d) => d.diffs.map((diff) => `${d.layerId}:${diff.id}`))
+  const decisionKeys = draftScreens[item.id]
+    ? draftScreens[item.id].regions.map((r) => regionKey(r.id))
+    : drifts.filter((d) => d.kind === 'design').flatMap((d) => d.diffs.filter(isRealDiff).map((diff) => `${d.layerId}:${diff.id}`))
   const decidedCount = decisionKeys.filter((key) => decisionMap[key] != null).length
   function openDecisions() {
     const conflict = item && conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId)
@@ -1892,7 +1911,7 @@ function MergeInfiniteCanvas({
                   <StaticFrame
                     key={entry.key}
                     frameKey={entry.key}
-                    frame={designCompare.frame}
+                    frame={compareFrames?.[entry.key] ?? entry.frame ?? designCompare.frame}
                     label={entry.label}
                     x={layout[entry.key]?.x}
                     y={layout[entry.key]?.y}
@@ -1912,7 +1931,7 @@ function MergeInfiniteCanvas({
                 <>
                   <StaticFrame
                     frameKey="a"
-                    frame={frame}
+                    frame={frameOverrideA ?? frame}
                     label={frameLabelA}
                     x={layout.a.x}
                     y={layout.a.y}
@@ -1932,7 +1951,7 @@ function MergeInfiniteCanvas({
                   />
                   <StaticFrame
                     frameKey="b"
-                    frame={frame}
+                    frame={frameOverrideB ?? frame}
                     label={frameLabelB}
                     editable
                     onEditText={onEditText}
@@ -2155,7 +2174,7 @@ function MergeInfiniteCanvas({
               // result OK" (checks, live as you edit) — deciding a drift
               // visibly moves the checks count beside it.
               <div className={cn('relative flex items-center gap-1 rounded-full px-0.5 text-[13px]', FLOATING_PILL)}>
-                {drifts.length > 0 && <>
+                {(drifts.length > 0 || decisionKeys.length > 0) && <>
                 <button
                   type="button"
                   onClick={() => {
@@ -2196,7 +2215,7 @@ function MergeInfiniteCanvas({
                 </>}
                 {checks && (
                   <>
-                    {drifts.length > 0 && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
+                    {(drifts.length > 0 || decisionKeys.length > 0) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
                     <ChecksPill checks={checks} />
                   </>
                 )}

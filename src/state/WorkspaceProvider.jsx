@@ -1,4 +1,5 @@
 import { checksFor } from '@/components/mergestudio/mergeChecks'
+import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { authorOf } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -121,7 +122,13 @@ export function WorkspaceProvider({ children, projectId }) {
   // (see lib/prototypeSync), so design and code stay in sync both ways.
   // This project's design pages (its own, or the shared ones — see
   // forProject) and, with them, which page code files it has.
-  const projectPages = useMemo(() => forProject(canvasPages, projectId), [projectId])
+  // Merged layouts: a draft mix (draftScreens) replaces a frame's layers
+  // when it merges — the screen as composed, region by region.
+  const [mergedFrames, setMergedFrames] = useDemoState(`project:${projectId}:mergedFrames`, {})
+  const projectPages = useMemo(
+    () => forProject(canvasPages, projectId).map((page) => ({ ...page, frames: page.frames.map((frame) => mergedFrames[frame.id] ?? frame) })),
+    [projectId, mergedFrames]
+  )
   const projectPrototypeFiles = useMemo(
     () => PROTOTYPE_FILES.filter((f) => projectPages.some((p) => p.id === f.pageId)),
     [projectPages]
@@ -805,13 +812,32 @@ export function WorkspaceProvider({ children, projectId }) {
     const design = item ? buildOverrides(item, draft.resolutions, draft.annotations, preset, draft.assemblies, draft.addedLayers, draft.manualCode,
       (id) => fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []) : null
     const nextPreviewProps = !item && fix ? { ...previewProps, ...fix.previewProps } : previewProps
-    const output = { savedAt: Date.now(), files: finalFiles, design, sources: draft.assemblySources ?? {}, previewProps: nextPreviewProps }
+    // Drafts that differ in layout merge as the composed screen: it replaces
+    // the page's frame (the Workspace canvas reads `design.frame`, the
+    // preview the project's pages).
+    let mergedDesign = design
+    if (item && draftScreens[item.id]) {
+      const base = canvasPages.find((p) => p.id === item.designPageId)?.frames[0]
+      // A revert of that merge puts the page's own frame back.
+      const composed = base && (conflict?.revertOf ? base : composeDraftFrame(item.id, base, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId))
+      if (composed) {
+        const frame = { ...composed, id: base.id }
+        mergedDesign = { ...(design ?? {}), overrides: {}, frame }
+        setMergedFrames((prev) => {
+          const next = { ...prev }
+          if (conflict?.revertOf) delete next[base.id]
+          else next[base.id] = frame
+          return next
+        })
+      }
+    }
+    const output = { savedAt: Date.now(), files: finalFiles, design: mergedDesign, sources: draft.assemblySources ?? {}, previewProps: nextPreviewProps }
     setMergedBaseline((prev) => ({ ...prev, [item?.id ?? conflictId]: output }))
     setFileOverrides((prev) => ({ ...prev, ...finalFiles }))
-    const nextPrototypeEdits = design
-      ? { ...prototypeEdits, ...Object.fromEntries(Object.entries(design.overrides).map(([layerId, override]) => [layerId, { merged: override }])) }
+    const nextPrototypeEdits = mergedDesign
+      ? { ...prototypeEdits, ...Object.fromEntries(Object.entries(mergedDesign.overrides ?? {}).map(([layerId, override]) => [layerId, { merged: override }])) }
       : prototypeEdits
-    if (design) setPrototypeEdits(nextPrototypeEdits)
+    if (mergedDesign) setPrototypeEdits(nextPrototypeEdits)
     setPreviewProps(nextPreviewProps)
     setPreviewVersion((v) => v + 1)
     setConflicts(nextConflicts)

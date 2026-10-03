@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Clock3,
   GitMerge,
+  Layers3,
   MapPin,
   Plus,
   RotateCcw,
@@ -30,8 +31,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUserFor } from '@/data/mockData'
-import { driftRowsFor } from '@/lib/driftDecisions'
-import { decidedValue } from '@/components/mergestudio/DesignComparison'
+import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
+import { decidedValue, decisionFor } from '@/components/mergestudio/DesignComparison'
 import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
@@ -286,24 +287,25 @@ function driftItemOf(conflict, workspace) {
   return item && driftRowsFor(conflict, item).length ? item : null
 }
 
+function RowLabel({ row, className }) {
+  return (
+    <span className={cn('block truncate', className)}>
+      {row.element && <><LocalizedText text={row.element} /><span className="text-slate-600"> · </span></>}
+      <LocalizedText text={row.label} />
+    </span>
+  )
+}
+
+// Design vs code: each value as two chips — the design's or the code's.
 function DriftDecisions({ conflict, workspace, item, readOnly }) {
   const rows = driftRowsFor(conflict, item)
   const decisions = workspace.decisionsFor(item.id)
-  const nameOf = (id, fallback) => allPeople.find((p) => p.id === id)?.name ?? fallback
-  // Two drafts against each other name each side after its author;
-  // otherwise it's the design against the code.
-  const sideA = item.authorAId ? nameOf(item.authorAId, 'Design') : 'Design'
-  const sideB = item.authorBId ? nameOf(item.authorBId, 'Code') : 'Code'
-  const extra = (item.variants ?? []).filter((v) => v.key !== item.authorAId && v.key !== item.authorBId)
-  const optionsFor = (diff) => [
-    { label: sideA, value: diff.optionA, decision: 'A' },
-    { label: sideB, value: diff.optionB, decision: 'B' },
-    ...extra.filter((v) => diff.values?.[v.key] != null && diff.values[v.key] !== diff.optionA && diff.values[v.key] !== diff.optionB)
-      .map((v) => ({ label: nameOf(v.authorId, v.label), value: diff.values[v.key], decision: { custom: diff.values[v.key] } })),
+  const options = (diff) => [
+    { label: 'Design', value: diff.optionA, decision: 'A' },
+    { label: 'Code', value: diff.optionB, decision: 'B' },
   ]
   const decided = rows.filter((r) => decisions[r.key] != null).length
   const decide = (key, decision) => workspace.decideDrift(item.id, key, decision)
-  const decideAll = (decision) => rows.forEach((r) => decide(r.key, decision))
 
   return (
     <div className="min-w-0">
@@ -312,9 +314,9 @@ function DriftDecisions({ conflict, workspace, item, readOnly }) {
           const current = decidedValue(row.diff, decisions[row.key])
           return (
             <div key={row.key} className="min-w-0 space-y-1">
-              <span className="block truncate text-[11px] text-slate-300"><LocalizedText text={row.label} /></span>
+              <RowLabel row={row} className="text-[11px] text-slate-300" />
               <div className="flex min-w-0 flex-wrap gap-1">
-                {optionsFor(row.diff).map((option) => {
+                {options(row.diff).map((option) => {
                   const on = current === option.value
                   return (
                     <button
@@ -329,7 +331,7 @@ function DriftDecisions({ conflict, workspace, item, readOnly }) {
                       )}
                     >
                       {on && <Check className="size-3 shrink-0" strokeWidth={2.5} />}
-                      <span className="font-semibold tabular-nums">{option.value}</span>
+                      <span translate="no" className="font-semibold tabular-nums">{option.value}</span>
                       <span className={on ? 'text-emerald-200/70' : 'text-slate-500'}><LocalizedText text={option.label} /></span>
                     </button>
                   )
@@ -342,11 +344,94 @@ function DriftDecisions({ conflict, workspace, item, readOnly }) {
       <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
         <LocalizedText text={decided === rows.length ? 'All values decided' : `${decided} of ${rows.length} decided · undecided values keep the code`} />
         {!readOnly && rows.length > 1 && decided < rows.length && (
-          <button type="button" onClick={() => decideAll('A')} className={REVIEWER_TEXT_ACTION}>
-            <LocalizedText text={`Use ${sideA} for all`} />
+          <button type="button" onClick={() => rows.forEach((r) => decide(r.key, 'A'))} className={REVIEWER_TEXT_ACTION}>
+            <LocalizedText text="Use Design for all" />
           </button>
         )}
       </p>
+    </div>
+  )
+}
+
+// Several drafts: what the mix takes from where — a row per part (a screen
+// region, or an element's value) naming the draft it comes from. Picking
+// is design work, so it's Merge Studio's: there each row also offers every
+// draft to switch to, beside the canvas. Elsewhere the list only reports,
+// and its action opens the drafts side by side in Merge Studio.
+function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel }) {
+  const decisions = workspace.decisionsFor(item.id)
+  const rows = draftRows(conflict, item, decisions)
+  const decided = rows.filter((row) => row.decided).length
+  const decide = (row, option) => workspace.decideDrift(item.id, row.key, option.picked ? null : option.decision)
+  const Letter = ({ option, on }) => (
+    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', on ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-300')}>{option.letter}</span>
+  )
+  const Value = ({ option }) => (
+    <span className="truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
+  )
+
+  return (
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="mb-3 flex items-center gap-2">
+        <p className="text-xs font-medium text-slate-200"><LocalizedText text={rows[0]?.region ? 'Mix of drafts' : 'Values from drafts'} /></p>
+        <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>
+          <LocalizedText text={decided === rows.length ? 'All picked' : `${decided} of ${rows.length} picked`} />
+        </span>
+        {onCompare && (
+          <button
+            type="button"
+            onClick={onCompare}
+            className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15"
+          >
+            <Layers3 className="size-3.5" />
+            <LocalizedText text={compareLabel} />
+          </button>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 divide-y divide-white/[0.05] overflow-auto">
+        {rows.map((row) => {
+          const picked = row.options.find((option) => option.picked)
+          return (
+            <div key={row.key} className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2">
+              <span className="truncate text-[11.5px] text-slate-400">
+                {row.element && <><LocalizedText text={row.element} /> · </>}
+                <LocalizedText text={row.label} />
+              </span>
+              {editable ? (
+                <div className="flex min-w-0 flex-wrap gap-1">
+                  {row.options.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      aria-pressed={option.picked}
+                      title={option.name}
+                      onClick={() => decide(row, option)}
+                      className={cn(
+                        'ds-intrinsic inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors',
+                        option.picked ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white'
+                      )}
+                    >
+                      <Letter option={option} on={option.picked} />
+                      <Value option={option} />
+                    </button>
+                  ))}
+                </div>
+              ) : picked ? (
+                <span className="flex min-w-0 items-center gap-2 text-xs text-slate-100">
+                  <Letter option={picked} on />
+                  <Value option={picked} />
+                  <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={`from ${picked.name}`} /></span>
+                </span>
+              ) : (
+                <span className="text-[11.5px] text-slate-500"><LocalizedText text="Not picked — keeps the code" /></span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {!editable && (
+        <p className="mt-2 text-[10.5px] text-slate-500"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>
+      )}
     </div>
   )
 }
@@ -374,7 +459,7 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
     <div className="flex h-full flex-col">
       <div className="mb-4 min-w-0">
         {/* Stage · severity · AI draft as one plain line, not three pills. */}
-        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-slate-500">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-slate-500">
           <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-slate-100">
             <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
             <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
@@ -396,7 +481,7 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
           )}
         </p>
         {((showProject && conflict.projectName) || conflict.detectedAt) && (
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
             {showProject && conflict.projectName && (
               <span className="min-w-0 break-words [overflow-wrap:anywhere]">
                 <LocalizedText text="Project" /> · <LocalizedText text={conflict.projectName} />
@@ -1063,6 +1148,10 @@ function ReviewButton({ onSubmit, authorName }) {
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
 // your own sign-off (approving never changes code); `onResolve(id)` merges
 // an Approved conflict — the only step that applies the change.
+// Not your move: who it's waiting on, as a quiet pill the size of the
+// buttons it stands in for.
+const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs text-slate-200'
+
 function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
   const workspace = useWorkspaceOptional()
 
@@ -1162,9 +1251,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   const detailTabs = (
-    // Same plain text toggles as the Conflict Points list filters, in the
-    // title row right after the id — no row of their own.
-    <div className="ml-3 flex shrink-0 items-center gap-x-4" role="tablist" aria-label="Conflict details">
+    // A view switch, not part of the title: a small segmented control on
+    // the right, ahead of the stage's action.
+    <div className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Conflict details">
       {TABS.map(([id, label]) => (
         <button
           key={id}
@@ -1173,10 +1262,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           aria-selected={tab === id}
           onClick={() => openTab(id)}
           className={cn(
-            'ds-intrinsic inline-flex h-5 shrink-0 items-center text-[10.5px] whitespace-nowrap transition-colors',
-            tab === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
+            'ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs whitespace-nowrap transition-colors',
+            tab === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:text-white'
           )}
         >
+          {id === 'history' && <Clock3 className="size-3.5" />}
           <LocalizedText text={label} />
         </button>
       ))}
@@ -1234,12 +1324,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       // once they're fixed (or change your mind).
       primary = <ReviewButton onSubmit={handleReview} authorName={authorName} />
     } else if (stage === 'in_review' && myReviewer && ownChange) {
-      primary = <span className="text-[11px] text-slate-500"><LocalizedText text="You can’t review your own change" /></span>
+      primary = <span className={STATUS_NOTE}><LocalizedText text="You can’t review your own change" /></span>
     } else if (stage === 'in_review') {
       // Not your move: say whose it is instead of leaving the slot empty.
       const waitingOn = approvalStatus(conflict).lines.filter((line) => !/^(Approved by you|You requested changes)$/.test(line))
       primary = waitingOn.length ? (
-        <span className="text-[11px] text-slate-500"><LocalizedText text={waitingOn.join(' · ')} /></span>
+        <span className={STATUS_NOTE}>
+          <Clock3 className="size-3.5 shrink-0 text-sky-300" />
+          <LocalizedText text={waitingOn.join(' · ')} />
+        </span>
       ) : null
     } else if (stage === 'approved') {
       // Approved but a check blocks it: say so before the click, not after.
@@ -1290,9 +1383,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <LocalizedText text={conflict.title} />
                 </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
-                {detailTabs}
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-2">
+                {detailTabs}
                 {primary}
               </div>
             </div>
@@ -1314,12 +1407,26 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
                             checks={checks}
-                            decisions={driftItem && <DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} />}
+                            decisions={driftItem && !draftColumns(driftItem) && <DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} />}
                           />
                         </div>
                       </section>
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          {driftItem && draftColumns(driftItem) ? (
+                            <DraftTable
+                              conflict={conflict}
+                              workspace={workspace}
+                              item={driftItem}
+                              editable={inMergeStudio && stage !== 'resolved'}
+                              compareLabel={inMergeStudio ? 'Compare on canvas' : 'Compare in Merge Studio'}
+                              onCompare={stage === 'resolved' ? null : () => {
+                                // Merge Studio opens on the item with every draft side by side.
+                                workspace.setDesignCompareRequest({ itemId: driftItem.id, keys: driftItem.variants.map((v) => v.key) })
+                                if (!inMergeStudio) onOpenMergeStudio?.(conflict)
+                              }}
+                            />
+                          ) : (
                           <DiffTab
                             conflict={conflict}
                             code={codeView}
@@ -1327,6 +1434,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}
                           />
+                          )}
                         </div>
                       </section>
                     </div>

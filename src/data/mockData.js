@@ -711,7 +711,7 @@ export const conflictChecklist = [
     timestamp: '1h ago',
     resolved: false,
     severity: 'low',
-    message: 'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each restyle the heading, summary card, card input, total and Place order button their own way.',
+    message: 'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each lay out the header, order summary, payment method and checkout bar differently.',
     riskReason: 'Low: style-only differences on the payment step — no logic or data changes.',
     impact: {
       screens: ['Checkout · Payment step'],
@@ -1391,71 +1391,8 @@ export const designMergeVariants = {
       ],
     },
   },
-  // Four designers' takes on the payment step (A Taylor, B Alex, C Jordan,
-  // D the AI), each a whole direction of its own — every element styled
-  // differently (`looks`: the override a draft's value draws with), so a
-  // mix takes the heading from one draft, the card from another, the CTA
-  // from a third (Design Compare → pick per element or per property).
-  'merge-checkout-payment-drafts': {
-    layerDiffs: {
-      'co-title': [
-        {
-          id: 'mix-title-copy', label: 'Heading', optionA: 'Checkout', optionB: 'Payment',
-          values: { jane: 'Checkout', min: 'Payment', james: 'Review & pay', ai: 'Secure checkout' },
-          looks: {
-            Payment: { copy: { text: 'Payment' }, extraClass: 'text-violet-700' },
-            'Review & pay': { copy: { text: 'Review & pay' }, dh: 4 },
-            'Secure checkout': { copy: { text: 'Secure checkout' }, extraClass: 'text-emerald-700', dh: -2 },
-          },
-        },
-      ],
-      'order-summary': [
-        {
-          id: 'mix-card-style', label: 'Card style', optionA: 'Bordered', optionB: 'Tinted',
-          values: { jane: 'Bordered', min: 'Tinted', james: 'Outline', ai: 'Accent bar' },
-          looks: {
-            Tinted: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 16 },
-            Outline: { extraClass: 'border-dashed border-slate-400 bg-transparent shadow-none', radius: 4 },
-            'Accent bar': { extraClass: 'border-l-4 border-l-emerald-500 shadow-md', radius: 8, dh: -28, copy: { title: 'Your order', body: '2 items · Free shipping' } },
-          },
-        },
-      ],
-      'card-input': [
-        {
-          id: 'mix-input-style', label: 'Input style', optionA: 'Outlined', optionB: 'Filled',
-          values: { jane: 'Outlined', min: 'Filled', james: 'Underline', ai: 'Pill' },
-          looks: {
-            Filled: { extraClass: 'border-transparent bg-slate-100 shadow-none', radius: 12 },
-            Underline: { extraClass: 'border-x-0 border-t-0 border-b-2 border-slate-900 bg-transparent px-0 shadow-none', radius: 0 },
-            Pill: { extraClass: 'border-emerald-400 ring-2 ring-emerald-100', radius: 999 },
-          },
-        },
-      ],
-      'total-text': [
-        {
-          id: 'mix-total-copy', label: 'Total', optionA: 'Plain', optionB: 'Accent',
-          values: { jane: 'Plain', min: 'Accent', james: 'Large', ai: 'With tax' },
-          looks: {
-            Accent: { extraClass: 'text-violet-700' },
-            Large: { dh: 6 },
-            'With tax': { copy: { text: 'Total (incl. tax)  $138.24' } },
-          },
-        },
-      ],
-      'place-order': [
-        {
-          id: 'mix-cta-style', label: 'Button style', optionA: 'Indigo', optionB: 'Gradient pill',
-          values: { jane: 'Indigo', min: 'Gradient pill', james: 'Dark', ai: 'Emerald' },
-          looks: {
-            'Gradient pill': { className: 'bg-gradient-to-r from-violet-500 to-fuchsia-500', radius: 999 },
-            Dark: { className: 'bg-slate-900', radius: 6 },
-            Emerald: { className: 'bg-emerald-500', copy: { label: 'Pay $128.00' } },
-          },
-        },
-        { id: 'mix-cta-size', label: 'Height', optionA: '44px', optionB: '48px', values: { jane: '44px', min: '48px', james: '52px', ai: '40px' } },
-      ],
-    },
-  },
+  // merge-checkout-payment-drafts: its drafts differ in layout, not just
+  // style — see draftScreens.js (mixed by region, not by property).
   'merge-ds-button-height': {
     layerDiffs: {
       // Two diffs, not one: driftSeverity (mergeSummary.js) reads 2 diffs as
@@ -3624,6 +3561,179 @@ export const designSystemUpdates = [
 ]
 
 export const referenceDocs = [
+  // The end-to-end flow, kept first so it's the first thing in Docs.
+  {
+    "id": "doc-workflow",
+    "title": "How Devsign works: from conflict to merge",
+    "summary": "The whole flow in one place — what a Conflict Point is, where you decide, how review and checks work, and what merging records.",
+    "authorId": "min",
+    "updatedAtLabel": "Today",
+    "type": "doc",
+    "blocks": [
+      {
+        "type": "p",
+        "text": "Devsign keeps a product's design and its code in step. Whenever they drift apart — or several designers draw the same screen differently — Devsign opens a Conflict Point, and every change moves through the same five steps until it's merged."
+      },
+      {
+        "type": "h2",
+        "id": "flow",
+        "text": "The flow at a glance"
+      },
+      {
+        "type": "ol",
+        "items": [
+          "Detect — Devsign opens a Conflict Point when design and code differ, or when drafts disagree.",
+          "Decide — pick which value (or which draft's part) ships, in the conflict's review or in Merge Studio.",
+          "Request review — ask the reviewers, with an optional note. Checks run on their own.",
+          "Approve — every required reviewer signs off. You can't review your own change.",
+          "Merge — the decided change lands in code and on the canvas, and is recorded in History."
+        ]
+      },
+      {
+        "type": "h2",
+        "id": "conflict-points",
+        "text": "Conflict Points"
+      },
+      {
+        "type": "p",
+        "text": "A Conflict Point is one thing to settle: a place where the design and the code (or several drafts) disagree. They're listed in the Conflict Points tab of the bottom panel, in the Workspace and in Merge Studio."
+      },
+      {
+        "type": "table",
+        "plain": true,
+        "columns": [
+          "Column",
+          "What it tells you"
+        ],
+        "rows": [
+          [
+            "Risk",
+            "High, Medium or Low — how much the change can break."
+          ],
+          [
+            "Status",
+            "Where it is in the flow: review not requested, awaiting review, approved, merged."
+          ],
+          [
+            "Checks",
+            "✓ when every check passes, ⚠ with a count when some need attention."
+          ],
+          [
+            "Reviewers",
+            "Who signs off. A green ring on your avatar means it's waiting on you — those rows sort to the top."
+          ]
+        ]
+      },
+      {
+        "type": "callout",
+        "tone": "info",
+        "text": "Shortly after you open a project, a prompt under the bell points at new High-risk conflicts or reviews waiting on you — once, not on every visit."
+      },
+      {
+        "type": "h2",
+        "id": "deciding",
+        "text": "Deciding what ships"
+      },
+      {
+        "type": "ul",
+        "items": [
+          "Design vs code: the review's Decide row offers the design's value and the code's. Values you don't decide keep the code.",
+          "Several drafts: the review lists which part of the screen comes from which draft. Picking happens in Merge Studio, beside the canvas.",
+          "Values that are the same on every side aren't listed — there's nothing to decide."
+        ]
+      },
+      {
+        "type": "h2",
+        "id": "merge-studio",
+        "text": "Merge Studio and Design Compare"
+      },
+      {
+        "type": "p",
+        "text": "Merge Studio is the canvas for design decisions. Open it from a conflict (Adjust in Merge Studio, or Compare in Merge Studio for drafts) and it opens on that item, with its conflict in the bottom panel."
+      },
+      {
+        "type": "ol",
+        "items": [
+          "Design Compare puts the drafts side by side (A, B, C, D) with a Result artboard.",
+          "When drafts share a layout, take each element's value from a draft. When their layouts differ, take each part of the screen — header, summary, payment, checkout bar — whole, from any draft.",
+          "Click a part on a draft, or use the table above the canvas. The Result updates as you pick.",
+          "Finish mix returns to the item with its conflict open — request review from there."
+        ]
+      },
+      {
+        "type": "callout",
+        "tone": "info",
+        "text": "Comments on a draft go to the conflict's Comments, tagged with the draft and element — one thread per change."
+      },
+      {
+        "type": "h2",
+        "id": "review",
+        "text": "Review and approval"
+      },
+      {
+        "type": "ul",
+        "items": [
+          "Request review sends the change to its reviewers, with an optional note. It never goes to you or to the change's author.",
+          "Approve, or request changes with a note saying what to fix. Any edit after approval resets approvals.",
+          "Remind pending reviewers from the review; a change request can be dismissed with a reason."
+        ]
+      },
+      {
+        "type": "h2",
+        "id": "checks",
+        "text": "Checks"
+      },
+      {
+        "type": "p",
+        "text": "Checks run on their own whenever a change exists or is edited — like CI. They show in the review, the conflict list and Merge Studio's header."
+      },
+      {
+        "type": "table",
+        "plain": true,
+        "columns": [
+          "Group",
+          "Blocks merge?",
+          "Examples"
+        ],
+        "rows": [
+          [
+            "Design system",
+            "Yes",
+            "Values off the token scale"
+          ],
+          [
+            "Accessibility",
+            "Yes",
+            "Contrast, target size, text size"
+          ],
+          [
+            "Content",
+            "Yes",
+            "A mixed screen whose amounts disagree"
+          ],
+          [
+            "Consistency",
+            "No — warning",
+            "Mixed accent colors, no order summary"
+          ],
+          [
+            "Merge",
+            "Conflict markers only",
+            "Conflict markers in code, undecided values, pending AI notes"
+          ]
+        ]
+      },
+      {
+        "type": "h2",
+        "id": "merging",
+        "text": "Merging and history"
+      },
+      {
+        "type": "p",
+        "text": "Once every required reviewer has approved and no check blocks it, Merge change applies the decisions: code files update, the canvas and preview show the result (a mixed screen replaces the page's frame), and the merge is recorded in History. A merged change can be reverted — the revert goes through review like any other change."
+      }
+    ]
+  },
   {
     id: 'doc-brand-guidelines',
     title: 'Brand Guidelines',

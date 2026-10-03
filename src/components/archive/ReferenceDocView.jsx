@@ -105,7 +105,10 @@ function Block({ block }) {
                       key={i}
                       className={cn(
                         'px-4 py-2.5 text-foreground/80',
-                        (i === 0 || i === block.swatchColumn) && 'font-mono text-[12px] text-foreground'
+                        // The first column is a token / key in code — unless the
+                        // table is plain prose (`plain`), e.g. a guide's.
+                        ((i === 0 && !block.plain) || i === block.swatchColumn) && 'font-mono text-[12px] text-foreground',
+                        i === 0 && block.plain && 'font-medium text-foreground'
                       )}
                     >
                       {i === block.swatchColumn ? (

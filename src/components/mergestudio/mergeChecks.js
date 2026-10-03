@@ -1,6 +1,7 @@
 import { canvasPages, designMergeVariants } from '@/data/mockData'
 import { buildDrifts } from '@/components/mergestudio/mergeSummary'
 import { isCustomResolution } from '@/components/mergestudio/mergeEffects'
+import { compositionChecks, draftScreens, regionPicks } from '@/data/draftScreens'
 
 // ----- Merge impact & health assessment (the Check step) --------------
 // Everything is derived from the item's own data and the current choices,
@@ -89,7 +90,7 @@ export function assessMerge(item, resolutions, summary) {
       group: 'Merge',
       ok: undecided === 0,
       title: undecided === 0 ? `All ${props.length} design options decided` : `${undecided} design option${undecided === 1 ? '' : 's'} undecided`,
-      hint: undecided ? 'Decide them in Merge Studio’s Drifts tab — undecided ones ship the Current Implementation’s value.' : null,
+      hint: undecided ? 'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.' : null,
     },
     {
       id: 'tokens',
@@ -141,7 +142,9 @@ export function assessMerge(item, resolutions, summary) {
 // read the item's risk level (Low / Medium) as a conflict, so it failed for
 // every item; real conflict markers are caught when merging
 // (mergeBlockReason).
-const BLOCKING_GROUPS = new Set(['Design system', 'Accessibility'])
+// Content (e.g. two totals that disagree) is a real bug on screen, so it
+// blocks too; Consistency findings are warnings.
+const BLOCKING_GROUPS = new Set(['Design system', 'Accessibility', 'Content'])
 
 // `linesOf(fileId)`: the item's files as they are now, for the conflict-
 // marker check (a real merge conflict left in the code blocks the merge).
@@ -163,7 +166,11 @@ export function checksFor(item, draft = {}, linesOf = () => []) {
       title: markerFiles.length ? `Merge conflict in ${markerFiles.length} file${markerFiles.length === 1 ? '' : 's'}` : 'No merge conflicts',
       hint: markerFiles.length ? 'Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.' : null,
     },
-    ...assessed.checks.filter((c) => c.id !== 'conflict'),
+    // Drafts mixed by region: the composed screen's own checks in place of
+    // the per-property ones (there are no property decisions to check).
+    ...(draftScreens[item.id]
+      ? [...compositionChecks(item.id, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId), ...assessed.checks.filter((c) => ['targets', 'ai'].includes(c.id))]
+      : assessed.checks.filter((c) => c.id !== 'conflict')),
   ]
   const failing = checks.filter((c) => !c.ok)
   const blocking = failing.filter((c) => c.id === 'markers' || BLOCKING_GROUPS.has(c.group))
