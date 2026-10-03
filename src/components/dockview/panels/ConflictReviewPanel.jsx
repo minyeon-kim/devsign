@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Clock3,
   GitMerge,
+  MapPin,
   Plus,
   RotateCcw,
   Send,
@@ -28,7 +29,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, canvasPages, currentUserFor, designMergeVariants } from '@/data/mockData'
+import { allPeople, currentUserFor } from '@/data/mockData'
+import { driftRowsFor } from '@/lib/driftDecisions'
 import { decidedValue } from '@/components/mergestudio/DesignComparison'
 import {
   STAGE_DOT_CLASS,
@@ -278,19 +280,6 @@ function ChecksRow({ checks }) {
 // first thing to settle before asking for review. Shared with Merge Studio
 // (WorkspaceProvider's decisionsFor / decideDrift), so a pick made here or
 // on the canvas is the same pick. Undecided values keep the code.
-function driftRowsFor(conflict, item) {
-  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
-  const scoped = conflict.layerId && layerDiffs[conflict.layerId] ? { [conflict.layerId]: layerDiffs[conflict.layerId] } : layerDiffs
-  const page = canvasPages.find((p) => p.id === item.designPageId)
-  const layerName = (id) => page?.frames[0]?.layers?.find((l) => l.id === id)?.name ?? id
-  const multiLayer = Object.keys(scoped).length > 1
-  return Object.entries(scoped).flatMap(([layerId, diffs]) => diffs.map((diff) => ({
-    key: `${layerId}:${diff.id}`,
-    label: multiLayer ? `${layerName(layerId)} · ${diff.label}` : diff.label,
-    diff,
-  })))
-}
-
 function driftItemOf(conflict, workspace) {
   if (!workspace?.decisionsFor) return null
   const item = workspace.mergeItems?.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
@@ -890,6 +879,12 @@ function CommentThread({ conflict, workspace }) {
                     <PersonRole person={author} viewerId={viewerId} />
                     <span className="text-[11px] text-slate-500"><LocalizedText text={comment.timeLabel} /></span>
                   </p>
+                  {comment.target?.anchor && (
+                    <p className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-[10px] text-emerald-200">
+                      <MapPin className="size-2.5 shrink-0" />
+                      <span className="truncate"><LocalizedText text={comment.target.anchor} /></span>
+                    </p>
+                  )}
                   <p className="mt-0.5 leading-relaxed whitespace-pre-line text-slate-300"><LocalizedText text={comment.text} /></p>
                   <button
                     type="button"

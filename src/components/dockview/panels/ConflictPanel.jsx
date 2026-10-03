@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom'
 import { LocalizedText } from '@/i18n/runtime'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { allDecided } from '@/lib/driftDecisions'
 
 // One icon per row, chosen by severity and carried only inside the badge.
 const severityConfig = {
@@ -130,13 +131,15 @@ function ConflictPanel({ inMergeStudio }) {
       : 'None',
   }))
   const markedDueDates = conflicts.map(dueDateOf).filter(Boolean)
+  // Open first, and among those the ones waiting on your review on top —
+  // the list stays "All", but what you're asked to do leads it.
   const visible = sortOpenFirst(
     conflicts.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
-  )
+  ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor } = useWorkspace()
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
   const batchable = conflicts.filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
@@ -255,6 +258,7 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Description</th>
                 <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author</th>
                 <th className="py-1.5 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 pr-1 text-right font-medium whitespace-nowrap">Updated</th>
@@ -263,21 +267,26 @@ function ConflictPanel({ inMergeStudio }) {
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
               )}
               {visible.map((conflict) => {
                 const severity = severityConfig[conflict.severity] ?? severityConfig.medium
+                // You first, so "waiting on you" (the ring) is always the
+                // first avatar.
                 const reviewers = conflict.reviewers
                   .map((r) => allPeople.find((p) => p.id === r.id))
                   .filter(Boolean)
+                  .sort((a, b) => Number(b.id === currentUser.id) - Number(a.id === currentUser.id))
 
                 const blocker = blockerOf(conflict)
                 const author = allPeople.find((p) => p.id === authorOf(conflict))
                 const commentCount = threadOf(conflict, comments).count
                 const failingChecks = isOpen(conflict) ? (conflictChecks(conflict)?.failing.length ?? 0) : 0
+                const mine = isOpen(conflict) && needsReviewFrom(conflict)
+                const readyToRequest = conflict.reviewStage === 'detected' && allDecided(conflict, mergeItems, decisionsFor)
                 return (
                   <Fragment key={conflict.id}>
                   <tr
@@ -337,26 +346,29 @@ function ConflictPanel({ inMergeStudio }) {
                         {!conflict.message && <span className="text-slate-500">—</span>}
                       </div>
                     </td>
-                    {/* The dot and stage label stay on one line; only the
-                        "Needs your review" chip wraps under them. */}
+                    {/* Status is the stage only — checks and "your review"
+                        have their own places (the next column, and your
+                        avatar under Reviewers). A change with every value
+                        decided but no review asked for yet says so. */}
                     <td className="px-1.5 py-2">
-                      <span className="flex flex-wrap items-center gap-1.5 text-foreground/80">
-                        <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-                          <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
-                          <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
-                        </span>
-                        {failingChecks > 0 && (
-                          <span className="inline-flex h-4 items-center gap-1 text-[9.5px] font-medium text-amber-300" title="Checks need attention — merging waits on them">
-                            <TriangleAlert className="size-2.5" />
-                            <LocalizedText text={`${failingChecks} check${failingChecks === 1 ? '' : 's'}`} />
-                          </span>
-                        )}
-                        {needsReviewFrom(conflict) && (
-                            <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">
-                            Needs your review
-                          </span>
-                        )}
+                      <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-foreground/80">
+                        <span className={cn('ds-status-dot shrink-0 rounded-full', readyToRequest ? 'bg-emerald-400' : STAGE_DOT_CLASS[conflict.reviewStage])} />
+                        <span className="truncate"><LocalizedText text={readyToRequest ? 'Decided · request review' : STAGE_LABEL[conflict.reviewStage]} /></span>
                       </span>
+                    </td>
+                    <td className="py-2">
+                      {!isOpen(conflict) ? (
+                        <span className="text-[10.5px] text-slate-600">—</span>
+                      ) : failingChecks > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-amber-300" title="Checks need attention — merging waits on them">
+                          <TriangleAlert className="size-3" />
+                          <span className="tabular-nums">{failingChecks}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-emerald-300/80" title="All checks passed">
+                          <CircleCheck className="size-3" />
+                        </span>
+                      )}
                     </td>
                     <td className="py-2">
                       {author ? (
@@ -372,7 +384,12 @@ function ConflictPanel({ inMergeStudio }) {
                       {reviewers.length ? (
                         <div className="flex flex-wrap justify-start gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
-                            <Avatar key={person.id} size="xs" className="ring-2 ring-card" title={person.name}>
+                            <Avatar
+                              key={person.id}
+                              size="xs"
+                              className={cn('ring-2', mine && person.id === currentUser.id ? 'z-10 ring-emerald-400' : 'ring-card')}
+                              title={mine && person.id === currentUser.id ? `${person.name} · needs your review` : person.name}
+                            >
                               <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>
                                 {person.initials}
                               </AvatarFallback>

@@ -704,22 +704,22 @@ export const conflictChecklist = [
   // and merged here like any other Conflict Point.
   {
     id: 'cc-13',
-    token: 'Payment step · 3 drafts',
+    token: 'Payment step · 4 drafts',
     file: 'src/prototype/Checkout.jsx',
     projectId: 'checkout-redesign',
     projectName: 'Checkout Redesign',
     timestamp: '1h ago',
     resolved: false,
     severity: 'low',
-    message: 'Taylor, Alex and Jordan each redrew part of the payment step — the summary card, the card input and the Place order button differ between their drafts.',
+    message: 'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each restyle the heading, summary card, card input, total and Place order button their own way.',
     riskReason: 'Low: style-only differences on the payment step — no logic or data changes.',
     impact: {
       screens: ['Checkout · Payment step'],
-      components: ['Order summary', 'Card input', 'Place order'],
+      components: ['Heading', 'Order summary', 'Card input', 'Total', 'Place order'],
       files: ['src/prototype/Checkout.jsx'],
     },
     changedBy: { type: 'person', id: 'james', what: 'Opened a third draft of the payment step' },
-    detectedBy: 'Three open drafts on the same screen',
+    detectedBy: 'Four open drafts on the same screen',
     branches: { local: 'Taylor’s draft', remote: 'Alex’s draft' },
     suggestion: 'Mix them in Design Compare: take each element from the draft that fits the rest of the checkout best.',
     reviewStage: 'detected',
@@ -728,9 +728,10 @@ export const conflictChecklist = [
       { id: 'min', status: 'pending' },
     ],
     comparisonFields: [
-      { label: 'Card radius', expected: '16px (Alex’s draft)', current: '12px (Taylor’s draft)' },
-      { label: 'Input radius', expected: '999px (Jordan’s draft)', current: '8px (Taylor’s draft)' },
-      { label: 'Button height', expected: '44px (Taylor’s draft)', current: '48px (Alex’s draft)' },
+      { label: 'Heading', expected: 'Payment (Alex’s draft)', current: 'Checkout (Taylor’s draft)' },
+      { label: 'Card style', expected: 'Tinted (Alex’s draft)', current: 'Bordered (Taylor’s draft)' },
+      { label: 'Input style', expected: 'Filled (Alex’s draft)', current: 'Outlined (Taylor’s draft)' },
+      { label: 'Button style', expected: 'Gradient pill (Alex’s draft)', current: 'Indigo (Taylor’s draft)' },
     ],
     fileId: 'app',
     mergeItemId: 'merge-checkout-payment-drafts',
@@ -1077,8 +1078,8 @@ export const mergeListItems = [
   {
     id: 'merge-checkout-payment-drafts',
     projectId: 'checkout-redesign',
-    title: 'Payment step · 3 drafts',
-    subtitle: 'Design · 3 drafts',
+    title: 'Payment step · 4 drafts',
+    subtitle: 'Design · 4 drafts',
     tag: 'Needs Review',
     updatedLabel: '1h ago',
     fileIds: ['app'],
@@ -1095,6 +1096,7 @@ export const mergeListItems = [
       { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
       { key: 'min', authorId: 'min', label: 'Alex’s draft' },
       { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
+      { key: 'ai', label: 'AI draft' },
     ],
   },
   // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
@@ -1389,17 +1391,68 @@ export const designMergeVariants = {
       ],
     },
   },
-  // Each draft differs on a different element (see the item above).
+  // Four designers' takes on the payment step (A Taylor, B Alex, C Jordan,
+  // D the AI), each a whole direction of its own — every element styled
+  // differently (`looks`: the override a draft's value draws with), so a
+  // mix takes the heading from one draft, the card from another, the CTA
+  // from a third (Design Compare → pick per element or per property).
   'merge-checkout-payment-drafts': {
     layerDiffs: {
+      'co-title': [
+        {
+          id: 'mix-title-copy', label: 'Heading', optionA: 'Checkout', optionB: 'Payment',
+          values: { jane: 'Checkout', min: 'Payment', james: 'Review & pay', ai: 'Secure checkout' },
+          looks: {
+            Payment: { copy: { text: 'Payment' }, extraClass: 'text-violet-700' },
+            'Review & pay': { copy: { text: 'Review & pay' }, dh: 4 },
+            'Secure checkout': { copy: { text: 'Secure checkout' }, extraClass: 'text-emerald-700', dh: -2 },
+          },
+        },
+      ],
       'order-summary': [
-        { id: 'mix-card-radius', label: 'Radius', optionA: '12px', optionB: '16px', values: { jane: '12px', min: '16px', james: '20px' } },
+        {
+          id: 'mix-card-style', label: 'Card style', optionA: 'Bordered', optionB: 'Tinted',
+          values: { jane: 'Bordered', min: 'Tinted', james: 'Outline', ai: 'Accent bar' },
+          looks: {
+            Tinted: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 16 },
+            Outline: { extraClass: 'border-dashed border-slate-400 bg-transparent shadow-none', radius: 4 },
+            'Accent bar': { extraClass: 'border-l-4 border-l-emerald-500 shadow-md', radius: 8, dh: -28, copy: { title: 'Your order', body: '2 items · Free shipping' } },
+          },
+        },
       ],
       'card-input': [
-        { id: 'mix-input-radius', label: 'Radius', optionA: '8px', optionB: '12px', values: { jane: '8px', min: '12px', james: '999px' } },
+        {
+          id: 'mix-input-style', label: 'Input style', optionA: 'Outlined', optionB: 'Filled',
+          values: { jane: 'Outlined', min: 'Filled', james: 'Underline', ai: 'Pill' },
+          looks: {
+            Filled: { extraClass: 'border-transparent bg-slate-100 shadow-none', radius: 12 },
+            Underline: { extraClass: 'border-x-0 border-t-0 border-b-2 border-slate-900 bg-transparent px-0 shadow-none', radius: 0 },
+            Pill: { extraClass: 'border-emerald-400 ring-2 ring-emerald-100', radius: 999 },
+          },
+        },
+      ],
+      'total-text': [
+        {
+          id: 'mix-total-copy', label: 'Total', optionA: 'Plain', optionB: 'Accent',
+          values: { jane: 'Plain', min: 'Accent', james: 'Large', ai: 'With tax' },
+          looks: {
+            Accent: { extraClass: 'text-violet-700' },
+            Large: { dh: 6 },
+            'With tax': { copy: { text: 'Total (incl. tax)  $138.24' } },
+          },
+        },
       ],
       'place-order': [
-        { id: 'mix-cta-size', label: 'Height', optionA: '44px', optionB: '48px', values: { jane: '44px', min: '48px', james: '40px' } },
+        {
+          id: 'mix-cta-style', label: 'Button style', optionA: 'Indigo', optionB: 'Gradient pill',
+          values: { jane: 'Indigo', min: 'Gradient pill', james: 'Dark', ai: 'Emerald' },
+          looks: {
+            'Gradient pill': { className: 'bg-gradient-to-r from-violet-500 to-fuchsia-500', radius: 999 },
+            Dark: { className: 'bg-slate-900', radius: 6 },
+            Emerald: { className: 'bg-emerald-500', copy: { label: 'Pay $128.00' } },
+          },
+        },
+        { id: 'mix-cta-size', label: 'Height', optionA: '44px', optionB: '48px', values: { jane: '44px', min: '48px', james: '52px', ai: '40px' } },
       ],
     },
   },

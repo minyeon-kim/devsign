@@ -354,8 +354,10 @@ export function WorkspaceProvider({ children, projectId }) {
       annotations: (d.annotations ?? []).filter((a) => a.status === 'done').map(({ effect, targets, fileId, line, summary }) => ({ effect, targets, fileId, line, summary })),
       preset: d.appliedPreset ?? null })
     if (signature(content(mergeDrafts.current[id])) !== signature(content(draft))) {
-      setConflicts((prev) => prev.map((c) => c.mergeItemId === id ? {
-        ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected',
+      // A change to the work resets its approvals; one nobody's been asked
+      // to review yet stays that way — editing never requests a review.
+      setConflicts((prev) => prev.map((c) => c.mergeItemId === id && c.reviewStage !== 'resolved' ? {
+        ...c, reviewStage: c.reviewStage === 'detected' || !c.reviewers.length ? 'detected' : 'in_review',
         reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
       } : c))
       setMergeItems((prev) => prev.map((m) => m.id === id ? { ...m, tag: 'In Review', reviewers: m.reviewers?.map((r) => ({ ...r, status: 'pending' })) } : m))

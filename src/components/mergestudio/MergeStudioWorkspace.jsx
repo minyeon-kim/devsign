@@ -11,7 +11,7 @@ import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } fr
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
-import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
+import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
@@ -132,15 +132,10 @@ function buildVariantPreviews(itemId, resolutions, hoverDiff) {
   const layerDiffs = designMergeVariants[itemId]?.layerDiffs ?? {}
   const previews = {}
   for (const [layerId, diffs] of Object.entries(layerDiffs)) {
-    const merged = {}
+    let merged = {}
     for (const diff of diffs) {
       const hovered = hoverDiff?.layerId === layerId && hoverDiff.diffId === diff.id ? hoverDiff.side : null
-      const e = diffEffect(diff, hovered ?? resolutions[`${layerId}:${diff.id}`] ?? 'B')
-      if (e.className) merged.className = e.className
-      if (e.radius !== undefined) merged.radius = e.radius
-      if (e.fontWeight !== undefined) merged.fontWeight = e.fontWeight
-      merged.dw = (merged.dw ?? 0) + (e.dw ?? 0)
-      merged.dh = (merged.dh ?? 0) + (e.dh ?? 0)
+      merged = mergeOverride(merged, diffEffect(diff, hovered ?? resolutions[`${layerId}:${diff.id}`] ?? 'B'))
     }
     previews[layerId] = merged
   }
@@ -370,13 +365,11 @@ function MergeStudioWorkspace({ item }) {
     if (!compareFrame) return null
     return {
       frame: compareFrame,
-      entries: options.map((option) => ({
+      entries: options.map((option, index) => ({
         key: option.key,
-        // The draft's values next to its name — what actually differs.
-        label: [option.label, ...Object.values(designMergeVariants[compareItem.id]?.layerDiffs ?? {}).flat().map((diff) => {
-          const value = option.side ? (option.side === 'A' ? diff.optionA : diff.optionB) : diff.values?.[option.key] ?? diff.optionA
-          return `${diff.label} ${value}`
-        })].join(' · '),
+        // A letter and the draft's name — the values themselves are on the
+        // artboards and in the mixing panel.
+        label: `${String.fromCharCode(65 + index)} · ${option.label}`,
         overrides: optionEffects(compareItem, option),
       })).concat({
         // The mix so far, beside the drafts it's drawn from.

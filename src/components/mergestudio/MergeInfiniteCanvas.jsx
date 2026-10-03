@@ -1830,6 +1830,10 @@ function MergeInfiniteCanvas({
       dw: (base?.dw ?? 0) + (exact.width !== undefined ? 0 : (e.dw ?? 0)),
       dh: (base?.dh ?? 0) + (exact.height !== undefined ? 0 : (e.dh ?? 0)),
       className: base?.className ?? e.className,
+      // A draft's look (border, shadow, copy) — under any hand edits.
+      ...(e.extraClass && { extraClass: [e.extraClass, base?.extraClass].filter(Boolean).join(' ') }),
+      ...((e.copy || base?.copy) && { copy: { ...e.copy, ...base?.copy } }),
+      ...(e.fillStyle && !base?.fillStyle && { fillStyle: e.fillStyle }),
     }
   }
   if (appliedPreset?.layerId) overrides[appliedPreset.layerId] = { ...overrides[appliedPreset.layerId], className: appliedPreset.previewClass }

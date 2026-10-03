@@ -6,12 +6,22 @@ import { withMockupExtension } from '@/components/mergestudio/mockupContent'
 // delta from Option A's value (so picking A is always "no change").
 // `side` is 'A', 'B', or a hand-typed `{ custom }` value from inline editing
 // in Compare — a custom color name maps onto the matching fill class.
+// A diff can also name whole looks (`looks: { [value]: override }`) — a
+// draft's own styling of an element (fill, border, shadow, size, copy) —
+// layered over whatever the value itself implies.
 export function diffEffect(diff, side) {
   const custom = isCustomResolution(side) ? side.custom : null
-  const value = parseFloat(custom ?? (side === 'A' ? diff.optionA : diff.optionB))
+  const raw = custom ?? (side === 'A' ? diff.optionA : diff.optionB)
+  const look = diff.looks?.[raw]
+  const effect = baseEffect(diff, side, custom, raw)
+  return look ? mergeOverride(effect, look) : effect
+}
+
+function baseEffect(diff, side, custom, raw) {
+  const value = parseFloat(raw)
   const base = parseFloat(diff.optionA)
   const effect = {}
-  const cls = custom != null ? customFillClass(custom) : side === 'A' ? diff.optionAClass : diff.optionBClass
+  const cls = custom != null ? (diff.looks?.[custom] ? null : customFillClass(custom)) : side === 'A' ? diff.optionAClass : diff.optionBClass
   if (cls) effect.className = cls
   if (Number.isNaN(value)) return effect
   const delta = value - base

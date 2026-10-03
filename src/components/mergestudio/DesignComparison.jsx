@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Layers3, MapPin, MessageSquarePlus, Play, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { diffEffect } from '@/components/mergestudio/mergeEffects'
+import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { canvasPages, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { toast } from '@/i18n/toast'
 
 export function designCompareOptions(item) {
   if (item?.variants?.length) {
@@ -21,16 +22,16 @@ export function designCompareOptions(item) {
 }
 
 function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onCompare }) {
-  const { comments, addComment } = useWorkspace()
+  const { conflicts, addComment, openConflictReview, setBottomPanel } = useWorkspace()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key))
   const [commentModeVariantKey, setCommentModeVariantKey] = useState(null)
   const [commentAnchor, setCommentAnchor] = useState(null)
   const [commentDraft, setCommentDraft] = useState('')
-  const designComments = comments.filter(
-    (comment) => comment.target?.type === 'design-compare' && comment.target.itemId === item?.id
-  )
+  // Comments on a draft go to the item's conflict — its Comments are the
+  // one thread — tagged with the draft and element they're pinned to.
+  const conflict = item ? conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId) : null
 
   function chooseLayer(option, layer) {
     if (commentModeVariantKey === option.key) {
@@ -48,21 +49,22 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
 
   function postComment(event) {
     event.preventDefault()
-    if (!item || !commentAnchor || !commentDraft.trim()) return
+    if (!item || !conflict || !commentAnchor || !commentDraft.trim()) return
     addComment(commentDraft, {
-      type: 'design-compare',
-      itemId: item.id,
-      variantKey: commentAnchor.variantKey,
-      layerId: commentAnchor.layerId,
-      layerName: commentAnchor.layerName,
+      conflictId: conflict.id,
+      anchor: `${commentAnchor.variantLabel} · ${commentAnchor.layerName}`,
     })
     setCommentDraft('')
     setCommentAnchor(null)
+    toast('Comment added to the conflict', {
+      description: conflict.title,
+      action: { label: 'View', onClick: () => { openConflictReview(conflict.id); setBottomPanel({ tab: 'conflict', open: true }) } },
+    })
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-card text-xs">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-auto p-3 xl:grid-cols-[clamp(190px,38%,360px)_minmax(0,1fr)_360px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-auto p-3 xl:grid-cols-[clamp(190px,30%,320px)_minmax(0,1fr)]">
         <section className="min-h-0 overflow-auto rounded-xl bg-white/[0.03] p-3 xl:max-w-[360px]">
           <h2 className="mb-2 text-[11px] font-semibold text-slate-300">Design sets</h2>
           <div className="space-y-1">
@@ -96,8 +98,37 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             <h2 className="truncate text-[11px] font-semibold text-slate-300">{item?.title ?? 'Choose a design set'}</h2>
             {item && <span className="shrink-0 text-[10px] text-slate-500">Select 2 or more</span>}
           </div>
+          {commentModeVariantKey && (
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
+              <MapPin className="size-3 shrink-0" />
+              <span className="min-w-0 flex-1">{`Click an element in ${options.find((option) => option.key === commentModeVariantKey)?.label} to comment on it.`}</span>
+              <button type="button" onClick={() => setCommentModeVariantKey(null)} aria-label="Cancel pinning" className="rounded p-0.5 hover:bg-white/10">
+                <X className="size-3" />
+              </button>
+            </p>
+          )}
+          {commentAnchor && (
+            <form onSubmit={postComment} className="mb-3 flex items-center gap-2 rounded-lg bg-black/20 p-1.5 pl-2">
+              <span className="flex max-w-[45%] shrink-0 items-center gap-1 truncate rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-200">
+                <MapPin className="size-3 shrink-0" />
+                <span className="truncate">{`${commentAnchor.variantLabel} · ${commentAnchor.layerName}`}</span>
+              </span>
+              <input
+                autoFocus
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+                onKeyDown={(event) => event.key === 'Escape' && setCommentAnchor(null)}
+                placeholder="Comment — it goes to the conflict’s Comments"
+                aria-label="Write a design comment"
+                className="h-7 min-w-0 flex-1 bg-transparent text-[11px] text-slate-100 outline-none placeholder:text-slate-500"
+              />
+              <button type="submit" disabled={!commentDraft.trim() || !conflict} aria-label="Post design comment" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-40">
+                <Send className="size-3.5" />
+              </button>
+            </form>
+          )}
           {item && (
-            <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 2xl:grid-cols-4">
               {options.map((option, index) => {
                 const selected = selectedKeys.includes(option.key)
                 return (
@@ -121,58 +152,6 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             </div>
           )}
           {item && <p className="mt-3 text-[10px] text-slate-500">{selectedOptions.length < 2 ? 'Select at least two designs to compare.' : `${selectedOptions.length} designs selected for comparison.`}</p>}
-        </section>
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] p-3">
-          <div className="mb-2 flex shrink-0 items-center justify-between">
-            <h2 className="text-[11px] font-semibold text-slate-300">Design comments</h2>
-            <span className="text-[10px] text-slate-500">{designComments.length}</span>
-          </div>
-          {commentModeVariantKey && (
-            <p className="mb-2 flex shrink-0 items-center gap-1.5 text-[10px] text-emerald-300">
-              <MapPin className="size-3 shrink-0" />
-              <span className="min-w-0 flex-1">Click an element in {options.find((option) => option.key === commentModeVariantKey)?.label} to pin a comment.</span>
-              <button type="button" onClick={() => setCommentModeVariantKey(null)} aria-label="Cancel pinning" className="rounded p-0.5 hover:bg-white/10">
-                <X className="size-3" />
-              </button>
-            </p>
-          )}
-          {commentAnchor && (
-            <form onSubmit={postComment} className="mb-3 flex shrink-0 flex-col gap-2">
-              <span className="flex min-w-0 items-center gap-1 truncate rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-200">
-                <MapPin className="size-3 shrink-0" />
-                {commentAnchor.variantLabel} · {commentAnchor.layerName}
-              </span>
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={commentDraft}
-                  onChange={(event) => setCommentDraft(event.target.value)}
-                  placeholder="Write a comment..."
-                  aria-label="Write a design comment"
-                  className="h-8 min-w-0 flex-1 rounded-md border border-white/10 bg-black/20 px-2 text-[11px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-400/50"
-                />
-                <button type="submit" disabled={!commentDraft.trim()} aria-label="Post design comment" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-40">
-                  <Send className="size-3.5" />
-                </button>
-              </div>
-            </form>
-          )}
-          <div className="min-h-0 flex-1 space-y-2 overflow-auto">
-            {!item && <p className="text-[10px] text-slate-500">Choose a design set to view its comments.</p>}
-            {item && designComments.length === 0 && (
-              <p className="text-[10px] text-slate-500">Pin a comment to a design element to start a focused thread.</p>
-            )}
-            {designComments.map((comment) => (
-              <article key={comment.id} className="rounded-lg bg-black/15 px-2.5 py-2">
-                <p className="mb-1 flex items-center gap-1 text-[10px] text-emerald-200">
-                  <MapPin className="size-3 shrink-0" />
-                  <span className="truncate">{options.find((option) => option.key === comment.target.variantKey)?.label ?? comment.target.variantKey} · {comment.target.layerName}</span>
-                  <span className="ml-auto shrink-0 text-slate-500">{comment.timeLabel}</span>
-                </p>
-                <p className="text-[11px] leading-relaxed text-slate-300">{comment.text}</p>
-              </article>
-            ))}
-          </div>
         </section>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.06] px-3 py-2">
@@ -278,29 +257,13 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
 export function optionEffects(item, option, valueOf = null, diffsOverride = null) {
   const diffsByLayer = diffsOverride ?? designMergeVariants[item.id]?.layerDiffs ?? {}
   return Object.fromEntries(Object.entries(diffsByLayer).map(([layerId, diffs]) => {
-    const merged = {}
+    let merged = {}
     for (const diff of diffs) {
       const value = valueOf ? valueOf(diff, layerId) : option.side ? null : diff.values?.[option.key]
-      const side = option.side ?? (value === undefined ? 'A' : value === diff.optionB ? 'B' : 'A')
-      const effect = diffEffect(diff, side)
-      if (value !== undefined && !option.side) {
-        const numeric = Number.parseFloat(value)
-        if (Number.isFinite(numeric)) {
-          if (/radius/.test(diff.id)) effect.radius = numeric
-          else if (/weight/.test(diff.id)) effect.fontWeight = numeric
-          else if (/size/.test(diff.id)) effect.dh = numeric - Number.parseFloat(diff.optionA)
-          else if (/padding|spacing/.test(diff.id)) {
-            effect.dw = (numeric - Number.parseFloat(diff.optionA)) * 2
-            effect.dh = (numeric - Number.parseFloat(diff.optionA)) * 2
-          }
-        } else if (value === diff.optionA) effect.className = diff.optionAClass
-        else if (value === diff.optionB) effect.className = diff.optionBClass
-      }
-      if (effect.className) merged.className = effect.className
-      if (effect.radius !== undefined) merged.radius = effect.radius
-      if (effect.fontWeight !== undefined) merged.fontWeight = effect.fontWeight
-      merged.dw = (merged.dw ?? 0) + (effect.dw ?? 0)
-      merged.dh = (merged.dh ?? 0) + (effect.dh ?? 0)
+      // A draft's value is drawn the same way a decision is (diffEffect):
+      // A / B by side, anything else as a custom value — looks included.
+      const decision = option.side ?? (value === undefined || value === diff.optionA ? 'A' : value === diff.optionB ? 'B' : { custom: value })
+      merged = mergeOverride(merged, diffEffect(diff, decision))
     }
     return [layerId, merged]
   }))

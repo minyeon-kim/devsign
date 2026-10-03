@@ -1,9 +1,9 @@
 /* Shared tracks prevent header/body drift as the bottom panel resizes. */
 .conflict-list-table {
-  /* Severity · Issue · Description (one line) · Status · Author ·
+  /* Severity · Issue · Description (one line) · Status · Checks · Author ·
      Reviewers · Updated. Status keeps room for its longest label
      ("Approved · Pending merge") on one line. */
-  --conflict-columns: 90px minmax(200px, 1fr) minmax(160px, 1.1fr) minmax(170px, 0.5fr) 52px 92px 76px;
+  --conflict-columns: 90px minmax(180px, 0.6fr) minmax(200px, 1.4fr) minmax(160px, 0.45fr) 44px 52px 92px 76px;
   display: block;
   width: 100%;
   min-width: 1000px;
