@@ -345,6 +345,7 @@ export const conflictChecklist = [
       after: { radius: 12 },
     },
     mergeItemId: 'merge-ds-card-radius',
+    layerId: 'ds-card',
     fileId: 'card',
     line: 2,
     message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
@@ -1061,11 +1062,14 @@ export const mergeListItems = [
     projectId: 'design-system-v2',
     conflictId: 'cc-3',
     title: 'Card / Radius',
-    subtitle: '1 file · Code',
+    subtitle: '1 file · Design + Code',
     tag: 'Needs Review',
     updatedLabel: 'Yesterday',
     fileIds: ['card'],
-    hasDesign: false,
+    // cc-3 compares the Figma card with Card.jsx, so the item opens on that
+    // card's design page (two artboards), not on the code alone.
+    designPageId: 'page-ds-card',
+    hasDesign: true,
     category: 'Design System',
     conflictLevel: 'Low',
     dueLabel: 'No due date',
@@ -1349,6 +1353,23 @@ export const designMergeVariants = {
       'button-md': { fileId: 'app', line: 6, span: 1 },
     },
   },
+  'merge-ds-card-radius': {
+    layerDiffs: {
+      'ds-card': [
+        {
+          id: 'card-radius',
+          label: 'Radius',
+          optionA: '12px',
+          optionB: '8px',
+          recommended: 'A',
+          reason: 'Design system card radius = 12px',
+        },
+      ],
+    },
+    layerCodeMap: {
+      'ds-card': { fileId: 'card', line: 2, span: 1 },
+    },
+  },
   'merge-checkout-divider': {
     layerDiffs: {
       'order-summary': [
@@ -1584,6 +1605,9 @@ export const codeMergeVariants = {
   'merge-ds-button-height': {
     app: [{ id: 'button-md-height', line: 6, incoming: "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' }," }],
     tokens: [{ id: 'button-height-token', line: 6, incoming: '  --button-height-md: 40px;' }],
+  },
+  'merge-ds-card-radius': {
+    card: [{ id: 'card-radius', line: 2, incoming: '  return <div className="rounded-[12px] border bg-card p-4">{children}</div>' }],
   },
   'merge-checkout-divider': {
     divider: [{ id: 'order-summary-divider', line: 4, incoming: '      <hr className="border-border" />' }],
@@ -2763,6 +2787,26 @@ export const canvasPages = [
             height: 28,
             label: 'Small',
           },
+        ],
+      },
+    ],
+  },
+  // cc-3's card, as the design system draws it (12px corners).
+  {
+    id: 'page-ds-card',
+    name: 'Card',
+    projectId: 'design-system-v2',
+    frames: [
+      {
+        id: 'frame-ds-card',
+        name: 'Card · Default',
+        kind: 'frame',
+        x: 80,
+        y: 40,
+        width: 280,
+        height: 180,
+        layers: [
+          { id: 'ds-card', name: 'Card', kind: 'component', type: 'card', x: 20, y: 24, width: 240, height: 132 },
         ],
       },
     ],

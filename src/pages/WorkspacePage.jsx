@@ -63,6 +63,8 @@ function WorkspacePage() {
           itemId: item.id,
           ...(state.layerId ? { layerId: state.layerId } : { fileId: state.fileId, line: state.line }),
           openDeck: true,
+          // From a conflict: both artboards in view, the element marked.
+          overview: true,
         })
       }
       return

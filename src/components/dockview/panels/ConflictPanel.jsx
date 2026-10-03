@@ -107,6 +107,8 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
     requestMergeFocus({
       itemId: reviewConflictItemId,
       label: reviewConflict.title,
+      // Both artboards in view, the element marked — not zoomed into one side.
+      overview: true,
       ...(reviewConflict.layerId
         ? { layerId: reviewConflict.layerId }
         : reviewConflict.fileId && reviewConflict.line

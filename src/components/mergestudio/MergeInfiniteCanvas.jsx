@@ -1196,6 +1196,10 @@ function MergeInfiniteCanvas({
       const r = el.getBoundingClientRect()
       const from = viewRef.current
       const k0 = from.zoom / 100
+      // `overview` (arriving from a conflict): keep both artboards in view
+      // for the comparison and just mark the element, instead of zooming
+      // into one side.
+      const overview = focus.target.overview && frame
       // element center in world coordinates
       const wx = (r.left + r.width / 2 - base.left - from.x) / k0
       const wy = (r.top + r.height / 2 - base.top - from.y) / k0
@@ -1205,7 +1209,7 @@ function MergeInfiniteCanvas({
       // right-docked panel (Block Deck, or the Merge Changes wizard)
       // reserves space via `reserve`, the target would otherwise land
       // centered behind it.
-      const to = {
+      const to = overview ? fitView(layout) : {
         zoom,
         x: (16 + (base.width - reserve)) / 2 - wx * k1,
         y: base.height / 2 - 40 - wy * k1,
@@ -1221,7 +1225,7 @@ function MergeInfiniteCanvas({
           y: from.y + (to.y - from.y) * e,
         })
         if (t < 1) raf = requestAnimationFrame(tick)
-        else if (focus.target.pulse) pulseTarget()
+        else if (focus.target.pulse || overview) pulseTarget()
       }
       raf = requestAnimationFrame(tick)
     }, 260)

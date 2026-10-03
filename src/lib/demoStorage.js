@@ -8,7 +8,9 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // already loaded the app once kept its *original* historyEntries from
 // localStorage forever, never picking up any of it — including Playback's
 // own position in that array, so it looked unrelated to it).
-export const DEMO_VERSION = 5
+// 6: Card / Radius (cc-3) gained its design page — stored merge items and
+// conflicts from before would keep it code-only.
+export const DEMO_VERSION = 6
 
 export function readDemo(key, fallback) {
   try {
