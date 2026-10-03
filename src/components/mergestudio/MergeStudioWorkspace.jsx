@@ -113,12 +113,12 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
               title={translateText(row.label, language)}
               aria-label={`${i + 1}. ${translateText(row.label, language)}`}
               aria-current={step === i ? 'step' : undefined}
-              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-full border text-[11px] font-medium transition-colors',
-                step === i ? 'border-emerald-300 bg-emerald-300 text-slate-950' : row.decided ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200' : 'border-white/15 text-slate-400 hover:bg-white/10')}>
-              {i + 1}
+              className={cn('ds-intrinsic flex h-6 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-300', step === i ? 'w-8' : 'w-3')}>
+              <span className={cn('h-2 rounded-full transition-all', step === i ? 'w-7 bg-emerald-400' : row.decided ? 'w-2 bg-emerald-400' : 'w-2 bg-white/25')} />
             </button>
           ))}
         </nav>
+        <span className="text-xs tabular-nums text-emerald-300">{decided}/{rows.length}</span>
         <select
           aria-label={language === 'ko' ? '화면 영역 선택' : 'Choose screen region'}
           value={step}
@@ -127,15 +127,17 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
         >
           {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{translateText(row.label, language)}</option>)}
         </select>
-        <select
-          aria-label={language === 'ko' ? '모든 영역에 시안 적용' : 'Apply a draft to all regions'}
-          value={columns.find((column) => wholeFrom(column.key))?.key ?? ''}
-          onChange={(event) => { if (event.target.value) takeAll(event.target.value) }}
-          className="ds-intrinsic ml-auto h-7 max-w-52 rounded-md border border-white/10 bg-card px-2 text-[11px] text-slate-300 outline-none focus-visible:ring-1 focus-visible:ring-emerald-300"
-        >
-          <option value="" disabled>{language === 'ko' ? '모든 영역에 시안 적용…' : 'Apply a draft to all regions…'}</option>
-          {columns.map((column) => <option key={column.key} value={column.key}>{language === 'ko' ? `모든 영역에 시안 ${column.letter} 적용` : `Apply draft ${column.letter} to all regions`}</option>)}
-        </select>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
+          {columns.map((column) => (
+            <button key={column.key} type="button" onClick={() => takeAll(column.key)}
+              aria-pressed={wholeFrom(column.key)}
+              title={language === 'ko' ? `시안 ${column.letter}로 모든 영역 바꾸기` : `Replace every region with draft ${column.letter}`}
+              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[11px] font-medium transition-colors', wholeFrom(column.key) ? 'bg-emerald-300/15 text-emerald-200 ring-1 ring-emerald-300/40' : 'bg-white/[0.06] text-slate-300 hover:bg-white/10')}>
+              {column.letter}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           disabled={decided === 0}

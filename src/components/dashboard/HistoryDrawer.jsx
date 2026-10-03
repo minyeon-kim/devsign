@@ -1,3 +1,4 @@
+import HistoryGraph from '@/components/history/HistoryGraph'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
@@ -97,6 +98,7 @@ function HistoryDrawer({ project }) {
   }
 
   // Keep the selected row in view as the slider / playback moves it.
+  const graphRef = useRef(null)
   const refs = useRef(new Map())
   useEffect(() => {
     refs.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -201,6 +203,8 @@ function HistoryDrawer({ project }) {
           {query.trim() ? 'No matching checkpoints.' : filtersActive ? 'No checkpoints match this filter.' : 'No checkpoints yet.'}
         </p>
       )}
+      <div ref={graphRef} className="relative">
+      {tab === 'active' && <HistoryGraph entries={historyEntries} visibleEntries={active} containerRef={graphRef} selectedId={selectedId} />}
       {tab === 'active' &&
         active.map((entry) => {
           const isCurrent = entry.id === activeHistoryId
@@ -209,9 +213,10 @@ function HistoryDrawer({ project }) {
           return (
             <div
               key={entry.id}
+              data-history-id={entry.id}
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
               className={cn(
-                'group relative rounded-lg transition-colors',
+                'group relative ml-12 rounded-lg transition-colors',
                 selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.035]'
               )}
             >
@@ -259,6 +264,8 @@ function HistoryDrawer({ project }) {
             </div>
           )
         })}
+
+      </div>
 
       {tab === 'archived' &&
         (archived.length === 0 ? (

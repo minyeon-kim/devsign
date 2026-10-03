@@ -732,7 +732,15 @@ export function WorkspaceProvider({ children, projectId }) {
   const recordHistory = useCallback((entry) => {
     const id = nextId('h')
     const snapshot = { chatLength: chatLengthRef.current, ...entry.snapshot }
-    setHistoryEntries((prev) => [...prev, { archived: false, id, ...entry, snapshot }])
+    setHistoryEntries((prev) => {
+      const parentIds = prev.length ? [prev[prev.length - 1].id] : []
+      const conflictIds = new Set(entry.conflictIds ?? [])
+      const mergedFromIds = entry.kind === 'merge'
+        ? [...conflictIds].map((conflictId) => [...prev].reverse().find((checkpoint) =>
+            checkpoint.kind !== 'merge' && (checkpoint.conflictId === conflictId || checkpoint.conflictIds?.includes(conflictId)))?.id).filter(Boolean)
+        : []
+      return [...prev, { archived: false, id, parentIds, mergedFromIds: [...new Set(mergedFromIds)], ...entry, snapshot }]
+    })
     setActiveHistoryId(id)
     return id
   }, [setHistoryEntries, setActiveHistoryId])
