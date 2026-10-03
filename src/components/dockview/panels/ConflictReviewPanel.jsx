@@ -6,6 +6,8 @@ import {
   Bot,
   Check,
   ChevronDown,
+  TriangleAlert,
+  CircleCheck,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -228,7 +230,49 @@ function Provenance({ conflict, className }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, reviewers }) {
+// A change's checks, as a status: they run on their own (see
+// mergeChecks), so this only reports — all passing, or which need
+// attention and why. Blocking ones (they keep it from merging) say so.
+function ChecksRow({ checks }) {
+  const [open, setOpen] = useState(false)
+  if (!checks) return null
+  const total = checks.checks.length
+  if (!checks.failing.length) {
+    return (
+      <p className="flex items-center gap-1.5 py-0.5 text-xs text-emerald-300/90">
+        <CircleCheck className="size-3.5 shrink-0" />
+        <LocalizedText text={`All ${total} checks passed`} />
+      </p>
+    )
+  }
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="ds-intrinsic flex h-6 items-center gap-1.5 text-xs text-amber-200 transition-colors hover:text-amber-100"
+      >
+        <TriangleAlert className="size-3.5 shrink-0" />
+        <LocalizedText text={`${checks.failing.length} of ${total} checks need attention`} />
+        <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <ul className="mt-1 space-y-1.5">
+          {checks.failing.map((check) => (
+            <li key={check.id} className="text-[11px] leading-4">
+              <span className="text-slate-200"><LocalizedText text={check.title} /></span>
+              {checks.blocking.includes(check) && <span className="ml-1.5 text-[10px] text-amber-300/80"><LocalizedText text="Blocks merge" /></span>}
+              {check.hint && <span className="block text-slate-500"><LocalizedText text={check.hint} /></span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -298,9 +342,15 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers }) {
       )}
       {/* Who the stage is waiting on, right under it. */}
       {reviewers && (
-        <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
+        <div className={cn(REVIEW_INFO_GRID, 'mb-3')}>
           <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1.5')}>Reviewers</p>
           {reviewers}
+        </div>
+      )}
+      {checks && stage !== 'resolved' && (
+        <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
+          <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
+          <ChecksRow checks={checks} />
         </div>
       )}
       {(summary || hasMetadata) && (
@@ -382,19 +432,27 @@ function DiffTab({ conflict, code, studioAction }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Going to work on it, not a decision: next to the comparison it's
-          about, the way "Open in editor" sits on the code. */}
+      {/* Going to work on it, not a decision: a secondary button by the
+          comparison it's about — clearly a button, but quieter than the
+          header's one primary action. `emphasize` (the change is approved
+          and this is the next step) gives it the mint outline. Not shown
+          inside Merge Studio — the canvas is already right there. */}
       {studioAction && (
-        <div className="-mt-1 mb-1 flex justify-end">
+        <div className="mb-2 flex justify-end">
           <button
             type="button"
             title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
             onClick={studioAction.onClick}
-            className="ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] text-slate-400 transition-colors hover:text-white"
+            className={cn(
+              'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+              studioAction.emphasize
+                ? 'bg-emerald-400/10 text-emerald-200 ring-1 ring-emerald-400/50 ring-inset hover:bg-emerald-400/15'
+                : 'bg-white/[0.05] text-slate-200 hover:bg-white/[0.09] hover:text-white'
+            )}
           >
-            <GitMerge className="size-3" />
+            <GitMerge className="size-3.5" />
             <LocalizedText text={studioAction.label} />
-            <ArrowUpRight className="size-3" />
+            <ArrowUpRight className="size-3.5 opacity-70" />
           </button>
         </div>
       )}
@@ -913,7 +971,7 @@ function ReviewButton({ onSubmit, authorName }) {
 // wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
 // your own sign-off (approving never changes code); `onResolve(id)` merges
 // an Approved conflict — the only step that applies the change.
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, mergeActionLabel = 'Open in Merge Studio' }) {
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
   const workspace = useWorkspaceOptional()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
@@ -950,7 +1008,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       .filter((r) => r.id !== viewerId && r.id !== authorId)
       .map((r) => allPeople.find((p) => p.id === r.id)?.name)
       .filter(Boolean)
-    toast(to.length ? `Review requested from ${to.join(', ')}` : 'Review requested', { description: conflict.title })
+    // Checks don't gate the request (reviewers can see them) — only the merge.
+    const failing = checks?.failing.length ?? 0
+    toast(to.length ? `Review requested from ${to.join(', ')}` : 'Review requested', {
+      description: failing ? `${failing} check${failing === 1 ? '' : 's'} still need attention — merging waits on them.` : conflict.title,
+    })
   }
 
   function handleApprove() {
@@ -1030,6 +1092,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   )
 
   const stage = conflict?.reviewStage
+  const checks = conflict && workspace?.conflictChecks ? workspace.conflictChecks(conflict) : null
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
@@ -1148,6 +1211,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             stage={stage}
                             showProject={!workspace}
                             reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
+                            checks={checks}
                           />
                         </div>
                       </section>
@@ -1156,8 +1220,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           <DiffTab
                             conflict={conflict}
                             code={codeView}
-                            studioAction={stage !== 'resolved' && onOpenMergeStudio
-                              ? { label: mergeActionLabel === 'Open in Merge Studio' ? 'Adjust in Merge Studio' : mergeActionLabel, onClick: () => onOpenMergeStudio(conflict) }
+                            studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
+                              ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}
                           />
                         </div>

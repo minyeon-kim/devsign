@@ -1,19 +1,16 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
-import { mergeAction } from '@/lib/mergeAction'
-import { mergeChangeCount } from '@/lib/mergeChangeCount'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, GitCompareArrows, Layers3, ListChecks, MousePointerClick, TriangleAlert } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
-import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
+import BlockDeckPanel, { VariantCompareTab } from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
-import { WIZARD_STEPS } from '@/components/mergestudio/MergeStepFlow'
 import MergeInboxDrawer from '@/components/mergestudio/MergeInboxDrawer'
 import MergeHelp from '@/components/mergestudio/MergeHelp'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
@@ -41,6 +38,16 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 // choice is made, then the chosen value (Original / Current / custom). The
 // hovered option beats the committed choice for the same diff, so hovering
 // previews without committing.
+// The bottom panel's Drifts tab (a stable component, see bottomPanelTabs).
+function DriftsPanel({ item, ...props }) {
+  if (!item) return <p className="p-6 text-center text-xs text-slate-500">Open a merge item to decide its drifts.</p>
+  return (
+    <div className="h-full min-h-0 overflow-hidden px-4 pt-1 pb-3">
+      <VariantCompareTab item={item} {...props} />
+    </div>
+  )
+}
+
 function buildVariantPreviews(itemId, resolutions, hoverDiff) {
   const layerDiffs = designMergeVariants[itemId]?.layerDiffs ?? {}
   const previews = {}
@@ -93,7 +100,6 @@ function MergeStudioWorkspace({ item }) {
     filesWindow,
     getFileLines,
     setActivePageId,
-    updateMergeItem,
     mergeDrawer,
     setMergeDrawer,
     mergeFocus,
@@ -101,18 +107,15 @@ function MergeStudioWorkspace({ item }) {
     requestHistoryDrawer,
     mergePreviewOpen,
     setMergePreviewOpen,
-    setMergeCta,
     exitMergeStudio,
     setSelectedMergeItemId,
     openConflictReview,
     setBottomPanel,
     mergeDrafts,
     saveMergeDraft,
-    completeMerge,
     conflicts,
     updateConflict,
     currentUser,
-    approveConflict,
     mergeItems,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
@@ -140,9 +143,6 @@ function MergeStudioWorkspace({ item }) {
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
-  // Index into WIZARD_STEPS (Compare/Check/Preview/Review), shared by the
-  // canvas drift controls and the bottom-panel step flow.
-  const [wizardStep, setWizardStep] = useState(0)
   const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
   const [designCompareKeys, setDesignCompareKeys] = useState([])
   const [designComparison, setDesignComparison] = useState(null)
@@ -306,55 +306,17 @@ function MergeStudioWorkspace({ item }) {
     if (openDeck) setFilesWindow({ open: true, tab: 'inspect' })
   }
 
-  // Opens the step flow in the bottom panel at Check.
-  function openWizard() {
-    setWizardStep(1)
+  // Opens this item's conflict review in the bottom panel — where its
+  // code, checks, review and merge all are.
+  function openReview() {
     const conflict = conflicts.find((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
     if (conflict) openConflictReview(conflict.id)
-    setBottomPanel({ tab: 'conflict', open: true, conflictMode: 'check' })
+    setBottomPanel({ tab: 'conflict', open: true })
   }
 
-  function finishMerge(itemId) {
-    if (!completeMerge(itemId)) return
-    const nextItem = mergeItems.find((mergeItem) => mergeItem.id !== itemId && mergeItem.tag !== 'Merged')
-    openConflictReview(null)
-    setBottomPanel({ open: false })
-    if (nextItem) {
-      setSelectedMergeItemId(nextItem.id)
-    } else {
-      setSelectedMergeItemId(null)
-      exitMergeStudio()
-    }
-  }
 
-  function finishReviewRequest(itemId) {
-    const nextItem = mergeItems.find((mergeItem) => mergeItem.id !== itemId && mergeItem.tag !== 'Merged')
-    openConflictReview(null)
-    setBottomPanel({ open: false })
-    if (nextItem) setSelectedMergeItemId(nextItem.id)
-  }
 
-  // Preview's "Edit in Assemble": select the element being reviewed, bring
-  // it into view and open the Block Deck on its Assemble tab — every edit
-  // so far stays as it is. Nothing needs "parking" any more: the step flow
-  // lives in the bottom panel, not floating over the canvas, so it and the
-  // Block Deck simply stay open together and the Preview step reflects the
-  // Assemble edits live.
-  function editInAssemble({ layerId }) {
-    setWizardStep(2)
-    setFilesWindow({ open: true, tab: 'inspect' })
-    setDeckTabRequest({ tab: 'assemble', nonce: Date.now() })
-    requestMergeFocus({ itemId: item.id, layerId, openDeck: true, label: 'Edit in Assemble' })
-  }
 
-  function setReviewMark(driftId, signature) {
-    setReviewMarks((prev) => {
-      const next = { ...prev }
-      if (signature == null) delete next[driftId]
-      else next[driftId] = signature
-      return next
-    })
-  }
 
   // Records the source of each written Assemble field (see assemblySources).
   function recordSources(layerId, keys, source, { replace = false } = {}) {
@@ -662,54 +624,12 @@ function MergeStudioWorkspace({ item }) {
   const changesCodeRows = changesSummary ? changesSummary.files.filter((f) => f.changed > 0 || f.aiLines > 0 || f.manualLines > 0) : []
 
   // Block Deck target: the selected layer, or the smart default when the
-  // selection is an unmapped code line / nothing. Computed here (ahead of
-  // `mergeStepFlowProps` below, which reads it) rather than down by its
-  // other canvas-selection neighbors — it used to sit after, which left
-  // `deckLayerId` in its temporal dead zone at the point `mergeStepFlowProps`
-  // read it; `item && {...}` short-circuited past the read whenever no item
-  // was open, which is why this went unnoticed until every conflict started
-  // resolving to a real item.
+  // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
   // Merge Studio's own bottom panel: Conflict Points plus this item's
-  // Changes log, instead of Terminal/Console — there's no code execution
-  // context here to make those meaningful. Conflict Points is always the
-  // full project-wide list first (same as the Workspace's own tab) —
-  // selecting a conflict linked to the item open here drills into its
-  // Compare → Check → Preview → Review flow (the old floating wizard, now
-  // docked here); anything else, or "back", returns to the list. See
-  // ConflictPanel's own handling of `mergeStudioItem`/`mergeStepFlowProps`.
-  const mergeStepFlowProps = item && {
-    item,
-    resolutions,
-    annotations: annotationsSnap,
-    preset: changesPreset,
-    assemblies,
-    assemblySources,
-    extraLayers: addedLayers,
-    manualCode,
-    onResolveDiff: resolveDiff,
-    onHoverDiff: setHoverDiff,
-    selectedLayerId: deckLayerId,
-    reviewMarks,
-    onSetReviewMark: setReviewMark,
-    onEditInAssemble: editInAssemble,
-    step: wizardStep,
-    onStepChange: setWizardStep,
-    // Opening the PR hands the item to its reviewers: it reads "In Review"
-    // in the Merge List until it's approved (merging and deploying happen
-    // after approval, outside this flow).
-    onComplete: (reviewerIds) => {
-      if (item?.tag === 'Merged') return
-      updateMergeItem(item.id, { tag: 'In Review', reviewers: reviewerIds.map((id) => item.reviewers?.find((r) => r.id === id) ?? { id, status: 'pending' }), updatedLabel: 'Just now' })
-      for (const conflict of conflicts.filter((c) => (c.mergeItemId === item.id || c.id === item.conflictId) && c.reviewStage !== 'resolved')) {
-        const reviewers = [...conflict.reviewers, ...reviewerIds.filter((id) => !conflict.reviewers.some((r) => r.id === id)).map((id) => ({ id, status: 'pending' }))]
-        updateConflict(conflict.id, { reviewers, reviewStage: reviewers.every((r) => r.status === 'approved') ? 'approved' : 'in_review' })
-      }
-    },
-    onRequestComplete: () => finishReviewRequest(item.id),
-    onFinalMerge: () => finishMerge(item.id),
-    onEditCode: editCodeLine,
-  }
+  // Changes log, instead of Terminal/Console. Conflict Points is the
+  // project-wide list (same as the Workspace's own tab); a conflict's
+  // review there is where its code, checks, review and merge happen.
   // `Panel` is always the bare component reference (never an inline arrow
   // function here) — WorkspaceBottomPanel spreads `panelProps` onto it
   // separately. An inline `() => <X .../>` is a *new* function, and so a
@@ -725,7 +645,16 @@ function MergeStudioWorkspace({ item }) {
       label: 'Conflict Points',
       icon: TriangleAlert,
       Panel: ConflictPanel,
-      panelProps: { mergeStudioItem: item, inMergeStudio: true, mergeStepFlowProps },
+      panelProps: { inMergeStudio: true },
+    },
+    {
+      // Deciding each drift — the design's value or the current one — for
+      // this item. A tab to open whenever, not a step in a sequence.
+      id: 'drifts',
+      label: 'Drifts',
+      icon: GitCompareArrows,
+      Panel: DriftsPanel,
+      panelProps: item ? { item, selectedLayerId: deckLayerId, resolutions, onResolve: resolveDiff, onHoverDiff: setHoverDiff } : { item: null },
     },
     {
       id: 'design-compare',
@@ -769,31 +698,6 @@ function MergeStudioWorkspace({ item }) {
   // context-aware content is visible right away.
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
 
-  const action = mergeAction(item, conflicts, currentUser.id)
-
-  // Publish the Merge Changes CTA to the top bar (latest openWizard via ref).
-  const openWizardRef = useRef(null)
-  openWizardRef.current = () => {
-    if (item?.tag === 'Merged') return
-    if (action.kind === 'merge') finishMerge(item.id)
-    else if (action.kind === 'approve') {
-      if (action.linked.length) action.linked.forEach((c) => approveConflict(c.id))
-      else updateMergeItem(item.id, { reviewers: item.reviewers.map((r) => r.id === currentUser.id ? { ...r, status: 'approved' } : r) })
-    } else {
-      openWizard()
-      if (action.kind === 'request') setWizardStep(3)
-    }
-  }
-  const mergedNow = item?.tag === 'Merged'
-  const ctaCount = mergedNow ? 0 : mergeChangeCount(changesSummary, codeMergeVariants[item?.id], manualCode, annotationsSnap)
-  useEffect(() => {
-    if (!item) {
-      setMergeCta(null)
-      return
-    }
-    setMergeCta({ label: action.label, disabled: action.disabled, progress: action.progress, merged: mergedNow, count: ctaCount, open: () => openWizardRef.current?.() })
-    return () => setMergeCta(null)
-  }, [item, mergedNow, ctaCount, setMergeCta, action.label, action.disabled, action.progress])
 
   const deckReserve = 0
   // The step flow no longer floats over the canvas (it's docked in the
@@ -862,14 +766,14 @@ function MergeStudioWorkspace({ item }) {
           onToggleGuides={() => setGuidesVisible((v) => !v)}
           focus={mergeFocus}
           resolutionCount={Object.keys(resolutions).length + Object.keys(manualCode).length}
-          stage={WIZARD_STEPS[wizardStep].id}
+          stage="compare"
           designCompare={designCompare}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}
           manualCode={manualCode}
           syncedCode={syncedCode}
-          onOpenCodeReview={openWizard}
+          onOpenCodeReview={openReview}
           onEditCode={editCodeLine}
           onLiveEditCode={liveEditCodeLine}
           onEditText={editText}

@@ -1420,6 +1420,13 @@ Object.assign(ko, {
   'Your review': '내 검토',
   'You can’t review your own change': '본인 변경은 검토할 수 없어요',
   'Author · not required': '작성자 · 승인 불필요',
+  // Checks (run on their own; gate merging)
+  'Checks': '검사',
+  'Blocks merge': '병합 차단',
+  'Decide them in Merge Studio’s Drifts tab — undecided ones ship the Current Implementation’s value.': '병합 스튜디오의 드리프트 탭에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
+  'Drifts': '드리프트',
+  'Open a merge item to decide its drifts.': '머지 항목을 열어 드리프트를 결정하세요.',
+  'Checks need attention — merging waits on them': '확인이 필요한 검사가 있어요 — 통과해야 병합할 수 있어요',
   // Batch approval
   'Review & approve': '확인 후 승인',
   'Check each change before approving them together.': '한꺼번에 승인하기 전에 각 변경을 확인하세요.',

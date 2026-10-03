@@ -1,3 +1,4 @@
+import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { authorOf } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -336,6 +337,13 @@ export function WorkspaceProvider({ children, projectId }) {
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
   const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, {}))
+  // A conflict's checks, from its merge item and that item's draft (the
+  // choices made in Merge Studio) — run fresh wherever they're shown.
+  const conflictChecks = useCallback((conflict) => {
+    if (!conflict) return null
+    const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
+    return item ? checksFor(item, mergeDrafts.current[item.id]) : null
+  }, [mergeItems])
   const saveMergeDraft = useCallback((id, draft) => {
     const content = (d = {}) => ({ resolutions: d.resolutions ?? {}, assemblies: d.assemblies ?? {},
       assemblySources: d.assemblySources ?? {}, addedLayers: d.addedLayers ?? [], manualCode: d.manualCode ?? {},
@@ -358,7 +366,6 @@ export function WorkspaceProvider({ children, projectId }) {
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
-  const [mergeCta, setMergeCta] = useState(null)
 
   // --- Follow Me -----------------------------------------------------
   // `followingMe`: I'm broadcasting my view for others to follow.
@@ -761,7 +768,11 @@ export function WorkspaceProvider({ children, projectId }) {
       const target = finalFiles[c.fileId] ?? generated
       finalFiles[c.fileId] = [...target.slice(0, head), ...working.slice(head, working.length - tail), ...target.slice(target.length - tail)]
     }
+    // Checks gate the merge (not the review request): failing design-system
+    // or accessibility checks, or a merge conflict, keep it from landing.
+    const blocking = item ? checksFor(item, draft).blocking : []
     const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
+      ?? (blocking.length ? `${blocking.length} check${blocking.length === 1 ? '' : 's'} failing: ${blocking.map((c) => c.title).join(' · ')}` : null)
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
     const mergedIds = new Set(related.map((c) => c.id))
     const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
@@ -1750,6 +1761,7 @@ export function WorkspaceProvider({ children, projectId }) {
     selectedMergeItemId,
     mergeDrafts,
     saveMergeDraft,
+    conflictChecks,
     draftChanges,
     editorDirtyFiles,
     setEditorDirtyFiles,
@@ -1773,8 +1785,6 @@ export function WorkspaceProvider({ children, projectId }) {
     requestHistoryDrawer,
     mergePreviewOpen,
     setMergePreviewOpen,
-    mergeCta,
-    setMergeCta,
     followingMe,
     followedMemberId,
     remoteViewportIndex,

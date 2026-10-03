@@ -1,7 +1,7 @@
 import './ConflictPanel.css'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useNavigate } from 'react-router-dom'
 import { LocalizedText } from '@/i18n/runtime'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
-import MergeStepFlow from '@/components/mergestudio/MergeStepFlow'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // One icon per row, chosen by severity and carried only inside the badge.
@@ -60,14 +59,10 @@ function matchesConflictFilters(conflict, filters) {
   return matchesDue(conflict, filters.due)
 }
 
-// `mergeStudioItem`/`mergeStepFlowProps` are set only when this panel is
-// Merge Studio's own Conflict Points tab (see MergeStudioWorkspace) — the
-// list stays the project-wide one either way, but reviewing a conflict
-// linked to the item currently open there shows its full Compare → Check
-// → Preview → Review flow instead of the plain conflict review, since
-// Merge Studio already has that item's edit session loaded. Everything
-// else falls back to the ordinary review, same as the Workspace's own tab.
-function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
+// `inMergeStudio`: this is Merge Studio's own Conflict Points tab — the
+// list is the project-wide one either way, but picking a conflict there
+// also puts its item on the canvas (see the effect below).
+function ConflictPanel({ inMergeStudio }) {
   const navigate = useNavigate()
   const { projectId, conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
     updateConflict, approveConflict, requestChanges, resolveConflict, revertConflict, currentUser, requestMergeFocus, mergeFocus } =
@@ -80,7 +75,6 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   // not just ones that happen to carry `mergeItemId` themselves.
   const reviewConflictItemId =
     reviewConflict && (reviewConflict.mergeItemId ?? mergeItems.find((mi) => mi.conflictId === reviewConflict.id)?.id ?? null)
-  const reviewConflictIsOpenItem = Boolean(mergeStudioItem && reviewConflictItemId === mergeStudioItem.id)
   // Selecting a conflict in Merge Studio's own Conflict Points tab doesn't
   // just swap the panel to its step flow — the canvas needs to jump to the
   // element it's actually about, the same "pick it, see it" the Merge List
@@ -142,7 +136,7 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments } = useWorkspace()
+  const { comments, conflictChecks } = useWorkspace()
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
   const batchable = conflicts.filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
@@ -171,18 +165,9 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
   if (reviewConflict) {
     return (
       <div className="h-full min-h-0 min-w-0 bg-card">
-        {reviewConflictIsOpenItem && bottomPanel.conflictMode === 'check' ? (
-          <MergeStepFlow
-            {...mergeStepFlowProps}
-            onBack={() => {
-              setBottomPanel({ conflictMode: 'overview' })
-              openConflictReview(null)
-            }}
-          />
-        ) : (
           <ConflictReviewPanel
             conflict={reviewConflict}
-            mergeActionLabel={inMergeStudio && reviewConflictItemId ? 'Review impact & checks' : undefined}
+            inMergeStudio={inMergeStudio}
             onOpenChange={(open) => !open && openConflictReview(null)}
             onUpdate={updateConflict}
             onApprove={approveConflict}
@@ -193,11 +178,6 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               if (revert) openConflictReview(revert.id)
             }}
             onOpenMergeStudio={(conflict) => {
-              if (inMergeStudio && reviewConflictIsOpenItem) {
-                mergeStepFlowProps.onStepChange(1)
-                setBottomPanel({ conflictMode: 'check', open: true })
-                return
-              }
               // The review stays open: it carries over into Merge Studio's
               // bottom panel, beside the canvas showing this item.
               // `conflict` here is always `reviewConflict`, so its item id
@@ -211,7 +191,6 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
               })
             }}
           />
-        )}
       </div>
     )
   }
@@ -298,17 +277,17 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                 const blocker = blockerOf(conflict)
                 const author = allPeople.find((p) => p.id === authorOf(conflict))
                 const commentCount = threadOf(conflict, comments).count
+                const failingChecks = isOpen(conflict) ? (conflictChecks(conflict)?.failing.length ?? 0) : 0
                 return (
                   <Fragment key={conflict.id}>
                   <tr
-                    onClick={() => { setBottomPanel({ conflictMode: 'overview' }); openConflictReview(conflict.id) }}
+                    onClick={() => { openConflictReview(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) return
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        setBottomPanel({ conflictMode: 'overview' })
                     openConflictReview(conflict.id)
                       }
                     }}
@@ -366,6 +345,12 @@ function ConflictPanel({ mergeStudioItem, inMergeStudio, mergeStepFlowProps }) {
                           <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
                           <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
                         </span>
+                        {failingChecks > 0 && (
+                          <span className="inline-flex h-4 items-center gap-1 text-[9.5px] font-medium text-amber-300" title="Checks need attention — merging waits on them">
+                            <TriangleAlert className="size-2.5" />
+                            <LocalizedText text={`${failingChecks} check${failingChecks === 1 ? '' : 's'}`} />
+                          </span>
+                        )}
                         {needsReviewFrom(conflict) && (
                             <span className="inline-flex h-4 items-center rounded-full bg-emerald-400/10 px-1.5 text-[9.5px] font-medium text-emerald-300">
                             Needs your review

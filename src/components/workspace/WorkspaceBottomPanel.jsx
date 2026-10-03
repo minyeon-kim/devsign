@@ -32,7 +32,7 @@ const MIN_CANVAS = 220
 // inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
-  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId, activeView, mergeCta } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId, activeView } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
