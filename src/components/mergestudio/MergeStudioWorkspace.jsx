@@ -8,7 +8,7 @@ import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useMemo
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
+import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
@@ -54,92 +54,153 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 // compared draft. Clicking on a draft's artboard picks too (see the
 // selection effect below). Picks are ordinary decisions, so the Result
 // artboard, the conflict's review, checks and merging all follow.
+// One draft's version of one screen region, drawn small — what a pick
+// card in the Mix panel shows.
+function RegionPreview({ part, width = 132 }) {
+  const scale = width / 280
+  if (!part?.layers.length) {
+    return <div className="flex h-10 items-center justify-center rounded-md bg-white text-[10px] text-slate-400" style={{ width }}><LocalizedText text="Nothing here" /></div>
+  }
+  const h = part.height + 16
+  return (
+    <div className="relative overflow-hidden rounded-md bg-white" style={{ width, height: Math.max(32, h * scale) }}>
+      <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: 280, height: h, transform: `scale(${scale})` }}>
+        {part.layers.map((layer) => (
+          <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Mixing drafts one part at a time: the current part's version from every
+// compared draft side by side — pick one and it moves on to the next part.
+// The dots on top jump between parts (green once decided); the letters take
+// a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
+// the conflict's review, checks and merging all follow.
 function MixPanel({ item, options, decisions, selectedLayerId, onDecide }) {
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
   const columns = rows[0]?.options ?? []
+  const screen = draftScreens[item.id]
+  const decided = rows.filter((row) => row.decided).length
+  const [step, setStep] = useState(() => Math.max(0, rows.findIndex((row) => !row.decided)))
+  const current = rows[Math.min(step, rows.length - 1)]
+  // Selecting a part on the canvas brings its step up.
   const source = layerSource(selectedLayerId)
   const activeKey = source ? regionKey(source.regionId) : rows.find((row) => row.key.startsWith(`${selectedLayerId}:`))?.key
-  const decided = rows.filter((row) => row.decided).length
-  // Taking a whole draft: every row from it.
+  useEffect(() => {
+    const index = rows.findIndex((row) => row.key === activeKey)
+    if (index >= 0) setStep(index)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey])
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
-  // ‹ › on a row: the next / previous draft's version of that part.
-  function flip(row, dir) {
-    const n = row.options.length
-    const index = row.options.findIndex((o) => o.picked)
-    const next = index < 0 ? (dir > 0 ? 0 : n - 1) : (index + dir + n) % n
-    onDecide(row.key, row.options[next].decision)
+  function pick(option) {
+    onDecide(current.key, option.picked ? null : option.decision)
+    if (option.picked) return
+    // On to the next part still to decide (or the next one).
+    const after = rows.findIndex((row, i) => i > step && !row.decided)
+    if (after >= 0) setStep(after)
+    else if (step < rows.length - 1) setStep(step + 1)
   }
+  if (!current) return null
 
   return (
-    <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-2.5 shadow-xl">
-      <div className="flex items-center gap-1.5 px-1">
+    <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
+      <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-white"><LocalizedText text="Mix" /></span>
-        <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
-        <span className="ml-auto text-[10.5px] text-slate-500"><LocalizedText text="Use all of" /></span>
-        {columns.map((column) => {
-          const all = wholeFrom(column.key)
-          return (
+        {/* One dot per part: where you are, and what's decided. */}
+        <span className="flex items-center gap-1">
+          {rows.map((row, i) => (
             <button
-              key={column.key}
+              key={row.key}
               type="button"
-              title={column.name}
-              aria-label={`Use all of ${column.letter}`}
-              aria-pressed={all}
-              onClick={() => takeAll(column.key)}
-              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[10.5px] font-semibold transition-colors', all ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07] text-slate-300 hover:bg-white/[0.14] hover:text-white')}
-            >
-              {column.letter}
-            </button>
-          )
-        })}
-        <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              title={row.label}
+              aria-label={row.label}
+              aria-current={i === step || undefined}
+              onClick={() => setStep(i)}
+              className={cn('ds-intrinsic h-1.5 rounded-full transition-all', i === step ? 'w-5' : 'w-1.5', row.decided ? 'bg-emerald-400' : i === step ? 'bg-white/70' : 'bg-white/20 hover:bg-white/40')}
+            />
+          ))}
+        </span>
+        <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>{`${decided}/${rows.length}`}</span>
+        <span className="ml-4 text-[10.5px] text-slate-500"><LocalizedText text="Use all of" /></span>
+        {columns.map((column) => (
+          <button
+            key={column.key}
+            type="button"
+            title={column.name}
+            aria-label={`Use all of ${column.letter}`}
+            aria-pressed={wholeFrom(column.key)}
+            onClick={() => takeAll(column.key)}
+            className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[10.5px] font-semibold transition-colors', wholeFrom(column.key) ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07] text-slate-300 hover:bg-white/[0.14] hover:text-white')}
+          >
+            {column.letter}
+          </button>
+        ))}
         <button
           type="button"
           disabled={decided === 0}
           title="Reset picks"
           aria-label="Reset picks"
-          onClick={() => rows.forEach((row) => row.decided && onDecide(row.key, null))}
-          className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); setStep(0) }}
+          className="ds-intrinsic ml-auto flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" />
         </button>
       </div>
-      {/* Sized to its content: the labels' column as wide as the longest
-          label, every stepper as wide as the longest value — nothing cut. */}
-      <div className="mt-2 grid grid-cols-[max-content_max-content] items-center gap-x-3 gap-y-1">
-        {rows.map((row) => {
-          const picked = row.options.find((o) => o.picked)
-          return (
-            <Fragment key={row.key}>
-              <span className={cn('px-1 text-[11px] whitespace-nowrap', row.key === activeKey ? 'font-medium text-white' : 'text-slate-400')}>
-                {row.element && <><LocalizedText text={row.element} /> · </>}
-                <LocalizedText text={row.label} />
-              </span>
-              {/* The part's current draft, flipped with ‹ ›. */}
-              <div className={cn('flex h-8 min-w-[220px] items-center rounded-lg bg-white/[0.04]', row.key === activeKey && 'ring-1 ring-white/15')}>
-                <button type="button" aria-label={`Previous draft for ${row.label}`} onClick={() => flip(row, -1)} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
-                  <ChevronLeft className="size-4" />
-                </button>
-                <span className="flex flex-1 items-center justify-center gap-1.5 px-1 text-[11.5px] whitespace-nowrap" title={picked?.name}>
-                  {picked ? (
-                    <>
-                      <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{picked.letter}</span>
-                      <span className="text-white" {...(picked.literal && { translate: 'no' })}>{picked.literal ? picked.value : <LocalizedText text={picked.value} />}</span>
-                    </>
-                  ) : (
-                    <span className="text-slate-500"><LocalizedText text="Keep current" /></span>
+
+      {/* The current part, every draft's version of it. */}
+      <div className="mt-3 flex items-center gap-2">
+        <button type="button" aria-label="Previous part" disabled={step === 0} onClick={() => setStep(step - 1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+          <ChevronLeft className="size-4" />
+        </button>
+        <div className="min-w-0">
+          <p className="mb-1.5 px-0.5 text-[11px] text-slate-400">
+            <span className="font-medium text-white">
+              {current.element && <><LocalizedText text={current.element} /> · </>}
+              <LocalizedText text={current.label} />
+            </span>
+            <span className="ml-1.5 tabular-nums">{`${step + 1}/${rows.length}`}</span>
+          </p>
+          <div className="flex gap-2">
+            {current.options.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={option.picked}
+                onClick={() => pick(option)}
+                title={option.name}
+                className={cn(
+                  'ds-intrinsic flex flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors',
+                  option.picked ? 'bg-emerald-400/15 ring-2 ring-emerald-400' : 'bg-white/[0.04] hover:bg-white/[0.08]'
+                )}
+              >
+                {current.region
+                  ? <RegionPreview part={screen.drafts[option.key]?.[current.region.id]} />
+                  : (
+                    <span className="flex h-12 w-28 items-center justify-center rounded-md bg-white/[0.06] text-sm font-semibold text-white" {...(option.literal && { translate: 'no' })}>
+                      {option.literal ? option.value : <LocalizedText text={option.value} />}
+                    </span>
                   )}
+                <span className="flex items-center gap-1.5 px-0.5 text-[10.5px]">
+                  <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
+                  <span className={cn('max-w-24 truncate', option.picked ? 'text-emerald-100' : 'text-slate-400')}>
+                    {current.region ? <LocalizedText text={option.value} /> : <LocalizedText text={option.name} />}
+                  </span>
                 </span>
-                <button type="button" aria-label={`Next draft for ${row.label}`} onClick={() => flip(row, 1)} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
-                  <ChevronRight className="size-4" />
-                </button>
-              </div>
-            </Fragment>
-          )
-        })}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" aria-label="Next part" disabled={step === rows.length - 1} onClick={() => setStep(step + 1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+          <ChevronRight className="size-4" />
+        </button>
       </div>
+      {decided === rows.length && (
+        <p className="mt-2 px-1 text-[10.5px] text-emerald-300/90"><LocalizedText text="Every part is picked — Finish mix when the Result looks right." /></p>
+      )}
     </div>
   )
 }
@@ -288,7 +349,9 @@ function MergeStudioWorkspace({ item }) {
     setDesignComparison((current) => (current?.item.id === item?.id ? current : null))
   }, [item?.id])
 
-  const designCompareItems = mergeItems.filter((candidate) => candidate.hasDesign && candidate.designPageId)
+  // Design Compare lists the screens that have several drafts to compare —
+  // not every item with a design page.
+  const designCompareItems = mergeItems.filter((candidate) => candidate.hasDesign && candidate.designPageId && draftScreens[candidate.id])
   const designCompareItem = designCompareItems.find((candidate) => candidate.id === designCompareItemId)
   function toggleDesignCompareOption(key) {
     setDesignCompareKeys((current) =>
@@ -431,6 +494,10 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function selectLayer(layerId, { openDeck = true } = {}) {
+    // Comparing drafts with different layouts: clicking a part of a draft
+    // (on the canvas — not a selection made for you) takes that whole region.
+    const from = designComparison && draftScreens[item?.id] ? layerSource(layerId) : null
+    if (from && designComparison.options.some((o) => o.key === from.draftKey)) decide(regionKey(from.regionId), { custom: from.draftKey })
     const target = codeTargetFor(layerId)
     setSyncSelection({
       layerId,
@@ -673,15 +740,6 @@ function MergeStudioWorkspace({ item }) {
       return next
     })
   }
-  // Comparing drafts with different layouts: clicking a part of a draft
-  // takes that whole region from it.
-  const pickedFrom = designComparison && draftScreens[item?.id] ? layerSource(syncSelection?.layerId) : null
-  useEffect(() => {
-    if (!pickedFrom || !designComparison?.options.some((o) => o.key === pickedFrom.draftKey)) return
-    decide(regionKey(pickedFrom.regionId), { custom: pickedFrom.draftKey })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncSelection?.layerId])
-
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => {
       const next = { ...prev }

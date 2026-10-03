@@ -1748,7 +1748,33 @@ function MergeInfiniteCanvas({
       }
     }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    // Safari sends a trackpad pinch as gesture events, not Ctrl+wheel —
+    // left alone they zoom the whole page (everything suddenly huge).
+    // Turn them into canvas zoom instead, around the pinch point.
+    let gestureStart = null
+    function onGestureStart(e) {
+      e.preventDefault()
+      gestureStart = viewRef.current.zoom
+    }
+    function onGestureChange(e) {
+      e.preventDefault()
+      if (gestureStart == null) return
+      const rect = el.getBoundingClientRect()
+      zoomAt(gestureStart * e.scale, e.clientX - rect.left, e.clientY - rect.top)
+    }
+    function onGestureEnd(e) {
+      e.preventDefault()
+      gestureStart = null
+    }
+    el.addEventListener('gesturestart', onGestureStart, { passive: false })
+    el.addEventListener('gesturechange', onGestureChange, { passive: false })
+    el.addEventListener('gestureend', onGestureEnd, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('gesturestart', onGestureStart)
+      el.removeEventListener('gesturechange', onGestureChange)
+      el.removeEventListener('gestureend', onGestureEnd)
+    }
   }, [zoomAt])
 
   function zoomFromCenter(delta) {

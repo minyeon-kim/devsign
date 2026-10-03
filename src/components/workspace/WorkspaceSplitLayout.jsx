@@ -1,3 +1,4 @@
+import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
@@ -147,7 +148,14 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem } = useWorkspace()
+  // In Merge Studio, the code editor rides along in AI Chat's window only
+  // when the open item actually changes code — otherwise it's a file that
+  // has nothing to do with what's on the canvas.
+  const studioItemHasCode = Boolean(openMergeItem && (
+    Object.keys(codeMergeVariants[openMergeItem.id] ?? {}).length ||
+    Object.keys(designMergeVariants[openMergeItem.id]?.layerCodeMap ?? {}).length
+  ))
   const { dockApi, store } = useFloatingDockApi()
   const [deckElement, setDeckElement] = useState(null)
   const [dock, setDock] = useState(null) // { groupId, target, zone, rect } while dragging a window
@@ -389,7 +397,12 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
         )}>
           <div className={cn('size-full min-h-0 min-w-0', showStudio && 'hidden', floatingSide && '[&>[data-window]]:pointer-events-auto')} inert={showStudio || undefined}>
           <FloatingWindow
-            group={group}
+            group={mergeStudio && !studioItemHasCode && group.panelIds.includes(panelById.editor.id) && group.panelIds.length > 1
+              ? (() => {
+                  const panelIds = group.panelIds.filter((id) => id !== panelById.editor.id)
+                  return { ...group, panelIds, activeId: panelIds.includes(group.activeId) ? group.activeId : panelIds[0] }
+                })()
+              : group}
             panelsById={store.panels}
             dockApi={dockApi}
             components={components}

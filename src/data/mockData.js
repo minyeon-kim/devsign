@@ -1,3 +1,4 @@
+import { draftFrame } from './draftScreens'
 import { backendReferenceDocs } from './backendDocs'
 
 // Centralized mock data for the IDE layout.
@@ -737,6 +738,35 @@ export const conflictChecklist = [
     mergeItemId: 'merge-checkout-payment-drafts',
     mergeTitle: 'Merged payment step drafts',
   },
+  {
+    id: 'cc-14',
+    token: 'Order confirmation · 3 drafts',
+    file: 'src/prototype/Confirmation.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '30m ago',
+    resolved: false,
+    severity: 'low',
+    message: 'Three drafts of the order confirmation — Taylor’s celebration, Jordan’s receipt and an AI tracking page — lay out the status, order details, delivery and next steps differently.',
+    riskReason: 'Low: a new screen, style and layout only — no logic or data changes.',
+    impact: {
+      screens: ['Checkout · Confirmation'],
+      components: ['Status', 'Order details', 'Delivery', 'Next steps'],
+      files: ['src/prototype/Confirmation.jsx'],
+    },
+    changedBy: { type: 'person', id: 'james', what: 'Opened a second draft of the confirmation screen' },
+    detectedBy: 'Three open drafts on the same screen',
+    branches: { local: 'Taylor’s draft', remote: 'Jordan’s draft' },
+    suggestion: 'Mix them in Design Compare: take each part from the draft that fits best.',
+    reviewStage: 'detected',
+    reviewers: [
+      { id: 'jane', status: 'pending' },
+      { id: 'min', status: 'pending' },
+    ],
+    fileId: 'app',
+    mergeItemId: 'merge-confirmation-drafts',
+    mergeTitle: 'Merged confirmation drafts',
+  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -1095,6 +1125,31 @@ export const mergeListItems = [
     variants: [
       { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
       { key: 'min', authorId: 'min', label: 'Alex’s draft' },
+      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
+      { key: 'ai', label: 'AI draft' },
+    ],
+  },
+  // Three drafts of the order confirmation screen with nothing in common —
+  // a celebration, a receipt, a tracking page — mixed part by part.
+  {
+    id: 'merge-confirmation-drafts',
+    projectId: 'checkout-redesign',
+    title: 'Order confirmation · 3 drafts',
+    subtitle: 'Design · 3 drafts',
+    tag: 'Needs Review',
+    updatedLabel: '30m ago',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-confirmation',
+    category: 'Checkout',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+    authorAId: 'jane',
+    authorBId: 'james',
+    variants: [
+      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
       { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
       { key: 'ai', label: 'AI draft' },
     ],
@@ -2815,6 +2870,18 @@ export const canvasPages = [
       },
     ],
   },
+  // The order confirmation screen — its layout is Taylor's draft of it
+  // until a mix of the drafts (draftScreens) merges in.
+  {
+    id: 'page-confirmation',
+    name: 'Confirmation',
+    frames: [
+      (() => {
+        const meta = { id: 'frame-confirmation', name: 'Order confirmation', kind: 'frame', x: 80, y: 40, width: 280, height: 560 }
+        return { ...meta, layers: draftFrame('merge-confirmation-drafts', meta, 'jane').layers }
+      })(),
+    ],
+  },
   // Design System v2's own design page (see pagesForProject): the Button
   // component's size variants (Conflict Point cc-1). button-md is the
   // Size/MD spec Button.jsx should match (currently renders 36px, h-9).
@@ -3656,7 +3723,7 @@ export const referenceDocs = [
         "items": [
           "Design Compare puts the drafts side by side (A, B, C, D) with a Result artboard.",
           "When drafts share a layout, take each element's value from a draft. When their layouts differ, take each part of the screen — header, summary, payment, checkout bar — whole, from any draft.",
-          "In the Mix panel above the canvas, flip each part with ‹ › or take a whole draft with its letter. Select anything on the Result to adjust it in Properties or add from Assets.",
+          "The Mix panel above the canvas goes one part at a time: it shows every draft's version of that part — pick one and it moves on to the next. A draft's letter takes all of it. Select anything on the Result to adjust it in Properties or add from Assets.",
           "Finish mix returns to the item with its conflict open — request review from there."
         ]
       },

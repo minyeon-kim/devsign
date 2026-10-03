@@ -469,13 +469,18 @@ function ChatConversation() {
         )}
 
         <div className="rounded-2xl border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/15 ">
-          <div className="flex min-w-0 items-center px-3 pt-2">
-            <TargetChip
-              target={target}
-              options={options}
-              onPick={(option) => setChatTargetOverride({ key: option.key, selection: key })}
-            />
-          </div>
+          {/* In Merge Studio the conversation is about the open item, so a
+              file chip only shows for an element selected on its canvas —
+              never a stray code file the item doesn't touch. */}
+          {(!chatThreadItem || target) && (
+            <div className="flex min-w-0 items-center px-3 pt-2">
+              <TargetChip
+                target={target}
+                options={options}
+                onPick={(option) => setChatTargetOverride({ key: option.key, selection: key })}
+              />
+            </div>
+          )}
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}

@@ -105,6 +105,79 @@ export const draftScreens = {
       },
     },
   },
+
+  // Order confirmation — three takes that share no structure: a centered
+  // celebration, a receipt-first summary, a tracking-first status page.
+  'merge-confirmation-drafts': {
+    regions: [
+      { id: 'status', label: 'Status' },
+      { id: 'details', label: 'Order details' },
+      { id: 'delivery', label: 'Delivery' },
+      { id: 'actions', label: 'Next steps' },
+    ],
+    drafts: {
+      // A · Taylor — celebratory and centered.
+      jane: {
+        status: { summary: 'Big check + title', height: 104, layers: [
+          { id: 's-check', name: 'Check', kind: 'component', type: 'iconbtn', x: 116, y: 0, width: 48, height: 48, label: '✓', look: { className: 'bg-emerald-500', extraClass: 'border-transparent text-white text-lg' } },
+          text('s-title', 'Order placed!', 60, { h: 18, tone: 'strong', weight: 700, x: 60, w: 160, look: { extraClass: 'text-center' } }),
+          text('s-sub', 'Order #A1042 · we sent a receipt to your email', 86, { h: 9, x: 30, w: 220, look: { extraClass: 'text-center' } }),
+        ] },
+        details: { summary: 'Items card', height: 88, layers: [
+          { id: 'd-card', name: 'Items', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 88, mock: { icon: 'shield', title: '2 items · $128.00', body: 'Paid with Visa •••• 4242' } },
+        ] },
+        delivery: { summary: 'Date + 3-step progress', height: 52, layers: [
+          text('v-date', 'Arrives Thu, Oct 9', 0, { h: 12, tone: 'strong', weight: 600 }),
+          { id: 'v-1', name: 'Placed', kind: 'shape', type: 'shape', x: X, y: 26, width: 76, height: 6, look: { className: 'bg-emerald-500', radius: 999 } },
+          { id: 'v-2', name: 'Shipped', kind: 'shape', type: 'shape', x: 102, y: 26, width: 76, height: 6, look: { className: 'bg-slate-200', radius: 999 } },
+          { id: 'v-3', name: 'Delivered', kind: 'shape', type: 'shape', x: 184, y: 26, width: 76, height: 6, look: { className: 'bg-slate-200', radius: 999 } },
+          text('v-steps', 'Placed · Shipped · Delivered', 40, { h: 9 }),
+        ] },
+        actions: { summary: 'Button + link', height: 76, layers: [
+          { id: 'a-cta', name: 'Continue shopping', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 44, label: 'Continue shopping', look: { className: 'bg-emerald-500' } },
+          text('a-link', 'View order details', 58, { h: 10, x: 92, w: 120, look: { extraClass: 'text-emerald-700' } }),
+        ] },
+      },
+      // B · Jordan — a receipt: personal header, line items, the address.
+      james: {
+        status: { summary: 'Greeting + receipt tag', height: 56, layers: [
+          text('s-title', 'Thanks, Sam', 4, { h: 18, tone: 'strong', weight: 700, w: 150 }),
+          { id: 's-tag', name: 'Receipt', kind: 'component', type: 'chip', x: 186, y: 4, width: 74, height: 22, label: 'Receipt', mock: { role: 'ghost' } },
+          text('s-sub', 'Order #A1042 · Oct 3', 32, { h: 9 }),
+        ] },
+        details: { summary: 'Line items', height: 92, layers: [
+          { id: 'd-box', name: 'Line items', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 92, mock: { role: 'container' }, look: { extraClass: 'border-slate-200 shadow-none', radius: 6 } },
+          text('d-1', 'Subtotal                                        $118.00', 14, { h: 10, x: 32, w: 216 }),
+          text('d-2', 'Shipping                                         $10.00', 34, { h: 10, x: 32, w: 216 }),
+          text('d-3', 'Total                                            $128.00', 60, { h: 12, tone: 'strong', weight: 700, x: 32, w: 216 }),
+        ] },
+        delivery: { summary: 'Map + address', height: 96, layers: [
+          { id: 'v-map', name: 'Map', kind: 'component', type: 'image', x: X, y: 0, width: W, height: 64, look: { radius: 6 } },
+          text('v-addr', '221B Baker St · Standard shipping', 76, { h: 10 }),
+        ] },
+        actions: { summary: 'Track + Done', height: 48, layers: [
+          { id: 'a-track', name: 'Track', kind: 'component', type: 'button', x: X, y: 0, width: 116, height: 40, label: 'Track', mock: { role: 'secondary' } },
+          { id: 'a-done', name: 'Done', kind: 'component', type: 'button', x: 144, y: 0, width: 116, height: 40, label: 'Done', look: { className: 'bg-slate-900', radius: 6 } },
+        ] },
+      },
+      // C · AI — tracking first: live status up top, the receipt folded.
+      ai: {
+        status: { summary: 'Live status banner', height: 72, layers: [
+          { id: 's-banner', name: 'Status', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 64, mock: { icon: 'zap', title: 'Preparing your order', body: 'Ships within 24 hours' }, look: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 14 } },
+        ] },
+        details: { summary: 'Collapsed receipt', height: 44, layers: [
+          { id: 'd-row', name: 'Receipt', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: 'Receipt · $128.00   ▾' }, look: { radius: 999 } },
+        ] },
+        delivery: { summary: 'Track chip + SMS', height: 52, layers: [
+          { id: 'v-chip', name: 'Track package', kind: 'component', type: 'chip', x: X, y: 0, width: 130, height: 28, label: 'Track package', look: { className: 'bg-violet-500' } },
+          text('v-sms', 'We’ll text you at each step', 38, { h: 9 }),
+        ] },
+        actions: { summary: 'Receipt download', height: 52, layers: [
+          { id: 'a-cta', name: 'Download receipt', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 40, label: 'Download receipt', look: { className: 'bg-violet-500', radius: 999 } },
+        ] },
+      },
+    },
+  },
 }
 
 const STATUS_BAR = { id: 'co-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24 }
@@ -163,10 +236,17 @@ export function regionPicks(itemId, decisions) {
 // What each draft's part says and how it's styled — what the composition
 // checks compare across the parts a mix takes from different drafts.
 const PART_META = {
+  'merge-confirmation-drafts': {
+    jane: { status: { accent: 'emerald' }, details: { amount: '128.00' }, delivery: { accent: 'emerald' }, actions: { accent: 'emerald' } },
+    james: { details: { amount: '128.00' }, actions: { accent: 'slate' } },
+    ai: { status: { accent: 'violet' }, details: { amount: '128.00' }, delivery: { accent: 'violet' }, actions: { accent: 'violet' } },
+  },
+  'merge-checkout-payment-drafts': {
   jane: { summary: { amount: '128.00', total: true }, footer: { accent: 'indigo', amount: '128.00', total: true } },
   min: { header: { accent: 'violet' }, summary: { accent: 'violet', amount: '128.00', total: true }, payment: { accent: 'violet' }, footer: { accent: 'violet', amount: '128.00', total: true } },
   james: { summary: { amount: '128.00', total: true }, footer: { accent: 'slate', amount: '128.00', total: true } },
   ai: { header: { accent: 'emerald' }, payment: { accent: 'emerald' }, footer: { accent: 'emerald', amount: '138.24', total: true } },
+  },
 }
 
 // Checks on the composed screen (picks fall back like the Result does):
@@ -176,7 +256,7 @@ export function compositionChecks(itemId, picks, fallback) {
   if (!screen) return []
   const parts = screen.regions.map((region) => {
     const draftKey = picks[region.id] ?? fallback
-    return { region, draftKey, meta: PART_META[draftKey]?.[region.id] ?? {}, empty: !screen.drafts[draftKey]?.[region.id]?.layers.length }
+    return { region, draftKey, meta: PART_META[itemId]?.[draftKey]?.[region.id] ?? {}, empty: !screen.drafts[draftKey]?.[region.id]?.layers.length }
   })
   const picked = screen.regions.filter((r) => picks[r.id]).length
   const amounts = [...new Set(parts.map((p) => p.meta.amount).filter(Boolean))]
@@ -204,12 +284,12 @@ export function compositionChecks(itemId, picks, fallback) {
       title: accents.length <= 1 ? 'One accent color' : `${accents.length} accent colors mixed`,
       hint: accents.length <= 1 ? null : `${accents.join(', ')} — the parts come from drafts with different accents.`,
     },
-    {
+    screen.regions.some((r) => r.id === 'summary') && {
       id: 'summary-missing',
       group: 'Consistency',
       ok: !parts.some((p) => p.region.id === 'summary' && p.empty),
       title: parts.some((p) => p.region.id === 'summary' && p.empty) ? 'No order summary' : 'Order summary shown',
       hint: parts.some((p) => p.region.id === 'summary' && p.empty) ? 'The screen never says what’s being paid for.' : null,
     },
-  ]
+  ].filter(Boolean)
 }
