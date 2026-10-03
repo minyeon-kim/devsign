@@ -28,7 +28,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUserFor } from '@/data/mockData'
+import { allPeople, canvasPages, currentUserFor, designMergeVariants } from '@/data/mockData'
+import { decidedValue } from '@/components/mergestudio/DesignComparison'
 import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
@@ -272,7 +273,96 @@ function ChecksRow({ checks }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks }) {
+// The conflict's drifts as one decision each: ship the design's value or
+// keep the code's (or, for an item with several drafts, any draft's) — the
+// first thing to settle before asking for review. Shared with Merge Studio
+// (WorkspaceProvider's decisionsFor / decideDrift), so a pick made here or
+// on the canvas is the same pick. Undecided values keep the code.
+function driftRowsFor(conflict, item) {
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const scoped = conflict.layerId && layerDiffs[conflict.layerId] ? { [conflict.layerId]: layerDiffs[conflict.layerId] } : layerDiffs
+  const page = canvasPages.find((p) => p.id === item.designPageId)
+  const layerName = (id) => page?.frames[0]?.layers?.find((l) => l.id === id)?.name ?? id
+  const multiLayer = Object.keys(scoped).length > 1
+  return Object.entries(scoped).flatMap(([layerId, diffs]) => diffs.map((diff) => ({
+    key: `${layerId}:${diff.id}`,
+    label: multiLayer ? `${layerName(layerId)} · ${diff.label}` : diff.label,
+    diff,
+  })))
+}
+
+function driftItemOf(conflict, workspace) {
+  if (!workspace?.decisionsFor) return null
+  const item = workspace.mergeItems?.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
+  return item && driftRowsFor(conflict, item).length ? item : null
+}
+
+function DriftDecisions({ conflict, workspace, item, readOnly }) {
+  const rows = driftRowsFor(conflict, item)
+  const decisions = workspace.decisionsFor(item.id)
+  const nameOf = (id, fallback) => allPeople.find((p) => p.id === id)?.name ?? fallback
+  // Two drafts against each other name each side after its author;
+  // otherwise it's the design against the code.
+  const sideA = item.authorAId ? nameOf(item.authorAId, 'Design') : 'Design'
+  const sideB = item.authorBId ? nameOf(item.authorBId, 'Code') : 'Code'
+  const extra = (item.variants ?? []).filter((v) => v.key !== item.authorAId && v.key !== item.authorBId)
+  const optionsFor = (diff) => [
+    { label: sideA, value: diff.optionA, decision: 'A' },
+    { label: sideB, value: diff.optionB, decision: 'B' },
+    ...extra.filter((v) => diff.values?.[v.key] != null && diff.values[v.key] !== diff.optionA && diff.values[v.key] !== diff.optionB)
+      .map((v) => ({ label: nameOf(v.authorId, v.label), value: diff.values[v.key], decision: { custom: diff.values[v.key] } })),
+  ]
+  const decided = rows.filter((r) => decisions[r.key] != null).length
+  const decide = (key, decision) => workspace.decideDrift(item.id, key, decision)
+  const decideAll = (decision) => rows.forEach((r) => decide(r.key, decision))
+
+  return (
+    <div className="min-w-0">
+      <div className="space-y-2 pt-0.5">
+        {rows.map((row) => {
+          const current = decidedValue(row.diff, decisions[row.key])
+          return (
+            <div key={row.key} className="min-w-0 space-y-1">
+              <span className="block truncate text-[11px] text-slate-300"><LocalizedText text={row.label} /></span>
+              <div className="flex min-w-0 flex-wrap gap-1">
+                {optionsFor(row.diff).map((option) => {
+                  const on = current === option.value
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      disabled={readOnly}
+                      aria-pressed={on}
+                      onClick={() => decide(row.key, on ? null : option.decision)}
+                      className={cn(
+                        'ds-intrinsic inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] transition-colors disabled:cursor-default',
+                        on ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white'
+                      )}
+                    >
+                      {on && <Check className="size-3 shrink-0" strokeWidth={2.5} />}
+                      <span className="font-semibold tabular-nums">{option.value}</span>
+                      <span className={on ? 'text-emerald-200/70' : 'text-slate-500'}><LocalizedText text={option.label} /></span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
+        <LocalizedText text={decided === rows.length ? 'All values decided' : `${decided} of ${rows.length} decided · undecided values keep the code`} />
+        {!readOnly && rows.length > 1 && decided < rows.length && (
+          <button type="button" onClick={() => decideAll('A')} className={REVIEWER_TEXT_ACTION}>
+            <LocalizedText text={`Use ${sideA} for all`} />
+          </button>
+        )}
+      </p>
+    </div>
+  )
+}
+
+function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks, decisions }) {
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -339,6 +429,13 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
           <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />
           Values below are from before the merge.
         </p>
+      )}
+      {/* What to settle first: which value each drift ships with. */}
+      {decisions && (
+        <div className={cn(REVIEW_INFO_GRID, 'mb-3')}>
+          <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Decide</p>
+          {decisions}
+        </div>
       )}
       {/* Who the stage is waiting on, right under it. */}
       {reviewers && (
@@ -1093,6 +1190,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   const stage = conflict?.reviewStage
   const checks = conflict && workspace?.conflictChecks ? workspace.conflictChecks(conflict) : null
+  const driftItem = conflict ? driftItemOf(conflict, workspace) : null
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
@@ -1221,6 +1319,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
                             checks={checks}
+                            decisions={driftItem && <DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} />}
                           />
                         </div>
                       </section>

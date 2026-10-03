@@ -362,7 +362,25 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     mergeDrafts.current[id] = draft
     writeDemo(`project:${projectId}:mergeDrafts`, mergeDrafts.current)
+    setDraftVersion((v) => v + 1)
   }, [projectId, setConflicts, setMergeItems])
+  // Drift decisions (which value each drifted property ships with), shared
+  // by the conflict's review and Merge Studio. While Merge Studio has the
+  // item open its live choices are the source (it registers them here as
+  // `studioDecisions`); otherwise the item's saved draft is.
+  const [draftVersion, setDraftVersion] = useState(0)
+  const [studioDecisions, setStudioDecisions] = useState(null)
+  const decisionsFor = useCallback((itemId) => (
+    studioDecisions?.itemId === itemId ? studioDecisions.resolutions : mergeDrafts.current[itemId]?.resolutions ?? {}
+  ), [studioDecisions, draftVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  const decideDrift = useCallback((itemId, key, decision) => {
+    if (studioDecisions?.itemId === itemId) return studioDecisions.resolve(key, decision)
+    const draft = mergeDrafts.current[itemId] ?? {}
+    const resolutions = { ...(draft.resolutions ?? {}) }
+    if (decision == null) delete resolutions[key]
+    else resolutions[key] = decision
+    saveMergeDraft(itemId, { ...draft, resolutions })
+  }, [studioDecisions, saveMergeDraft])
   // Baseline moves only in the shared final merge operation, never on AI edits.
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
@@ -1765,6 +1783,10 @@ export function WorkspaceProvider({ children, projectId }) {
     selectedMergeItemId,
     mergeDrafts,
     saveMergeDraft,
+    decisionsFor,
+    decideDrift,
+    setStudioDecisions,
+    draftVersion,
     conflictChecks,
     linesOfFile,
     designCompareRequest,

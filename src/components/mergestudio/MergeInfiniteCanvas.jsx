@@ -1069,7 +1069,7 @@ function MergeInfiniteCanvas({
   // out of `designCompare` so picking doesn't reset the comparison view.
   compareOverrides = null,
 }) {
-  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel } = useWorkspace()
+  const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel, decisionsFor } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
   const [driftIdx, setDriftIdx] = useState(-1)
   const [view, setView] = useState(DEFAULT_VIEW)
@@ -1142,7 +1142,11 @@ function MergeInfiniteCanvas({
   // A two-author comparison (e.g. two designers' own drafts) names each side
   // after its author instead of the usual design-vs-code framing.
   const frameLabelA = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
-  const frameLabelB = item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
+  // Drafts that have been mixed (any value decided) render the picks on the
+  // second artboard — so it's the result, not the second author's draft.
+  const mixed = item.variants?.length > 2 && Object.keys(decisionsFor?.(item.id) ?? {}).length > 0
+  const frameLabelB = mixed ? 'Result — your picks'
+    : item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
 
   useEffect(() => {
     viewRef.current = view
@@ -1341,6 +1345,16 @@ function MergeInfiniteCanvas({
         d.line <= (syncSelection.endLine ?? syncSelection.line)
   )
   const currentDrift = matchedDrift >= 0 ? matchedDrift : driftIdx
+  // How many drifted design values have a decision — the pill's count; the
+  // decisions themselves are made in the conflict's review (Decide row).
+  const decisionMap = (item && decisionsFor?.(item.id)) ?? {}
+  const decisionKeys = drifts.filter((d) => d.kind === 'design').flatMap((d) => d.diffs.map((diff) => `${d.layerId}:${diff.id}`))
+  const decidedCount = decisionKeys.filter((key) => decisionMap[key] != null).length
+  function openDecisions() {
+    const conflict = item && conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId)
+    if (conflict) openConflictReview(conflict.id)
+    setBottomPanel({ tab: 'conflict', open: true })
+  }
 
   function goDrift(dir) {
     const n = drifts.length
@@ -2152,14 +2166,17 @@ function MergeInfiniteCanvas({
                 {/* Plain label, not a button — drift detail now lives inline
                     in the Block Deck's Compare tab (no more floating
                     popover here for this to show/hide). */}
-                {/* The pill's main action: open the Drifts tab to decide them. */}
+                {/* The pill's main action: open the conflict's review, whose
+                    Decide row is where each value is picked. */}
                 <button
                   type="button"
-                  title="Decide drifts"
-                  onClick={() => setBottomPanel({ tab: 'drifts', open: true })}
-                  className="ds-intrinsic h-7 min-w-20 rounded-full px-2 text-center font-semibold text-foreground tabular-nums transition-colors hover:bg-white/10"
+                  title="Decide values"
+                  onClick={openDecisions}
+                  className={cn('ds-intrinsic h-7 min-w-20 rounded-full px-2 text-center font-semibold tabular-nums transition-colors hover:bg-white/10', decisionKeys.length && decidedCount === decisionKeys.length ? 'text-emerald-300' : 'text-foreground')}
                 >
-                  <LocalizedText text="Drift" /> {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}
+                  {decisionKeys.length
+                    ? <LocalizedText text={`Decided ${decidedCount}/${decisionKeys.length}`} />
+                    : <><LocalizedText text="Drift" /> {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}</>}
                 </button>
                 <button
                   type="button"

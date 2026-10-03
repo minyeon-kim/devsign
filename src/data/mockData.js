@@ -699,6 +699,43 @@ export const conflictChecklist = [
     mergeItemId: 'merge-checkout-designer-pair',
     mergeTitle: 'Merged Order summary card style',
   },
+  // The payment step's three drafts (merge-checkout-payment-drafts), each
+  // changing different elements — mixed in Design Compare, then reviewed
+  // and merged here like any other Conflict Point.
+  {
+    id: 'cc-13',
+    token: 'Payment step · 3 drafts',
+    file: 'src/prototype/Checkout.jsx',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    timestamp: '1h ago',
+    resolved: false,
+    severity: 'low',
+    message: 'Taylor, Alex and Jordan each redrew part of the payment step — the summary card, the card input and the Place order button differ between their drafts.',
+    riskReason: 'Low: style-only differences on the payment step — no logic or data changes.',
+    impact: {
+      screens: ['Checkout · Payment step'],
+      components: ['Order summary', 'Card input', 'Place order'],
+      files: ['src/prototype/Checkout.jsx'],
+    },
+    changedBy: { type: 'person', id: 'james', what: 'Opened a third draft of the payment step' },
+    detectedBy: 'Three open drafts on the same screen',
+    branches: { local: 'Taylor’s draft', remote: 'Alex’s draft' },
+    suggestion: 'Mix them in Design Compare: take each element from the draft that fits the rest of the checkout best.',
+    reviewStage: 'detected',
+    reviewers: [
+      { id: 'jane', status: 'pending' },
+      { id: 'min', status: 'pending' },
+    ],
+    comparisonFields: [
+      { label: 'Card radius', expected: '16px (Alex’s draft)', current: '12px (Taylor’s draft)' },
+      { label: 'Input radius', expected: '999px (Jordan’s draft)', current: '8px (Taylor’s draft)' },
+      { label: 'Button height', expected: '44px (Taylor’s draft)', current: '48px (Alex’s draft)' },
+    ],
+    fileId: 'app',
+    mergeItemId: 'merge-checkout-payment-drafts',
+    mergeTitle: 'Merged payment step drafts',
+  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /

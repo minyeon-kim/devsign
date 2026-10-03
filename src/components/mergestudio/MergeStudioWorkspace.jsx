@@ -6,11 +6,11 @@ import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronDown, GitCompareArrows, Layers3, ListChecks, MousePointerClick, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Layers3, ListChecks, MousePointerClick, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
-import BlockDeckPanel, { VariantCompareTab } from '@/components/mergestudio/BlockDeckPanel'
+import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
@@ -46,19 +46,26 @@ import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 // properties, each with every compared draft's value to take — or the
 // whole element from one draft — and a summary of where each element's
 // values come from. Picks are ordinary drift decisions (A / B / custom),
-// so the Result artboard, the Drifts tab, checks and merging all follow.
-function MixPanel({ item, options, layers, selectedLayerId, resolutions, onPick }) {
+// so the Result artboard, the conflict's Decide row, checks and merging all follow.
+const shortLabel = (option) => option.label.replace(/[’']s draft$/, '')
+// Which draft each drifted element's decided values match (one, or
+// "mixed"); undecided elements are left out. `total` counts them all.
+function mixSources(item, options, resolutions) {
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
-  const diffs = selectedLayerId ? layerDiffs[selectedLayerId] : null
-  const nameOf = (layerId) => layers.find((l) => l.id === layerId)?.name ?? layerId
-  const shortLabel = (option) => option.label.replace(/[’']s draft$/, '')
-  // Which draft each element's current values match (one, or "mixed").
   const sources = Object.entries(layerDiffs).map(([layerId, list]) => {
     const values = list.map((diff) => decidedValue(diff, resolutions[`${layerId}:${diff.id}`]))
     if (values.some((v) => v === undefined)) return null
     const from = options.find((option) => list.every((diff, i) => draftValue(diff, option) === values[i]))
     return { layerId, from: from ? shortLabel(from) : 'mixed' }
   }).filter(Boolean)
+  return { sources, total: Object.keys(layerDiffs).length }
+}
+
+function MixPanel({ item, options, layers, selectedLayerId, resolutions, onPick }) {
+  const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
+  const diffs = selectedLayerId ? layerDiffs[selectedLayerId] : null
+  const nameOf = (layerId) => layers.find((l) => l.id === layerId)?.name ?? layerId
+  const { sources, total } = mixSources(item, options, resolutions)
   const pickAll = (layerId, option) => layerDiffs[layerId].forEach((diff) => onPick(layerId, diff.id, decisionFor(diff, draftValue(diff, option))))
 
   return (
@@ -108,6 +115,7 @@ function MixPanel({ item, options, layers, selectedLayerId, resolutions, onPick 
       )}
       {sources.length > 0 && (
         <p className="mt-2 border-t border-white/[0.06] pt-2 text-[10.5px] text-slate-500">
+          <span className="mr-2 font-medium text-slate-400"><LocalizedText text={`${sources.length}/${total} picked`} /></span>
           {sources.map((source, i) => (
             <span key={source.layerId}>
               {i > 0 && ' · '}
@@ -116,16 +124,6 @@ function MixPanel({ item, options, layers, selectedLayerId, resolutions, onPick 
           ))}
         </p>
       )}
-    </div>
-  )
-}
-
-// The bottom panel's Drifts tab (a stable component, see bottomPanelTabs).
-function DriftsPanel({ item, ...props }) {
-  if (!item) return <p className="p-6 text-center text-xs text-slate-500">Open a merge item to decide its drifts.</p>
-  return (
-    <div className="h-full min-h-0 overflow-hidden px-4 pt-1 pb-3">
-      <VariantCompareTab item={item} {...props} />
     </div>
   )
 }
@@ -198,6 +196,7 @@ function MergeStudioWorkspace({ item }) {
     setBottomPanel,
     mergeDrafts,
     saveMergeDraft,
+    setStudioDecisions,
     conflicts,
     updateConflict,
     currentUser,
@@ -306,7 +305,7 @@ function MergeStudioWorkspace({ item }) {
   }, [item?.id, designCompareRequest])
   // "Use this design": every drift takes the chosen draft's value — the
   // design's own (A), the current implementation's (B), or the draft's
-  // value as a custom one — the same decisions the Drifts tab records,
+  // value as a custom one — the same decisions the conflict's Decide row records,
   // made in one go. Not a commit: it's the item's working choices, and
   // the checks re-run on them; merging is what records it.
   // Comparing another item's drafts: its choices are saved to that item's
@@ -330,9 +329,31 @@ function MergeStudioWorkspace({ item }) {
       requestMergeFocus({ itemId: target.id, overview: true })
     }
     setDesignComparison(null)
+    openReviewFor(target)
+    if (target.id === item.id) requestMergeFocus({ itemId: item.id, overview: true })
     const count = Object.keys(picks).length
-    toast(`Using ${option.label}`, { description: `${count} value${count === 1 ? '' : 's'} set — see Drifts to adjust.` })
+    toast(`Using ${option.label}`, { description: `${count} value${count === 1 ? '' : 's'} set — adjust them in the conflict’s Decide row.` })
   }
+  // Finishing a mix: back to the item's own canvas (the original next to
+  // the result) with its conflict review open — the Decide row lists what
+  // was taken from where, and requesting review is the next step there.
+  function finishMix() {
+    const { sources, total } = mixSources(item, designComparison.options, resolutions)
+    setDesignComparison(null)
+    openReviewFor(item)
+    requestMergeFocus({ itemId: item.id, overview: true })
+    toast('Mix applied', {
+      description: sources.length === total
+        ? 'Check the values in Decide, then request review.'
+        : `${sources.length} of ${total} elements picked — the rest keep the code.`,
+    })
+  }
+  function openReviewFor(target) {
+    const conflict = conflicts.find((c) => c.mergeItemId === target.id || c.id === target.conflictId)
+    if (conflict) openConflictReview(conflict.id)
+    setBottomPanel({ tab: 'conflict', open: true })
+  }
+  const mixPicked = designComparison && item ? mixSources(item, designComparison.options, resolutions).sources.length : 0
   // Design Compare's selected drafts, reshaped as frames for
   // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
   // + per-option overrides" shape Option A/B already use there, so the
@@ -625,6 +646,23 @@ function MergeStudioWorkspace({ item }) {
 
   useEffect(() => setPlacing(null), [item?.id])
 
+  // The conflict review's Decide row reads and writes these live choices
+  // while this item is open (see WorkspaceProvider's decideDrift).
+  useEffect(() => {
+    if (!item?.id) return
+    setStudioDecisions({
+      itemId: item.id,
+      resolutions,
+      resolve: (key, decision) => setResolutions((prev) => {
+        const next = { ...prev }
+        if (decision == null) delete next[key]
+        else next[key] = decision
+        return next
+      }),
+    })
+  }, [item?.id, resolutions, setStudioDecisions])
+  useEffect(() => () => setStudioDecisions(null), [setStudioDecisions])
+
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => {
       const next = { ...prev }
@@ -791,15 +829,6 @@ function MergeStudioWorkspace({ item }) {
       panelProps: { inMergeStudio: true },
     },
     {
-      // Deciding each drift — the design's value or the current one — for
-      // this item. A tab to open whenever, not a step in a sequence.
-      id: 'drifts',
-      label: 'Drifts',
-      icon: GitCompareArrows,
-      Panel: DriftsPanel,
-      panelProps: item ? { item, selectedLayerId: deckLayerId, resolutions, onResolve: resolveDiff, onHoverDiff: setHoverDiff } : { item: null },
-    },
-    {
       id: 'design-compare',
       label: 'Design Compare',
       icon: Layers3,
@@ -885,7 +914,7 @@ function MergeStudioWorkspace({ item }) {
             {/* One primary action (pick a draft); changing the drafts is a
                 quiet text action, and leaving is the close button. */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full bg-emerald-400/15 px-3 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 data-[popup-open]:bg-emerald-400/25">
+              <DropdownMenuTrigger className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.06] px-3 text-[12px] font-medium text-slate-200 transition-colors hover:bg-white/[0.12] data-[popup-open]:bg-white/[0.12]">
                 <LocalizedText text="Use a design" />
                 <ChevronDown className="size-3 opacity-80" />
               </DropdownMenuTrigger>
@@ -897,6 +926,17 @@ function MergeStudioWorkspace({ item }) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            {/* The primary action: done mixing — enabled once anything's
+                been picked from a draft. */}
+            <button
+              type="button"
+              disabled={mixPicked === 0}
+              title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
+              onClick={finishMix}
+              className="ds-intrinsic h-7 shrink-0 rounded-full bg-emerald-400/15 px-3 text-[12px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25 disabled:cursor-default disabled:bg-white/[0.04] disabled:text-slate-500"
+            >
+              <LocalizedText text="Finish mix" />
+            </button>
             <button
               type="button"
               onClick={() => {
