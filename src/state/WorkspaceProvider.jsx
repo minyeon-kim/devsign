@@ -885,10 +885,18 @@ export function WorkspaceProvider({ children, projectId }) {
     if (item) updateMergeItem(item.id, { tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' })
     setDraftChanges((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !Object.hasOwn(finalFiles, id))))
     const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
+    const historyFileId = conflict?.fileId ?? item?.fileIds?.[0] ?? activeFileId
+    const historyLines = finalFiles[historyFileId]
+      ?? Object.values(finalFiles).find(Array.isArray)
+      ?? fileOverrides[historyFileId]
+      ?? files.find((file) => file.id === historyFileId)?.lines
+      ?? currentSnapshot().lines
     recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
       conflictIds: [...mergedIds],
       timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers).filter((r) => r.status === 'approved').map((r) => r.id))],
-      snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps, prototypeEdits: nextPrototypeEdits, activePageId } })
+      snapshot: { ...currentSnapshot(), activeFileId: historyFileId, fileId: historyFileId, lines: historyLines,
+        files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps,
+        prototypeEdits: nextPrototypeEdits, activePageId } })
     for (const c of related) {
       logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
       const update = updateFromConflict(c, projectId)

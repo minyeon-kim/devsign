@@ -197,6 +197,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
               previewProps={selected.snapshot?.previewProps}
               prototypeEdits={selected.snapshot?.prototypeEdits}
               activePageId={selected.snapshot?.activePageId}
+              frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
               showZoomControl
               caption={<span className="text-emerald-300">{selected.label}</span>}
             />

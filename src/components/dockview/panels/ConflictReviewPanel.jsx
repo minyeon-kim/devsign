@@ -1315,6 +1315,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <LocalizedText text={conflict.title} />
                 </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
+                {conflict.dueLabel && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[10px] tabular-nums text-slate-400" title="Due date">
+                    <Clock3 className="size-3" />
+                    <LocalizedText text={conflict.dueLabel} />
+                  </span>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {detailTabs}

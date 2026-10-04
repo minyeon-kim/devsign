@@ -3,7 +3,7 @@ import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBad
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, Clock3, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
@@ -259,18 +259,19 @@ function ConflictPanel({ inMergeStudio }) {
                   </div>
                 </th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
+                <th className="py-1.5 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium">Branch</th>
-                <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author</th>
-                <th className="py-1.5 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 pr-1 text-right font-medium whitespace-nowrap">Updated</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -342,18 +343,14 @@ function ConflictPanel({ inMergeStudio }) {
                         </p>
                       </div>
                     </td>
-                    <td className="min-w-0 px-1.5 py-2">
-                      <div className="min-w-0 space-y-1">
-                        {conflict.message && (
-                          <p className="line-clamp-1 text-[11px] leading-4 text-slate-400" title={conflict.message}>
-                            <LocalizedText text={conflict.message} />
-                          </p>
-                        )}
-                        {!conflict.message && <span className="text-slate-500">—</span>}
-                        {isOpen(conflict) && <p className="text-[10px] leading-3 text-slate-500">Due: <LocalizedText text={conflict.dueLabel} /></p>}
-                      </div>
+                    <td className="py-2 text-[10.5px] whitespace-nowrap tabular-nums">
+                      {conflict.dueLabel ? (
+                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-400')}>
+                          <Clock3 className="size-3 shrink-0" />
+                          <LocalizedText text={conflict.dueLabel} />
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
                     </td>
-                    <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
                     {/* Status is the stage only — checks and "your review"
                         have their own places (the next column, and your
                         avatar under Reviewers). A change with every value
@@ -370,16 +367,6 @@ function ConflictPanel({ inMergeStudio }) {
                         <span className="inline-flex items-center text-emerald-300/80" title="All checks passed">
                           <CircleCheck className="size-3" />
                         </span>
-                      )}
-                    </td>
-                    <td className="py-2">
-                      {author ? (
-                        <Avatar size="xs" title={author.name}>
-                          <AvatarFallback className={cn('font-medium text-white', author.colorClass)}>{author.initials}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        // No person made it — design ↔ code sync found it.
-                        <span className="text-[10.5px] text-slate-600" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
                       )}
                     </td>
                     <td className="py-2 pl-1 text-left">
@@ -400,6 +387,26 @@ function ConflictPanel({ inMergeStudio }) {
                         </div>
                       ) : (
                         <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="min-w-0 px-1.5 py-2">
+                      <div className="min-w-0 space-y-1">
+                        {conflict.message ? (
+                          <p className="line-clamp-1 text-[11px] leading-4 text-slate-400" title={conflict.message}>
+                            <LocalizedText text={conflict.message} />
+                          </p>
+                        ) : <span className="text-slate-500">—</span>}
+                      </div>
+                    </td>
+                    <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
+                    <td className="py-2">
+                      {author ? (
+                        <Avatar size="xs" title={author.name}>
+                          <AvatarFallback className={cn('font-medium text-white', author.colorClass)}>{author.initials}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        // No person made it — design ↔ code sync found it.
+                        <span className="text-[10.5px] text-slate-600" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
                       )}
                     </td>
                     {/* The day only ("Yesterday", "2 hours ago"); the exact time is on hover. */}

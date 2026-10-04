@@ -1,12 +1,11 @@
 /* Shared tracks prevent header/body drift as the bottom panel resizes. */
 .conflict-list-table {
-  /* Severity · Issue · Description (one line) · Status · Checks · Author ·
-     Reviewers · Updated. Status keeps room for its longest label
-     ("Approved · Pending merge") on one line. */
-  --conflict-columns: 190px 124px minmax(200px, 1fr) minmax(240px, 1.4fr) 176px 54px 56px 96px 80px;
+  /* Put the review state, issue, deadline and approval blockers before
+     supporting details so the first scan answers what needs attention. */
+  --conflict-columns: 156px 132px minmax(190px, 1fr) 126px 58px 96px minmax(240px, 1.3fr) 156px 56px 78px;
   display: block;
   width: 100%;
-  min-width: 1376px;
+  min-width: 1460px;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;
@@ -59,4 +58,3 @@ button.conflict-checkbox:focus-visible {
 .conflict-list-table td {
   text-align: left;
 }
-

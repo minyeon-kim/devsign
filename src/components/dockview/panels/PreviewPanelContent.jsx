@@ -19,11 +19,12 @@ function parsePadding(value) {
 // to the primary button through `previewProps`.
 // History renders it at a past version: `previewProps` then comes from that
 // checkpoint's snapshot, and `caption` adds a label to its header.
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, caption, historical = false, showZoomControl = false, snapshotKey } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, caption, historical = false, showZoomControl = false, snapshotKey } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
   const page = projectPages.find((p) => p.id === pageId) ?? projectPages[0]
+  const frames = Array.isArray(snapshotFrames) && snapshotFrames.length ? snapshotFrames : page.frames
   const renderedEdits = snapshotEdits ?? (historical ? {} : liveEdits)
   const file = prototypeFileForPage(page.id)
   const boxRef = useRef(null)
@@ -66,7 +67,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             content with no transition at all, reading as an abrupt jump
             instead of the design settling into its next state. */}
         <div key={historical ? snapshotKey : previewVersion} className="m-auto flex w-full flex-col items-center gap-6 animate-in fade-in duration-500">
-          {page.frames.map((frame) => {
+          {frames.map((frame) => {
             const scale = Math.min(1, width / frame.width) * (zoom / 100)
             return (
               <div

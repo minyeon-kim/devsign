@@ -19,6 +19,14 @@ const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 const MIN_CODE = 280
 const MIN_CANVAS = 260
 
+function snapshotLines(snapshot) {
+  if (!snapshot) return []
+  const exact = snapshot.fileId ? snapshot.files?.[snapshot.fileId] : null
+  if (Array.isArray(exact)) return exact
+  const available = Object.values(snapshot.files ?? {}).find(Array.isArray)
+  return available ?? snapshot.lines ?? []
+}
+
 // Archive → History's detail pane: what restoring the selected version
 // would change relative to the current one (code, preview props,
 // conflicts), with the explicit Restore action. Reads the same
@@ -57,7 +65,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
   const diffBase = playing ? historyEntries.find((h) => h.id === baseEntryId) ?? null : current
 
   const rows = useMemo(
-    () => (entry && diffBase ? diffLines(diffBase.snapshot.lines, entry.snapshot.lines) : []),
+    () => (entry && diffBase ? diffLines(snapshotLines(diffBase.snapshot), snapshotLines(entry.snapshot)) : []),
     [entry, diffBase]
   )
   // While playing, the final step is still stepping forward from the one
@@ -68,7 +76,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
   // actual current checkpoint shows it plainly, nothing to compare.
   const showDiff = compareLatest && Boolean(diffBase) && (playing || !isCurrent)
   const codeRows = useMemo(() => {
-    const source = showDiff ? rows : (entry?.snapshot.lines ?? []).map((text) => ({ kind: 'same', text }))
+    const source = showDiff ? rows : snapshotLines(entry?.snapshot).map((text) => ({ kind: 'same', text }))
     // Old (latest) / new (this version) line numbers, like a split gutter;
     // `addIndex` staggers the type-in animation across an added block.
     let a = 0
@@ -250,10 +258,11 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             // shows (see lib/prototypeSync).
             prototypeEdits={
               shownSnapshot.snapshot.prototypeEdits ??
-              deriveComponentOverride(projectId, shownSnapshot.snapshot.fileId, shownSnapshot.snapshot.lines) ??
+              deriveComponentOverride(projectId, shownSnapshot.snapshot.fileId, snapshotLines(shownSnapshot.snapshot)) ??
               {}
             }
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
+            frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
             historical
             caption={
               <span className="shrink-0 text-emerald-300">

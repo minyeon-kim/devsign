@@ -34,7 +34,7 @@ const MIN_CANVAS = 220
 // inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
-  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
@@ -74,6 +74,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
   }, [open, height, availableHeight, setBottomPanel])
   const { open: openConflicts } = conflictCounts(conflicts)
+  const designSets = mergeItems.filter((item) => item.hasDesign).length
 
   function maxHeight() {
     const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
@@ -191,6 +192,14 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
                   className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[9px] leading-none font-bold text-[#050505] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
                 >
                   {openConflicts}
+                </span>
+              )}
+              {id === 'design-compare' && designSets > 0 && (
+                <span
+                  title={`${designSets} design sets`}
+                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-sky-300 p-0 text-[9px] leading-none font-bold text-[#050505] tabular-nums"
+                >
+                  {designSets}
                 </span>
               )}
             </button>
