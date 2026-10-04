@@ -33,7 +33,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
         </span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
-        <span className="flex items-center gap-1.5 text-[11px] text-slate-300">
+        <span className="flex items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 text-[11px] font-semibold text-sky-100">
           <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
           <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
         </span>

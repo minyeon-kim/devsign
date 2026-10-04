@@ -26,13 +26,14 @@ Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
   const { createElement } = await import('react')
+  const { MemoryRouter } = await import('react-router-dom')
   const { renderToString } = await import('react-dom/server')
   const { ConflictStoreProvider } = await server.ssrLoadModule('/src/state/ConflictStore.jsx')
   const { WorkspaceProvider } = await server.ssrLoadModule('/src/state/WorkspaceProvider.jsx')
   const { default: Explorer } = await server.ssrLoadModule('/src/components/dockview/panels/ExplorerPanel.jsx')
   const { default: BottomPanel } = await server.ssrLoadModule('/src/components/workspace/WorkspaceBottomPanel.jsx')
-  const render = (Component) => renderToString(createElement(ConflictStoreProvider, null,
-    createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Component))))
+  const render = (Component) => renderToString(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
+    createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Component)))))
   const explorer = render(Explorer)
   assert.ok(explorer.includes('role="tree"'))
   assert.ok(explorer.includes('aria-label="components"'))

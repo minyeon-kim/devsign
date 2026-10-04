@@ -252,7 +252,7 @@ function ConflictPanel({ inMergeStudio }) {
                     label={allSelected ? 'Clear selection' : 'Select all low-risk conflicts'}
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
-                    <span className="w-[58px] shrink-0 text-center">Severity</span>
+                    <span className="w-[84px] shrink-0 text-center">Severity</span>
                   </div>
                 </th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
@@ -351,7 +351,7 @@ function ConflictPanel({ inMergeStudio }) {
                         avatar under Reviewers). A change with every value
                         decided but no review asked for yet says so. */}
                     <td className="px-1.5 py-2">
-                      <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-foreground/80">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-semibold whitespace-nowrap text-sky-100">
                         <span className={cn('ds-status-dot shrink-0 rounded-full', readyToRequest ? 'bg-emerald-400' : STAGE_DOT_CLASS[conflict.reviewStage])} />
                         <span className="truncate"><LocalizedText text={readyToRequest ? 'Decided · request review' : STAGE_LABEL[conflict.reviewStage]} /></span>
                       </span>

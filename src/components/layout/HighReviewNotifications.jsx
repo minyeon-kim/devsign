@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Bell, X } from 'lucide-react'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/layout/ConflictEntryPrompt'
@@ -39,8 +39,13 @@ function useBellAnchor(active) {
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { notifications, projectId, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel } = useWorkspace()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [requestDismissed, setRequestDismissed] = useState(false)
+  const onWorkspace = /\/workspace\/?$/.test(pathname)
+  useEffect(() => { if (!onWorkspace) setRequestDismissed(false) }, [onWorkspace])
+  const showRequest = onWorkspace && projectId === 'checkout-redesign' && !requestDismissed
   const seen = useRef(new Set())
   const [visibleIds, setVisibleIds] = useState([])
 
@@ -67,12 +72,21 @@ export default function HighReviewNotifications() {
   const banners = visibleIds.map(id => notifications.find(n => n.id === id && n.unread)).filter(n => n && !entry.conflictIds.has(n.target?.conflictId))
   // With the Inbox open the same items are already on screen, in the spot
   // the banners would cover.
-  const show = (banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
+  const show = (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
   const anchor = useBellAnchor(show)
   if (!show) return null
 
   return (
     <aside aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+        {showRequest && (
+          <section className="pointer-events-auto relative rounded-2xl border border-emerald-300/30 bg-card p-4 shadow-2xl">
+            <button type="button" aria-label="알림 닫기" onClick={() => setRequestDismissed(true)} className="absolute right-3 top-3 text-slate-400 hover:text-white"><X className="size-4" /></button>
+            <p className="flex items-center gap-2 pr-5 text-sm font-semibold text-emerald-200"><Bell className="size-4" />개발 요청 <span className="rounded-md bg-emerald-300 px-2 py-0.5 text-xs font-bold text-slate-950">D-7</span></p>
+            <p className="mt-3 text-xs font-semibold text-white">Jordan</p>
+            <p className="mt-1 text-sm leading-6 text-slate-200">“결제 단계 시안이 4개 모였어요. 좋은 부분만 모아 하나로 만들어 주세요”</p>
+            <button type="button" onClick={() => { setRequestDismissed(true); exitMergeStudio(); setBottomPanel({ tab: 'design-compare', open: true }) }} className="mt-3 rounded-full bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-200">디자인 비교 열기</button>
+          </section>
+        )}
       {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={entry.close} />}
       {banners.map(n => <div key={n.id} className="pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#252525]/95 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none">
         <button type="button" onClick={() => {

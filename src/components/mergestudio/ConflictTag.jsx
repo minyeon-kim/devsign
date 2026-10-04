@@ -41,11 +41,12 @@ export function SeverityPill({ level, className, ...props }) {
     <span
       {...props}
       className={cn(
-        'flex h-5 w-[58px] shrink-0 items-center justify-center rounded-full text-[11px] font-medium',
+        'flex h-6 min-w-[84px] shrink-0 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-semibold',
         SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium,
         className
       )}
     >
+      <span className="font-bold">{({ high: "Lv.3", medium: "Lv.2", low: "Lv.1", none: "Lv.0" })[key]}</span>
       <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>
   )

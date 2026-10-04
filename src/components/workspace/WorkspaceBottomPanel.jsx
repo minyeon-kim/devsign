@@ -1,7 +1,8 @@
+import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { moveTab } from '@/lib/tabOrder'
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GitPullRequest, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { Layers3, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
@@ -13,6 +14,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const DEFAULT_TABS = [
   { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
+  { id: 'design-compare', label: 'Design Compare', icon: Layers3, Panel: WorkspaceDesignCompare },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, Panel: TerminalPanel },
   { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
 ]
@@ -32,7 +34,7 @@ const MIN_CANVAS = 220
 // inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
-  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId, activeView } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, reviewConflictId } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
@@ -62,7 +64,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   // never fights a height the user later drags down, and never re-fires
   // just from height changing while the tab stays open.
   useEffect(() => {
-    if (tab !== 'conflict' || !open) return
+    if (!['conflict', 'design-compare'].includes(tab) || !open) return
     const target = Math.max(320, Math.round(window.innerHeight * 0.36))
     if (height < target) setBottomPanel({ height: target })
     // eslint-disable-next-line react-hooks/exhaustive-deps

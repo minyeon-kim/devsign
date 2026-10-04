@@ -38,7 +38,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUserFor } from '@/data/mockData'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
-import { decidedValue, decisionFor } from '@/components/mergestudio/DesignComparison'
+import { decidedValue } from '@/components/mergestudio/DesignComparison'
 import {
   STAGE_DOT_CLASS,
   STAGE_LABEL,
@@ -418,11 +418,6 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
     conflict.impact?.components?.length ||
     conflict.impact?.files?.length
   )
-  const severityTone = severity?.label === 'High'
-    ? 'text-red-300'
-    : severity?.label === 'Medium'
-      ? 'text-amber-200'
-      : 'text-sky-200'
 
   return (
     <div className="flex h-full flex-col">
@@ -431,14 +426,14 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
             the right — one line, the card's header. */}
         <div className="flex min-w-0 items-center gap-3">
           <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-slate-500">
-            <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-slate-100">
+            <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-semibold text-sky-100">
               <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
               <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
             </span>
             {severity && (
               <>
                 <span aria-hidden>·</span>
-                <span className={cn('font-medium', severityTone)}><LocalizedText text={severity.label} /></span>
+                <SeverityPill level={severity.label} />
               </>
             )}
             {conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai') && (
@@ -1343,7 +1338,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       const blocking = checks?.blocking ?? []
       primary = (
         <>
-          {blocking.length > 0 && <CheckStatus checks={checks} onFix={fixCheck} />}
           <button type="button" onClick={handleMerge} disabled={blocking.length > 0} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
             <GitMerge className="size-3.5" />
             Merge change
@@ -1405,10 +1399,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             severity={severity}
                             stage={stage}
                             showProject={!workspace}
-                            reviewers={<ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />}
                             checks={checks}
                             onFixCheck={stage !== 'resolved' && workspace ? fixCheck : undefined}
-                            decisions={driftItem && !draftColumns(driftItem) && <DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} />}
                           />
                         </div>
                       </section>
@@ -1419,7 +1411,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               conflict={conflict}
                               workspace={workspace}
                               item={driftItem}
-                              editable={inMergeStudio && stage !== 'resolved'}
+                              editable={stage !== 'resolved'}
                               compareLabel={inMergeStudio ? 'Compare on canvas' : 'Compare in Merge Studio'}
                               onCompare={stage === 'resolved' ? null : () => {
                                 // Merge Studio opens on the item with every draft side by side.
@@ -1428,6 +1420,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               }}
                             />
                           ) : (
+                          <>
+                          {driftItem && <div className="mb-4 rounded-xl border border-white/10 p-3"><p className="mb-2 text-xs font-semibold text-white">Diff · 적용할 값을 선택하세요</p><DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} /></div>}
                           <DiffTab
                             conflict={conflict}
                             code={codeView}
@@ -1435,6 +1429,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}
                           />
+                          </>
                           )}
                         </div>
                       </section>
@@ -1446,10 +1441,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                 </div>
 
-                {/* All three review columns start beneath the shared tab row.
-                    Reviewers live in the overview (beside the stage they
-                    gate), so this column is the conversation alone. */}
+                {/* Reviewers stay above the discussion beside the central diff. */}
                 <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
+                  <section className={cn("shrink-0 max-h-48 overflow-auto", REVIEW_CONTEXT_CARD)}>
+                    <p className={cn(PANEL_LABEL, "mb-2")}><LocalizedText text="Reviewers" /></p>
+                    <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
+                  </section>
                   <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />
