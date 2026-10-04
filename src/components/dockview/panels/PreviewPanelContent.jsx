@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import ChangePreview from '@/components/conflicts/ChangePreview'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -19,7 +20,7 @@ function parsePadding(value) {
 // to the primary button through `previewProps`.
 // History renders it at a past version: `previewProps` then comes from that
 // checkpoint's snapshot, and `caption` adds a label to its header.
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, caption, historical = false, showZoomControl = false, snapshotKey } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, showZoomControl = false, snapshotKey } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -67,7 +68,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             content with no transition at all, reading as an abrupt jump
             instead of the design settling into its next state. */}
         <div key={historical ? snapshotKey : previewVersion} className="m-auto flex w-full flex-col items-center gap-6 animate-in fade-in duration-500">
-          {frames.map((frame) => {
+          {conflictPreview ? (
+            <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
+              <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
+            </div>
+          ) : frames.map((frame) => {
             const scale = Math.min(1, width / frame.width) * (zoom / 100)
             return (
               <div

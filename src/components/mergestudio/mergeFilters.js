@@ -23,8 +23,15 @@ export function sameDay(a, b) {
 // Concrete due date from the item's `dueBucket`, relative to today, so it
 // agrees with the card's own `dueLabel` ("Overdue by 1 day", "Due
 // tomorrow", "No due date").
-const DUE_OFFSET = { overdue: -1, soon: 1 }
+const DUE_OFFSET = { overdue: -1, today: 0, soon: 1, week: 7 }
 export function dueDateOf(item) {
+  const label = String(item.dueLabel ?? '')
+  if (/^Due today$/i.test(label)) return addDays(new Date(), 0)
+  if (/^Due tomorrow$/i.test(label)) return addDays(new Date(), 1)
+  const daysAhead = /^Due in (\d+) days?$/i.exec(label)
+  if (daysAhead) return addDays(new Date(), Number(daysAhead[1]))
+  const daysLate = /^Overdue by (\d+) days?$/i.exec(label)
+  if (daysLate) return addDays(new Date(), -Number(daysLate[1]))
   const offset = DUE_OFFSET[item.dueBucket]
   return offset == null ? null : addDays(new Date(), offset)
 }

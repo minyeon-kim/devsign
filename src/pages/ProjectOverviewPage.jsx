@@ -180,7 +180,7 @@ function ProjectOverviewPage() {
             onClick={() => openList('mine')}
           />
           <Stat
-            label="Approved · Pending merge"
+            label="Pending merge"
             value={counts.pendingMerge}
             hint="All required approvals received"
             onClick={() => openList('pending_merge')}

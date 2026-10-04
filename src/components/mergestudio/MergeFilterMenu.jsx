@@ -126,7 +126,7 @@ function AssigneePicker({ items, value, onChange }) {
 // compact — the custom-range calendar is its own view, opened from "Custom
 // range…" with a Back button, rather than always taking up the menu. An
 // item passes when it matches every category that has a selection.
-export function MergeFilterButton({ value, onChange, items = [], markedDays = [], compact = false }) {
+export function MergeFilterButton({ value, onChange, items = [], markedDays = [], compact = false, statusOptions = STATUS_OPTIONS }) {
   const [view, setView] = useState('main')
   const count = activeFilterCount(value)
   const set = (key, v) => onChange({ ...value, [key]: v })
@@ -193,7 +193,7 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
         ) : (
           <>
             <Section title="Status">
-              {STATUS_OPTIONS.map((s) => (
+              {statusOptions.map((s) => (
                 <Toggle key={s} on={value.status.includes(s)} onClick={() => set('status', toggle(value.status, s))}>
                   <LocalizedText text={s} />
                 </Toggle>

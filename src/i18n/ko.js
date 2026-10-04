@@ -262,6 +262,7 @@ Step|단계
 Write a comment|댓글 작성
 Resize|크기 조절
 In review|검토 중
+Due date|마감일
 In Review|검토 중
 Edited|편집됨
 Edit member|구성원 편집
@@ -1065,8 +1066,8 @@ Approvals|승인
 Feedback|피드백
 Code review|코드 검토
 Design review|디자인 검토
-Review not requested|검토 요청 전
-Awaiting review|검토 대기
+Review not requested|검토 전
+Awaiting review|검토 중
 Just now|방금
 Today|오늘
 Yesterday|어제
@@ -1637,4 +1638,7 @@ Object.assign(ko, {
   'Merged confirmation drafts': '주문 완료 시안 병합',
   'Confirmation': '주문 완료',
   'Order confirmation': '주문 완료',
+  'Merged value': '병합된 값',
+  'Values below show the merged result.': '아래 값은 병합 결과입니다.',
+  'was recorded in History': '기록이 History에 저장되었습니다',
 })

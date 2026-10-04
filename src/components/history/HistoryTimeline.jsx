@@ -86,16 +86,26 @@ function HistoryTimeline({
           />
         </div>
         <div className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2">
-          {count <= MAX_TICKS &&
-            entries.map((entry, i) => (
+          {entries.map((entry, i) => (
+              (() => {
+                const hasConflictMarker = entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length)
+                const isMergeMarker = entry.kind === 'merge' && hasConflictMarker
+                if (count > MAX_TICKS && !hasConflictMarker) return null
+                return (
               <span
                 key={entry.id}
+                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${isMergeMarker ? 'Merged issue' : 'Issue history'}` : undefined}
+                aria-label={hasConflictMarker ? `${isMergeMarker ? 'Merged issue' : 'Issue history'}: ${entry.label}` : undefined}
                 className={cn(
-                  'absolute top-1/2 h-1 w-px -translate-x-1/2 -translate-y-1/2',
-                  i <= index ? 'bg-emerald-950/60' : 'bg-white/20'
+                  'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
+                  hasConflictMarker
+                    ? cn('z-10 size-2 rounded-full ring-1 ring-offset-1 ring-offset-[#19191B]', isMergeMarker ? 'bg-emerald-300 ring-emerald-200/60' : 'bg-amber-300 ring-amber-200/60')
+                    : cn('h-1 w-px', i <= index ? 'bg-emerald-950/60' : 'bg-white/20')
                 )}
                 style={{ left: `${count > 1 ? (i / (count - 1)) * 100 : 100}%` }}
               />
+                )
+              })()
             ))}
           <span
             className={cn(

@@ -1,5 +1,6 @@
 import { scheduleDemoReview, applyDueDemoReviews } from '@/lib/demoReview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
+import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
@@ -345,6 +346,47 @@ export function WorkspaceProvider({ children, projectId }) {
   // A conflict's checks, from its merge item and that item's draft (the
   // choices made in Merge Studio) — run fresh wherever they're shown.
   const linesOfFile = useCallback((fileId) => fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? [], [fileOverrides, files])
+  // Every Conflict Point gets a durable History checkpoint when it first
+  // appears, even if nobody has reviewed or merged it yet. This makes the
+  // issue timeline and replay available for seeded and newly detected issues.
+  useEffect(() => {
+    const recorded = new Set(historyEntries.flatMap((entry) => [entry.conflictId, ...(entry.conflictIds ?? [])]).filter(Boolean))
+    const missing = conflicts.filter((conflict) => !recorded.has(conflict.id))
+    if (!missing.length) return
+    setHistoryEntries((previous) => {
+      const known = new Set(previous.flatMap((entry) => [entry.conflictId, ...(entry.conflictIds ?? [])]).filter(Boolean))
+      const additions = missing.filter((conflict) => !known.has(conflict.id)).map((conflict) => {
+        const fileId = conflict.fileId ?? activeFileId
+        const currentLines = linesOfFile(fileId)
+        const beforeLines = conflict.line && conflict.diff?.before?.length && conflict.diff?.after?.length
+          ? placeChange(currentLines, conflict.line, conflict.diff.after, conflict.diff.before) ?? currentLines
+          : currentLines
+        return {
+          id: `history-conflict-${conflict.id}`,
+          label: `Conflict detected: ${conflict.title}`,
+          kind: 'conflict',
+          conflictId: conflict.id,
+          actorLabel: conflict.detectedBy ?? 'Devsign',
+          target: conflict.file ?? conflict.title,
+          timestamp: conflict.timestamp ?? conflict.detectedAt ?? timeLabel(),
+          archived: false,
+          snapshot: {
+            activeFileId: fileId,
+            fileId,
+            lines: beforeLines,
+            files: { [fileId]: beforeLines },
+            previewProps,
+            activePageId,
+            conflicts,
+            selectedLayerId: conflict.layerId ?? null,
+            conflictPreview: conflict.preview,
+            previewSide: 'before',
+          },
+        }
+      })
+      return additions.length ? [...previous, ...additions] : previous
+    })
+  }, [conflicts, historyEntries, activeFileId, activePageId, linesOfFile, previewProps, setHistoryEntries])
   const conflictChecks = useCallback((conflict) => {
     if (!conflict) return null
     const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
@@ -787,10 +829,28 @@ export function WorkspaceProvider({ children, projectId }) {
   // One final commit operation for both UI entry points. Approval never calls it.
   const commitMerge = useCallback(({ conflictId, itemId }) => {
     const conflict = conflicts.find((c) => c.id === conflictId)
-    const item = mergeItems.find((m) => m.id === (itemId ?? conflict?.mergeItemId))
+    const item = mergeItems.find((m) => m.id === (itemId ?? conflict?.mergeItemId) || m.conflictId === conflict?.id)
     const related = item ? conflicts.filter((c) => c.mergeItemId === item.id || c.id === item.conflictId) : conflict ? [conflict] : []
     if (!item && !conflict) return false
     const draft = mergeDrafts.current[item?.id] ?? {}
+    const mergedResolutions = { ...(draft.resolutions ?? {}) }
+    if (item) {
+      for (const relatedConflict of related) {
+        for (const row of driftRowsFor(relatedConflict, item)) {
+          if (mergedResolutions[row.key] != null) continue
+          mergedResolutions[row.key] = row.region
+            ? { custom: item.authorAId ?? item.variants?.[0]?.key }
+            : 'B'
+        }
+      }
+    }
+    const mergedSideForConflict = (candidate) => {
+      if (!candidate.preview) return null
+      const rows = item ? driftRowsFor(candidate, item).filter((row) => row.diff) : []
+      if (!rows.length) return draftScreens[item?.id] ? null : 'after'
+      const sides = new Set(rows.map((row) => mergedResolutions[row.key] === 'A' ? 'after' : 'before'))
+      return sides.size === 1 ? [...sides][0] : null
+    }
     const finalFiles = {}
     const fix = conflict && aiEditScenarios.find((sc) => sc.resolvesConflictId === conflict.id && (!sc.projectId || sc.projectId === projectId))
     if (conflict?.revertOf && conflict.fileId && conflict.line) {
@@ -840,9 +900,11 @@ export function WorkspaceProvider({ children, projectId }) {
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
     const mergedIds = new Set(related.map((c) => c.id))
     const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
-      ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id } : c)
+      ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
+        mergedDecisions, mergedFileLines: c.fileId ? finalFiles[c.fileId] : undefined,
+        mergedPreview: c.preview, mergedPreviewSide: mergedSideForConflict(c), mergedFrame: null } : c)
     const preset = draft.appliedPreset ?? null
-    const design = item ? buildOverrides(item, draft.resolutions, draft.annotations, preset, draft.assemblies, draft.addedLayers, draft.manualCode,
+    const design = item ? buildOverrides(item, mergedResolutions, draft.annotations, preset, draft.assemblies, draft.addedLayers, draft.manualCode,
       (id) => fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []) : null
     const nextPreviewProps = !item && fix ? { ...previewProps, ...fix.previewProps } : previewProps
     // Drafts that differ in layout merge as the composed screen: it replaces
@@ -854,7 +916,7 @@ export function WorkspaceProvider({ children, projectId }) {
       // A revert of that merge puts the page's own frame back.
       // The mix as worked on in Merge Studio: plus any components added to
       // it and the Assemble edits made to its layers.
-      const composed = base && (conflict?.revertOf ? base : frameWithLayers(composeDraftFrame(item.id, base, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId), draft.addedLayers ?? []))
+      const composed = base && (conflict?.revertOf ? base : frameWithLayers(composeDraftFrame(item.id, base, regionPicks(item.id, mergedResolutions), item.authorAId ?? item.variants?.[0]?.key), draft.addedLayers ?? []))
       if (composed) {
         const frame = { ...composed, id: base.id }
         const overrides = conflict?.revertOf ? {} : Object.fromEntries(Object.entries(draft.assemblies ?? {})
@@ -872,7 +934,11 @@ export function WorkspaceProvider({ children, projectId }) {
         })
       }
     }
-    const output = { savedAt: Date.now(), files: finalFiles, design: mergedDesign, sources: draft.assemblySources ?? {}, previewProps: nextPreviewProps }
+    const resolvedConflicts = nextConflicts.map((c) => mergedIds.has(c.id)
+      ? { ...c, mergedFrame: mergedDesign?.frame ?? null }
+      : c)
+    const output = { savedAt: Date.now(), files: finalFiles, design: mergedDesign, sources: draft.assemblySources ?? {},
+      resolutions: mergedResolutions, previewProps: nextPreviewProps }
     setMergedBaseline((prev) => ({ ...prev, [item?.id ?? conflictId]: output }))
     setFileOverrides((prev) => ({ ...prev, ...finalFiles }))
     const nextPrototypeEdits = mergedDesign
@@ -881,7 +947,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (mergedDesign) setPrototypeEdits(nextPrototypeEdits)
     setPreviewProps(nextPreviewProps)
     setPreviewVersion((v) => v + 1)
-    setConflicts(nextConflicts)
+    setConflicts(resolvedConflicts)
     if (item) updateMergeItem(item.id, { tag: 'Merged', conflictLevel: 'None', updatedLabel: 'Just now' })
     setDraftChanges((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !Object.hasOwn(finalFiles, id))))
     const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
@@ -891,12 +957,15 @@ export function WorkspaceProvider({ children, projectId }) {
       ?? fileOverrides[historyFileId]
       ?? files.find((file) => file.id === historyFileId)?.lines
       ?? currentSnapshot().lines
+    const historyPreviewSide = conflict ? mergedSideForConflict(conflict) : 'after'
     recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
       conflictIds: [...mergedIds],
       timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers).filter((r) => r.status === 'approved').map((r) => r.id))],
       snapshot: { ...currentSnapshot(), activeFileId: historyFileId, fileId: historyFileId, lines: historyLines,
-        files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps,
-        prototypeEdits: nextPrototypeEdits, activePageId } })
+        files: finalFiles, mergeOutput: output, conflicts: resolvedConflicts, previewProps: nextPreviewProps,
+        prototypeEdits: nextPrototypeEdits, activePageId,
+        conflictPreview: historyPreviewSide ? conflict?.preview : null,
+        previewSide: historyPreviewSide } })
     for (const c of related) {
       logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })
       const update = updateFromConflict(c, projectId)

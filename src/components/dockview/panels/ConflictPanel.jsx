@@ -39,18 +39,21 @@ const severityConfig = {
 const FILTERS = [
   { id: 'all', label: 'All', test: () => true, count: 'total' },
   { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c), count: 'needsMyReview' },
-  { id: 'open', label: 'Open', test: isOpen, count: 'open' },
+  { id: 'detected', label: 'Review not requested', test: (c) => c.reviewStage === 'detected', count: 'notRequested' },
+  { id: 'in_review', label: 'In review', test: (c) => c.reviewStage === 'in_review', count: 'awaitingReview' },
   { id: 'pending_merge', label: 'Pending merge', test: isPendingMerge, count: 'pendingMerge' },
   { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
 ]
 
+const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
+
 function matchesConflictFilters(conflict, filters) {
   const stageMatches = {
-    'In Progress': conflict.reviewStage === 'approved',
-    'Needs Review': needsReviewFrom(conflict),
-    Draft: conflict.reviewStage === 'detected',
+    'Pending merge': conflict.reviewStage === 'approved',
+    'Needs your review': needsReviewFrom(conflict),
+    'Review not requested': conflict.reviewStage === 'detected',
     Merged: conflict.reviewStage === 'resolved',
-    'In Review': conflict.reviewStage === 'in_review',
+    'In review': conflict.reviewStage === 'in_review',
   }
 
   if (filters.status.length && !filters.status.some((status) => stageMatches[status])) return false
@@ -122,12 +125,12 @@ function ConflictPanel({ inMergeStudio }) {
     tag: conflict.reviewStage === 'resolved'
       ? 'Merged'
       : conflict.reviewStage === 'detected'
-        ? 'Draft'
+        ? 'Review not requested'
         : conflict.reviewStage === 'approved'
-          ? 'In Progress'
+          ? 'Pending merge'
           : needsReviewFrom(conflict)
-            ? 'Needs Review'
-            : 'In Review',
+            ? 'Needs your review'
+            : 'In review',
     conflictLevel: conflict.severity
       ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
       : 'None',
@@ -232,6 +235,7 @@ function ConflictPanel({ inMergeStudio }) {
             onChange={setAdvancedFilters}
             items={filterItems}
             markedDays={markedDueDates}
+            statusOptions={CONFLICT_STATUS_FILTERS}
           />
         </div>
       )}

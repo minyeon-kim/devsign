@@ -263,6 +263,8 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             }
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
             frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
+            conflictPreview={shownSnapshot.snapshot.conflictPreview}
+            conflictPreviewSide={shownSnapshot.snapshot.previewSide}
             historical
             caption={
               <span className="shrink-0 text-emerald-300">

@@ -258,8 +258,8 @@ function driftItemOf(conflict, workspace) {
 // is design work, so it's Merge Studio's: there each row also offers every
 // draft to switch to, beside the canvas. Elsewhere the list only reports,
 // and its action opens the drafts side by side in Merge Studio.
-function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel }) {
-  const decisions = workspace.decisionsFor(item.id)
+function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel, decisionsOverride }) {
+  const decisions = decisionsOverride ?? workspace.decisionsFor(item.id)
   const rows = draftRows(conflict, item, decisions)
   const decided = rows.filter((row) => row.decided).length
   const decide = (row, option) => workspace.decideDrift(item.id, row.key, option.picked ? null : option.decision)
@@ -336,7 +336,24 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck }) {
+function mergeHistoryForConflict(conflict, workspace) {
+  return [...(workspace?.historyEntries ?? [])].reverse().find((entry) => entry.kind === 'merge'
+    && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id)))
+}
+
+function mergedLinesForConflict(conflict, workspace) {
+  const entry = mergeHistoryForConflict(conflict, workspace)
+  return conflict.mergedFileLines
+    ?? entry?.snapshot?.mergeOutput?.files?.[conflict.fileId]
+    ?? entry?.snapshot?.files?.[conflict.fileId]
+    ?? (conflict.reviewStage === 'resolved' ? entry?.snapshot?.lines : null)
+}
+
+function mergedDecisionsForConflict(conflict, workspace) {
+  return conflict.mergedDecisions ?? mergeHistoryForConflict(conflict, workspace)?.snapshot?.mergeOutput?.resolutions
+}
+
+function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, workspace }) {
   const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
@@ -393,7 +410,7 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
       {conflict.reviewStage === 'resolved' && (
         <p className="mb-4 flex items-center gap-1.5 text-[11px] leading-4 text-slate-400">
           <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />
-          Values below are from before the merge.
+          Values below show the merged result.
         </p>
       )}
       <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
@@ -489,7 +506,7 @@ function CodeDiffColumns({ rows }) {
 // ConflictCodeView) — editable, and what merging applies — or, when the
 // change can't be placed in the file, as the plain Before / After snippet.
 // Nothing reaches the workspace before the change is merged.
-function DiffTab({ conflict, code, studioAction, workspace, item }) {
+function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines }) {
   const decisionRows = item ? driftRowsFor(conflict, item).filter(row => row.diff) : []
   const decisions = item ? workspace.decisionsFor(item.id) : {}
   const readOnly = conflict.reviewStage === 'resolved'
@@ -610,6 +627,17 @@ function DiffTab({ conflict, code, studioAction, workspace, item }) {
                 {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
               </div>
             )}
+            {readOnly && (mergedLines?.length || conflict.mergedFileLines?.length) && (() => {
+              const lines = mergedLines ?? conflict.mergedFileLines
+              const start = Math.max(0, (conflict.line ?? 1) - 2)
+              const excerpt = lines.slice(start, start + 5)
+              return (
+                <div className="mt-3 min-w-0 rounded-lg bg-emerald-400/[0.06] p-3">
+                  <p className="mb-1.5 text-[10px] font-medium text-emerald-200"><LocalizedText text="Merged value" /></p>
+                  <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-4 text-slate-200">{excerpt.join('\n')}</pre>
+                </div>
+              )
+            })()}
           </div>
         </section>
       )}
@@ -1350,6 +1378,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             checks={checks}
                             onFixCheck={stage !== 'resolved' && workspace ? fixCheck : undefined}
+                            workspace={workspace}
                           />
                         </div>
                       </section>
@@ -1361,6 +1390,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               workspace={workspace}
                               item={driftItem}
                               editable={false}
+                              decisionsOverride={stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) ?? {} : undefined}
                               compareLabel={inMergeStudio ? 'Compare on canvas' : 'Compare in Merge Studio'}
                               onCompare={stage === 'resolved' ? null : () => {
                                 // Merge Studio opens on the item with every draft side by side.
@@ -1375,6 +1405,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             code={codeView}
                             workspace={workspace}
                             item={driftItem}
+                            mergedLines={mergedLinesForConflict(conflict, workspace)}
                             studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
                               ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}

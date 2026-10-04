@@ -20,7 +20,11 @@ const EVENT_COPY = {
   comment: { action: 'commented on this issue', Icon: MessageSquare },
 }
 
-function conflictEvents(conflict, events) {
+function conflictEvents(conflict, events, historyEntries) {
+  const issueCheckpoint = [...historyEntries].reverse().find((entry) => entry.kind === 'conflict'
+    && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id)))
+  const mergeCheckpoint = [...historyEntries].reverse().find((entry) => entry.kind === 'merge'
+    && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id)))
   const saved = events
     .filter((event) => event.conflictId === conflict.id && event.projectId === conflict.projectId)
     .map((event, index) => {
@@ -33,6 +37,7 @@ function conflictEvents(conflict, events) {
         actor: event.actorId === 'system' ? 'Devsign' : person?.name ?? event.actorId ?? 'Devsign',
         timestamp: event.timeLabel,
         detail: event.detail,
+        historyId: event.historyId ?? (event.kind === 'merge' ? mergeCheckpoint?.id : issueCheckpoint?.id),
         createdAt: event.createdAt ?? 0,
         sequence: index,
       }
@@ -47,9 +52,19 @@ function conflictEvents(conflict, events) {
       icon: activity.type === 'comment' ? MessageSquare : activity.type === 'merge' ? GitMerge : History,
       actor: activity.actorName ?? 'Devsign',
       timestamp: activity.timestamp,
-      historyId: activity.historyId,
+      historyId: activity.historyId ?? (activity.type === 'merge' ? mergeCheckpoint?.id : issueCheckpoint?.id),
     }))
 
+  if (!saved.length && !seeded.length && issueCheckpoint) {
+    return [{
+      id: `activity-${conflict.id}`,
+      action: 'was recorded in History',
+      icon: History,
+      actor: issueCheckpoint.actorLabel ?? 'Devsign',
+      timestamp: issueCheckpoint.timestamp ?? issueCheckpoint.label,
+      historyId: issueCheckpoint.id,
+    }]
+  }
   return [...saved, ...seeded]
 }
 
@@ -67,7 +82,7 @@ function snapshotLines(entry, conflict) {
 
 function ConflictHistoryReplay({ conflict, workspace }) {
   const { events } = useConflictStore()
-  const activity = useMemo(() => conflictEvents(conflict, events), [conflict, events])
+  const activity = useMemo(() => conflictEvents(conflict, events, workspace?.historyEntries ?? []), [conflict, events, workspace?.historyEntries])
   const entries = useMemo(
     () => (workspace?.historyEntries ?? []).filter(
       (entry) => !entry.archived && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
@@ -198,6 +213,8 @@ function ConflictHistoryReplay({ conflict, workspace }) {
               prototypeEdits={selected.snapshot?.prototypeEdits}
               activePageId={selected.snapshot?.activePageId}
               frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
+              conflictPreview={Object.hasOwn(selected.snapshot ?? {}, 'conflictPreview') ? selected.snapshot.conflictPreview : ((selected.kind === 'conflict' || selected.kind === 'merge') ? conflict.preview : null)}
+              conflictPreviewSide={selected.snapshot?.previewSide ?? conflict.mergedPreviewSide ?? (selected.kind === 'merge' ? 'after' : 'before')}
               showZoomControl
               caption={<span className="text-emerald-300">{selected.label}</span>}
             />

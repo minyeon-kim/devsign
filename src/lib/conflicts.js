@@ -17,17 +17,17 @@ import { allPeople, conflictChecklist, currentUserFor } from '@/data/mockData'
 // `reviewStage: 'resolved'`) is its own later step.
 
 export const REVIEW_STAGES = [
-  { id: 'detected', label: 'Detected' },
+  { id: 'detected', label: 'Review not requested' },
   { id: 'in_review', label: 'In review' },
-  { id: 'approved', label: 'Approved' },
+  { id: 'approved', label: 'Pending merge' },
   { id: 'resolved', label: 'Merged' },
 ]
 
 // Processing status, as shown in lists.
 export const STAGE_LABEL = {
   detected: 'Review not requested',
-  in_review: 'Awaiting review',
-  approved: 'Approved · Pending merge',
+  in_review: 'In review',
+  approved: 'Pending merge',
   resolved: 'Merged',
 }
 
@@ -147,7 +147,11 @@ export function nextActionFor(conflict, userId) {
 // conflict point like paddingConflict) into the shared record.
 export function toConflictRecord(raw) {
   const reviewStage = raw.reviewStage ?? (raw.resolved ? 'resolved' : 'detected')
-  const slaDays = raw.severity === 'high' ? 1 : raw.severity === 'low' ? 7 : 3
+  const defaultDue = raw.severity === 'high'
+    ? { dueBucket: 'today', dueLabel: 'Due today' }
+    : raw.severity === 'low'
+      ? { dueBucket: 'week', dueLabel: 'Due in 7 days' }
+      : { dueBucket: 'soon', dueLabel: 'Due tomorrow' }
   return {
     ...raw,
     title: raw.title ?? raw.token ?? raw.file,
@@ -156,7 +160,8 @@ export function toConflictRecord(raw) {
     reviewers: raw.reviewers ?? [],
     assigneeId: raw.assigneeId ?? raw.reviewers?.[0]?.id,
     diffInspected: raw.diffInspected ?? reviewStage === 'resolved',
-    dueLabel: raw.dueLabel ?? (reviewStage === 'resolved' ? 'Completed' : `Within ${slaDays} day${slaDays === 1 ? '' : 's'}`),
+    dueBucket: raw.dueBucket ?? defaultDue.dueBucket,
+    dueLabel: raw.dueLabel ?? defaultDue.dueLabel,
   }
 }
 

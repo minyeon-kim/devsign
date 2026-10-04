@@ -12,13 +12,13 @@ import { useConflictStore } from '@/state/ConflictStore'
 //   · Needs your review — you're a required reviewer and haven't signed off;
 //   · High risk — open, high-risk items, labeled with whether they're
 //     assigned to you (risk and assignment are different things);
-//   · Approved · Pending merge — every required approval is in, not merged.
+//   · Pending merge — every required approval is in, not merged.
 // The chosen view is in the URL (?queue=), so coming Back from a conflict
 // lands on the same view.
 const VIEWS = [
   { id: 'review', label: 'Needs your review', test: (c) => needsReviewFrom(c), empty: 'Nothing needs your review.' },
   { id: 'high', label: 'High risk', test: (c) => isOpen(c) && c.severity === 'high', empty: 'No open high-risk items.' },
-  { id: 'merge', label: 'Approved · Pending merge', test: isPendingMerge, empty: 'Nothing is waiting to be merged.' },
+  { id: 'merge', label: 'Pending merge', test: isPendingMerge, empty: 'Nothing is waiting to be merged.' },
 ]
 
 function ReviewQueue() {

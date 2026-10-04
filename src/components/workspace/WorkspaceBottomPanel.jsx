@@ -197,7 +197,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
               {id === 'design-compare' && designSets > 0 && (
                 <span
                   title={`${designSets} design sets`}
-                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-sky-300 p-0 text-[9px] leading-none font-bold text-[#050505] tabular-nums"
+                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-[#5CE0AE] p-0 text-[9px] leading-none font-bold text-[#050505] tabular-nums"
                 >
                   {designSets}
                 </span>
