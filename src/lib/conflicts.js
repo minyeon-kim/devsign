@@ -147,6 +147,7 @@ export function nextActionFor(conflict, userId) {
 // conflict point like paddingConflict) into the shared record.
 export function toConflictRecord(raw) {
   const reviewStage = raw.reviewStage ?? (raw.resolved ? 'resolved' : 'detected')
+  const slaDays = raw.severity === 'high' ? 1 : raw.severity === 'low' ? 7 : 3
   return {
     ...raw,
     title: raw.title ?? raw.token ?? raw.file,
@@ -155,6 +156,7 @@ export function toConflictRecord(raw) {
     reviewers: raw.reviewers ?? [],
     assigneeId: raw.assigneeId ?? raw.reviewers?.[0]?.id,
     diffInspected: raw.diffInspected ?? reviewStage === 'resolved',
+    dueLabel: raw.dueLabel ?? (reviewStage === 'resolved' ? 'Completed' : `Within ${slaDays} day${slaDays === 1 ? '' : 's'}`),
   }
 }
 

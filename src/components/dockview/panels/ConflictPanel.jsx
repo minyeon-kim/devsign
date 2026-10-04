@@ -350,6 +350,7 @@ function ConflictPanel({ inMergeStudio }) {
                           </p>
                         )}
                         {!conflict.message && <span className="text-slate-500">—</span>}
+                        {isOpen(conflict) && <p className="text-[10px] leading-3 text-slate-500">Due: <LocalizedText text={conflict.dueLabel} /></p>}
                       </div>
                     </td>
                     <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
