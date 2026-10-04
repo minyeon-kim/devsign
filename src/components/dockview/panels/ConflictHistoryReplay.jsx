@@ -47,6 +47,7 @@ function conflictEvents(conflict, events) {
       icon: activity.type === 'comment' ? MessageSquare : activity.type === 'merge' ? GitMerge : History,
       actor: activity.actorName ?? 'Devsign',
       timestamp: activity.timestamp,
+      historyId: activity.historyId,
     }))
 
   return [...saved, ...seeded]

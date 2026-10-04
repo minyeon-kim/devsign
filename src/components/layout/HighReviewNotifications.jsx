@@ -39,7 +39,7 @@ function useBellAnchor(active) {
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel } = useWorkspace()
+  const { notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -81,11 +81,11 @@ export default function HighReviewNotifications() {
         {showRequest && (
           <section className="pointer-events-auto relative rounded-2xl border border-emerald-300/30 bg-card p-4 shadow-2xl">
             <button type="button" aria-label="알림 닫기" onClick={() => setRequestDismissed(true)} className="absolute right-3 top-3 text-slate-400 hover:text-white"><X className="size-4" /></button>
-            <p className="flex items-center gap-2 pr-5 text-sm font-semibold text-emerald-200"><Bell className="size-4" />개발 요청 <span className="rounded-md bg-emerald-300 px-2 py-0.5 text-xs font-bold text-slate-950">D-7</span></p>
+            <p className="flex items-center gap-2 pr-5 text-sm font-semibold text-emerald-200"><Bell className="size-4" />검토 요청 <span className="rounded-md bg-emerald-300 px-2 py-0.5 text-xs font-bold text-slate-950">D-A · 1일차</span></p>
             <p className="mt-3 text-xs font-semibold text-white">Jordan</p>
-            <p className="mt-1 text-sm leading-6 text-slate-200">“결제 단계 시안이 4개 모였어요. 좋은 부분만 모아 하나로 만들어 주세요”</p>
-            <p className="mt-2 text-xs leading-5 text-slate-400">검토할 내용을 확인하고, History에서 변경 근거를 살펴본 뒤 어떤 내용으로 합칠지 선택해 주세요.</p>
-            <button type="button" onClick={() => { setRequestDismissed(true); exitMergeStudio(); setBottomPanel({ tab: 'design-compare', open: true }) }} className="mt-3 rounded-full bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-200">디자인 비교 열기</button>
+            <p className="mt-1 text-sm leading-6 text-slate-200">“결제 버튼 높이와 색상 변경을 검토해 주세요.”</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Conflict Points에서 변경을 확인하고 History의 근거를 바탕으로 합칠 내용을 정한 뒤, 다른 검토자에게 의견과 승인을 요청하세요.</p>
+            <button type="button" onClick={() => { setRequestDismissed(true); exitMergeStudio(); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className="mt-3 rounded-full bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-200">검토 내용 열기</button>
           </section>
         )}
       {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={entry.close} />}

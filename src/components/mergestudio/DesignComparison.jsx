@@ -12,8 +12,7 @@ export function designCompareOptions(item) {
   if (item?.variants?.length) {
     return item.variants.map((variant, index) => ({
       key: variant.key,
-      label: `시안 ${String.fromCharCode(65 + index)}`,
-      authorId: variant.authorId,
+      label: `시안 ${String.fromCharCode(65 + index)} · ${variant.label ?? ''}`.replace(/ · $/, ''),
     }))
   }
   return [

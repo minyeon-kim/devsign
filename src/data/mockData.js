@@ -125,7 +125,7 @@ export const projectViewportSequences = {
 // global `currentUser` default (Taylor).
 export const projectViewerIds = {
   'checkout-redesign': 'jane',
-  'design-system-v2': 'james',
+  'mobile-nav-revamp': 'james',
 }
 
 // The active project's viewer, resolved from the full roster — same shape
@@ -201,7 +201,7 @@ export const projects = [
     name: 'Mobile Nav Revamp',
     description: 'Bottom navigation redesign — icon sizing and gesture affordances kept in sync between the Figma prototype and the app.',
     ownerId: 'james',
-    memberIds: ['james', 'jane'],
+    memberIds: ['james', 'jane', 'min'],
     updatedAtLabel: 'Yesterday',
     filesCount: 4,
     thumbnailType: 'mobile-nav',
@@ -372,10 +372,13 @@ export const conflictChecklist = [
     projectName: 'Mobile Nav Revamp',
     timestamp: 'Yesterday',
     resolved: false,
+    reviewStage: 'in_review',
+    dueLabel: 'Due in 2 days',
     severity: 'medium',
     riskReason: 'Medium: the tab bar icons appear on every mobile screen.',
     impact: { components: ['BottomNav'], files: ['src/components/nav/BottomNav.jsx'] },
     detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'min', what: 'Implemented icon sizing in BottomNav.jsx' },
     uxNote: 'Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.',
     preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
     mergeItemId: 'merge-mobile-nav-icon',
@@ -387,9 +390,10 @@ export const conflictChecklist = [
     suggestion: 'Bump the nav icon size to 24px and keep the 44px hit area.',
     previewPrompt: 'Resize the bottom nav icons to 24px',
     reviewers: [
-      { id: 'jane', status: 'approved' },
+      { id: 'jane', status: 'pending' },
       { id: 'james', status: 'pending' },
     ],
+    requestedBy: 'jane',
     comparisonFields: [
       { label: 'Icon size', expected: '24px', current: '20px' },
       { label: 'Hit area', expected: '44px', current: '44px' },
@@ -436,7 +440,7 @@ export const conflictChecklist = [
     gitFlow: { source: 'feature/input-padding', target: 'develop' },
     token: 'Input / Padding',
     file: 'src/components/ui/Input.jsx',
-    projectId: 'design-system-v2',
+    projectId: 'mobile-nav-revamp',
     projectName: 'Design System v2',
     timestamp: '3 days ago',
     resolved: true,
@@ -606,6 +610,7 @@ export const conflictChecklist = [
     projectName: 'Checkout Redesign',
     timestamp: 'Yesterday, 5:20 PM',
     resolved: false,
+    dueLabel: 'Due tomorrow',
     severity: 'medium',
     message:
       'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.',
@@ -660,135 +665,6 @@ export const conflictChecklist = [
     mergeTitle: 'Merged Place order button size and color',
     linkedCommentId: 'comment-cc11',
   },
-  // Design ↔ design, not design ↔ code: two drafts of the same card,
-  // compared against each other (see mergeListItems'
-  // `merge-checkout-designer-pair`, which this links to the same way
-  // cc-11 links to merge-checkout-cta) — a Conflict Point same as any
-  // other, so it surfaces in Open Conflict Points / the bottom panel and
-  // opens straight into Merge Studio from there, instead of only being
-  // reachable by browsing Merge Studio's own Draft list directly.
-  {
-    id: 'cc-12',
-    gitFlow: { source: 'feature/order-summary-design', target: 'develop' },
-    designDraft: true,
-    token: 'Order summary card · Radius & weight',
-    file: 'src/prototype/Checkout.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: 'Just now',
-    resolved: false,
-    severity: 'medium',
-    message: 'Three drafts of the Order summary card are open side by side — Taylor’s, Alex’s and Jordan’s disagree on corner radius and title weight.',
-    riskReason: 'Medium: a visible style choice on the checkout’s order summary card — no logic or data changes either way.',
-    impact: {
-      screens: ['Checkout · Payment step'],
-      components: ['Order summary'],
-      files: ['src/prototype/Checkout.jsx'],
-    },
-    changedBy: { type: 'person', id: 'min', what: 'Opened a second draft of the Order summary card' },
-    detectedBy: 'Three open drafts on the same element',
-    uxNote: 'Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.',
-    branches: { local: 'Taylor’s draft', remote: 'Alex’s draft' },
-    suggestion: 'Use Alex’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.',
-    suggestionReason: 'Every other card on this screen already uses a 16px radius and a 700-weight title.',
-    expectedResult: 'One Order summary card style, used consistently across the checkout flow.',
-    reviewStage: 'in_review',
-    reviewers: [
-      { id: 'jane', status: 'pending' },
-      { id: 'min', status: 'pending' },
-    ],
-    comparisonFields: [
-      { label: 'Radius', expected: '16px (Alex’s draft)', current: '12px (Taylor’s draft)' },
-      { label: 'Title weight', expected: '700 (Alex’s draft)', current: '600 (Taylor’s draft)' },
-    ],
-    preview: {
-      kind: 'card',
-      before: { radius: 12 },
-      after: { radius: 16 },
-      content: { title: 'Order summary', detail: 'rounded-xl · p-4' },
-    },
-    // Where it lives in the project's Workspace and Merge Studio.
-    fileId: 'app',
-    layerId: 'order-summary',
-    mergeItemId: 'merge-checkout-designer-pair',
-    mergeTitle: 'Merged Order summary card style',
-  },
-  // The payment step's three drafts (merge-checkout-payment-drafts), each
-  // changing different elements — mixed in Design Compare, then reviewed
-  // and merged here like any other Conflict Point.
-  {
-    id: 'cc-13',
-    decisionEvidence: [
-      { title: '결제 진행 맥락', detail: '시안 B는 단계 진행 정보를 제목과 함께 보여줍니다. 사용자가 결제 흐름에서 자신의 위치를 확인할 수 있는지 비교하세요.' },
-      { title: '주문 금액 일치', detail: '시안 A·B·C는 $128.00, 시안 D는 세금 포함 $138.24를 표시합니다. 주문 요약과 결제 버튼의 금액 기준이 일치하는 조합을 선택하세요.' },
-      { title: '결제 수단과 최종 행동', detail: '시안 C는 저장된 카드를, 시안 D는 간편 결제를 제공합니다. 원하는 결제 수단을 유지하면서 최종 결제 버튼이 명확한지 확인하세요.' },
-    ],
-    gitFlow: { source: 'feature/payment-design', target: 'develop' },
-    designDraft: true,
-    token: 'Payment step · 4 drafts',
-    file: 'src/prototype/Checkout.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: '1h ago',
-    resolved: false,
-    severity: 'low',
-    message: 'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each lay out the header, order summary, payment method and checkout bar differently.',
-    riskReason: 'Low: style-only differences on the payment step — no logic or data changes.',
-    impact: {
-      screens: ['Checkout · Payment step'],
-      components: ['Heading', 'Order summary', 'Card input', 'Total', 'Place order'],
-      files: ['src/prototype/Checkout.jsx'],
-    },
-    changedBy: { type: 'person', id: 'james', what: 'Opened a third draft of the payment step' },
-    detectedBy: 'Four open drafts on the same screen',
-    branches: { local: 'Taylor’s draft', remote: 'Alex’s draft' },
-    suggestion: 'Mix them in Design Compare: take each element from the draft that fits the rest of the checkout best.',
-    reviewStage: 'detected',
-    reviewers: [
-      { id: 'jane', status: 'pending' },
-      { id: 'min', status: 'pending' },
-    ],
-    comparisonFields: [
-      { label: 'Heading', expected: 'Payment (Alex’s draft)', current: 'Checkout (Taylor’s draft)' },
-      { label: 'Card style', expected: 'Tinted (Alex’s draft)', current: 'Bordered (Taylor’s draft)' },
-      { label: 'Input style', expected: 'Filled (Alex’s draft)', current: 'Outlined (Taylor’s draft)' },
-      { label: 'Button style', expected: 'Gradient pill (Alex’s draft)', current: 'Indigo (Taylor’s draft)' },
-    ],
-    fileId: 'app',
-    mergeItemId: 'merge-checkout-payment-drafts',
-    mergeTitle: 'Merged payment step drafts',
-  },
-  {
-    id: 'cc-14',
-    gitFlow: { source: 'feature/confirmation-design', target: 'develop' },
-    designDraft: true,
-    token: 'Order confirmation · 3 drafts',
-    file: 'src/prototype/Confirmation.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: '30m ago',
-    resolved: false,
-    severity: 'low',
-    message: 'Three drafts of the order confirmation — Taylor’s celebration, Jordan’s receipt and an AI tracking page — lay out the status, order details, delivery and next steps differently.',
-    riskReason: 'Low: a new screen, style and layout only — no logic or data changes.',
-    impact: {
-      screens: ['Checkout · Confirmation'],
-      components: ['Status', 'Order details', 'Delivery', 'Next steps'],
-      files: ['src/prototype/Confirmation.jsx'],
-    },
-    changedBy: { type: 'person', id: 'james', what: 'Opened a second draft of the confirmation screen' },
-    detectedBy: 'Three open drafts on the same screen',
-    branches: { local: 'Taylor’s draft', remote: 'Jordan’s draft' },
-    suggestion: 'Mix them in Design Compare: take each part from the draft that fits best.',
-    reviewStage: 'detected',
-    reviewers: [
-      { id: 'jane', status: 'pending' },
-      { id: 'min', status: 'pending' },
-    ],
-    fileId: 'app',
-    mergeItemId: 'merge-confirmation-drafts',
-    mergeTitle: 'Merged confirmation drafts',
-  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -840,6 +716,22 @@ export const activities = [
     timestamp: '8m ago',
     dateGroup: 'today',
     thumbnailTypes: ['checkout'],
+  },
+  {
+    id: 'activity-nav-1',
+    type: 'conflict',
+    actorId: 'min',
+    actorName: 'Alex',
+    actorInitials: 'AL',
+    actorColorClass: 'bg-amber-500',
+    action: 'requested your review on',
+    target: 'Nav Icon / Size',
+    conflictId: 'cc-4',
+    historyId: 'history-conflict-cc-4',
+    projectId: 'mobile-nav-revamp',
+    timestamp: '10m ago',
+    dateGroup: 'today',
+    thumbnailTypes: ['mobile-nav'],
   },
   {
     id: 'activity-co-4',
@@ -1087,19 +979,11 @@ export const mergeListItems = [
     dueBucket: 'soon',
     assigneeId: 'jane',
   },
-  // Two designers' own drafts of the same card, compared against each
-  // other rather than against code — `authorAId`/`authorBId` swap the
-  // Compare view's "Original Design / Current Implementation" labels for
-  // the two authors' names (see ConflictResolutionModal/BlockDeckPanel/
-  // MergeInfiniteCanvas). No codeMergeVariants entry: this item is
-  // design-only, so the Compare view shows no code drifts.
-  // `conflictId` links it to cc-12 the same way merge-checkout-cta links
-  // to cc-11 — opening Merge Studio from Open Conflict Points lands here,
-  // instead of this only being reachable from Merge Studio's own Draft list.
+  // Design-only alternatives live in Workspace Design Compare. They are
+  // options to compare, not conflicts requiring approval.
   {
     id: 'merge-checkout-designer-pair',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-12',
     title: 'Order summary card',
     subtitle: '1 file · Design',
     tag: 'Needs Review',
@@ -1112,21 +996,14 @@ export const mergeListItems = [
     dueLabel: 'No due date',
     dueBucket: 'none',
     assigneeId: 'jane',
-    authorAId: 'jane',
-    authorBId: 'min',
-    // Three drafts, not two — `variants` lists every one of them, in
-    // addition to authorAId/authorBId above (kept as the default starting
-    // pair). The Compare view's pair picker (ConflictResolutionModal)
-    // resolves any two of these at a time against each other.
     variants: [
-      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
-      { key: 'min', authorId: 'min', label: 'Alex’s draft' },
-      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
+      { key: 'jane', label: 'Compact summary' },
+      { key: 'min', label: 'Detailed totals' },
+      { key: 'james', label: 'Expanded card' },
     ],
   },
-  // Three designers' takes on the payment step, each changing *different*
-  // elements — the case for mixing: the card from one draft, the input from
-  // another, the button from a third (Design Compare → pick per element).
+  // Four payment step options are compared in Workspace Design Compare.
+  // Selecting a visual direction does not create a conflict or approvals.
   {
     id: 'merge-checkout-payment-drafts',
     projectId: 'checkout-redesign',
@@ -1142,13 +1019,11 @@ export const mergeListItems = [
     dueLabel: 'No due date',
     dueBucket: 'none',
     assigneeId: 'jane',
-    authorAId: 'jane',
-    authorBId: 'min',
     variants: [
-      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
-      { key: 'min', authorId: 'min', label: 'Alex’s draft' },
-      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
-      { key: 'ai', label: 'AI draft' },
+      { key: 'jane', label: 'Standard checkout' },
+      { key: 'min', label: 'Progress and wallet' },
+      { key: 'james', label: 'Saved card' },
+      { key: 'ai', label: 'Express pay and tax total' },
     ],
   },
   // Three drafts of the order confirmation screen with nothing in common —
@@ -1168,12 +1043,10 @@ export const mergeListItems = [
     dueLabel: 'No due date',
     dueBucket: 'none',
     assigneeId: 'jane',
-    authorAId: 'jane',
-    authorBId: 'james',
     variants: [
-      { key: 'jane', authorId: 'jane', label: 'Taylor’s draft' },
-      { key: 'james', authorId: 'james', label: 'Jordan’s draft' },
-      { key: 'ai', label: 'AI draft' },
+      { key: 'jane', label: 'Celebration' },
+      { key: 'james', label: 'Order receipt' },
+      { key: 'ai', label: 'Delivery tracking' },
     ],
   },
   // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
@@ -3140,7 +3013,7 @@ export const comments = [
   },
   {
     id: 'comment-3',
-    authorId: 'jane',
+    authorId: 'min',
     timeLabel: '1d ago',
     text: "I'll sync this with the token file once the palette is finalized.",
     status: 'open',
@@ -3200,28 +3073,28 @@ export const chatSuggestions = [
   },
   {
     id: 'developer-start',
-    projectId: 'design-system-v2',
+    projectId: 'mobile-nav-revamp',
     label: 'Guide me through code review',
     prompt: 'Guide me through code review',
     iconName: 'Sparkles',
-    summary: 'Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.',
+    summary: 'Nav Icon / Size → History evidence → approve the 24px change → merge.',
     reply:
-      '**Follow these steps:**\n\n1. Open the **Button / Height** conflict from the project overview.\n2. Inspect **Diff** — the implementation uses `h-9` while the design system requires the medium height token.\n3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.\n4. Review the resulting code in **Merge Changes**, assign reviewers, and request review.\n5. After approvals, merge and inspect **History**.',
+      '**Follow these steps:**\n\n1. In **Mobile Nav Revamp**, open **Workspace → Conflict Points** and select **Nav Icon / Size**.\n2. Check **Overview** and **Diff**: BottomNav currently renders 20px icons while the navigation design specifies 24px, with the 44px tap target unchanged.\n3. Open **History** and select the Nav Icon / Size issue to replay the earlier 20px implementation and the review checkpoint. Use that evidence to confirm the intended change.\n4. Return to the issue, approve the 24px change as a reviewer, and wait for the other reviewer’s approval.\n5. Merge after approvals and verify the merged checkpoint in **History**.',
   },
-  { id: 'developer-fix', projectId: 'design-system-v2', label: 'Use the size token for Button', prompt: 'Use the size token for the Button height', iconName: 'Sparkles', targetLayerId: 'button-md' },
+  { id: 'developer-fix', projectId: 'mobile-nav-revamp', label: 'Use 24px navigation icons', prompt: 'Set the bottom navigation icons to 24px and keep the 44px tap area', iconName: 'Sparkles', targetLayerId: 'tab-bar' },
   {
     id: 'developer-impact',
-    projectId: 'design-system-v2',
+    projectId: 'mobile-nav-revamp',
     label: 'Why use a shared token?',
-    prompt: 'Why should the button use a shared token?',
+    prompt: 'Why should navigation icons be 24px?',
     iconName: 'MessageCircle',
-    summary: 'A shared Button token avoids fixing every screen separately — review affected screens before merging.',
+    summary: 'The shared bottom navigation appears on every mobile screen — check the history and impact before merging.',
     reply:
-      '**Why use a shared token:**\n\n- A shared height token keeps every `Button` consumer aligned with the design system.\n- Replacing the hard-coded `h-9` avoids fixing each screen separately.\n- This is a **shared component** with wider impact than a single page edit — review the component diff and affected screens before merging.',
+      '**Why this change matters:**\n\n- `BottomNav` appears on every mobile screen, so the icon size needs to match the navigation design consistently.\n- The change grows the icon from 20px to 24px while preserving the 44px touch area.\n- Check the earlier implementation in **History** and review the affected component before approving and merging.',
   },
   {
     id: 'developer-history',
-    projectId: 'design-system-v2',
+    projectId: 'mobile-nav-revamp',
     label: 'How do I verify and roll back?',
     prompt: 'How do I verify and roll back the change?',
     iconName: 'MessageCircle',
@@ -3296,6 +3169,60 @@ const designSystemButtonLines = ({ radius = 'rounded-full', md = 'h-8', ghost = 
 ]
 
 export const projectHistorySeeds = {
+  'mobile-nav-revamp': [
+    {
+      id: 'history-nav-1',
+      label: 'Added the mobile bottom navigation',
+      kind: 'edit',
+      actorId: 'james',
+      target: 'BottomNav.jsx',
+      timestamp: 'Yesterday, 9:10 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}'],
+        previewProps: { iconSize: 20, hitArea: 44 },
+        conflicts: [],
+        selectedLayerId: null,
+      },
+    },
+    {
+      id: 'history-nav-2',
+      label: 'Kept navigation icons at 20px',
+      kind: 'edit',
+      actorId: 'jane',
+      target: 'BottomNav.jsx · line 10',
+      timestamp: 'Yesterday, 9:42 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" />'],
+        previewProps: { iconSize: 20, hitArea: 44 },
+        conflicts: [],
+        selectedLayerId: 'tab-bar',
+      },
+    },
+    {
+      id: 'history-conflict-cc-4',
+      label: 'Navigation icon size differs from the 24px design',
+      kind: 'conflict',
+      conflictId: 'cc-4',
+      actorLabel: 'Devsign design ↔ code sync',
+      target: 'BottomNav.jsx · Nav Icon / Size',
+      timestamp: 'Yesterday, 10:00 AM',
+      archived: false,
+      snapshot: {
+        activeFileId: 'app',
+        fileId: 'app',
+        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" />'],
+        previewProps: { iconSize: 20, expectedIconSize: 24, hitArea: 44 },
+        conflicts: [],
+        selectedLayerId: 'tab-bar',
+      },
+    },
+  ],
   'checkout-redesign': [
     {
       id: 'history-co-0',
@@ -4553,6 +4480,16 @@ export const conflictNotifications = [
     timeLabel: '8m ago',
     unread: true,
     target: { conflictId: 'cc-11', label: 'Place order button · Height & color' },
+  },
+  {
+    id: 'n-cc-4',
+    projectId: 'mobile-nav-revamp',
+    kind: 'approval',
+    authorId: 'jane',
+    text: 'requested your review on Nav Icon / Size',
+    timeLabel: '10m ago',
+    unread: true,
+    target: { conflictId: 'cc-4', label: 'Nav Icon / Size' },
   },
   {
     id: 'n-cc-9',
