@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Clock3,
   GitMerge,
+  History,
   Layers3,
   MapPin,
   Pencil,
@@ -84,21 +85,16 @@ const severityConfig = {
 }
 
 const REVIEWER_STATUS = {
-  pending: { label: 'Pending', className: 'text-slate-500' },
+  pending: { label: 'Pending', className: 'text-slate-300' },
   approved: { label: 'Approved', className: 'text-emerald-300' },
   changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
 
-const TABS = [
-  ['overview', 'Overview'],
-  ['history', 'History'],
-]
-
-const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[68px_minmax(0,1fr)]'
+const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[84px_minmax(0,1fr)]'
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
-const REVIEW_INFO_LABEL = 'text-[10px] leading-4 font-medium text-slate-500'
+const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
 const REVIEW_DETAIL_COPY = 'text-xs leading-[18px] text-slate-200'
 
 function EmptyNote({ children }) {
@@ -200,11 +196,11 @@ function Provenance({ conflict, className }) {
   if (!changedBy && !detectedBy && !impactRows.length) return null
 
   return (
-    <div className={cn(REVIEW_INFO_GRID, 'gap-y-2.5 text-[11px]', className)}>
+    <div className={cn(REVIEW_INFO_GRID, 'gap-y-2.5 text-xs', className)}>
       {changedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Changed by</span>
-          <span className="min-w-0 break-words text-[11px] leading-4 text-slate-200 [overflow-wrap:anywhere]">
+          <span className="min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]">
             <span className="inline-flex items-center gap-1 font-medium">
               {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
               <LocalizedText text={changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)} />
@@ -216,17 +212,17 @@ function Provenance({ conflict, className }) {
       {detectedBy && (
         <>
           <span className={REVIEW_INFO_LABEL}>Detected by</span>
-          <span className="min-w-0 break-words text-[11px] leading-4 text-slate-300 [overflow-wrap:anywhere]"><LocalizedText text={detectedBy} /></span>
+          <span className="min-w-0 break-words text-xs leading-[18px] text-slate-300 [overflow-wrap:anywhere]"><LocalizedText text={detectedBy} /></span>
         </>
       )}
       {impactRows.map(([label, list]) => (
         <Fragment key={label}>
           <span className={REVIEW_INFO_LABEL}><LocalizedText text={label} /></span>
-          <span className="min-w-0 text-[11px] leading-4 text-slate-200">
+          <span className="min-w-0 text-xs leading-[18px] text-slate-200">
             {list.map((item, i) => (
               <span
                 key={item}
-                className={cn('break-words [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[10.5px] text-slate-300')}
+                className={cn('break-words [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[11.5px] text-slate-300')}
               >
                 {i > 0 && <span className="font-sans text-slate-500">, </span>}
                 <LocalizedText text={item} />
@@ -353,7 +349,18 @@ function mergedDecisionsForConflict(conflict, workspace) {
   return conflict.mergedDecisions ?? mergeHistoryForConflict(conflict, workspace)?.snapshot?.mergeOutput?.resolutions
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, workspace }) {
+// The due date reads the same in the list, the review's title row and its
+// overview: a clock and the label, amber once it's today or overdue.
+function DueDate({ label, className }) {
+  return (
+    <span className={cn('inline-flex min-w-0 items-center gap-1 tabular-nums', /overdue|today/i.test(label) ? 'text-amber-300' : 'text-slate-200', className)} title="Due date">
+      <Clock3 className="size-3.5 shrink-0" />
+      <LocalizedText text={label} />
+    </span>
+  )
+}
+
+function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, onOpenHistory }) {
   const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
@@ -393,14 +400,14 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
             )}
           </p>
           {conflict.detectedAt && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-slate-500" title="Detected">
-              <Clock3 className="size-3 shrink-0" />
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-slate-400" title="Detected">
+              <Clock3 className="size-3.5 shrink-0" />
               <LocalizedText text={conflict.detectedAt} />
             </span>
           )}
         </div>
         {showProject && conflict.projectName && (
-          <p className="mt-1.5 min-w-0 break-words text-[11px] text-slate-500 [overflow-wrap:anywhere]">
+          <p className="mt-1.5 min-w-0 break-words text-xs text-slate-400 [overflow-wrap:anywhere]">
             <LocalizedText text="Project" /> · <LocalizedText text={conflict.projectName} />
           </p>
         )}
@@ -408,8 +415,8 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
       {/* The stage line above already says Merged — this only notes what
           the values below are, as one quiet line, not a banner. */}
       {conflict.reviewStage === 'resolved' && (
-        <p className="mb-4 flex items-center gap-1.5 text-[11px] leading-4 text-slate-400">
-          <Check className="size-3 shrink-0 text-emerald-300" strokeWidth={2.5} />
+        <p className="mb-4 flex items-center gap-1.5 text-xs leading-[18px] text-slate-400">
+          <Check className="size-3.5 shrink-0 text-emerald-300" strokeWidth={2.5} />
           Values below show the merged result.
         </p>
       )}
@@ -417,6 +424,12 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
         <p className={REVIEW_INFO_LABEL}>Branch</p>
         <BranchInfo conflict={conflict} />
       </div>
+      {conflict.dueLabel && (
+        <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
+          <p className={REVIEW_INFO_LABEL}>Due date</p>
+          <DueDate label={conflict.dueLabel} className="text-xs leading-[18px]" />
+        </div>
+      )}
       {checks && stage !== 'resolved' && (
         <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
           <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
@@ -431,19 +444,35 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
               <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] font-medium')}><LocalizedText text={summary} /></p>
             </div>
           )}
+          {/* The reasoning behind the change lives in History — one step
+              away from the summary it backs up. */}
+          {onOpenHistory && (
+            <div className={cn(REVIEW_INFO_GRID, summary && 'mt-2.5')}>
+              <span aria-hidden className="hidden sm:block" />
+              <button
+                type="button"
+                onClick={onOpenHistory}
+                className="ds-intrinsic inline-flex h-8 w-fit items-center gap-1.5 rounded-full bg-emerald-400/10 px-3.5 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15"
+              >
+                <History className="size-3.5" />
+                <LocalizedText text="Check the reasoning in History" />
+                {conflict.historyInspected && <Check className="size-3.5" strokeWidth={2.5} />}
+              </button>
+            </div>
+          )}
           {/* Who changed it, what found it, what it touches — useful, but
               not what you act on, so folded under one quiet toggle. */}
           {hasMetadata && (
-            <div className={cn(summary && 'mt-3')}>
+            <div className={cn((summary || onOpenHistory) && 'mt-3')}>
               {/* In the label column, like Reviewers / Checks / Summary above. */}
               <button
                 type="button"
                 aria-expanded={showDetails}
                 onClick={() => setShowDetails((v) => !v)}
-                className={cn(REVIEW_INFO_LABEL, 'ds-intrinsic inline-flex h-6 w-fit items-center gap-1 transition-colors hover:text-white')}
+                className={cn(REVIEW_INFO_LABEL, 'ds-intrinsic inline-flex h-7 w-fit items-center gap-1 transition-colors hover:text-white')}
               >
                 <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
-                <ChevronDown className={cn('size-3 transition-transform', showDetails && 'rotate-180')} />
+                <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
               </button>
             </div>
           )}
@@ -654,7 +683,7 @@ const PRIMARY_BUTTON = cn(
 )
 const REQUEST_REVIEW_BUTTON = 'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-medium whitespace-nowrap ds-review-cta disabled:opacity-45'
 
-const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-6 items-center gap-1 text-[10.5px] text-slate-500 transition-colors hover:text-white data-[popup-open]:text-white'
+const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-7 items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white data-[popup-open]:text-white'
 
 const iconActionClass =
   'ds-intrinsic flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -722,7 +751,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
   return (
     <div className="min-w-0">
       {reviewers.length === 0 ? (
-        <p className="py-1.5 text-[11px] leading-4 text-slate-500">No reviewers yet</p>
+        <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
       ) : (
         <div>
           {reviewers.map((reviewer) => {
@@ -731,13 +760,13 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
               <Fragment key={reviewer.id}>
-              <div className="group/rev -mx-1 flex h-7 min-w-0 items-center gap-2 rounded-md px-1 text-xs hover:bg-white/[0.03]">
+              <div className="group/rev -mx-1 flex h-8 min-w-0 items-center gap-2 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
                 <PersonAvatar person={person} />
                 <span className="min-w-0 flex-1 truncate font-medium text-slate-200">
                   {person.name}
                   {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
                 </span>
-                <span className={cn('shrink-0 truncate text-[10.5px]', reviewer.id === author ? 'text-slate-500' : status.className)}>
+                <span className={cn('shrink-0 truncate text-xs font-medium', reviewer.id === author ? 'text-slate-400' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
@@ -826,7 +855,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
           {reviewStage !== 'resolved' && assignable.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger className={REVIEWER_TEXT_ACTION}>
-                <Plus className="size-3" />
+                <Plus className="size-3.5" />
                 Add reviewer
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
@@ -842,7 +871,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
           )}
           {canRemind && pending.length > 1 && (
             <button type="button" onClick={() => remind(pending.map((r) => r.id))} className={REVIEWER_TEXT_ACTION}>
-              <Bell className="size-3" />
+              <Bell className="size-3.5" />
               Remind all
             </button>
           )}
@@ -1099,13 +1128,17 @@ function ReviewButton({ onSubmit, authorName }) {
 // Not your move: who it's waiting on, as a quiet pill the size of the
 // buttons it stands in for.
 const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs text-slate-200'
+// Waiting on someone else is the state people look for first, so it's a
+// step up from the plain note: larger type and the in-review sky tint.
+const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
 function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
   const workspace = useWorkspaceOptional()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
 
-  // The open tab, reset to Overview whenever a different conflict loads.
+  // The review itself ('overview') or the History behind it, reset to the
+  // review whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
@@ -1211,28 +1244,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
 
-  const detailTabs = (
-    // A view switch, not part of the title: a small segmented control on
-    // the right, ahead of the stage's action.
-    <div className="flex shrink-0 items-center rounded-full bg-white/[0.05] p-0.5" role="tablist" aria-label="Conflict details">
-      {TABS.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={tab === id}
-          onClick={() => openTab(id)}
-          className={cn(
-            'ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs whitespace-nowrap transition-colors',
-            tab === id ? 'bg-white/[0.1] font-medium text-white' : 'text-slate-400 hover:text-white'
-          )}
-        >
-          <LocalizedText text={label} />
-        </button>
-      ))}
-    </div>
-  )
-
   const stage = conflict?.reviewStage
   const checks = conflict && workspace?.conflictChecks ? workspace.conflictChecks(conflict) : null
   const driftItem = conflict ? driftItemOf(conflict, workspace) : null
@@ -1294,8 +1305,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       // Not your move: say whose it is instead of leaving the slot empty.
       const waitingOn = approvalStatus(conflict).lines.filter((line) => !/^(Approved by you|You requested changes)$/.test(line))
       primary = waitingOn.length ? (
-        <span className={STATUS_NOTE}>
-          <Clock3 className="size-3.5 shrink-0 text-sky-300" />
+        <span className={WAITING_NOTE}>
+          <Clock3 className="size-4 shrink-0 text-sky-300" />
           <LocalizedText text={waitingOn.join(' · ')} />
         </span>
       ) : null
@@ -1328,7 +1339,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-10 shrink-0 items-center gap-3 bg-card px-3">
+            <div className="flex h-12 shrink-0 items-center gap-3 bg-card px-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -1344,23 +1355,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </h2>
                 <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>
                 {conflict.dueLabel && (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-[10px] tabular-nums text-slate-400" title="Due date">
-                    <Clock3 className="size-3" />
-                    <LocalizedText text={conflict.dueLabel} />
-                  </span>
+                  <DueDate label={conflict.dueLabel} className="h-6 shrink-0 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium" />
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {detailTabs}
                 {primary}
               </div>
             </div>
 
-            <div className="mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
-              <span>1. 검토 내용 확인</span><span>→</span>
-              <button type="button" onClick={() => openTab('history')} className="text-emerald-200 hover:underline">2. History에서 변경 근거 확인{conflict.historyInspected ? ' ✓' : ''}</button><span>→</span>
-              <button type="button" onClick={() => openTab('overview')} className="text-slate-200 hover:underline">3. 카드에서 합칠 내용 선택</button><span>→</span><span>4. 검토 요청 · 승인 · 병합</span>
-            </div>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
@@ -1378,7 +1380,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             checks={checks}
                             onFixCheck={stage !== 'resolved' && workspace ? fixCheck : undefined}
-                            workspace={workspace}
+                            onOpenHistory={() => openTab('history')}
                           />
                         </div>
                       </section>
@@ -1416,8 +1418,19 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                     </div>
                   ) : (
-                    <div className="flex min-h-0 flex-1">
-                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
+                    <div className="flex min-h-0 flex-1 flex-col gap-2">
+                      {/* History took the review's place — one step back to it. */}
+                      <button
+                        type="button"
+                        onClick={() => openTab('overview')}
+                        className="ds-intrinsic inline-flex h-7 w-fit shrink-0 items-center gap-1 rounded-full pr-3 pl-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                      >
+                        <ChevronLeft className="size-4" />
+                        <LocalizedText text="Back to review" />
+                      </button>
+                      <div className="flex min-h-0 flex-1">
+                        <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
+                      </div>
                     </div>
                   )}
                 </div>

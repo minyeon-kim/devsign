@@ -4,6 +4,8 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+Check the reasoning in History|History에서 근거 확인하기
+Back to review|검토 내용으로 돌아가기
 Approvals received. Resolve the failing checks before merging.|승인을 받았습니다. 병합 전에 필수 검사 문제를 해결하세요.
 Assign a reviewer other than the author to request review.|작성자 외의 검토자를 배정하면 검토를 요청할 수 있습니다.
 Result preview|결과 미리보기

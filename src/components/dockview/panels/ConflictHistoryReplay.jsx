@@ -20,6 +20,8 @@ const EVENT_COPY = {
   comment: { action: 'commented on this issue', Icon: MessageSquare },
 }
 
+const REPLAY_PANE_LABEL = 'flex h-6 shrink-0 items-center gap-1 px-3 text-[10.5px] font-medium text-slate-400'
+
 function conflictEvents(conflict, events, historyEntries) {
   const issueCheckpoint = [...historyEntries].reverse().find((entry) => entry.kind === 'conflict'
     && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id)))
@@ -92,7 +94,6 @@ function ConflictHistoryReplay({ conflict, workspace }) {
   const [selectedId, setSelectedId] = useState(null)
   const [playing, setPlaying] = useState(false)
   const [compareLatest, setCompareLatest] = useState(true)
-  const [view, setView] = useState('code')
   const foundIndex = entries.findIndex((entry) => entry.id === selectedId)
   const selectedIndex = foundIndex < 0 ? Math.max(0, entries.length - 1) : foundIndex
   const selected = entries[selectedIndex] ?? null
@@ -174,31 +175,15 @@ function ConflictHistoryReplay({ conflict, workspace }) {
           <History className="size-3.5 text-slate-500" />
           <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Change replay" /></h3>
           {selected && <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{selected.label}</span>}
-          {selected && (
-            // Plain text toggles, like the review's Overview / History.
-            <div className="flex shrink-0 items-center gap-x-3" role="tablist" aria-label="Replay content">
-              {[
-                ['code', Code2, 'Code'],
-                ['preview', Eye, 'Preview'],
-              ].map(([id, Icon, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === id}
-                  onClick={() => setView(id)}
-                  className={cn('ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] transition-colors', view === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300')}
-                >
-                  <Icon className="size-3" />
-                  <LocalizedText text={label} />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
-          {selected ? view === 'code' ? (
-            <div className="h-full overflow-auto py-2 font-mono text-[10px] leading-relaxed">
+          {selected ? (
+            // Code and its preview together, half the replay each — the
+            // checkpoint's code and what it renders are read as a pair.
+            <div className="grid h-full min-h-0 grid-cols-2">
+            <div role="group" aria-label="Code" className="flex min-h-0 min-w-0 flex-col">
+            <p className={REPLAY_PANE_LABEL}><Code2 className="size-3" /><LocalizedText text="Code" /></p>
+            <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[10px] leading-relaxed">
               {rows.length ? rows.map((row, index) => (
                 <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-500/[0.18] text-emerald-300' : row.kind === 'remove' ? 'bg-red-500/[0.18] text-red-300' : 'text-slate-500')}>
                   <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
@@ -206,7 +191,10 @@ function ConflictHistoryReplay({ conflict, workspace }) {
                 </div>
               )) : <p className="px-3 py-4 text-xs font-sans text-slate-500">This replay checkpoint has no code snapshot.</p>}
             </div>
-          ) : (
+            </div>
+            <div role="group" aria-label="Preview" className="flex min-h-0 min-w-0 flex-col border-l border-white/[0.06]">
+            <p className={REPLAY_PANE_LABEL}><Eye className="size-3" /><LocalizedText text="Preview" /></p>
+            <div className="min-h-0 flex-1">
             <PreviewPanelContent
               key={`conflict-replay-${selected.id}`}
               previewProps={selected.snapshot?.previewProps}
@@ -216,8 +204,11 @@ function ConflictHistoryReplay({ conflict, workspace }) {
               conflictPreview={Object.hasOwn(selected.snapshot ?? {}, 'conflictPreview') ? selected.snapshot.conflictPreview : ((selected.kind === 'conflict' || selected.kind === 'merge') ? conflict.preview : null)}
               conflictPreviewSide={selected.snapshot?.previewSide ?? conflict.mergedPreviewSide ?? (selected.kind === 'merge' ? 'after' : 'before')}
               showZoomControl
-              caption={<span className="text-emerald-300">{selected.label}</span>}
+              fit
             />
+            </div>
+            </div>
+            </div>
           ) : (
             <p className="px-4 py-5 text-xs text-slate-500">
               <LocalizedText text="No replay snapshots are linked to this issue yet. Review and comment activity will still appear in the timeline." />

@@ -23,6 +23,11 @@ const STRIP_HEIGHT = 48
 const MIN_HEIGHT = 120
 // Leave the canvas at least this much room above the panel.
 const MIN_CANVAS = 220
+// What opening rises to: the Conflict Points list takes close to half the
+// window, a review a little more — its cards, code and thread need the
+// height more than the canvas behind them does while it's open.
+const LIST_MIN_HEIGHT = 360
+const REVIEW_MIN_HEIGHT = 440
 
 // The workspace's bottom panel — Terminal, Console and Conflict Points as
 // one docked strip under the canvas (VS Code / Merge Studio style), not a
@@ -53,7 +58,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
 
   useEffect(() => {
     if (!reviewConflictId) return
-    const target = Math.max(320, Math.round(window.innerHeight * 0.46))
+    const target = Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * 0.58))
     setBottomPanel({ open: true, height: target })
   }, [reviewConflictId, setBottomPanel])
 
@@ -65,7 +70,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   // just from height changing while the tab stays open.
   useEffect(() => {
     if (!['conflict', 'design-compare'].includes(tab) || !open) return
-    const target = Math.max(320, Math.round(window.innerHeight * 0.36))
+    const target = Math.max(LIST_MIN_HEIGHT, Math.round(window.innerHeight * 0.46))
     if (height < target) setBottomPanel({ height: target })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, open])

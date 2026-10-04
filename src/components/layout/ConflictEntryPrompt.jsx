@@ -20,6 +20,33 @@ const SEVERITY_DOT = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-sla
 const SEVERITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' }
 const MAX_ROWS = 3
 
+// Every card that drops under the Inbox bell — this prompt, review requests
+// and high-priority review banners (see HighReviewNotifications) — is built
+// from these, so they read as one kind of notification: the same surface,
+// icon chip, title / body type, dismiss button and right-aligned actions.
+export const NOTICE_CARD = 'pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#252525]/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none'
+export const NOTICE_ICON = 'flex size-8 shrink-0 items-center justify-center rounded-xl'
+export const NOTICE_ICON_TONE = { neutral: 'bg-white/[0.07] text-emerald-300', urgent: 'bg-rose-400/15 text-rose-300' }
+export const NOTICE_TITLE = 'text-[13px] font-medium text-white'
+export const NOTICE_BODY = 'mt-0.5 text-xs leading-5 text-slate-400'
+export const NOTICE_ACTIONS = 'mt-3 flex items-center justify-end gap-1'
+export const NOTICE_ACTION = 'h-7 rounded-full bg-emerald-400/15 px-3 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25'
+export const NOTICE_ACTION_QUIET = 'h-7 rounded-full px-3 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white'
+
+export function NoticeDismiss({ label = 'Dismiss', onClick }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
+    >
+      <X className="size-3" />
+    </button>
+  )
+}
+
 const today = () => new Date().toISOString().slice(0, 10)
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -115,28 +142,16 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
   const more = prompt.items.length - rows.length
 
   return (
-    <div
-      role="dialog"
-      aria-label="Conflict Points"
-      className="pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#252525]/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none"
-    >
-      <button
-        type="button"
-        aria-label="Dismiss"
-        title="Dismiss"
-        onClick={onClose}
-        className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
-      >
-        <X className="size-3" />
-      </button>
+    <div role="dialog" aria-label="Conflict Points" className={NOTICE_CARD}>
+      <NoticeDismiss onClick={onClose} />
 
       <div className="flex items-start gap-3 pr-5">
-        <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-xl', prompt.kind === 'high' ? 'bg-rose-400/15 text-rose-300' : 'bg-white/[0.07] text-emerald-300')}>
+        <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE[prompt.kind === 'high' ? 'urgent' : 'neutral'])}>
           <TriangleAlert className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-white">{prompt.title}</p>
-          <p className="mt-0.5 text-xs leading-5 text-slate-400">Conflict Points are where the design and the code differ — review each one, then merge.</p>
+          <p className={NOTICE_TITLE}>{prompt.title}</p>
+          <p className={NOTICE_BODY}>Conflict Points are where the design and the code differ — review each one, then merge.</p>
         </div>
       </div>
 
@@ -157,15 +172,11 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
         {more > 0 && <li className="px-1.5 pt-0.5 text-[11px] text-slate-500">{`+ ${more} more`}</li>}
       </ul>
 
-      <div className="mt-3 flex items-center justify-end gap-1">
-        <button type="button" onClick={onClose} className="h-7 rounded-full px-3 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+      <div className={NOTICE_ACTIONS}>
+        <button type="button" onClick={onClose} className={NOTICE_ACTION_QUIET}>
           Later
         </button>
-        <button
-          type="button"
-          onClick={() => onOpen(rows[0].id)}
-          className="h-7 rounded-full bg-emerald-400/15 px-3 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25"
-        >
+        <button type="button" onClick={() => onOpen(rows[0].id)} className={NOTICE_ACTION}>
           Review Conflict Points
         </button>
       </div>
