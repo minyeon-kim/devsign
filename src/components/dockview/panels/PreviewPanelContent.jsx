@@ -24,10 +24,12 @@ function parsePadding(value) {
 // to the primary button through `previewProps`.
 // History renders it at a past version: `previewProps` then comes from that
 // checkpoint's snapshot, and `caption` adds a label to its header.
-// `fit` shows every frame at once: they're scaled to fit the panel's height
-// as well as its width (side by side or stacked, whichever leaves them
-// larger), so nothing has to be scrolled to — zooming in still can.
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, showZoomControl = false, fit = false, snapshotKey } = {}) {
+// Every frame shows at once: they're scaled to fit the panel's height as
+// well as its width (side by side or stacked, whichever leaves them
+// larger), so nothing has to be scrolled to — the zoom control goes closer.
+// `embedded` drops the panel's own surface and top inset, for a preview
+// placed inside another card (the conflict review's change replay).
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -37,7 +39,6 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const file = prototypeFileForPage(page.id)
   const boxRef = useRef(null)
   const [box, setBox] = useState({ width: 320, height: 240 })
-  const { width } = box
   const [zoom, setZoom] = useState(100)
 
   useEffect(() => {
@@ -53,7 +54,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
     setZoom((current) => Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, current + step)))
   }
 
-  // Fit mode: one scale for every frame, from whichever arrangement — a row
+  // One scale for every frame, from whichever arrangement — a row
   // or a column — shows them larger in the space there is.
   const gaps = FRAME_GAP * (frames.length - 1)
   const sum = (key) => frames.reduce((total, frame) => total + frame[key], 0)
@@ -62,16 +63,16 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const room = { width: box.width - 2, height: box.height - 2 }
   const rowScale = Math.min((room.width - gaps) / sum('width'), room.height / max('height'))
   const columnScale = Math.min(room.width / max('width'), (room.height - gaps) / sum('height'))
-  const inRow = fit && !conflictPreview && rowScale >= columnScale
+  const inRow = !conflictPreview && rowScale >= columnScale
   const fitScale = Math.max(0.05, Math.min(1, Math.max(rowScale, columnScale)))
 
   return (
-    <div className={cn('flex h-full flex-col overflow-hidden', !fit && 'bg-card')}>
-      <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', fit ? 'pt-0' : 'pt-3')}>
+    <div className={cn('flex h-full flex-col overflow-hidden', !embedded && 'bg-card')}>
+      <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
         <span className="min-w-0 truncate">Synced from {file?.path}</span>
         <div className="flex shrink-0 items-center gap-2">
           {caption}
-          {showZoomControl && <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />}
+          <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
         </div>
       </div>
 
@@ -93,7 +94,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
             </div>
           ) : frames.map((frame) => {
-            const scale = (fit ? fitScale : Math.min(1, width / frame.width)) * (zoom / 100)
+            const scale = fitScale * (zoom / 100)
             return (
               <div
                 key={frame.id}

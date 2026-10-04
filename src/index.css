@@ -672,3 +672,37 @@ button.editor-line-comment {
   font-weight: 600;
   color: var(--muted-foreground);
 }
+
+/* Toasts share the top-right corner with the notice cards under the Inbox
+   bell (NOTICE_CARD in ConflictEntryPrompt), so they take the same surface
+   and type: one kind of notification, whatever raised it. */
+[data-sonner-toaster] { --width: 360px; }
+[data-sonner-toast].cn-toast {
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgb(255 255 255 / 12%) !important;
+  border-radius: 20px !important;
+  background: rgb(37 37 37 / 95%) !important;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%) !important;
+  backdrop-filter: blur(24px);
+}
+[data-sonner-toast].cn-toast [data-title] {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #fff;
+}
+[data-sonner-toast].cn-toast [data-description] {
+  font-size: 12px;
+  line-height: 20px;
+  color: #94a3b8;
+}
+[data-sonner-toast].cn-toast [data-button] {
+  height: 28px;
+  padding-inline: 12px;
+  border-radius: 9999px;
+  background: rgb(52 211 153 / 15%);
+  font-size: 12px;
+  font-weight: 500;
+  color: #a7f3d0;
+}

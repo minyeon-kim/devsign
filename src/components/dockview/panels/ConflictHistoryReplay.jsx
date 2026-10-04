@@ -203,8 +203,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
               frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
               conflictPreview={Object.hasOwn(selected.snapshot ?? {}, 'conflictPreview') ? selected.snapshot.conflictPreview : ((selected.kind === 'conflict' || selected.kind === 'merge') ? conflict.preview : null)}
               conflictPreviewSide={selected.snapshot?.previewSide ?? conflict.mergedPreviewSide ?? (selected.kind === 'merge' ? 'after' : 'before')}
-              showZoomControl
-              fit
+              embedded
             />
             </div>
             </div>
