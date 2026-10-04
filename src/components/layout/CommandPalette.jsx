@@ -14,7 +14,7 @@ import {
   SquareTerminal,
   TriangleAlert,
 } from 'lucide-react'
-import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
+import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import { cn } from 'cn'
 import CommandModal, { CommandResults, useCommandSearch } from '@/components/layout/CommandModal'
 import SearchField from '@/components/layout/SearchField'

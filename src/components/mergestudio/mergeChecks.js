@@ -20,6 +20,8 @@ const ACCENT_HEX = { 'Indigo 500': '#6366f1', 'Violet 500': '#8b5cf6' }
 const SECTION_NAMES = { nav: 'Navigation', hero: 'Hero', signup: 'Sign-up', social: 'Social proof', avatar: 'Social proof', feature: 'Features', dash: 'Dashboard', cashflow: 'Dashboard', txn: 'Dashboard' }
 
 function onTokenScale(label, value) {
+  // CSS variable references are named tokens, not numeric scale values.
+  if (/^(?:--[a-zA-Z_][\w-]*|var\(\s*--[a-zA-Z_][\w-]*\s*\))$/.test(String(value).trim())) return true
   // A named color / surface token ("Violet 500", "Card Surface").
   if (/^[A-Z][a-z]+( [A-Z]?[a-z]+)*( \d{2,3})?$/.test(String(value).trim())) return true
   const nums = String(value).match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []

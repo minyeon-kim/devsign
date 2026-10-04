@@ -3,10 +3,14 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
   const { checksFor } = await server.ssrLoadModule('/src/components/mergestudio/mergeChecks.js')
-  const { canvasPages } = await server.ssrLoadModule('/src/data/mockData.js')
+  const { canvasPages, mergeListItems } = await server.ssrLoadModule('/src/data/mockData.js')
   const { compositionChecks, draftScreens } = await server.ssrLoadModule('/src/data/draftScreens.js')
   canvasPages.push({ id: 'checks-test', frames: [{ id: 'checks-frame', width: 390, height: 800, layers: [{ id: 'tiny-button', type: 'button', name: 'Pay', x: 0, y: 0, width: 16, height: 16 }] }] })
   const item = { id: 'checks-test-item', hasDesign: true, designPageId: 'checks-test', fileIds: ['test-file'] }
+  const tokenItem = mergeListItems.find((candidate) => candidate.conflictId === 'cc-1')
+  const { designMergeVariants } = await server.ssrLoadModule('/src/data/mockData.js')
+  const tokenDecisions = Object.fromEntries(Object.entries(designMergeVariants[tokenItem.id].layerDiffs).flatMap(([layerId, diffs]) => diffs.map((diff) => [`${layerId}:${diff.id}`, 'A'])))
+  assert.ok(!checksFor(tokenItem, { resolutions: tokenDecisions }).blocking.some((check) => check.id === 'tokens'), 'named CSS tokens in the design must pass')
   const failing = checksFor(item)
   assert.equal(failing.blocking.find((check) => check.id === 'targets').layerId, 'tiny-button')
   const fixed = checksFor(item, { assemblies: { 'tiny-button': { width: 44, height: 44 } } })

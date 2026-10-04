@@ -1,6 +1,6 @@
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
-import { authorOf } from '@/lib/conflicts'
+import { authorOf, requiredReviewers } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -863,7 +863,7 @@ export function WorkspaceProvider({ children, projectId }) {
     const title = conflict?.mergeTitle ?? `Merged ${item?.title ?? conflict?.title}`
     recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
       conflictIds: [...mergedIds],
-      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap((c) => c.reviewers) : item.reviewers).map((r) => r.id))],
+      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers).filter((r) => r.status === 'approved').map((r) => r.id))],
       snapshot: { ...currentSnapshot(), files: finalFiles, mergeOutput: output, conflicts: nextConflicts, previewProps: nextPreviewProps, prototypeEdits: nextPrototypeEdits, activePageId } })
     for (const c of related) {
       logEvent({ kind: 'merge', projectId, conflictId: c.id, actorId: currentUser.id, title: c.title })

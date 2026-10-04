@@ -1,6 +1,6 @@
 import { Sparkles } from 'lucide-react'
 import ReferenceDocView from '@/components/archive/ReferenceDocView'
-import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
+import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import { documentTarget } from '@/lib/workspaceDocuments'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 

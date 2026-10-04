@@ -1,7 +1,7 @@
 import { Columns2, LayoutGrid, Maximize, Rows2 } from 'lucide-react'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { layoutPresets } from '@/data/mockData'
-import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/DockLayout'
+import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/dockPanels'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const presetIcons = { LayoutGrid, Maximize, Columns2, Rows2 }

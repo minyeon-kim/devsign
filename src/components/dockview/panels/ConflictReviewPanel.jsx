@@ -51,7 +51,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
-import { openOrFocusPanel, panelById } from '@/components/dockview/DockLayout'
+import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
