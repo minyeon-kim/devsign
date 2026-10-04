@@ -160,9 +160,9 @@ function ComparisonTable({ fields, sources }) {
           {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
         </div>
       )}
-      {fields.map((field) => (
+      {fields.map((field, index) => (
         <div key={field.label} className="space-y-1.5">
-          <p className="text-[11px] text-slate-500"><LocalizedText text={field.label} /></p>
+          <p className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[9px] font-semibold tabular-nums text-slate-300">{index + 1}</span><LocalizedText text={field.label} /></p>
           <div className="grid grid-cols-2 gap-3">
             <span className="min-w-0 text-xs font-medium text-red-300"><LocalizedText text={field.current} /></span>
             <span className="min-w-0 text-xs font-medium text-emerald-200"><LocalizedText text={field.expected} /></span>

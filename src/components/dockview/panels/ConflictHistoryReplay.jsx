@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
 import { cn } from 'cn'
-import { activities, allPeople, conflictChecklist } from '@/data/mockData'
+import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
 import { LocalizedText } from '@/i18n/runtime'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
@@ -118,37 +118,34 @@ function ConflictHistoryReplay({ conflict, workspace }) {
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-          <section className="mb-3 rounded-lg border border-white/10 p-3">
-            <h4 className="text-xs font-medium text-slate-200">합치기 전 확인할 근거</h4>
-            <p className="mt-2 text-xs leading-5 text-slate-400"><LocalizedText text={conflict.riskReason || conflict.message} /></p>
-            {(conflict.decisionEvidence ?? conflictChecklist.find(entry => entry.id === conflict.id)?.decisionEvidence ?? []).map(evidence => (
-              <div key={evidence.title} className="mt-3 border-t border-white/[0.06] pt-3">
-                <p className="text-xs font-medium text-slate-200">{evidence.title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{evidence.detail}</p>
-              </div>
-            ))}
-            <p className="mt-2 text-[11px] leading-5 text-slate-500">변경 기록과 이전 버전을 비교한 뒤 Overview로 돌아가 카드 안에서 합칠 내용을 선택하세요.</p>
-          </section>
           {activity.length ? (
             <ol className="space-y-1">
-              {activity.map(({ id, action, actor, timestamp, detail, icon: Icon }) => (
-                <li key={id} className="flex items-start gap-2.5 rounded-lg px-1 py-2">
-                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
-                    <Icon className="size-3" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs leading-5 text-slate-300">
-                      <span className="font-medium text-slate-100">{actor}</span>{' '}
-                      <LocalizedText text={action} />
-                    </span>
-                    {detail && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-slate-400">{detail}</span>}
-                    <span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
-                      <Clock3 className="size-3" />
-                      <LocalizedText text={timestamp} />
-                    </span>
-                  </span>
-                </li>
-              ))}
+              {activity.map(({ id, action, actor, timestamp, detail, icon: Icon, historyId }, index) => {
+                const replayEntry = entries.find((entry) => entry.id === historyId || entry.id === id)
+                  ?? (entries.length ? entries[Math.max(0, Math.round((activity.length - 1 - index) * (entries.length - 1) / Math.max(activity.length - 1, 1)))] : null)
+                const isCurrentMarker = replayEntry && replayEntry.id === selected?.id
+                return (
+                  <li key={id}>
+                    <button type="button" disabled={!replayEntry} onClick={() => { if (replayEntry) { setPlaying(false); setSelectedId(replayEntry.id) } }} aria-pressed={Boolean(isCurrentMarker)} className="flex w-full items-start gap-2.5 rounded-lg px-1 py-2 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-emerald-400/[0.06]">
+                      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
+                        <Icon className="size-3" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs leading-5 text-slate-300">
+                          <span className="font-medium text-slate-100">{actor}</span>{' '}
+                          <LocalizedText text={action} />
+                        </span>
+                        {detail && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-slate-400">{detail}</span>}
+                        <span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
+                          <Clock3 className="size-3" />
+                          <LocalizedText text={timestamp} />
+                        </span>
+                      </span>
+                      {replayEntry && <span title={isCurrentMarker ? 'Replay marker selected' : 'Open this point in change replay'} className={cn('mt-2 size-2 shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-[#171719]', isCurrentMarker ? 'bg-emerald-300 ring-emerald-300/25' : 'bg-slate-500 ring-slate-500/15')} />}
+                    </button>
+                  </li>
+                )
+              })}
             </ol>
           ) : (
             <p className="px-1 py-3 text-xs text-slate-500"><LocalizedText text="No activity has been recorded for this issue yet." /></p>
