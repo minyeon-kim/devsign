@@ -234,6 +234,7 @@ export const projects = [
 export const conflictChecklist = [
   {
     id: 'cc-1',
+    gitFlow: { source: 'feature/button-sizing', target: 'develop' },
     token: 'Button / Height',
     file: 'src/components/ui/Button.jsx',
     projectId: 'design-system-v2',
@@ -288,6 +289,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-2',
+    gitFlow: { source: 'feature/canvas-frames', target: 'main' },
     token: 'Merge conflict · DesignCanvas.jsx',
     file: 'src/components/DesignCanvas.jsx',
     projectId: 'design-system-v2',
@@ -328,6 +330,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-3',
+    gitFlow: { source: 'feature/card-radius', target: 'develop' },
     token: 'Card / Radius',
     file: 'src/components/ui/Card.jsx',
     projectId: 'design-system-v2',
@@ -362,6 +365,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-4',
+    gitFlow: { source: 'hotfix/mobile-nav-icon', target: 'main' },
     token: 'Nav Icon / Size',
     file: 'src/components/nav/BottomNav.jsx',
     projectId: 'mobile-nav-revamp',
@@ -397,6 +401,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-5',
+    gitFlow: { source: 'feature/onboarding-colors', target: 'develop' },
     token: 'Color token drift',
     file: 'src/styles/tokens.css',
     projectId: 'onboarding-flow',
@@ -428,6 +433,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-6',
+    gitFlow: { source: 'feature/input-padding', target: 'develop' },
     token: 'Input / Padding',
     file: 'src/components/ui/Input.jsx',
     projectId: 'design-system-v2',
@@ -458,6 +464,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-7',
+    gitFlow: { source: 'feature/checkout-form', target: 'develop' },
     token: 'Spacing scale mismatch',
     file: 'src/components/checkout/CheckoutForm.jsx',
     projectId: 'checkout-redesign',
@@ -491,6 +498,7 @@ export const conflictChecklist = [
   // Open low-risk token drift in Checkout — the kind batch approval is for.
   {
     id: 'cc-8',
+    gitFlow: { source: 'hotfix/checkout-divider', target: 'main' },
     token: 'Divider / Color',
     file: 'src/components/checkout/OrderSummary.jsx',
     projectId: 'checkout-redesign',
@@ -527,6 +535,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-9',
+    gitFlow: { source: 'feature/payment-label', target: 'develop' },
     token: 'Label / Letter spacing',
     file: 'src/components/checkout/PaymentForm.jsx',
     projectId: 'checkout-redesign',
@@ -556,6 +565,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-10',
+    gitFlow: { source: 'feature/shipping-icon', target: 'develop' },
     token: 'Icon / Stroke width',
     file: 'src/components/checkout/ShippingOptions.jsx',
     projectId: 'checkout-redesign',
@@ -589,6 +599,7 @@ export const conflictChecklist = [
   // activity) points at this one change.
   {
     id: 'cc-11',
+    gitFlow: { source: 'release/checkout-v2', target: 'main' },
     token: 'Place order button · Height & color',
     file: 'src/components/checkout/PlaceOrderButton.jsx',
     projectId: 'checkout-redesign',
@@ -658,6 +669,8 @@ export const conflictChecklist = [
   // reachable by browsing Merge Studio's own Draft list directly.
   {
     id: 'cc-12',
+    gitFlow: { source: 'feature/order-summary-design', target: 'develop' },
+    designDraft: true,
     token: 'Order summary card · Radius & weight',
     file: 'src/prototype/Checkout.jsx',
     projectId: 'checkout-redesign',
@@ -705,6 +718,13 @@ export const conflictChecklist = [
   // and merged here like any other Conflict Point.
   {
     id: 'cc-13',
+    decisionEvidence: [
+      { title: '결제 진행 맥락', detail: '시안 B는 단계 진행 정보를 제목과 함께 보여줍니다. 사용자가 결제 흐름에서 자신의 위치를 확인할 수 있는지 비교하세요.' },
+      { title: '주문 금액 일치', detail: '시안 A·B·C는 $128.00, 시안 D는 세금 포함 $138.24를 표시합니다. 주문 요약과 결제 버튼의 금액 기준이 일치하는 조합을 선택하세요.' },
+      { title: '결제 수단과 최종 행동', detail: '시안 C는 저장된 카드를, 시안 D는 간편 결제를 제공합니다. 원하는 결제 수단을 유지하면서 최종 결제 버튼이 명확한지 확인하세요.' },
+    ],
+    gitFlow: { source: 'feature/payment-design', target: 'develop' },
+    designDraft: true,
     token: 'Payment step · 4 drafts',
     file: 'src/prototype/Checkout.jsx',
     projectId: 'checkout-redesign',
@@ -740,6 +760,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-14',
+    gitFlow: { source: 'feature/confirmation-design', target: 'develop' },
+    designDraft: true,
     token: 'Order confirmation · 3 drafts',
     file: 'src/prototype/Confirmation.jsx',
     projectId: 'checkout-redesign',

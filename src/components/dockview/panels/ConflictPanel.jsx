@@ -1,11 +1,13 @@
 import './ConflictPanel.css'
+import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
+import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
-import { STAGE_DOT_CLASS, STAGE_LABEL, authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
+import { authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -134,14 +136,14 @@ function ConflictPanel({ inMergeStudio }) {
   // Open first, and among those the ones waiting on your review on top —
   // the list stays "All", but what you're asked to do leads it.
   const visible = sortOpenFirst(
-    conflicts.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
+    conflicts.filter(isQueuedConflict).filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
   ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
   const { comments, conflictChecks, decisionsFor } = useWorkspace()
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
-  const batchable = conflicts.filter((c) => !blockerOf(c))
+  const batchable = conflicts.filter(isQueuedConflict).filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
   const selection = selected.filter((id) => batchable.some((c) => c.id === id))
   const allSelected = batchable.length > 0 && selection.length === batchable.length
@@ -244,6 +246,7 @@ function ConflictPanel({ inMergeStudio }) {
             {/* Headers, rows and expanded diffs share the same grid tracks. */}
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b text-left text-[11px] text-muted-foreground">
+                <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium">
                   <div className="flex items-center gap-4">
                   <Checkbox
@@ -257,7 +260,7 @@ function ConflictPanel({ inMergeStudio }) {
                 </th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Description</th>
-                <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
+                <th className="py-1.5 text-left font-medium">Branch</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author</th>
                 <th className="py-1.5 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
@@ -267,7 +270,7 @@ function ConflictPanel({ inMergeStudio }) {
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -306,6 +309,9 @@ function ConflictPanel({ inMergeStudio }) {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
+                    <td className="px-1.5 py-2">
+                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} />
+                    </td>
                     <td className="py-2">
                       <div className="flex items-center gap-4">
                       <span onClick={(event) => event.stopPropagation()}>
@@ -346,16 +352,11 @@ function ConflictPanel({ inMergeStudio }) {
                         {!conflict.message && <span className="text-slate-500">—</span>}
                       </div>
                     </td>
+                    <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
                     {/* Status is the stage only — checks and "your review"
                         have their own places (the next column, and your
                         avatar under Reviewers). A change with every value
                         decided but no review asked for yet says so. */}
-                    <td className="px-1.5 py-2">
-                      <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-semibold whitespace-nowrap text-sky-100">
-                        <span className={cn('ds-status-dot shrink-0 rounded-full', readyToRequest ? 'bg-emerald-400' : STAGE_DOT_CLASS[conflict.reviewStage])} />
-                        <span className="truncate"><LocalizedText text={readyToRequest ? 'Decided · request review' : STAGE_LABEL[conflict.reviewStage]} /></span>
-                      </span>
-                    </td>
                     <td className="py-2">
                       {!isOpen(conflict) ? (
                         <span className="text-[10.5px] text-slate-600">—</span>

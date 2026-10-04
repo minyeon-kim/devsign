@@ -1,6 +1,7 @@
+import { ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { ChevronRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
-import { RISK_LABEL, STAGE_DOT_CLASS, STAGE_LABEL, nextActionFor } from '@/lib/conflicts'
+import { RISK_LABEL, nextActionFor } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { LocalizedText } from '@/i18n/runtime'
 
@@ -33,10 +34,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
         </span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
-        <span className="flex items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 text-[11px] font-semibold text-sky-100">
-          <span className={cn('ds-status-dot rounded-full', STAGE_DOT_CLASS[conflict.reviewStage])} />
-          <LocalizedText text={STAGE_LABEL[conflict.reviewStage]} />
-        </span>
+        <ReviewStageBadge stage={conflict.reviewStage} />
         <span className={cn('text-[11px]', next.mine ? 'font-medium text-emerald-300' : 'text-slate-500')}><LocalizedText text={next.label} /></span>
       </span>
       <ChevronRight className="size-3.5 shrink-0 text-slate-600 transition-colors group-hover:text-slate-300" />

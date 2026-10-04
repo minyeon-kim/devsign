@@ -1,4 +1,4 @@
-import { allPeople, canvasPages, designMergeVariants } from '@/data/mockData'
+import { canvasPages, designMergeVariants } from '@/data/mockData'
 import { draftScreens, regionKey } from '@/data/draftScreens'
 
 // (Same rules as DesignComparison's decisionFor / decidedValue — repeated
@@ -19,7 +19,7 @@ export function draftColumns(item) {
   return item.variants.map((variant, index) => ({
     key: variant.key,
     letter: String.fromCharCode(65 + index),
-    name: allPeople.find((p) => p.id === variant.authorId)?.name ?? variant.label,
+    name: `시안 ${String.fromCharCode(65 + index)}`,
     valueOf: (diff) => diff.values?.[variant.key] ?? (variant.key === item.authorBId ? diff.optionB : diff.optionA),
   }))
 }

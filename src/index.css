@@ -522,10 +522,6 @@ button.editor-line-comment {
   padding: 0;
 }
 /* Project badges retain the approved subtle tint and regular weight. */
-.ds-project-severity { font-weight: 400; }
-.ds-project-severity[data-level="high"] { background-color: oklch(0.7 0.20 18 / 0.36); }
-.ds-project-severity[data-level="medium"] { background-color: oklch(0.8 0.19 80 / 0.32); }
-.ds-project-severity[data-level="low"] { background-color: oklch(0.72 0.16 245 / 0.36); }
 
 /* Presence rings follow the avatar face instead of the 32px action box. */
 .ds-user-presence > button,

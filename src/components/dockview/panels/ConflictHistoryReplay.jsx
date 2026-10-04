@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
 import { cn } from 'cn'
-import { activities, allPeople } from '@/data/mockData'
+import { activities, allPeople, conflictChecklist } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
 import { LocalizedText } from '@/i18n/runtime'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
@@ -118,6 +118,17 @@ function ConflictHistoryReplay({ conflict, workspace }) {
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+          <section className="mb-3 rounded-lg border border-white/10 p-3">
+            <h4 className="text-xs font-medium text-slate-200">합치기 전 확인할 근거</h4>
+            <p className="mt-2 text-xs leading-5 text-slate-400"><LocalizedText text={conflict.riskReason || conflict.message} /></p>
+            {(conflict.decisionEvidence ?? conflictChecklist.find(entry => entry.id === conflict.id)?.decisionEvidence ?? []).map(evidence => (
+              <div key={evidence.title} className="mt-3 border-t border-white/[0.06] pt-3">
+                <p className="text-xs font-medium text-slate-200">{evidence.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{evidence.detail}</p>
+              </div>
+            ))}
+            <p className="mt-2 text-[11px] leading-5 text-slate-500">변경 기록과 이전 버전을 비교한 뒤 Overview로 돌아가 카드 안에서 합칠 내용을 선택하세요.</p>
+          </section>
           {activity.length ? (
             <ol className="space-y-1">
               {activity.map(({ id, action, actor, timestamp, detail, icon: Icon }) => (

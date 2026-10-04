@@ -1,3 +1,4 @@
+import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
@@ -38,10 +39,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUserFor } from '@/data/mockData'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
-import { decidedValue } from '@/components/mergestudio/DesignComparison'
 import {
-  STAGE_DOT_CLASS,
-  STAGE_LABEL,
   approvalStatus,
   requiredReviewers,
   authorOf,
@@ -255,72 +253,6 @@ function driftItemOf(conflict, workspace) {
   return item && driftRowsFor(conflict, item).length ? item : null
 }
 
-function RowLabel({ row, className }) {
-  return (
-    <span className={cn('block truncate', className)}>
-      {row.element && <><LocalizedText text={row.element} /><span className="text-slate-600"> · </span></>}
-      <LocalizedText text={row.label} />
-    </span>
-  )
-}
-
-// Design vs code: each value as two chips — the design's or the code's.
-function DriftDecisions({ conflict, workspace, item, readOnly }) {
-  const rows = driftRowsFor(conflict, item)
-  const decisions = workspace.decisionsFor(item.id)
-  const options = (diff) => [
-    { label: 'Design', value: diff.optionA, decision: 'A' },
-    { label: 'Code', value: diff.optionB, decision: 'B' },
-  ]
-  const decided = rows.filter((r) => decisions[r.key] != null).length
-  const decide = (key, decision) => workspace.decideDrift(item.id, key, decision)
-
-  return (
-    <div className="min-w-0">
-      <div className="space-y-2 pt-0.5">
-        {rows.map((row) => {
-          const current = decidedValue(row.diff, decisions[row.key])
-          return (
-            <div key={row.key} className="min-w-0 space-y-1">
-              <RowLabel row={row} className="text-[11px] text-slate-300" />
-              <div className="flex min-w-0 flex-wrap gap-1">
-                {options(row.diff).map((option) => {
-                  const on = current === option.value
-                  return (
-                    <button
-                      key={option.label}
-                      type="button"
-                      disabled={readOnly}
-                      aria-pressed={on}
-                      onClick={() => decide(row.key, on ? null : option.decision)}
-                      className={cn(
-                        'ds-intrinsic inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] transition-colors disabled:cursor-default',
-                        on ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white'
-                      )}
-                    >
-                      {on && <Check className="size-3 shrink-0" strokeWidth={2.5} />}
-                      <span translate="no" className="font-semibold tabular-nums">{option.value}</span>
-                      <span className={on ? 'text-emerald-200/70' : 'text-slate-500'}><LocalizedText text={option.label} /></span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
-        <LocalizedText text={decided === rows.length ? 'All values decided' : `${decided} of ${rows.length} decided · undecided values keep the code`} />
-        {!readOnly && rows.length > 1 && decided < rows.length && (
-          <button type="button" onClick={() => rows.forEach((r) => decide(r.key, 'A'))} className={REVIEWER_TEXT_ACTION}>
-            <LocalizedText text="Use Design for all" />
-          </button>
-        )}
-      </p>
-    </div>
-  )
-}
-
 // Several drafts: what the mix takes from where — a row per part (a screen
 // region, or an element's value) naming the draft it comes from. Picking
 // is design work, so it's Merge Studio's: there each row also offers every
@@ -404,7 +336,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks, decisions, onFixCheck }) {
+function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck }) {
   const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
@@ -426,10 +358,7 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
             the right — one line, the card's header. */}
         <div className="flex min-w-0 items-center gap-3">
           <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-slate-500">
-            <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-semibold text-sky-100">
-              <span className={cn('ds-status-dot shrink-0 rounded-full', STAGE_DOT_CLASS[stage])} />
-              <span className="min-w-0 break-words [overflow-wrap:anywhere]"><LocalizedText text={STAGE_LABEL[stage]} /></span>
-            </span>
+            <ReviewStageBadge stage={stage} />
             {severity && (
               <>
                 <span aria-hidden>·</span>
@@ -467,20 +396,10 @@ function OverviewTab({ conflict, severity, stage, showProject, reviewers, checks
           Values below are from before the merge.
         </p>
       )}
-      {/* What to settle first: which value each drift ships with. */}
-      {decisions && (
-        <div className={cn(REVIEW_INFO_GRID, 'mb-3')}>
-          <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Decide</p>
-          {decisions}
-        </div>
-      )}
-      {/* Who the stage is waiting on, right under it. */}
-      {reviewers && (
-        <div className={cn(REVIEW_INFO_GRID, 'mb-3')}>
-          <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1.5')}>Reviewers</p>
-          {reviewers}
-        </div>
-      )}
+      <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
+        <p className={REVIEW_INFO_LABEL}>Branch</p>
+        <BranchInfo conflict={conflict} />
+      </div>
       {checks && stage !== 'resolved' && (
         <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
           <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
@@ -570,7 +489,16 @@ function CodeDiffColumns({ rows }) {
 // ConflictCodeView) — editable, and what merging applies — or, when the
 // change can't be placed in the file, as the plain Before / After snippet.
 // Nothing reaches the workspace before the change is merged.
-function DiffTab({ conflict, code, studioAction }) {
+function DiffTab({ conflict, code, studioAction, workspace, item }) {
+  const decisionRows = item ? driftRowsFor(conflict, item).filter(row => row.diff) : []
+  const decisions = item ? workspace.decisionsFor(item.id) : {}
+  const readOnly = conflict.reviewStage === 'resolved'
+  const canPick = decisionRows.length > 0 && !readOnly
+  const picked = decision => decisionRows.length > 0 && decisionRows.every(row => decisions[row.key] === decision)
+  function pick(decision) {
+    if (!canPick) return
+    decisionRows.forEach(row => workspace.decideDrift(item.id, row.key, decision))
+  }
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
       <div className="h-full">
@@ -579,7 +507,7 @@ function DiffTab({ conflict, code, studioAction }) {
     )
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
-  const pairedPreview = conflict.preview && conflict.preview.kind !== 'divider' && conflict.comparisonFields?.length > 0
+  const pairedPreview = Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
 
   return (
@@ -612,14 +540,17 @@ function DiffTab({ conflict, code, studioAction }) {
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
-                  { side: 'before', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
-                  { side: 'after', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
-                ].map(({ side, source, tone, value }) => (
+                  { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
+                  { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
+                ].map(({ side, decision, source, tone, value }) => (
                   // Each side keeps one soft surface so its source, preview and
                   // values read as a group; the values inside stay plain text.
-                  <div key={side} className="flex min-w-0 flex-col gap-2 rounded-lg bg-white/[0.03] p-3">
+                  <div key={side}
+                    onClick={() => pick(decision)}
+                    data-side={side}
+                    className={cn('flex min-w-0 flex-col gap-2 rounded-xl border p-3 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'border-emerald-300 bg-emerald-400/10' : 'border-white/10 bg-white/[0.03]', canPick && 'cursor-pointer hover:border-emerald-300/60')}>
                     {source && <ComparisonSource {...source} />}
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
@@ -630,6 +561,12 @@ function DiffTab({ conflict, code, studioAction }) {
                         </div>
                       ))}
                     </dl>
+                    <button type="button" role="radio" aria-checked={picked(decision)} disabled={!canPick}
+                      onClick={event => { event.stopPropagation(); pick(decision) }}
+                      className={cn('mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors disabled:cursor-default', picked(decision) ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.12]')}>
+                      {picked(decision) && <Check className="size-3.5" />}
+                      {picked(decision) ? '이 내용으로 합치기 · 선택됨' : readOnly ? '미선택' : side === 'before' ? '현재 구현으로 합치기' : '디자인 기준으로 합치기'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -745,7 +682,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
 
   function remind(ids) {
     const stamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    setReviewers(reviewers.map((r) => (ids.includes(r.id) ? { ...r, remindedAt: stamp } : r)))
+    setReviewers(reviewers.map((r) => (ids.includes(r.id) ? { ...r, remindedAt: stamp, reminderRequestedAt: Date.now() } : r)), reviewStage === 'detected' ? { reviewStage: 'in_review', requestedBy: viewerId } : {})
     const names = ids.map((id) => allPeople.find((p) => p.id === id)?.name).filter(Boolean)
     toast(`Reminder sent to ${names.join(', ')}`, { description: conflict.title })
   }
@@ -1154,6 +1091,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   function openTab(value) {
     setTab(value)
+    if (value === 'history' && !conflict.historyInspected) update({ historyInspected: true })
     if (value === 'overview' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
       update({ diffInspected: true })
     }
@@ -1384,6 +1322,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
+            <div className="mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
+              <span>1. 검토 내용 확인</span><span>→</span>
+              <button type="button" onClick={() => openTab('history')} className="text-emerald-200 hover:underline">2. History에서 변경 근거 확인{conflict.historyInspected ? ' ✓' : ''}</button><span>→</span>
+              <button type="button" onClick={() => openTab('overview')} className="text-slate-200 hover:underline">3. 카드에서 합칠 내용 선택</button><span>→</span><span>4. 검토 요청 · 승인 · 병합</span>
+            </div>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
@@ -1411,7 +1354,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               conflict={conflict}
                               workspace={workspace}
                               item={driftItem}
-                              editable={stage !== 'resolved'}
+                              editable={false}
                               compareLabel={inMergeStudio ? 'Compare on canvas' : 'Compare in Merge Studio'}
                               onCompare={stage === 'resolved' ? null : () => {
                                 // Merge Studio opens on the item with every draft side by side.
@@ -1421,10 +1364,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <>
-                          {driftItem && <div className="mb-4 rounded-xl border border-white/10 p-3"><p className="mb-2 text-xs font-semibold text-white">Diff · 적용할 값을 선택하세요</p><DriftDecisions conflict={conflict} workspace={workspace} item={driftItem} readOnly={stage === 'resolved'} /></div>}
                           <DiffTab
                             conflict={conflict}
                             code={codeView}
+                            workspace={workspace}
+                            item={driftItem}
                             studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
                               ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}

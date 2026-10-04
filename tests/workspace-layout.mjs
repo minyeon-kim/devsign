@@ -34,6 +34,14 @@ try {
   const { default: BottomPanel } = await server.ssrLoadModule('/src/components/workspace/WorkspaceBottomPanel.jsx')
   const render = (Component) => renderToString(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
     createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Component)))))
+  const { allConflictRecords, isQueuedConflict, conflictCounts, gitFlowOf } = await server.ssrLoadModule('/src/lib/conflicts.js')
+  const draft = allConflictRecords().find(c => c.id === 'cc-13')
+  assert.equal(isQueuedConflict(draft), false, 'unsubmitted design drafts stay out of the conflict queue')
+  const submitted = { ...draft, submittedForMergeAt: 1 }
+  assert.equal(isQueuedConflict(submitted), true)
+  assert.equal(conflictCounts([draft]).total, 0)
+  assert.equal(conflictCounts([submitted]).notRequested, 1)
+  assert.equal(gitFlowOf({ id: 'cc-4' }).source, 'hotfix/mobile-nav-icon', 'existing saved records also get seeded branch metadata')
   const explorer = render(Explorer)
   assert.ok(explorer.includes('role="tree"'))
   assert.ok(explorer.includes('aria-label="components"'))

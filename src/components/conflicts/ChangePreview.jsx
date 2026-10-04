@@ -63,9 +63,9 @@ function ChangePreview({ preview, side, showLabels = true }) {
     return (
       <div className="space-y-2">
         {preview.themes.map((t) => (
-          <div key={t.label} className="grid grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
+          <div key={t.label} className={side ? 'grid grid-cols-[60px_minmax(0,1fr)] items-center gap-3' : 'grid grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3'}>
             <span className="text-[11px] text-slate-400"><LocalizedText text={t.label} /></span>
-            {[t.before, t.after].map((color, i) => (
+            {(side ? [side === 'before' ? t.before : t.after] : [t.before, t.after]).map((color, i) => (
               <div key={i} className="rounded-lg px-4 py-4" style={{ background: t.surface }}>
                 <div className="h-px w-full" style={{ background: color }} />
                 <p className="mt-1.5 font-mono text-[10px]" style={{ color: t.surface === '#ffffff' ? '#64748b' : '#a1a1aa' }}>

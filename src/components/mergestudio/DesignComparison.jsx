@@ -10,9 +10,9 @@ import { toast } from '@/i18n/toast'
 
 export function designCompareOptions(item) {
   if (item?.variants?.length) {
-    return item.variants.map((variant) => ({
+    return item.variants.map((variant, index) => ({
       key: variant.key,
-      label: variant.label,
+      label: `시안 ${String.fromCharCode(65 + index)}`,
       authorId: variant.authorId,
     }))
   }

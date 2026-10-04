@@ -38,6 +38,15 @@ export const STAGE_DOT_CLASS = {
   resolved: 'bg-primary',
 }
 
+export function gitFlowOf(conflict) {
+  return conflict.gitFlow ?? conflictChecklist.find(c => c.id === conflict.id)?.gitFlow ?? null
+}
+
+export function isQueuedConflict(conflict) {
+  const draft = conflict.designDraft ?? conflictChecklist.find(c => c.id === conflict.id)?.designDraft
+  return !draft || Boolean(conflict.submittedForMergeAt) || conflict.reviewStage === 'resolved'
+}
+
 export const RISK_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
 
 export function isOpen(conflict) {
@@ -162,6 +171,7 @@ export function sortOpenFirst(conflicts) {
 // Counts every screen shows, from one set of rules (so a list, its total
 // and its status breakdown can never disagree).
 export function conflictCounts(conflicts, userId) {
+  conflicts = conflicts.filter(isQueuedConflict)
   return {
     total: conflicts.length,
     open: conflicts.filter(isOpen).length,

@@ -84,6 +84,7 @@ export default function HighReviewNotifications() {
             <p className="flex items-center gap-2 pr-5 text-sm font-semibold text-emerald-200"><Bell className="size-4" />개발 요청 <span className="rounded-md bg-emerald-300 px-2 py-0.5 text-xs font-bold text-slate-950">D-7</span></p>
             <p className="mt-3 text-xs font-semibold text-white">Jordan</p>
             <p className="mt-1 text-sm leading-6 text-slate-200">“결제 단계 시안이 4개 모였어요. 좋은 부분만 모아 하나로 만들어 주세요”</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">검토할 내용을 확인하고, History에서 변경 근거를 살펴본 뒤 어떤 내용으로 합칠지 선택해 주세요.</p>
             <button type="button" onClick={() => { setRequestDismissed(true); exitMergeStudio(); setBottomPanel({ tab: 'design-compare', open: true }) }} className="mt-3 rounded-full bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-200">디자인 비교 열기</button>
           </section>
         )}

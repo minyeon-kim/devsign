@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
+import { CONFLICT_BADGE } from '@/components/conflicts/ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 
 // The conflict-level tag for the conflict-resolution panel's header: a
@@ -22,18 +23,8 @@ function ConflictTag({ level, className }) {
   )
 }
 
-// The compact severity badge — just the level word in a fixed-width pill.
-// The Block Deck's drift rows and the Merge List cards both use it, so a
-// "High" reads identically in either panel. Soft-tinted and borderless
-// (Linear / Vercel style): a faint fill of the level's color with matching
-// text — muted rose for High, muted amber for Medium, muted slate-blue for
-// Low — no outline. `level` is case-insensitive: high / medium / low / none.
-const SEVERITY_PILL_CLASS = {
-  high: 'bg-[oklch(0.7_0.18_18_/_0.28)] font-semibold text-[oklch(0.9_0.16_18)]',
-  medium: 'bg-[oklch(0.8_0.17_80_/_0.24)] font-semibold text-[oklch(0.92_0.15_80)]',
-  low: 'bg-[oklch(0.72_0.14_245_/_0.28)] font-semibold text-[oklch(0.9_0.12_245)]',
-  none: 'bg-white/[0.05] text-slate-500',
-}
+// Level and review status share badge geometry; color identifies severity.
+const SEVERITY_PILL_CLASS = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300', none: 'text-slate-400' }
 
 export function SeverityPill({ level, className, ...props }) {
   const key = String(level).toLowerCase()
@@ -41,12 +32,12 @@ export function SeverityPill({ level, className, ...props }) {
     <span
       {...props}
       className={cn(
-        'flex h-6 min-w-[84px] shrink-0 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-semibold',
+        CONFLICT_BADGE,
         SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium,
         className
       )}
     >
-      <span className="font-bold">{({ high: "Lv.3", medium: "Lv.2", low: "Lv.1", none: "Lv.0" })[key]}</span>
+      <span className="text-slate-400">Level</span>
       <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>
   )

@@ -1,3 +1,4 @@
+import { scheduleDemoReview, applyDueDemoReviews } from '@/lib/demoReview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers } from '@/lib/conflicts'
@@ -88,13 +89,6 @@ function seedDsUpdates(projectId) {
 function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
-
-// How long another required reviewer takes to catch up and approve
-// behind you (see `approveConflict`) — only one real person is ever
-// testing this, so nobody else is around to click their own Approve;
-// long enough to read as "a little later", short enough not to stall a
-// live test session waiting on it.
-const TEAMMATE_APPROVAL_DELAY_MS = 6000
 
 export function WorkspaceProvider({ children, projectId }) {
   // Who "you" are on this project (Taylor on the designer track, Jordan on
@@ -366,9 +360,9 @@ export function WorkspaceProvider({ children, projectId }) {
       // to review yet stays that way — editing never requests a review.
       setConflicts((prev) => prev.map((c) => c.mergeItemId === id && c.reviewStage !== 'resolved' ? {
         ...c, reviewStage: c.reviewStage === 'detected' || !c.reviewers.length ? 'detected' : 'in_review',
-        reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+        reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending', demoApproveAt: undefined })),
       } : c))
-      setMergeItems((prev) => prev.map((m) => m.id === id ? { ...m, tag: 'In Review', reviewers: m.reviewers?.map((r) => ({ ...r, status: 'pending' })) } : m))
+      setMergeItems((prev) => prev.map((m) => m.id === id ? { ...m, tag: 'In Review', reviewers: m.reviewers?.map((r) => ({ ...r, status: 'pending', demoApproveAt: undefined })) } : m))
     }
     mergeDrafts.current[id] = draft
     writeDemo(`project:${projectId}:mergeDrafts`, mergeDrafts.current)
@@ -592,6 +586,29 @@ export function WorkspaceProvider({ children, projectId }) {
     )
   }, [projectId, setConflicts])
 
+  // Timers belong to the workspace and survive closing the review panel.
+  // Replacing review content clears scheduled approvals in saveMergeDraft.
+  useEffect(() => {
+    const times = conflicts.filter(c => c.reviewStage === 'in_review').flatMap(c => c.reviewers
+      .filter(r => r.status === 'pending' && r.demoApproveAt && r.id !== currentUser.id && r.id !== authorOf(c))
+      .map(r => r.demoApproveAt))
+    if (!times.length) return
+    const timer = window.setTimeout(() => {
+      const now = Date.now()
+      for (const conflict of conflicts) {
+        const next = applyDueDemoReviews(conflict, currentUser.id, now)
+        if (next === conflict) continue
+        next.reviewers.forEach((reviewer, i) => {
+          if (reviewer.status === 'approved' && conflict.reviewers[i].status !== 'approved') {
+            logEvent({ kind: 'approve', projectId, conflictId: conflict.id, actorId: reviewer.id, title: conflict.title, detail: 'UT 시뮬레이션 · 검토 요청에 승인으로 응답했습니다.' })
+          }
+        })
+      }
+      setConflicts(prev => prev.map(c => applyDueDemoReviews(c, currentUser.id, now)))
+    }, Math.max(0, Math.min(...times) - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
+
   // Review-workflow edits from the conflict modal (stage, reviewers,
   // diff inspected) — everything short of the final resolve.
   const updateConflict = useCallback((conflictId, patch) => {
@@ -609,7 +626,14 @@ export function WorkspaceProvider({ children, projectId }) {
           : null
       if (kind) logEvent({ kind, projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     }
-    setConflicts((prev) => prev.map((c) => (c.id === conflictId ? { ...c, ...patch } : c)))
+    setConflicts(prev => prev.map(c => {
+      if (c.id !== conflictId) return c
+      let next = { ...c, ...patch }
+      if ('workingFile' in patch) next = { ...next, reviewers: next.reviewers.map(r => ({ ...r, demoApproveAt: undefined })) }
+      const reminded = patch.reviewers?.filter(r => r.reminderRequestedAt && r.reminderRequestedAt !== c.reviewers.find(old => old.id === r.id)?.reminderRequestedAt).map(r => r.id)
+      if (patch.reviewStage === 'in_review' || reminded?.length) next = scheduleDemoReview(next, currentUser.id, patch.reviewStage === 'in_review' ? null : reminded)
+      return next
+    }))
   }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
 
   const setActiveFileId = useCallback((fileId) => {
@@ -914,29 +938,11 @@ export function WorkspaceProvider({ children, projectId }) {
       if (!conflict.reviewers.some((r) => r.id === currentUser.id)) return null
       const reviewers = conflict.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'approved' } : r))
       const updated = { ...conflict, reviewers, diffInspected: true }
-      const next = { ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }
+      const next = scheduleDemoReview({ ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }, currentUser.id)
       setConflicts((prev) => prev.map((c) => (c.id === conflictId ? next : c)))
       logEvent({ kind: 'approve', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
       notifyAuthor(conflict, `approved ${conflict.title}`, 'approval')
       appendTerminalLines([`$ devsign review approve "${conflict.title}" --as ${currentUser.id}`])
-      // There's only ever one real person testing this, so any other
-      // required reviewer never gets a turn to click their own Approve —
-      // bring their sign-off in shortly after instead, the same as it'd
-      // land in a real session with the rest of the team online. Checked
-      // against live state when it fires, not the snapshot above, so it's
-      // a no-op if the conflict moved on (resolved, reopened, changes
-      // requested) in the meantime.
-      if (reviewers.some((r) => r.status === 'pending')) {
-        window.setTimeout(() => {
-          setConflicts((prev) =>
-            prev.map((c) => {
-              if (c.id !== conflictId || c.reviewStage !== 'in_review') return c
-              const caughtUp = { ...c, reviewers: c.reviewers.map((r) => (r.status === 'pending' ? { ...r, status: 'approved' } : r)) }
-              return { ...caughtUp, reviewStage: allReviewersApproved(caughtUp) ? 'approved' : 'in_review' }
-            })
-          )
-        }, TEAMMATE_APPROVAL_DELAY_MS)
-      }
       return next
     },
     [appendTerminalLines, conflicts, logEvent, notifyAuthor, projectId, setConflicts, currentUser.id]
@@ -982,7 +988,7 @@ export function WorkspaceProvider({ children, projectId }) {
         mergedBy: undefined,
         detectedAt: timeLabel(),
         timestamp: 'Just now',
-        reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })),
+        reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending', demoApproveAt: undefined })),
         diff: invertedDiff,
         comparisonFields: invertedFields,
         revertOf: conflict.id,
@@ -1287,7 +1293,7 @@ export function WorkspaceProvider({ children, projectId }) {
               ? {
                   ...c,
                   reviewStage: c.reviewers.length ? 'in_review' : 'detected',
-                  reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+                  reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending', demoApproveAt: undefined })),
                   // Preserve AI authorship separately from the person applying the draft.
                   source: 'ai',
                   applicationMode: appliedBy ? 'manual' : 'auto',
@@ -1604,7 +1610,7 @@ export function WorkspaceProvider({ children, projectId }) {
         })
         const ids = new Set(affected.map((c) => c.id))
         nextConflicts = conflicts.map((c) => ids.has(c.id)
-          ? { ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected', reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })) }
+          ? { ...c, reviewStage: c.reviewers.length ? 'in_review' : 'detected', reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending', demoApproveAt: undefined })) }
           : c)
         setConflicts(nextConflicts)
         for (const conflict of affected) {
@@ -1715,7 +1721,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!reviewer) return
     const name = allPeople.find((p) => p.id === reviewerId)?.name ?? reviewerId
     setConflicts((prev) => prev.map((c) => (c.id === conflictId
-      ? { ...c, reviewers: c.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'pending', dismissedAt: 'Just now' } : r)) }
+      ? { ...c, reviewers: c.reviewers.map((r) => (r.id === reviewerId ? { ...r, status: 'pending', demoApproveAt: undefined, dismissedAt: 'Just now' } : r)) }
       : c)))
     logEvent({ kind: 'dismiss', projectId, conflictId, actorId: currentUser.id, title: conflict.title, detail: `${name}: ${trimmed}` })
     setComments((prev) => [

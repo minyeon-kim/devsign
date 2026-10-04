@@ -407,21 +407,19 @@ function MergeStudioWorkspace({ item }) {
     setBottomPanel({ open: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, designCompareRequest])
-  // Finishing a mix: back to the item's own canvas (the original next to
-  // the result) with its conflict review open — the Decide row lists what
-  // was taken from where, and requesting review is the next step there.
+  // Submit the saved composition to the conflict queue. Review and final
+  // merge happen there; submitting a mix never applies it to the project.
   function finishMix() {
-    const rows = draftRows({}, item, resolutions)
-    const picked = rows.filter((row) => row.decided).length
+    const conflict = conflicts.find(c => c.mergeItemId === item.id || c.id === item.conflictId)
+    if (!conflict || item.tag === 'Merged') return
+    updateConflict(conflict.id, { submittedForMergeAt: Date.now(), ...(!conflict.submittedForMergeAt && { reviewStage: 'detected', reviewers: conflict.reviewers.map(reviewer => ({ ...reviewer, status: 'pending' })) }) })
     endComparison()
-    openReviewFor(item)
-    requestMergeFocus({ itemId: item.id, overview: true })
-    toast('Mix applied', {
-      description: picked === rows.length
-        ? 'Check the picks in the conflict, then request review.'
-        : `${picked} of ${rows.length} picked — the rest keep the code.`,
-    })
+    openConflictReview(null)
+    exitMergeStudio()
+    setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'all' })
+    toast('충돌 리스트에 병합 요청을 추가했어요', { description: '선택한 조합을 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
   }
+
   function openReviewFor(target) {
     const conflict = conflicts.find((c) => c.mergeItemId === target.id || c.id === target.conflictId)
     if (conflict) openConflictReview(conflict.id)
@@ -444,11 +442,11 @@ function MergeStudioWorkspace({ item }) {
     if (!compareFrame) return null
     return {
       frame: compareFrame,
-      entries: options.map((option, index) => ({
+      entries: options.map((option) => ({
         key: option.key,
         // A letter and the draft's name — the values themselves are on the
         // artboards and in the mixing panel.
-        label: `${String.fromCharCode(65 + index)} · ${option.label}`,
+        label: option.label,
         overrides: optionEffects(compareItem, option),
         // Drafts with their own layouts bring their own screen.
         ...(draftScreens[compareItem.id] && { frame: draftFrame(compareItem.id, compareFrame, option.key) }),
@@ -1017,13 +1015,13 @@ function MergeStudioWorkspace({ item }) {
                 been picked from a draft. */}
             <button
               type="button"
-              disabled={mixPicked === 0}
+              disabled={mixPicked === 0 || item.tag === 'Merged'}
               title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
               onClick={finishMix}
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:bg-white/[0.06] disabled:font-medium disabled:text-slate-500"
             >
               <Check className="size-3.5" strokeWidth={2.5} />
-              <LocalizedText text="Finish mix" />
+              <LocalizedText text="병합 요청" />
             </button>
           </div>
         )}

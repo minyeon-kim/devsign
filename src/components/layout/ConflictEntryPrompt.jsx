@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { currentUserFor } from '@/data/mockData'
-import { needsReviewFrom } from '@/lib/conflicts'
+import { needsReviewFrom, isQueuedConflict } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // A nudge under the Inbox bell a moment after entering a project's
@@ -43,7 +43,7 @@ function writeSeen(key, value) {
 // appears, so live conflict changes don't reshuffle an open prompt.
 function decide(conflicts, viewerId, seen) {
   const open = conflicts
-    .filter((c) => c.reviewStage !== 'resolved')
+    .filter((c) => isQueuedConflict(c) && c.reviewStage !== 'resolved')
     .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3))
   if (!open.length) return null
   const high = open.filter((c) => c.severity === 'high')
