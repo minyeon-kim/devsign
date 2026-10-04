@@ -39,7 +39,7 @@ const REVIEW_MIN_HEIGHT = 440
 // inside each panel rather than resizing this dock to fit it.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
-  const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId, checkGuide } = useWorkspace()
   const { tab, open, height } = bottomPanel
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
@@ -58,6 +58,9 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
 
   useEffect(() => {
     if (!reviewConflictId) return
+    // Fixing a check on the canvas (see CheckDecisions): the review was
+    // folded on purpose so the marked element is in view — leave it folded.
+    if (checkGuide?.conflictId === reviewConflictId) return
     const target = Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * 0.58))
     setBottomPanel({ open: true, height: target })
   }, [reviewConflictId, setBottomPanel])

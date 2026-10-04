@@ -185,7 +185,7 @@ function ConflictPanel({ inMergeStudio }) {
               const revert = revertConflict(conflictId)
               if (revert) openConflictReview(revert.id)
             }}
-            onOpenMergeStudio={(conflict) => {
+            onOpenMergeStudio={(conflict, options) => {
               // The review stays open: it carries over into Merge Studio's
               // bottom panel, beside the canvas showing this item.
               // `conflict` here is always `reviewConflict`, so its item id
@@ -195,7 +195,7 @@ function ConflictPanel({ inMergeStudio }) {
               // Studio with nothing selected (a near-black empty canvas)
               // for most conflicts.
               navigate(`/projects/${projectId}/workspace`, {
-                state: { openMergeStudio: true, conflictId: conflict.id, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line },
+                state: { openMergeStudio: true, conflictId: conflict.id, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line, collapsePanel: options?.collapsePanel },
               })
             }}
           />

@@ -3,6 +3,7 @@ import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw,
 import { cn } from 'cn'
 import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
+import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { LocalizedText } from '@/i18n/runtime'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
@@ -143,7 +144,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
                 const isCurrentMarker = replayEntry && replayEntry.id === selected?.id
                 return (
                   <li key={id}>
-                    <button type="button" disabled={!replayEntry} onClick={() => { if (replayEntry) { setPlaying(false); setSelectedId(replayEntry.id) } }} aria-pressed={Boolean(isCurrentMarker)} className="flex w-full items-start gap-2.5 rounded-lg px-1 py-2 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-emerald-400/[0.06]">
+                    <button type="button" disabled={!replayEntry} onClick={() => { if (replayEntry) { setPlaying(false); setSelectedId(replayEntry.id) } }} aria-pressed={Boolean(isCurrentMarker)} className="flex w-full items-start gap-2.5 rounded-lg py-2 pr-4 pl-2 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-emerald-400/[0.06]">
                       <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-slate-400">
                         <Icon className="size-3" />
                       </span>
@@ -198,11 +199,16 @@ function ConflictHistoryReplay({ conflict, workspace }) {
             <PreviewPanelContent
               key={`conflict-replay-${selected.id}`}
               previewProps={selected.snapshot?.previewProps}
-              prototypeEdits={selected.snapshot?.prototypeEdits}
+              // The whole screen at this checkpoint, not a sample of the
+              // changed element: checkpoints without their own edits get
+              // them from that checkpoint's code (see lib/prototypeSync).
+              prototypeEdits={selected.snapshot?.prototypeEdits
+                ?? deriveComponentOverride(conflict.projectId, conflict.fileId ?? selected.snapshot?.fileId, selectedLines)
+                ?? {}}
               activePageId={selected.snapshot?.activePageId}
               frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
-              conflictPreview={Object.hasOwn(selected.snapshot ?? {}, 'conflictPreview') ? selected.snapshot.conflictPreview : ((selected.kind === 'conflict' || selected.kind === 'merge') ? conflict.preview : null)}
-              conflictPreviewSide={selected.snapshot?.previewSide ?? conflict.mergedPreviewSide ?? (selected.kind === 'merge' ? 'after' : 'before')}
+              historical
+              snapshotKey={selected.id}
               embedded
             />
             </div>

@@ -46,6 +46,7 @@ import {
   authorOf,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
+import { CheckDecisions, CheckGuideNote } from '@/components/conflicts/CheckDecisions'
 import { diffLines } from '@/lib/lineDiff'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
@@ -360,7 +361,7 @@ function DueDate({ label, className }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, onOpenHistory }) {
+function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, onAcceptCheck, onUndoAcceptCheck, fixingCheckId, onOpenHistory }) {
   const [showDetails, setShowDetails] = useState(false)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
@@ -433,7 +434,12 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
       {checks && stage !== 'resolved' && (
         <div className={cn(REVIEW_INFO_GRID, 'mb-4')}>
           <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
-          <CheckStatus checks={checks} onFix={onFixCheck} />
+          {/* The status, then each failing check as a decision: fix it or
+              apply the change as it is. */}
+          <div className="min-w-0">
+            <CheckStatus checks={checks} onFix={onFixCheck} />
+            <CheckDecisions checks={checks} activeId={fixingCheckId} onFix={onFixCheck} onAccept={onAcceptCheck} onUndoAccept={onUndoAcceptCheck} />
+          </div>
         </div>
       )}
       {(summary || hasMetadata) && (
@@ -607,12 +613,23 @@ function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines })
                         </div>
                       ))}
                     </dl>
-                    <button type="button" role="radio" aria-checked={picked(decision)} disabled={!canPick}
-                      onClick={event => { event.stopPropagation(); pick(decision) }}
-                      className={cn('mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors disabled:cursor-default', picked(decision) ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.12]')}>
-                      {picked(decision) && <Check className="size-3.5" />}
-                      {picked(decision) ? '이 내용으로 합치기 · 선택됨' : readOnly ? '미선택' : side === 'before' ? '현재 구현으로 합치기' : '디자인 기준으로 합치기'}
-                    </button>
+                    {/* Picked is a state, not something to press: a plain check
+                        and label. Only the side that isn't picked offers a
+                        button (to switch to it). */}
+                    {picked(decision) ? (
+                      <p role="radio" aria-checked className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 text-xs font-medium text-emerald-300">
+                        <Check className="size-3.5" strokeWidth={2.5} />
+                        {readOnly ? '이 내용으로 합쳐짐' : '선택됨 · 이 내용으로 합쳐집니다'}
+                      </p>
+                    ) : readOnly ? (
+                      <p role="radio" aria-checked={false} className="mt-2 flex h-8 w-full items-center justify-center text-xs text-slate-500">미선택</p>
+                    ) : (
+                      <button type="button" role="radio" aria-checked={false} disabled={!canPick}
+                        onClick={event => { event.stopPropagation(); pick(decision) }}
+                        className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-md bg-white/[0.07] text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] disabled:cursor-default">
+                        {side === 'before' ? '현재 구현으로 합치기' : '디자인 기준으로 합치기'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1218,15 +1235,38 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     else onRequestChanges?.(conflict.id)
   }
 
+  // Fix: nothing moves yet — the guide opens on the comparison card, saying
+  // what to change and where (pick the other side here, or adjust it in
+  // Merge Studio, which keeps the same guide and marks the element).
+  function startFix(check) {
+    if (!workspace) return
+    workspace.setCheckGuide({ conflictId: conflict.id, check })
+    setTab('overview')
+  }
+
+  // Ship the change with this check as it is: it stops counting against
+  // the merge, and stays listed so the decision can be undone.
+  function acceptCheck(check) {
+    update({ acceptedChecks: [...new Set([...(conflict.acceptedChecks ?? []), check.id])] })
+    if (workspace?.checkGuide?.check.id === check.id) workspace.setCheckGuide(null)
+    toast('Applying as is', { description: check.title })
+  }
+
+  function undoAcceptCheck(check) {
+    update({ acceptedChecks: (conflict.acceptedChecks ?? []).filter((id) => id !== check.id) })
+  }
+
   function fixCheck(check) {
     if (!workspace) return
     if (check.fileId || check.id === 'markers') { handleOpenFile(); return }
     if (driftItem && check.regionIds?.length && driftItem.variants?.length) {
       workspace.setDesignCompareRequest({ itemId: driftItem.id, keys: driftItem.variants.map((variant) => variant.key), regionId: check.regionIds[0] })
     } else if (driftItem) {
-      workspace.requestMergeFocus({ itemId: driftItem.id, ...(check.layerId ? { layerId: check.layerId } : { overview: true }), keepDeck: true })
+      workspace.requestMergeFocus({ itemId: driftItem.id, ...(check.layerId ? { layerId: check.layerId, pulse: true } : { overview: true }), keepDeck: true })
     }
-    if (!inMergeStudio) onOpenMergeStudio?.(conflict)
+    // Either way the panel steps aside: the canvas, the marked element and
+    // the guide over it are what's needed now (the review is one click back).
+    if (!inMergeStudio) onOpenMergeStudio?.(conflict, { collapsePanel: true })
     else workspace.setBottomPanel({ open: false })
   }
 
@@ -1247,6 +1287,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const stage = conflict?.reviewStage
   const checks = conflict && workspace?.conflictChecks ? workspace.conflictChecks(conflict) : null
   const driftItem = conflict ? driftItemOf(conflict, workspace) : null
+  // The check being fixed, if its guide is open for this conflict — read
+  // back from the live checks, so the guide follows it as it changes.
+  const guide = conflict && workspace?.checkGuide?.conflictId === conflict.id ? workspace.checkGuide.check : null
+  const guideCheck = guide ? (checks?.failing.find((check) => check.id === guide.id) ?? guide) : null
+  const guideResolved = Boolean(guide) && !checks?.failing.some((check) => check.id === guide.id)
+  const guideInEditor = Boolean(guide && (guide.fileId || guide.id === 'markers'))
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
@@ -1359,6 +1405,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {/* History took the review's place — the way back sits up
+                    here with the title, not on a row of its own. */}
+                {tab === 'history' && (
+                  <button
+                    type="button"
+                    onClick={() => openTab('overview')}
+                    className="ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] pr-3.5 pl-2 text-xs font-medium whitespace-nowrap text-slate-100 transition-colors hover:bg-white/[0.12] hover:text-white"
+                  >
+                    <ChevronLeft className="size-4" />
+                    <LocalizedText text="Back to review" />
+                  </button>
+                )}
                 {primary}
               </div>
             </div>
@@ -1379,13 +1437,33 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             stage={stage}
                             showProject={!workspace}
                             checks={checks}
-                            onFixCheck={stage !== 'resolved' && workspace ? fixCheck : undefined}
+                            onFixCheck={stage !== 'resolved' && workspace ? startFix : undefined}
+                            onAcceptCheck={stage !== 'resolved' && onUpdate ? acceptCheck : undefined}
+                            onUndoAcceptCheck={stage !== 'resolved' && onUpdate ? undoAcceptCheck : undefined}
+                            fixingCheckId={guide && !guideResolved ? guide.id : null}
                             onOpenHistory={() => openTab('history')}
                           />
                         </div>
                       </section>
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1', guide && !guideResolved && 'ring-1 ring-amber-300/60 ring-inset')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          {guide && (
+                            <CheckGuideNote
+                              className="mb-3"
+                              check={guideCheck}
+                              resolved={guideResolved}
+                              where={guideInEditor
+                                ? '코드에서 충돌한 줄을 정리하세요.'
+                                : inMergeStudio
+                                  ? '아래 카드에서 다른 값을 고르거나, 캔버스에서 표시된 요소를 직접 조정하세요.'
+                                  : '아래 카드에서 다른 값을 고르거나, 병합 스튜디오에서 표시된 요소를 정밀 조정하세요.'}
+                              action={{
+                                label: guideInEditor ? '에디터에서 열기' : inMergeStudio ? '캔버스에서 보기' : '병합 스튜디오에서 조정',
+                                onClick: () => fixCheck(guideCheck),
+                              }}
+                              onClose={() => workspace.setCheckGuide(null)}
+                            />
+                          )}
                           {driftItem && draftColumns(driftItem) ? (
                             <DraftTable
                               conflict={conflict}
@@ -1418,19 +1496,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                     </div>
                   ) : (
-                    <div className="flex min-h-0 flex-1 flex-col gap-2">
-                      {/* History took the review's place — one step back to it. */}
-                      <button
-                        type="button"
-                        onClick={() => openTab('overview')}
-                        className="ds-intrinsic inline-flex h-7 w-fit shrink-0 items-center gap-1 rounded-full pr-3 pl-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
-                      >
-                        <ChevronLeft className="size-4" />
-                        <LocalizedText text="Back to review" />
-                      </button>
-                      <div className="flex min-h-0 flex-1">
-                        <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
-                      </div>
+                    <div className="flex min-h-0 flex-1">
+                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
                     </div>
                   )}
                 </div>

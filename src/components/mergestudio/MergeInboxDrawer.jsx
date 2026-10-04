@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Bell, CheckCheck, ChevronRight, MessageSquare, Smile } from 'lucide-react'
+import { Bell, CheckCheck, ChevronDown, ChevronRight, MessageSquare, Smile } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -279,7 +279,7 @@ function InboxItem({ n, onJump }) {
   )
 }
 
-function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
+function NotificationSummary({ group, conflicts, mergeItems, expanded, onOpen }) {
   const changes = (group.reviewConflictIds ?? []).map(id => conflicts.find(c => c.id === id)).filter(Boolean)
   const first = group.notifications[0]
   const author = allPeople.find(p => p.id === first.authorId)
@@ -292,11 +292,9 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
   return (
     <button
       type="button"
+      aria-expanded={expanded}
       onClick={onOpen}
-      className={cn(
-        'flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left transition-colors',
-        comment && group.unread ? 'bg-emerald-400/[0.05] hover:bg-emerald-400/[0.08]' : 'bg-white/[0.025] hover:bg-white/[0.05]'
-      )}
+      className="flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
     >
       <span className="mt-0.5 shrink-0">
         {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? (
@@ -312,46 +310,50 @@ function NotificationSummary({ group, conflicts, mergeItems, onOpen }) {
         </span>
         {comment ? <>
           {itemName && itemName !== group.target.label && <span className="mt-1.5 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          <span className="mt-1.5 block line-clamp-2 text-xs leading-5 text-slate-300">
+          {/* Open, the conversation itself is right below — no need for
+              its one-line preview too. */}
+          {!expanded && <span className="mt-1.5 block line-clamp-2 text-xs leading-5 text-slate-300">
             <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
-          </span>
+          </span>}
           <span className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-slate-500">
             {comment.comments > 0 && <span className="text-emerald-300/80">{`${comment.comments} comments`}</span>}
             {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
             {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
           </span>
-        </> : <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
+        </> : !expanded && <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
       </span>
       <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
         {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
-        <ChevronRight className="size-3.5 text-slate-500" />
+        <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform', expanded && 'rotate-180')} />
       </span>
     </button>
   )
 }
 
-// Notifications open their scoped list first; individual rows open the target.
+// A notification opens in place: its box grows downward to show what it's
+// about — the changes to review, or the conversation with its reply box —
+// instead of swapping the list for a second screen. Rows inside it open
+// the target.
 function MergeInboxDrawer({ onJump, onClose, inset }) {
   const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('unread')
-  const [selected, setSelected] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
   const [unreadIds, setUnreadIds] = useState(() => new Set(notifications.filter(n => n.unread).map(n => n.id)))
   const unread = notifications.filter((n) => n.unread).length
   const groups = groupInboxNotifications(notifications)
-  const selectedGroup = selected && (groups.find(group => group.id === selected.id) ?? selected)
 
   function pick(id) {
     setTab(id)
-    setSelected(null)
+    setExpandedId(null)
     setUnreadIds(id === 'unread' ? new Set(notifications.filter((n) => n.unread).map((n) => n.id)) : null)
   }
-  function openGroup(group) {
-    setSelected(group)
+  function toggleGroup(group) {
+    if (expandedId === group.id) { setExpandedId(null); return }
+    setExpandedId(group.id)
     group.notifications.forEach(n => markNotificationRead(n.id))
   }
   const visible = groups.filter(group => tab === 'all' || (tab === 'unread'
     ? group.notifications.some(n => n.unread || unreadIds?.has(n.id)) : group.kind === tab))
-  const reviewItems = selectedGroup?.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean) ?? []
 
   return (
     <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} inset={inset} aside={
@@ -359,42 +361,44 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
         <CheckCheck className="size-3.5" /> Mark all read
       </button>
     }>
-      {selectedGroup ? <>
-        <div className="shrink-0 px-5 pb-2">
-          <button type="button" onClick={() => setSelected(null)} className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"><ArrowLeft className="size-3.5" /> Back to notifications</button>
-          <h3 className="text-[13px] leading-5 font-medium text-white">{selectedGroup.kind === 'comment' ? mergeItems.find(item => item.id === selectedGroup.target.itemId)?.title ?? selectedGroup.target.label : selectedGroup.text}</h3>
-          <p className="mt-1 text-xs text-slate-400">{selectedGroup.reviewConflictIds ? 'Select a change to open its review.' : selectedGroup.kind === 'approval' ? 'Approval activity for this target.' : 'Comments and feedback for this target.'}</p>
-        </div>
-        <div className="scroll-fade-bottom min-h-0 flex-1 overflow-y-auto px-5 pb-3">
-          {selectedGroup.reviewConflictIds ? <div className="-mx-2 space-y-0.5">
-            {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-white/[0.04]">
-              <RiskBadge severity={conflict.severity} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium text-white"><LocalizedText text={conflict.title} /></span>
-                <span className="mt-1 block text-[11px] text-slate-500">{conflict.file}</span>
-                <span className="mt-2 block text-xs leading-5 text-slate-400"><LocalizedText text={conflict.message ?? conflict.suggestion} /></span>
-                <span className="mt-2 block text-[11px] text-emerald-300">{needsReviewFrom(conflict) ? 'Needs your review' : 'Review completed'}</span>
-              </span>
-              <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />
-            </button>)}
-            {!reviewItems.length && <p className="py-6 text-center text-xs text-slate-500">No changes waiting for review.</p>}
-          </div> : selectedGroup.notifications.map(saved => {
-            const n = notifications.find(current => current.id === saved.id) ?? saved
-            return <InboxItem key={n.id} n={n} onJump={onJump} />
-          })}
-        </div>
-      </> : <>
-        <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-2" role="tablist" aria-label="Filter notifications">
-          {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
-            <span className="truncate">{label}</span>
-            {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
-          </button>)}
-        </div>
-        <div className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3">
-          {visible.map(group => <NotificationSummary key={group.id} group={group} conflicts={conflicts} mergeItems={mergeItems} onOpen={() => openGroup(group)} />)}
-          {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
-        </div>
-      </>}
+      <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-2" role="tablist" aria-label="Filter notifications">
+        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
+          <span className="truncate">{label}</span>
+          {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
+        </button>)}
+      </div>
+      <div className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3">
+        {visible.map(group => {
+          const expanded = expandedId === group.id
+          const reviewItems = group.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean)
+          return (
+            <div key={group.id} className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.kind === 'comment' && group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
+              <NotificationSummary group={group} conflicts={conflicts} mergeItems={mergeItems} expanded={expanded} onOpen={() => toggleGroup(group)} />
+              {expanded && (
+                <div className="px-2.5 pb-2.5 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+                  {reviewItems ? <div className="space-y-0.5">
+                    {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/[0.05]">
+                      <RiskBadge severity={conflict.severity} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13px] font-medium text-white"><LocalizedText text={conflict.title} /></span>
+                        <span className="mt-1 block truncate text-[11px] text-slate-500">{conflict.file}</span>
+                        <span className="mt-2 block text-xs leading-5 text-slate-300"><LocalizedText text={conflict.message ?? conflict.suggestion} /></span>
+                        <span className="mt-2 block text-[11px] text-emerald-300">{needsReviewFrom(conflict) ? 'Needs your review' : 'Review completed'}</span>
+                      </span>
+                      <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />
+                    </button>)}
+                    {!reviewItems.length && <p className="py-4 text-center text-xs text-slate-500">No changes waiting for review.</p>}
+                  </div> : group.notifications.map(saved => {
+                    const n = notifications.find(current => current.id === saved.id) ?? saved
+                    return <InboxItem key={n.id} n={n} onJump={onJump} />
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
+      </div>
     </MergeDrawer>
   )
 }

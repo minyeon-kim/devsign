@@ -335,6 +335,10 @@ export function WorkspaceProvider({ children, projectId }) {
   const [chatDraft, setChatDraft] = useState('')
   const [chatTargetOverride, setChatTargetOverride] = useState(null)
   const [mergeFocus, setMergeFocus] = useState(null)
+  // The failing check someone chose to fix (`{ conflictId, check }`): the
+  // review marks where to change it, and Merge Studio keeps the same note
+  // and a highlight on the element until it's fixed or dismissed.
+  const [checkGuide, setCheckGuide] = useState(null)
   // A request to open the Activity Bar's History drawer from somewhere
   // deep in the tree (Merge Studio's "Version history" link) — observed by
   // AppShell, which owns the drawer itself. See `requestHistoryDrawer`.
@@ -390,7 +394,19 @@ export function WorkspaceProvider({ children, projectId }) {
   const conflictChecks = useCallback((conflict) => {
     if (!conflict) return null
     const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
-    return item ? checksFor(item, mergeDrafts.current[item.id], (id) => id === conflict.fileId && conflict.workingFile ? conflict.workingFile : linesOfFile(id)) : null
+    const result = item ? checksFor(item, mergeDrafts.current[item.id], (id) => id === conflict.fileId && conflict.workingFile ? conflict.workingFile : linesOfFile(id)) : null
+    // A failing check someone decided to ship as it is (the review's "Apply
+    // as is") no longer counts as failing or blocking — it's listed apart,
+    // as `accepted`, so the decision stays visible and can be undone.
+    const acceptedIds = conflict.acceptedChecks ?? []
+    if (!result || !acceptedIds.length) return result && { ...result, accepted: [] }
+    const isAccepted = (check) => acceptedIds.includes(check.id)
+    return {
+      ...result,
+      failing: result.failing.filter((check) => !isAccepted(check)),
+      blocking: result.blocking.filter((check) => !isAccepted(check)),
+      accepted: result.failing.filter(isAccepted),
+    }
   }, [mergeItems, linesOfFile])
   const saveMergeDraft = useCallback((id, draft) => {
     const content = (d = {}) => ({ resolutions: d.resolutions ?? {}, assemblies: d.assemblies ?? {},
@@ -894,7 +910,9 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     // Checks gate the merge (not the review request): failing design-system
     // or accessibility checks, or a merge conflict, keep it from landing.
-    const blocking = item ? checksFor(item, draft, (id) => finalFiles[id] ?? fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []).blocking : []
+    // …except the ones the review chose to apply as they are.
+    const acceptedChecks = new Set(related.flatMap((c) => c.acceptedChecks ?? []))
+    const blocking = item ? checksFor(item, draft, (id) => finalFiles[id] ?? fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []).blocking.filter((check) => !acceptedChecks.has(check.id)) : []
     const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
       ?? (blocking.length ? `${blocking.length} check${blocking.length === 1 ? '' : 's'} failing: ${blocking.map((c) => c.title).join(' · ')}` : null)
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
@@ -1938,6 +1956,8 @@ export function WorkspaceProvider({ children, projectId }) {
     replyToNotification,
     mergeFocus,
     requestMergeFocus,
+    checkGuide,
+    setCheckGuide,
     historyDrawerRequest,
     requestHistoryDrawer,
     mergePreviewOpen,

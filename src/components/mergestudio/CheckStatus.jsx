@@ -15,9 +15,11 @@ export default function CheckStatus({ checks, onFix }) {
     : warnings ? (ko ? `필수 검사 통과 · 권장 사항 ${warnings}개` : `Required checks passed · ${warnings} suggestions`)
       : (ko ? '모든 검사 통과' : 'All checks passed')
   return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger className={`ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full px-2 text-[11px] hover:bg-white/5 ${blocked ? 'text-amber-200' : 'text-emerald-300'}`}>
-      {blocked ? <TriangleAlert className="size-3.5" /> : <CircleCheck className="size-3.5" />}
-      <span aria-live="polite">{label}</span><ChevronDown className="size-3" />
+    {/* Blocked is the one state that needs acting on, so it's a filled
+        amber pill; passing stays quiet text. */}
+    <PopoverTrigger className={`ds-intrinsic inline-flex items-center gap-1.5 rounded-full ${blocked ? 'h-8 bg-amber-400/15 px-3 text-xs font-semibold text-amber-200 ring-1 ring-amber-300/50 ring-inset hover:bg-amber-400/25' : 'h-7 px-2 text-xs text-emerald-300 hover:bg-white/5'}`}>
+      {blocked ? <TriangleAlert className="size-4" /> : <CircleCheck className="size-3.5" />}
+      <span aria-live="polite">{label}</span><ChevronDown className="size-3.5" />
     </PopoverTrigger>
     <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-xl p-3">
       <p className="text-xs font-medium text-white">{ko ? '병합 전 검사' : 'Pre-merge checks'}</p>

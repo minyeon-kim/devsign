@@ -55,7 +55,9 @@ function WorkspacePage() {
       setSelectedMergeItemId(item ? item.id : null)
       openMergeStudio()
       if (state.conflictId) {
-        setBottomPanel({ open: true, tab: 'conflict' })
+        // `collapsePanel` (arriving to fix a check): the review stays
+        // selected but folded, so the canvas it points at is in view.
+        setBottomPanel({ open: !state.collapsePanel, tab: 'conflict' })
         openConflictReview(state.conflictId)
       }
       if (item) {

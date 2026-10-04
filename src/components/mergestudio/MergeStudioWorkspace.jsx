@@ -1,4 +1,5 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
+import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { toast } from '@/i18n/toast'
@@ -1041,6 +1042,7 @@ function MergeStudioWorkspace({ item }) {
             }}
           />
         )}
+        <MergeCheckGuide item={item} checks={liveChecks} />
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={reserve}

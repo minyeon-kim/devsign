@@ -97,10 +97,7 @@ export default function HighReviewNotifications() {
           <div className="flex items-start gap-3 pr-5">
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.neutral)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
-              <p className={cn(NOTICE_TITLE, 'flex flex-wrap items-center gap-x-2 gap-y-1')}>
-                검토 요청 · Jordan
-                <span className="rounded-md bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-200">D-A · 1일차</span>
-              </p>
+              <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
               <p className={cn(NOTICE_BODY, 'text-slate-300')}>“결제 버튼 높이와 색상 변경을 검토해 주세요.”</p>
               <p className={NOTICE_BODY}>Conflict Points에서 변경을 확인하고 History의 근거를 바탕으로 합칠 내용을 정한 뒤, 다른 검토자에게 의견과 승인을 요청하세요.</p>
             </div>
