@@ -233,6 +233,7 @@ function ConflictPanel({ inMergeStudio }) {
           ))}
           <MergeFilterButton
             compact
+            simple
             value={advancedFilters}
             onChange={setAdvancedFilters}
             items={filterItems}
@@ -267,7 +268,7 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 text-left font-medium">Description</th>
-                <th className="py-1.5 text-left font-medium whitespace-nowrap">Updated</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Author · Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -364,13 +365,14 @@ function ConflictPanel({ inMergeStudio }) {
                         avatar under Reviewers). A change with every value
                         decided but no review asked for yet says so. */}
                     <td className="py-3.5 pt-4 leading-5">
-                      {/* Only when something's wrong — passing is the quiet default. */}
+                      {/* Every row says something: a count when checks need
+                          attention, a quiet dash when there's nothing to do. */}
                       {failingChecks > 0 ? (
                         <span className="inline-flex h-5 items-center gap-1 text-xs font-medium text-amber-300" title="Checks need attention — merging waits on them">
                           <TriangleAlert className="size-3.5" />
                           <span className="tabular-nums">{failingChecks}</span>
                         </span>
-                      ) : null}
+                      ) : <span className="text-xs text-slate-600">—</span>}
                     </td>
                     <td className="py-3.5 pt-4 text-left">
                       {reviewers.length ? (
@@ -387,7 +389,9 @@ function ConflictPanel({ inMergeStudio }) {
                           })}
                         />
                       ) : (
-                        <span className="text-slate-300">Unassigned</span>
+                        // Nobody yet: the empty seat, not a word that
+                        // breaks the column of avatars.
+                        <span title="Unassigned" aria-label="Unassigned" className="block size-5 rounded-full border border-dashed border-white/25" />
                       )}
                     </td>
                     <td className="min-w-0 py-3.5 pt-4">
@@ -414,7 +418,10 @@ function ConflictPanel({ inMergeStudio }) {
                         it) and the day; the exact time is on hover. */}
                     <td className="py-3.5 pt-4">
                       <span className="flex items-center gap-2 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
-                        {author && <PeopleHover people={[{ person: author, note: 'Author' }]} />}
+                        {author
+                          ? <PeopleHover people={[{ person: author, note: 'Author' }]} />
+                          // No person made it — design ↔ code sync found it.
+                          : <span title={conflict.detectedBy ?? 'Detected by sync'} className="block size-5 shrink-0 rounded-full border border-dashed border-white/25" />}
                         <LocalizedText text={updated} />
                       </span>
                     </td>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarDays, Check, Search, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Check, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, mergeConflictLevels, mergeFilterTags } from '@/data/mockData'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -17,15 +17,16 @@ function toggle(list, v) {
 }
 
 // A small ghost toggle pill — the one control every filter section uses.
-function Toggle({ on, onClick, children }) {
+function Toggle({ on, onClick, className, children }) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={onClick}
       className={cn(
-        'flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
-        on ? 'bg-white/[0.08] text-foreground ring-1 ring-inset ring-white/20' : 'text-muted-foreground ring-1 ring-inset ring-white/10 hover:bg-white/[0.04] hover:text-foreground'
+        'flex h-7 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors',
+        on ? 'bg-white/[0.08] text-foreground ring-1 ring-inset ring-white/20' : 'text-muted-foreground ring-1 ring-inset ring-white/10 hover:bg-white/[0.04] hover:text-foreground',
+        className
       )}
     >
       {children}
@@ -33,14 +34,19 @@ function Toggle({ on, onClick, children }) {
   )
 }
 
-function Section({ title, aside, children }) {
+// A quiet label over its options — the options are what's read first.
+// `columns`: lay the chips out on an even grid instead of wrapping freely,
+// so a row never ends with one stray chip.
+const SECTION_LABEL = 'text-[10.5px] leading-4 font-medium text-slate-500'
+
+function Section({ title, aside, columns, children }) {
   return (
     <section className="space-y-1.5">
-      <div className="flex h-5 items-center justify-between">
-        <span className="text-xs font-medium text-slate-300"><LocalizedText text={title} /></span>
+      <div className="flex h-4 items-center justify-between">
+        <span className={SECTION_LABEL}><LocalizedText text={title} /></span>
         {aside}
       </div>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
+      <div className={columns ? 'grid gap-1.5' : 'flex flex-wrap gap-1.5'} style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}>{children}</div>
     </section>
   )
 }
@@ -69,7 +75,8 @@ function assigneeDirectory(items) {
 
 // Searchable, scrollable people picker (checkbox rows) — scales past a
 // handful of teammates, unlike a row of chips.
-function AssigneePicker({ items, value, onChange }) {
+// `plain`: avatar · name · count only — the row itself shows it's picked.
+function AssigneePicker({ items, value, onChange, plain = false }) {
   const [q, setQ] = useState('')
   const people = assigneeDirectory(items)
   const shown = people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()))
@@ -95,18 +102,18 @@ function AssigneePicker({ items, value, onChange }) {
               type="button"
               aria-pressed={on}
               onClick={() => onChange(toggle(value, p.id))}
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-1.5 text-left text-xs text-foreground hover:bg-white/5"
+              className={cn('flex h-8 w-full items-center gap-2 rounded-lg px-1.5 text-left text-xs text-foreground hover:bg-white/5', plain && on && 'bg-white/[0.08] ring-1 ring-white/15 ring-inset hover:bg-white/[0.1]')}
             >
-              <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', on ? 'border-foreground bg-foreground text-background' : 'border-white/20')}>
+              {!plain && <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', on ? 'border-foreground bg-foreground text-background' : 'border-white/20')}>
                 {on && <Check className="size-3" />}
-              </span>
+              </span>}
               <Avatar person={p} className="size-5 text-[8px]" />
               <span className="min-w-0 flex-1 truncate"><LocalizedText text={p.name} /></span>
               {/* Its own pill, not inline text — so a long name truncating
                   never takes the role with it, and "Designer"/"Developer"
                   stays a clearly separate, always-visible fact about who
                   you're filtering by, not an easy-to-miss suffix. */}
-              {p.role && (
+              {p.role && !plain && (
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium text-muted-foreground">
                   <LocalizedText text={p.role} />
                 </span>
@@ -126,7 +133,11 @@ function AssigneePicker({ items, value, onChange }) {
 // compact — the custom-range calendar is its own view, opened from "Custom
 // range…" with a Back button, rather than always taking up the menu. An
 // item passes when it matches every category that has a selection.
-export function MergeFilterButton({ value, onChange, items = [], markedDays = [], compact = false, statusOptions = STATUS_OPTIONS }) {
+// `simple` (the Conflict Points list): three sections only — Assignee,
+// Severity, Due. Status is left to the tabs above the list, the level
+// section is named like the list's column and has no "None", and the
+// reset sits at the bottom.
+export function MergeFilterButton({ value, onChange, items = [], markedDays = [], compact = false, simple = false, statusOptions = STATUS_OPTIONS }) {
   const [view, setView] = useState('main')
   const count = activeFilterCount(value)
   const set = (key, v) => onChange({ ...value, [key]: v })
@@ -143,7 +154,7 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
               // 32px pill meant for standing next to a search field.
               cn(
                 CATEGORY_TAB,
-                'h-6 gap-1 px-2 text-[10.5px]',
+                'h-6 gap-1 px-2 text-xs',
                 count ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE
               )
             : // A pill matching the search input beside it: same 32px height,
@@ -192,40 +203,56 @@ export function MergeFilterButton({ value, onChange, items = [], markedDays = []
           </>
         ) : (
           <>
-            <Section title="Status">
-              {statusOptions.map((s) => (
-                <Toggle key={s} on={value.status.includes(s)} onClick={() => set('status', toggle(value.status, s))}>
-                  <LocalizedText text={s} />
-                </Toggle>
-              ))}
-            </Section>
+            {!simple && (
+              <Section title="Status">
+                {statusOptions.map((s) => (
+                  <Toggle key={s} on={value.status.includes(s)} onClick={() => set('status', toggle(value.status, s))}>
+                    <LocalizedText text={s} />
+                  </Toggle>
+                ))}
+              </Section>
+            )}
             <section className="space-y-1.5">
-              <div className="flex h-5 items-center">
-                <span className="text-xs font-medium text-slate-300"><LocalizedText text="Assignee" /></span>
+              <div className="flex h-4 items-center">
+                <span className={SECTION_LABEL}><LocalizedText text="Assignee" /></span>
               </div>
-              <AssigneePicker items={items} value={value.assignee} onChange={(v) => set('assignee', v)} />
+              <AssigneePicker plain={simple} items={items} value={value.assignee} onChange={(v) => set('assignee', v)} />
             </section>
-            <Section title="Conflict">
-              {CONFLICT_OPTIONS.map((c) => (
+            <Section title={simple ? 'Severity' : 'Conflict'} columns={simple ? 3 : undefined}>
+              {CONFLICT_OPTIONS.filter((c) => !simple || c !== 'None').map((c) => (
                 <Toggle key={c} on={value.conflict.includes(c)} onClick={() => set('conflict', toggle(value.conflict, c))}>
                   <LocalizedText text={c} />
                 </Toggle>
               ))}
             </Section>
-            <Section title="Due">
+            <Section title={simple ? 'Due date' : 'Due'} columns={simple ? 2 : undefined}>
               {DUE_PRESETS.map((p) => (
                 <Toggle key={p.id} on={value.due.presets.includes(p.id)} onClick={() => set('due', { ...value.due, presets: toggle(value.due.presets, p.id) })}>
                   <LocalizedText text={p.label} />
                 </Toggle>
               ))}
-              <Toggle on={!!value.due.range} onClick={() => setView('range')}>
+              <Toggle on={!!value.due.range} onClick={() => setView('range')} className={simple ? 'col-span-2' : undefined}>
                 <CalendarDays className="size-3" />
                 {value.due.range
                   ? <LocalizedText text={dueSummary({ ...EMPTY_DUE, range: value.due.range })} />
                   : <LocalizedText text="Custom range…" />}
               </Toggle>
             </Section>
-            {count > 0 && (
+            {simple ? (
+              // Always there, so it doesn't appear and shift the menu.
+              <div className="-mx-3 -mb-3 flex items-center justify-between border-t border-white/[0.07] px-3 py-2">
+                <span className="text-[11px] text-slate-500 tabular-nums">{count > 0 && <LocalizedText text={`${count} applied`} />}</span>
+                <button
+                  type="button"
+                  disabled={count === 0}
+                  onClick={() => onChange(EMPTY_FILTERS)}
+                  className="flex h-7 items-center justify-center gap-1 rounded-full px-2.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.07] hover:text-white disabled:pointer-events-none disabled:text-slate-600"
+                >
+                  <RotateCcw className="size-3" />
+                  <LocalizedText text="Reset" />
+                </button>
+              </div>
+            ) : count > 0 && (
               <button
                 type="button"
                 onClick={() => onChange(EMPTY_FILTERS)}

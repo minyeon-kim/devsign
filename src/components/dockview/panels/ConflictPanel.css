@@ -5,13 +5,18 @@
   /* Select, then the review state, risk, issue, deadline and approval
      blockers before supporting details, so the first scan answers what
      needs attention. Long values wrap inside their column. */
-  --conflict-columns: 16px max-content max-content minmax(220px, 1fr) max-content max-content max-content minmax(240px, 1.6fr) max-content;
+  /* Status and severity are as wide as their chips; the issue as wide as
+     its text (to a cap, then it wraps) so nothing gapes before the due
+     date; from the due date on, fixed widths, so every row sits exactly
+     under its header; the description takes what's left, to a cap. */
+  --conflict-columns: 16px max-content max-content fit-content(400px) 72px 48px 64px minmax(200px, 520px) 128px;
   display: grid;
   grid-template-columns: var(--conflict-columns);
   column-gap: 24px;
   width: 100%;
   /* Narrow enough to sit inside the panel without scrolling sideways. */
-  min-width: 1080px;
+  min-width: 1040px;
+  justify-content: start;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;

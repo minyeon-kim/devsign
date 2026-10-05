@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, Bell, CheckCheck, ChevronDown, ChevronRight, MapPin, Smile, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Bell, CheckCheck, ChevronDown, ChevronRight, MapPin, Send, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -60,7 +60,7 @@ function Person({ id, className, size = 'sm' }) {
   const person = allPeople.find((p) => p.id === id)
   return (
     <Avatar size={size} className={className}>
-      <AvatarFallback className={cn('font-semibold text-white', size === 'sm' ? 'text-[9px]' : 'text-[11px]', person?.colorClass)}>
+      <AvatarFallback className={cn('font-semibold text-white', size === 'xs' ? 'text-[8px]' : size === 'sm' ? 'text-[9px]' : 'text-[11px]', person?.colorClass)}>
         <LocalizedText text={person?.initials ?? ''} />
       </AvatarFallback>
     </Avatar>
@@ -70,7 +70,6 @@ function Person({ id, className, size = 'sm' }) {
 // Placeholders skip the JSX translation pass, so they're translated here.
 const tr = (text) => translateText(text, getLanguage())
 
-const EMOJI = ['👍', '🎉', '👀', '🔥', '✅', '💜']
 
 // For path-like words in messages only the last segment shows, in quiet
 // monospace (full path on hover).
@@ -102,8 +101,9 @@ const ACTION_BUTTON = 'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded
 function ThreadMessage({ authorId, text, timeLabel }) {
   const author = allPeople.find((p) => p.id === authorId)
   return (
-    <div className="flex items-start gap-2.5">
-      <Person id={authorId} />
+    <div className="flex items-start gap-2">
+      {/* Small (20px): the text is what's read, not the face. */}
+      <Person id={authorId} size="xs" />
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
           <span className="font-medium text-slate-100"><LocalizedText text={author?.name ?? ''} /></span>
@@ -122,7 +122,6 @@ function ThreadMessage({ authorId, text, timeLabel }) {
 function CommentThread({ comments }) {
   const { replyToNotification } = useWorkspace()
   const [draft, setDraft] = useState('')
-  const [emojiOpen, setEmojiOpen] = useState(false)
   const latest = comments[comments.length - 1]
 
   function send(e) {
@@ -130,7 +129,6 @@ function CommentThread({ comments }) {
     if (!draft.trim()) return
     replyToNotification(latest.id, draft.trim())
     setDraft('')
-    setEmojiOpen(false)
   }
 
   return (
@@ -139,46 +137,31 @@ function CommentThread({ comments }) {
         <div key={n.id} className="space-y-3">
           <ThreadMessage authorId={n.authorId} text={n.text} timeLabel={n.timeLabel} />
           {(n.replies ?? []).length > 0 && (
-            <div className="ml-[34px] space-y-3">
+            <div className="ml-7 space-y-3">
               {n.replies.map((r) => <ThreadMessage key={r.id} authorId={r.authorId} text={r.text} />)}
             </div>
           )}
         </div>
       ))}
-      <form onSubmit={send} className="relative ml-[34px]">
-        <div className="flex h-9 items-center gap-1 rounded-full bg-white/[0.05] pr-1 pl-3.5 transition-colors focus-within:bg-white/[0.08]">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={tr('Write a reply')}
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-500"
-          />
-          <button
-            type="button"
-            title="Add emoji"
-            aria-expanded={emojiOpen}
-            onClick={() => setEmojiOpen((v) => !v)}
-            className={cn('flex size-7 items-center justify-center rounded-full transition-colors', emojiOpen ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white')}
-          >
-            <Smile className="size-4" />
-          </button>
-          <button
-            type="submit"
-            disabled={!draft.trim()}
-            className="flex h-7 items-center justify-center rounded-full bg-[#2E2E2E] px-3.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500 disabled:hover:bg-[#2E2E2E]"
-          >
-            Send
-          </button>
-        </div>
-        {emojiOpen && (
-          <div className="absolute right-14 bottom-full z-10 mb-2 flex gap-0.5 rounded-full border border-white/10 bg-popover p-1 shadow-xl shadow-black/50">
-            {EMOJI.map((e) => (
-              <button key={e} type="button" onClick={() => setDraft((d) => d + e)} className="flex size-8 items-center justify-center rounded-full text-base transition-colors hover:bg-white/10">
-                {e}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* One line, a thin edge, and the send arrow inside it — live only
+          once there's something to send. */}
+      <form onSubmit={send} className="relative ml-7">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={tr('Write a reply')}
+          aria-label={tr('Write a reply')}
+          className="h-8 w-full min-w-0 rounded-full border border-white/[0.12] bg-transparent pr-9 pl-3 text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/30"
+        />
+        <button
+          type="submit"
+          aria-label="Send"
+          title="Send"
+          disabled={!draft.trim()}
+          className="ds-intrinsic absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-emerald-300 transition-colors hover:bg-white/[0.08] disabled:pointer-events-none disabled:text-slate-600"
+        >
+          <Send className="size-3.5" />
+        </button>
       </form>
     </div>
   )
@@ -197,9 +180,9 @@ function AutomatedFeedback({ notes, onJump }) {
       {notes.map((n) => {
         const { source, body } = splitSource(n.text)
         return (
-          <div key={n.id} className="flex items-start gap-2.5">
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-slate-300">
-              <Sparkles className="size-3" />
+          <div key={n.id} className="flex items-start gap-2">
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-slate-300">
+              <Sparkles className="size-2.5" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] leading-relaxed text-slate-300">
@@ -257,23 +240,26 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   const card = cardOf(group, conflicts, mergeItems)
   const openChange = (change) => onJump({ target: { conflictId: change.id, label: change.title } })
   const first = group.notifications[0]
+  // Open, a conversation is its thread: the header's avatar and one-line
+  // preview would only repeat the first comment right under them.
+  const openThread = expanded && card.type === 'thread'
 
   return (
     <div className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
       <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-white/[0.03]">
-        <span className="mt-0.5 flex w-6 shrink-0 justify-center">
+        {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
           {card.authorId ? <Person id={card.authorId} /> : card.type === 'thread' ? (
             <span className="flex size-6 items-center justify-center rounded-full bg-white/[0.07] text-slate-300"><Sparkles className="size-3" /></span>
           ) : (
             <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-slate-400')} />
           )}
-        </span>
+        </span>}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-baseline gap-2">
             <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium text-white', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
             <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={group.timeLabel} /></span>
           </span>
-          {(card.summary || card.severity) && (
+          {(card.summary || card.severity) && !openThread && (
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-slate-400">
               {/* The level, once per card. */}
               {card.severity && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
@@ -299,7 +285,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           slide down instead of jumping. */}
       <div className={cn('grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
         <div className="min-h-0 overflow-hidden" inert={!expanded}>
-          <div className="space-y-3.5 pr-3 pb-3 pl-[46px]">
+          <div className={cn('space-y-3.5 pr-3 pb-3', card.type === 'thread' ? 'pl-3 pt-1' : 'pl-[46px]')}>
             {card.type === 'change' && (
               <>
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>
