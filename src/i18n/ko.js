@@ -57,6 +57,14 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
+Issue history|이슈 히스토리
+Only what bears on this conflict: its approval requests, the conversation, and the change step by step. The whole project’s versions are in History, in the sidebar.|이 충돌·병합 건과 직결된 승인 요청, 대화, 단계별 변경만 모았습니다. 프로젝트 전체 버전은 사이드바의 히스토리에서 확인하세요.
+Project history|프로젝트 전체 히스토리
+Approval requests|승인 요청
+Communication log|커뮤니케이션 로그
+Step replay|단계별 리플레이
+commented|댓글을 남겼습니다
+replied|답글을 남겼습니다
 Resolved conflicts|해결된 충돌 표시
 Change merged|변경을 병합했습니다
 Set icons to 20px|아이콘 20px 적용

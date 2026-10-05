@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
+import { ArrowUpRight, Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
@@ -8,6 +8,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { useConflictStore } from '@/state/ConflictStore'
+import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
 const EVENT_COPY = {
   review_requested: { action: 'requested a review', Icon: Send },
@@ -83,15 +84,53 @@ function snapshotLines(entry, conflict) {
   return []
 }
 
-function ConflictHistoryReplay({ conflict, workspace }) {
+const REVIEW_STATE = {
+  approved: { label: 'Approved', className: 'text-emerald-300', Icon: Check },
+  changes_requested: { label: 'Changes requested', className: 'text-amber-300', Icon: MessageSquare },
+  pending: { label: 'Pending', className: 'text-slate-400', Icon: Clock3 },
+}
+
+// The issue's own history, inside its review — not the project's.
+//
+// The sidebar's History is the archive: every saved version of the whole
+// project, to look back over. This is the opposite end: only what bears on
+// the one conflict being settled right now, laid out for deciding it —
+//   · Approval requests — who was asked, and where each of them stands;
+//   · Communication log — the requests, sign-offs and comments on it, in
+//     order, each tied to the step it belongs to;
+//   · Step replay — the change itself, step by step: the version that
+//     caused it, its detection, and its merge.
+// `onOpenProjectHistory` is the one way out to the archive, for when the
+// wider picture is what's needed.
+function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
   const { events } = useConflictStore()
   const activity = useMemo(() => conflictEvents(conflict, events, workspace?.historyEntries ?? []), [conflict, events, workspace?.historyEntries])
-  const entries = useMemo(
-    () => (workspace?.historyEntries ?? []).filter(
-      (entry) => !entry.archived && (entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
-    ),
-    [conflict.id, workspace?.historyEntries]
-  )
+  const entries = useMemo(() => {
+    const all = (workspace?.historyEntries ?? []).filter((entry) => !entry.archived)
+    const linked = all.filter((entry) => entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
+    // The replay starts one step earlier than the issue's own checkpoints:
+    // at the saved version that caused it.
+    const cause = foldConflictCheckpoints(withBranches(all, workspace?.conflicts ?? []))
+      .find((version) => version.conflictMarks.some((mark) => mark.conflictId === conflict.id))
+    const causeEntry = cause && !linked.some((entry) => entry.id === cause.id) ? all.find((entry) => entry.id === cause.id) : null
+    return causeEntry ? [causeEntry, ...linked] : linked
+  }, [conflict.id, workspace?.historyEntries, workspace?.conflicts])
+  // What people said on it (its thread), for the log.
+  const remarks = useMemo(() => (workspace?.comments ?? [])
+    .filter((comment) => comment.id === conflict.linkedCommentId || comment.target?.conflictId === conflict.id)
+    .map((comment) => ({
+      id: `comment-${comment.id}`,
+      action: comment.target?.replyTo ? 'replied' : 'commented',
+      icon: MessageSquare,
+      actor: allPeople.find((person) => person.id === comment.authorId)?.name ?? 'Devsign',
+      timestamp: comment.timeLabel,
+      detail: comment.text,
+      remark: true,
+    })), [workspace?.comments, conflict.id, conflict.linkedCommentId])
+  const log = [...activity, ...remarks]
+  const reviewers = conflict.reviewers ?? []
+  const approvedCount = reviewers.filter((reviewer) => reviewer.status === 'approved').length
+  const requester = allPeople.find((person) => person.id === conflict.requestedBy)
   const [selectedId, setSelectedId] = useState(null)
   const [playing, setPlaying] = useState(false)
   const [compareLatest, setCompareLatest] = useState(true)
@@ -126,20 +165,61 @@ function ConflictHistoryReplay({ conflict, workspace }) {
   )
 
   return (
-    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(220px,0.75fr)_minmax(0,1.5fr)]">
-      <section aria-label="Conflict activity" className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      {/* What this view is — and isn't: this issue's trail, not the
+          project's archive (which is one click away). */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-white/[0.03] px-3 py-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300"><History className="size-3.5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-white"><LocalizedText text="Issue history" /> <span className="font-normal text-slate-400">· <LocalizedText text={conflict.title} /></span></p>
+          <p className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Only what bears on this conflict: its approval requests, the conversation, and the change step by step. The whole project’s versions are in History, in the sidebar." /></p>
+        </div>
+        {onOpenProjectHistory && (
+          <button type="button" onClick={onOpenProjectHistory} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white">
+            <LocalizedText text="Project history" />
+            <ArrowUpRight className="size-3 opacity-70" />
+          </button>
+        )}
+      </div>
+    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.5fr)]">
+      <div className="flex min-h-0 flex-col gap-3">
+      {/* Approval requests: who was asked, and where each stands. */}
+      <section aria-label="Approval requests" className="shrink-0 rounded-xl bg-white/[0.03] px-3 py-3">
+        <div className="flex items-center gap-2">
+          <Send className="size-3.5 text-slate-500" />
+          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Approval requests" /></h3>
+          <span className={cn('ml-auto text-[11px] tabular-nums', reviewers.length && approvedCount === reviewers.length ? 'text-emerald-300' : 'text-slate-400')}>{approvedCount}/{reviewers.length}</span>
+        </div>
+        {requester && <p className="mt-1.5 text-[11px] leading-4 text-slate-500"><LocalizedText text={`Requested by ${requester.name}`} /></p>}
+        {reviewers.length ? (
+          <ul className="mt-1.5 divide-y divide-white/[0.06]">
+            {reviewers.map((reviewer) => {
+              const person = allPeople.find((candidate) => candidate.id === reviewer.id)
+              const state = REVIEW_STATE[reviewer.status] ?? REVIEW_STATE.pending
+              return (
+                <li key={reviewer.id} className="flex min-w-0 items-center gap-2 py-1.5 text-xs">
+                  <span className="min-w-0 flex-1 truncate text-slate-200">{person?.name ?? reviewer.id}{person?.role && <span className="ml-1.5 text-[11px] text-slate-500"><LocalizedText text={person.role} /></span>}</span>
+                  <span className={cn('inline-flex shrink-0 items-center gap-1 font-medium', state.className)}><state.Icon className="size-3" /><LocalizedText text={state.label} /></span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : <p className="mt-1.5 text-xs text-slate-500"><LocalizedText text="No reviewers yet" /></p>}
+      </section>
+      <section aria-label="Communication log" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
-          <History className="size-3.5 text-slate-500" />
-          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Issue activity" /></h3>
+          <MessageSquare className="size-3.5 text-slate-500" />
+          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Communication log" /></h3>
           <span className="ml-auto text-[11px] tabular-nums text-slate-500">
-            {activity.length}
+            {log.length}
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-          {activity.length ? (
+          {log.length ? (
             <ol className="space-y-1">
-              {activity.map(({ id, action, actor, timestamp, detail, icon: Icon, historyId }, index) => {
-                const replayEntry = entries.find((entry) => entry.id === historyId || entry.id === id)
+              {log.map(({ id, action, actor, timestamp, detail, icon: Icon, historyId, remark }, index) => {
+                // (A comment isn't a step of the change — it has no replay point.)
+                const replayEntry = remark ? null : entries.find((entry) => entry.id === historyId || entry.id === id)
                   ?? (entries.length ? entries[Math.max(0, Math.round((activity.length - 1 - index) * (entries.length - 1) / Math.max(activity.length - 1, 1)))] : null)
                 const isCurrentMarker = replayEntry && replayEntry.id === selected?.id
                 return (
@@ -170,12 +250,14 @@ function ConflictHistoryReplay({ conflict, workspace }) {
           )}
         </div>
       </section>
+      </div>
 
       <section aria-label="Conflict change replay" className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
-          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Change replay" /></h3>
-          {selected && <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{selected.label}</span>}
+          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Step replay" /></h3>
+          {selected && <span className="shrink-0 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-300 tabular-nums">{selectedIndex + 1}/{entries.length}</span>}
+          {selected && <span className="min-w-0 flex-1 truncate text-[11px] text-slate-400">{selected.label}</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? (
@@ -240,6 +322,7 @@ function ConflictHistoryReplay({ conflict, workspace }) {
           />
         )}
       </section>
+    </div>
     </div>
   )
 }

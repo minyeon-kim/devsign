@@ -2,13 +2,13 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ArrowRight,
   ArrowUpRight,
   Ban,
   Bell,
   Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Clock3,
   GitMerge,
   History,
@@ -431,8 +431,9 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
 
       {/* The way to History is a control, not more of the summary: a small
           secondary button set apart from the text above — a thin edge and a
-          faint fill, the History icon in front and an arrow after it (it
-          leaves this screen). Quieter than the header's main action. */}
+          faint fill, the History icon in front and a chevron after it (it
+          opens this issue's history, here in the panel). Quieter than the
+          header's main action. */}
       {onOpenHistory && (
         <button
           type="button"
@@ -442,7 +443,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
           <History className="size-3.5 text-slate-400" />
           <LocalizedText text="Check the reasoning in History" />
           {conflict.historyInspected && <Check className="size-3.5 text-slate-400" strokeWidth={2.5} />}
-          <ArrowRight className="size-3.5 text-slate-400" />
+          <ChevronRight className="size-3.5 text-slate-400" />
         </button>
       )}
 
@@ -1442,11 +1443,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
-  // "Check the reasoning in History": go to History itself, on the saved
-  // version this conflict came from — selected (the link's `?v=`), scrolled
-  // to and lit for a moment in the list (`flashCheckpoint`).
-  function openHistoryEvidence() {
-    if (!conflict.historyInspected) update({ historyInspected: true })
+  // "Check the reasoning in History" opens this issue's own history, here
+  // in the panel (openTab('history') — see ConflictHistoryReplay). From
+  // there, "Project history" is the way out to the project's archive: it
+  // goes to History itself, on the saved version this conflict came from —
+  // selected (the link's `?v=`), scrolled to and lit for a moment in the
+  // list (`flashCheckpoint`).
+  function openProjectHistory() {
     const versions = foldConflictCheckpoints(withBranches(workspace?.historyEntries ?? [], workspace?.conflicts ?? []))
     const checkpoint = versions.find((entry) => !entry.archived && entry.conflictMarks.some((mark) => mark.conflictId === conflict.id))
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
@@ -1763,7 +1766,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             blockedCount={decisionState.required.length}
                             adjustment={adjustment}
-                            onOpenHistory={conflict.rollback ? undefined : openHistoryEvidence}
+                            onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
                           />
                         </div>
                       </section>}
@@ -1825,7 +1828,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1">
-                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} />
+                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} onOpenProjectHistory={openProjectHistory} />
                     </div>
                   )}
                 </div>

@@ -47,6 +47,7 @@ const rules = [
     const particle = last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)'
     return `${subject}${particle} ${size}로 ${resolved ? '조정해 해결됐어요' : '조정했어요'}`
   }],
+  [/^Requested by (.+)$/, (_, name) => `${core(name)} 님이 요청`],
   [/^(\d+) applied$/, (_, n) => `${n}개 적용됨`],
   [/^Daily digest · (\d+) changes? needs? review$/, (_, n) => `일일 요약 · 변경 ${n}개 검토 필요`],
   [/^Immediate review · High risk: (.+)$/, (_, title) => `즉시 검토 · High 위험도: ${title}`],
