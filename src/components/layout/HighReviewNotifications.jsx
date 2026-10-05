@@ -116,7 +116,7 @@ export default function HighReviewNotifications() {
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
               <p className={cn(NOTICE_BODY, 'text-slate-300')}>“결제 버튼 높이와 색상 변경을 검토해 주세요.”</p>
-              <p className={NOTICE_BODY}>Conflict Points에서 변경을 확인하고 History의 근거를 바탕으로 합칠 내용을 정한 뒤, 다른 검토자에게 의견과 승인을 요청하세요.</p>
+              <p className={NOTICE_BODY}>충돌 목록에서 변경을 확인하고 히스토리의 근거를 바탕으로 합칠 내용을 정한 뒤, 다른 검토자에게 의견과 승인을 요청하세요.</p>
             </div>
           </div>
           <div className={NOTICE_ACTIONS}>

@@ -48,6 +48,25 @@ const rules = [
     return `${subject}${particle} ${size}로 ${resolved ? '조정해 해결됐어요' : '조정했어요'}`
   }],
   [/^Requested by (.+)$/, (_, name) => `${core(name)} 님이 요청`],
+  // ----- Sentences built around a name or a title -------------------------
+  // Inbox events ("Alex approved the design changes on Hero CTA"), and the
+  // prefixes History and the conflict list put before a title. The person,
+  // the file / branch names and the title's own technical words stay as
+  // they are; the wording is the same wherever it shows.
+  [/^(\S+) approved the (design|code) changes(?: on (.+))?$/, (_, name, kind, target) => `${name}님이 ${target ? `${core(target)} ` : ''}${kind === 'design' ? '디자인' : '코드'} 변경을 승인했어요`],
+  [/^(\S+) requested your review on (.+)$/, (_, name, title) => `${name}님이 ${core(title)} 검토를 요청했어요`],
+  [/^(\S+) requested changes on (.+)$/, (_, name, title) => `${name}님이 ${core(title)}에 변경을 요청했어요`],
+  [/^(\S+) approved (.+)$/, (_, name, title) => `${name}님이 ${withObjectParticle(core(title))} 승인했어요`],
+  [/^requested your review on (.+)$/, (_, title) => `${core(title)} 검토를 요청했어요`],
+  [/^approved the (design|code) changes(?: on (.+))?$/, (_, kind, target) => `${target ? `${core(target)} ` : ''}${kind === 'design' ? '디자인' : '코드'} 변경을 승인했어요`],
+  [/^Conflict detected: (.+)$/, (_, title) => `충돌 감지: ${core(title)}`],
+  [/^Restored: (.+)$/, (_, title) => `복원: ${core(title)}`],
+  [/^Revert: (.+)$/, (_, title) => `되돌리기: ${core(title)}`],
+  [/^Rollback: (.+)$/, (_, title) => `롤백: ${core(title)}`],
+  [/^Reverts the change merged as (.+) \(#(.+)\)\.$/, (_, title, id) => `${core(title)}(#${id})로 병합된 변경을 되돌립니다.`],
+  [/^line (\d+)$/, (_, n) => `${n}번째 줄`],
+  [/^(\d+) preview props?$/, (_, n) => `미리보기 속성 ${n}개`],
+  [/^([+-]\d+) conflicts?$/, (_, n) => `충돌 ${n}개`],
   [/^(\d+) applied$/, (_, n) => `${n}개 적용됨`],
   [/^Daily digest · (\d+) changes? needs? review$/, (_, n) => `일일 요약 · 변경 ${n}개 검토 필요`],
   [/^Immediate review · High risk: (.+)$/, (_, title) => `즉시 검토 · High 위험도: ${title}`],
@@ -201,6 +220,13 @@ const rules = [
   [/^(.+) with white text is below WCAG AA \(4\.5:1\)\.$/, (_, color) => `${core(color)}에 흰색 텍스트를 사용하면 WCAG AA 기준(4.5:1)에 못 미칩니다.`],
   [/^Review (.+)$/, (_, name) => `${core(name)} 검토`],
 ]
+
+// A word with its object particle: 을 after a final consonant, 를 after a
+// vowel, both when the last character isn't Hangul.
+function withObjectParticle(word) {
+  const last = word.charCodeAt(word.length - 1)
+  return `${word}${last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)'}`
+}
 
 function core(text) {
   if (Object.hasOwn(ko, text)) return ko[text]

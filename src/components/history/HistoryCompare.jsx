@@ -9,6 +9,7 @@ import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 import { historyMeta } from '@/lib/historyMeta'
+import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 
 const ROW_TONES = {
@@ -164,8 +165,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
                 Compared with current ·{' '}
                 <span className="text-emerald-300">+{added}</span>
                 <span className="text-red-300">−{removed}</span> lines
-                {propChanges.length > 0 && ` · ${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`}
-                {conflictDelta !== 0 && ` · ${conflictDelta > 0 ? '+' : ''}${conflictDelta} conflicts`}
+                {/* Each as its own string, so it's translated (a leading
+                    " · " glued on kept them in English). */}
+                {propChanges.length > 0 && <> · <LocalizedText text={`${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`} /></>}
+                {conflictDelta !== 0 && <> · <LocalizedText text={`${conflictDelta > 0 ? '+' : ''}${conflictDelta} conflicts`} /></>}
               </>
             )}
           </p>

@@ -61,6 +61,20 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Code window|코드 창
+Revert|되돌리기
+Branch|브랜치
+Navigation icon size differs from the 24px design|내비게이션 아이콘 크기가 24px 디자인과 다릅니다
+Implemented icon sizing in BottomNav.jsx|BottomNav.jsx에 아이콘 크기를 구현했습니다
+Code update|코드 업데이트
+How do AI changes get applied?|AI 변경은 어떻게 적용되나요?
+How do I review a change?|변경은 어떻게 검토하나요?
+What can you help me with?|무엇을 도와줄 수 있나요?
+Use 24px navigation icons|내비게이션 아이콘을 24px로
+Standard checkout|기본 결제
+Progress and wallet|진행 단계와 간편결제
+Saved card|저장된 카드
+Express pay and tax total|빠른 결제와 세금 합계
 Conflict activity|충돌 활동
 Project history|프로젝트 전체 히스토리
 Conversation|대화
@@ -1812,5 +1826,5 @@ Object.assign(ko, {
   'Order confirmation': '주문 완료',
   'Merged value': '병합된 값',
   'Values below show the merged result.': '아래 값은 병합 결과입니다.',
-  'was recorded in History': '기록이 History에 저장되었습니다',
+  'was recorded in History': '기록이 히스토리에 저장되었습니다',
 })
