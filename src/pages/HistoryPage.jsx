@@ -1,3 +1,4 @@
+import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -21,7 +22,7 @@ import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/histo
 // as a new checkpoint.
 function HistoryPage() {
   const { project } = useOutletContext()
-  const { historyEntries, conflicts, activeHistoryId, historyFilter } = useWorkspace()
+  const { historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   const [compareLatest, setCompareLatest] = useState(true)
@@ -109,6 +110,16 @@ function HistoryPage() {
             onRollback={(id) => {
               pause()
               setRollbackId(id)
+            }}
+            onArchive={(entry) => {
+              pause()
+              archiveHistoryEntry(entry.id)
+              toast('Checkpoint archived', { description: entry.label, action: { label: 'Undo', onClick: () => restoreHistoryEntry(entry.id) } })
+            }}
+            onUnarchive={(entry) => {
+              pause()
+              restoreHistoryEntry(entry.id)
+              toast('Checkpoint restored to History', { description: entry.label })
             }}
             playing={playing}
             baseEntryId={timeline[timelineIndex - 1]?.id}

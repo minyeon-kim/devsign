@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
+import { Archive, ArchiveRestore, MoreHorizontal, Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
-import { toast } from '@/i18n/toast'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import SplitHandle from '@/components/layout/SplitHandle'
@@ -32,9 +32,8 @@ function snapshotLines(snapshot) {
 // would change relative to the current one (code, preview props,
 // conflicts), with the explicit Restore action. Reads the same
 // WorkspaceProvider the Workspace uses, so a restore here is exactly the
-// rollback the Workspace would do.
-// With `onRollback`, the button hands off to the caller (History's
-// "Rollback to checkpoint" confirmation) instead of restoring directly.
+// rollback the Workspace would do. The restore button always hands off
+// to the caller's checkpoint confirmation; it never restores directly.
 // `compareLatest` (Replit's "Compare latest" toggle, shown when
 // `onCompareLatestChange` is given): on, an inline diff against the latest
 // state; off, just the file as it was at this version — what History
@@ -51,8 +50,8 @@ function snapshotLines(snapshot) {
 // preview values, the element that changed ringed for a moment. Half a
 // second later `onStepDone` moves on to the next checkpoint.
 // `position` ({ index, total }) feeds the temporary debug readout.
-function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
-  const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser, projectId } = useWorkspace()
+function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
+  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId } = useWorkspace()
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
   const [codeWidth, setCodeWidth] = useState(null)
@@ -132,14 +131,6 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
     : []
   const conflictDelta = (entry.snapshot.conflicts?.length ?? 0) - (diffBase?.snapshot.conflicts?.length ?? 0)
 
-  function handleRestore() {
-    if (onRollback) {
-      onRollback(entry.id)
-      return
-    }
-    rollbackTo(entry.id)
-    toast('Restored this version', { description: entry.label })
-  }
 
   return (
     // A Merge Studio floating panel: the same surface as the Version
@@ -206,8 +197,8 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
           {!hideRestore && (
           <button
             type="button"
-            onClick={handleRestore}
-            disabled={isCurrent}
+            onClick={() => onRollback?.(entry.id)}
+            disabled={isCurrent || !onRollback}
             className={cn(
               'ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold',
               ACCENT_CTA,
@@ -215,9 +206,18 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             )}
           >
             <RotateCcw className="size-3.5" />
-            {isCurrent ? 'Current' : onRollback ? 'Rollback here' : 'Restore this version'}
+            Restore this state
           </button>
           )}
+          {(onArchive || onUnarchive) && <DropdownMenu>
+            <DropdownMenuTrigger aria-label="Version actions" title="Version actions" className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white">
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {entry.archived ? <DropdownMenuItem onClick={() => onUnarchive?.(entry)}><ArchiveRestore />Restore to History</DropdownMenuItem>
+                : <DropdownMenuItem disabled={isCurrent} onClick={() => onArchive?.(entry)}><Archive />Archive checkpoint</DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>}
         </div>
       </div>
 

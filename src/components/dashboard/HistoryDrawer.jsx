@@ -1,7 +1,8 @@
+import { ContextMenu } from '@base-ui/react/context-menu'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArchiveRestore, Check, ChevronDown, RotateCcw, Search, Sparkles, TriangleAlert, X } from 'lucide-react'
+import { Archive, Check, ChevronDown, RotateCcw, Search, Sparkles, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
@@ -77,9 +78,6 @@ function shortTime(timestamp, language) {
   return day || text
 }
 
-const ROW_ACTION =
-  'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
-
 // A checkpoint's kind as a small icon badge, so the list reads at a glance
 // without opening the row — Edit / AI edit / Merged / Rollback / Conflict
 // detected each get their own icon + color (see lib/historyMeta).
@@ -113,11 +111,27 @@ function ActorAvatar({ entry }) {
   )
 }
 
+function HistoryEntryMenu({ children, entry, isCurrent, onOpen, onRestore, onArchive, onUnarchive }) {
+  const itemClass = 'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs outline-none data-highlighted:bg-white/10 data-disabled:opacity-40'
+  return <ContextMenu.Root>
+    <ContextMenu.Trigger render={children} />
+    <ContextMenu.Portal>
+      <ContextMenu.Positioner className="z-[1000]" sideOffset={4}>
+        <ContextMenu.Popup className="min-w-40 rounded-lg bg-popover p-1 text-popover-foreground shadow-xl ring-1 ring-white/10">
+          <ContextMenu.Item className={itemClass} onClick={onOpen}><LocalizedText text="Open preview" /></ContextMenu.Item>
+          <ContextMenu.Item className={itemClass} disabled={isCurrent} onClick={onRestore}><RotateCcw className="size-3.5" /><LocalizedText text="Restore this state" /></ContextMenu.Item>
+          <ContextMenu.Item className={itemClass} disabled={isCurrent} onClick={() => entry.archived ? onUnarchive(entry) : onArchive(entry)}><Archive className="size-3.5" /><LocalizedText text={entry.archived ? 'Restore to History' : 'Archive checkpoint'} /></ContextMenu.Item>
+        </ContextMenu.Popup>
+      </ContextMenu.Positioner>
+    </ContextMenu.Portal>
+  </ContextMenu.Root>
+}
+
 // History opens this compact list beside the current page first, with the
 // project's checkpoints newest first. Clicking one shows it in
 // History's main viewer — the same selection the timeline slider and
-// playback move through (see useSelectedCheckpoint). Hover a row for
-// Archive and "Rollback here"; archived ones sit under their own tab.
+// playback move through (see useSelectedCheckpoint). Secondary actions live
+// in the detail header and the row context menu.
 //
 // A project's checkpoints span every file/element it touches and every kind
 // of change (a manual edit, an AI edit, a merge, a rollback) in one list —
@@ -164,10 +178,6 @@ function HistoryDrawer({ project }) {
   const filtersActive = kindFilter !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
 
   const open = (id) => {
-    if (onHistoryPage && id === selectedId) {
-      navigate(`/projects/${project.id}/workspace`, { state: { keepDrawer: 'history' } })
-      return
-    }
     if (onHistoryPage) select(id)
     else navigate(`${historyPath}?v=${id}`)
   }
@@ -344,11 +354,10 @@ function HistoryDrawer({ project }) {
           // unless they're filtered out.
           const marks = showConflicts ? (entry.conflictMarks ?? []).map((mark) => ({ ...mark, resolved: conflicts.find((c) => c.id === mark.conflictId)?.reviewStage === 'resolved' })).filter((mark) => showResolved || !mark.resolved) : []
           const openMarks = marks.filter((mark) => !mark.resolved)
-          // Where the mark goes: the first conflict still open, else the first.
-          const markTarget = openMarks[0] ?? marks[0]
           return (
+            <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={isCurrent}
+              onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}>
             <div
-              key={entry.id}
               data-history-id={entry.id}
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
               className="group relative flex items-stretch"
@@ -356,8 +365,7 @@ function HistoryDrawer({ project }) {
               <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
               <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]', flashId === entry.id && 'history-row-arrived')}>
               <div
-                // A row acts as a button (it can't be one: the conflict
-                // mark in its meta line is a button of its own).
+                // The row selects a preview; secondary actions use its context menu.
                 role="button"
                 tabIndex={0}
                 onClick={() => open(entry.id)}
@@ -381,49 +389,35 @@ function HistoryDrawer({ project }) {
                   >
                     {entry.label}
                   </span>
-                  <span className={cn('shrink-0 text-[11px] tabular-nums transition-opacity', isCurrent ? 'font-medium text-emerald-300' : 'text-slate-500 group-hover:opacity-0')}>
+                  <span className={cn('shrink-0 text-[11px] tabular-nums', isCurrent ? 'font-medium text-emerald-300' : 'text-slate-500')}>
                     {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
                   </span>
                 </span>
                 {/* The meta line: its branch, in that lane's color (a merge:
                     from → to), then — only on a version that caused one —
                     the conflict: amber while it's open, a grey "Resolved"
-                    once it's settled. The mark opens that conflict. */}
+                    once it's settled. Both remain visible while hovering. */}
                 <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] leading-4">
                   <span translate="no" className="min-w-0 truncate font-mono" style={{ color: colors.get(entry.branch ?? TRUNK) }}>{branchLabel}</span>
-                  {markTarget && (
+                  {marks.length > 0 && (
                     <>
                       <span aria-hidden className="text-slate-600">·</span>
-                      <button
-                        type="button"
+                      <span
                         data-conflict-mark={openMarks.length ? 'open' : 'resolved'}
                         title={marks.map((mark) => mark.label).join(' · ')}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          navigate(`/projects/${project.id}/workspace`, { state: { openConflictId: markTarget.conflictId } })
-                        }}
-                        className={cn('ds-intrinsic inline-flex h-4 shrink-0 items-center gap-0.5 rounded font-medium underline-offset-2 transition-colors hover:underline', openMarks.length ? 'text-amber-300 hover:text-amber-200' : 'text-slate-500 hover:text-slate-300')}
+                        className={cn('ds-intrinsic inline-flex h-4 shrink-0 items-center gap-0.5 rounded font-medium', openMarks.length ? 'text-amber-300' : 'text-slate-500')}
                       >
                         {openMarks.length ? <TriangleAlert className="size-3" /> : <Check className="size-3" />}
                         <LocalizedText text={openMarks.length ? 'Conflict' : 'Resolved'} />
                         {(openMarks.length || marks.length) > 1 && <span className="tabular-nums">{openMarks.length || marks.length}</span>}
-                      </button>
+                      </span>
                     </>
                   )}
                 </span>
               </div>
-              {!isCurrent && (
-                <div className="absolute top-1 right-1 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
-                    <Archive className="size-3" />
-                  </button>
-                  <button type="button" title="Rollback here" aria-label="Rollback here" onClick={() => setRollbackId(entry.id)} className={ROW_ACTION}>
-                    <RotateCcw className="size-3" />
-                  </button>
-                </div>
-              )}
               </div>
             </div>
+            </HistoryEntryMenu>
           )
         })}
 
@@ -434,28 +428,29 @@ function HistoryDrawer({ project }) {
           <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching archived checkpoints.' : 'No archived checkpoints.'}</p>
         ) : (
           archived.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-2 rounded-lg py-2 px-2.5 hover:bg-white/[0.035]">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
-                  <KindBadge kind={entry.kind} />
-                  <ActorAvatar entry={entry} />
-                  <span className="min-w-0 truncate">{entry.timestamp}</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                title="Restore to History"
-                aria-label="Restore to History"
-                onClick={() => {
-                  restoreHistoryEntry(entry.id)
-                  toast('Checkpoint restored to History', { description: entry.label })
+            <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={entry.id === currentId}
+              onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}
+              onUnarchive={() => {
+                restoreHistoryEntry(entry.id)
+                toast('Checkpoint restored to History', { description: entry.label })
+              }}>
+              <div role="button" tabIndex={0} onClick={() => open(entry.id)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+                  event.preventDefault()
+                  open(entry.id)
                 }}
-                className={ROW_ACTION}
-              >
-                <ArchiveRestore className="size-3.5" />
-              </button>
-            </div>
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-white/[0.035] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
+                    <KindBadge kind={entry.kind} />
+                    <ActorAvatar entry={entry} />
+                    <span className="min-w-0 truncate">{entry.timestamp}</span>
+                  </p>
+                </div>
+              </div>
+            </HistoryEntryMenu>
           ))
         ))}
 

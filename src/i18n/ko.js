@@ -56,6 +56,10 @@ Search Input|검색 입력란
 Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
+Archive checkpoint|보관
+Open preview|열어보기
+Restore this state|이 상태로 복원
+Version actions|버전 메뉴
 Request review again|재검토 요청
 Conflict activity|충돌 활동
 Project history|프로젝트 전체 히스토리
