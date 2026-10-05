@@ -10,7 +10,7 @@ import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelConten
 import { useConflictStore } from '@/state/ConflictStore'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { DecisionSummary, ReasonStrip } from '@/components/conflicts/Rationale'
-import { stepRationale } from '@/lib/rationale'
+import { mergeEvidence, stepRationale } from '@/lib/rationale'
 
 const EVENT_COPY = {
   review_requested: { action: 'requested a review', Icon: Send },
@@ -189,11 +189,18 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
   )
 
   const step = rationale && selected ? stepRationale(selected, conflict, rationale) : null
+  // One always-visible source list for the decision and the selected step.
+  const summaryRationale = rationale && { ...rationale, evidence: mergeEvidence(rationale.evidence, step?.evidence) }
+  const explicitStepReason = selected?.reason ?? selected?.prompt ?? (typeof selected?.purpose === 'string' ? selected.purpose : selected?.purpose?.text)
+  // Detection's generic conflict description repeats the decision context.
+  // Keep an explicit step request or a genuinely different historical reason.
+  const stepText = step?.text === rationale?.why?.text
+    || (selected?.kind === 'conflict' && rationale?.why && !explicitStepReason) ? null : step?.text
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
     {/* The decision first — what, why, the evidence, who — then its trail. */}
-    {rationale && <DecisionSummary conflict={conflict} rationale={rationale} onOpen={onOpenEvidence} />}
+    {rationale && <DecisionSummary rationale={summaryRationale} onOpen={onOpenEvidence} />}
       <section aria-label="Conflict change replay" className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
@@ -210,7 +217,7 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
           )}
         </div>
         {/* Why this step happened, and what backs it — read before its code. */}
-        {step && <ReasonStrip compact label="Reason for this step" text={step.text} evidence={step.evidence} onOpen={onOpenEvidence} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
+        {stepText && <ReasonStrip label="Reason for this step" text={stepText} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? (
             // Code and its preview together, half the replay each — the

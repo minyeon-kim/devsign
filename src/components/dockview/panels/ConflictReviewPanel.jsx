@@ -376,10 +376,9 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment }) {
-  // A rollback's details (what, to which version, who asked) are the
-  // whole of its left card, so they start open; a conflict's stay folded.
-  const [showDetails, setShowDetails] = useState(Boolean(conflict.rollback))
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks }) {
+  // Keep the review's original context visible alongside list metadata.
+  const [showDetails, setShowDetails] = useState(true)
   const open = stage !== 'resolved'
   const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
@@ -394,7 +393,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {conflict.rollback && <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
+      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
         {/* Dots and text — no chips: this line already sits in a panel. */}
         <ReviewStageBadge plain stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
         {severity && (
@@ -403,7 +402,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             <SeverityPill plain level={severity.label} />
           </>
         )}
-        {open && shortDue(conflict.dueLabel) && (
+        {conflict.rollback && open && shortDue(conflict.dueLabel) && (
           <>
             <span aria-hidden>·</span>
             <DueDate label={conflict.dueLabel} />
@@ -427,11 +426,24 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             </span>
           </>
         )}
-      </p>}
+      </p>
 
       {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
-      {conflict.rollback && <section className="min-w-0 flex-1">
+      {!conflict.rollback && <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
+        <dt className="text-slate-500"><LocalizedText text="Author" /></dt>
+        <dd translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</dd>
+        <dt className="text-slate-500"><LocalizedText text="Updated" /></dt>
+        <dd className="text-slate-300"><LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></dd>
+        <dt className="text-slate-500"><LocalizedText text="Checks" /></dt>
+        <dd className="text-slate-300">{checks ? <><LocalizedText text="Failing checks" /> · {checks.failing.length}</> : '—'}</dd>
+        <dt className="text-slate-500"><LocalizedText text="Reviewers" /></dt>
+        <dd className="text-slate-300">{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
+        <dt className="text-slate-500"><LocalizedText text="Due date" /></dt>
+        <dd className="text-slate-300"><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
+      </dl>}
+
+      <section className="min-w-0 flex-1">
         <button
           type="button"
           aria-expanded={showDetails}
@@ -455,7 +467,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             ))}
           </div>
         ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
-      </section>}
+      </section>
     </div>
   )
 }
@@ -1802,7 +1814,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            {!conflict.rollback && <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 pl-11 text-[11px] text-slate-400">
+            {!conflict.rollback && tab === 'history' && <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 pl-11 text-[11px] text-slate-400">
               <span><LocalizedText text="Author" /> · <span translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</span></span>
               <span><LocalizedText text="Updated" /> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
               <ReviewStageBadge plain stage={stage} />
@@ -1854,6 +1866,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
+                            checks={checks}
                             conflict={conflict}
                             severity={severity}
                             stage={stage}

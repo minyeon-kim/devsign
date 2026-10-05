@@ -3,7 +3,7 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
-  const { DESIGN_RULES, rationaleOf, stepRationale, checkpointRationale } = await server.ssrLoadModule('/src/lib/rationale.js')
+  const { DESIGN_RULES, mergeEvidence, rationaleOf, stepRationale, checkpointRationale } = await server.ssrLoadModule('/src/lib/rationale.js')
   assert.equal(DESIGN_RULES.length, 4)
   const original = { id: 'order', ruleIds: ['button-color', 'button-height'], purpose: { text: 'Original request' } }
   const comments = [
@@ -13,6 +13,8 @@ try {
   const current = { ...original, deviation: { kind: 'keep-current', text: 'Temporary exception' } }
   const rationale = rationaleOf(current, { comments })
   assert.equal(rationale.evidence.filter((item) => item.kind === 'comment').length, 2)
+  assert.deepEqual(mergeEvidence(rationale.evidence, rationale.evidence), rationale.evidence)
+  assert.equal(mergeEvidence(rationale.evidence, [{ kind: 'token', label: 'historical.token', source: 'tokens.json' }]).length, rationale.evidence.length + 1)
   const checkpoint = { kind: 'merge', snapshot: { conflicts: [original] } }
   assert.equal(checkpointRationale(checkpoint, [current], comments).text, 'Original request')
   assert.equal(stepRationale(checkpoint, current, rationale).text, 'Original request')

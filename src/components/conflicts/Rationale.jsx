@@ -45,7 +45,7 @@ export function EvidenceLinks({ items, onOpen, className }) {
   )
 }
 
-// Decision and author share one line; sources are available on demand.
+// Decision and author share one line; shared sources stay visible below.
 export function DecisionSummary({ rationale, onOpen }) {
   const { why, evidence, decision } = rationale
   return (
@@ -55,28 +55,23 @@ export function DecisionSummary({ rationale, onOpen }) {
         {decision.by && <span className="text-slate-500"><LocalizedText text="Decided by" /> <span translate="no">{decision.by}</span></span>}
       </p>
       {why && <p className="mt-1 text-slate-300"><LocalizedText text={why.text} /></p>}
-      <EvidenceDisclosure items={evidence} onOpen={onOpen} />
+      {evidence.length > 0 && <div className="mt-2 flex items-start gap-2">
+        <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text="Evidence" /></span>
+        <EvidenceLinks items={evidence} onOpen={onOpen} />
+      </div>}
     </section>
   )
 }
 
-export function EvidenceDisclosure({ items, onOpen }) {
-  if (!items?.length) return null
-  return <details className="mt-1 text-[11px] text-slate-400">
-    <summary className="w-fit cursor-pointer hover:text-white"><LocalizedText text="Evidence" /> · {items.length}</summary>
-    <EvidenceLinks items={items} onOpen={onOpen} className="mt-1.5" />
-  </details>
-}
-
 // One step's reason and its evidence, as a strip (over the replay's code,
 // in a History checkpoint's header).
-export function ReasonStrip({ text, evidence, onOpen, className, label = 'The why', compact = false }) {
+export function ReasonStrip({ text, evidence, onOpen, className, label = 'The why' }) {
   if (!text && !evidence?.length) return null
   return (
     <div data-step-reason className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-5', className)}>
       <span className="shrink-0 font-medium text-slate-500"><LocalizedText text={label} /></span>
       {text && <span className="min-w-0 text-slate-300"><LocalizedText text={text} /></span>}
-      {compact ? <EvidenceDisclosure items={evidence} onOpen={onOpen} /> : <EvidenceLinks items={evidence} onOpen={onOpen} />}
+      <EvidenceLinks items={evidence} onOpen={onOpen} />
     </div>
   )
 }

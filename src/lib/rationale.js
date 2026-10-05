@@ -170,3 +170,14 @@ export function checkpointRationale(entry, related, comments = []) {
   })
   return { text, evidence }
 }
+
+// Preserve source order and distinct comments while sharing one source list.
+export function mergeEvidence(...groups) {
+  const seen = new Set()
+  return groups.flatMap((items) => items ?? []).filter((item) => {
+    const key = `${item.kind}:${item.id ?? item.url ?? `${item.source ?? ''}:${item.label}`}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
