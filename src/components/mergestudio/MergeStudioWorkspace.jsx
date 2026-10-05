@@ -734,6 +734,14 @@ function MergeStudioWorkspace({ item }) {
         else next[key] = decision
         return next
       }),
+      // The review's "Undo adjustment": drop a hand-set W / H on a layer.
+      resetSize: (layerId) => setAssemblies((prev) => {
+        const { width: _width, height: _height, ...rest } = prev[layerId] ?? {}
+        const next = { ...prev }
+        if (Object.keys(rest).length) next[layerId] = rest
+        else delete next[layerId]
+        return next
+      }),
     })
   }, [item?.id, resolutions, setStudioDecisions])
   useEffect(() => () => setStudioDecisions(null), [setStudioDecisions])

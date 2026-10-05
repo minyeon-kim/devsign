@@ -457,6 +457,19 @@ export function WorkspaceProvider({ children, projectId }) {
     else resolutions[key] = decision
     saveMergeDraft(itemId, { ...draft, resolutions })
   }, [studioDecisions, saveMergeDraft])
+  // Take back a size set by hand in Merge Studio (W / H on an element), so
+  // it returns to the size both versions had. While the studio has the item
+  // open the size lives in its own state — it does the undo; otherwise the
+  // saved draft is edited.
+  const resetLayerSize = useCallback((itemId, layerId) => {
+    if (studioDecisions?.itemId === itemId && studioDecisions.resetSize) return studioDecisions.resetSize(layerId)
+    const draft = mergeDrafts.current[itemId] ?? {}
+    const { width: _width, height: _height, ...rest } = draft.assemblies?.[layerId] ?? {}
+    const assemblies = { ...(draft.assemblies ?? {}) }
+    if (Object.keys(rest).length) assemblies[layerId] = rest
+    else delete assemblies[layerId]
+    saveMergeDraft(itemId, { ...draft, assemblies })
+  }, [studioDecisions, saveMergeDraft])
   // Baseline moves only in the shared final merge operation, never on AI edits.
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
@@ -2007,6 +2020,7 @@ export function WorkspaceProvider({ children, projectId }) {
     decisionsFor,
     decideDrift,
     setStudioDecisions,
+    resetLayerSize,
     draftVersion,
     conflictChecks,
     linesOfFile,

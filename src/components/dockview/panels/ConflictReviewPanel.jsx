@@ -37,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUserFor } from '@/data/mockData'
+import { allPeople, canvasPages, currentUserFor } from '@/data/mockData'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
 import {
   approvalStatus,
@@ -363,12 +363,33 @@ function DueDate({ label, className }) {
   )
 }
 
+// A size set by hand in Merge Studio on the conflict's own element (W / H
+// in Properties → Layout): what it was in both versions and what it is
+// now. Read from the item's draft, so it shows here as soon as it's made
+// and is gone as soon as it's undone. Null when nothing was resized.
+function sizeAdjustmentOf(conflict, item, workspace) {
+  if (!conflict?.layerId || !item) return null
+  const layer = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers?.find((l) => l.id === conflict.layerId)
+  const sized = workspace?.mergeDrafts?.current?.[item.id]?.assemblies?.[conflict.layerId]
+  if (!layer || !sized) return null
+  const to = { width: sized.width ?? layer.width, height: sized.height ?? layer.height }
+  if (to.width === layer.width && to.height === layer.height) return null
+  const text = (size) => `${size.width} × ${size.height}px`
+  return {
+    layerName: layer.name, from: text(layer), to: text(to),
+    // The same change in the code: the element's w-[…] / h-[…] classes.
+    applyTo: (line) => line.replace(`w-[${layer.width}px]`, `w-[${to.width}px]`).replace(`h-[${layer.height}px]`, `h-[${to.height}px]`),
+  }
+}
+
 // The review's left card is context only: where it stands (one line —
 // stage · level · due · whether the merge is blocked), the summary sentence
 // and the way into History, with Details folded under it. The values, the
 // decision and every check live on the comparison card in the middle, so
 // nothing is said twice.
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onOpenHistory }) {
+// `adjustment`: a size set by hand in Merge Studio — the summary then says
+// what was done (and that it's resolved, once nothing blocks the merge).
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onOpenHistory, adjustment }) {
   // A rollback's details (what, to which version, who asked) are the
   // whole of its left card, so they start open; a conflict's stay folded.
   const [showDetails, setShowDetails] = useState(Boolean(conflict.rollback))
@@ -379,7 +400,9 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
     ? conflict.riskReason.slice(riskPrefix[0].length)
     : conflict.riskReason
   // A rollback agreement says what it is in the middle — no sentence here.
-  const summary = conflict.rollback ? null : conflict.message || riskExplanation
+  const summary = conflict.rollback ? null
+    : adjustment && open ? `${adjustment.layerName} was adjusted to ${adjustment.to}${blockedCount ? '.' : ', which resolves it.'}`
+      : conflict.message || riskExplanation
   const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
 
   return (
@@ -590,10 +613,16 @@ function CodeDiffColumns({ rows }) {
 // `state`: the decision and checks (decisionStateOf). `checkBlocks`: the
 // checks that aren't about the picked card, placed right under the
 // comparison. `checkActions`: fix / apply-as-is for the ones on the card.
-function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks }) {
+// `adjustment` (a size set by hand in Merge Studio): the card that merges
+// shows that value as old → new and is tagged, with a way to undo it;
+// `changeAfter` is the change's code with the adjustment in it.
+function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
+  // The card the adjustment shows on: the picked one — or, with nothing
+  // picked, the current implementation, since that's what merges then.
+  const adjusted = decision => (state.side ? state.side === decision : decision === 'B')
   function pick(decision) {
     if (canPick) state.pick(decision)
   }
@@ -604,7 +633,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
       </div>
     )
   }
-  const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], conflict.diff.after ?? []) : []
+  const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], changeAfter ?? conflict.diff.after ?? []) : []
   const pairedPreview = Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
 
@@ -678,6 +707,12 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                           <LocalizedText text="Meets the design standard" />
                         </span>
                       )}
+                      {/* The side that merges carries the hand adjustment. */}
+                      {adjustment && adjusted(decision) && (
+                        <span className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200">
+                          <LocalizedText text="Adjusted by hand" />
+                        </span>
+                      )}
                       <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
                         {on && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
                       </span>
@@ -692,14 +727,34 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {/* Red / green only where the two sides differ — a
                               value that's the same on both isn't a change. */}
+                          {adjustment && adjusted(decision) && value(field) === adjustment.from ? (
+                            // Adjusted by hand: what it was, struck through,
+                            // then what it is now.
+                            <dd className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums">
+                              <span className="font-normal text-slate-500 line-through">{adjustment.from}</span>
+                              <span aria-hidden className="font-normal text-slate-500">→</span>
+                              <span className="text-emerald-300">{adjustment.to}</span>
+                            </dd>
+                          ) : (
                           <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}>
                             {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
                             <span className="min-w-0"><LocalizedText text={value(field)} /></span>
                           </dd>
+                          )}
                         </div>
                         )
                       })}
                     </dl>
+                    {adjustment && adjusted(decision) && onUndoAdjustment && !readOnly && (
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); onUndoAdjustment() }}
+                        className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
+                      >
+                        <RotateCcw className="size-3" />
+                        <LocalizedText text="Undo adjustment" />
+                      </button>
+                    )}
                     {/* The picked side breaks a required standard: say so on
                         this card, with what clears it. */}
                     {on && state.cardBlockers.length > 0 && (
@@ -1527,8 +1582,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // inside a workspace (which has the files) and while the file still
   // holds the original lines (a merged change no longer does).
   const fileLines = workspace && conflict?.fileId ? workspace.getFileLines(conflict.fileId) : null
+  // A size adjusted in Merge Studio is part of the change: its lines carry
+  // the new w-[…] / h-[…], so the diff below shows what will be merged.
+  const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, driftItem, workspace) : null
+  const changeAfter = adjustment ? (conflict?.diff?.after ?? []).map(adjustment.applyTo) : conflict?.diff?.after ?? []
   const generatedFile = fileLines && conflict.diff
-    ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], conflict.diff.after ?? [])
+    ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], changeAfter)
     : null
   // Already merged: the file holds the change, so rebuild the file as it
   // was before (the change placed in reverse) and show the merge read-only.
@@ -1668,6 +1727,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             stage={stage}
                             showProject={!workspace}
                             blockedCount={decisionState.required.length}
+                            adjustment={adjustment}
                             onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
                           />
                         </div>
@@ -1695,6 +1755,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             conflict={conflict}
                             code={codeView}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
+                            adjustment={adjustment}
+                            changeAfter={changeAfter}
+                            onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => workspace.resetLayerSize(driftItem.id, conflict.layerId) : undefined}
                             state={decisionState}
                             checks={checks}
                             checkActions={checkActions}

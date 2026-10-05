@@ -44,21 +44,25 @@ function tick() {
   const callbacks = [...timers.values()]; timers.clear()
   callbacks.forEach(fn => fn()); render()
 }
+// A step isn't a timer any more: the viewer types the step's code and calls
+// `advance()` when it's in — that's what moves the selection on.
+const step = () => { output.advance(); render() }
 render()
 output.toggle(); render()
 assert.equal(selected, 'a', 'play from newest restarts at oldest')
 assert.equal(output.playing, true)
-tick(); assert.equal(selected, 'b'); assert.equal(output.playing, true)
-tick(); assert.equal(selected, 'c'); assert.equal(output.playing, false)
-assert.equal(timers.size, 0, 'stops at the last checkpoint')
-output.toggle(); render(); output.pause(); render(); tick()
-assert.equal(selected, 'a', 'pause cancels the queued advance')
+assert.equal(timers.size, 0, 'nothing advances on its own')
+step(); assert.equal(selected, 'b'); assert.equal(output.playing, true)
+step(); assert.equal(selected, 'c'); assert.equal(output.playing, false, 'stops on landing at the last checkpoint')
+step(); assert.equal(selected, 'c', 'advancing while stopped does nothing')
+output.toggle(); render(); output.pause(); render(); step()
+assert.equal(selected, 'a', 'pause cancels the advance')
+assert.equal(output.playing, false)
 output.toggle(); render(); select('b'); render()
 assert.equal(output.playing, false, 'manual selection of even the next version stops replay')
-assert.equal(timers.size, 0)
-output.toggle(); render(); tick()
+output.toggle(); render(); step()
 assert.equal(selected, 'c'); assert.equal(output.playing, false)
 timeline = [{ id: 'a' }]; select('a'); render(); output.toggle(); render()
 assert.equal(output.playing, false, 'one checkpoint cannot play')
 delete globalThis.window
-console.log('Passed: replay restart, ordered advancement, end stop, pause cancellation and manual selection interruption.')
+console.log('Passed: replay restart, step-driven advancement, end stop, pause cancellation and manual selection interruption.')

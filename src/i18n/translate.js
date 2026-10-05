@@ -39,6 +39,14 @@ const rules = [
   [/^Daily digest · (\d+) medium changes? needs? review$/, (_, n) => `일일 요약 · Medium 변경사항 ${n}개 검토 필요`],
   [/^Exception requested: (.+)$/, (_, title) => `예외 요청: ${core(title)}`],
   [/^Affects (.+)’s work · confirmed$/, (_, names) => `${names} 작업에 영향 · 확인됨`],
+  // "Coupon close button was adjusted to 24 × 24px, which resolves it." The
+  // object particle (을 / 를) follows the translated name's last syllable.
+  [/^(.+) was adjusted to (\d+ × \d+px)(, which resolves it)?\.$/, (_, name, size, resolved) => {
+    const subject = core(name)
+    const last = subject.charCodeAt(subject.length - 1)
+    const particle = last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)'
+    return `${subject}${particle} ${size}로 ${resolved ? '조정해 해결됐어요' : '조정했어요'}`
+  }],
   [/^(\d+) applied$/, (_, n) => `${n}개 적용됨`],
   [/^Daily digest · (\d+) changes? needs? review$/, (_, n) => `일일 요약 · 변경 ${n}개 검토 필요`],
   [/^Immediate review · High risk: (.+)$/, (_, title) => `즉시 검토 · High 위험도: ${title}`],
