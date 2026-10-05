@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { comments as seedComments } from '@/data/mockData'
+import { LocalizedText } from '@/i18n/runtime'
 import { Bell } from 'lucide-react'
 import { cn } from 'cn'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -52,7 +54,7 @@ function useBellAnchor(active) {
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview } = useWorkspace()
+  const { comments, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -115,7 +117,7 @@ export default function HighReviewNotifications() {
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.neutral)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
-              <p className={cn(NOTICE_BODY, 'text-slate-300')}>결제 버튼에 기존 보라색(#7c3aed)과 40px 높이가 남아 있어요. 새 결제 시안의 primary 토큰과 44px 버튼으로 맞추려는데, 이 기준이 맞는지 확인 부탁드려요.</p>
+              <p className={cn(NOTICE_BODY, 'text-slate-300')}><LocalizedText text={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''} /></p>
             </div>
           </div>
           <div className={NOTICE_ACTIONS}>

@@ -15,6 +15,18 @@ try {
   assert.equal(rationale.evidence.filter((item) => item.kind === 'comment').length, 2)
   assert.deepEqual(mergeEvidence(rationale.evidence, rationale.evidence), rationale.evidence)
   assert.equal(mergeEvidence(rationale.evidence, [{ kind: 'token', label: 'historical.token', source: 'tokens.json' }]).length, rationale.evidence.length + 1)
+  const detected = stepRationale({ kind: 'conflict' }, current, rationale)
+  assert.equal(detected.text, 'Detected because the button height and color differ from the checkout design')
+  const newSource = { kind: 'token', label: 'new.token', source: 'tokens.json' }
+  const stepWithSource = stepRationale({ kind: 'ai-edit', evidence: [newSource] }, current, rationale)
+  assert.deepEqual(mergeEvidence(rationale.evidence, stepWithSource.evidence).slice(rationale.evidence.length), [newSource])
+  const { createElement } = await import('react')
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const { DecisionSummary } = await server.ssrLoadModule('/src/components/conflicts/Rationale.jsx')
+  const summary = renderToStaticMarkup(createElement(DecisionSummary, { rationale: rationaleOf(original, { comments }) }))
+  assert.equal((summary.match(/<dt /g) ?? []).length, 3)
+  assert.equal((summary.match(/data-evidence=/g) ?? []).length, 3)
+  assert.ok(summary.includes('aria-expanded="false"'))
   const checkpoint = { kind: 'merge', snapshot: { conflicts: [original] } }
   assert.equal(checkpointRationale(checkpoint, [current], comments).text, 'Original request')
   assert.equal(stepRationale(checkpoint, current, rationale).text, 'Original request')

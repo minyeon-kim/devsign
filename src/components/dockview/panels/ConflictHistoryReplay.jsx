@@ -189,18 +189,60 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
   )
 
   const step = rationale && selected ? stepRationale(selected, conflict, rationale) : null
-  // One always-visible source list for the decision and the selected step.
-  const summaryRationale = rationale && { ...rationale, evidence: mergeEvidence(rationale.evidence, step?.evidence) }
-  const explicitStepReason = selected?.reason ?? selected?.prompt ?? (typeof selected?.purpose === 'string' ? selected.purpose : selected?.purpose?.text)
-  // Detection's generic conflict description repeats the decision context.
-  // Keep an explicit step request or a genuinely different historical reason.
-  const stepText = step?.text === rationale?.why?.text
-    || (selected?.kind === 'conflict' && rationale?.why && !explicitStepReason) ? null : step?.text
+  // Shared sources stay in the summary; only step-specific additions repeat here.
+  const stepEvidence = mergeEvidence(rationale?.evidence, step?.evidence)
+    .slice(mergeEvidence(rationale?.evidence).length)
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
     {/* The decision first — what, why, the evidence, who — then its trail. */}
-    {rationale && <DecisionSummary rationale={summaryRationale} onOpen={onOpenEvidence} />}
+    {rationale && <DecisionSummary rationale={rationale} onOpen={onOpenEvidence} />}
+      <div className={cn('grid min-h-[280px] min-w-0 flex-1 grid-cols-1 gap-3', groups.length > 0 && 'xl:grid-cols-[240px_minmax(0,1fr)]')}>
+      {groups.length > 0 && (
+        <section aria-label="System activity" className="min-h-0 overflow-y-auto rounded-xl bg-white/[0.03] p-3">
+          <h3 className="mb-3 text-xs font-medium text-slate-300"><LocalizedText text="System activity" /><span className="ml-2 text-slate-500">{groups.length}</span></h3>
+          <ol data-conversation-events className="space-y-0.5">
+                  {groups.map((group) => {
+                    const open = openGroup === group.kind
+                    const Icon = group.icon
+                    return (
+                      <li key={group.kind}>
+                        <button type="button" aria-expanded={open} onClick={() => setOpenGroup(open ? null : group.kind)} className="ds-intrinsic flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
+                          <Icon className="size-3 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            <span translate="no" className="text-slate-300">{group.actors.join(', ')}</span>{' '}
+                            <LocalizedText text={group.label} />
+                            <span className="text-slate-500"> · <LocalizedText text={group.timestamp} /></span>
+                          </span>
+                          <ChevronDown className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')} />
+                        </button>
+                        {open && (
+                          <ol className="mb-1 ml-5 space-y-0.5 border-l border-white/[0.07] pl-2">
+                            {group.items.map(({ id, actor, timestamp, detail, historyId, index }) => {
+                              const replayEntry = entries.find((entry) => entry.id === historyId || entry.id === id)
+                                ?? (entries.length ? entries[Math.max(0, Math.round((activity.length - 1 - index) * (entries.length - 1) / Math.max(activity.length - 1, 1)))] : null)
+                              const isCurrentMarker = replayEntry && replayEntry.id === selected?.id
+                              return (
+                                <li key={id}>
+                                  <button type="button" disabled={!replayEntry} onClick={() => { if (replayEntry) { setPlaying(false); setSelectedId(replayEntry.id) } }} aria-pressed={Boolean(isCurrentMarker)} className="ds-intrinsic flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] text-slate-400 transition-colors hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-emerald-400/[0.06]">
+                                    <span className="min-w-0 flex-1 truncate">
+                                      <span translate="no" className="text-slate-200">{actor}</span>
+                                      {detail && <span className="text-slate-500"> · {detail}</span>}
+                                      <span className="text-slate-500"> · <LocalizedText text={timestamp} /></span>
+                                    </span>
+                                    {replayEntry && <span title={isCurrentMarker ? 'Replay marker selected' : 'Open this point in change replay'} className={cn('size-1.5 shrink-0 rounded-full', isCurrentMarker ? 'bg-emerald-300' : 'bg-slate-500')} />}
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ol>
+                        )}
+                      </li>
+                    )
+                  })}
+          </ol>
+        </section>
+      )}
       <section aria-label="Conflict change replay" className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
@@ -217,7 +259,7 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
           )}
         </div>
         {/* Why this step happened, and what backs it — read before its code. */}
-        {stepText && <ReasonStrip label="Reason for this step" text={stepText} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
+        {step && <ReasonStrip label="Reason for this step" text={step.text} evidence={stepEvidence} onOpen={onOpenEvidence} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? (
             // Code and its preview together, half the replay each — the
@@ -281,51 +323,7 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
           />
         )}
       </section>
-      {groups.length > 0 && (
-        <details aria-label="System activity" className="max-h-36 shrink-0 overflow-y-auto border-t border-white/[0.07] pt-2">
-          <summary className="cursor-pointer px-2 pb-1 text-[11px] text-slate-500"><LocalizedText text="System activity" /> · {groups.length}</summary>
-          <ol data-conversation-events className="space-y-0.5">
-                  {groups.map((group) => {
-                    const open = openGroup === group.kind
-                    const Icon = group.icon
-                    return (
-                      <li key={group.kind}>
-                        <button type="button" aria-expanded={open} onClick={() => setOpenGroup(open ? null : group.kind)} className="ds-intrinsic flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
-                          <Icon className="size-3 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">
-                            <span translate="no" className="text-slate-300">{group.actors.join(', ')}</span>{' '}
-                            <LocalizedText text={group.label} />
-                            <span className="text-slate-500"> · <LocalizedText text={group.timestamp} /></span>
-                          </span>
-                          <ChevronDown className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')} />
-                        </button>
-                        {open && (
-                          <ol className="mb-1 ml-5 space-y-0.5 border-l border-white/[0.07] pl-2">
-                            {group.items.map(({ id, actor, timestamp, detail, historyId, index }) => {
-                              const replayEntry = entries.find((entry) => entry.id === historyId || entry.id === id)
-                                ?? (entries.length ? entries[Math.max(0, Math.round((activity.length - 1 - index) * (entries.length - 1) / Math.max(activity.length - 1, 1)))] : null)
-                              const isCurrentMarker = replayEntry && replayEntry.id === selected?.id
-                              return (
-                                <li key={id}>
-                                  <button type="button" disabled={!replayEntry} onClick={() => { if (replayEntry) { setPlaying(false); setSelectedId(replayEntry.id) } }} aria-pressed={Boolean(isCurrentMarker)} className="ds-intrinsic flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] text-slate-400 transition-colors hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent aria-pressed:bg-emerald-400/[0.06]">
-                                    <span className="min-w-0 flex-1 truncate">
-                                      <span translate="no" className="text-slate-200">{actor}</span>
-                                      {detail && <span className="text-slate-500"> · {detail}</span>}
-                                      <span className="text-slate-500"> · <LocalizedText text={timestamp} /></span>
-                                    </span>
-                                    {replayEntry && <span title={isCurrentMarker ? 'Replay marker selected' : 'Open this point in change replay'} className={cn('size-1.5 shrink-0 rounded-full', isCurrentMarker ? 'bg-emerald-300' : 'bg-slate-500')} />}
-                                  </button>
-                                </li>
-                              )
-                            })}
-                          </ol>
-                        )}
-                      </li>
-                    )
-                  })}
-          </ol>
-        </details>
-      )}
+      </div>
     </div>
   )
 }

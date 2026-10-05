@@ -64,6 +64,14 @@ Request review again|재검토 요청
 found a difference|차이 감지
 Author|작성자
 Failing checks|미통과 검사
+Decision|결정
+Show less|접기
+Detected because the button height and color differ from the checkout design|결제 디자인 기준과 높이·색상이 달라 충돌로 감지됨
+Detected because the implementation differs from the design reference|구현이 디자인 기준과 달라 충돌로 감지됨
+Saved to record the implementation at this point|이 시점의 구현 상태를 기록하기 위해 저장됨
+Reason|이유
+Edit reason|수정
+Reason required|이유 필요
 Reason for this step|이 단계의 이유
 System activity|시스템 활동
 The why|왜

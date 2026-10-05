@@ -139,15 +139,18 @@ export function rationaleOf(conflict, { comments = [], checks } = {}) {
 export function stepRationale(entry, conflict, rationale) {
   const saved = entry?.snapshot?.conflicts?.find((item) => item.id === conflict.id)
   const atStep = saved ? rationaleOf(saved) : rationale
-  const evidence = [...atStep.evidence.filter((item) => item.kind !== 'comment'), ...rationale.evidence.filter((item) => item.kind === 'comment')]
+  const evidence = mergeEvidence(atStep.evidence.filter((item) => item.kind !== 'comment'), rationale.evidence.filter((item) => item.kind === 'comment'), entry?.evidence)
   const ownReason = entry?.reason ?? (typeof entry?.purpose === 'string' ? entry.purpose : entry?.purpose?.text) ?? entry?.prompt
   if (entry?.kind === 'conflict') {
-    return { text: ownReason ?? conflict.message ?? atStep.rules[0]?.reason, evidence: evidence.filter((item) => item.kind !== 'comment') }
+    const buttonMismatch = atStep.rules.some((rule) => rule.id === 'button-color') && atStep.rules.some((rule) => rule.id === 'button-height')
+    return { text: ownReason ?? (buttonMismatch
+      ? 'Detected because the button height and color differ from the checkout design'
+      : 'Detected because the implementation differs from the design reference'), evidence }
   }
   if (entry?.kind === 'merge') {
     return { text: ownReason ?? atStep.why?.text ?? null, evidence }
   }
-  return { text: ownReason ?? atStep.purpose?.text ?? atStep.why?.text ?? null, evidence }
+  return { text: ownReason ?? atStep.purpose?.text ?? atStep.why?.text ?? 'Saved to record the implementation at this point', evidence }
 }
 
 // A History checkpoint, explained the same way: why it happened and what

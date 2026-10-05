@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowUpRight, BookMarked, Braces, Check, Frame, MessageSquare, ScanEye, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { LocalizedText } from '@/i18n/runtime'
 import { DESIGN_RULES, DEVIATION_LABEL, DEVIATION_REASONS } from '@/lib/rationale'
@@ -15,21 +16,24 @@ const EVIDENCE_KIND = { rule: 'Rule', figma: 'Figma frame', token: 'Token', wcag
 // Evidence as links: each goes to the thing itself — the rule in the rule
 // list, the Figma frame on the canvas, the token's definition, the comment.
 // (A file or token name stays as written.)
-export function EvidenceLinks({ items, onOpen, className }) {
+export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
+  const [expanded, setExpanded] = useState(false)
   if (!items?.length) return null
+  const visible = expanded ? items : items.slice(0, limit)
   return (
     <span className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}>
-      {items.map((item) => {
+      {visible.map((item) => {
         const Icon = EVIDENCE_ICON[item.kind] ?? BookMarked
         const literal = item.kind === 'token' || item.kind === 'wcag'
-        return (
+        const rule = item.kind === 'rule' ? DESIGN_RULES.find((candidate) => candidate.id === item.id) : null
+        const key = `${item.kind}:${item.id ?? item.label}:${item.conflictId ?? ''}`
+        const chip = (
           <button
             key={`${item.kind}:${item.id ?? item.label}:${item.conflictId ?? ''}`}
             type="button"
             data-evidence={item.kind}
-            title={item.kind === 'comment' ? item.text : undefined}
             aria-label={`${EVIDENCE_KIND[item.kind]}: ${item.label}`}
-            onClick={() => onOpen?.(item)}
+            onClick={rule ? undefined : () => onOpen?.(item)}
             className="ds-intrinsic inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.04] px-1.5 text-[11px] text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
           >
             <Icon className="size-3 shrink-0 text-slate-400" />
@@ -40,25 +44,43 @@ export function EvidenceLinks({ items, onOpen, className }) {
             {item.kind === 'wcag' && <ArrowUpRight className="size-3 shrink-0 text-slate-500" />}
           </button>
         )
+        if (!rule && !item.text) return chip
+        return <Tooltip key={key}>
+          <TooltipTrigger render={chip} />
+          <TooltipContent side="top" align="start" className="max-w-xs flex-col items-start gap-1 py-2 leading-5">
+            {rule ? <>
+              <span className="font-medium"><LocalizedText text={rule.title} /></span>
+              <span className="text-slate-300"><LocalizedText text={rule.reason} /></span>
+              <span className="text-[11px] text-slate-400">{rule.sources.map((source) => source.label).join(' · ')}</span>
+            </> : <LocalizedText text={item.text} />}
+          </TooltipContent>
+        </Tooltip>
       })}
+      {items.length > limit && <button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="ds-intrinsic h-6 rounded-md px-2 text-[11px] text-slate-400 hover:bg-white/[0.06] hover:text-white">
+        {expanded ? <LocalizedText text="Show less" /> : `+${items.length - limit}`}
+      </button>}
     </span>
   )
 }
 
-// Decision and author share one line; shared sources stay visible below.
+// Keep the decision context in three stable rows, with three key sources.
 export function DecisionSummary({ rationale, onOpen }) {
   const { why, evidence, decision } = rationale
+  const core = ['figma', 'token', 'comment'].map((kind) => evidence.find((item) => item.kind === kind)).filter(Boolean)
+  const ordered = [...core, ...evidence.filter((item) => !core.includes(item))]
   return (
-    <section data-decision-summary aria-label="Decision summary" className="shrink-0 px-1 py-1 text-xs leading-5">
-      <p className="flex flex-wrap items-center gap-x-2">
-        <span className={decision.deviates ? 'font-medium text-amber-200' : 'font-medium text-white'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
-        {decision.by && <span className="text-slate-500"><LocalizedText text="Decided by" /> <span translate="no">{decision.by}</span></span>}
-      </p>
-      {why && <p className="mt-1 text-slate-300"><LocalizedText text={why.text} /></p>}
-      {evidence.length > 0 && <div className="mt-2 flex items-start gap-2">
-        <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text="Evidence" /></span>
-        <EvidenceLinks items={evidence} onOpen={onOpen} />
-      </div>}
+    <section data-decision-summary aria-label="Decision summary" className="shrink-0 py-1 text-xs leading-5">
+      <dl className="grid grid-cols-[48px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
+        <dt className="text-slate-500"><LocalizedText text="The why" /></dt>
+        <dd className="text-slate-300"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
+        <dt className="text-slate-500"><LocalizedText text="Evidence" /></dt>
+        <dd className="min-w-0">{ordered.length ? <EvidenceLinks items={ordered} onOpen={onOpen} limit={3} /> : '—'}</dd>
+        <dt className="text-slate-500"><LocalizedText text="Decision" /></dt>
+        <dd className="flex flex-wrap items-center gap-x-2">
+          <span className={decision.deviates ? 'text-amber-200' : 'text-white'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
+          {decision.by && <span translate="no" className="text-slate-500">· {decision.by}</span>}
+        </dd>
+      </dl>
     </section>
   )
 }
@@ -186,4 +208,34 @@ function DeviationReasonForm({ request, onSubmit, onCancel }) {
       </div>
     </form>
   )
+}
+
+// Lives below the selected card, outside its radio click target.
+export function InlineDeviationReason({ value, onSave, readOnly = false }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value ?? '')
+  const save = (text) => {
+    const reason = text.trim()
+    if (!reason) return
+    onSave(reason)
+    setEditing(false)
+  }
+  if (value && !editing) return <p key="saved" role="status" className="ds-reason-enter mt-3 flex flex-wrap items-center gap-x-1 text-xs leading-5 text-slate-300">
+    <Check aria-hidden className="mr-1 size-3.5 text-slate-400" />
+    <LocalizedText text="Reason" />: <LocalizedText text={value} />
+    {!readOnly && <button type="button" onClick={() => { setDraft(value); setEditing(true) }} className="ml-1 rounded px-1 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">· <LocalizedText text="Edit reason" /></button>}
+  </p>
+  if (readOnly) return null
+  return <div key="editing" className="ds-reason-reveal"><div className="min-h-0 overflow-hidden">
+  <form data-inline-deviation-reason className="space-y-2.5 px-1 pt-3 pb-1" onSubmit={(event) => { event.preventDefault(); save(draft) }}>
+    <p className="text-xs font-medium text-slate-300"><LocalizedText text="Why depart from the standard?" /></p>
+    <div className="flex flex-wrap gap-1.5">
+      {DEVIATION_REASONS.map((reason) => <button key={reason} type="button" onClick={() => save(reason)} className="ds-intrinsic ds-reason-chip rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text={reason} /></button>)}
+    </div>
+    <div className="flex items-center gap-2">
+      <input autoFocus={editing} aria-label="Your own reason" placeholder="직접 이유 입력" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-8 min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />
+      <button type="submit" disabled={!draft.trim()} className="ds-reason-chip h-8 rounded-full px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"><LocalizedText text="Save" /></button>
+    </div>
+  </form>
+  </div></div>
 }

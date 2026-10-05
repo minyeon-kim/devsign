@@ -57,7 +57,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
-import { DeviationReasonDialog, RulesDialog } from '@/components/conflicts/Rationale'
+import { InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
 import { rationaleOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
@@ -672,7 +672,12 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                   const on = picked(decision)
                   const choose = () => (on ? state.undo() : pick(decision))
                   return (
-                  <div key={side}
+                  <div key={side} className={cn(
+                    'min-w-0 self-start overflow-hidden rounded-xl border transition-colors',
+                    on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
+                    canPick && !on && 'hover:border-white/35'
+                  )}>
+                  <div
                     role="radio"
                     aria-checked={on}
                     aria-disabled={!canPick}
@@ -687,13 +692,13 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                     data-decision={decision}
                     className={cn(
                       // Roomy: ~20px inside, 16px between its parts.
-                      'flex min-w-0 flex-col gap-4 rounded-xl border p-5 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-                      on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
-                      canPick && !on && 'cursor-pointer hover:border-white/35',
+                      'flex min-w-0 flex-col gap-4 rounded-xl p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
+                      canPick && !on && 'cursor-pointer',
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
                       <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} />}</div>
+                      {on && state.reasonNeeded && <span className="shrink-0 text-[11px] font-medium text-slate-400"><LocalizedText text="Reason required" /></span>}
                       {/* This side passes what the other one fails. */}
                       {state.meets[decision] && (
                         <span className="shrink-0 rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
@@ -767,6 +772,16 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       </div>
                     )}
                   </div>
+                  {on && ((decision === 'B' && state.reasonApplies) || state.exceptionReason) && <div className="mx-5 border-t border-white/10 pb-4">
+                  {decision === 'B' && state.reasonApplies && <InlineDeviationReason
+                    key={`${conflict.id}:${decision}`}
+                    value={state.savedReason}
+                    onSave={state.saveReason}
+                    readOnly={readOnly}
+                  />}
+                  {state.exceptionReason && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+                  </div>}
+                  </div>
                   )
                 })}
               </div>
@@ -814,6 +829,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
               </p>
             )}
             {checkBlocks}
+            {state.exceptionReason && (!pairedPreview || !state.side) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {conflict.diff && (
               <div className="min-w-0 pt-2">
                 {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
@@ -1463,6 +1479,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   function handleRequestReview() {
+    if (decisionState.reasonNeeded || reasonRequest) return
     // A fresh review round: earlier "changes requested" go back to pending.
     // The request goes to the other reviewers — never back to you, and never
     // to the author — so you're recorded as the requester (no alert for you).
@@ -1624,7 +1641,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // Picking a side records who decided. Following the standard (the design
   // reference) uses the linked reasons as they are; keeping the current
   // implementation where a rule says otherwise is a departure, and is the
-  // one choice that asks why first (see DeviationReasonDialog).
+  // choice that requires an inline reason before requesting review.
   const pickSide = decisionState.pick
   const recordSide = (side, reason) => {
     pickSide(side)
@@ -1635,10 +1652,21 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
   decisionState.pick = (side) => {
-    const departs = side === 'B' && !decisionState.meets.B
-    if (departs) setReasonRequest({ kind: 'keep-current', subject: conflict.title, run: (reason) => recordSide('B', reason) })
-    else recordSide(side)
+    setReasonRequest(null)
+    recordSide(side)
   }
+  const undoSide = decisionState.undo
+  decisionState.undo = () => {
+    undoSide()
+    setReasonRequest(null)
+    update({ decidedSide: null, decidedBy: null, deviation: null })
+  }
+  decisionState.reasonApplies = decisionState.side === 'B' && (!decisionState.meets.B || conflict?.deviation?.kind === 'keep-current')
+  decisionState.savedReason = conflict?.deviation?.kind === 'keep-current' ? conflict.deviation.text : null
+  decisionState.reasonNeeded = stage !== 'resolved' && decisionState.reasonApplies && !decisionState.savedReason?.trim()
+  decisionState.saveReason = (reason) => recordSide('B', reason)
+  decisionState.exceptionReason = reasonRequest
+  decisionState.saveExceptionReason = (reason) => { reasonRequest?.run(reason); setReasonRequest(null) }
   // Evidence goes to the thing itself: the rule in the rule list, the Figma
   // frame on the canvas, the token where it's defined, the comment in the
   // thread beside the review (lit for a moment).
@@ -1732,13 +1760,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       primary = (
         <>
           {!requiredReviewers(conflict).length && <span className={STATUS_NOTE}><LocalizedText text="Assign a reviewer other than the author to request review." /></span>}
-          <button type="button" disabled={!requiredReviewers(conflict).length} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}>
+          <button type="button" disabled={!requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest)} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}>
             Request review
           </button>
         </>
       )
     } else if (stage === 'in_review' && (ownChange || conflict.requestedBy === viewerId) && requiredReviewers(conflict).some((reviewer) => reviewer.status === 'changes_requested')) {
-      primary = <button type="button" onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request review again" /></button>
+      primary = <button type="button" disabled={decisionState.reasonNeeded || Boolean(reasonRequest)} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request review again" /></button>
     } else if (stage === 'in_review' && canReview) {
       // Yours to decide — also after requesting changes, so you can approve
       // once they're fixed (or change your mind).
@@ -1804,7 +1832,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 >
                   <ChevronLeft className="size-5" />
                 </button>
-                <h2 className="min-w-0 truncate text-[13px] font-semibold text-white">
+                <h2 className="min-w-0 truncate text-sm font-semibold text-white">
                   <LocalizedText text={conflict.title} />
                 </h2>
                 {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
@@ -1813,25 +1841,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {primary}
               </div>
             </div>
-
-            {!conflict.rollback && tab === 'history' && <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 pl-11 text-[11px] text-slate-400">
-              <span><LocalizedText text="Author" /> · <span translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</span></span>
-              <span><LocalizedText text="Updated" /> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
-              <ReviewStageBadge plain stage={stage} />
-              {severity && <SeverityPill plain level={severity.label} />}
-              <Popover>
-                <PopoverTrigger className="cursor-pointer text-slate-400 hover:text-white"><LocalizedText text="Details" /> <span aria-hidden>↗</span></PopoverTrigger>
-                <PopoverContent className="max-h-[60vh] w-96 overflow-y-auto border-white/10 bg-card p-4 text-xs text-slate-300">
-                  <p><LocalizedText text={conflict.message ?? ''} /></p>
-                  <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-                    <dt><LocalizedText text="Due date" /></dt><dd><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
-                    <dt><LocalizedText text="Checks" /></dt><dd>{checks ? <><LocalizedText text="Failing checks" /> · {checks.failing.length}</> : '—'}</dd>
-                    <dt><LocalizedText text="Reviewers" /></dt><dd>{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
-                  </dl>
-                  <ReviewDetails conflict={conflict} showProject />
-                </PopoverContent>
-              </Popover>
-            </div>}
 
             {/* Review and Activity are two views of the one conflict: tabs
                 under its title (said once, above). The only way back is the
@@ -1845,7 +1854,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     role="tab"
                     aria-selected={tab === value}
                     onClick={() => openTab(value)}
-                    className="ds-intrinsic -mb-px inline-flex items-center border-b-2 border-transparent px-0.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
+                    className="ds-intrinsic -mb-px inline-flex items-center border-b-2 border-transparent px-0 text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
                   >
                     <LocalizedText text={label} />
                   </button>
@@ -1853,7 +1862,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             )}
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-2 pb-3">
+            {/* Title, tabs and activity share the 44px content rail.
+                The back button occupies the separate 32px gutter. */}
+            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-3 pb-3', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
@@ -1970,11 +1981,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           </>
         )}
         <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
-        <DeviationReasonDialog
-          request={reasonRequest}
-          onCancel={() => setReasonRequest(null)}
-          onSubmit={(reason) => { reasonRequest.run(reason); setReasonRequest(null) }}
-        />
+
     </div>
   )
 }
