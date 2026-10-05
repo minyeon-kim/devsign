@@ -84,7 +84,10 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     const size = parseFloat(props.find((p) => p.layerId === layerId && pattern.test(p.diff.label))?.value)
     return Number.isFinite(size) ? size : null
   }
-  const touchOf = (l) => sizeProp(l.id, TOUCH_PROP) ?? Math.min(l.width, l.height)
+  // …and where it has both a decided size and a size set on the element
+  // itself (resized by hand), the larger one is what can be touched.
+  const SIZE_PROP = /tap area|hit area|touch|size/i
+  const touchOf = (l) => Math.max(sizeProp(l.id, SIZE_PROP) ?? 0, Math.min(l.width, l.height))
   const changedLayers = new Set(Object.keys(layerDiffs))
   const interactive = layers.filter((l) => ['button', 'input', 'iconbtn', 'chip', 'toggle'].includes(l.type) && (!changedLayers.size || changedLayers.has(l.id)))
   const smallTargets = interactive.filter((l) => touchOf(l) < 24)
@@ -94,8 +97,10 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
   const smallIcons = props
     .filter((p) => /icon size/i.test(p.diff.label) && parseFloat(p.value) < 24)
     .map((p) => ({ ...p, touch: sizeProp(p.layerId, TOUCH_PROP), name: item.category ?? layers.find((l) => l.id === p.layerId)?.name ?? p.layerId }))
-  const untouchableIcons = smallIcons.filter((icon) => icon.touch == null || icon.touch < 24)
-  const mismatchedIcons = smallIcons.filter((icon) => icon.touch != null && icon.touch >= 24)
+  // (An icon that is itself the control is already covered above.)
+  const isControl = (icon) => interactive.some((l) => l.id === icon.layerId)
+  const untouchableIcons = smallIcons.filter((icon) => !isControl(icon) && (icon.touch == null || icon.touch < 24))
+  const mismatchedIcons = smallIcons.filter((icon) => !isControl(icon) && icon.touch != null && icon.touch >= 24)
   const targetFailures = smallTargets.length + untouchableIcons.length
   const accents = [...new Set(props.filter((p) => /accent/i.test(p.diff.label) && ACCENT_HEX[p.value]).map((p) => p.value))]
   const worstAccent = accents.map((a) => ({ a, ratio: contrastOnWhite(ACCENT_HEX[a]) })).sort((x, y) => x.ratio - y.ratio)[0]

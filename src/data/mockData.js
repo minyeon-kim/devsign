@@ -232,6 +232,66 @@ export const projects = [
 // conflictPoints below), so the shared ConflictModal shows the full
 // Overview / Diff / AI suggestion view from every entry point.
 export const conflictChecklist = [
+  // Two samples for checking a precise (by-hand) adjustment end to end.
+  //
+  // 1 — already adjusted. The close button is 20 × 20px in the code *and*
+  // the design, so no side can be picked to fix it; it was resized to
+  // 24 × 24px in Merge Studio. The original and adjusted sizes are kept
+  // apart (`adjustment.from` / `.to`) and `resolution: 'manual'` says how it
+  // was settled. The adjusted size seeds this item's Merge Studio draft
+  // (lib/sizeAdjustment), which is what the review, its code and the list
+  // read — so undoing it there really undoes it.
+  {
+    id: 'cc-touch-adjusted',
+    gitFlow: { source: 'feature/coupon-touch-area', target: 'develop' },
+    token: 'Coupon close button / Touch area',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    file: 'src/components/checkout/CouponNotice.jsx',
+    fileId: 'coupon-notice',
+    line: 3,
+    mergeItemId: 'merge-checkout-touch-adjusted',
+    layerId: 'coupon-close',
+    timestamp: 'Just now',
+    resolved: false,
+    severity: 'medium',
+    detectedBy: 'Accessibility check',
+    message: 'The close button is 20 × 20px in both the code and the design — under the 24px touch area.',
+    suggestion: 'Resize the close button to at least 24 × 24px in Merge Studio.',
+    riskReason: 'Both versions share the same size, so picking a side cannot fix its touch area.',
+    branches: { local: 'CouponNotice.jsx', remote: 'Coupon notice (Figma)' },
+    comparisonFields: [{ label: 'Touch area', current: '20 × 20px', expected: '20 × 20px' }],
+    reviewers: [{ id: 'min', status: 'pending' }],
+    diff: { before: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'], after: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'] },
+    resolution: 'manual',
+    adjustment: { from: { width: 20, height: 20 }, to: { width: 24, height: 24 } },
+  },
+  // 2 — not adjusted yet. 20px in code, 24px in the design, nothing picked
+  // or resized: open it in Merge Studio, change the icon's W / H (or pick
+  // the design), come back, and the card, code and summary follow.
+  {
+    id: 'cc-tab-icon-size',
+    gitFlow: { source: 'feature/tab-icon-size', target: 'develop' },
+    token: 'Tab icon / Size',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    file: 'src/components/checkout/CheckoutTabs.jsx',
+    fileId: 'checkout-tabs',
+    line: 3,
+    mergeItemId: 'merge-checkout-tab-icon',
+    layerId: 'tab-icon',
+    timestamp: 'Just now',
+    resolved: false,
+    severity: 'low',
+    detectedBy: 'Devsign design ↔ code sync',
+    message: 'The tab icon is 20px in code; the design uses 24px.',
+    suggestion: 'Pick the design size, or set the icon’s W and H in Merge Studio.',
+    riskReason: 'Low: one icon on the checkout tabs.',
+    branches: { local: 'CheckoutTabs.jsx', remote: 'Checkout tabs (Figma)' },
+    comparisonFields: [{ label: 'Icon size', current: '20px', expected: '24px' }],
+    reviewers: [{ id: 'james', status: 'pending' }],
+    diff: { before: ['    <TabIcon className="size-5" />'], after: ['    <TabIcon className="size-6" />'] },
+  },
   {
     id: 'cc-manual-target',
     gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
@@ -985,6 +1045,21 @@ export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
 // separate static preview. `dueBucket` drives the sidebar's due-date filter
 // ('overdue' | 'soon' | 'none'); `dueLabel` is just its display text.
 export const mergeListItems = [
+  // The two precise-adjustment samples (see conflictChecklist).
+  {
+    id: 'merge-checkout-touch-adjusted', projectId: 'checkout-redesign', conflictId: 'cc-touch-adjusted',
+    title: 'Coupon close button / Touch area', subtitle: '1 file · Design + Code',
+    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['coupon-notice'],
+    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout',
+    conflictLevel: 'Medium', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'min',
+  },
+  {
+    id: 'merge-checkout-tab-icon', projectId: 'checkout-redesign', conflictId: 'cc-tab-icon-size',
+    title: 'Tab icon / Size', subtitle: '1 file · Design + Code',
+    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['checkout-tabs'],
+    hasDesign: true, designPageId: 'page-checkout-tabs', category: 'Checkout',
+    conflictLevel: 'Low', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'james',
+  },
   {
     id: 'merge-checkout-manual-target', projectId: 'checkout-redesign', conflictId: 'cc-manual-target',
     title: 'Coupon close button / Manual adjustment', subtitle: '1 file · Design + Code',
@@ -1335,6 +1410,15 @@ export const mergeListItems = [
 // layer's generic token binding (via `inspectorSpecsByType`, keyed by
 // layer.type) plus a generic Keep A / Accept B choice.
 export const designMergeVariants = {
+  // Same size on both sides: nothing to pick, only to resize by hand.
+  'merge-checkout-touch-adjusted': {
+    layerDiffs: {},
+    layerCodeMap: { 'coupon-close': { fileId: 'coupon-notice', line: 3, span: 1 } },
+  },
+  'merge-checkout-tab-icon': {
+    layerDiffs: { 'tab-icon': [{ id: 'icon-size', label: 'Icon size', optionA: '24px', optionB: '20px' }] },
+    layerCodeMap: { 'tab-icon': { fileId: 'checkout-tabs', line: 3, span: 1 } },
+  },
   'merge-checkout-manual-target': {
     layerDiffs: { 'coupon-close': [{ id: 'close-radius', label: 'Radius', optionA: '8px', optionB: '4px' }] },
     layerCodeMap: { 'coupon-close': { fileId: 'coupon-notice', line: 3, span: 1 } },
@@ -1650,6 +1734,9 @@ export const designMergeVariants = {
 // not listed render identically on both sides (no diff coloring); a
 // file/item with no entries just shows a plain, un-highlighted comparison.
 export const codeMergeVariants = {
+  'merge-checkout-tab-icon': {
+    'checkout-tabs': [{ id: 'tab-icon-size', line: 3, incoming: '    <TabIcon className="size-6" />' }],
+  },
   'merge-checkout-manual-target': {
     'coupon-notice': [{ id: 'coupon-close-radius', line: 3, incoming: '    <button className="w-[20px] h-[20px] rounded-[8px]" aria-label="Close coupon">×</button>' }],
   },
@@ -1992,6 +2079,11 @@ export const projectFileSets = {
       id: 'coupon-notice', name: 'CouponNotice.jsx', path: 'src/components/checkout/CouponNotice.jsx',
       language: 'jsx', iconName: 'FileCode',
       lines: ['export function CouponNotice() {', '  return (', '    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>', '  )', '}'],
+    },
+    {
+      id: 'checkout-tabs', name: 'CheckoutTabs.jsx', path: 'src/components/checkout/CheckoutTabs.jsx',
+      language: 'jsx', iconName: 'FileCode',
+      lines: ['export function CheckoutTabs() {', '  return (', '    <TabIcon className="size-5" />', '  )', '}'],
     },
   ],
   'design-system-v2': [
@@ -2884,6 +2976,16 @@ export const canvasPages = [
         ],
       },
     ],
+  },
+  {
+    id: 'page-checkout-tabs', projectId: 'checkout-redesign', name: 'Checkout tabs',
+    frames: [{
+      id: 'frame-checkout-tabs', name: 'Checkout tabs', kind: 'frame', x: 80, y: 40, width: 280, height: 200,
+      layers: [
+        { id: 'tab-title', name: 'Checkout tabs', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Payment' },
+        { id: 'tab-icon', name: 'Tab icon', kind: 'component', type: 'iconbtn', x: 130, y: 120, width: 20, height: 20, label: '⌂' },
+      ],
+    }],
   },
   {
     id: 'page-coupon-notice', projectId: 'checkout-redesign', name: 'Coupon notice',

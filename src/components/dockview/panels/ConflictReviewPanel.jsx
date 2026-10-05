@@ -37,7 +37,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, canvasPages, currentUserFor } from '@/data/mockData'
+import { allPeople, currentUserFor } from '@/data/mockData'
+import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
 import {
   approvalStatus,
@@ -361,25 +362,6 @@ function DueDate({ label, className }) {
       <LocalizedText text={shortDue(label) ?? label} />
     </span>
   )
-}
-
-// A size set by hand in Merge Studio on the conflict's own element (W / H
-// in Properties → Layout): what it was in both versions and what it is
-// now. Read from the item's draft, so it shows here as soon as it's made
-// and is gone as soon as it's undone. Null when nothing was resized.
-function sizeAdjustmentOf(conflict, item, workspace) {
-  if (!conflict?.layerId || !item) return null
-  const layer = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers?.find((l) => l.id === conflict.layerId)
-  const sized = workspace?.mergeDrafts?.current?.[item.id]?.assemblies?.[conflict.layerId]
-  if (!layer || !sized) return null
-  const to = { width: sized.width ?? layer.width, height: sized.height ?? layer.height }
-  if (to.width === layer.width && to.height === layer.height) return null
-  const text = (size) => `${size.width} × ${size.height}px`
-  return {
-    layerName: layer.name, from: text(layer), to: text(to),
-    // The same change in the code: the element's w-[…] / h-[…] classes.
-    applyTo: (line) => line.replace(`w-[${layer.width}px]`, `w-[${to.width}px]`).replace(`h-[${layer.height}px]`, `h-[${to.height}px]`),
-  }
 }
 
 // The review's left card is context only: where it stands (one line —
@@ -727,13 +709,13 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {/* Red / green only where the two sides differ — a
                               value that's the same on both isn't a change. */}
-                          {adjustment && adjusted(decision) && value(field) === adjustment.from ? (
+                          {adjustment && adjusted(decision) && adjustment.display(value(field)) ? (
                             // Adjusted by hand: what it was, struck through,
                             // then what it is now.
                             <dd className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums">
-                              <span className="font-normal text-slate-500 line-through">{adjustment.from}</span>
+                              <span className="font-normal text-slate-500 line-through">{adjustment.display(value(field)).from}</span>
                               <span aria-hidden className="font-normal text-slate-500">→</span>
-                              <span className="text-emerald-300">{adjustment.to}</span>
+                              <span className="text-emerald-300">{adjustment.display(value(field)).to}</span>
                             </dd>
                           ) : (
                           <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}>
@@ -1584,7 +1566,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const fileLines = workspace && conflict?.fileId ? workspace.getFileLines(conflict.fileId) : null
   // A size adjusted in Merge Studio is part of the change: its lines carry
   // the new w-[…] / h-[…], so the diff below shows what will be merged.
-  const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, driftItem, workspace) : null
+  // (Its merge item is looked up directly: an element with the same size on
+  // both sides has nothing to pick, but can still be resized.)
+  const mergeItem = conflict ? workspace?.mergeItems?.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id) ?? null : null
+  const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, mergeItem, workspace?.mergeDrafts?.current) : null
   const changeAfter = adjustment ? (conflict?.diff?.after ?? []).map(adjustment.applyTo) : conflict?.diff?.after ?? []
   const generatedFile = fileLines && conflict.diff
     ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], changeAfter)
@@ -1757,7 +1742,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
                             adjustment={adjustment}
                             changeAfter={changeAfter}
-                            onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => workspace.resetLayerSize(driftItem.id, conflict.layerId) : undefined}
+                            onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => {
+                              workspace.resetLayerSize(mergeItem.id, conflict.layerId)
+                              // A seeded "settled by hand" record goes back to open with it.
+                              if (conflict.resolution === 'manual') update({ resolution: null, adjustment: null })
+                            } : undefined}
                             state={decisionState}
                             checks={checks}
                             checkActions={checkActions}

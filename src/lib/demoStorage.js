@@ -22,12 +22,16 @@ export function readDemo(key, fallback) {
     if (fallback && typeof fallback === 'object' && (value === null || Array.isArray(value) !== Array.isArray(fallback))) return fallback
     // Add the manual-adjustment example to existing sessions without
     // resetting their saved decisions, reviews, or history.
-    const addedId = key === 'conflicts' ? 'cc-manual-target'
-      : key === 'project:checkout-redesign:mergeItems' ? 'merge-checkout-manual-target' : null
-    if (addedId && Array.isArray(value) && Array.isArray(fallback) && !value.some((row) => row.id === addedId)) {
-      const example = fallback.find((row) => row.id === addedId)
-      if (example) return [example, ...value]
+    // (Likewise the two precise-adjustment samples.)
+    const addedIds = key === 'conflicts' ? ['cc-touch-adjusted', 'cc-tab-icon-size', 'cc-manual-target']
+      : key === 'project:checkout-redesign:mergeItems' ? ['merge-checkout-touch-adjusted', 'merge-checkout-tab-icon', 'merge-checkout-manual-target'] : []
+    if (addedIds.length && Array.isArray(value) && Array.isArray(fallback)) {
+      const examples = addedIds.filter((id) => !value.some((row) => row.id === id)).map((id) => fallback.find((row) => row.id === id)).filter(Boolean)
+      if (examples.length) return [...examples, ...value]
     }
+    // A seeded draft (an already-adjusted sample) reaches a session that
+    // has drafts saved but none for that item; a draft it has is kept as is.
+    if (key.endsWith(':mergeDrafts') && value && fallback && !Array.isArray(value)) return { ...fallback, ...value }
     // History's branch-graph samples (see projectHistorySeeds): a session
     // saved before them gets the missing seed checkpoints put back in seed
     // order, ahead of whatever it recorded since — nothing it has is

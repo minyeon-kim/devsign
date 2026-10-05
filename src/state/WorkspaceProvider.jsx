@@ -9,6 +9,7 @@ import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
 import { rollbackChanges, rollbackImpact } from '@/lib/rollbackImpact'
+import { seedMergeDrafts } from '@/lib/sizeAdjustment'
 import { diffLines } from '@/lib/lineDiff'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { assemblyToOverride, frameWithLayers } from '@/components/mergestudio/mergeEffects'
@@ -348,7 +349,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
-  const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, {}))
+  const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, seedMergeDrafts(projectId)))
   // A conflict's checks, from its merge item and that item's draft (the
   // choices made in Merge Studio) — run fresh wherever they're shown.
   const linesOfFile = useCallback((fileId) => fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? [], [fileOverrides, files])

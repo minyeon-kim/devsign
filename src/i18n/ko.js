@@ -57,6 +57,17 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
+Coupon close button / Touch area|쿠폰 닫기 버튼 / 터치 영역
+The close button is 20 × 20px in both the code and the design — under the 24px touch area.|닫기 버튼이 코드와 디자인 모두 20 × 20px로, 24px 터치 영역 기준보다 작습니다.
+Resize the close button to at least 24 × 24px in Merge Studio.|병합 스튜디오에서 닫기 버튼을 24 × 24px 이상으로 조정하세요.
+Both versions share the same size, so picking a side cannot fix its touch area.|두 버전의 크기가 같아 한쪽을 선택하는 것만으로는 터치 영역을 해결할 수 없습니다.
+Tab icon / Size|탭 아이콘 / 크기
+Tab icon|탭 아이콘
+Checkout tabs|결제 탭
+Checkout tabs (Figma)|결제 탭 (Figma)
+The tab icon is 20px in code; the design uses 24px.|탭 아이콘이 코드에서는 20px이고, 디자인 기준은 24px입니다.
+Pick the design size, or set the icon’s W and H in Merge Studio.|디자인 크기를 선택하거나, 병합 스튜디오에서 아이콘의 W와 H를 직접 조정하세요.
+Low: one icon on the checkout tabs.|낮음: 결제 탭의 아이콘 하나에만 해당합니다.
 Conflict marks|충돌 표시
 Add bottom nav|하단 내비 추가
 Keep icons at 20px|아이콘 20px 유지

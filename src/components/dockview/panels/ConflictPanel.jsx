@@ -20,6 +20,7 @@ import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPane
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allDecided } from '@/lib/driftDecisions'
 import { ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
+import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
 
 // One icon per row, chosen by severity and carried only inside the badge.
 const severityConfig = {
@@ -146,7 +147,7 @@ function ConflictPanel({ inMergeStudio }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts } = useWorkspace()
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
   const batchable = conflicts.filter(isQueuedConflict).filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
@@ -328,6 +329,13 @@ function ConflictPanel({ inMergeStudio }) {
                       />
                     </td>
                     <td className="py-3.5">
+                      {/* Settled by resizing the element in Merge Studio —
+                          said beside the stage it's in. */}
+                      {isOpen(conflict) && sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current) && (
+                        <span className="mr-1.5 inline-flex h-6 items-center rounded-md bg-emerald-400/15 px-2 align-top text-[11px] font-medium whitespace-nowrap text-emerald-200">
+                          <LocalizedText text="Adjusted by hand" />
+                        </span>
+                      )}
                       <ReviewStageBadge quiet stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
                     </td>
                     <td className="py-3.5">
