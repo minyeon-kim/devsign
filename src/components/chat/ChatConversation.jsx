@@ -319,6 +319,17 @@ function ChatConversation() {
   // The checkpoint whose inline "Rollback here" was clicked (confirming).
   const [rollbackId, setRollbackId] = useState(null)
   const listRef = useRef(null)
+  // The suggestions overlay the end of the list; the list keeps that much
+  // room under its last message so nothing ends up hidden behind them.
+  const suggestionsRef = useRef(null)
+  const [suggestionsHeight, setSuggestionsHeight] = useState(72)
+  useEffect(() => {
+    const el = suggestionsRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => setSuggestionsHeight(el.offsetHeight))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
@@ -380,7 +391,7 @@ function ChatConversation() {
         </p>
       )}
       <div className="relative flex min-h-0 flex-1">
-        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3" style={{ '--scroll-fade-size': '8px', '--scroll-fade-edge': 'rgb(0 0 0 / 65%)' }}>
+        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 pt-3" style={{ '--scroll-fade-size': '8px', '--scroll-fade-edge': 'rgb(0 0 0 / 65%)', paddingBottom: suggestionsHeight }}>
         {chatMessages.map((message, index) => (
           <div key={message.id} className={cn('group/chat flex w-full flex-col', message.role === 'user' ? 'items-end gap-1.5' : 'items-start gap-0.5')}>
             <div
@@ -432,26 +443,29 @@ function ChatConversation() {
         ))}
         {isAiTyping && <TypingBubble />}
         </div>
+          {/* The suggestions sit over the end of the conversation, and the
+              messages fade out behind them — from where the suggestions begin
+              down to the input, instead of a hard edge above the chips. */}
+          <div ref={suggestionsRef} className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap gap-2 bg-gradient-to-t from-card from-55% to-transparent px-2 pt-8 pb-2 [&>button]:pointer-events-auto">
+          {suggestions.map((suggestion) => {
+            const Icon = suggestionIcons[suggestion.iconName]
+            const fixedTarget = suggestion.targetLayerId ? elementTarget(suggestion.targetLayerId) : null
+            return (
+              <button
+                key={suggestion.id}
+                type="button"
+                disabled={isAiTyping}
+                onClick={() => handleSend(suggestion.prompt, fixedTarget)}
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#222224] px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:border-emerald-400/30 hover:text-white disabled:opacity-50"
+              >
+                {Icon && <Icon className="size-3 text-emerald-300" />}
+                {suggestion.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-2 px-2 pt-3 pb-2">
-        {suggestions.map((suggestion) => {
-          const Icon = suggestionIcons[suggestion.iconName]
-          const fixedTarget = suggestion.targetLayerId ? elementTarget(suggestion.targetLayerId) : null
-          return (
-            <button
-              key={suggestion.id}
-              type="button"
-              disabled={isAiTyping}
-              onClick={() => handleSend(suggestion.prompt, fixedTarget)}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 transition-colors hover:border-emerald-400/30 hover:text-white disabled:opacity-50"
-            >
-              {Icon && <Icon className="size-3 text-emerald-300" />}
-              {suggestion.label}
-            </button>
-          )
-        })}
-      </div>
 
       <div className="shrink-0 space-y-1.5 p-2">
         {attachments.length > 0 && (

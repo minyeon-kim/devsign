@@ -165,6 +165,19 @@ export function toConflictRecord(raw) {
   }
 }
 
+// A due date as just the when ("In 2 days", "Tomorrow") — the column or
+// clock icon beside it already says it's a due date. Null for none.
+export function shortDue(label) {
+  const text = String(label ?? '')
+  let match
+  if ((match = /^Due in (\d+) days?$/.exec(text))) return `In ${match[1]} day${match[1] === '1' ? '' : 's'}`
+  if ((match = /^Overdue by (\d+) days?$/.exec(text))) return `${match[1]} day${match[1] === '1' ? '' : 's'} overdue`
+  if (/^Due tomorrow$/.test(text)) return 'Tomorrow'
+  if (/^Due today$/.test(text)) return 'Today'
+  if (!text || /^No due date$/.test(text)) return null
+  return text
+}
+
 // Every project's conflicts, as records (the ConflictStore's seed).
 export function allConflictRecords() {
   return conflictChecklist.map(toConflictRecord)

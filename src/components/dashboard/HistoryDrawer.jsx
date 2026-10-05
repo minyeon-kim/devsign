@@ -11,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { diffStats } from '@/lib/lineDiff'
@@ -51,9 +50,9 @@ function ActorAvatar({ entry }) {
   const person = entry.actorId ? allPeople.find((p) => p.id === entry.actorId) : null
   if (!person) return null
   return (
-    <Avatar size="sm" className="size-4" title={person.name}>
-      <AvatarFallback className={cn('text-[7px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
-    </Avatar>
+    <span title={person.name} className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[7px] leading-none font-semibold text-white', person.colorClass)}>
+      {person.initials}
+    </span>
   )
 }
 

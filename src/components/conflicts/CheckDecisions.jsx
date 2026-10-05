@@ -21,15 +21,20 @@ function Tag({ required, ko }) {
 }
 
 // `activeId`: the check being fixed right now (its guide is open).
-export function CheckDecisions({ checks, activeId, onFix, onAccept, onUndoAccept }) {
+// `only`: the failing checks to list here (the review shows required ones
+// and suggestions in different places); `showAccepted` adds the ones being
+// applied as they are. Amber is for required checks only.
+export function CheckDecisions({ checks, only, showAccepted = !only, activeId, onFix, onAccept, onUndoAccept }) {
   const ko = useLanguage() === 'ko'
-  if (!checks || (!checks.failing.length && !checks.accepted?.length)) return null
+  const failing = only ?? checks?.failing ?? []
+  const accepted = showAccepted ? checks?.accepted ?? [] : []
+  if (!checks || (!failing.length && !accepted.length)) return null
   return (
     <ul className="mt-2 space-y-1.5">
-      {checks.failing.map((check) => {
+      {failing.map((check) => {
         const required = checks.blocking.includes(check)
         return (
-          <li key={check.id} className={cn('rounded-lg p-2.5', required ? 'bg-amber-400/[0.07] ring-1 ring-amber-300/25 ring-inset' : 'bg-white/[0.04]', activeId === check.id && 'ring-1 ring-amber-300/70 ring-inset')}>
+          <li key={check.id} className={cn('rounded-lg p-2.5', required ? 'bg-amber-400/[0.07] ring-1 ring-amber-300/25 ring-inset' : 'bg-white/[0.04]', activeId === check.id && (required ? 'ring-1 ring-amber-300/70 ring-inset' : 'ring-1 ring-white/30 ring-inset'))}>
             <p className="flex min-w-0 items-start gap-1.5 text-xs leading-[18px] font-medium text-white">
               <TriangleAlert className={cn('mt-0.5 size-3.5 shrink-0', required ? 'text-amber-300' : 'text-slate-400')} />
               <span className="min-w-0 flex-1 break-words"><LocalizedText text={check.title} /></span>
@@ -39,7 +44,7 @@ export function CheckDecisions({ checks, activeId, onFix, onAccept, onUndoAccept
             {(onFix || onAccept) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-5">
                 {onFix && (
-                  <button type="button" onClick={() => onFix(check)} className={cn(ACTION, 'bg-amber-300 text-slate-950 hover:bg-amber-200')}>
+                  <button type="button" onClick={() => onFix(check)} className={cn(ACTION, required ? 'bg-amber-300 text-slate-950 hover:bg-amber-200' : 'bg-white/[0.1] text-white hover:bg-white/[0.16]')}>
                     <Wrench className="size-3" />
                     {ko ? '수정하기' : 'Fix it'}
                   </button>
@@ -54,7 +59,7 @@ export function CheckDecisions({ checks, activeId, onFix, onAccept, onUndoAccept
           </li>
         )
       })}
-      {(checks.accepted ?? []).map((check) => (
+      {accepted.map((check) => (
         <li key={check.id} className="flex min-w-0 items-center gap-1.5 rounded-lg bg-white/[0.03] px-2.5 py-2 text-xs leading-[18px] text-slate-400">
           <Check className="size-3.5 shrink-0 text-slate-400" />
           <span className="min-w-0 flex-1 break-words">

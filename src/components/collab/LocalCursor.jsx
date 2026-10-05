@@ -78,11 +78,11 @@ function LocalCursor({ containerRef }) {
 
   return (
     <div
-      // Above everything, popups included (they sit at z-[1000]): the OS
-      // cursor is hidden app-wide, so anything drawn over this hides the
-      // pointer itself.
+      // Above everything — popups (z-[1000]) and toasts too, which Sonner
+      // puts at z-index 999999999: the OS cursor is hidden app-wide, so
+      // anything drawn over this hides the pointer itself.
       className={cn(
-        'pointer-events-none z-[10000]',
+        'pointer-events-none z-[2147483647]',
         containerRef ? 'absolute' : 'fixed'
       )}
       style={{ left: pos.x, top: pos.y }}

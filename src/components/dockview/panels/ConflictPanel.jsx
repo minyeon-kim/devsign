@@ -3,12 +3,12 @@ import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBad
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, Clock3, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
+import { authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -335,7 +335,7 @@ function ConflictPanel({ inMergeStudio }) {
                     <td className="min-w-0 px-1.5 py-2">
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
-                          <span className="line-clamp-1 min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
+                          <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
                           {/* Discussion at a glance (also what keeps a change out of batch approval). */}
                           {commentCount > 0 && (
                             <span className="inline-flex shrink-0 items-center gap-0.5 text-[11.5px] font-normal text-slate-300" aria-label={`${commentCount} comments`}>
@@ -343,17 +343,17 @@ function ConflictPanel({ inMergeStudio }) {
                             </span>
                           )}
                         </p>
-                        <p className="flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-slate-300">
-                          <FileCode2 className="size-3 shrink-0" />
-                          <span className="line-clamp-1 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
+                        <p className="flex min-w-0 items-start gap-1 text-[11.5px] leading-4 text-slate-300">
+                          <FileCode2 className="mt-0.5 size-3 shrink-0" />
+                          <span className="font-mono [overflow-wrap:anywhere]">{conflict.file}</span>
                         </p>
                       </div>
                     </td>
                     <td className="py-2 text-xs whitespace-nowrap tabular-nums">
-                      {conflict.dueLabel ? (
+                      {shortDue(conflict.dueLabel) ? (
+                        // Just the when — the column already says "Due date".
                         <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-200')}>
-                          <Clock3 className="size-3.5 shrink-0" />
-                          <LocalizedText text={conflict.dueLabel} />
+                          <LocalizedText text={shortDue(conflict.dueLabel)} />
                         </span>
                       ) : <span className="text-slate-500">—</span>}
                     </td>
@@ -396,7 +396,7 @@ function ConflictPanel({ inMergeStudio }) {
                         {conflict.rollback ? (
                           // A rollback agreement: what's rolled back, who
                           // it affects, and how many of them have confirmed.
-                          <p className="line-clamp-1 text-[12.5px] leading-5 text-slate-200" title={conflict.rollback.label}>
+                          <p className="text-[12.5px] leading-5 break-words text-slate-200">
                             <span className="text-slate-400"><LocalizedText text="Rolling back" /> </span>
                             <LocalizedText text={conflict.rollback.target} />
                             <span className="text-slate-400"> · <LocalizedText text="Affected" /> </span>
@@ -405,7 +405,7 @@ function ConflictPanel({ inMergeStudio }) {
                             <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
                           </p>
                         ) : conflict.message ? (
-                          <p className="line-clamp-1 text-[12.5px] leading-5 text-slate-200" title={conflict.message}>
+                          <p className="text-[12.5px] leading-5 break-words text-slate-200">
                             <LocalizedText text={conflict.message} />
                           </p>
                         ) : <span className="text-slate-500">—</span>}
@@ -421,7 +421,7 @@ function ConflictPanel({ inMergeStudio }) {
                       )}
                     </td>
                     {/* The day only ("Yesterday", "2 hours ago"); the exact time is on hover. */}
-                    <td className="truncate py-2 pr-1 text-right text-xs whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
+                    <td className="py-2 pr-1 text-right text-xs text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
                       <LocalizedText text={(conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')} />
                     </td>
 
@@ -571,9 +571,11 @@ const REVIEW_NOTE = { approved: 'Approved', changes_requested: 'Changes requeste
 // On a rollback agreement the people listed are the ones it affects.
 const ROLLBACK_NOTE = { approved: 'Confirmed', changes_requested: 'Objected', pending: 'Not confirmed yet' }
 
-// A person in the list is only initials — hovering says who that is: the
-// name, role and team, plus what they are to this row (`note`).
+// A person in the list is only initials — hovering says who that is, as
+// three aligned rows and nothing else: name, role, and where they stand on
+// this row (`note`).
 function PersonHover({ person, note, className }) {
+  const rows = [['Name', person.fullName ?? person.name], ['Role', person.role], ['Sign-off', note]].filter(([, value]) => value)
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex rounded-full" />} onClick={(event) => event.stopPropagation()}>
@@ -581,17 +583,15 @@ function PersonHover({ person, note, className }) {
           <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
         </Avatar>
       </TooltipTrigger>
-      <TooltipContent className="flex items-center gap-2.5 px-3 py-2 text-left">
-        <Avatar size="sm">
-          <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
-        </Avatar>
-        <span className="min-w-0">
-          <span className="block text-xs font-semibold"><LocalizedText text={person.fullName ?? person.name} /></span>
-          <span className="block text-[11px] opacity-75">
-            <LocalizedText text={person.role} />{person.team && <> · <LocalizedText text={person.team} /></>}
-          </span>
-          {note && <span className="mt-0.5 block text-[11px] opacity-75"><LocalizedText text={note} /></span>}
-        </span>
+      <TooltipContent className="px-3 py-2 text-left">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11.5px] leading-4">
+          {rows.map(([label, value]) => (
+            <Fragment key={label}>
+              <dt className="opacity-60"><LocalizedText text={label} /></dt>
+              <dd className="font-medium"><LocalizedText text={value} /></dd>
+            </Fragment>
+          ))}
+        </dl>
       </TooltipContent>
     </Tooltip>
   )

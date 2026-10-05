@@ -4,6 +4,11 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+Sign-off|확인 여부
+Tomorrow|내일
+Merge blocked|병합 차단
+This decision is blocking the merge|현재 결정 때문에 병합이 막혀 있습니다
+Suggestions|권장 항목
 View in Conflict list|충돌 목록에서 보기
 Rolling back|되돌리는 대상
 Affected people|영향받는 작업자

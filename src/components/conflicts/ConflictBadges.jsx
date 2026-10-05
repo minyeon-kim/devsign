@@ -25,6 +25,6 @@ export function BranchInfo({ conflict, compact = false }) {
       <span className="shrink-0 rounded bg-violet-400/15 px-1.5 py-0.5 text-[11px] font-semibold text-violet-200">{flow.source.split('/')[0]}</span>
       {!compact && <span className="min-w-0 break-all font-mono">{flow.source}</span>}
     </div>
-    <p className="truncate text-[11.5px] text-slate-300">{compact ? `${flow.source} → ${flow.target}` : `→ ${flow.target}`}</p>
+    <p className={cn('text-[11.5px] text-slate-300', compact ? 'break-all' : 'truncate')}>{compact ? `${flow.source} → ${flow.target}` : `→ ${flow.target}`}</p>
   </div>
 }

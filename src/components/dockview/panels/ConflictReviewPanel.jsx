@@ -1,5 +1,4 @@
 import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
-import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   ArrowUpRight,
@@ -45,6 +44,7 @@ import {
   approvalStatus,
   requiredReviewers,
   authorOf,
+  shortDue,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { CheckDecisions, CheckGuideNote } from '@/components/conflicts/CheckDecisions'
@@ -358,10 +358,13 @@ function DueDate({ label, className }) {
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1 tabular-nums', /overdue|today/i.test(label) ? 'text-amber-300' : 'text-slate-200', className)} title="Due date">
       <Clock3 className="size-3.5 shrink-0" />
-      <LocalizedText text={label} />
+      <LocalizedText text={shortDue(label) ?? label} />
     </span>
   )
 }
+
+// Checks that follow from which values were picked.
+const DECISION_CHECKS = new Set(['tokens', 'contrast', 'text'])
 
 // "40px (default size)" → the value itself, and the note after it.
 function splitValue(text) {
@@ -386,26 +389,36 @@ function FieldValue({ text }) {
 // it), where it stands in one line, then everything else folded away.
 // Color follows the same order — the mint accent is for the decision only;
 // status, checks that pass and the way into History stay neutral.
+// The review's left card, in the order it's read: where it stands (one
+// line), what's wrong (the values that differ, numbers first), what blocks
+// the merge, what's decided so far (and undoing it), the reasoning, then
+// everything else folded away.
+// Color follows the same order — mint is for the decision only, amber for
+// checks that are required (they block the merge) and nothing else;
+// suggestions, status and the way into History stay neutral. Each failing
+// check is listed once: required ones up here, suggestions under Details,
+// so the two counts are the real ones.
 function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, onAcceptCheck, onUndoAcceptCheck, fixingCheckId, onOpenHistory, workspace, item, mergedDecisions }) {
-  const failingCount = checks && stage !== 'resolved' ? checks.failing.length : 0
-  const blockingCount = checks && stage !== 'resolved' ? checks.blocking.length : 0
-  // Details stay folded unless a check is blocking the merge or being fixed.
+  const open = stage !== 'resolved'
+  const required = checks && open ? checks.blocking : []
+  const suggested = checks && open ? checks.failing.filter((check) => !checks.blocking.includes(check)) : []
+  const accepted = checks && open ? checks.accepted ?? [] : []
   const [detailsToggled, setDetailsToggled] = useState(null)
-  const showDetails = detailsToggled ?? (blockingCount > 0 || Boolean(fixingCheckId))
+  // Folded unless the suggestion being fixed is in there.
+  const showDetails = detailsToggled ?? suggested.some((check) => check.id === fixingCheckId)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
     : conflict.riskReason
   const summary = conflict.message || riskExplanation
   const fields = conflict.comparisonFields ?? []
-  const isAiDraft = conflict.reviewStage !== 'resolved' && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
+  const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
 
   // The decision so far: every value on the design's side, every value on
   // the code's, a mix, or nothing yet. Same store as the comparison card
   // and Merge Studio (decisionsFor / decideDrift).
-  const readOnly = stage === 'resolved'
   const decisionRows = item ? driftRowsFor(conflict, item).filter((row) => row.diff) : []
-  const decisions = item ? (readOnly ? mergedDecisions ?? {} : workspace.decisionsFor(item.id)) : {}
+  const decisions = item ? (open ? workspace.decisionsFor(item.id) : mergedDecisions ?? {}) : {}
   const decidedRows = decisionRows.filter((row) => decisions[row.key])
   const all = (decision) => decisionRows.length > 0 && decisionRows.every((row) => decisions[row.key] === decision)
   const decisionLabel = all('A') ? 'Merge with the design reference'
@@ -415,67 +428,17 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
   function undoDecision() {
     decisionRows.forEach((row) => workspace.decideDrift(item.id, row.key, null))
   }
+  // A required check that comes from the values picked (off the token
+  // scale, contrast, text size) is the decision's own problem — it's shown
+  // on the decision, where changing the pick fixes it.
+  const fromDecision = (check) => Boolean(decisionLabel) && DECISION_CHECKS.has(check.id)
+  const decisionBlockers = required.filter(fromDecision)
+  const otherBlockers = required.filter((check) => !fromDecision(check))
+  const checkActions = { activeId: fixingCheckId, onFix: onFixCheck, onAccept: onAcceptCheck, onUndoAccept: onUndoAcceptCheck }
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      {/* 1 — the problem */}
-      <section className="min-w-0">
-        {fields.length > 0 && (
-          <dl className="mb-2.5 space-y-1.5">
-            {fields.map((field) => (
-              <div key={field.label} className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <dt className="w-14 shrink-0 text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-                  <FieldValue text={field.current} />
-                  <span className="text-[11.5px] text-slate-500"><LocalizedText text="vs. reference" /></span>
-                  <FieldValue text={field.expected} />
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
-        {onOpenHistory && (
-          <button
-            type="button"
-            onClick={onOpenHistory}
-            className="ds-intrinsic mt-2.5 inline-flex h-7 w-fit items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white"
-          >
-            <History className="size-3.5" />
-            <LocalizedText text="Check the reasoning in History" />
-            {conflict.historyInspected && <Check className="size-3.5 text-slate-400" strokeWidth={2.5} />}
-          </button>
-        )}
-      </section>
-
-      {/* 2 — the decision so far, and taking it back */}
-      {decisionRows.length > 0 && (
-        <section className="min-w-0 rounded-lg bg-white/[0.04] px-3 py-2.5">
-          <p className="text-[11px] leading-4 font-medium text-slate-400"><LocalizedText text={readOnly ? 'Merged decision' : 'Current decision'} /></p>
-          <div className="mt-1 flex min-w-0 items-center gap-2">
-            {decisionLabel ? (
-              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] leading-5 font-semibold text-emerald-300">
-                <Check className="size-4 shrink-0" strokeWidth={2.5} />
-                <span className="min-w-0 break-words"><LocalizedText text={decisionLabel} /></span>
-              </p>
-            ) : (
-              <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-300"><LocalizedText text="Not decided yet — pick a side on the card to the right." /></p>
-            )}
-            {decisionLabel && !readOnly && (
-              <button
-                type="button"
-                onClick={undoDecision}
-                className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
-              >
-                <RotateCcw className="size-3" />
-                <LocalizedText text="Undo decision" />
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* 3 — where it stands: stage · level · due, once */}
+    <div className="flex h-full flex-col gap-3.5">
+      {/* 1 — where it stands: stage · level · due, once */}
       <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
         <ReviewStageBadge stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
         {severity && (
@@ -484,7 +447,7 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
             <SeverityPill level={severity.label} />
           </>
         )}
-        {conflict.dueLabel && stage !== 'resolved' && (
+        {open && shortDue(conflict.dueLabel) && (
           <>
             <span aria-hidden>·</span>
             <DueDate label={conflict.dueLabel} />
@@ -501,7 +464,90 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
         )}
       </p>
 
-      {/* 4 — the rest, folded: branch, checks, who and what it touches */}
+      {/* 2 — the problem */}
+      {(fields.length > 0 || summary) && (
+        <section className="min-w-0">
+          {fields.length > 0 && (
+            <dl className="mb-2 space-y-1.5">
+              {fields.map((field) => (
+                <div key={field.label} className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <dt className="w-14 shrink-0 text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
+                  <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+                    <FieldValue text={field.current} />
+                    <span className="text-[11.5px] text-slate-500"><LocalizedText text="vs. reference" /></span>
+                    <FieldValue text={field.expected} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
+        </section>
+      )}
+
+      {/* 3 — what blocks the merge (the only amber on the card) */}
+      {otherBlockers.length > 0 && (
+        <section className="min-w-0">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
+            <TriangleAlert className="size-3.5 shrink-0" />
+            <LocalizedText text="Merge blocked" />
+            <span className="font-normal text-amber-200/80">· <LocalizedText text={`${otherBlockers.length} required`} /></span>
+          </p>
+          <CheckDecisions checks={checks} only={otherBlockers} {...checkActions} />
+        </section>
+      )}
+
+      {/* 4 — the decision so far, and taking it back */}
+      {decisionRows.length > 0 && (
+        <section className="min-w-0 rounded-lg bg-white/[0.04] px-3 py-2.5">
+          <p className="text-[11px] leading-4 font-medium text-slate-400"><LocalizedText text={open ? 'Current decision' : 'Merged decision'} /></p>
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            {decisionLabel ? (
+              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] leading-5 font-semibold text-emerald-300">
+                <Check className="size-4 shrink-0" strokeWidth={2.5} />
+                <span className="min-w-0 break-words"><LocalizedText text={decisionLabel} /></span>
+              </p>
+            ) : (
+              <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-300"><LocalizedText text="Not decided yet — pick a side on the card to the right." /></p>
+            )}
+            {decisionLabel && open && (
+              <button
+                type="button"
+                onClick={undoDecision}
+                className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
+              >
+                <RotateCcw className="size-3" />
+                <LocalizedText text="Undo decision" />
+              </button>
+            )}
+          </div>
+          {decisionBlockers.length > 0 && (
+            <div className="mt-2.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
+                <TriangleAlert className="size-3.5 shrink-0" />
+                <LocalizedText text="This decision is blocking the merge" />
+                <span className="font-normal text-amber-200/80">· <LocalizedText text={`${decisionBlockers.length} required`} /></span>
+              </p>
+              <CheckDecisions checks={checks} only={decisionBlockers} {...checkActions} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 5 — the reasoning */}
+      {onOpenHistory && (
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          className="ds-intrinsic inline-flex h-7 w-fit shrink-0 items-center gap-1.5 text-xs font-medium text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline"
+        >
+          <History className="size-3.5" />
+          <LocalizedText text="Check the reasoning in History" />
+          {conflict.historyInspected && <Check className="size-3.5 text-slate-400" strokeWidth={2.5} />}
+        </button>
+      )}
+
+      {/* 6 — the rest, folded: branch, when, who, and the suggestions */}
       <section className="min-w-0 flex-1">
         <button
           type="button"
@@ -510,14 +556,7 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
           className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
         >
           <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
-          {blockingCount > 0 ? (
-            <span className="inline-flex h-5 items-center gap-1 rounded-full bg-amber-400/15 px-2 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-300/40 ring-inset">
-              <TriangleAlert className="size-3" />
-              <LocalizedText text={`${blockingCount} to resolve before merging`} />
-            </span>
-          ) : failingCount > 0 ? (
-            <span className="text-[11px] font-normal text-slate-400"><LocalizedText text={`${failingCount} suggestions`} /></span>
-          ) : null}
+          {suggested.length > 0 && <span className="font-normal text-slate-400">· <LocalizedText text={`${suggested.length} suggested`} /></span>}
           <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
         </button>
         {showDetails && (
@@ -532,17 +571,6 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
               <p className={REVIEW_INFO_LABEL}>Branch</p>
               <BranchInfo conflict={conflict} />
             </div>
-            {checks && stage !== 'resolved' && (
-              <div className={REVIEW_INFO_GRID}>
-                <p className={cn(REVIEW_INFO_LABEL, 'sm:pt-1')}>Checks</p>
-                {/* The status, then each failing check as a decision: fix
-                    it or apply the change as it is. */}
-                <div className="min-w-0">
-                  <CheckStatus checks={checks} onFix={onFixCheck} quiet />
-                  <CheckDecisions checks={checks} activeId={fixingCheckId} onFix={onFixCheck} onAccept={onAcceptCheck} onUndoAccept={onUndoAcceptCheck} />
-                </div>
-              </div>
-            )}
             {conflict.detectedAt && (
               <div className={REVIEW_INFO_GRID}>
                 <p className={REVIEW_INFO_LABEL}>Detected</p>
@@ -550,6 +578,14 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
               </div>
             )}
             <Provenance conflict={conflict} />
+            {(suggested.length > 0 || accepted.length > 0) && (
+              <div className={REVIEW_INFO_GRID}>
+                <p className={REVIEW_INFO_LABEL}>Suggestions</p>
+                <div className="min-w-0 [&>ul]:mt-0">
+                  <CheckDecisions checks={checks} only={suggested} showAccepted {...checkActions} />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

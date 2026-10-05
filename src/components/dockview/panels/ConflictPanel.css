@@ -2,10 +2,12 @@
 .conflict-list-table {
   /* Put the review state, issue, deadline and approval blockers before
      supporting details so the first scan answers what needs attention. */
-  --conflict-columns: 164px 132px minmax(210px, 1fr) 132px 58px 96px minmax(260px, 1.3fr) 176px 56px 92px;
+  --conflict-columns: 150px 124px minmax(180px, 1.1fr) 84px 48px 84px minmax(220px, 1.6fr) minmax(150px, 0.9fr) 52px 76px;
   display: block;
   width: 100%;
-  min-width: 1560px;
+  /* Narrow enough to sit inside the panel without scrolling sideways —
+     long values wrap inside their column instead of being cut off. */
+  min-width: 1280px;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;
@@ -21,6 +23,10 @@
   column-gap: 16px;
   width: 100%;
   align-items: center;
+}
+/* Rows wrap, so their cells line up on the first line, not the middle. */
+.conflict-list-table tbody tr {
+  align-items: start;
 }
 .conflict-list-table :is(th, td) {
   display: block;
