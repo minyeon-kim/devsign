@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, Check, Database, FileCode2, GitBranch, History, Palette, RotateCcw, Sparkles, Users, X } from 'lucide-react'
+import { Bot, Check, ChevronDown, FileCode2, GitBranch, RotateCcw, Sparkles, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
@@ -8,7 +8,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
-import { ROLLBACK_REASON } from '@/lib/rollbackImpact'
+import { ROLLBACK_REASON, ROLLBACK_REASON_ORDER } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 
 const ROW_TONES = {
@@ -18,19 +18,21 @@ const ROW_TONES = {
 }
 const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 
-// One line of "what will be rolled back", with its toggle.
-function RollbackItem({ icon: Icon, title, detail, checked, onChange, locked, disabled }) {
+// One optional part of the rollback, with its toggle. `danger`: turning it
+// on deletes something (it can't be brought back), so it reads as a warning.
+function RollbackItem({ icon: Icon, title, detail, checked, onChange, disabled, danger }) {
   return (
     <label
       className={cn(
         'flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors',
-        disabled ? 'opacity-50' : 'cursor-pointer hover:bg-white/[0.03]'
+        disabled ? 'opacity-50' : 'cursor-pointer hover:bg-white/[0.03]',
+        danger && checked && 'bg-amber-400/[0.07]'
       )}
     >
       <span
         className={cn(
           'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-[5px] ring-1',
-          checked ? 'bg-emerald-400 text-slate-950 ring-emerald-400' : 'ring-white/25'
+          checked ? (danger ? 'bg-amber-300 text-slate-950 ring-amber-300' : 'bg-emerald-400 text-slate-950 ring-emerald-400') : danger ? 'ring-amber-300/50' : 'ring-white/25'
         )}
       >
         {checked && <Check className="size-3" strokeWidth={3} />}
@@ -39,27 +41,27 @@ function RollbackItem({ icon: Icon, title, detail, checked, onChange, locked, di
         type="checkbox"
         className="sr-only"
         checked={checked}
-        disabled={locked || disabled}
+        disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}
       />
-      <Icon className="mt-0.5 size-4 shrink-0 text-slate-400" />
+      <Icon className={cn('mt-0.5 size-4 shrink-0', danger ? 'text-amber-300' : 'text-slate-400')} />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 text-[13px] font-medium text-slate-100">
+        <span className={cn('flex items-center gap-2 text-[13px] font-medium', danger ? 'text-amber-100' : 'text-slate-100')}>
           {title}
-          {locked && <span className="text-[10px] font-normal text-slate-500">Always</span>}
+          {danger && <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] leading-none font-medium text-amber-200">Deletes</span>}
         </span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{detail}</span>
+        <span className={cn('mt-0.5 block text-xs leading-relaxed', danger ? 'text-amber-100/70' : 'text-slate-500')}>{detail}</span>
       </span>
     </label>
   )
 }
 
 // "Rollback to checkpoint" — the confirmation behind a checkpoint's
-// "Rollback here": which checkpoint, a preview of the code it brings back
-// (a diff against the current version), and exactly what will be rolled
-// back — Files and the preview always; the Conflict Points' review state
-// and the Agent's memory as options; Database listed but unavailable, as
-// this project has none connected.
+// "Rollback here", kept to what's decided here: which checkpoint (one line
+// under the title), the code it brings back (folded behind its +/− count),
+// what always goes back (one line, nothing to tick), the parts that are
+// optional (checkboxes — the one that deletes something in a warning tone),
+// and, right above the buttons, whether it needs anyone's agreement.
 //
 // Whether it runs right away depends on who it touches (lib/
 // rollbackImpact): only your own work → it rolls back and is shared with
@@ -73,6 +75,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const [conflicts, setConflicts] = useState(true)
   const [agentMemory, setAgentMemory] = useState(false)
+  const [showCode, setShowCode] = useState(false)
 
   const rows = entry && current ? diffLines(current.snapshot.lines, entry.snapshot.lines) : []
   const added = rows.filter((r) => r.kind === 'add').length
@@ -82,6 +85,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
 
   const impact = entry ? rollbackImpactFor(entry.id) : null
   const needsAgreement = Boolean(impact?.needsAgreement)
+  const leadReason = ROLLBACK_REASON_ORDER.find((id) => impact?.reasons.some((reason) => reason.id === id))
 
   function confirm() {
     if (needsAgreement) {
@@ -117,8 +121,12 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
               </span>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-[15px] font-semibold text-white">Rollback to checkpoint</DialogTitle>
-                <DialogDescription className="mt-0.5 text-xs text-slate-400">
-                  Your work goes back to how it was at this checkpoint, saved as a new checkpoint on top — nothing after it is erased.
+                {/* Which checkpoint: its name and time, on one line. */}
+                <DialogDescription className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-slate-300">
+                  {entry.prompt && <Sparkles className="size-3 shrink-0 text-emerald-300" />}
+                  <span className="min-w-0 truncate font-medium text-slate-100" title={entry.label}>{entry.label}</span>
+                  <span aria-hidden className="text-slate-500">·</span>
+                  <span className="shrink-0 text-slate-400 tabular-nums">{entry.timestamp}</span>
                 </DialogDescription>
               </div>
               <DialogClose
@@ -129,132 +137,90 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
               </DialogClose>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4">
-              {/* The target checkpoint */}
-              <div className="rounded-xl bg-white/[0.04] p-4">
-                <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                  <History className="size-3.5" />
-                  Checkpoint · {entry.timestamp}
-                </p>
-                <p className="mt-1 flex items-center gap-1.5 text-[14px] font-semibold text-white">
-                  {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
-                  {entry.label}
-                </p>
-                {entry.prompt && <p className="mt-1 text-xs text-slate-400">“{entry.prompt}”</p>}
-              </div>
-
-              {/* Who it reaches — decides whether this runs now or goes
-                  to the Conflict list for agreement first. */}
-              {needsAgreement ? (
-                <div className="rounded-xl bg-amber-400/10 p-4 ring-1 ring-amber-300/40 ring-inset">
-                  <p className="flex items-center gap-1.5 text-[13px] font-semibold text-amber-100">
-                    <Users className="size-4 shrink-0 text-amber-300" />
-                    This rollback needs agreement first
-                  </p>
-                  <ul className="mt-2 space-y-1.5">
-                    {impact.reasons.map((reason) => (
-                      <li key={reason.id} className="text-xs leading-[18px] text-slate-200">
-                        <span className="font-medium text-white">{ROLLBACK_REASON[reason.id].title}</span>
-                        <span className="block text-slate-300">{ROLLBACK_REASON[reason.id].detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-3 text-[11px] font-medium text-slate-400">Affected people</p>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {impact.affected.map((id) => {
-                      const person = allPeople.find((p) => p.id === id)
-                      if (!person) return null
-                      return (
-                        <span key={id} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white/[0.07] pr-2.5 pl-1 text-xs text-slate-100">
-                          <Avatar size="xs"><AvatarFallback className={cn('font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback></Avatar>
-                          {person.name}
-                          <span className="text-slate-400">{person.role}</span>
-                        </span>
-                      )
-                    })}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-4">
+              {/* The code this brings back, folded behind its size. */}
+              <div>
+                <button
+                  type="button"
+                  aria-expanded={showCode}
+                  onClick={() => setShowCode((v) => !v)}
+                  className="ds-intrinsic flex h-8 w-full items-center gap-1.5 rounded-lg bg-white/[0.04] px-3 text-xs text-slate-200 transition-colors hover:bg-white/[0.07]"
+                >
+                  <FileCode2 className="size-3.5 shrink-0 text-slate-400" />
+                  <span className="font-mono text-[11.5px] tabular-nums">
+                    <span className="text-emerald-300">+{added}</span> <span className="text-red-300">−{removed}</span>
+                  </span>
+                  <span className="font-medium">{showCode ? 'Hide changes' : 'View changes'}</span>
+                  <span className="min-w-0 truncate text-slate-500">· {getFileName(entry.snapshot.fileId)}</span>
+                  <ChevronDown className={cn('ml-auto size-3.5 shrink-0 text-slate-400 transition-transform', showCode && 'rotate-180')} />
+                </button>
+                {showCode && (
+                  <div className="mt-1.5 max-h-44 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11.5px] leading-5">
+                    {changedRows.length === 0 ? (
+                      <p className="px-4 py-2 font-sans text-xs text-slate-500">The code is the same as the current version.</p>
+                    ) : (
+                      changedRows.slice(0, 24).map((row, i) => (
+                        <div key={i} className={cn('flex min-w-0 px-4 whitespace-pre-wrap [word-break:break-all]', ROW_TONES[row.kind])}>
+                          <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
+                          <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <p className="mt-3 text-xs leading-[18px] text-slate-300">
-                    It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.
-                  </p>
-                </div>
-              ) : (
-                <p className="flex items-start gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-xs leading-[18px] text-slate-300">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
-                  Only your own changes go back, so this doesn’t need anyone’s agreement. The team is told once it’s done.
-                </p>
-              )}
-
-              {/* Preview: the code this brings back */}
-              <div>
-                <p className="mb-2 flex items-center justify-between text-xs font-medium text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <FileCode2 className="size-3.5" />
-                    Preview · {getFileName(entry.snapshot.fileId)}
-                  </span>
-                  <span className="text-[11px] font-normal text-slate-500">
-                    <span className="text-emerald-300">+{added}</span> <span className="text-red-300">−{removed}</span> vs. current
-                  </span>
-                </p>
-                <div className="max-h-44 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11.5px] leading-5">
-                  {changedRows.length === 0 ? (
-                    <p className="px-4 py-2 font-sans text-xs text-slate-500">The code is the same as the current version.</p>
-                  ) : (
-                    changedRows.slice(0, 24).map((row, i) => (
-                      <div key={i} className={cn('flex min-w-0 px-4 whitespace-pre-wrap [word-break:break-all]', ROW_TONES[row.kind])}>
-                        <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
-                        <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* What will be rolled back */}
+              {/* What goes back. The two that always do are a note, not
+                  boxes that can't be unticked. */}
               <div>
-                <p className="mb-1 text-xs font-medium text-slate-300">What will be rolled back</p>
-                <div className="-mx-3">
-                  <RollbackItem
-                    icon={FileCode2}
-                    title="Files"
-                    detail={`${getFileName(entry.snapshot.fileId)} goes back to this checkpoint (+${added} −${removed} lines).`}
-                    checked
-                    locked
-                  />
-                  <RollbackItem
-                    icon={Palette}
-                    title="Preview & canvas"
-                    detail="Preview settings and the canvas selection at this checkpoint."
-                    checked
-                    locked
-                  />
-                  <RollbackItem
-                    icon={GitBranch}
-                    title="Conflict Points"
-                    detail="Review state of the conflicts this checkpoint knows about."
-                    checked={conflicts}
-                    onChange={setConflicts}
-                  />
-                  <RollbackItem
-                    icon={Bot}
-                    title="Agent memory"
-                    detail={
-                      laterMessages > 0
-                        ? `Forget the ${laterMessages} agent message${laterMessages === 1 ? '' : 's'} after this checkpoint.`
-                        : 'Nothing to forget — the agent conversation hasn’t moved on since.'
-                    }
-                    checked={agentMemory}
-                    onChange={setAgentMemory}
-                  />
-                  <RollbackItem
-                    icon={Database}
-                    title="Database"
-                    detail="No database is connected to this project."
-                    checked={false}
-                    disabled
-                  />
-                </div>
+                <p className="flex items-start gap-2 px-3 py-1.5 text-xs leading-[18px] text-slate-400">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
+                  Files and the preview & canvas always go back.
+                </p>
+                <RollbackItem
+                  icon={GitBranch}
+                  title="Conflict Points"
+                  detail="Review state of the conflicts this checkpoint knows about."
+                  checked={conflicts}
+                  onChange={setConflicts}
+                />
+                <RollbackItem
+                  icon={Bot}
+                  title="Agent memory"
+                  detail={
+                    laterMessages > 0
+                      ? `Forget the ${laterMessages} agent message${laterMessages === 1 ? '' : 's'} after this checkpoint.`
+                      : 'Nothing to forget — the agent conversation hasn’t moved on since.'
+                  }
+                  checked={agentMemory}
+                  onChange={setAgentMemory}
+                  disabled={laterMessages === 0}
+                  danger={laterMessages > 0}
+                />
               </div>
             </div>
+
+            {/* Right above the buttons: does this need anyone's agreement? */}
+            {needsAgreement && (
+              <div className="mx-5 mb-3 flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl bg-amber-400/10 px-3.5 py-2.5 ring-1 ring-amber-300/40 ring-inset">
+                <p className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-amber-100">
+                  <Users className="size-4 shrink-0 text-amber-300" />
+                  {ROLLBACK_REASON[leadReason].need}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {impact.affected.map((id) => {
+                    const person = allPeople.find((p) => p.id === id)
+                    if (!person) return null
+                    return (
+                      <span key={id} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-white/[0.08] pr-2 pl-0.5 text-xs text-slate-100">
+                        <Avatar size="xs"><AvatarFallback className={cn('font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback></Avatar>
+                        {person.name}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3.5">
               <DialogClose className="inline-flex h-9 items-center rounded-full px-4 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white">

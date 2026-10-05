@@ -8,7 +8,8 @@ import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
-import { rollbackImpact } from '@/lib/rollbackImpact'
+import { rollbackChanges, rollbackImpact } from '@/lib/rollbackImpact'
+import { diffLines } from '@/lib/lineDiff'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { assemblyToOverride, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
@@ -1349,14 +1350,15 @@ export function WorkspaceProvider({ children, projectId }) {
     const impact = rollbackImpactFor(entryId)
     if (!entry || !impact.needsAgreement) return null
     const irreversible = impact.reasons.some((reason) => reason.id === 'irreversible')
+    const fileName = files.find((f) => f.id === entry.snapshot.fileId)?.name ?? entry.target?.split(' · ')[0] ?? entry.label
     const record = scheduleDemoReview(toConflictRecord({
       id: `rollback-${crypto.randomUUID()}`,
-      title: `Rollback: ${entry.label}`,
-      file: entry.target ?? files.find((f) => f.id === entry.snapshot.fileId)?.name ?? entry.label,
+      // Short: the component it rolls back, not the checkpoint's sentence.
+      title: `Rollback · ${fileName.replace(/\.[a-z]+$/i, '')}`,
+      file: fileName,
       fileId: entry.snapshot.fileId,
       projectId,
       severity: irreversible ? 'high' : 'medium',
-      message: 'This rollback reaches other people’s work. Everyone it affects confirms here before it runs.',
       changedBy: { type: 'person', id: currentUser.id, what: 'Requested this rollback' },
       detectedBy: 'Rollback impact check',
       reviewStage: 'in_review',
@@ -1364,13 +1366,17 @@ export function WorkspaceProvider({ children, projectId }) {
       reviewers: impact.affected.map((id) => ({ id, status: 'pending' })),
       timestamp: 'Just now',
       detectedAt: timeLabel(),
-      rollback: { entryId: entry.id, label: entry.label, target: entry.target ?? files.find((f) => f.id === entry.snapshot.fileId)?.name ?? entry.label, timestamp: entry.timestamp, options, reasons: impact.reasons },
+      rollback: {
+        entryId: entry.id, label: entry.label, target: fileName, timestamp: entry.timestamp, options, reasons: impact.reasons,
+        // The values it changes, now → after the rollback.
+        changes: rollbackChanges(diffLines(linesOfFile(entry.snapshot.fileId), entry.snapshot.lines ?? [])),
+      },
     }), currentUser.id)
     setConflicts((prev) => [...prev, record])
     logEvent({ kind: 'review_requested', projectId, conflictId: record.id, actorId: currentUser.id, title: record.title })
     appendTerminalLines([`$ devsign rollback --to "${entry.label}" --request-agreement`, `· waiting on ${impact.affected.length} affected`])
     return record
-  }, [historyEntries, rollbackImpactFor, files, projectId, currentUser.id, setConflicts, logEvent, appendTerminalLines])
+  }, [historyEntries, rollbackImpactFor, files, linesOfFile, projectId, currentUser.id, setConflicts, logEvent, appendTerminalLines])
 
   // Everyone affected has confirmed: run the rollback and close the record.
   const runAgreedRollback = useCallback((conflictId) => {

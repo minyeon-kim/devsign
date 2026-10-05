@@ -1,30 +1,30 @@
-/* Shared tracks prevent header/body drift as the bottom panel resizes. */
+/* One grid for the whole table — the header, body and every row are
+   subgrids of it — so a column can be exactly as wide as its widest cell
+   (the status chip, the severity pill) and still line up down the list. */
 .conflict-list-table {
-  /* Put the review state, issue, deadline and approval blockers before
-     supporting details so the first scan answers what needs attention. */
-  --conflict-columns: 150px 124px minmax(180px, 1.1fr) 84px 48px 84px minmax(220px, 1.6fr) minmax(150px, 0.9fr) 52px 76px;
-  display: block;
-  width: 100%;
-  /* Narrow enough to sit inside the panel without scrolling sideways —
-     long values wrap inside their column instead of being cut off. */
-  min-width: 1280px;
-  box-sizing: border-box;
-  padding-inline: 16px;
-  border-collapse: collapse;
-}
-.conflict-list-table thead,
-.conflict-list-table tbody {
-  display: block;
-  width: 100%;
-}
-.conflict-list-table tr {
+  /* Select, then the review state, risk, issue, deadline and approval
+     blockers before supporting details, so the first scan answers what
+     needs attention. Long values wrap inside their column. */
+  --conflict-columns: 16px max-content max-content minmax(180px, 1.1fr) max-content max-content max-content minmax(220px, 1.6fr) minmax(150px, 0.9fr) max-content max-content;
   display: grid;
   grid-template-columns: var(--conflict-columns);
   column-gap: 16px;
   width: 100%;
+  /* Narrow enough to sit inside the panel without scrolling sideways. */
+  min-width: 1240px;
+  box-sizing: border-box;
+  padding-inline: 16px;
+  border-collapse: collapse;
+}
+.conflict-list-table :is(thead, tbody, tr) {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+}
+.conflict-list-table thead tr {
   align-items: center;
 }
-/* Rows wrap, so their cells line up on the first line, not the middle. */
+/* Rows wrap, so every cell lines up on its first line, not the middle. */
 .conflict-list-table tbody tr {
   align-items: start;
 }
@@ -32,13 +32,9 @@
   display: block;
   min-width: 0;
   padding-inline: 0;
-  overflow: hidden;
 }
 .conflict-list-table .conflict-list-empty {
   grid-column: 1 / -1;
-}
-.conflict-list-table .conflict-list-diff {
-  grid-column: 2 / -1;
 }
 
 /* A single thin edge, without inset rings or filled selection surfaces. */

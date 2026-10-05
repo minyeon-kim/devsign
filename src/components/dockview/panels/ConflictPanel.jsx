@@ -252,32 +252,30 @@ function ConflictPanel({ inMergeStudio }) {
             {/* Headers, rows and expanded diffs share the same grid tracks. */}
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b text-left text-xs text-slate-300">
-                <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium">
-                  <div className="flex items-center gap-4">
                   <Checkbox
                     checked={allSelected}
                     disabled={batchable.length === 0}
                     label={allSelected ? 'Clear selection' : 'Select all low-risk conflicts'}
                     onChange={() => setSelected(allSelected ? [] : batchable.map((c) => c.id))}
                   />
-                    <span className="w-[84px] shrink-0 text-center">Severity</span>
-                  </div>
                 </th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Issue</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Status</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Severity</th>
+                <th className="py-1.5 text-left font-medium">Issue</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
-                <th className="py-1.5 pl-1 text-left font-medium whitespace-nowrap">Reviewers</th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Description</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
+                <th className="py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium">Branch</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author</th>
-                <th className="py-1.5 pr-1 text-right font-medium whitespace-nowrap">Updated</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Updated</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={11} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -316,23 +314,24 @@ function ConflictPanel({ inMergeStudio }) {
                       !isOpen(conflict) && 'opacity-60'
                     )}
                   >
-                    <td className="px-1.5 py-2">
-                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
-                    </td>
-                    <td className="py-2">
-                      <div className="flex items-center gap-4">
-                      <span onClick={(event) => event.stopPropagation()}>
+                    {/* Every cell starts at the same top inset. Chips are
+                        24px tall, so the checkbox (16px), avatars and text
+                        (20px lines) are nudged onto the chip's center line. */}
+                    <td className="py-2.5 pt-[14px]" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={Boolean(blocker)}
                         label={blocker ?? `Select ${conflict.title}`}
                         onChange={() => toggle(conflict.id)}
                       />
-                      </span>
-                      <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />
-                      </div>
                     </td>
-                    <td className="min-w-0 px-1.5 py-2">
+                    <td className="py-2.5">
+                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
+                    </td>
+                    <td className="py-2.5">
+                      <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />
+                    </td>
+                    <td className="min-w-0 py-2.5 pt-3">
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
@@ -349,7 +348,7 @@ function ConflictPanel({ inMergeStudio }) {
                         </p>
                       </div>
                     </td>
-                    <td className="py-2 text-xs whitespace-nowrap tabular-nums">
+                    <td className="py-2.5 pt-3 text-xs leading-5 whitespace-nowrap tabular-nums">
                       {shortDue(conflict.dueLabel) ? (
                         // Just the when — the column already says "Due date".
                         <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-200')}>
@@ -361,37 +360,39 @@ function ConflictPanel({ inMergeStudio }) {
                         have their own places (the next column, and your
                         avatar under Reviewers). A change with every value
                         decided but no review asked for yet says so. */}
-                    <td className="py-2">
+                    <td className="py-2.5 pt-3 leading-5">
                       {!isOpen(conflict) ? (
                         <span className="text-xs text-slate-500">—</span>
                       ) : failingChecks > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-300" title="Checks need attention — merging waits on them">
+                        <span className="inline-flex h-5 items-center gap-1 text-xs font-medium text-amber-300" title="Checks need attention — merging waits on them">
                           <TriangleAlert className="size-3.5" />
                           <span className="tabular-nums">{failingChecks}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center text-emerald-300" title="All checks passed">
+                        <span className="inline-flex h-5 items-center text-emerald-300" title="All checks passed">
                           <CircleCheck className="size-3.5" />
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pl-1 text-left">
+                    <td className="py-2.5 pt-3 text-left">
                       {reviewers.length ? (
-                        <div className="flex flex-wrap justify-start gap-y-1 -space-x-1.5">
-                          {reviewers.map((person) => (
-                            <PersonHover
-                              key={person.id}
-                              person={person}
-                              note={mine && person.id === currentUser.id ? 'Needs your review' : (conflict.rollback ? ROLLBACK_NOTE : REVIEW_NOTE)[conflict.reviewers.find((r) => r.id === person.id)?.status]}
-                              className={cn('ring-2', mine && person.id === currentUser.id ? 'z-10 ring-emerald-400' : 'ring-card')}
-                            />
-                          ))}
-                        </div>
+                        <PeopleHover
+                          people={reviewers.map((person) => {
+                            const status = conflict.reviewers.find((r) => r.id === person.id)?.status
+                            const yours = mine && person.id === currentUser.id
+                            return {
+                              person,
+                              note: yours ? 'Needs your review' : (conflict.rollback ? ROLLBACK_NOTE : REVIEW_NOTE)[status],
+                              tone: yours ? 'mine' : status,
+                              className: cn('ring-2', yours ? 'z-10 ring-emerald-400' : 'ring-card'),
+                            }
+                          })}
+                        />
                       ) : (
                         <span className="text-slate-300">Unassigned</span>
                       )}
                     </td>
-                    <td className="min-w-0 px-1.5 py-2">
+                    <td className="min-w-0 py-2.5 pt-3">
                       <div className="min-w-0 space-y-1">
                         {conflict.rollback ? (
                           // A rollback agreement: what's rolled back, who
@@ -411,17 +412,17 @@ function ConflictPanel({ inMergeStudio }) {
                         ) : <span className="text-slate-500">—</span>}
                       </div>
                     </td>
-                    <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
-                    <td className="py-2">
+                    <td className="min-w-0 py-2.5 pt-3"><BranchInfo conflict={conflict} compact /></td>
+                    <td className="py-2.5 pt-3">
                       {author ? (
-                        <PersonHover person={author} note="Author" />
+                        <PeopleHover people={[{ person: author, note: 'Author' }]} />
                       ) : (
                         // No person made it — design ↔ code sync found it.
                         <span className="text-xs text-slate-500" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
                       )}
                     </td>
                     {/* The day only ("Yesterday", "2 hours ago"); the exact time is on hover. */}
-                    <td className="py-2 pr-1 text-right text-xs text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
+                    <td className="py-2.5 pt-3 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
                       <LocalizedText text={(conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')} />
                     </td>
 
@@ -571,27 +572,40 @@ const REVIEW_NOTE = { approved: 'Approved', changes_requested: 'Changes requeste
 // On a rollback agreement the people listed are the ones it affects.
 const ROLLBACK_NOTE = { approved: 'Confirmed', changes_requested: 'Objected', pending: 'Not confirmed yet' }
 
-// A person in the list is only initials — hovering says who that is, as
-// three aligned rows and nothing else: name, role, and where they stand on
-// this row (`note`).
-function PersonHover({ person, note, className }) {
-  const rows = [['Name', person.fullName ?? person.name], ['Role', person.role], ['Sign-off', note]].filter(([, value]) => value)
+const NOTE_TONE = {
+  approved: 'bg-emerald-400/15 text-emerald-200',
+  mine: 'bg-emerald-400/15 text-emerald-200',
+  changes_requested: 'bg-amber-400/15 text-amber-200',
+}
+
+// People in the list are only initials — hovering the stack says who they
+// are, one line each: avatar · name · role · where they stand on this row.
+// It opens under the avatars, so it never covers the column headers.
+function PeopleHover({ people }) {
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex rounded-full" />} onClick={(event) => event.stopPropagation()}>
-        <Avatar size="xs" className={className}>
-          <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
-        </Avatar>
+      <TooltipTrigger render={<span className="inline-flex flex-wrap justify-start gap-y-1 -space-x-1.5 rounded-full" />} onClick={(event) => event.stopPropagation()}>
+        {people.map(({ person, className }) => (
+          <Avatar key={person.id} size="xs" className={className}>
+            <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+          </Avatar>
+        ))}
       </TooltipTrigger>
-      <TooltipContent className="px-3 py-2 text-left">
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11.5px] leading-4">
-          {rows.map(([label, value]) => (
-            <Fragment key={label}>
-              <dt className="opacity-60"><LocalizedText text={label} /></dt>
-              <dd className="font-medium"><LocalizedText text={value} /></dd>
-            </Fragment>
-          ))}
-        </dl>
+      <TooltipContent side="bottom" align="start" className="block space-y-1.5 px-2.5 py-2 text-left">
+        {people.map(({ person, note, tone }) => (
+          <div key={person.id} className="flex items-center gap-2 text-xs leading-5 whitespace-nowrap">
+            <Avatar size="xs">
+              <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+            </Avatar>
+            <span className="font-semibold"><LocalizedText text={person.fullName ?? person.name} /></span>
+            <span className="opacity-60"><LocalizedText text={person.role} /></span>
+            {note && (
+              <span className={cn('ml-auto rounded-full px-1.5 py-0.5 text-[10.5px] leading-none font-medium', NOTE_TONE[tone] ?? 'bg-current/10')}>
+                <LocalizedText text={note} />
+              </span>
+            )}
+          </div>
+        ))}
       </TooltipContent>
     </Tooltip>
   )

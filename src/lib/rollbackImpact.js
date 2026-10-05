@@ -33,10 +33,63 @@ export function rollbackImpact({ entries, entryId, viewerId, viewers = [] }) {
   }
 }
 
+// `short` is the one-line badge; `need` the sentence the rollback dialog
+// leads with.
 export const ROLLBACK_REASON = {
-  'other-work': { title: 'Other people’s work goes with it', detail: 'Checkpoints after this one were made by someone else — rolling back takes their work out too.' },
-  'based-on': { title: 'Someone is working on top of this version', detail: 'They’re in this file right now, building on the version being undone.' },
-  irreversible: { title: 'Part of it can’t be fully undone', detail: 'A merge after this checkpoint already went out, so rolling back won’t put everything back.' },
+  'based-on': { short: 'Someone is working on it', need: 'Someone is working on this, so it needs their agreement.' },
+  'other-work': { short: 'Includes other people’s work', need: 'Other people’s work goes with it, so it needs their agreement.' },
+  irreversible: { short: 'Not fully reversible', need: 'Part of it can’t be fully undone, so it needs agreement.' },
+}
+// Which reason leads when there are several.
+export const ROLLBACK_REASON_ORDER = ['based-on', 'other-work', 'irreversible']
+
+// What a rollback changes, as values rather than code: the class and prop
+// tokens that differ between the file now and the file at the checkpoint,
+// grouped by what they set ("Background: #7c3aed → Default"). `fromColor`
+// / `toColor` are set when a value is a color, for a swatch.
+const TOKEN_LABELS = [
+  [/^bg-/, 'Background'], [/^h-/, 'Height'], [/^w-/, 'Width'], [/^text-/, 'Text'], [/^rounded/, 'Radius'],
+  [/^(p|px|py|pt|pb|pl|pr)-/, 'Padding'], [/^(m|mx|my|mt|mb|ml|mr|gap)-/, 'Spacing'], [/^tracking-/, 'Letter spacing'],
+  [/^font-/, 'Font'], [/^border/, 'Border'], [/^size=/, 'Size'], [/^variant=/, 'Variant'], [/^stroke/i, 'Stroke'],
+]
+
+function tokensOf(lines) {
+  const tokens = []
+  for (const line of lines) {
+    for (const match of line.matchAll(/className="([^"]*)"/g)) tokens.push(...match[1].split(/\s+/).filter(Boolean))
+    for (const match of line.matchAll(/\b(size|variant|strokeWidth)=(?:"([^"]*)"|\{([^}]*)\})/g)) tokens.push(`${match[1]}=${match[2] ?? match[3]}`)
+  }
+  return tokens
+}
+
+function tokenValue(token) {
+  const bracket = /\[(.+)\]/.exec(token)
+  if (bracket) return bracket[1]
+  const prop = /^[a-zA-Z]+=(.+)$/.exec(token)
+  if (prop) return prop[1]
+  const step = /^(?:h|w)-(\d+(?:\.\d+)?)$/.exec(token)
+  return step ? `${Number(step[1]) * 4}px` : token
+}
+
+const colorOf = (value) => /#[0-9a-fA-F]{3,8}\b/.exec(value ?? '')?.[0] ?? null
+
+export function rollbackChanges(rows) {
+  const current = tokensOf(rows.filter((row) => row.kind === 'remove').map((row) => row.text))
+  const target = tokensOf(rows.filter((row) => row.kind === 'add').map((row) => row.text))
+  const groups = new Map()
+  const add = (token, side) => {
+    const label = TOKEN_LABELS.find(([pattern]) => pattern.test(token))?.[1] ?? 'Class'
+    const group = groups.get(label) ?? { label, from: [], to: [] }
+    group[side].push(tokenValue(token))
+    groups.set(label, group)
+  }
+  current.filter((token) => !target.includes(token)).forEach((token) => add(token, 'from'))
+  target.filter((token) => !current.includes(token)).forEach((token) => add(token, 'to'))
+  return [...groups.values()].slice(0, 6).map(({ label, from, to }) => {
+    const fromValue = from.join(' ') || null
+    const toValue = to.join(' ') || null
+    return { label, from: fromValue, to: toValue, fromColor: colorOf(fromValue), toColor: colorOf(toValue) }
+  })
 }
 
 // A rollback agreement's place in the review flow, in its own words.

@@ -4,7 +4,6 @@ import {
   ArrowUpRight,
   Ban,
   Bell,
-  Bot,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -19,7 +18,6 @@ import {
   Send,
   Sparkles,
   TriangleAlert,
-  User,
   X,
 } from 'lucide-react'
 import { cn } from 'cn'
@@ -47,6 +45,7 @@ import {
   shortDue,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
+import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { CheckDecisions, CheckGuideNote } from '@/components/conflicts/CheckDecisions'
 import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
@@ -93,7 +92,6 @@ const REVIEWER_STATUS = {
   changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
 
-const REVIEW_INFO_GRID = 'grid min-w-0 items-start gap-x-3 gap-y-1 sm:grid-cols-[84px_minmax(0,1fr)]'
 const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
@@ -177,9 +175,10 @@ function personName(id, viewerId) {
   return allPeople.find((p) => p.id === id)?.name ?? id
 }
 
-// Who (or which AI) made the change under review, what flagged it, and the
-// screens / components / files it reaches — only what the record knows.
-function Provenance({ conflict, className }) {
+// Where the change is and where it came from — the review's folded
+// Details, as two short groups: Location (branch, components, files) and
+// Record (who changed it and what detected it, on one line).
+function ReviewDetails({ conflict, showProject }) {
   const viewerId = currentUserFor(conflict.projectId).id
   const { detectedBy, impact } = conflict
   // Older user-applied drafts stored AI as the actor; honor the recorded requester.
@@ -191,49 +190,49 @@ function Provenance({ conflict, className }) {
     : conflict.changedBy
   const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
   const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
-  const impactRows = [
-    ['Screens', impact?.screens],
-    ['Components', impact?.components],
-    ['Files', files],
-  ].filter(([, list]) => list?.length)
-  if (!changedBy && !detectedBy && !impactRows.length) return null
+  const components = impact?.components ?? []
+  const record = [
+    changedBy && (changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)),
+    changedBy?.what,
+    detectedBy,
+    conflict.detectedAt,
+  ].filter(Boolean)
+  const GROUP = 'text-[11px] leading-4 font-medium text-slate-500'
+  const ROW = 'grid min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3'
+  const LABEL = 'text-xs leading-[18px] text-slate-400'
+  const VALUE = 'min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]'
 
   return (
-    <div className={cn(REVIEW_INFO_GRID, 'gap-y-2.5 text-xs', className)}>
-      {changedBy && (
-        <>
-          <span className={REVIEW_INFO_LABEL}>Changed by</span>
-          <span className="min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]">
-            <span className="inline-flex items-center gap-1 font-medium">
-              {changedBy.type === 'ai' ? <Bot className="size-3.5 text-emerald-300" /> : <User className="size-3.5 text-slate-400" />}
-              <LocalizedText text={changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)} />
-            </span>
-            {changedBy.what && <span className="text-slate-400"> · <LocalizedText text={changedBy.what} /></span>}
-          </span>
-        </>
-      )}
-      {detectedBy && (
-        <>
-          <span className={REVIEW_INFO_LABEL}>Detected by</span>
-          <span className="min-w-0 break-words text-xs leading-[18px] text-slate-300 [overflow-wrap:anywhere]"><LocalizedText text={detectedBy} /></span>
-        </>
-      )}
-      {impactRows.map(([label, list]) => (
-        <Fragment key={label}>
-          <span className={REVIEW_INFO_LABEL}><LocalizedText text={label} /></span>
-          <span className="min-w-0 text-xs leading-[18px] text-slate-200">
-            {list.map((item, i) => (
-              <span
-                key={item}
-                className={cn('break-words [overflow-wrap:anywhere]', label === 'Files' && 'font-mono text-[11.5px] text-slate-300')}
-              >
-                {i > 0 && <span className="font-sans text-slate-500">, </span>}
-                <LocalizedText text={item} />
-              </span>
+    <div className="mt-2 space-y-3.5">
+      <div className="space-y-1.5">
+        <p className={GROUP}><LocalizedText text="Location" /></p>
+        {showProject && conflict.projectName && (
+          <div className={ROW}><span className={LABEL}>Project</span><span className={VALUE}><LocalizedText text={conflict.projectName} /></span></div>
+        )}
+        <div className={ROW}><span className={LABEL}>Branch</span><BranchInfo conflict={conflict} /></div>
+        {components.length > 0 && (
+          <div className={ROW}><span className={LABEL}>Components</span><span className={VALUE}>{components.join(', ')}</span></div>
+        )}
+        {files.length > 0 && (
+          <div className={ROW}>
+            <span className={LABEL}>Files</span>
+            <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px] text-slate-300')}>{files.join(', ')}</span>
+          </div>
+        )}
+      </div>
+      {record.length > 0 && (
+        <div className="space-y-1.5">
+          <p className={GROUP}><LocalizedText text="Record" /></p>
+          <p className={VALUE}>
+            {record.map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 && <span className="text-slate-500"> · </span>}
+                <LocalizedText text={part} />
+              </Fragment>
             ))}
-          </span>
-        </Fragment>
-      ))}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -366,79 +365,24 @@ function DueDate({ label, className }) {
 // Checks that follow from which values were picked.
 const DECISION_CHECKS = new Set(['tokens', 'contrast', 'text'])
 
-// "40px (default size)" → the value itself, and the note after it.
-function splitValue(text) {
-  const match = /^(.*?)(\s*\(.*\))$/.exec(String(text ?? ''))
-  return match ? { value: match[1], note: match[2] } : { value: String(text ?? ''), note: '' }
-}
-
-function FieldValue({ text }) {
-  // Translated whole, then split — the dictionary knows the full value
-  // ("40px (default size)"), not its two halves.
-  const { value, note } = splitValue(tr(text))
-  return (
-    <span className="min-w-0" translate="no">
-      <span className="text-[15px] leading-5 font-semibold text-white tabular-nums">{value}</span>
-      {note && <span className="text-[11.5px] text-slate-400">{note}</span>}
-    </span>
-  )
-}
-
-// The review's left card, in the order it's read: what's wrong (the
-// values that differ, numbers first), what's decided so far (and undoing
-// it), where it stands in one line, then everything else folded away.
-// Color follows the same order — the mint accent is for the decision only;
-// status, checks that pass and the way into History stay neutral.
-// The review's left card, in the order it's read: where it stands (one
-// line), what's wrong (the values that differ, numbers first), what blocks
-// the merge, what's decided so far (and undoing it), the reasoning, then
-// everything else folded away.
-// Color follows the same order — mint is for the decision only, amber for
-// checks that are required (they block the merge) and nothing else;
-// suggestions, status and the way into History stay neutral. Each failing
-// check is listed once: required ones up here, suggestions under Details,
-// so the two counts are the real ones.
-function OverviewTab({ conflict, severity, stage, showProject, checks, onFixCheck, onAcceptCheck, onUndoAcceptCheck, fixingCheckId, onOpenHistory, workspace, item, mergedDecisions }) {
+// The review's left card is context only: where it stands (one line —
+// stage · level · due · whether the merge is blocked), the summary sentence
+// and the way into History, with Details folded under it. The values, the
+// decision and every check live on the comparison card in the middle, so
+// nothing is said twice.
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onOpenHistory }) {
+  const [showDetails, setShowDetails] = useState(false)
   const open = stage !== 'resolved'
-  const required = checks && open ? checks.blocking : []
-  const suggested = checks && open ? checks.failing.filter((check) => !checks.blocking.includes(check)) : []
-  const accepted = checks && open ? checks.accepted ?? [] : []
-  const [detailsToggled, setDetailsToggled] = useState(null)
-  // Folded unless the suggestion being fixed is in there.
-  const showDetails = detailsToggled ?? suggested.some((check) => check.id === fixingCheckId)
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
     : conflict.riskReason
-  const summary = conflict.message || riskExplanation
-  const fields = conflict.comparisonFields ?? []
+  // A rollback agreement says what it is in the middle — no sentence here.
+  const summary = conflict.rollback ? null : conflict.message || riskExplanation
   const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
 
-  // The decision so far: every value on the design's side, every value on
-  // the code's, a mix, or nothing yet. Same store as the comparison card
-  // and Merge Studio (decisionsFor / decideDrift).
-  const decisionRows = item ? driftRowsFor(conflict, item).filter((row) => row.diff) : []
-  const decisions = item ? (open ? workspace.decisionsFor(item.id) : mergedDecisions ?? {}) : {}
-  const decidedRows = decisionRows.filter((row) => decisions[row.key])
-  const all = (decision) => decisionRows.length > 0 && decisionRows.every((row) => decisions[row.key] === decision)
-  const decisionLabel = all('A') ? 'Merge with the design reference'
-    : all('B') ? 'Merge with the current implementation'
-      : decidedRows.length ? `${decidedRows.length} of ${decisionRows.length} values decided`
-        : null
-  function undoDecision() {
-    decisionRows.forEach((row) => workspace.decideDrift(item.id, row.key, null))
-  }
-  // A required check that comes from the values picked (off the token
-  // scale, contrast, text size) is the decision's own problem — it's shown
-  // on the decision, where changing the pick fixes it.
-  const fromDecision = (check) => Boolean(decisionLabel) && DECISION_CHECKS.has(check.id)
-  const decisionBlockers = required.filter(fromDecision)
-  const otherBlockers = required.filter((check) => !fromDecision(check))
-  const checkActions = { activeId: fixingCheckId, onFix: onFixCheck, onAccept: onAcceptCheck, onUndoAccept: onUndoAcceptCheck }
-
   return (
-    <div className="flex h-full flex-col gap-3.5">
-      {/* 1 — where it stands: stage · level · due, once */}
+    <div className="flex h-full flex-col gap-3">
       <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
         <ReviewStageBadge stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
         {severity && (
@@ -453,6 +397,14 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
             <DueDate label={conflict.dueLabel} />
           </>
         )}
+        {/* A chip of its own — no dot before it, so nothing dangles when it
+            wraps onto the next line. */}
+        {blockedCount > 0 && (
+          <span className="ml-0.5 inline-flex h-6 items-center gap-1 rounded-md bg-amber-400/15 px-2 text-[11px] font-semibold text-amber-200">
+            <TriangleAlert className="size-3 shrink-0" />
+            <LocalizedText text={`Can’t merge ${blockedCount}`} />
+          </span>
+        )}
         {isAiDraft && (
           <>
             <span aria-hidden>·</span>
@@ -464,77 +416,8 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
         )}
       </p>
 
-      {/* 2 — the problem */}
-      {(fields.length > 0 || summary) && (
-        <section className="min-w-0">
-          {fields.length > 0 && (
-            <dl className="mb-2 space-y-1.5">
-              {fields.map((field) => (
-                <div key={field.label} className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <dt className="w-14 shrink-0 text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                  <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-                    <FieldValue text={field.current} />
-                    <span className="text-[11.5px] text-slate-500"><LocalizedText text="vs. reference" /></span>
-                    <FieldValue text={field.expected} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
-        </section>
-      )}
+      {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
-      {/* 3 — what blocks the merge (the only amber on the card) */}
-      {otherBlockers.length > 0 && (
-        <section className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
-            <TriangleAlert className="size-3.5 shrink-0" />
-            <LocalizedText text="Merge blocked" />
-            <span className="font-normal text-amber-200/80">· <LocalizedText text={`${otherBlockers.length} required`} /></span>
-          </p>
-          <CheckDecisions checks={checks} only={otherBlockers} {...checkActions} />
-        </section>
-      )}
-
-      {/* 4 — the decision so far, and taking it back */}
-      {decisionRows.length > 0 && (
-        <section className="min-w-0 rounded-lg bg-white/[0.04] px-3 py-2.5">
-          <p className="text-[11px] leading-4 font-medium text-slate-400"><LocalizedText text={open ? 'Current decision' : 'Merged decision'} /></p>
-          <div className="mt-1 flex min-w-0 items-center gap-2">
-            {decisionLabel ? (
-              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] leading-5 font-semibold text-emerald-300">
-                <Check className="size-4 shrink-0" strokeWidth={2.5} />
-                <span className="min-w-0 break-words"><LocalizedText text={decisionLabel} /></span>
-              </p>
-            ) : (
-              <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-300"><LocalizedText text="Not decided yet — pick a side on the card to the right." /></p>
-            )}
-            {decisionLabel && open && (
-              <button
-                type="button"
-                onClick={undoDecision}
-                className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
-              >
-                <RotateCcw className="size-3" />
-                <LocalizedText text="Undo decision" />
-              </button>
-            )}
-          </div>
-          {decisionBlockers.length > 0 && (
-            <div className="mt-2.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
-                <TriangleAlert className="size-3.5 shrink-0" />
-                <LocalizedText text="This decision is blocking the merge" />
-                <span className="font-normal text-amber-200/80">· <LocalizedText text={`${decisionBlockers.length} required`} /></span>
-              </p>
-              <CheckDecisions checks={checks} only={decisionBlockers} {...checkActions} />
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 5 — the reasoning */}
       {onOpenHistory && (
         <button
           type="button"
@@ -547,48 +430,97 @@ function OverviewTab({ conflict, severity, stage, showProject, checks, onFixChec
         </button>
       )}
 
-      {/* 6 — the rest, folded: branch, when, who, and the suggestions */}
       <section className="min-w-0 flex-1">
         <button
           type="button"
           aria-expanded={showDetails}
-          onClick={() => setDetailsToggled(!showDetails)}
+          onClick={() => setShowDetails((v) => !v)}
           className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
         >
           <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
-          {suggested.length > 0 && <span className="font-normal text-slate-400">· <LocalizedText text={`${suggested.length} suggested`} /></span>}
           <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
         </button>
-        {showDetails && (
-          <div className="mt-2 space-y-3.5">
-            {showProject && conflict.projectName && (
-              <div className={REVIEW_INFO_GRID}>
-                <p className={REVIEW_INFO_LABEL}>Project</p>
-                <p className="min-w-0 break-words text-xs leading-[18px] text-slate-200"><LocalizedText text={conflict.projectName} /></p>
-              </div>
-            )}
-            <div className={REVIEW_INFO_GRID}>
-              <p className={REVIEW_INFO_LABEL}>Branch</p>
-              <BranchInfo conflict={conflict} />
+        {showDetails && (conflict.rollback ? (
+          <div className="mt-2 space-y-1.5">
+            <div className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
+              <span className="text-xs leading-[18px] text-slate-400">Files</span>
+              <span translate="no" className="min-w-0 font-mono text-[11.5px] leading-[18px] break-all text-slate-300">{conflict.rollback.target}</span>
             </div>
-            {conflict.detectedAt && (
-              <div className={REVIEW_INFO_GRID}>
-                <p className={REVIEW_INFO_LABEL}>Detected</p>
-                <p className="min-w-0 text-xs leading-[18px] text-slate-200"><LocalizedText text={conflict.detectedAt} /></p>
-              </div>
-            )}
-            <Provenance conflict={conflict} />
-            {(suggested.length > 0 || accepted.length > 0) && (
-              <div className={REVIEW_INFO_GRID}>
-                <p className={REVIEW_INFO_LABEL}>Suggestions</p>
-                <div className="min-w-0 [&>ul]:mt-0">
-                  <CheckDecisions checks={checks} only={suggested} showAccepted {...checkActions} />
-                </div>
-              </div>
-            )}
+            <div className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
+              <span className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Changed at" /></span>
+              <span className="min-w-0 text-xs leading-[18px] text-slate-200"><LocalizedText text={conflict.rollback.timestamp ?? conflict.detectedAt} /></span>
+            </div>
           </div>
-        )}
+        ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
       </section>
+    </div>
+  )
+}
+
+// Everything the comparison card needs about the decision and the checks,
+// worked out once:
+//   · the decision so far (which side every value is on) and undoing it;
+//   · the required checks the picked side breaks (`cardBlockers` — shown on
+//     that card), and whether picking the other side would clear them
+//     (the checks re-run with every value flipped);
+//   · the remaining required checks, and the suggestions.
+function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecisions }) {
+  const open = stage !== 'resolved'
+  const rows = item ? driftRowsFor(conflict, item).filter((row) => row.diff) : []
+  const decisions = item ? (open ? workspace.decisionsFor(item.id) : mergedDecisions ?? {}) : {}
+  const all = (decision) => rows.length > 0 && rows.every((row) => decisions[row.key] === decision)
+  const side = all('A') ? 'A' : all('B') ? 'B' : null
+  const decided = rows.filter((row) => decisions[row.key]).length
+  const label = side === 'A' ? 'Merge with the design reference'
+    : side === 'B' ? 'Merge with the current implementation'
+      : decided ? `${decided} of ${rows.length} values decided` : null
+  const required = checks && open ? checks.blocking : []
+  const suggested = checks && open ? checks.failing.filter((check) => !checks.blocking.includes(check)) : []
+  const cardBlockers = side ? required.filter((check) => DECISION_CHECKS.has(check.id)) : []
+  let otherClears = false
+  if (cardBlockers.length && workspace?.mergeDrafts) {
+    const other = side === 'A' ? 'B' : 'A'
+    const draft = workspace.mergeDrafts.current?.[item.id] ?? {}
+    const flipped = checksFor(item, { ...draft, resolutions: { ...decisions, ...Object.fromEntries(rows.map((row) => [row.key, other])) } }, workspace.linesOfFile)
+    const accepted = conflict.acceptedChecks ?? []
+    otherClears = !flipped.blocking.some((check) => DECISION_CHECKS.has(check.id) && !accepted.includes(check.id))
+  }
+  return {
+    rows, side, label, open,
+    canPick: rows.length > 0 && open,
+    pick: (decision) => rows.forEach((row) => workspace.decideDrift(item.id, row.key, decision)),
+    undo: () => rows.forEach((row) => workspace.decideDrift(item.id, row.key, null)),
+    required, suggested, cardBlockers, otherClears,
+    otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
+  }
+}
+
+// The checks that aren't about the picked card, under the comparison:
+// required ones as "can't merge" (amber), then suggestions in a quiet tone.
+function CheckBlocks({ checks, state, actions }) {
+  const accepted = state.open ? checks?.accepted ?? [] : []
+  if (!state.otherBlockers.length && !state.suggested.length && !accepted.length) return null
+  return (
+    <div className="min-w-0 space-y-3">
+      {state.otherBlockers.length > 0 && (
+        <section className="min-w-0">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
+            <TriangleAlert className="size-3.5 shrink-0" />
+            <LocalizedText text="Can’t merge · required standard not met" />
+            <span className="font-normal text-amber-200/80 tabular-nums">· {state.otherBlockers.length}</span>
+          </p>
+          <CheckDecisions checks={checks} only={state.otherBlockers} {...actions} />
+        </section>
+      )}
+      {(state.suggested.length > 0 || accepted.length > 0) && (
+        <section className="min-w-0 opacity-90">
+          <p className="text-xs font-medium text-slate-400">
+            <LocalizedText text="Suggestions" />
+            {state.suggested.length > 0 && <span className="font-normal tabular-nums"> · {state.suggested.length}</span>}
+          </p>
+          <CheckDecisions checks={checks} only={state.suggested} showAccepted {...actions} />
+        </section>
+      )}
     </div>
   )
 }
@@ -640,15 +572,15 @@ function CodeDiffColumns({ rows }) {
 // ConflictCodeView) — editable, and what merging applies — or, when the
 // change can't be placed in the file, as the plain Before / After snippet.
 // Nothing reaches the workspace before the change is merged.
-function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines }) {
-  const decisionRows = item ? driftRowsFor(conflict, item).filter(row => row.diff) : []
-  const decisions = item ? workspace.decisionsFor(item.id) : {}
+// `state`: the decision and checks (decisionStateOf). `checkBlocks`: the
+// checks that aren't about the picked card, placed right under the
+// comparison. `checkActions`: fix / apply-as-is for the ones on the card.
+function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks }) {
   const readOnly = conflict.reviewStage === 'resolved'
-  const canPick = decisionRows.length > 0 && !readOnly
-  const picked = decision => decisionRows.length > 0 && decisionRows.every(row => decisions[row.key] === decision)
+  const { canPick } = state
+  const picked = decision => state.side === decision
   function pick(decision) {
-    if (!canPick) return
-    decisionRows.forEach(row => workspace.decideDrift(item.id, row.key, decision))
+    if (canPick) state.pick(decision)
   }
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
@@ -663,28 +595,47 @@ function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines })
 
   return (
     <div className="flex h-full flex-col">
-      {/* Going to work on it, not a decision: a secondary button by the
-          comparison it's about — clearly a button, but quieter than the
-          header's one primary action. `emphasize` (the change is approved
-          and this is the next step) gives it the mint outline. Not shown
-          inside Merge Studio — the canvas is already right there. */}
-      {studioAction && (
-        <div className="mb-2 flex justify-end">
-          <button
-            type="button"
-            title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
-            onClick={studioAction.onClick}
-            className={cn(
-              'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
-              studioAction.emphasize
-                ? 'bg-emerald-400/10 text-emerald-200 ring-1 ring-emerald-400/50 ring-inset hover:bg-emerald-400/15'
-                : 'bg-white/[0.05] text-slate-200 hover:bg-white/[0.09] hover:text-white'
-            )}
-          >
-            <GitMerge className="size-3.5" />
-            <LocalizedText text={studioAction.label} />
-            <ArrowUpRight className="size-3.5 opacity-70" />
-          </button>
+      {/* One row over the comparison: what it's waiting on — a side to be
+          chosen ("Choice needed"), or the choice made and the way to take it
+          back — and, on the right, the one way into Merge Studio. A choice
+          to make is not a failed check, so it isn't amber. */}
+      {(state.rows.length > 0 || studioAction) && (
+        <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+          {state.rows.length > 0 && (state.label ? (
+            <>
+              <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-semibold text-emerald-300">
+                <Check className="size-4 shrink-0" strokeWidth={2.5} />
+                <span className="min-w-0 break-words"><LocalizedText text={state.label} /></span>
+              </p>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={state.undo}
+                  className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
+                >
+                  <RotateCcw className="size-3" />
+                  <LocalizedText text="Undo decision" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="inline-flex h-6 shrink-0 items-center rounded-md bg-sky-400/15 px-2 text-[11px] font-semibold text-sky-200"><LocalizedText text="Choice needed" /></span>
+              <span className="min-w-0 text-xs text-slate-300"><LocalizedText text="Pick which side to merge." /></span>
+            </>
+          ))}
+          {studioAction && (
+            <button
+              type="button"
+              title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
+              onClick={studioAction.onClick}
+              className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.05] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
+            >
+              <GitMerge className="size-3.5" />
+              <LocalizedText text={studioAction.label} />
+              <ArrowUpRight className="size-3.5 opacity-70" />
+            </button>
+          )}
         </div>
       )}
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
@@ -706,12 +657,34 @@ function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines })
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
                       {conflict.comparisonFields.map((field) => (
-                        <div key={field.label} className="flex min-w-0 items-center justify-between gap-2 text-xs">
-                          <dt className="min-w-0 truncate text-[10px] text-slate-500"><LocalizedText text={field.label} /></dt>
-                          <dd className={cn('shrink-0 font-medium', tone)}><LocalizedText text={value(field)} /></dd>
+                        <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-2">
+                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
+                          <dd className={cn('min-w-0 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', tone)}><LocalizedText text={value(field)} /></dd>
                         </div>
                       ))}
                     </dl>
+                    {/* The picked side breaks a required standard: say so on
+                        this card, with what clears it. */}
+                    {picked(decision) && state.cardBlockers.length > 0 && (
+                      <div onClick={(event) => event.stopPropagation()} className="mt-1 cursor-default rounded-lg bg-amber-400/10 p-2.5 ring-1 ring-amber-300/40 ring-inset">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
+                          <TriangleAlert className="size-3.5 shrink-0" />
+                          <LocalizedText text="Can’t merge · required standard not met" />
+                        </p>
+                        <CheckDecisions checks={checks} only={state.cardBlockers} {...checkActions} />
+                        {state.otherClears && (
+                          <p className="mt-2 text-xs leading-[18px] text-slate-200">
+                            <LocalizedText text={side === 'before' ? 'Choosing the design reference clears it.' : 'Choosing the current implementation clears it.'} />
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {!picked(decision) && state.side && state.cardBlockers.length > 0 && state.otherClears && !readOnly && (
+                      <p className="mt-1 flex items-center gap-1.5 text-xs leading-[18px] text-emerald-300">
+                        <Check className="size-3.5 shrink-0" strokeWidth={2.5} />
+                        <LocalizedText text="Choosing this side clears the block." />
+                      </p>
+                    )}
                     {/* Picked is a state, not something to press: a plain check
                         and label. Only the side that isn't picked offers a
                         button (to switch to it). */}
@@ -767,6 +740,7 @@ function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines })
                 {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
               </div>
             )}
+            {checkBlocks}
             {conflict.diff && (
               <div className="min-w-0 pt-2">
                 {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
@@ -790,22 +764,52 @@ function DiffTab({ conflict, code, studioAction, workspace, item, mergedLines })
   )
 }
 
-// A rollback that reaches other people, as the agreement it needs: what's
-// being rolled back, who it affects and whether each of them has confirmed
-// (the list everyone checks off), and why it couldn't just be run.
+// A rollback that reaches other people, as the agreement it needs — kept
+// to what's checked here: why it needs agreement (one badge per reason),
+// what it changes (each value now → after, colors as swatches), and the one
+// list of who it affects with whether each has confirmed.
+function RollbackValue({ value, color }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {color && <span aria-hidden className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/20" style={{ background: color }} />}
+      {value
+        ? <span translate="no" className="min-w-0 font-mono text-[12px] break-all">{value}</span>
+        : <span className="text-xs text-slate-400"><LocalizedText text="Default" /></span>}
+    </span>
+  )
+}
+
 function RollbackAgreement({ conflict }) {
   const { rollback, reviewers } = conflict
   const confirmed = reviewers.filter((r) => r.status === 'approved').length
+  const changes = rollback.changes ?? []
   return (
     <div className="flex h-full min-w-0 flex-col gap-4">
-      <section className="min-w-0">
-        <p className={REVIEW_INFO_LABEL}><LocalizedText text="Rolling back" /></p>
-        <p className="mt-1 text-[13px] leading-5 font-semibold break-words text-white"><LocalizedText text={rollback.label} /></p>
-        <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-slate-300">
-          <span translate="no" className="font-mono text-[11.5px]">{rollback.target}</span>
-          {rollback.timestamp && <><span aria-hidden className="text-slate-500">·</span><LocalizedText text={rollback.timestamp} /></>}
-        </p>
-      </section>
+      <div className="flex min-w-0 flex-wrap gap-1.5">
+        {rollback.reasons.map((reason) => (
+          <span key={reason.id} className="inline-flex h-6 items-center gap-1 rounded-md bg-amber-400/15 px-2 text-[11px] font-medium text-amber-200">
+            <LocalizedText text={ROLLBACK_REASON[reason.id].short} />
+          </span>
+        ))}
+      </div>
+
+      {changes.length > 0 && (
+        <section className="min-w-0">
+          <p className={cn(REVIEW_INFO_LABEL, 'flex items-center gap-1.5')}>
+            <LocalizedText text="Now" /><span aria-hidden className="text-slate-500">→</span><LocalizedText text="After rollback" />
+          </p>
+          <dl className="mt-1.5 divide-y divide-white/[0.06] rounded-lg bg-white/[0.04]">
+            {changes.map((change) => (
+              <div key={change.label} className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2.5 px-3 py-2 text-slate-100">
+                <dt className="text-xs text-slate-400"><LocalizedText text={change.label} /></dt>
+                <dd className="min-w-0"><RollbackValue value={change.from} color={change.fromColor} /></dd>
+                <span aria-hidden className="text-slate-500">→</span>
+                <dd className="min-w-0"><RollbackValue value={change.to} color={change.toColor} /></dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       <section className="min-w-0">
         <p className={cn(REVIEW_INFO_LABEL, 'flex items-center gap-2')}>
@@ -833,21 +837,6 @@ function RollbackAgreement({ conflict }) {
               </li>
             )
           })}
-        </ul>
-      </section>
-
-      <section className="min-w-0">
-        <p className={REVIEW_INFO_LABEL}><LocalizedText text="Why it needs agreement" /></p>
-        <ul className="mt-1.5 space-y-2">
-          {rollback.reasons.map((reason) => (
-            <li key={reason.id} className="text-xs leading-[18px]">
-              <p className="font-medium text-slate-100"><LocalizedText text={ROLLBACK_REASON[reason.id].title} /></p>
-              <p className="text-slate-400"><LocalizedText text={ROLLBACK_REASON[reason.id].detail} /></p>
-              {reason.entries.length > 0 && (
-                <p className="mt-0.5 break-words text-slate-300">{reason.entries.slice(0, 3).join(' · ')}{reason.entries.length > 3 ? ` · +${reason.entries.length - 3}` : ''}</p>
-              )}
-            </li>
-          ))}
         </ul>
       </section>
     </div>
@@ -1464,6 +1453,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const guideCheck = guide ? (checks?.failing.find((check) => check.id === guide.id) ?? guide) : null
   const guideResolved = Boolean(guide) && !checks?.failing.some((check) => check.id === guide.id)
   const guideInEditor = Boolean(guide && (guide.fileId || guide.id === 'markers'))
+  const decisionState = decisionStateOf({
+    conflict, item: driftItem, workspace, checks, stage,
+    mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
+  })
+  const checkActions = {
+    activeId: guide && !guideResolved ? guide.id : null,
+    onFix: stage !== 'resolved' && workspace ? startFix : undefined,
+    onAccept: stage !== 'resolved' && onUpdate ? acceptCheck : undefined,
+    onUndoAccept: stage !== 'resolved' && onUpdate ? undoAcceptCheck : undefined,
+  }
+  const checkBlocks = <CheckBlocks checks={checks} state={decisionState} actions={checkActions} />
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
@@ -1607,22 +1607,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
                   {tab === 'overview' ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[46%] xl:min-w-[240px] xl:max-w-[460px] xl:shrink-0')}>
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
                             conflict={conflict}
                             severity={severity}
                             stage={stage}
                             showProject={!workspace}
-                            checks={checks}
-                            onFixCheck={stage !== 'resolved' && workspace ? startFix : undefined}
-                            onAcceptCheck={stage !== 'resolved' && onUpdate ? acceptCheck : undefined}
-                            onUndoAcceptCheck={stage !== 'resolved' && onUpdate ? undoAcceptCheck : undefined}
-                            fixingCheckId={guide && !guideResolved ? guide.id : null}
+                            blockedCount={decisionState.required.length}
                             onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
-                            workspace={workspace}
-                            item={driftItem}
-                            mergedDecisions={stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : undefined}
                           />
                         </div>
                       </section>
@@ -1637,11 +1630,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                                 ? '코드에서 충돌한 줄을 정리하세요.'
                                 : inMergeStudio
                                   ? '아래 카드에서 다른 값을 고르거나, 캔버스에서 표시된 요소를 직접 조정하세요.'
-                                  : '아래 카드에서 다른 값을 고르거나, 병합 스튜디오에서 표시된 요소를 정밀 조정하세요.'}
-                              action={{
-                                label: guideInEditor ? '에디터에서 열기' : inMergeStudio ? '캔버스에서 보기' : '병합 스튜디오에서 조정',
+                                  : '아래 카드에서 다른 값을 고르거나, ‘병합 스튜디오에서 조정’으로 표시된 요소를 정밀 조정하세요.'}
+                              // Outside Merge Studio the way there is the one
+                              // studio button on the comparison, which takes
+                              // this guide along — no second button here.
+                              action={guideInEditor || inMergeStudio ? {
+                                label: guideInEditor ? '에디터에서 열기' : '캔버스에서 보기',
                                 onClick: () => fixCheck(guideCheck),
-                              }}
+                              } : null}
                               onClose={() => workspace.setCheckGuide(null)}
                             />
                           )}
@@ -1662,19 +1658,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               }}
                             />
                           ) : (
-                          <>
                           <DiffTab
                             conflict={conflict}
                             code={codeView}
-                            workspace={workspace}
-                            item={driftItem}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
+                            state={decisionState}
+                            checks={checks}
+                            checkActions={checkActions}
+                            checkBlocks={checkBlocks}
+                            // The one way into Merge Studio. With a fix
+                            // guide open it goes there for that check (the
+                            // element marked, the guide kept on the canvas).
                             studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
-                              ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
+                              ? { label: 'Adjust in Merge Studio', onClick: () => (guide && !guideResolved && !guideInEditor ? fixCheck(guideCheck) : onOpenMergeStudio(conflict)) }
                               : null}
                           />
-                          </>
                           )}
+                          {/* Drafts mixed by part have no comparison card —
+                              their checks sit under the table instead. */}
+                          {!conflict.rollback && driftItem && draftColumns(driftItem) && <div className="mt-3">{checkBlocks}</div>}
                         </div>
                       </section>
                     </div>
@@ -1687,10 +1689,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
                 {/* Reviewers stay above the discussion beside the central diff. */}
                 <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
-                  <section className={cn("shrink-0 max-h-48 overflow-auto", REVIEW_CONTEXT_CARD)}>
+                  {/* A rollback agreement lists who it affects, and whether
+                      they've confirmed, once — in the middle. */}
+                  {!conflict.rollback && <section className={cn("shrink-0 max-h-48 overflow-auto", REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, "mb-2")}><LocalizedText text={conflict.rollback ? 'Affected people' : 'Reviewers'} /></p>
                     <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
-                  </section>
+                  </section>}
                   <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />

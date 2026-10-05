@@ -4,6 +4,27 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+Location|위치
+Record|이력
+Changed at|변경 시점
+Choice needed|선택 필요
+Pick which side to merge.|합칠 쪽을 고르세요.
+Can’t merge · required standard not met|병합 불가 · 필수 기준 위반
+Choosing the design reference clears it.|디자인 기준을 선택하면 해결됩니다.
+Choosing the current implementation clears it.|현재 구현을 선택하면 해결됩니다.
+Choosing this side clears the block.|이 쪽을 선택하면 병합 불가가 풀립니다.
+Now|현재
+After rollback|변경 후
+Class|클래스
+Someone is working on it|작업 중인 사람 있음
+Includes other people’s work|다른 사람 작업 포함
+Not fully reversible|완전 원복 불가
+Someone is working on this, so it needs their agreement.|작업 중인 사람이 있어 합의가 필요해요
+Other people’s work goes with it, so it needs their agreement.|다른 사람의 작업이 함께 빠져 합의가 필요해요
+Part of it can’t be fully undone, so it needs agreement.|완전히 원복되지 않는 내용이 있어 합의가 필요해요
+Hide changes|변경 접기
+Files and the preview & canvas always go back.|파일과 미리보기·캔버스는 항상 함께 되돌립니다.
+Deletes|삭제됨
 Sign-off|확인 여부
 Tomorrow|내일
 Merge blocked|병합 차단

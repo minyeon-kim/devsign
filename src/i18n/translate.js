@@ -24,10 +24,8 @@ const rules = [
     return `${MONTHS[mon]}월 ${day}일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`
   }],
   [/^(\d+) comments$/, (_, n) => `코멘트 ${n}개`],
-  [/^(\d+) required$/, (_, n) => `필수 ${n}개`],
-  [/^(\d+) suggested$/, (_, n) => `권장 ${n}개`],
+  [/^Can’t merge (\d+)$/, (_, n) => `병합 불가 ${n}`],
   [/^(\d+) of (\d+) values decided$/, (_, n, total) => `값 ${total}개 중 ${n}개 결정`],
-  [/^Rollback: (.+)$/, (_, label) => `롤백: ${core(label)}`],
   [/^(.+) — only your own changes were rolled back\.$/, (_, label) => `${core(label)} — 본인 변경만 되돌렸습니다.`],
   [/^(.+) — everyone affected had confirmed\.$/, (_, label) => `${core(label)} — 영향받는 작업자가 모두 확인했습니다.`],
   [/^(\d+) automated notes$/, (_, n) => `자동 피드백 ${n}개`],
