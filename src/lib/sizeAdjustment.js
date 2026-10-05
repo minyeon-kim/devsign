@@ -15,12 +15,22 @@ const sizeText = (size) => `${size.width} × ${size.height}px`
 // What was adjusted, or null when the element is still its original size.
 // `drafts` is the workspace's merge drafts ({ [itemId]: draft }).
 export function sizeAdjustmentOf(conflict, item, drafts) {
-  if (!conflict?.layerId || !item) return null
-  const layer = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers?.find((l) => l.id === conflict.layerId)
-  const sized = drafts?.[item.id]?.assemblies?.[conflict.layerId]
-  if (!layer || !sized) return null
-  const to = { width: sized.width ?? layer.width, height: sized.height ?? layer.height }
-  if (to.width === layer.width && to.height === layer.height) return null
+  if (!conflict || !item) return null
+  // The conflict's own element first — then any other element of its item
+  // that was resized (the one a check pointed at isn't always the same).
+  const layers = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers ?? []
+  const assemblies = drafts?.[item.id]?.assemblies ?? {}
+  const resized = [...new Set([conflict.layerId, ...Object.keys(assemblies)].filter(Boolean))]
+    .map((id) => {
+      const candidate = layers.find((l) => l.id === id)
+      const size = assemblies[id]
+      if (!candidate || !size) return null
+      const next = { width: size.width ?? candidate.width, height: size.height ?? candidate.height }
+      return next.width === candidate.width && next.height === candidate.height ? null : { layer: candidate, to: next }
+    })
+    .find(Boolean)
+  if (!resized) return null
+  const { layer, to } = resized
   const square = (size) => (size.width === size.height ? `${size.width}px` : sizeText(size))
   // The size as a class: on the 4px scale when it is ("size-6"), spelled
   // out otherwise.
@@ -28,7 +38,7 @@ export function sizeAdjustmentOf(conflict, item, drafts) {
     ? (to.width % 4 === 0 ? `size-${to.width / 4}` : `size-[${to.width}px]`)
     : `w-[${to.width}px] h-[${to.height}px]`
   return {
-    layerName: layer.name, from: sizeText(layer), to: sizeText(to),
+    layerId: layer.id, layerName: layer.name, from: sizeText(layer), to: sizeText(to),
     // A compared value written either way ("20 × 20px", or "20px" for a
     // square) reads as the original size: its old → new pair, else null.
     display: (value) => (value === sizeText(layer) ? { from: sizeText(layer), to: sizeText(to) }

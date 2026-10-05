@@ -69,7 +69,7 @@ export function DecisionSummary({ rationale, onOpen }) {
   const core = ['figma', 'token', 'comment'].map((kind) => evidence.find((item) => item.kind === kind)).filter(Boolean)
   const ordered = [...core, ...evidence.filter((item) => !core.includes(item))]
   return (
-    <section data-decision-summary aria-label="Decision summary" className="shrink-0 py-1 text-xs leading-5">
+    <section data-decision-summary aria-label="Decision summary" className="shrink-0 rounded-xl bg-white/[0.03] px-3 py-3 text-xs leading-5">
       <dl className="grid grid-cols-[48px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
         <dt className="text-slate-500"><LocalizedText text="The why" /></dt>
         <dd className="text-slate-300"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
@@ -127,20 +127,24 @@ export function RulesDialog({ focusId, onOpenChange, onOpenSource }) {
 // The reason itself, where it's asked inline (the rollback dialog): the
 // usual ones as chips, or one typed in. `value` is the reason so far.
 export function ReasonPicker({ value, onChange }) {
-  const typed = value && !DEVIATION_REASONS.includes(value) ? value : ''
+  // Several can apply: kept as one line, joined with " · ".
+  const parts = (value ?? '').split(' · ').filter(Boolean)
+  const chosen = parts.filter((part) => DEVIATION_REASONS.includes(part))
+  const typed = parts.filter((part) => !DEVIATION_REASONS.includes(part)).join(' · ')
+  const emit = (nextChosen, nextTyped) => onChange([...DEVIATION_REASONS.filter((reason) => nextChosen.includes(reason)), nextTyped].filter((part) => part.trim()).join(' · '))
   return (
     <div data-reason-picker>
       <p className="mb-1.5 text-xs font-medium text-slate-200"><LocalizedText text="Reason for the rollback" /></p>
       <div className="flex flex-wrap gap-1.5">
         {DEVIATION_REASONS.map((option) => (
-          <button key={option} type="button" role="radio" aria-checked={value === option} onClick={() => onChange(value === option ? '' : option)} className="ds-intrinsic inline-flex h-7 cursor-pointer items-center rounded-full border border-white/[0.12] bg-white/[0.03] px-2.5 text-[11.5px] text-slate-300 transition-colors hover:border-white/25 hover:text-white aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">
+          <button key={option} type="button" role="checkbox" aria-checked={chosen.includes(option)} onClick={() => emit(chosen.includes(option) ? chosen.filter((entry) => entry !== option) : [...chosen, option], typed)} className="ds-intrinsic inline-flex h-7 cursor-pointer items-center rounded-full border border-white/[0.12] bg-white/[0.03] px-2.5 text-[11.5px] text-slate-300 transition-colors hover:border-white/25 hover:text-white aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">
             <LocalizedText text={option} />
           </button>
         ))}
       </div>
       <input
         value={typed}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => emit(chosen, event.target.value)}
         aria-label="Your own reason"
         placeholder="Or write your own reason"
         className="mt-1.5 h-8 w-full rounded-lg border border-white/[0.1] bg-black/20 px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/50"
@@ -213,28 +217,33 @@ function DeviationReasonForm({ request, onSubmit, onCancel }) {
 // Lives below the selected card, outside its radio click target.
 export function InlineDeviationReason({ value, onSave, readOnly = false }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value ?? '')
-  const save = (text) => {
-    const reason = text.trim()
-    if (!reason) return
-    onSave(reason)
+  // Several reasons can apply at once: any of the usual ones, ticked, plus
+  // one typed in. They're kept as one line, joined with " · ".
+  const parts = (value ?? '').split(' · ').filter(Boolean)
+  const [picked, setPicked] = useState(() => parts.filter((part) => DEVIATION_REASONS.includes(part)))
+  const [draft, setDraft] = useState(() => parts.filter((part) => !DEVIATION_REASONS.includes(part)).join(' · '))
+  const toggle = (reason) => setPicked((current) => (current.includes(reason) ? current.filter((entry) => entry !== reason) : [...current, reason]))
+  const combined = [...DEVIATION_REASONS.filter((reason) => picked.includes(reason)), draft.trim()].filter(Boolean)
+  const save = () => {
+    if (!combined.length) return
+    onSave(combined.join(' · '))
     setEditing(false)
   }
   if (value && !editing) return <p key="saved" role="status" className="ds-reason-enter mt-3 flex flex-wrap items-center gap-x-1 text-xs leading-5 text-slate-300">
     <Check aria-hidden className="mr-1 size-3.5 text-slate-400" />
     <LocalizedText text="Reason" />: <LocalizedText text={value} />
-    {!readOnly && <button type="button" onClick={() => { setDraft(value); setEditing(true) }} className="ml-1 rounded px-1 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">· <LocalizedText text="Edit reason" /></button>}
+    {!readOnly && <button type="button" onClick={() => setEditing(true)} className="ml-1 rounded px-1 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">· <LocalizedText text="Edit reason" /></button>}
   </p>
   if (readOnly) return null
   return <div key="editing" className="ds-reason-reveal"><div className="min-h-0 overflow-hidden">
-  <form data-inline-deviation-reason className="space-y-2.5 px-1 pt-3 pb-1" onSubmit={(event) => { event.preventDefault(); save(draft) }}>
-    <p className="text-xs font-medium text-slate-300"><LocalizedText text="Why depart from the standard?" /></p>
+  <form data-inline-deviation-reason className="space-y-2.5 px-1 pt-3 pb-1" onSubmit={(event) => { event.preventDefault(); save() }}>
+    <p className="text-xs font-medium text-slate-300"><LocalizedText text="Why depart from the standard?" /> <span className="font-normal text-slate-500">· <LocalizedText text="Choose all that apply" /></span></p>
     <div className="flex flex-wrap gap-1.5">
-      {DEVIATION_REASONS.map((reason) => <button key={reason} type="button" onClick={() => save(reason)} className="ds-intrinsic ds-reason-chip rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text={reason} /></button>)}
+      {DEVIATION_REASONS.map((reason) => <button key={reason} type="button" role="checkbox" aria-checked={picked.includes(reason)} onClick={() => toggle(reason)} className="ds-intrinsic ds-reason-chip inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">{picked.includes(reason) && <Check aria-hidden className="size-3 text-emerald-300" />}<LocalizedText text={reason} /></button>)}
     </div>
     <div className="flex items-center gap-2">
       <input autoFocus={editing} aria-label="Your own reason" placeholder="직접 이유 입력" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-8 min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />
-      <button type="submit" disabled={!draft.trim()} className="ds-reason-chip h-8 rounded-full px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"><LocalizedText text="Save" /></button>
+      <button type="submit" disabled={!combined.length} className="ds-reason-chip h-8 rounded-full px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"><LocalizedText text="Save" /></button>
     </div>
   </form>
   </div></div>

@@ -3,7 +3,7 @@ import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -51,6 +51,13 @@ const FILTER_ALIAS = { merged: 'done' }
 // project card's badge, a project home's stat). Not one of the standing
 // tabs: it shows as one only while it's the filter in use.
 const OPEN_FILTER = { id: 'open', label: 'Open', test: isOpen }
+// A merge request for a mix of design drafts (sent from Design Compare):
+// its item has several drafts rather than one design ↔ code difference.
+function isDraftMerge(conflict, mergeItems = []) {
+  if (conflict.id.startsWith('mr-')) return true
+  const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
+  return (item?.variants?.length ?? 0) > 1
+}
 
 const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
 
@@ -120,8 +127,13 @@ function ConflictPanel({ inMergeStudio }) {
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
   const queued = conflicts.filter(isQueuedConflict)
   const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
-  const filter = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? FILTERS[0]
-  const shownFilters = filter === OPEN_FILTER ? [FILTERS[0], OPEN_FILTER, ...FILTERS.slice(1)] : FILTERS
+  const picked = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? null
+  const filter = picked ?? (filterId === 'drafts' ? { id: 'drafts', label: 'Draft merges', test: (c) => isDraftMerge(c, mergeItems) } : FILTERS[0])
+  // Draft merges get their own filter once there is one to find.
+  const draftFilter = { id: 'drafts', label: 'Draft merges', test: (c) => isDraftMerge(c, mergeItems) }
+  const hasDrafts = queued.some(draftFilter.test)
+  const base = hasDrafts ? [...FILTERS, draftFilter] : FILTERS
+  const shownFilters = filter === OPEN_FILTER ? [base[0], OPEN_FILTER, ...base.slice(1)] : base
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
   const filterItems = conflicts.map((conflict) => ({
     ...conflict,
@@ -332,6 +344,14 @@ function ConflictPanel({ inMergeStudio }) {
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
+                          {/* A mix of design drafts sent from Design Compare —
+                              told apart from design ↔ code conflicts. */}
+                          {isDraftMerge(conflict, mergeItems) && (
+                            <span data-draft-merge className="inline-flex h-5 shrink-0 items-center gap-1 rounded-md bg-sky-400/15 px-1.5 text-[11px] font-medium whitespace-nowrap text-sky-200">
+                              <Layers3 className="size-3" />
+                              <LocalizedText text="Draft merge" />
+                            </span>
+                          )}
                           {/* Settled by resizing the element in Merge Studio. */}
                           {isOpen(conflict) && sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current) && (
                             <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-emerald-400/15 px-1.5 text-[11px] font-medium whitespace-nowrap text-emerald-200">

@@ -274,10 +274,13 @@ export function compositionChecks(itemId, picks, fallback) {
     {
       id: 'amounts',
       regionIds: parts.filter((p) => p.meta.amount).map((p) => p.region.id),
-      group: 'Content',
+      // Drafts are design directions with sample numbers, so two parts
+      // showing different totals is something to tidy, not a reason to
+      // stop the merge: a suggestion, worded as what's on the screen.
+      group: 'Consistency',
       ok: amounts.length <= 1,
-      title: amounts.length <= 1 ? 'Amounts agree' : 'Amounts disagree',
-      hint: amounts.length <= 1 ? null : `${amounts.map((a) => `$${a}`).join(' vs ')} — ${parts.filter((p) => p.meta.amount).map(name).join(', ')} show different totals.`,
+      title: amounts.length <= 1 ? 'Totals shown match' : 'Parts show different sample totals',
+      hint: amounts.length <= 1 ? null : `${amounts.map((a) => `$${a}`).join(' vs ')} — ${parts.filter((p) => p.meta.amount).map(name).join(', ')} come from drafts with different sample totals. It doesn’t block the merge; pick these parts from one draft to make them match.`,
     },
     {
       id: 'accents',

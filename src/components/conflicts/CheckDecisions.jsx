@@ -181,30 +181,84 @@ export function CheckGuideHighlight({ layerId }) {
 // says what to change here and when it's done. `checks` are the studio's
 // live ones, so the note turns to Fixed as soon as the check passes.
 export function MergeCheckGuide({ item, checks }) {
-  const { checkGuide, setCheckGuide, conflicts, decideDrift } = useWorkspace()
+  const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
   const conflict = conflicts.find((c) => c.id === checkGuide.conflictId)
   if (!conflict || !(conflict.mergeItemId === item.id || item.conflictId === conflict.id)) return null
-  const live = checks?.failing.find((check) => check.id === checkGuide.check.id)
-  const resolved = Boolean(checks) && !live
-  const check = live ?? checks?.checks?.find((entry) => entry.id === checkGuide.check.id) ?? checkGuide.check
+  // No check to fix: a precise adjustment by hand — the guide says how it
+  // works and how to finish.
+  const manual = !checkGuide.check
+  const live = manual ? null : checks?.failing.find((check) => check.id === checkGuide.check.id)
+  const resolved = !manual && Boolean(checks) && !live
+  const check = manual ? null : live ?? checks?.checks?.find((entry) => entry.id === checkGuide.check.id) ?? checkGuide.check
+  const layerId = check?.layerId ?? conflict.layerId
+  // Done adjusting: back to the conflict's review, where the new value shows.
+  const finish = () => {
+    setCheckGuide(null)
+    setBottomPanel({ open: true, tab: 'conflict' })
+    openConflictReview(conflict.id)
+  }
+  const steps = check?.details?.length ? [
+    ko ? '아래 "기준값 적용" 버튼으로 해당 속성을 기준값으로 바꿉니다.' : 'Use "Apply reference value" below to set the property.',
+    ko ? '검사를 통과하면 이 안내가 "해결됨"으로 바뀝니다.' : 'This turns to Fixed once the check passes.',
+    ko ? '"조정 완료"를 눌러 충돌 내역에서 결과를 확인합니다.' : 'Press "Done adjusting" to see the result in the conflict.',
+  ] : [
+    ko ? '캔버스에서 노란 테두리로 표시된 요소를 선택합니다.' : 'Select the element outlined in yellow on the canvas.',
+    check?.editFields
+      ? (ko ? `속성 → 레이아웃에서 W와 H를 ${check.editFields.minimum}px 이상으로 입력합니다 (강조된 입력란).` : `In Properties → Layout, set W and H to at least ${check.editFields.minimum}px (the highlighted fields).`)
+      : (ko ? '속성 패널에서 값을 직접 입력합니다. 바꾼 값은 충돌 내역의 카드와 코드에 바로 반영됩니다.' : 'Type the value in the Properties panel. It shows on the conflict’s card and code right away.'),
+    ko ? '"조정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done adjusting" to go back to the conflict and request review.',
+  ]
   return (
     <>
-      {!resolved && !check.details?.length && <CheckGuideHighlight layerId={check.layerId ?? conflict.layerId} />}
+      {!resolved && !check?.details?.length && <CheckGuideHighlight layerId={layerId} />}
       <div className="pointer-events-none fixed inset-x-0 top-[104px] z-[540] flex justify-center px-4">
-        <div className="pointer-events-auto w-[440px] max-w-full rounded-xl bg-[#1D1D1D] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
-          <CheckGuideNote
-            check={check}
-            resolved={resolved}
-            onApply={(detail) => decideDrift(item.id, detail.key, 'A')}
-            where={check.editHint ? <LocalizedText text={check.editHint} /> : check.details?.length ? (ko
-              ? '기준값 적용 버튼으로 해당 속성을 변경하세요.'
-              : 'Apply the reference value above to update this property.') : ko
-              ? '노란 테두리로 표시된 요소를 선택해 값을 조정하세요. 검사를 통과하면 여기에 해결됨으로 표시됩니다.'
-              : 'Select the element outlined in yellow and adjust its value. This turns to Fixed once the check passes.'}
-            onClose={() => setCheckGuide(null)}
-          />
+        <div data-merge-check-guide className="pointer-events-auto w-[440px] max-w-full rounded-xl bg-[#1D1D1D] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
+          {check ? (
+            <CheckGuideNote
+              check={check}
+              resolved={resolved}
+              onApply={(detail) => decideDrift(item.id, detail.key, 'A')}
+              onClose={() => setCheckGuide(null)}
+            />
+          ) : (
+            <div role="status" className="flex min-w-0 items-start gap-2.5 rounded-xl bg-white/[0.04] p-3">
+              <Wrench className="mt-0.5 size-4 shrink-0 text-slate-300" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] leading-4 font-medium text-slate-300">{ko ? '정밀 조정' : 'Precise adjustment'}</p>
+                <p className="mt-0.5 text-[13px] leading-5 font-medium break-words text-white"><LocalizedText text={conflict.title} /></p>
+              </div>
+              <button type="button" onClick={() => setCheckGuide(null)} aria-label={ko ? '가이드 닫기' : 'Close guide'} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
+          {/* What to do next, in order — and the way to finish. */}
+          <div className="px-3 pt-2.5 pb-3">
+            {!resolved && (
+              <ol data-guide-steps className="space-y-1 text-xs leading-[18px] text-slate-300">
+                {steps.map((step, index) => (
+                  <li key={step} className="flex gap-2">
+                    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[10.5px] font-semibold text-slate-200 tabular-nums">{index + 1}</span>
+                    <span className="min-w-0">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <div className={cn('flex items-center gap-2', !resolved && 'mt-2.5')}>
+              {resolved && <span className="text-xs text-emerald-200">{ko ? '검사를 통과했어요. 충돌 내역에서 결과를 확인하세요.' : 'The check passes. See the result in the conflict.'}</span>}
+              <button
+                type="button"
+                data-guide-done
+                onClick={finish}
+                className={cn(ACTION, 'ml-auto h-8 px-3', resolved || manual ? 'bg-emerald-400 font-semibold text-emerald-950 hover:bg-emerald-300' : ACTION_QUIET)}
+              >
+                <Check className="size-3.5" />
+                {resolved || manual ? (ko ? '조정 완료' : 'Done adjusting') : (ko ? '충돌 내역으로 돌아가기' : 'Back to the conflict')}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </>

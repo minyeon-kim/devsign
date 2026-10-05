@@ -1122,7 +1122,7 @@ function MergeStudioWorkspace({ item }) {
         <BlockDeckPanel
           embedded
           fieldGuide={checkGuide && conflicts.some((conflict) => conflict.id === checkGuide.conflictId && (conflict.mergeItemId === item.id || item.conflictId === conflict.id))
-            ? liveChecks?.failing.find((check) => check.id === checkGuide.check.id)?.editFields : null}
+            ? liveChecks?.failing.find((check) => check.id === checkGuide.check?.id)?.editFields : null}
           activeTab={filesWindow.tab === 'assets' ? 'library' : 'assemble'}
           driftEffect={deckLayerId ? variantPreviews?.[deckLayerId] : undefined}
           textSlots={textSlots}

@@ -7,6 +7,7 @@ import {
   Bell,
   Check,
   ChevronDown,
+  CircleCheck,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -28,6 +29,7 @@ import { getLanguage } from '@/i18n/language'
 // Text fields skip the JSX translation pass (what's typed is the user's),
 // so their placeholders are translated here.
 const tr = (text) => translateText(text, getLanguage())
+const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
@@ -707,8 +709,11 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       )}
                       {/* The side that merges carries the hand adjustment. */}
                       {adjustment && adjusted(decision) && (
-                        <span className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200">
-                          <LocalizedText text="Adjusted by hand" />
+                        // Which element, and from what to what — said on the
+                        // tag itself, so it reads even when no compared
+                        // value below is that size.
+                        <span data-adjusted-tag className="min-w-0 shrink truncate rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200" title={`${adjustment.layerName}: ${adjustment.from} → ${adjustment.to}`}>
+                          <LocalizedText text="Adjusted by hand" /> · <LocalizedText text={adjustment.layerName} /> <span translate="no" className="tabular-nums">{adjustment.from} → {adjustment.to}</span>
                         </span>
                       )}
                       {/* Picked: a check at the end of the header (its slot is
@@ -1392,7 +1397,9 @@ function ReviewButton({ onSubmit, authorName }) {
           ))}
         </div>
         <p className="mt-1.5 mb-2 px-0.5 text-[11px] leading-4 text-slate-500">
-          <LocalizedText text={decision === 'approve' ? 'The change is good to merge.' : 'Something needs fixing before it merges.'} />
+          <LocalizedText text={decision === 'approve'
+            ? 'Use when the change is right as it is — it can merge once everyone has approved.'
+            : 'Use when something is wrong and the author should fix it: say what, and it goes back to them. If you can fix the value yourself, adjust it in Merge Studio first, then request review again instead.'} />
         </p>
         <textarea
           rows={3}
@@ -1583,7 +1590,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // the merge, and stays listed so the decision can be undone.
   function acceptCheck(check) {
     update({ acceptedChecks: [...new Set([...(conflict.acceptedChecks ?? []), check.id])] })
-    if (workspace?.checkGuide?.check.id === check.id) workspace.setCheckGuide(null)
+    if (workspace?.checkGuide?.check?.id === check.id) workspace.setCheckGuide(null)
     toast('Applying as is', { description: check.title })
   }
 
@@ -1870,6 +1877,22 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 REVIEW_GUTTER
               )}>
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
+                  {/* Done is said outright, above everything: merged (or
+                      rolled back), when and by whom — not left to be read
+                      off a Revert button and the merged values. */}
+                  {stage === 'resolved' && (
+                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 px-3 py-2.5 ring-1 ring-emerald-300/30 ring-inset">
+                      <CircleCheck className="size-4 shrink-0 text-emerald-300" />
+                      <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Rolled back' : 'Merged'} /></span>
+                      <span className="text-xs text-emerald-100/80">
+                        <LocalizedText text={conflict.rollback ? 'The rollback has run.' : 'This change is applied to the code. Nothing is left to review.'} />
+                      </span>
+                      <span className="ml-auto text-xs text-slate-300 tabular-nums">
+                        {personNameOf(conflict.mergedBy) && <><span translate="no">{personNameOf(conflict.mergedBy)}</span> · </>}
+                        <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? ''} />
+                      </span>
+                    </div>
+                  )}
                   {tab === 'overview' ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
                       {/* A rollback with nothing to detail has no left card —
@@ -1913,7 +1936,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             adjustment={adjustment}
                             changeAfter={changeAfter}
                             onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => {
-                              workspace.resetLayerSize(mergeItem.id, conflict.layerId)
+                              workspace.resetLayerSize(mergeItem.id, adjustment.layerId)
                               // Back to before the adjustment: the side picked
                               // then is still picked; with none, the current
                               // implementation is (it's what merges by default).
@@ -1933,7 +1956,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             // guide open it goes there for that check (the
                             // element marked, the guide kept on the canvas).
                             studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
-                              ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
+                              ? {
+                                label: 'Adjust in Merge Studio',
+                                // Arriving there says what to do: the check
+                                // to fix (its element marked, the value to
+                                // reach) or, with none failing, how a
+                                // precise adjustment works — and how to
+                                // finish and come back.
+                                onClick: () => {
+                                  workspace?.setCheckGuide({ conflictId: conflict.id, check: checks?.blocking[0] ?? checks?.failing[0] ?? null })
+                                  onOpenMergeStudio(conflict)
+                                },
+                              }
                               : null}
                           />
                           )}
