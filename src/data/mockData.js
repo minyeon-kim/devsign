@@ -247,6 +247,7 @@ export const conflictChecklist = [
   // read — so undoing it there really undoes it.
   {
     id: 'cc-touch-adjusted',
+    ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-touch-area', target: 'develop' },
     token: 'Coupon close button / Touch area',
     projectId: 'checkout-redesign',
@@ -299,6 +300,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-manual-target',
+    ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
     token: 'Coupon close button / Manual adjustment',
     projectId: 'checkout-redesign',
@@ -598,6 +600,12 @@ export const conflictChecklist = [
   // Open low-risk token drift in Checkout — the kind batch approval is for.
   {
     id: 'cc-8',
+    // The example of a decision that departs from the standard: the current
+    // implementation was kept, which is the one case a reason is asked for.
+    ruleIds: ['divider-color'],
+    decidedSide: 'B',
+    decidedBy: 'james',
+    deviation: { kind: 'keep-current', text: 'Kept temporarily until the design is final', by: 'james', at: '2 hours ago' },
     changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'hotfix/checkout-divider', target: 'main' },
     token: 'Divider / Color',
@@ -702,6 +710,16 @@ export const conflictChecklist = [
   // activity) points at this one change.
   {
     id: 'cc-11',
+    // Its reason, registered ahead of time: the two design system rules it
+    // runs into (lib/rationale), and the purpose the work was started for.
+    // Nobody types these on the conflict — they're linked when it's detected,
+    // along with Jordan's comment on it.
+    ruleIds: ['button-color', 'button-height'],
+    purpose: {
+      text: 'Remove the hard-coded hex (#7c3aed) and match the new checkout design’s primary token and 44px large button',
+      by: 'james',
+      source: 'request',
+    },
     gitFlow: { source: 'release/checkout-v2', target: 'main' },
     token: 'Place order button · Height & color',
     file: 'src/components/checkout/PlaceOrderButton.jsx',

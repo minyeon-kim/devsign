@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ReasonPicker } from '@/components/conflicts/Rationale'
 import { useNavigate } from 'react-router-dom'
 import { Bot, Check, ChevronDown, FileCode2, GitBranch, RotateCcw, Sparkles, Users, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -76,6 +77,8 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
   const [conflicts, setConflicts] = useState(true)
   const [agentMemory, setAgentMemory] = useState(false)
   const [showCode, setShowCode] = useState(false)
+  // A rollback departs from what was merged — the one thing asked here.
+  const [reason, setReason] = useState('')
 
   const rows = entry && current ? diffLines(current.snapshot.lines, entry.snapshot.lines) : []
   const added = rows.filter((r) => r.kind === 'add').length
@@ -89,7 +92,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
 
   function confirm() {
     if (needsAgreement) {
-      const record = requestRollbackAgreement(entry.id, { conflicts, agentMemory })
+      const record = requestRollbackAgreement(entry.id, { conflicts, agentMemory, reason: reason.trim() })
       onOpenChange(false)
       if (!record) return
       toast('Rollback sent for agreement', {
@@ -99,7 +102,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
       })
       return
     }
-    const restoredId = rollbackTo(entry.id, { conflicts, agentMemory })
+    const restoredId = rollbackTo(entry.id, { conflicts, agentMemory, reason: reason.trim() })
     onOpenChange(false)
     if (onDone) onDone(entry, restoredId)
     // Only your own work went back, so nobody had to agree — the team is
@@ -198,6 +201,8 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
                   danger={laterMessages > 0}
                 />
               </div>
+
+              <ReasonPicker value={reason} onChange={setReason} />
             </div>
 
             {/* Right above the buttons: does this need anyone's agreement? */}
@@ -229,7 +234,9 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
               <button
                 type="button"
                 onClick={confirm}
-                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA)}
+                disabled={!reason.trim()}
+                title={reason.trim() ? undefined : 'Choose or write a reason first'}
+                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA, 'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none')}
               >
                 {needsAgreement ? <Users className="size-3.5" /> : <RotateCcw className="size-3.5" />}
                 {needsAgreement ? 'Request agreement' : 'Rollback and share'}

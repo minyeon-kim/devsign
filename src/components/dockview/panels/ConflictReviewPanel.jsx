@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUserFor } from '@/data/mockData'
+import { allPeople, currentUserFor, projectFileSets } from '@/data/mockData'
 import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
@@ -57,6 +57,8 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
+import { DeviationReasonDialog, RulesDialog } from '@/components/conflicts/Rationale'
+import { rationaleOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
@@ -1149,7 +1151,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
 
 // Comments live in a project's workspace; outside one (dashboard, the
 // global conflict list) the thread says where to find it instead.
-function CommentThread({ conflict, workspace }) {
+function CommentThread({ conflict, workspace, flashId }) {
   const viewerId = currentUserFor(conflict.projectId).id
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
@@ -1196,7 +1198,13 @@ function CommentThread({ conflict, workspace }) {
           const author = allPeople.find((p) => p.id === comment.authorId)
           const replies = linked.filter((reply) => reply.target?.replyTo === comment.id)
           return (
-            <div key={comment.id} className="space-y-2 text-xs">
+            <div
+              key={comment.id}
+              data-comment-id={comment.id}
+              // Arrived at from an evidence link: brought into view and lit.
+              ref={comment.id === flashId ? (node) => node?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) : undefined}
+              className={cn('-mx-1.5 space-y-2 rounded-lg px-1.5 py-1 text-xs transition-colors duration-500', comment.id === flashId && 'bg-emerald-400/[0.12] ring-1 ring-emerald-300/40')}
+            >
               <div className="flex gap-2.5">
                 {author && <PersonAvatar person={author} />}
                 <div className="min-w-0 flex-1">
@@ -1407,6 +1415,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The review itself ('overview') or the History behind it, reset to the
   // review whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
+  // Evidence links and the one question a departure asks.
+  const [ruleFocus, setRuleFocus] = useState(null)
+  const [flashComment, setFlashComment] = useState(null)
+  const [reasonRequest, setReasonRequest] = useState(null)
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
@@ -1511,14 +1523,29 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   // A required check can't be waived — an exception is asked of the
   // reviewers; it stops blocking once they've approved the change with it.
+  // An exception departs from the standard, so it's asked why first; the
+  // reason travels with the request, for the reviewers to weigh.
   function requestException(check) {
-    update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), check.id])] })
-    if (workspace) workspace.addComment(`Exception requested: ${check.title}`, { conflictId: conflict.id })
-    toast('Exception requested', { description: 'It can merge once the reviewers approve the change.' })
+    setReasonRequest({
+      kind: 'exception',
+      subject: check.title,
+      run: (reason) => {
+        update({
+          exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), check.id])],
+          decidedBy: viewerId,
+          deviation: { kind: 'exception', checkId: check.id, text: reason, by: viewerId, at: 'Just now' },
+        })
+        if (workspace) workspace.addComment(`Exception requested: ${check.title} — ${reason}`, { conflictId: conflict.id })
+        toast('Exception requested', { description: 'It can merge once the reviewers approve the change.' })
+      },
+    })
   }
 
   function undoException(check) {
-    update({ exceptionChecks: (conflict.exceptionChecks ?? []).filter((id) => id !== check.id) })
+    update({
+      exceptionChecks: (conflict.exceptionChecks ?? []).filter((id) => id !== check.id),
+      ...(conflict.deviation?.checkId === check.id ? { deviation: null } : {}),
+    })
   }
 
   // Ship the change with this check as it is: it stops counting against
@@ -1577,6 +1604,52 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     onPickSide: onUpdate && conflict ? (side) => update({ pickedSide: side }) : undefined,
     mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
   })
+  // The reasons linked to this conflict (lib/rationale): the rules it runs
+  // into, its purpose and its comments — nothing here is typed in.
+  const rationale = conflict ? rationaleOf(conflict, { comments: workspace?.comments ?? [], checks }) : null
+  // Picking a side records who decided. Following the standard (the design
+  // reference) uses the linked reasons as they are; keeping the current
+  // implementation where a rule says otherwise is a departure, and is the
+  // one choice that asks why first (see DeviationReasonDialog).
+  const pickSide = decisionState.pick
+  const recordSide = (side, reason) => {
+    pickSide(side)
+    update({
+      decidedSide: side,
+      decidedBy: viewerId,
+      deviation: reason ? { kind: 'keep-current', text: reason, by: viewerId, at: 'Just now' } : conflict.deviation?.kind === 'keep-current' ? null : conflict.deviation ?? null,
+    })
+  }
+  decisionState.pick = (side) => {
+    const departs = side === 'B' && rationale.rules.length > 0 && !decisionState.meets.B
+    if (departs) setReasonRequest({ kind: 'keep-current', subject: conflict.title, run: (reason) => recordSide('B', reason) })
+    else recordSide(side)
+  }
+  // Evidence goes to the thing itself: the rule in the rule list, the Figma
+  // frame on the canvas, the token where it's defined, the comment in the
+  // thread beside the review (lit for a moment).
+  function openEvidence(item) {
+    if (item.kind === 'rule') { setRuleFocus(item.id); return }
+    if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
+    if (item.kind === 'comment') {
+      setFlashComment(item.id)
+      window.setTimeout(() => setFlashComment((current) => (current === item.id ? null : current)), 1800)
+      return
+    }
+    if (!workspace) return
+    setRuleFocus(null)
+    if (item.kind === 'token') {
+      const file = (projectFileSets[conflict.projectId] ?? []).find((candidate) => candidate.path === item.source || item.source?.endsWith(candidate.name))
+      if (!file) return
+      const line = workspace.getFileLines(file.id).findIndex((text) => item.find && text.includes(`"${item.find}"`))
+      workspace.focusChange({ fileId: file.id, line: line >= 0 ? line + 1 : 1 })
+      if (workspace.dockApi) openOrFocusPanel(workspace.dockApi, panelById.editor)
+      return
+    }
+    // A Figma frame: the element on the canvas.
+    workspace.focusChange(conflict)
+    if (workspace.dockApi) openOrFocusPanel(workspace.dockApi, panelById.canvas)
+  }
   const checkActions = {
     fixSideFor: (check) => decisionState.resolvingSide(check.id),
     onFix: stage !== 'resolved' && workspace ? startFix : undefined,
@@ -1792,7 +1865,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               const reopened = conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null
                               if (decisionState.sideOnly) update({ ...reopened, pickedSide: decisionState.side ?? 'B' })
                               else {
-                                if (!decisionState.side) decisionState.pick('B')
+                                if (!decisionState.side) pickSide('B')
                                 if (reopened) update(reopened)
                               }
                             } : undefined}
@@ -1816,7 +1889,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1">
-                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} onOpenProjectHistory={openProjectHistory} />
+                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} rationale={rationale} onOpenEvidence={openEvidence} onOpenProjectHistory={openProjectHistory} />
                     </div>
                   )}
                 </div>
@@ -1844,13 +1917,19 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />
                     </p>
-                    <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} />
+                    <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
                   </div>
                 </div>
               </div>
             </div>
           </>
         )}
+        <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
+        <DeviationReasonDialog
+          request={reasonRequest}
+          onCancel={() => setReasonRequest(null)}
+          onSubmit={(reason) => { reasonRequest.run(reason); setReasonRequest(null) }}
+        />
     </div>
   )
 }

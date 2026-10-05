@@ -61,6 +61,47 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+found a difference|차이 감지
+The why|왜
+Exception request|예외 요청
+Buttons use the primary color token|버튼 색은 primary 토큰 사용
+A hard-coded hex stops following the brand color when the token or the theme changes.|하드코딩된 hex는 토큰이나 테마가 바뀌어도 브랜드 색을 따라가지 못합니다.
+Main buttons are the 44px large size|버튼 높이는 44px large
+The main call to action is the large button, so it is easy to hit and reads as the primary action.|주요 행동 버튼은 누르기 쉽고 주된 동작으로 읽히도록 large 크기를 씁니다.
+Touch areas are at least 24px|터치 영역 24px 이상
+A smaller target is easy to miss on a touch screen; 24px is the minimum WCAG 2.2 AA asks for.|이보다 작으면 터치 화면에서 누르기 어렵습니다. 24px는 WCAG 2.2 AA의 최소 기준입니다.
+Dividers use the border color token|구분선은 border 토큰 사용
+A fixed gray does not follow the light and dark themes the way the border token does.|고정된 회색은 border 토큰과 달리 라이트·다크 테마를 따라가지 못합니다.
+Release schedule: applying it in the next sprint|출시 일정상 다음 스프린트에 반영
+Kept temporarily until the design is final|디자인 확정 전 임시 유지
+Agreed with the design owner as an exception|디자인 담당자와 예외로 합의
+Needs more verification before changing|변경 전 추가 검증 필요
+Kept the current implementation|현재 구현 유지
+Remove the hard-coded hex (#7c3aed) and match the new checkout design’s primary token and 44px large button|하드코딩된 hex(#7c3aed)를 제거하고 새 결제 디자인의 primary 토큰과 44px large 버튼에 맞춤
+What|무엇을
+Evidence|근거
+Decided by|결정한 사람
+No reason linked yet|연결된 근거 없음
+Purpose of the work|작업 목적
+Design rule|디자인 규칙
+Reason entered|입력한 이유
+comment|댓글
+Design system rules|디자인 시스템 규칙
+Registered reasons — linked to a change automatically when it runs into a rule.|미리 등록된 근거입니다. 변경이 규칙에 걸리면 자동으로 연결됩니다.
+Why depart from the standard?|기준에서 벗어나는 이유
+A choice that follows the standard needs no reason — this one is kept with the decision.|기준을 따르는 선택은 이유를 묻지 않습니다. 이 이유는 결정과 함께 기록됩니다.
+Or write your own reason|직접 입력
+Save reason|이유 저장
+Reason for the rollback|롤백 이유
+Choose or write a reason first|이유를 먼저 선택하거나 입력하세요
+asked for review|검토 요청
+gave approval|승인
+asked for changes|변경 요청
+dismissed a request|변경 요청 무효화
+merged it|병합
+reopened it|다시 열림
+asked to revert|되돌리기 요청
+changed the code|코드 수정
 Go to review|검토하기
 Open conflicts|미해결 충돌
 Recently viewed|최근 열람

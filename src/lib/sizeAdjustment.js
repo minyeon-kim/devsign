@@ -1,4 +1,5 @@
-import { canvasPages, conflictChecklist } from '@/data/mockData'
+import { canvasPages, conflictChecklist, mergeListItems } from '@/data/mockData'
+import { driftRowsFor } from '@/lib/driftDecisions'
 
 // A size set by hand in Merge Studio (W / H in Properties → Layout) on a
 // conflict's own element — the "precise adjustment" that settles a conflict
@@ -44,7 +45,19 @@ export function sizeAdjustmentOf(conflict, item, drafts) {
 // adjusted by hand (`adjustment.to`, see mockData) opens with that size in
 // its item's draft, exactly as if it had been set in Merge Studio.
 export function seedMergeDrafts(projectId) {
-  return Object.fromEntries(conflictChecklist
-    .filter((conflict) => conflict.projectId === projectId && conflict.adjustment && conflict.mergeItemId && conflict.layerId)
-    .map((conflict) => [conflict.mergeItemId, { resolutions: {}, assemblies: { [conflict.layerId]: { ...conflict.adjustment.to } } }]))
+  const mine = conflictChecklist.filter((conflict) => conflict.projectId === projectId && conflict.mergeItemId)
+  return {
+    ...Object.fromEntries(mine
+      .filter((conflict) => conflict.adjustment && conflict.layerId)
+      .map((conflict) => [conflict.mergeItemId, { resolutions: {}, assemblies: { [conflict.layerId]: { ...conflict.adjustment.to } } }])),
+    // A sample that was already decided one way (`decidedSide`): every one
+    // of its values on that side, so its review opens with that card picked.
+    ...Object.fromEntries(mine
+      .filter((conflict) => conflict.decidedSide)
+      .map((conflict) => {
+        const item = mergeListItems.find((candidate) => candidate.id === conflict.mergeItemId)
+        const rows = item ? driftRowsFor(conflict, item).filter((row) => row.diff) : []
+        return [conflict.mergeItemId, { resolutions: Object.fromEntries(rows.map((row) => [row.key, conflict.decidedSide])), assemblies: {} }]
+      })),
+  }
 }

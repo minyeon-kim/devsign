@@ -11,6 +11,10 @@ import { diffLines } from '@/lib/lineDiff'
 import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
+import { useNavigate } from 'react-router-dom'
+import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
+import { checkpointRationale } from '@/lib/rationale'
 
 const ROW_TONES = {
   same: 'text-slate-500',
@@ -52,7 +56,9 @@ function snapshotLines(snapshot) {
 // second later `onStepDone` moves on to the next checkpoint.
 // `position` ({ index, total }) feeds the temporary debug readout.
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
-  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId } = useWorkspace()
+  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments } = useWorkspace()
+  const navigate = useNavigate()
+  const [ruleFocus, setRuleFocus] = useState(null)
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
   const [codeWidth, setCodeWidth] = useState(null)
@@ -125,6 +131,20 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
 
   const added = rows.filter((r) => r.kind === 'add').length
   const removed = rows.filter((r) => r.kind === 'remove').length
+  // The conflicts this version is tied to: its own, and the ones marked on
+  // it in the list (lib/historyBranches).
+  const marks = foldConflictCheckpoints(withBranches(historyEntries, conflicts)).find((version) => version.id === entry.id)?.conflictMarks ?? []
+  const relatedIds = new Set([entry.conflictId, ...(entry.conflictIds ?? []), ...marks.map((mark) => mark.conflictId)].filter(Boolean))
+  const why = checkpointRationale(entry, conflicts.filter((conflict) => relatedIds.has(conflict.id)), comments)
+  // A rule opens in the rule list; everything else lives in the Workspace,
+  // on that conflict's review.
+  function openEvidence(item) {
+    if (item.kind === 'rule') { setRuleFocus(item.id); return }
+    if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
+    setRuleFocus(null)
+    const conflictId = item.conflictId ?? [...relatedIds][0]
+    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId } })
+  }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
         (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
@@ -154,6 +174,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             {entry.label}
           </p>
           {historyMeta(entry, currentUser.id) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry, currentUser.id)}</p>}
+          {/* Why this version exists and what backs it — the same reasons
+              its conflicts carry — with the way to those conflicts and
+              their comments. */}
+          <ReasonStrip text={why.text} evidence={why.evidence} onOpen={openEvidence} className="mt-1.5" />
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
             <GitCompareArrows className="size-3" />
             {!playing && isCurrent ? (
@@ -321,6 +345,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
           ))}
         </div>
       )}
+      <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
     </div>
   )
 }

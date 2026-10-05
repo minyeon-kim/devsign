@@ -349,7 +349,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
-  const mergeDrafts = useRef(readDemo(`project:${projectId}:mergeDrafts`, seedMergeDrafts(projectId)))
+  // (Seeded samples reach a saved demo too: an item it has no draft for
+  // yet takes the seed's.)
+  const mergeDrafts = useRef({ ...seedMergeDrafts(projectId), ...readDemo(`project:${projectId}:mergeDrafts`, {}) })
   // A conflict's checks, from its merge item and that item's draft (the
   // choices made in Merge Studio) — run fresh wherever they're shown.
   const linesOfFile = useCallback((fileId) => fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? [], [fileOverrides, files])
@@ -1314,7 +1316,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // the restored state is appended as a brand-new "Restored" checkpoint on
   // top of the timeline, and that new one becomes current. Returns its id.
   const rollbackTo = useCallback(
-    (entryId, { conflicts: restoreConflicts = true, agentMemory = false } = {}) => {
+    (entryId, { conflicts: restoreConflicts = true, agentMemory = false, reason = null } = {}) => {
       const entry = historyEntries.find((h) => h.id === entryId)
       if (!entry) return null
       const { snapshot } = entry
@@ -1346,6 +1348,8 @@ export function WorkspaceProvider({ children, projectId }) {
         target: entry.target,
         timestamp: timeLabel(),
         restoredFrom: entry.id,
+        // A rollback departs from what was merged, so it carries its reason.
+        ...(reason ? { reason } : {}),
         snapshot: { ...snapshot, chatLength: agentMemory ? keep : chatLengthRef.current },
       })
 
@@ -1393,6 +1397,7 @@ export function WorkspaceProvider({ children, projectId }) {
       reviewers: impact.affected.map((id) => ({ id, status: 'pending' })),
       timestamp: 'Just now',
       detectedAt: timeLabel(),
+      ...(options.reason ? { decidedBy: currentUser.id, deviation: { kind: 'rollback', text: options.reason, by: currentUser.id, at: 'Just now' } } : {}),
       rollback: {
         entryId: entry.id, label: entry.label, target: fileName, timestamp: entry.timestamp, options, reasons: impact.reasons,
         component: fileName.replace(/\.[a-z]+$/i, ''), requestedBy: currentUser.id,
@@ -1483,6 +1488,10 @@ export function WorkspaceProvider({ children, projectId }) {
                   changedBy: appliedBy
                     ? { type: 'person', id: appliedBy.id, what: scenario.title }
                     : { type: 'ai', what: scenario.title },
+                  // What was asked for in the chat is the reason for the
+                  // change it produced (lib/rationale) — kept unless the
+                  // work already had a purpose.
+                  purpose: c.purpose ?? { text: trimmed, by: appliedBy?.id ?? currentUser.id, source: 'ai-chat' },
                 }
               : c
           )

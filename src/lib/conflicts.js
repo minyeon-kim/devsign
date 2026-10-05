@@ -190,6 +190,11 @@ export function toConflictRecord(raw) {
     title: raw.title ?? raw.token ?? raw.file,
     // Records saved before the samples named their authors pick them up.
     changedBy: raw.changedBy ?? conflictChecklist.find((seed) => seed.id === raw.id)?.changedBy,
+    // …and so do the registered reasons (lib/rationale) the samples carry.
+    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation']
+      .filter((key) => raw[key] === undefined)
+      .map((key) => [key, conflictChecklist.find((seed) => seed.id === raw.id)?.[key]])
+      .filter(([, value]) => value !== undefined)),
     detectedAt: raw.detectedAt ?? raw.timestamp,
     reviewStage,
     reviewers: raw.reviewers ?? [],
