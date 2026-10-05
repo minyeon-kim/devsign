@@ -474,12 +474,16 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
 //     that card), and whether picking the other side would clear them
 //     (the checks re-run with every value flipped);
 //   · the remaining required checks, and the suggestions.
-function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecisions }) {
+function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecisions, onPickSide }) {
   const open = stage !== 'resolved'
   const rows = item ? driftRowsFor(conflict, item).filter((row) => row.diff) : []
   const decisions = item ? (open ? workspace.decisionsFor(item.id) : mergedDecisions ?? {}) : {}
   const all = (decision) => rows.length > 0 && rows.every((row) => decisions[row.key] === decision)
-  const side = all('A') ? 'A' : all('B') ? 'B' : null
+  // Two sides with the same values have no value to decide between — but
+  // which side merges is still a choice. It's kept on the conflict itself
+  // (`pickedSide`), so those cards work as radio options like any other.
+  const sideOnly = rows.length === 0 && Boolean(conflict?.comparisonFields?.length)
+  const side = sideOnly ? conflict.pickedSide ?? null : all('A') ? 'A' : all('B') ? 'B' : null
   const decided = rows.filter((row) => decisions[row.key]).length
   const label = side === 'A' ? 'Merge with the design reference'
     : side === 'B' ? 'Merge with the current implementation'
@@ -507,10 +511,12 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
   const other = side === 'A' ? 'B' : 'A'
   const otherClears = cardBlockers.length > 0 && Boolean(failing[other]) && !cardBlockers.some((check) => failing[other].has(check.id))
   return {
-    rows, side, label, open,
-    canPick: rows.length > 0 && open,
-    pick: (decision) => rows.forEach((row) => workspace.decideDrift(item.id, row.key, decision)),
-    undo: () => rows.forEach((row) => workspace.decideDrift(item.id, row.key, null)),
+    rows, side, label, open, sideOnly,
+    canPick: open && (rows.length > 0 || (sideOnly && Boolean(onPickSide))),
+    pick: (decision) => (sideOnly ? onPickSide(decision) : rows.forEach((row) => workspace.decideDrift(item.id, row.key, decision))),
+    undo: () => (sideOnly ? onPickSide(null) : rows.forEach((row) => workspace.decideDrift(item.id, row.key, null))),
+    // Neither side passes what's required: picking a card can't settle it.
+    bothFail: required.length > 0 && required.every((check) => resolvingSide(check.id) === null),
     required, suggested, cardBlockers, otherClears, resolvingSide, meets,
     otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
   }
@@ -682,6 +688,10 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
+                      {/* The radio: a ring, filled when this side is picked. */}
+                      <span aria-hidden className={cn('mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors', on ? 'border-emerald-300' : 'border-white/35')}>
+                        {on && <span className="size-2 rounded-full bg-emerald-300" />}
+                      </span>
                       <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} />}</div>
                       {/* This side passes what the other one fails. */}
                       {state.meets[decision] && (
@@ -695,9 +705,6 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                           <LocalizedText text="Adjusted by hand" />
                         </span>
                       )}
-                      <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-                        {on && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
-                      </span>
                     </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="min-w-0 space-y-3">
@@ -791,6 +798,14 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
               <div className="grid grid-cols-2 gap-3">
                 {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
               </div>
+            )}
+            {/* Both sides miss a required standard: the cards still choose
+                which side merges, but choosing can't fix it. */}
+            {pairedPreview && state.bothFail && !adjustment && !readOnly && (
+              <p className="flex items-center gap-1.5 text-xs leading-[18px] text-slate-300">
+                <TriangleAlert className="size-3.5 shrink-0 text-slate-400" />
+                <LocalizedText text="Both values miss the standard · it needs adjusting in Merge Studio" />
+              </p>
             )}
             {checkBlocks}
             {conflict.diff && (
@@ -1541,6 +1556,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const driftItem = conflict ? driftItemOf(conflict, workspace) : null
   const decisionState = decisionStateOf({
     conflict, item: driftItem, workspace, checks, stage,
+    onPickSide: onUpdate && conflict ? (side) => update({ pickedSide: side }) : undefined,
     mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
   })
   const checkActions = {
@@ -1744,8 +1760,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             changeAfter={changeAfter}
                             onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => {
                               workspace.resetLayerSize(mergeItem.id, conflict.layerId)
-                              // A seeded "settled by hand" record goes back to open with it.
-                              if (conflict.resolution === 'manual') update({ resolution: null, adjustment: null })
+                              // Back to before the adjustment: the side picked
+                              // then is still picked; with none, the current
+                              // implementation is (it's what merges by default).
+                              // A seeded "settled by hand" record reopens too.
+                              const reopened = conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null
+                              if (decisionState.sideOnly) update({ ...reopened, pickedSide: decisionState.side ?? 'B' })
+                              else {
+                                if (!decisionState.side) decisionState.pick('B')
+                                if (reopened) update(reopened)
+                              }
                             } : undefined}
                             state={decisionState}
                             checks={checks}
