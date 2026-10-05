@@ -6,15 +6,15 @@ import { Toaster } from '@/components/ui/sonner'
 import LocalCursor from '@/components/collab/LocalCursor'
 import ConditionalScrollFade from '@/components/layout/ConditionalScrollFade'
 import { ConflictStoreProvider } from '@/state/ConflictStore'
-import DashboardPage from '@/pages/DashboardPage'
-import ActivityPage from '@/pages/ActivityPage'
-import TeamPage from '@/pages/TeamPage'
-import ProjectLayout from '@/pages/ProjectLayout'
-import ProjectOverviewPage from '@/pages/ProjectOverviewPage'
-import WorkspacePage from '@/pages/WorkspacePage'
-import DocsPage from '@/pages/DocsPage'
-import HistoryPage from '@/pages/HistoryPage'
-import ImportPage from '@/pages/ImportPage'
+import { lazy, Suspense } from 'react'
+import PageSkeleton from '@/components/layout/PageSkeleton'
+// A project's pages load on demand (and ahead of the click, from a project
+// card's hover) — see lib/projectPages.
+import { DocsPage, HistoryPage, ImportPage, ProjectLayout, ProjectOverviewPage, WorkspacePage } from '@/lib/projectPages'
+
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const ActivityPage = lazy(() => import('@/pages/ActivityPage'))
+const TeamPage = lazy(() => import('@/pages/TeamPage'))
 
 // The Archive was split into Docs and History: old /archive links (and
 // their `location.state`) land on whichever of the two they pointed at.
@@ -34,6 +34,8 @@ function App() {
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <ConditionalScrollFade />
         <ControlTooltips />
+        {/* While a page loads: its skeleton, never an empty screen. */}
+        <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -52,6 +54,7 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </Suspense>
 
         {/* Single global cursor overlay — mounted here (not inside the
             workspace) so it stands in for the OS cursor, hidden site-wide

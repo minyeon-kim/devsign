@@ -1,10 +1,12 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Check, FolderKanban } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
 import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
 import ProjectThumbnail from '@/components/dashboard/ProjectThumbnail'
 import { allPeople } from '@/data/mockData'
+import { LocalizedText } from '@/i18n/runtime'
+import { prefetchProject } from '@/lib/projectPages'
 import { projectTone } from '@/lib/projectTone'
 
 const MAX_VISIBLE_AVATARS = 3
@@ -22,12 +24,37 @@ function SelectIndicator({ selected }) {
   )
 }
 
-// A file-browser-style card: the preview thumbnail does the work, and the
-// footer stays to a name + last-edited timestamp — conflict/merge detail
-// lives on the Dashboard's "Needs attention" list, not duplicated here.
-// `selectable` (toggled from "All projects" in ProjectsSection) switches a
-// click from navigating into the project to toggling its selection instead.
-function ProjectCard({ project, view = 'grid', selectable = false, selected = false, onToggleSelect }) {
+// A count on a card that is also a way in: "Needs your review 2" opens that
+// project's Conflict list on that filter. Not shown at zero. It sits above
+// the card's own click target (see ProjectCard), so it takes the click.
+function CountBadge({ label, count, accent = false, onClick }) {
+  if (!count) return null
+  return (
+    <button
+      type="button"
+      data-card-badge
+      onClick={onClick}
+      className={cn(
+        'ds-intrinsic relative z-10 inline-flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+        accent
+          ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20'
+          : 'border-white/[0.14] bg-white/[0.04] text-slate-200 hover:border-white/25 hover:bg-white/[0.09]'
+      )}
+    >
+      <LocalizedText text={label} />
+      <span className="tabular-nums">{count}</span>
+    </button>
+  )
+}
+
+// A project, as a card: the preview thumbnail, its name and members, and —
+// when there's something waiting — the counts that matter ("Needs your
+// review", "Conflicts"). The whole card opens the project; a count opens
+// its Conflict list on that filter. Hovering (or focusing) the card loads
+// the project's pages ahead of the click, so it opens at once.
+// `selectable` (toggled from "Projects" in ProjectsSection) switches a
+// click from opening the project to toggling its selection instead.
+function ProjectCard({ project, view = 'grid', counts, selectable = false, selected = false, onToggleSelect }) {
   const navigate = useNavigate()
   const tone = projectTone(project.id)
   const members = project.memberIds
@@ -40,15 +67,26 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
     if (selectable) onToggleSelect(project.id)
     else navigate(`/projects/${project.id}`)
   }
+  const openList = (conflictFilter) => navigate(`/projects/${project.id}/workspace`, { state: { conflictFilter } })
+  const badges = !selectable && (
+    <>
+      <CountBadge accent label="Needs your review" count={counts?.needsMyReview} onClick={() => openList('mine')} />
+      <CountBadge label="Conflicts" count={counts?.open} onClick={() => openList('open')} />
+    </>
+  )
+  const hasBadges = !selectable && Boolean(counts?.needsMyReview || counts?.open)
+  // The card's click target covers the whole card (`after:inset-0` on the
+  // card's box); the badges sit above it.
+  const cover = 'cursor-pointer text-left after:absolute after:inset-0 after:content-[\'\'] focus-visible:outline-none'
+  const prefetch = { onPointerEnter: prefetchProject, onFocus: prefetchProject }
 
   if (view === 'list') {
     return (
-      <div className="flex min-w-0 items-center gap-2">
-      <button
-        type="button"
-        onClick={handleActivate}
+      <div
+        data-project-card={project.id}
+        {...prefetch}
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
+          'relative flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50 focus-within:ring-1 focus-within:ring-emerald-300/50',
           selected && 'border-primary bg-primary/5'
         )}
       >
@@ -56,22 +94,22 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
         <span className={cn('flex size-6 shrink-0 items-center justify-center rounded', tone)}>
           <FolderKanban className="size-3.5 text-white" />
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{project.name}</span>
-        <span className="shrink-0 text-[11px] text-muted-foreground">Edited {project.updatedAtLabel}</span>
-      </button>
-      {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} aria-label={`Open ${project.name} workspace`} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] hover:text-white"><ArrowUpRight className="size-4" /></Link>}
+        <button type="button" onClick={handleActivate} className={cn(cover, 'min-w-0 flex-1 truncate text-sm font-medium text-foreground')}>
+          {project.name}
+        </button>
+        {badges}
+        <span className="shrink-0 text-[11px] text-muted-foreground">{`Edited ${project.updatedAtLabel}`}</span>
       </div>
     )
   }
 
   return (
-    <div className="relative min-w-0">
-    <button
-      type="button"
-      onClick={handleActivate}
+    <div
+      data-project-card={project.id}
+      {...prefetch}
       className={cn(
         PAGE_CARD,
-        'group flex w-full flex-col overflow-hidden text-left transition-colors hover:border-primary/40',
+        'group relative flex min-w-0 flex-col overflow-hidden transition-colors hover:border-white/25 hover:bg-white/[0.03] focus-within:border-emerald-300/50',
         selected && 'border-primary ring-2 ring-primary/40'
       )}
     >
@@ -89,13 +127,16 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
           <FolderKanban className="size-4 text-white" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-foreground">{project.name}</p>
+          <button type="button" onClick={handleActivate} className={cn(cover, 'block max-w-full truncate text-[13px] font-semibold text-foreground')}>
+            {project.name}
+          </button>
           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {project.type ? `${project.type} · Edited ${project.updatedAtLabel}` : `Edited ${project.updatedAtLabel}`}
           </p>
         </div>
 
-        <AvatarGroup className="shrink-0">
+        {/* Overlapped just enough that every initial still reads. */}
+        <AvatarGroup className="shrink-0 -space-x-0.5">
           {visibleMembers.map((member) => (
             <Avatar key={member.id} size="sm">
               <AvatarFallback className={cn('text-[10px] font-medium text-white', member.colorClass)}>
@@ -106,8 +147,8 @@ function ProjectCard({ project, view = 'grid', selectable = false, selected = fa
           {overflowCount > 0 && <AvatarGroupCount>+{overflowCount}</AvatarGroupCount>}
         </AvatarGroup>
       </div>
-    </button>
-    {!selectable && <Link to={`/projects/${project.id}/workspace`} title={`Open ${project.name} workspace`} className="absolute top-3 right-3 flex h-8 items-center gap-1.5 rounded-full border border-white/10 bg-card/90 px-3 text-[11px] text-slate-200 backdrop-blur-sm hover:bg-[#252525] hover:text-white">Workspace<ArrowUpRight className="size-3.5" /></Link>}
+
+      {hasBadges && <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5">{badges}</div>}
     </div>
   )
 }

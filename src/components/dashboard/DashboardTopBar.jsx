@@ -1,11 +1,12 @@
 import { SettingsContent } from '@/components/workspace/SettingsDialog'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { ChevronDown, File, Folder, User as UserIcon } from 'lucide-react'
+import { ChevronDown, FileCode2, Folder, User as UserIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import SearchField from '@/components/layout/SearchField'
+import { translateText } from '@/i18n/translate'
 import NotificationsMenu from '@/components/layout/NotificationsMenu'
 import {
   DropdownMenu,
@@ -31,7 +32,10 @@ function searchAll(query) {
   if (!q) return { projectResults: [], fileResults: [], memberResults: [] }
 
   return {
-    projectResults: projects.filter((p) => p.name.toLowerCase().includes(q)).slice(0, MAX_RESULTS_PER_GROUP),
+    // A project is found by its name as shown, in either language.
+    projectResults: projects
+      .filter((p) => [p.name, translateText(p.name, 'ko')].some((name) => name.toLowerCase().includes(q)))
+      .slice(0, MAX_RESULTS_PER_GROUP),
     fileResults: searchableFiles.filter((f) => f.name.toLowerCase().includes(q)).slice(0, MAX_RESULTS_PER_GROUP),
     memberResults: allPeople.filter((p) => p.name.toLowerCase().includes(q)).slice(0, MAX_RESULTS_PER_GROUP),
   }
@@ -59,7 +63,29 @@ function DashboardTopBar() {
   function goTo(path) {
     setQuery('')
     setFocused(false)
+    inputRef.current?.blur()
     navigate(path)
+  }
+
+  // ⌘K (Ctrl+K) puts the cursor in the search from anywhere on the page;
+  // typing a project's name and pressing Enter goes straight to it.
+  const inputRef = useRef(null)
+  useEffect(() => {
+    function onKey(event) {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  function onSearchKey(event) {
+    if (event.key === 'Escape') { setQuery(''); event.currentTarget.blur(); return }
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+    const project = projectResults[0]
+    if (project) goTo(`/projects/${project.id}`)
   }
 
   return (
@@ -70,6 +96,10 @@ function DashboardTopBar() {
 
       <SearchField
         className="w-full"
+        ref={inputRef}
+        shortcut="⌘K"
+        onKeyDown={onSearchKey}
+        aria-keyshortcuts="Meta+K Control+K"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => setFocused(true)}
@@ -85,7 +115,7 @@ function DashboardTopBar() {
                 {projectResults.length > 0 && (
                   <div>
                     <p className="px-1.5 py-1 text-[11px] font-medium text-muted-foreground">Projects</p>
-                    {projectResults.map((project) => (
+                    {projectResults.map((project, index) => (
                       <button
                         key={project.id}
                         type="button"
@@ -94,7 +124,9 @@ function DashboardTopBar() {
                         className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
                       >
                         <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{project.name}</span>
+                        <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                        {/* Enter opens the first project. */}
+                        {index === 0 && <kbd translate="no" aria-hidden className="shrink-0 rounded border border-white/[0.14] px-1 text-[10px] leading-4 text-slate-400">↵</kbd>}
                       </button>
                     ))}
                   </div>
@@ -111,7 +143,7 @@ function DashboardTopBar() {
                         onClick={() => goTo(`/projects/${file.projectId}/workspace`)}
                         className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
                       >
-                        <File className="size-3.5 shrink-0 text-muted-foreground" />
+                        <FileCode2 className="size-3.5 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1 truncate">{file.name}</span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">{file.projectName}</span>
                       </button>

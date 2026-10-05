@@ -1,6 +1,6 @@
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
-import { STAGE_LABEL, gitFlowOf } from '@/lib/conflicts'
+import { STAGE_LABEL, gitFlowOf, listStatusOf } from '@/lib/conflicts'
 
 // The review's secondary "go somewhere" buttons — to the conflict's
 // activity, Merge Studio, the project's History, and back to the review —
@@ -37,6 +37,19 @@ export function ReviewStageBadge({ stage, ready = false, label, quiet = false, p
     <span className="truncate"><LocalizedText text={label ?? (ready ? 'Decided · request review' : STAGE_LABEL[stage])} /></span>
   </span>
 }
+// A conflict's status wherever it's listed (the Conflict list, the
+// Dashboard's queue, a project's home): a color dot and one short word —
+// the list's five statuses (lib/conflicts), never a boxed chip.
+export function ListStatusLabel({ conflict, className }) {
+  const status = listStatusOf(conflict)
+  return (
+    <span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5 text-slate-200', className)}>
+      <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
+      <LocalizedText text={status.label} />
+    </span>
+  )
+}
+
 export function BranchInfo({ conflict, compact = false }) {
   const flow = gitFlowOf(conflict)
   if (!flow) return <span className="text-xs text-slate-500">—</span>

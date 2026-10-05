@@ -1,6 +1,7 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronRight, GitMerge, History, FileText } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, History, FileText } from 'lucide-react'
+import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, FLOATING_PILL, PAGE_CARD, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -27,13 +28,13 @@ function Section({ title, action, children }) {
   )
 }
 
-function SectionLink({ to, state, children }) {
-  return (
-    <Link to={to} state={state} className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white">
-      {children}
-      <ChevronRight className="size-3.5" />
-    </Link>
-  )
+// A section's way on to the full view: the app's secondary go-somewhere
+// button (NAV_BUTTON) — its label, then → for moving within the app.
+function SectionLink({ to, state, onClick, children }) {
+  const content = <>{children}<ArrowRight className={NAV_BUTTON_ICON} /></>
+  return onClick
+    ? <button type="button" onClick={onClick} className={NAV_BUTTON}>{content}</button>
+    : <Link to={to} state={state} className={NAV_BUTTON}>{content}</Link>
 }
 
 // A count with what it counts spelled out (`title`), linking to exactly
@@ -57,7 +58,7 @@ function Person({ id }) {
   const person = allPeople.find((p) => p.id === id)
   if (!person) return null
   return (
-    <Avatar size="sm" className="ring-2 ring-background" title={person.name}>
+    <Avatar size="sm" className="ring-2 ring-background" title={`${person.name} · ${person.role}`}>
       <AvatarFallback className={cn('text-[10px] font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback>
     </Avatar>
   )
@@ -146,7 +147,8 @@ function ProjectOverviewPage() {
             <h1 className="break-words [overflow-wrap:anywhere] text-xl font-semibold tracking-tight text-white">{project.name}</h1>
             <p className="mt-1 break-words [overflow-wrap:anywhere] text-[13px] text-slate-400">{project.description}</p>
             <div className="mt-3 flex items-center gap-2">
-              <div className="flex -space-x-1.5">
+              {/* Overlapped just enough that every initial still reads. */}
+              <div className="flex -space-x-0.5">
                 {project.memberIds.map((id) => (
                   <Person key={id} id={id} />
                 ))}
@@ -166,10 +168,10 @@ function ProjectOverviewPage() {
             never a percentage without a basis. */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat
-            label="Open design ↔ code differences"
+            label="Open conflicts"
             value={counts.open}
             hint={counts.highOpen ? `${counts.highOpen} high risk` : 'None high risk'}
-            title="Conflict Points not merged yet"
+            title="Conflicts not merged yet"
             onClick={() => openList('open')}
           />
           <Stat
@@ -185,7 +187,7 @@ function ProjectOverviewPage() {
             hint="All required approvals received"
             onClick={() => openList('pending_merge')}
           />
-          <Stat label="Merged" value={counts.merged} hint="Applied to the code" onClick={() => openList('merged')} />
+          <Stat label="Done" value={counts.merged} hint="Applied to the code" onClick={() => openList('done')} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -193,18 +195,11 @@ function ProjectOverviewPage() {
             <Section
               title="Open Conflict Points"
               action={
-                <button
-                  type="button"
-                  onClick={() => openList('open')}
-                  className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400 transition-colors hover:text-white"
-                >
-                  In Workspace
-                  <ChevronRight className="size-3.5" />
-                </button>
+                <SectionLink onClick={() => openList('open')}>View in Conflict list</SectionLink>
               }
             >
               {openConflicts.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No open Conflict Points.</p>
+                <p className="py-4 text-center text-xs text-slate-500">No conflicts to review.</p>
               ) : (
                 <div className="flex flex-col gap-0.5">
                   {openConflicts.map((c) => (
@@ -224,7 +219,7 @@ function ProjectOverviewPage() {
               title="Document updates"
               action={
                 <SectionLink to={docsPath} state={{ tab: 'dsUpdates' }}>
-                  Open
+                  View all
                 </SectionLink>
               }
             >
@@ -282,7 +277,7 @@ function ProjectOverviewPage() {
                     state={{ highlightId: entry.id }}
                     className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-slate-300 transition-colors hover:bg-white/[0.04] hover:text-white"
                   >
-                    <GitMerge className="size-3.5 shrink-0 text-slate-500" />
+                    <History className="size-3.5 shrink-0 text-slate-500" />
                     <span className="min-w-0 flex-1">
                       <span title={entry.label} className="block truncate">{entry.label}</span>
                       <span className="block truncate text-[11px] text-slate-500">

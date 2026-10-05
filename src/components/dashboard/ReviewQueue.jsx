@@ -16,7 +16,7 @@ import { useConflictStore } from '@/state/ConflictStore'
 // The chosen view is in the URL (?queue=), so coming Back from a conflict
 // lands on the same view.
 const VIEWS = [
-  { id: 'review', label: 'Needs your review', test: (c) => needsReviewFrom(c), empty: 'Nothing needs your review.' },
+  { id: 'review', label: 'Needs your review', test: (c) => needsReviewFrom(c), empty: 'No conflicts to review.' },
   { id: 'high', label: 'High risk', test: (c) => isOpen(c) && c.severity === 'high', empty: 'No open high-risk items.' },
   { id: 'merge', label: 'Pending merge', test: isPendingMerge, empty: 'Nothing is waiting to be merged.' },
 ]

@@ -1,5 +1,8 @@
 import HighReviewNotifications from '@/components/layout/HighReviewNotifications'
+import { Suspense, useEffect } from 'react'
 import { Navigate, Outlet, useParams } from 'react-router-dom'
+import PageSkeleton from '@/components/layout/PageSkeleton'
+import { markProjectViewed } from '@/lib/recentProjects'
 import AppShell from '@/components/dashboard/AppShell'
 import { WorkspaceProvider } from '@/state/WorkspaceProvider'
 import { projects } from '@/data/mockData'
@@ -15,6 +18,8 @@ import { projects } from '@/data/mockData'
 function ProjectLayout() {
   const { projectId } = useParams()
   const project = projects.find((p) => p.id === projectId)
+  // Opening a project is what "Recently viewed" on the Dashboard sorts by.
+  useEffect(() => { if (project) markProjectViewed(project.id) }, [project])
 
   if (!project) {
     return <Navigate to="/projects" replace />
@@ -24,7 +29,10 @@ function ProjectLayout() {
     <WorkspaceProvider key={projectId} projectId={project.id}>
       <HighReviewNotifications />
       <AppShell project={project}>
-        <Outlet context={{ project }} />
+        {/* A page of the project still loading keeps the rail in place. */}
+        <Suspense fallback={<PageSkeleton bare />}>
+          <Outlet context={{ project }} />
+        </Suspense>
       </AppShell>
     </WorkspaceProvider>
   )

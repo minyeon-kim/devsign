@@ -12,13 +12,15 @@ import {
 import ProjectCard from '@/components/projects/ProjectCard'
 import CreateProjectModal from '@/components/modals/CreateProjectModal'
 import { projects as seedProjects } from '@/data/mockData'
+import { conflictCounts } from '@/lib/conflicts'
+import { recentProjectIds } from '@/lib/recentProjects'
+import { useConflictStore } from '@/state/ConflictStore'
 
-// Sort/filter dropdowns are visual-only — they don't actually reorder or
-// filter `projects` (per the dashboard brief: "interactions only need to
-// be visual"). The grid/list toggle is real, since it's a one-line
-// layout swap rather than a stubbed data operation.
+// The filter and the sort both work on the list shown. "Recently viewed"
+// is the order you last opened projects in (lib/recentProjects); a project
+// never opened keeps its place after the ones that were.
 const typeOptions = ['All types', 'Has conflicts', 'No conflicts']
-const sortOptions = ['Last modified', 'Name', 'Most conflicts']
+const sortOptions = ['Last modified', 'Recently viewed', 'Name', 'Most conflicts']
 
 function ProjectsSection() {
   const [view, setView] = useState('grid')
@@ -26,6 +28,23 @@ function ProjectsSection() {
   const [createOpen, setCreateOpen] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
+  const [type, setType] = useState(typeOptions[0])
+  const [sort, setSort] = useState(sortOptions[0])
+  const [recent] = useState(recentProjectIds)
+  const { conflicts } = useConflictStore()
+  // Each project's counts, by the same rules as its Conflict list.
+  const countsOf = (project) => conflictCounts(conflicts.filter((c) => c.projectId === project.id))
+  const recentRank = (project) => { const i = recent.indexOf(project.id); return i < 0 ? Infinity : i }
+  const shown = projectList
+    .filter((p) => type === 'All types' || (countsOf(p).open > 0) === (type === 'Has conflicts'))
+    .map((project, index) => ({ project, index }))
+    .sort((a, b) => (
+      sort === 'Name' ? a.project.name.localeCompare(b.project.name)
+        : sort === 'Most conflicts' ? countsOf(b.project).open - countsOf(a.project).open
+          : sort === 'Recently viewed' ? recentRank(a.project) - recentRank(b.project)
+            : 0
+    ) || a.index - b.index)
+    .map(({ project }) => project)
 
   function handleCreate(project) {
     // Keep the shared mockData array in sync too, so navigating straight
@@ -110,24 +129,24 @@ function ProjectsSection() {
         <div className="flex shrink-0 items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
-              All types
+              {type}
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {typeOptions.map((option) => (
-                <DropdownMenuItem key={option}>{option}</DropdownMenuItem>
+                <DropdownMenuItem key={option} onClick={() => setType(option)}>{option}</DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
-              Last modified
+              {sort}
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" data-sort-options>
               {sortOptions.map((option) => (
-                <DropdownMenuItem key={option}>{option}</DropdownMenuItem>
+                <DropdownMenuItem key={option} onClick={() => setSort(option)}>{option}</DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -173,11 +192,11 @@ function ProjectsSection() {
           view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 gap-2'
         )}
       >
-        {projectList.map((project, index) => (
+        {shown.map((project) => (
           <ProjectCard
             key={project.id}
             project={project}
-            index={index}
+            counts={countsOf(project)}
             view={view}
             selectable={selectMode}
             selected={selected.has(project.id)}
@@ -185,6 +204,8 @@ function ProjectsSection() {
           />
         ))}
       </div>
+
+      {shown.length === 0 && <p className="py-10 text-center text-xs text-slate-500">No projects match this filter.</p>}
 
       <CreateProjectModal
         open={createOpen}

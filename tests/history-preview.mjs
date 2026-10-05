@@ -23,8 +23,13 @@ try {
   const { default: ProjectCard } = await server.ssrLoadModule('/src/components/projects/ProjectCard.jsx')
   const project = projects.find(p => p.id === projectId)
   for (const view of ['grid', 'list']) {
-    const html = render(createElement(ProjectCard, { project, view }))
-    assert.match(html, /href="\/projects\/checkout-redesign\/workspace"/)
+    // The whole card is the way in — no separate Workspace link — and its
+    // counts are badges that open the project's Conflict list; none at zero.
+    const html = render(createElement(ProjectCard, { project, view, counts: { needsMyReview: 2, open: 3 } }))
+    assert.doesNotMatch(html, /href="\/projects\/checkout-redesign\/workspace"/, 'no separate Workspace link')
+    assert.match(html, /after:inset-0/, 'the card is one click target')
+    assert.equal(html.match(/data-card-badge/g)?.length, 2, 'review and conflict badges')
+    assert.doesNotMatch(render(createElement(ProjectCard, { project, view, counts: { needsMyReview: 0, open: 0 } })), /data-card-badge/, 'no badge at zero')
   }
-  console.log('Passed: historical preview isolation, recorded preview edits and direct workspace navigation in grid/list views.')
+  console.log('Passed: historical preview isolation, recorded preview edits, and project cards as one click target with count badges in grid/list views.')
 } finally { delete globalThis.localStorage; await server.close() }

@@ -47,6 +47,10 @@ const FILTERS = [
 ]
 // Filter ids from before the statuses were unified.
 const FILTER_ALIAS = { merged: 'done' }
+// "Everything not done yet" — where a count of open conflicts links to (a
+// project card's badge, a project home's stat). Not one of the standing
+// tabs: it shows as one only while it's the filter in use.
+const OPEN_FILTER = { id: 'open', label: 'Open', test: isOpen }
 
 const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
 
@@ -116,7 +120,8 @@ function ConflictPanel({ inMergeStudio }) {
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
   const queued = conflicts.filter(isQueuedConflict)
   const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
-  const filter = FILTERS.find((f) => f.id === filterId) ?? FILTERS[0]
+  const filter = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? FILTERS[0]
+  const shownFilters = filter === OPEN_FILTER ? [FILTERS[0], OPEN_FILTER, ...FILTERS.slice(1)] : FILTERS
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
   const filterItems = conflicts.map((conflict) => ({
     ...conflict,
@@ -202,7 +207,7 @@ function ConflictPanel({ inMergeStudio }) {
         // bottom panel's tabs above, and repeating them here read as a
         // second row of tabs instead of a filter on this one.
         <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-0 pb-1.5" role="group" aria-label="Filter conflicts">
-          {FILTERS.map((f) => (
+          {shownFilters.map((f) => (
             <button
               key={f.id}
               type="button"

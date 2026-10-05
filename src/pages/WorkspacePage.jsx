@@ -39,6 +39,8 @@ function WorkspacePage() {
   //    the conflict's review kept open in the bottom panel (`conflictId`);
   //    with no linked item nothing is pre-selected (never an unrelated
   //    default);
+  //  · `conflictFilter` (a Dashboard project card's badge) — the Conflict
+  //    Points tab on that filter;
   //  · `openConflictId` (Dashboard / overview links) — the Conflict Points
   //    tab, that conflict's review window, and its element and file.
   // Handled once per navigation (location.key).
@@ -69,6 +71,13 @@ function WorkspacePage() {
           overview: true,
         })
       }
+      return
+    }
+    // A project card's badge ("Needs your review 2", "Conflicts 3"): the
+    // Conflict list, already on that filter.
+    if (state.conflictFilter) {
+      exitMergeStudio()
+      setBottomPanel({ open: true, tab: 'conflict', conflictFilter: state.conflictFilter })
       return
     }
     if (state.openConflictId) {

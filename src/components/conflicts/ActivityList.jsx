@@ -1,4 +1,7 @@
+import { ArrowRight } from 'lucide-react'
 import { cn } from 'cn'
+import { LocalizedText } from '@/i18n/runtime'
+import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { activities, allPeople, currentUserFor } from '@/data/mockData'
 import { needsReviewFrom } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
@@ -68,16 +71,12 @@ function ActivityList({ projectId, limit = 6, onOpenConflict, inset = false }) {
               </span>
               {actionNeeded && <span className="text-[11px] font-medium text-emerald-300">Needs your review</span>}
             </span>
+            {/* The way to the conflict: the same secondary button as
+                every other list — "Review →" when it's yours to review. */}
             {conflict && onOpenConflict && (
-              <button
-                type="button"
-                onClick={() => onOpenConflict(conflict)}
-                className={cn(
-                  'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  actionNeeded ? 'bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white'
-                )}
-              >
-                {actionNeeded ? 'Review' : 'Open'}
+              <button type="button" onClick={() => onOpenConflict(conflict)} className={cn(NAV_BUTTON, 'h-7')}>
+                <LocalizedText text={actionNeeded ? 'Go to review' : 'View'} />
+                <ArrowRight className={NAV_BUTTON_ICON} />
               </button>
             )}
             <span className="w-14 shrink-0 text-right text-[11px] text-slate-500">{a.timestamp}</span>

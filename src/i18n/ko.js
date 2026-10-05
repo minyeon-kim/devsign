@@ -61,6 +61,13 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Go to review|검토하기
+Open conflicts|미해결 충돌
+Recently viewed|최근 열람
+No conflicts to review.|검토할 충돌이 없어요
+Conflicts not merged yet|아직 병합되지 않은 충돌
+No projects match this filter.|조건에 맞는 프로젝트가 없어요
+Loading|불러오는 중
 Detected automatically|자동 감지
 Updated the design|디자인을 수정했습니다
 Changed the code|코드를 수정했습니다
