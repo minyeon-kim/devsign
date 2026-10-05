@@ -29,27 +29,39 @@ const ROW_LABELED = 46
 const LANE_GAP = 12
 const LANE_X = 9
 const DOT_Y = 16
+// The drawer's own surface: a checkpoint that isn't the current one is a
+// ring of its branch's color around it.
+const GRAPH_BG = 'var(--background)'
 
-function GraphRow({ row, lanes, colors, currentBranch, selected, height }) {
+function GraphRow({ row, lanes, colors, currentBranch, selected, current, height }) {
   const x = (lane) => LANE_X + lane * LANE_GAP
   const stroke = (name) => ({ stroke: colors.get(name), strokeWidth: name === currentBranch ? 2.5 : 1.5 })
+  const color = colors.get(row.lanes[row.lane]?.name)
   return (
-    <svg aria-hidden width={LANE_X * 2 + (lanes - 1) * LANE_GAP} height={height} className="shrink-0" fill="none" strokeLinecap="round">
+    // `block`: an inline svg would sit on the text baseline and leave a
+    // hairline gap under each row, breaking the lanes between items.
+    <svg aria-hidden width={LANE_X * 2 + (lanes - 1) * LANE_GAP} height={height} className="block shrink-0" fill="none" strokeLinecap="round">
       {row.lanes.map((lane, index) => lane && (
         <g key={index} {...stroke(lane.name)}>
-          {/* Newer is up: `up` runs to the top edge, `down` to the bottom. */}
-          {lane.up && <path d={`M ${x(index)} 0 L ${x(index)} ${lane.dot ? DOT_Y : height}`} />}
-          {lane.down && lane.dot && !(row.fork?.lane === index) && <path d={`M ${x(index)} ${DOT_Y} L ${x(index)} ${height}`} />}
-          {lane.down && !lane.dot && !lane.up && <path d={`M ${x(index)} 0 L ${x(index)} ${height}`} />}
+          {/* Newer is up. A lane passing through runs edge to edge; the
+              checkpoint's own lane runs to its dot from whichever side it
+              continues on. Lines overshoot the row by half a pixel so
+              neighbouring slices overlap instead of leaving a seam. */}
+          {!lane.dot && <path d={`M ${x(index)} -0.5 L ${x(index)} ${height + 0.5}`} />}
+          {lane.dot && lane.up && <path d={`M ${x(index)} -0.5 L ${x(index)} ${DOT_Y}`} />}
+          {lane.dot && lane.down && row.fork?.lane !== index && <path d={`M ${x(index)} ${DOT_Y} L ${x(index)} ${height + 0.5}`} />}
         </g>
       ))}
       {/* A branch starting here curves out of the trunk below… */}
-      {row.fork && <path {...stroke(row.fork.name)} d={`M ${x(0)} ${height} C ${x(0)} ${height - 8}, ${x(row.fork.lane)} ${DOT_Y + 14}, ${x(row.fork.lane)} ${DOT_Y}`} />}
+      {row.fork && <path {...stroke(row.fork.name)} d={`M ${x(0)} ${height + 0.5} C ${x(0)} ${height - 8}, ${x(row.fork.lane)} ${DOT_Y + 14}, ${x(row.fork.lane)} ${DOT_Y}`} />}
       {/* …and a merged one curves from its lane into this trunk checkpoint. */}
       {row.merges.map((merge) => (
-        <path key={merge.lane} {...stroke(merge.name)} d={`M ${x(merge.lane)} ${height} C ${x(merge.lane)} ${height - 8}, ${x(row.lane)} ${DOT_Y + 14}, ${x(row.lane)} ${DOT_Y}`} />
+        <path key={merge.lane} {...stroke(merge.name)} d={`M ${x(merge.lane)} ${height + 0.5} C ${x(merge.lane)} ${height - 8}, ${x(row.lane)} ${DOT_Y + 14}, ${x(row.lane)} ${DOT_Y}`} />
       ))}
-      <circle cx={x(row.lane)} cy={DOT_Y} r={selected ? 4.5 : 3.5} fill={selected ? '#fff' : colors.get(row.lanes[row.lane]?.name)} stroke="#131314" strokeWidth="2" />
+      {/* The checkpoint: a ring in its branch's color; filled when it's
+          the current one; larger, with a halo, when it's selected. */}
+      {selected && <circle cx={x(row.lane)} cy={DOT_Y} r="8" fill={color} opacity="0.22" />}
+      <circle cx={x(row.lane)} cy={DOT_Y} r={selected ? 5 : 3.5} fill={current ? color : GRAPH_BG} stroke={color} strokeWidth="2" />
     </svg>
   )
 }
@@ -290,14 +302,16 @@ function HistoryDrawer({ project }) {
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
               className="group relative flex items-stretch"
             >
-              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} height={row.label ? ROW_LABELED : ROW_HEIGHT} />
+              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={row.label ? ROW_LABELED : ROW_HEIGHT} />
               <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]')}>
               <button
                 type="button"
                 onClick={() => open(entry.id)}
                 aria-current={selected ? 'true' : undefined}
                 style={{ height: row.label ? ROW_LABELED : ROW_HEIGHT }}
-                className="flex w-full flex-col justify-center px-2.5 text-left"
+                // 6px + half a 20px line = 16px: the dot's center, whether or
+                // not a branch label sits under the title.
+                className="flex w-full flex-col justify-start px-2.5 pt-1.5 text-left"
               >
                 {/* One line: what happened, and when. Everything else —
                     who, what kind, the detail — is the dot beside it, the
@@ -319,7 +333,7 @@ function HistoryDrawer({ project }) {
                 )}
               </button>
               {!isCurrent && (
-                <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute top-1 right-1 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
                     <Archive className="size-3" />
                   </button>

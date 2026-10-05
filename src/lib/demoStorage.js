@@ -28,6 +28,14 @@ export function readDemo(key, fallback) {
       const example = fallback.find((row) => row.id === addedId)
       if (example) return [example, ...value]
     }
+    // History's branch-graph samples (see projectHistorySeeds): a session
+    // saved before them gets the missing seed checkpoints put back in seed
+    // order, ahead of whatever it recorded since — nothing it has is dropped.
+    if (key === 'project:mobile-nav-revamp:historyEntries' && Array.isArray(value) && Array.isArray(fallback)
+      && !value.some((row) => row.id === 'history-nav-feature-1')) {
+      const seeded = new Set(fallback.map((row) => row.id))
+      return [...fallback.map((seed) => value.find((row) => row.id === seed.id) ?? seed), ...value.filter((row) => !seeded.has(row.id))]
+    }
     return value
   } catch {
     return fallback
