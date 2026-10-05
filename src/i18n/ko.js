@@ -57,6 +57,7 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
+Change merged|변경을 병합했습니다
 Set icons to 20px|아이콘 20px 적용
 Tap area to 48px|터치 영역 48px 확대
 Both values miss the standard · it needs adjusting in Merge Studio|두 값 모두 기준 미달 · 병합 스튜디오에서 조정이 필요해요

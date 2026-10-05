@@ -947,7 +947,9 @@ export function WorkspaceProvider({ children, projectId }) {
     const mergedIds = new Set(related.map((c) => c.id))
     const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
       ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
-        mergedDecisions, mergedFileLines: c.fileId ? finalFiles[c.fileId] : undefined,
+        // (The decisions the merge shipped with — the review of a merged
+        // change reads them back as `mergedDecisions`.)
+        mergedDecisions: mergedResolutions, mergedFileLines: c.fileId ? finalFiles[c.fileId] : undefined,
         mergedPreview: c.preview, mergedPreviewSide: mergedSideForConflict(c), mergedFrame: null } : c)
     const preset = draft.appliedPreset ?? null
     const design = item ? buildOverrides(item, mergedResolutions, draft.annotations, preset, draft.assemblies, draft.addedLayers, draft.manualCode,

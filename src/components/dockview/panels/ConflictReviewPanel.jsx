@@ -1533,8 +1533,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
 
   function handleMerge() {
-    if (onResolve) onResolve(conflict.id)
-    else update({ reviewStage: 'resolved' })
+    // Say that it happened: the merge itself only swaps the stage and the
+    // button, which is easy to miss. (A blocked merge explains itself with
+    // its own "Can't merge yet" toast and returns false.)
+    const merged = onResolve ? onResolve(conflict.id) : (update({ reviewStage: 'resolved' }), true)
+    if (merged) toast('Change merged', { description: conflict.title })
   }
 
   function handleRunRollback() {
