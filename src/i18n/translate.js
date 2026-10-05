@@ -2,6 +2,12 @@ import { ko } from './ko'
 
 const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
+  [/^(\d+) design sets$/, (_, n) => `디자인 세트 ${n}개`],
+  [/^Button text contrast ([\d.]+):1$/, (_, ratio) => `버튼 텍스트 대비 ${ratio}:1`],
+  [/^(.+) with white text is below WCAG AA \(4\.5:1\)\.$/, (_, color) => `${core(color)} 배경과 흰색 텍스트의 대비가 WCAG AA 기준(4.5:1)보다 낮습니다.`],
+  [/^(\d+) AI edits? applied$/, (_, n) => `AI 수정 ${n}개 적용됨`],
+  [/^(\d+) AI notes? not applied$/, (_, n) => `AI 메모 ${n}개 미적용`],
+
   // People are counted, not itemized (ahead of the generic count rule).
   [/^(\d+) members?$/, (_, n) => `구성원 ${n}명`],
   [/^(\d+) docs found$/, (_, n) => `문서 ${n}개를 찾았어요.`],

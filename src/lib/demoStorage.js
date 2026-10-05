@@ -20,6 +20,14 @@ export function readDemo(key, fallback) {
     const value = saved.value
     if (Array.isArray(fallback) ? !Array.isArray(value) : fallback !== null && typeof value !== typeof fallback) return fallback
     if (fallback && typeof fallback === 'object' && (value === null || Array.isArray(value) !== Array.isArray(fallback))) return fallback
+    // Add the manual-adjustment example to existing sessions without
+    // resetting their saved decisions, reviews, or history.
+    const addedId = key === 'conflicts' ? 'cc-manual-target'
+      : key === 'project:checkout-redesign:mergeItems' ? 'merge-checkout-manual-target' : null
+    if (addedId && Array.isArray(value) && Array.isArray(fallback) && !value.some((row) => row.id === addedId)) {
+      const example = fallback.find((row) => row.id === addedId)
+      if (example) return [example, ...value]
+    }
     return value
   } catch {
     return fallback

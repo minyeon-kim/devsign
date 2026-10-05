@@ -3,6 +3,59 @@ import { docsHistoryKo } from './docsHistoryKo'
 // UI copy and seeded conflict-review content shown to Korean-language users.
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
+iconbtn|아이콘 버튼
+Neo Glow|네온 빛 효과
+Gradient Pill|그라데이션 캡슐형
+Soft Card|부드러운 카드
+Outline Ghost|투명 윤곽선
+Glass Panel|유리 패널
+Solid Fill|단색 채우기
+Coupon close button / Manual adjustment|쿠폰 닫기 버튼 / 직접 조정
+Coupon close button|쿠폰 닫기 버튼
+Coupon notice|쿠폰 안내
+Coupon notice (Figma)|쿠폰 안내 (Figma)
+Accessibility check|접근성 검사
+Touch area|터치 영역
+Both versions have a 20 × 20px close button. Select it in Merge Studio and set W and H to at least 24px in Properties → Layout.|두 버전 모두 닫기 버튼이 20 × 20px입니다. 병합 스튜디오에서 버튼을 선택하고 속성 → 레이아웃의 W와 H를 각각 24px 이상으로 조정하세요.
+Choose either corner style, then resize the close button to at least 24 × 24px.|모서리 스타일을 선택한 뒤 닫기 버튼을 24 × 24px 이상으로 조정하세요.
+The close button is too small in both versions; choosing a card alone cannot fix its touch area.|두 버전 모두 닫기 버튼이 너무 작습니다. 카드 선택만으로는 터치 영역 문제가 해결되지 않습니다.
+Select the highlighted control. In Properties → Layout, set both W and H to at least 24px.|강조된 요소를 선택하고 속성 → 레이아웃에서 W와 H를 각각 24px 이상으로 조정하세요.
+Divider color|구분선 색상
+Follows light / dark theme automatically|라이트·다크 테마를 자동으로 따릅니다.
+Border token|테두리 토큰
+slate-200 (hard-coded)|slate-200 (고정값)
+Card number label|카드 번호 레이블
+Letter spacing|자간
+Design system label style uses normal tracking|디자인 시스템의 레이블은 기본 자간을 사용합니다.
+Normal|기본값
+Shipping option|배송 옵션
+Icon stroke|아이콘 선 두께
+Matches the rest of the icon set|아이콘 세트의 선 두께 기준은 2입니다.
+Design system card radius = 12px|디자인 시스템의 카드 모서리 반경은 12px입니다.
+color.primary (Indigo 500) is the brand token|브랜드 색상 토큰은 color.primary (Indigo 500)입니다.
+Redesigned tab bar uses 24px icons with the same 44px tap area|새 탭 바는 터치 영역을 44px로 유지하고 아이콘을 24px로 표시합니다.
+Tap area|터치 영역
+Unchanged — only the icon glyph grows, not the hit target|터치 영역은 그대로이고 아이콘 크기만 커집니다.
+Primary color|주요 색상
+Use the brand token so theme updates propagate|테마 변경이 반영되도록 브랜드 토큰을 사용하세요.
+Brand 500 (#5E6AD2)|브랜드 500 (#5E6AD2)
+#5B5BD6 (hard-coded)|#5B5BD6 (고정값)
+Font Size|글자 크기
+Font Weight|글자 굵기
+CTA Button|주요 동작 버튼
+Accent Color|강조 색상
+Corner Radius|모서리 반경
+Subscribe Button|구독 버튼
+Email Input|이메일 입력란
+Feature Card 1|기능 카드 1
+Inner Spacing|내부 간격
+Nav Bar|내비게이션 바
+Transparent|투명
+Card Surface|카드 표면
+Search Input|검색 입력란
+Notify Toggle|알림 토글
+Chip Color|칩 색상
+Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
 Pick which side to merge|합칠 쪽을 고르세요
 left unpicked, it merges with the current implementation|고르지 않으면 현재 구현으로 합쳐져요
@@ -84,7 +137,7 @@ Merge with the current implementation|현재 구현으로 합치기
 Not decided yet — pick a side on the card to the right.|아직 결정 전입니다. 오른쪽 카드에서 합칠 내용을 고르세요.
 Undo decision|되돌리기
 Applying as is|그대로 반영합니다
-Check the reasoning in History|History에서 근거 확인하기
+Check the reasoning in History|히스토리에서 근거 확인하기
 Back to review|검토 내용으로 돌아가기
 Approvals received. Resolve the failing checks before merging.|승인을 받았습니다. 병합 전에 필수 검사 문제를 해결하세요.
 Assign a reviewer other than the author to request review.|작성자 외의 검토자를 배정하면 검토를 요청할 수 있습니다.

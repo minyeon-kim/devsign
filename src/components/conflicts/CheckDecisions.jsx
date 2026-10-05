@@ -49,7 +49,8 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, fixS
               <span className="min-w-0 flex-1 break-words"><LocalizedText text={check.title} /></span>
               <Tag required={required} ko={ko} />
             </p>
-            {check.hint && <p className="mt-1 pl-5 text-xs leading-[18px] text-slate-300"><LocalizedText text={check.hint} /></p>}
+            {!check.details?.length && check.hint && <p className="mt-1 pl-5 text-xs leading-[18px] text-slate-300"><LocalizedText text={check.hint} /></p>}
+            <div className="pl-5"><CheckValueDetails check={check} /></div>
             {requested ? (
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-xs leading-[18px] text-slate-300">
                 <Clock3 className="size-3.5 shrink-0 text-slate-400" />
@@ -113,10 +114,26 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, fixS
   )
 }
 
+// Show the actual property values everywhere a token failure is explained.
+export function CheckValueDetails({ check, onApply }) {
+  const ko = useLanguage() === 'ko'
+  if (!check.details?.length) return null
+  return <ul className="mt-2 space-y-3 text-xs leading-5">
+    {check.details.map((detail) => <li key={detail.key}>
+      <p className="font-medium text-white"><LocalizedText text={detail.element} /> · <LocalizedText text={detail.property} /></p>
+      <p className="text-slate-200">{ko ? '현재' : 'Current'} <span className="font-semibold text-red-300"><LocalizedText text={detail.current} /></span> → {ko ? '디자인 기준' : 'Design reference'} <span className="font-semibold text-emerald-200"><LocalizedText text={detail.expected} /></span></p>
+      {detail.reason && <p className="text-slate-400"><LocalizedText text={detail.reason} /></p>}
+      {onApply && detail.canApply && <button type="button" className={cn(ACTION, ACTION_PRIMARY, 'mt-1.5')} onClick={() => onApply(detail)}>
+        <Check className="size-3" />{ko ? '기준값 ' : 'Apply reference value '}<LocalizedText text={detail.expected} />{ko ? ' 적용' : ''}
+      </button>}
+    </li>)}
+  </ul>
+}
+
 // The guide for the check being fixed: what's wrong and where to change
 // it. `resolved` once the check passes. `action` is the way onward (Merge
 // Studio, the editor), when there is one from where this is shown.
-export function CheckGuideNote({ check, resolved = false, where, action, onClose, className }) {
+export function CheckGuideNote({ check, resolved = false, where, action, onApply, onClose, className }) {
   const ko = useLanguage() === 'ko'
   if (!check) return null
   return (
@@ -127,7 +144,8 @@ export function CheckGuideNote({ check, resolved = false, where, action, onClose
           {resolved ? (ko ? '해결됨' : 'Fixed') : (ko ? '수정할 항목' : 'What to fix')}
         </p>
         <p className="mt-0.5 text-[13px] leading-5 font-medium break-words text-white"><LocalizedText text={check.title} /></p>
-        {!resolved && check.hint && <p className="mt-0.5 text-xs leading-[18px] break-words text-slate-200"><LocalizedText text={check.hint} /></p>}
+        {!resolved && !check.details?.length && check.hint && <p className="mt-0.5 text-xs leading-[18px] break-words text-slate-200"><LocalizedText text={check.hint} /></p>}
+        {!resolved && <CheckValueDetails check={check} onApply={onApply} />}
         {!resolved && where && <p className="mt-1.5 text-xs leading-[18px] text-slate-300">{where}</p>}
         {!resolved && action && (
           <button type="button" onClick={action.onClick} className={cn(ACTION, 'mt-2 bg-white/[0.08] text-white hover:bg-white/[0.14]')}>
@@ -163,23 +181,26 @@ export function CheckGuideHighlight({ layerId }) {
 // says what to change here and when it's done. `checks` are the studio's
 // live ones, so the note turns to Fixed as soon as the check passes.
 export function MergeCheckGuide({ item, checks }) {
-  const { checkGuide, setCheckGuide, conflicts } = useWorkspace()
+  const { checkGuide, setCheckGuide, conflicts, decideDrift } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
   const conflict = conflicts.find((c) => c.id === checkGuide.conflictId)
   if (!conflict || !(conflict.mergeItemId === item.id || item.conflictId === conflict.id)) return null
   const live = checks?.failing.find((check) => check.id === checkGuide.check.id)
   const resolved = Boolean(checks) && !live
-  const check = live ?? checkGuide.check
+  const check = live ?? checks?.checks?.find((entry) => entry.id === checkGuide.check.id) ?? checkGuide.check
   return (
     <>
-      {!resolved && <CheckGuideHighlight layerId={check.layerId ?? conflict.layerId} />}
+      {!resolved && !check.details?.length && <CheckGuideHighlight layerId={check.layerId ?? conflict.layerId} />}
       <div className="pointer-events-none fixed inset-x-0 top-[104px] z-[540] flex justify-center px-4">
         <div className="pointer-events-auto w-[440px] max-w-full rounded-xl bg-[#1D1D1D] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
           <CheckGuideNote
             check={check}
             resolved={resolved}
-            where={ko
+            onApply={(detail) => decideDrift(item.id, detail.key, 'A')}
+            where={check.editHint ? <LocalizedText text={check.editHint} /> : check.details?.length ? (ko
+              ? '기준값 적용 버튼으로 해당 속성을 변경하세요.'
+              : 'Apply the reference value above to update this property.') : ko
               ? '노란 테두리로 표시된 요소를 선택해 값을 조정하세요. 검사를 통과하면 여기에 해결됨으로 표시됩니다.'
               : 'Select the element outlined in yellow and adjust its value. This turns to Fixed once the check passes.'}
             onClose={() => setCheckGuide(null)}

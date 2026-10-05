@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CheckValueDetails } from '@/components/conflicts/CheckDecisions'
 import { CircleCheck, TriangleAlert, ChevronDown, ArrowUpRight } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { LocalizedText } from '@/i18n/runtime'
@@ -33,7 +34,8 @@ export default function CheckStatus({ checks, onFix, quiet = false }) {
             <div className="min-w-0 flex-1">
               <span className={check.ok ? 'text-slate-400' : 'text-white'}><LocalizedText text={check.title} /></span>
               {!check.ok && <span className="ml-1.5 text-[10px] text-slate-400">{checks.blocking.includes(check) ? (ko ? '필수' : 'Required') : (ko ? '권장' : 'Suggestion')}</span>}
-              {!check.ok && check.hint && <p className="mt-1 text-slate-400"><LocalizedText text={check.hint} /></p>}
+              {!check.ok && !check.details?.length && check.hint && <p className="mt-1 text-slate-400"><LocalizedText text={check.hint} /></p>}
+              {!check.ok && <CheckValueDetails check={check} />}
               {!check.ok && onFix && <button type="button" onClick={() => { setOpen(false); onFix(check) }} className="ds-intrinsic mt-1.5 inline-flex items-center gap-1 text-emerald-300 hover:underline">{ko ? '수정할 위치로 이동' : 'Go to fix'}<ArrowUpRight className="size-3" /></button>}
             </div>
           </div>

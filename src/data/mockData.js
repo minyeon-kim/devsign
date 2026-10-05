@@ -233,6 +233,32 @@ export const projects = [
 // Overview / Diff / AI suggestion view from every entry point.
 export const conflictChecklist = [
   {
+    id: 'cc-manual-target',
+    gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
+    token: 'Coupon close button / Manual adjustment',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    file: 'src/components/checkout/CouponNotice.jsx',
+    fileId: 'coupon-notice',
+    line: 3,
+    mergeItemId: 'merge-checkout-manual-target',
+    layerId: 'coupon-close',
+    timestamp: 'Just now',
+    resolved: false,
+    severity: 'medium',
+    detectedBy: 'Accessibility check',
+    message: 'Both versions have a 20 × 20px close button. Select it in Merge Studio and set W and H to at least 24px in Properties → Layout.',
+    suggestion: 'Choose either corner style, then resize the close button to at least 24 × 24px.',
+    riskReason: 'The close button is too small in both versions; choosing a card alone cannot fix its touch area.',
+    branches: { local: 'CouponNotice.jsx', remote: 'Coupon notice (Figma)' },
+    comparisonFields: [{ label: 'Radius', current: '4px', expected: '8px' }, { label: 'Touch area', current: '20 × 20px', expected: '20 × 20px' }],
+    reviewers: [{ id: 'min', status: 'pending' }],
+    diff: {
+      before: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'],
+      after: ['    <button className="w-[20px] h-[20px] rounded-[8px]" aria-label="Close coupon">×</button>'],
+    },
+  },
+  {
     id: 'cc-1',
     gitFlow: { source: 'feature/button-sizing', target: 'develop' },
     token: 'Button / Height',
@@ -959,6 +985,13 @@ export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
 // separate static preview. `dueBucket` drives the sidebar's due-date filter
 // ('overdue' | 'soon' | 'none'); `dueLabel` is just its display text.
 export const mergeListItems = [
+  {
+    id: 'merge-checkout-manual-target', projectId: 'checkout-redesign', conflictId: 'cc-manual-target',
+    title: 'Coupon close button / Manual adjustment', subtitle: '1 file · Design + Code',
+    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['coupon-notice'],
+    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout',
+    conflictLevel: 'Medium', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'min',
+  },
   // Checkout Redesign's item for Conflict Point cc-11 (Open in Merge Studio
   // lands here). Original Design = the Checkout design (44px, primary);
   // Current Implementation = PlaceOrderButton.jsx (40px, fixed violet).
@@ -1302,6 +1335,10 @@ export const mergeListItems = [
 // layer's generic token binding (via `inspectorSpecsByType`, keyed by
 // layer.type) plus a generic Keep A / Accept B choice.
 export const designMergeVariants = {
+  'merge-checkout-manual-target': {
+    layerDiffs: { 'coupon-close': [{ id: 'close-radius', label: 'Radius', optionA: '8px', optionB: '4px' }] },
+    layerCodeMap: { 'coupon-close': { fileId: 'coupon-notice', line: 3, span: 1 } },
+  },
   'merge-checkout-cta': {
     layerDiffs: {
       'place-order': [
@@ -1613,6 +1650,9 @@ export const designMergeVariants = {
 // not listed render identically on both sides (no diff coloring); a
 // file/item with no entries just shows a plain, un-highlighted comparison.
 export const codeMergeVariants = {
+  'merge-checkout-manual-target': {
+    'coupon-notice': [{ id: 'coupon-close-radius', line: 3, incoming: '    <button className="w-[20px] h-[20px] rounded-[8px]" aria-label="Close coupon">×</button>' }],
+  },
   // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
   'merge-checkout-cta': {
     app: [{ id: 'place-order-button', line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
@@ -1947,6 +1987,11 @@ export const projectFileSets = {
         '  )',
         '}',
       ],
+    },
+    {
+      id: 'coupon-notice', name: 'CouponNotice.jsx', path: 'src/components/checkout/CouponNotice.jsx',
+      language: 'jsx', iconName: 'FileCode',
+      lines: ['export function CouponNotice() {', '  return (', '    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>', '  )', '}'],
     },
   ],
   'design-system-v2': [
@@ -2839,6 +2884,16 @@ export const canvasPages = [
         ],
       },
     ],
+  },
+  {
+    id: 'page-coupon-notice', projectId: 'checkout-redesign', name: 'Coupon notice',
+    frames: [{
+      id: 'frame-coupon-notice', name: 'Coupon notice', kind: 'frame', x: 80, y: 40, width: 280, height: 240,
+      layers: [
+        { id: 'coupon-title', name: 'Coupon notice', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Coupon applied' },
+        { id: 'coupon-close', name: 'Coupon close button', kind: 'component', type: 'iconbtn', x: 236, y: 36, width: 20, height: 20, label: '×' },
+      ],
+    }],
   },
 ]
 

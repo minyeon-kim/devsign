@@ -20,6 +20,9 @@ const ACCENT_HEX = { 'Indigo 500': '#6366f1', 'Violet 500': '#8b5cf6' }
 const SECTION_NAMES = { nav: 'Navigation', hero: 'Hero', signup: 'Sign-up', social: 'Social proof', avatar: 'Social proof', feature: 'Features', dash: 'Dashboard', cashflow: 'Dashboard', txn: 'Dashboard' }
 
 function onTokenScale(label, value) {
+  // Icon strokes and tracking have their own rules, not the spacing grid.
+  if (/icon stroke/i.test(label)) return Number(value) === 2
+  if (/letter spacing|tracking/i.test(label)) return /^(normal|0(?:em|px)?)$/i.test(String(value).trim())
   // CSS variable references are named tokens, not numeric scale values.
   if (/^(?:--[a-zA-Z_][\w-]*|var\(\s*--[a-zA-Z_][\w-]*\s*\))$/.test(String(value).trim())) return true
   // A named color / surface token ("Violet 500", "Card Surface").
@@ -118,6 +121,15 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     {
       id: 'tokens',
       layerId: offScale[0]?.layerId,
+      details: offScale.map((p) => ({
+        key: `${p.layerId}:${p.diff.id}`,
+        element: layers.find((l) => l.id === p.layerId)?.name ?? p.layerId,
+        property: p.diff.label,
+        current: p.value,
+        expected: p.diff.optionA,
+        reason: p.diff.reason,
+        canApply: onTokenScale(p.diff.label, p.diff.optionA),
+      })),
       group: 'Design system',
       ok: offScale.length === 0,
       title: offScale.length === 0 ? 'All values on the token scale' : `${offScale.length} value${offScale.length === 1 ? '' : 's'} off the token scale`,
@@ -141,6 +153,7 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
         : targetFailures > 1 ? `${targetFailures} controls with a touch area under 24px`
           : smallTargets.length ? `${smallTargets[0].name} touch area ${touchOf(smallTargets[0])}px`
             : `${untouchableIcons[0].name} icon ${untouchableIcons[0].value} with no larger touch area`,
+      editHint: smallTargets.length ? 'Select the highlighted control. In Properties → Layout, set both W and H to at least 24px.' : null,
       hint: targetFailures ? 'WCAG 2.2 AA (2.5.8) asks for a touch area of at least 24px.' : null,
     },
     mismatchedIcons.length > 0 && {
