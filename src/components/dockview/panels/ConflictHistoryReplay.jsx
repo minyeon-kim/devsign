@@ -16,10 +16,10 @@ const EVENT_COPY = {
   changes: { action: 'requested changes', Icon: MessageSquare },
   dismiss: { action: 'dismissed a change request', Icon: XCircle },
   merge: { action: 'merged this change', Icon: GitMerge },
-  reopened: { action: 'reopened this issue', Icon: RotateCcw },
+  reopened: { action: 'reopened this conflict', Icon: RotateCcw },
   revert: { action: 'opened a revert of this change', Icon: RotateCcw },
   code_change: { action: 'pushed code changes', Icon: Code2 },
-  comment: { action: 'commented on this issue', Icon: MessageSquare },
+  comment: { action: 'commented on this conflict', Icon: MessageSquare },
 }
 
 const REPLAY_PANE_LABEL = 'flex h-6 shrink-0 items-center gap-1 px-3 text-[10.5px] font-medium text-slate-400'
@@ -84,22 +84,18 @@ function snapshotLines(entry, conflict) {
   return []
 }
 
-const REVIEW_STATE = {
-  approved: { label: 'Approved', className: 'text-emerald-300', Icon: Check },
-  changes_requested: { label: 'Changes requested', className: 'text-amber-300', Icon: MessageSquare },
-  pending: { label: 'Pending', className: 'text-slate-400', Icon: Clock3 },
-}
-
-// The issue's own history, inside its review — not the project's.
+// "Conflict activity": the conflict's own trail, inside its review — named
+// apart from the sidebar's History on purpose.
 //
-// The sidebar's History is the archive: every saved version of the whole
-// project, to look back over. This is the opposite end: only what bears on
-// the one conflict being settled right now, laid out for deciding it —
-//   · Approval requests — who was asked, and where each of them stands;
-//   · Communication log — the requests, sign-offs and comments on it, in
-//     order, each tied to the step it belongs to;
+// The sidebar's History is the project's archive: every saved version, to
+// look back over. This is the opposite end: only what bears on the one
+// conflict being settled right now, laid out for deciding it —
+//   · Conversation — the requests, sign-offs and comments on it, in order,
+//     each tied to the step it belongs to;
 //   · Step replay — the change itself, step by step: the version that
 //     caused it, its detection, and its merge.
+// (Who was asked to approve and where they stand is the Reviewers panel
+// beside it.)
 // `onOpenProjectHistory` is the one way out to the archive, for when the
 // wider picture is what's needed.
 function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
@@ -128,9 +124,6 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
       remark: true,
     })), [workspace?.comments, conflict.id, conflict.linkedCommentId])
   const log = [...activity, ...remarks]
-  const reviewers = conflict.reviewers ?? []
-  const approvedCount = reviewers.filter((reviewer) => reviewer.status === 'approved').length
-  const requester = allPeople.find((person) => person.id === conflict.requestedBy)
   const [selectedId, setSelectedId] = useState(null)
   const [playing, setPlaying] = useState(false)
   const [compareLatest, setCompareLatest] = useState(true)
@@ -166,13 +159,13 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      {/* What this view is — and isn't: this issue's trail, not the
-          project's archive (which is one click away). */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-white/[0.03] px-3 py-2.5">
+      {/* What this view is — and isn't: this conflict's activity, named
+          apart from the sidebar's project History (the version archive),
+          which is one click away. */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-white/[0.03] px-3 py-2">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300"><History className="size-3.5" /></span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-white"><LocalizedText text="Issue history" /> <span className="font-normal text-slate-400">· <LocalizedText text={conflict.title} /></span></p>
-          <p className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Only what bears on this conflict: its approval requests, the conversation, and the change step by step. The whole project’s versions are in History, in the sidebar." /></p>
+          <p className="text-xs font-semibold text-white"><LocalizedText text="Conflict activity" /> <span className="font-normal text-slate-400">· <LocalizedText text={conflict.title} /></span></p>
         </div>
         {onOpenProjectHistory && (
           <button type="button" onClick={onOpenProjectHistory} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white">
@@ -183,33 +176,12 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
       </div>
     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.5fr)]">
       <div className="flex min-h-0 flex-col gap-3">
-      {/* Approval requests: who was asked, and where each stands. */}
-      <section aria-label="Approval requests" className="shrink-0 rounded-xl bg-white/[0.03] px-3 py-3">
-        <div className="flex items-center gap-2">
-          <Send className="size-3.5 text-slate-500" />
-          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Approval requests" /></h3>
-          <span className={cn('ml-auto text-[11px] tabular-nums', reviewers.length && approvedCount === reviewers.length ? 'text-emerald-300' : 'text-slate-400')}>{approvedCount}/{reviewers.length}</span>
-        </div>
-        {requester && <p className="mt-1.5 text-[11px] leading-4 text-slate-500"><LocalizedText text={`Requested by ${requester.name}`} /></p>}
-        {reviewers.length ? (
-          <ul className="mt-1.5 divide-y divide-white/[0.06]">
-            {reviewers.map((reviewer) => {
-              const person = allPeople.find((candidate) => candidate.id === reviewer.id)
-              const state = REVIEW_STATE[reviewer.status] ?? REVIEW_STATE.pending
-              return (
-                <li key={reviewer.id} className="flex min-w-0 items-center gap-2 py-1.5 text-xs">
-                  <span className="min-w-0 flex-1 truncate text-slate-200">{person?.name ?? reviewer.id}{person?.role && <span className="ml-1.5 text-[11px] text-slate-500"><LocalizedText text={person.role} /></span>}</span>
-                  <span className={cn('inline-flex shrink-0 items-center gap-1 font-medium', state.className)}><state.Icon className="size-3" /><LocalizedText text={state.label} /></span>
-                </li>
-              )
-            })}
-          </ul>
-        ) : <p className="mt-1.5 text-xs text-slate-500"><LocalizedText text="No reviewers yet" /></p>}
-      </section>
-      <section aria-label="Communication log" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
+      {/* (Who was asked and where they stand is the Reviewers panel on the
+          right — with the approval count in its title — not repeated here.) */}
+      <section aria-label="Conversation" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <MessageSquare className="size-3.5 text-slate-500" />
-          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Communication log" /></h3>
+          <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Conversation" /></h3>
           <span className="ml-auto text-[11px] tabular-nums text-slate-500">
             {log.length}
           </span>
@@ -246,7 +218,7 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
               })}
             </ol>
           ) : (
-            <p className="px-1 py-3 text-xs text-slate-500"><LocalizedText text="No activity has been recorded for this issue yet." /></p>
+            <p className="px-1 py-3 text-xs text-slate-500"><LocalizedText text="No activity has been recorded for this conflict yet." /></p>
           )}
         </div>
       </section>
@@ -298,7 +270,7 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
             </div>
           ) : (
             <p className="px-4 py-5 text-xs text-slate-500">
-              <LocalizedText text="No replay snapshots are linked to this issue yet. Review and comment activity will still appear in the timeline." />
+              <LocalizedText text="No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline." />
             </p>
           )}
         </div>

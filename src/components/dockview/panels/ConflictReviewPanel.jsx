@@ -45,6 +45,7 @@ import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
 import {
   approvalStatus,
+  allReviewersApproved,
   requiredReviewers,
   authorOf,
   shortDue,
@@ -1443,7 +1444,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
-  // "Check the reasoning in History" opens this issue's own history, here
+  // "Check the reasoning in History" opens this conflict's own activity, here
   // in the panel (openTab('history') — see ConflictHistoryReplay). From
   // there, "Project history" is the way out to the project's archive: it
   // goes to History itself, on the saved version this conflict came from —
@@ -1840,7 +1841,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
                   {!conflict.rollback && (
                     <section className="mb-3 max-h-48 shrink-0 overflow-auto border-b border-white/[0.07] pb-3">
-                      <p className={cn(PANEL_LABEL, 'mb-2')}><LocalizedText text="Reviewers" /></p>
+                      {/* Approval progress lives here, in the title — once. */}
+                      <p className={cn(PANEL_LABEL, 'mb-2')}>
+                        <LocalizedText text="Reviewers" />
+                        {requiredReviewers(conflict).length > 0 && (
+                          <span className={cn('text-[11px] font-normal tabular-nums', allReviewersApproved(conflict) ? 'text-emerald-300' : 'text-slate-400')}>
+                            <LocalizedText text="Approvals" /> {requiredReviewers(conflict).filter((r) => r.status === 'approved').length}/{requiredReviewers(conflict).length}
+                          </span>
+                        )}
+                      </p>
                       <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
                     </section>
                   )}

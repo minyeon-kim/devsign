@@ -57,11 +57,9 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
-Issue history|이슈 히스토리
-Only what bears on this conflict: its approval requests, the conversation, and the change step by step. The whole project’s versions are in History, in the sidebar.|이 충돌·병합 건과 직결된 승인 요청, 대화, 단계별 변경만 모았습니다. 프로젝트 전체 버전은 사이드바의 히스토리에서 확인하세요.
+Conflict activity|충돌 활동
 Project history|프로젝트 전체 히스토리
-Approval requests|승인 요청
-Communication log|커뮤니케이션 로그
+Conversation|대화
 Step replay|단계별 리플레이
 commented|댓글을 남겼습니다
 replied|답글을 남겼습니다
@@ -219,7 +217,7 @@ Design system size/md = 40px|디자인 시스템 size/md = 40px
 Use the shared token|공용 토큰을 사용합니다
 Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.|결제 플로우의 비주얼 리뉴얼입니다 — 결제 단계 레이아웃, 버튼과 카드 스타일을 Figma 디자인과 동기화된 상태로 유지합니다.
 Shared components and design tokens used across every product surface, kept consistent between Figma and code.|모든 제품 화면에서 쓰이는 공용 컴포넌트와 디자인 토큰입니다. Figma와 코드 간 일관성을 유지합니다.
-Issue summary|이슈 요약
+Issue summary|충돌 요약
 Review impact|검토 필요 이유
 Proposal|제안
 Why|이유
@@ -1253,17 +1251,17 @@ No reviewers assigned|아직 검토자 없음
 Your approval is needed|내 승인이 필요합니다
 You requested changes|변경을 요청했습니다
 Review not requested yet|아직 검토를 요청하지 않았습니다
-Issue activity|이슈 활동
+Issue activity|충돌 활동
 Change replay|변경 리플레이
-No activity has been recorded for this issue yet.|이 이슈에 기록된 활동이 없습니다.
-No replay snapshots are linked to this issue yet. Review and comment activity will still appear in the timeline.|아직 이 이슈에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
+No activity has been recorded for this conflict yet.|이 충돌에 기록된 활동이 없습니다.
+No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline.|아직 이 충돌에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
 requested a review|검토를 요청했습니다
 approved this change|변경을 승인했습니다
 requested changes|변경을 요청했습니다
 merged this change|변경을 병합했습니다
-reopened this issue|이 이슈를 다시 열었습니다
+reopened this conflict|이 충돌을 다시 열었습니다
 pushed code changes|코드를 수정했습니다
-commented on this issue|이 이슈에 댓글을 남겼습니다.
+commented on this conflict|이 충돌에 댓글을 남겼습니다.
 Merge the approved change|승인된 변경 병합
 Assign reviewers|검토자 배정
 Review and approve|검토 후 승인
@@ -1308,7 +1306,7 @@ Swapped the primary button to the sky accent token in theme.css.|theme.css에서
 Where should I start?|어떤 것부터 확인할까요?
 Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 **Follow these steps:**|**이렇게 진행해보세요:**
-1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌**에서 \`Place order 버튼\` 이슈를 선택하세요.
+1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌**에서 \`Place order 버튼\` 충돌을 선택하세요.
 2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.|2. 요약을 읽은 뒤 **차이 보기**를 열어 40px 구현과 44px 디자인을 비교하세요.
 3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **병합 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
 4. Use **Assemble** for further styling.|4. 스타일을 더 다듬고 싶으면 **조합**을 사용하세요.

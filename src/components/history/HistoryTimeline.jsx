@@ -97,8 +97,8 @@ function HistoryTimeline({
                 return (
               <span
                 key={entry.id}
-                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${entry.branch ?? (isMergeMarker ? 'Merged issue' : 'Issue history')}` : undefined}
-                aria-label={hasConflictMarker ? `${isMergeMarker ? 'Merged issue' : 'Issue history'}: ${entry.label}` : undefined}
+                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${entry.branch ?? (isMergeMarker ? 'Merged conflict' : 'Conflict history')}` : undefined}
+                aria-label={hasConflictMarker ? `${isMergeMarker ? 'Merged conflict' : 'Conflict history'}: ${entry.label}` : undefined}
                 className={cn(
                   'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
                   hasConflictMarker
