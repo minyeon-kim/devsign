@@ -31,6 +31,23 @@ export function withBranches(entries, conflicts) {
   })
 }
 
+// Only saved versions are checkpoints in the graph. A Conflict Point's
+// detection isn't one — it's a fact about the version it was found on — so
+// those entries are folded away: each becomes a mark (`conflictMarks`) on
+// the saved version just before it (or, with none before, the first one).
+export function foldConflictCheckpoints(entries) {
+  const versions = []
+  const early = []
+  for (const entry of entries) {
+    if (entry.kind !== 'conflict') { versions.push({ ...entry, conflictMarks: [] }); continue }
+    const mark = { id: entry.id, conflictId: entry.conflictId ?? entry.conflictIds?.[0] ?? null, label: entry.label }
+    if (versions.length) versions[versions.length - 1].conflictMarks.push(mark)
+    else early.push(mark)
+  }
+  if (versions.length) versions[0].conflictMarks.unshift(...early)
+  return versions
+}
+
 // The branches in a (branched) history, oldest first, the trunk leading.
 export function branchNames(entries) {
   return [...new Set([TRUNK, ...entries.map((entry) => entry.branch ?? TRUNK)])]

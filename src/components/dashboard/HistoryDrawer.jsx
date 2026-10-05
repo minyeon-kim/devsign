@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArchiveRestore, ChevronDown, RotateCcw, Search, Sparkles, X } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, RotateCcw, Search, Sparkles, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
@@ -9,11 +9,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { TRUNK, branchColors, branchGraph, branchNames, withBranches } from '@/lib/historyBranches'
+import { TRUNK, branchColors, branchGraph, branchNames, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
@@ -22,10 +23,9 @@ import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTa
 // a vertical lane per branch in that branch's color, the checkpoint as a
 // dot on its lane, and a curve where a branch leaves the trunk or comes
 // back into it. The current branch's lane is drawn heavier. Rows are a
-// fixed height (taller where a branch's name is shown), so the slices
-// join up exactly.
-const ROW_HEIGHT = 32
-const ROW_LABELED = 46
+// fixed height, so the slices join up exactly.
+// Every row is a title line and its branch line.
+const ROW_HEIGHT = 46
 const LANE_GAP = 12
 const LANE_X = 9
 const DOT_Y = 16
@@ -137,12 +137,19 @@ function HistoryDrawer({ project }) {
   // Every checkpoint with the branch it sits on (lib/historyBranches); the
   // colors are fixed for the whole history, so a branch keeps its color
   // whatever the filters leave in view.
-  const branched = useMemo(() => withBranches(historyEntries, conflicts), [historyEntries, conflicts])
+  // Only saved versions are rows (and nodes): a conflict's detection is a
+  // mark on the version it was found on, not a checkpoint of its own.
+  const branched = useMemo(() => foldConflictCheckpoints(withBranches(historyEntries, conflicts)), [historyEntries, conflicts])
   const colors = useMemo(() => branchColors(branched), [branched])
   const branches = branchNames(branched)
-  const currentBranch = branched.find((entry) => entry.id === activeHistoryId)?.branch ?? TRUNK
+  // "Current" is the active checkpoint — or, when that's a conflict's
+  // detection (not a version), the newest saved version.
+  const currentId = branched.some((entry) => entry.id === activeHistoryId) ? activeHistoryId : branched.findLast((entry) => !entry.archived)?.id
+  const currentBranch = branched.find((entry) => entry.id === currentId)?.branch ?? TRUNK
+  const showConflicts = historyFilter.showConflicts ?? true
+  const kindFilter = historyFilter.kind === 'conflict' ? 'all' : historyFilter.kind
   const targets = historyTargets(historyEntries)
-  const filtered = filterHistoryEntries(branched, historyFilter)
+  const filtered = filterHistoryEntries(branched, { ...historyFilter, kind: kindFilter })
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   const matches = filtered.filter((entry) => {
     const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry, currentUser.id)].filter(Boolean).join(' ').toLocaleLowerCase()
@@ -152,7 +159,7 @@ function HistoryDrawer({ project }) {
   // The graph is laid out oldest → newest; the list shows it newest first.
   const graph = branchGraph([...active].reverse())
   const archived = [...matches].filter((e) => e.archived).reverse()
-  const filtersActive = historyFilter.kind !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
+  const filtersActive = kindFilter !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
 
   const open = (id) => {
     if (onHistoryPage && id === selectedId) {
@@ -201,21 +208,29 @@ function HistoryDrawer({ project }) {
           <DropdownMenuTrigger
             className={cn(
               'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-              historyFilter.kind !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+              kindFilter !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
             )}
           >
-            {historyFilter.kind !== 'all' && <KindBadge kind={historyFilter.kind} />}
-            <span className="truncate">{historyFilter.kind === 'all' ? 'All kinds' : KIND_LABEL[historyFilter.kind]}</span>
+            {kindFilter !== 'all' && <KindBadge kind={kindFilter} />}
+            <span className="truncate">{kindFilter === 'all' ? 'All kinds' : KIND_LABEL[kindFilter]}</span>
             <ChevronDown className="size-3" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuItem onClick={() => setHistoryFilter({ kind: 'all' })}>All kinds</DropdownMenuItem>
-            {HISTORY_KINDS.map((kind) => (
+            {HISTORY_KINDS.filter((kind) => kind !== 'conflict').map((kind) => (
               <DropdownMenuItem key={kind} onClick={() => setHistoryFilter({ kind })} className="gap-1.5">
                 <KindBadge kind={kind} />
                 {KIND_LABEL[kind]}
               </DropdownMenuItem>
             ))}
+            {/* Conflicts aren't a kind of checkpoint — they're marks on
+                the versions they were found on, shown or hidden here. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setHistoryFilter({ showConflicts: !showConflicts })} className="gap-1.5">
+              <TriangleAlert className="size-3 text-amber-300" />
+              <span className="flex-1">Conflict marks</span>
+              {showConflicts && <Check className="size-3.5 text-slate-300" />}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {targets.length > 0 && (
@@ -291,10 +306,13 @@ function HistoryDrawer({ project }) {
       <div>
       {tab === 'active' &&
         active.map((entry, index) => {
-          const isCurrent = entry.id === activeHistoryId
+          const isCurrent = entry.id === currentId
           const selected = onHistoryPage && entry.id === selectedId
           const meta = historyMeta(entry, currentUser.id)
           const row = graph.rows[active.length - 1 - index]
+          // Every row names its branch; a merge names both ends.
+          const branchLabel = entry.mergedBranches?.length ? `${entry.mergedBranches.join(', ')} → ${entry.branch}` : entry.branch ?? TRUNK
+          const marks = showConflicts ? entry.conflictMarks ?? [] : []
           return (
             <div
               key={entry.id}
@@ -302,13 +320,13 @@ function HistoryDrawer({ project }) {
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
               className="group relative flex items-stretch"
             >
-              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={row.label ? ROW_LABELED : ROW_HEIGHT} />
+              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
               <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]')}>
               <button
                 type="button"
                 onClick={() => open(entry.id)}
                 aria-current={selected ? 'true' : undefined}
-                style={{ height: row.label ? ROW_LABELED : ROW_HEIGHT }}
+                style={{ height: ROW_HEIGHT }}
                 // 6px + half a 20px line = 16px: the dot's center, whether or
                 // not a branch label sits under the title.
                 className="flex w-full flex-col justify-start px-2.5 pt-1.5 text-left"
@@ -316,7 +334,7 @@ function HistoryDrawer({ project }) {
                 {/* One line: what happened, and when. Everything else —
                     who, what kind, the detail — is the dot beside it, the
                     hover, and the viewer. */}
-                <span className="flex items-baseline gap-2">
+                <span className={cn('flex items-baseline gap-2', marks.length > 0 && 'pl-5')}>
                   <span
                     className={cn('min-w-0 flex-1 truncate text-[13px] leading-5', selected ? 'font-medium text-white' : 'text-slate-200')}
                     title={meta ? `${entry.label} — ${meta}` : entry.label}
@@ -327,11 +345,23 @@ function HistoryDrawer({ project }) {
                     {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
                   </span>
                 </span>
-                {/* Where a branch starts, its name — in its lane's color. */}
-                {row.label && (
-                  <span translate="no" className="block truncate font-mono text-[10.5px] leading-4" style={{ color: colors.get(row.label) }}>{row.label}</span>
-                )}
+                {/* Its branch, in that lane's color (a merge: from → to). */}
+                <span translate="no" className="block truncate font-mono text-[10.5px] leading-4" style={{ color: colors.get(entry.branch ?? TRUNK) }}>{branchLabel}</span>
               </button>
+              {/* Conflicts found on this version: a small warning beside
+                  its node, opening that conflict's review. */}
+              {marks.length > 0 && (
+                <button
+                  type="button"
+                  title={marks.map((mark) => mark.label).join(' · ')}
+                  aria-label={`Open conflict: ${marks[0].label}`}
+                  onClick={() => navigate(`/projects/${project.id}/workspace`, { state: { openConflictId: marks[0].conflictId } })}
+                  className="ds-intrinsic absolute top-1.5 left-1.5 flex h-5 items-center gap-0.5 rounded text-amber-300 transition-colors hover:text-amber-200"
+                >
+                  <TriangleAlert className="size-3.5" />
+                  {marks.length > 1 && <span className="text-[10px] font-semibold tabular-nums">{marks.length}</span>}
+                </button>
+              )}
               {!isCurrent && (
                 <div className="absolute top-1 right-1 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>

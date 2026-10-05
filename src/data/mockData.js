@@ -3227,8 +3227,9 @@ export const projectHistorySeeds = {
   'mobile-nav-revamp': [
     {
       id: 'history-nav-1',
-      label: 'Added the mobile bottom navigation',
+      label: 'Add bottom nav',
       kind: 'edit',
+      branch: 'main',
       actorId: 'james',
       target: 'BottomNav.jsx',
       timestamp: 'Yesterday, 9:10 AM',
@@ -3244,8 +3245,9 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-2',
-      label: 'Kept navigation icons at 20px',
+      label: 'Keep icons at 20px',
       kind: 'edit',
+      branch: 'main',
       actorId: 'jane',
       target: 'BottomNav.jsx · line 10',
       timestamp: 'Yesterday, 9:42 AM',
@@ -3265,6 +3267,9 @@ export const projectHistorySeeds = {
     // collect checkpoints side by side, and the feature merges back into
     // main while the hotfix carries on. `branch` puts a checkpoint on its
     // lane; a merge names what it brings in with `mergedBranches`.
+    // Labels are kept short enough to read whole in the History list. The
+    // conflict's own checkpoint isn't a node in the graph — it shows as a
+    // warning mark on the version it was found on (the one before it).
     {
       id: 'history-conflict-cc-4',
       label: 'Navigation icon size differs from the 24px design',
@@ -3286,7 +3291,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-feature-1',
-      label: 'Added an unread badge to the Inbox tab',
+      label: 'Add unread badge',
       kind: 'edit',
       branch: 'feature/nav-badge',
       actorId: 'min',
@@ -3304,7 +3309,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-hotfix-2',
-      label: 'Drafted the 24px tab icons',
+      label: 'Draft 24px icons',
       kind: 'edit',
       branch: 'hotfix/mobile-nav-icon',
       actorId: 'james',
@@ -3322,7 +3327,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-feature-2',
-      label: 'Capped the unread badge at 99',
+      label: 'Cap badge at 99',
       kind: 'edit',
       branch: 'feature/nav-badge',
       actorId: 'min',
@@ -3340,7 +3345,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-merge-badge',
-      label: 'Merged the Inbox unread badge',
+      label: 'Merge unread badge',
       kind: 'merge',
       branch: 'main',
       mergedBranches: ['feature/nav-badge'],
@@ -3359,7 +3364,7 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-nav-hotfix-3',
-      label: 'Checked the 44px tap area on small phones',
+      label: 'Check 44px tap area',
       kind: 'edit',
       branch: 'hotfix/mobile-nav-icon',
       actorId: 'james',

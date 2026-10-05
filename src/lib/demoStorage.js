@@ -30,11 +30,13 @@ export function readDemo(key, fallback) {
     }
     // History's branch-graph samples (see projectHistorySeeds): a session
     // saved before them gets the missing seed checkpoints put back in seed
-    // order, ahead of whatever it recorded since — nothing it has is dropped.
-    if (key === 'project:mobile-nav-revamp:historyEntries' && Array.isArray(value) && Array.isArray(fallback)
-      && !value.some((row) => row.id === 'history-nav-feature-1')) {
+    // order, ahead of whatever it recorded since — nothing it has is
+    // dropped — and seeded checkpoints take the seed's current wording and
+    // branch (a label reworded in the seed shouldn't stay stale forever).
+    if (key === 'project:mobile-nav-revamp:historyEntries' && Array.isArray(value) && Array.isArray(fallback)) {
       const seeded = new Set(fallback.map((row) => row.id))
-      return [...fallback.map((seed) => value.find((row) => row.id === seed.id) ?? seed), ...value.filter((row) => !seeded.has(row.id))]
+      const fresh = (seed, saved) => (saved ? { ...saved, label: seed.label, branch: seed.branch, mergedBranches: seed.mergedBranches } : seed)
+      return [...fallback.map((seed) => fresh(seed, value.find((row) => row.id === seed.id))), ...value.filter((row) => !seeded.has(row.id))]
     }
     return value
   } catch {

@@ -57,6 +57,14 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
+Conflict marks|충돌 표시
+Add bottom nav|하단 내비 추가
+Keep icons at 20px|아이콘 20px 유지
+Add unread badge|읽지 않음 배지 추가
+Draft 24px icons|24px 아이콘 초안
+Cap badge at 99|배지 99 제한
+Merge unread badge|읽지 않음 배지 병합
+Check 44px tap area|44px 터치 영역 확인
 Adjusted by hand|직접 조정됨
 Undo adjustment|조정 취소
 All branches|전체 브랜치
