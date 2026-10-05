@@ -143,7 +143,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
     setRuleFocus(null)
     const conflictId = item.conflictId ?? [...relatedIds][0]
-    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId } })
+    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId, evidence: item } })
   }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(

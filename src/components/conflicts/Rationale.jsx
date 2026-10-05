@@ -50,13 +50,11 @@ const WHY_SOURCE = { purpose: 'Purpose of the work', rule: 'Design rule' }
 // The decision, in four lines: what, why, the evidence, and who decided —
 // first thing in a conflict's activity, so the reason is read before the
 // trail of events under it.
-export function DecisionSummary({ conflict, rationale, onOpen }) {
+export function DecisionSummary({ rationale, onOpen }) {
   const { why, evidence, decision, deviation } = rationale
   const rows = [
     ['What', (
       <>
-        <span className="font-medium text-white"><LocalizedText text={conflict.title} /></span>
-        <span className="text-slate-500"> · </span>
         <span className={decision.deviates ? 'text-amber-200' : 'text-slate-300'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
       </>
     )],
@@ -92,11 +90,11 @@ export function DecisionSummary({ conflict, rationale, onOpen }) {
 
 // One step's reason and its evidence, as a strip (over the replay's code,
 // in a History checkpoint's header).
-export function ReasonStrip({ text, evidence, onOpen, className }) {
+export function ReasonStrip({ text, evidence, onOpen, className, label = 'The why' }) {
   if (!text && !evidence?.length) return null
   return (
     <div data-step-reason className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-5', className)}>
-      <span className="shrink-0 font-medium text-slate-500"><LocalizedText text="The why" /></span>
+      <span className="shrink-0 font-medium text-slate-500"><LocalizedText text={label} /></span>
       {text && <span className="min-w-0 text-slate-300"><LocalizedText text={text} /></span>}
       <EvidenceLinks items={evidence} onOpen={onOpen} />
     </div>

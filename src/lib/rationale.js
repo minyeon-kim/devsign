@@ -105,12 +105,12 @@ export function rationaleOf(conflict, { comments = [], checks } = {}) {
 
   const seen = new Set()
   const once = (item) => {
-    const key = `${item.kind}:${item.label}`
+    const key = `${item.kind}:${item.id ?? item.url ?? item.label}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
   }
-  const linked = comments.filter((comment) => (comment.id === conflict.linkedCommentId || comment.target?.conflictId === conflict.id) && !comment.target?.replyTo)
+  const linked = comments.filter((comment) => (comment.id === conflict.linkedCommentId || comment.target?.conflictId === conflict.id))
   const evidence = [
     ...rules.map((rule) => ({ kind: 'rule', id: rule.id, label: rule.title })),
     ...rules.flatMap((rule) => rule.sources),
@@ -137,15 +137,17 @@ export function rationaleOf(conflict, { comments = [], checks } = {}) {
 // purpose it was made for), its detection (the rule it runs into), and its
 // merge (the decision). `evidence` is the subset that backs that reason.
 export function stepRationale(entry, conflict, rationale) {
-  const of = (...kinds) => rationale.evidence.filter((item) => kinds.includes(item.kind))
+  const saved = entry?.snapshot?.conflicts?.find((item) => item.id === conflict.id)
+  const atStep = saved ? rationaleOf(saved) : rationale
+  const evidence = [...atStep.evidence.filter((item) => item.kind !== 'comment'), ...rationale.evidence.filter((item) => item.kind === 'comment')]
+  const ownReason = entry?.reason ?? (typeof entry?.purpose === 'string' ? entry.purpose : entry?.purpose?.text) ?? entry?.prompt
   if (entry?.kind === 'conflict') {
-    const rule = rationale.rules[0]
-    return { text: rule?.reason ?? conflict.message ?? null, evidence: of('rule', 'figma', 'token', 'wcag') }
+    return { text: ownReason ?? conflict.message ?? atStep.rules[0]?.reason, evidence: evidence.filter((item) => item.kind !== 'comment') }
   }
   if (entry?.kind === 'merge') {
-    return { text: rationale.deviation?.text ?? rationale.purpose?.text ?? rationale.rules[0]?.reason ?? null, evidence: of('rule', 'comment') }
+    return { text: ownReason ?? atStep.why?.text ?? null, evidence }
   }
-  return { text: entry?.purpose ?? rationale.purpose?.text ?? entry?.prompt ?? null, evidence: of('comment') }
+  return { text: ownReason ?? atStep.purpose?.text ?? atStep.why?.text ?? null, evidence }
 }
 
 // A History checkpoint, explained the same way: why it happened and what
@@ -154,7 +156,7 @@ export function stepRationale(entry, conflict, rationale) {
 // from History too. Its own reason wins when it has one (a rollback's, or
 // the request an AI edit was made for).
 export function checkpointRationale(entry, related, comments = []) {
-  const each = related.map((conflict) => ({ conflict, rationale: rationaleOf(conflict, { comments }) }))
+  const each = related.map((conflict) => ({ conflict, rationale: rationaleOf(entry.snapshot?.conflicts?.find((saved) => saved.id === conflict.id) ?? conflict, { comments }) }))
   const text = entry.reason ?? entry.prompt ?? each.map(({ rationale }) => rationale.why?.text).find(Boolean) ?? null
   const seen = new Set()
   const evidence = each.flatMap(({ conflict, rationale }) => [

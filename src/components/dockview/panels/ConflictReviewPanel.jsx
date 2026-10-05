@@ -1,6 +1,6 @@
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
   ArrowRight,
   Ban,
@@ -1237,7 +1237,9 @@ function CommentThread({ conflict, workspace, flashId }) {
                   {replies.map((reply) => {
                     const replyAuthor = allPeople.find((person) => person.id === reply.authorId)
                     return (
-                      <div key={reply.id} className="flex gap-2.5">
+                      <div key={reply.id} data-comment-id={reply.id}
+                        ref={reply.id === flashId ? (node) => node?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) : undefined}
+                        className={cn('flex gap-2.5 rounded-lg', reply.id === flashId && 'bg-emerald-400/[0.12] ring-1 ring-emerald-300/40')}>
                         {replyAuthor && <PersonAvatar person={replyAuthor} />}
                         <div className="min-w-0 flex-1">
                           <p className="flex flex-wrap items-center gap-1.5">
@@ -1621,7 +1623,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
   decisionState.pick = (side) => {
-    const departs = side === 'B' && rationale.rules.length > 0 && !decisionState.meets.B
+    const departs = side === 'B' && !decisionState.meets.B
     if (departs) setReasonRequest({ kind: 'keep-current', subject: conflict.title, run: (reason) => recordSide('B', reason) })
     else recordSide(side)
   }
@@ -1650,6 +1652,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     workspace.focusChange(conflict)
     if (workspace.dockApi) openOrFocusPanel(workspace.dockApi, panelById.canvas)
   }
+  // Consume a History source link after the review and its workspace mount.
+  const pendingEvidence = workspace?.bottomPanel?.evidence
+  const consumeEvidence = useEffectEvent((item) => {
+    openEvidence(item)
+    workspace.setBottomPanel({ evidence: null })
+  })
+  useEffect(() => {
+    if (!pendingEvidence || pendingEvidence.conflictId !== conflict?.id) return
+    consumeEvidence(pendingEvidence)
+  }, [pendingEvidence, conflict?.id])
+
   const checkActions = {
     fixSideFor: (check) => decisionState.resolvingSide(check.id),
     onFix: stage !== 'resolved' && workspace ? startFix : undefined,

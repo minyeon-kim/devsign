@@ -84,7 +84,7 @@ function WorkspacePage() {
       const conflict = conflicts.find((c) => c.id === state.openConflictId)
       if (!conflict) return
       exitMergeStudio()
-      setBottomPanel({ open: true, tab: 'conflict' })
+      setBottomPanel({ open: true, tab: 'conflict', evidence: state.evidence ? { ...state.evidence, conflictId: conflict.id } : null })
       focusChange(conflict)
       openConflictReview(conflict.id)
     }

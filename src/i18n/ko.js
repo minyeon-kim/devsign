@@ -62,6 +62,8 @@ Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
 found a difference|차이 감지
+Reason for this step|이 단계의 이유
+System activity|시스템 활동
 The why|왜
 Exception request|예외 요청
 Buttons use the primary color token|버튼 색은 primary 토큰 사용
