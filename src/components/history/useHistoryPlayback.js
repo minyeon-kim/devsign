@@ -21,9 +21,12 @@ export function useHistoryPlayback(timeline, selectedId, select) {
     const timer = window.setTimeout(() => {
       if (!next || index < 0) { setPlaying(false); return }
       expected.current = next.id
+      // The last step plays like the rest (its code types in too); the
+      // tick after it finds nothing next and stops.
       selectRef.current(next.id)
-      if (index + 1 === timeline.length - 1) setPlaying(false)
-    }, 1600)
+    // Long enough for a step's code to finish typing and the preview to
+    // settle before the next one starts.
+    }, 2400)
     return () => window.clearTimeout(timer)
   }, [playing, index, timeline])
 

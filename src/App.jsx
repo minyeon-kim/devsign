@@ -65,7 +65,7 @@ function App() {
       {/* Under the Inbox bell, top-right — where the app's other notices
           (the Inbox, the entry prompt) appear. The bottom-right corner is
           taken by real work: the bottom panel's comment box and actions. */}
-      <Toaster position="top-right" offset={{ top: 52, right: 16 }} />
+      <Toaster position="top-right" offset={{ top: 52, right: 16 }} expand visibleToasts={4} gap={8} />
     </TooltipProvider>
     </LanguageProvider>
   )

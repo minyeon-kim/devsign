@@ -4,6 +4,7 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+This step|이 단계
 Author · Updated|작성 · 수정
 Automated feedback|자동 피드백
 Open review|검토 열기

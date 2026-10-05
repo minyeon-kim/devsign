@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
-import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
 
@@ -77,7 +76,6 @@ function HistoryDrawer({ project }) {
   const historyPath = `/projects/${project.id}/history`
   const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
 
-  const current = historyEntries.find((e) => e.id === activeHistoryId)
   const targets = historyTargets(historyEntries)
   const filtered = filterHistoryEntries(historyEntries, historyFilter)
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
@@ -211,7 +209,6 @@ function HistoryDrawer({ project }) {
         active.map((entry, index) => {
           const isCurrent = entry.id === activeHistoryId
           const selected = onHistoryPage && entry.id === selectedId
-          const stats = diffStats(current?.snapshot.lines, entry.snapshot.lines)
           const meta = historyMeta(entry, currentUser.id)
           return (
             <div
@@ -236,11 +233,12 @@ function HistoryDrawer({ project }) {
                 aria-current={selected ? 'true' : undefined}
                 className="block w-full px-3 py-2.5 text-left"
               >
-                {/* What happened first, then who / when, then the detail. */}
+                {/* Two things only: what happened, and who / when. The kind
+                    is the rail's dot; the rest is in the viewer. */}
                 <span className="flex items-start gap-2">
                   <span
                     className={cn('line-clamp-2 min-w-0 flex-1 text-[13px] leading-[18px] font-medium', selected ? 'text-white' : 'text-slate-100')}
-                    title={entry.label}
+                    title={meta ? `${entry.label} — ${meta}` : entry.label}
                   >
                     {entry.label}
                   </span>
@@ -248,21 +246,10 @@ function HistoryDrawer({ project }) {
                     <span className={cn('mt-px shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold', ACCENT_SOFT)}>Current</span>
                   )}
                 </span>
-                <span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-slate-400 tabular-nums">
-                  <KindBadge kind={entry.kind} />
+                <span className="mt-1 flex items-center gap-1.5 text-[11.5px] text-slate-500 tabular-nums">
                   <ActorAvatar entry={entry} />
                   <span className="min-w-0 truncate">{entry.timestamp}</span>
-                  {!isCurrent && (
-                    <span className="ml-auto shrink-0 font-mono text-[10.5px] transition-opacity group-hover:opacity-0">
-                      <span className="text-emerald-300/80">+{stats.added}</span> <span className="text-red-300/80">−{stats.removed}</span>
-                    </span>
-                  )}
                 </span>
-                {meta && (
-                  <span className="mt-1 block truncate text-[11px] text-slate-500" title={meta}>
-                    {meta}
-                  </span>
-                )}
               </button>
               {!isCurrent && (
                 <div className="absolute right-1.5 bottom-1.5 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

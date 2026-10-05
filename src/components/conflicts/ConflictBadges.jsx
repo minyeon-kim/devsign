@@ -15,12 +15,15 @@ const dots = {
   approved: 'bg-emerald-400',
   resolved: 'bg-violet-400',
 }
+// The same badge without its box — a dot and text — for a line that already
+// sits inside a panel.
+export const PLAIN_BADGE = 'inline-flex max-w-full shrink-0 items-center gap-1.5 text-xs font-medium whitespace-nowrap'
 // `label` overrides the stage's own wording (a rollback agreement's stages
 // read differently — see lib/rollbackImpact). `quiet` (lists): the dot
-// carries the color, the text stays neutral.
-export function ReviewStageBadge({ stage, ready = false, label, quiet = false }) {
-  return <span className={cn(CONFLICT_BADGE, quiet ? 'text-slate-200' : tones[stage])}>
-    <span className={cn('size-1.5 shrink-0 rounded-full', quiet ? dots[stage] : 'bg-current')} />
+// carries the color, the text stays neutral. `plain`: no box.
+export function ReviewStageBadge({ stage, ready = false, label, quiet = false, plain = false }) {
+  return <span className={cn(plain ? PLAIN_BADGE : CONFLICT_BADGE, quiet || plain ? 'text-slate-200' : tones[stage])}>
+    <span className={cn('size-1.5 shrink-0 rounded-full', quiet || plain ? dots[stage] : 'bg-current')} />
     <span className="truncate"><LocalizedText text={label ?? (ready ? 'Decided · request review' : STAGE_LABEL[stage])} /></span>
   </span>
 }

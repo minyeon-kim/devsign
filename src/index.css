@@ -570,12 +570,12 @@ button.editor-line-comment {
   to { background-color: transparent; }
 }
 .history-row-typein {
-  animation:
-    history-row-typein-clip 420ms steps(16, end) backwards,
-    history-row-flash-add 700ms ease-out;
+  /* The text types itself in (HistoryCompare's TypedText); the row only
+     settles from a soft tint. */
+  animation: history-row-flash-add 1100ms ease-out;
 }
 .history-row-flash-remove {
-  animation: history-row-flash-remove 700ms ease-out;
+  animation: history-row-flash-remove 1100ms ease-out;
 }
 
 /* AI chat → canvas: the element an AI edit just changed pulses and wears
@@ -677,6 +677,9 @@ button.editor-line-comment {
    bell (NOTICE_CARD in ConflictEntryPrompt), so they take the same surface
    and type: one kind of notification, whatever raised it. */
 [data-sonner-toaster] { --width: 360px; }
+/* …and start below those cards while any are up (HighReviewNotifications
+   publishes their bottom edge), so the two never sit on top of each other. */
+[data-sonner-toaster][data-y-position='top'] { top: var(--ds-toast-top, 52px) !important; }
 [data-sonner-toast].cn-toast {
   gap: 12px;
   padding: 16px;

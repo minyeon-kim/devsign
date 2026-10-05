@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
-import { CONFLICT_BADGE } from '@/components/conflicts/ConflictBadges'
+import { CONFLICT_BADGE, PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 
 // The conflict-level tag for the conflict-resolution panel's header: a
@@ -30,9 +30,20 @@ const SEVERITY_QUIET_CLASS = { high: 'text-rose-300', medium: 'text-slate-200', 
 
 // `bare`: just the level ("Medium"), for places whose column or context
 // already says it's a level. `quiet`: color only for High.
-export function SeverityPill({ level, className, bare = false, quiet = false, ...props }) {
+const SEVERITY_DOT_CLASS = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-sky-400', none: 'bg-slate-500' }
+
+// `plain`: no box — a dot in the level's color and the level as text.
+export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, ...props }) {
   const key = String(level).toLowerCase()
   const tones = quiet ? SEVERITY_QUIET_CLASS : SEVERITY_PILL_CLASS
+  if (plain) {
+    return (
+      <span {...props} className={cn(PLAIN_BADGE, 'text-slate-200', className)}>
+        <span className={cn('size-1.5 shrink-0 rounded-full', SEVERITY_DOT_CLASS[key] ?? SEVERITY_DOT_CLASS.medium)} />
+        <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
+      </span>
+    )
+  }
   return (
     <span
       {...props}

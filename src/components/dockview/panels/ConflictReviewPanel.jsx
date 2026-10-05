@@ -384,11 +384,12 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
   return (
     <div className="flex h-full flex-col gap-3">
       <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
-        <ReviewStageBadge stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
+        {/* Dots and text — no chips: this line already sits in a panel. */}
+        <ReviewStageBadge plain stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
         {severity && (
           <>
             <span aria-hidden>·</span>
-            <SeverityPill level={severity.label} />
+            <SeverityPill plain level={severity.label} />
           </>
         )}
         {open && shortDue(conflict.dueLabel) && (
@@ -400,7 +401,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
         {/* A chip of its own — no dot before it, so nothing dangles when it
             wraps onto the next line. */}
         {blockedCount > 0 && (
-          <span className="ml-0.5 inline-flex h-6 items-center gap-1 rounded-md bg-amber-400/15 px-2 text-[11px] font-semibold text-amber-200">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-200">
+            <span aria-hidden className="mr-0.5 font-normal text-slate-400">·</span>
             <TriangleAlert className="size-3 shrink-0" />
             <LocalizedText text={`Can’t merge ${blockedCount}`} />
           </span>
@@ -620,7 +622,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
             </>
           ) : (
             <>
-              <span className="inline-flex h-6 shrink-0 items-center rounded-md bg-sky-400/15 px-2 text-[11px] font-semibold text-sky-200"><LocalizedText text="Choice needed" /></span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-sky-200"><span className="size-1.5 rounded-full bg-sky-400" /><LocalizedText text="Choice needed" /></span>
               <span className="min-w-0 text-xs text-slate-300"><LocalizedText text="Pick which side to merge." /></span>
             </>
           ))}
@@ -642,7 +644,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
+              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 divide-x divide-white/[0.08]">
                 {[
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
@@ -652,7 +654,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                   <div key={side}
                     onClick={() => pick(decision)}
                     data-side={side}
-                    className={cn('flex min-w-0 flex-col gap-2 rounded-xl border p-3 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'border-emerald-300 bg-emerald-400/10' : 'border-white/10 bg-white/[0.03]', canPick && 'cursor-pointer hover:border-emerald-300/60')}>
+                    // No boxes: the two sides are columns either side of a line.
+                    // Only the picked one is tinted.
+                    className={cn('flex min-w-0 flex-col gap-2 p-3 transition-colors first:rounded-l-lg last:rounded-r-lg focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'bg-emerald-400/[0.08]' : canPick && 'cursor-pointer hover:bg-white/[0.03]')}>
                     {source && <ComparisonSource {...source} />}
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
@@ -666,7 +670,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                     {/* The picked side breaks a required standard: say so on
                         this card, with what clears it. */}
                     {picked(decision) && state.cardBlockers.length > 0 && (
-                      <div onClick={(event) => event.stopPropagation()} className="mt-1 cursor-default rounded-lg bg-amber-400/10 p-2.5 ring-1 ring-amber-300/40 ring-inset">
+                      <div onClick={(event) => event.stopPropagation()} className="mt-1 cursor-default border-t border-amber-300/30 pt-2.5">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
                           <TriangleAlert className="size-3.5 shrink-0" />
                           <LocalizedText text="Can’t merge · required standard not met" />
@@ -798,9 +802,9 @@ function RollbackAgreement({ conflict }) {
           <p className={cn(REVIEW_INFO_LABEL, 'flex items-center gap-1.5')}>
             <LocalizedText text="Now" /><span aria-hidden className="text-slate-500">→</span><LocalizedText text="After rollback" />
           </p>
-          <dl className="mt-1.5 divide-y divide-white/[0.06] rounded-lg bg-white/[0.04]">
+          <dl className="mt-1.5 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {changes.map((change) => (
-              <div key={change.label} className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2.5 px-3 py-2 text-slate-100">
+              <div key={change.label} className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2.5 py-2 text-slate-100">
                 <dt className="text-xs text-slate-400"><LocalizedText text={change.label} /></dt>
                 <dd className="min-w-0"><RollbackValue value={change.from} color={change.fromColor} /></dd>
                 <span aria-hidden className="text-slate-500">→</span>
@@ -818,13 +822,13 @@ function RollbackAgreement({ conflict }) {
             {confirmed}/{reviewers.length} <LocalizedText text="Confirmed" />
           </span>
         </p>
-        <ul className="mt-1.5 divide-y divide-white/[0.06] rounded-lg bg-white/[0.04]">
+        <ul className="mt-1.5 divide-y divide-white/[0.07] border-y border-white/[0.07]">
           {reviewers.map((reviewer) => {
             const person = allPeople.find((p) => p.id === reviewer.id)
             if (!person) return null
             const done = reviewer.status === 'approved'
             return (
-              <li key={reviewer.id} className="flex min-w-0 items-center gap-2.5 px-3 py-2">
+              <li key={reviewer.id} className="flex min-w-0 items-center gap-2.5 py-2">
                 <PersonAvatar person={person} />
                 <span className="min-w-0 flex-1 truncate text-[13px] text-slate-100">
                   {person.name}
@@ -1687,15 +1691,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                 </div>
 
-                {/* Reviewers stay above the discussion beside the central diff. */}
-                <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_GUTTER)}>
-                  {/* A rollback agreement lists who it affects, and whether
-                      they've confirmed, once — in the middle. */}
-                  {!conflict.rollback && <section className={cn("shrink-0 max-h-48 overflow-auto", REVIEW_CONTEXT_CARD)}>
-                    <p className={cn(PANEL_LABEL, "mb-2")}><LocalizedText text={conflict.rollback ? 'Affected people' : 'Reviewers'} /></p>
-                    <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
-                  </section>}
-                  <div className={cn('flex min-h-0 flex-1 flex-col', REVIEW_CONTEXT_CARD)}>
+                {/* One panel on the right: reviewers, a hairline, then the
+                    discussion — not two boxes stacked. (A rollback agreement
+                    lists who it affects in the middle, so this is comments
+                    only.) */}
+                <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
+                  {!conflict.rollback && (
+                    <section className="mb-3 max-h-48 shrink-0 overflow-auto border-b border-white/[0.07] pb-3">
+                      <p className={cn(PANEL_LABEL, 'mb-2')}><LocalizedText text="Reviewers" /></p>
+                      <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
+                    </section>
+                  )}
+                  <div className="flex min-h-0 flex-1 flex-col">
                     <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
                       <LocalizedText text="Comments" />
                     </p>

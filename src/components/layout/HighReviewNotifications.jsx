@@ -87,10 +87,27 @@ export default function HighReviewNotifications() {
   // the banners would cover.
   const show = (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
   const anchor = useBellAnchor(show)
+  // Toasts land in the same corner. They start under this stack instead of
+  // on top of it: its bottom edge is published as `--ds-toast-top` (read by
+  // the toaster's rule in index.css) for as long as it's on screen.
+  const stackRef = useRef(null)
+  useEffect(() => {
+    const el = stackRef.current
+    const root = document.documentElement
+    if (!show || !el) return
+    const publish = () => root.style.setProperty('--ds-toast-top', `${Math.round(el.getBoundingClientRect().bottom + 8)}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--ds-toast-top')
+    }
+  }, [show, anchor.top, banners.length, showRequest, entry.prompt])
   if (!show) return null
 
   return (
-    <aside aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
       {showRequest && (
         <section className={NOTICE_CARD}>
           <NoticeDismiss label="알림 닫기" onClick={() => setRequestDismissed(true)} />

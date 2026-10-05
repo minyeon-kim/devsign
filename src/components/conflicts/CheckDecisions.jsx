@@ -30,11 +30,13 @@ export function CheckDecisions({ checks, only, showAccepted = !only, activeId, o
   const accepted = showAccepted ? checks?.accepted ?? [] : []
   if (!checks || (!failing.length && !accepted.length)) return null
   return (
-    <ul className="mt-2 space-y-1.5">
+    // Rows, not boxes: a hairline between checks; the one being fixed gets
+    // a faint background.
+    <ul className="mt-1.5 divide-y divide-white/[0.07]">
       {failing.map((check) => {
         const required = checks.blocking.includes(check)
         return (
-          <li key={check.id} className={cn('rounded-lg p-2.5', required ? 'bg-amber-400/[0.07] ring-1 ring-amber-300/25 ring-inset' : 'bg-white/[0.04]', activeId === check.id && (required ? 'ring-1 ring-amber-300/70 ring-inset' : 'ring-1 ring-white/30 ring-inset'))}>
+          <li key={check.id} className={cn('py-2.5', activeId === check.id && '-mx-2 rounded-lg bg-white/[0.05] px-2')}>
             <p className="flex min-w-0 items-start gap-1.5 text-xs leading-[18px] font-medium text-white">
               <TriangleAlert className={cn('mt-0.5 size-3.5 shrink-0', required ? 'text-amber-300' : 'text-slate-400')} />
               <span className="min-w-0 flex-1 break-words"><LocalizedText text={check.title} /></span>
@@ -60,7 +62,7 @@ export function CheckDecisions({ checks, only, showAccepted = !only, activeId, o
         )
       })}
       {accepted.map((check) => (
-        <li key={check.id} className="flex min-w-0 items-center gap-1.5 rounded-lg bg-white/[0.03] px-2.5 py-2 text-xs leading-[18px] text-slate-400">
+        <li key={check.id} className="flex min-w-0 items-center gap-1.5 py-2 text-xs leading-[18px] text-slate-400">
           <Check className="size-3.5 shrink-0 text-slate-400" />
           <span className="min-w-0 flex-1 break-words">
             <LocalizedText text={check.title} />
@@ -85,7 +87,7 @@ export function CheckGuideNote({ check, resolved = false, where, action, onClose
   const ko = useLanguage() === 'ko'
   if (!check) return null
   return (
-    <div role="status" className={cn('flex min-w-0 items-start gap-2.5 rounded-xl p-3 ring-1 ring-inset', resolved ? 'bg-emerald-400/10 ring-emerald-300/40' : 'bg-amber-400/10 ring-amber-300/50', className)}>
+    <div role="status" className={cn('flex min-w-0 items-start gap-2.5 rounded-xl p-3', resolved ? 'bg-emerald-400/10' : 'bg-amber-400/10', className)}>
       {resolved ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-300" /> : <Wrench className="mt-0.5 size-4 shrink-0 text-amber-300" />}
       <div className="min-w-0 flex-1">
         <p className={cn('text-[11px] leading-4 font-medium', resolved ? 'text-emerald-200' : 'text-amber-200')}>
