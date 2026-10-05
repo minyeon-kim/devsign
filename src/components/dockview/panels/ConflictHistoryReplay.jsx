@@ -8,6 +8,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { useConflictStore } from '@/state/ConflictStore'
+import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
 const EVENT_COPY = {
@@ -168,9 +169,9 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
           <p className="text-xs font-semibold text-white"><LocalizedText text="Conflict activity" /> <span className="font-normal text-slate-400">· <LocalizedText text={conflict.title} /></span></p>
         </div>
         {onOpenProjectHistory && (
-          <button type="button" onClick={onOpenProjectHistory} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white">
+          <button type="button" onClick={onOpenProjectHistory} className={NAV_BUTTON}>
             <LocalizedText text="Project history" />
-            <ArrowRight className="size-3 opacity-70" />
+            <ArrowRight className={NAV_BUTTON_ICON} />
           </button>
         )}
       </div>

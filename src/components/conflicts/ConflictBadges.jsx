@@ -2,6 +2,16 @@ import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { STAGE_LABEL, gitFlowOf } from '@/lib/conflicts'
 
+// The review's secondary "go somewhere" buttons — to the conflict's
+// activity, Merge Studio, the project's History, and back to the review —
+// are one style: same height, radius, fill, edge, type, padding and hover.
+// No function icon in front of any of them; only the direction: a forward
+// button is its label then → (NAV_BUTTON_ICON), a back button ← then its
+// label. (↗ would mean a new window or leaving the app — none of these do.)
+// Quieter than the header's main action.
+export const NAV_BUTTON = 'ds-intrinsic inline-flex h-8 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] px-3 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
+export const NAV_BUTTON_ICON = 'size-3.5 shrink-0 text-slate-400'
+
 export const CONFLICT_BADGE = 'inline-flex h-6 max-w-full shrink-0 items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium whitespace-nowrap'
 const tones = {
   detected: 'text-slate-300',
