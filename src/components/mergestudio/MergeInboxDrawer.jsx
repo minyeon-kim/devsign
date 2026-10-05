@@ -144,50 +144,62 @@ function CommentThread({ comments }) {
     close()
   }
 
+  // The reply control belongs to the conversation: it sits right under the
+  // last message, starting where that message's text starts (to the right
+  // of its avatar) — the "Reply" button, and in the same spot the box it
+  // turns into.
+  const replyControl = replying ? (
+    // One line, a thin edge, and the send arrow inside it — live only once
+    // there's something to send.
+    <form onSubmit={send} className="relative">
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}
+        // Left with nothing typed: back to the "Reply" button.
+        onBlur={() => { if (!draft.trim()) close() }}
+        placeholder={tr('Write a reply')}
+        aria-label={tr('Write a reply')}
+        className="h-8 w-full min-w-0 rounded-full border border-white/[0.12] bg-transparent pr-9 pl-3 text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/30"
+      />
+      <button
+        type="submit"
+        aria-label="Send"
+        title="Send"
+        disabled={!draft.trim()}
+        // (Keeps the input from blurring — and closing — before the click lands.)
+        onMouseDown={(e) => e.preventDefault()}
+        className="ds-intrinsic absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-emerald-300 transition-colors hover:bg-white/[0.08] disabled:pointer-events-none disabled:text-slate-600"
+      >
+        <Send className="size-3.5" />
+      </button>
+    </form>
+  ) : (
+    <button type="button" onClick={() => setReplying(true)} className="ds-intrinsic inline-flex h-5 items-center text-xs font-medium text-slate-400 transition-colors hover:text-white">
+      <LocalizedText text="Reply" />
+    </button>
+  )
+
   return (
     <div className="space-y-3">
-      {comments.map((n) => (
-        <div key={n.id} className="space-y-3">
-          <ThreadMessage authorId={n.authorId} text={n.text} timeLabel={n.timeLabel} />
-          {(n.replies ?? []).length > 0 && (
-            <div className="ml-7 space-y-3">
-              {n.replies.map((r) => <ThreadMessage key={r.id} authorId={r.authorId} text={r.text} />)}
-            </div>
-          )}
-        </div>
-      ))}
-      {replying ? (
-        // One line, a thin edge, and the send arrow inside it — live only
-        // once there's something to send.
-        <form onSubmit={send} className="relative ml-7">
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}
-            // Left with nothing typed: back to the "Reply" button.
-            onBlur={() => { if (!draft.trim()) close() }}
-            placeholder={tr('Write a reply')}
-            aria-label={tr('Write a reply')}
-            className="h-8 w-full min-w-0 rounded-full border border-white/[0.12] bg-transparent pr-9 pl-3 text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/30"
-          />
-          <button
-            type="submit"
-            aria-label="Send"
-            title="Send"
-            disabled={!draft.trim()}
-            // (Keeps the input from blurring — and closing — before the click lands.)
-            onMouseDown={(e) => e.preventDefault()}
-            className="ds-intrinsic absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-emerald-300 transition-colors hover:bg-white/[0.08] disabled:pointer-events-none disabled:text-slate-600"
-          >
-            <Send className="size-3.5" />
-          </button>
-        </form>
-      ) : (
-        <button type="button" onClick={() => setReplying(true)} className="ds-intrinsic ml-7 inline-flex h-6 items-center text-xs font-medium text-slate-400 transition-colors hover:text-white">
-          <LocalizedText text="Reply" />
-        </button>
-      )}
+      {comments.map((n) => {
+        const replies = n.replies ?? []
+        const last = n === latest
+        return (
+          <div key={n.id}>
+            <ThreadMessage authorId={n.authorId} text={n.text} timeLabel={n.timeLabel} />
+            {replies.length > 0 && (
+              <div className="mt-3 ml-7 space-y-3">
+                {replies.map((r) => <ThreadMessage key={r.id} authorId={r.authorId} text={r.text} />)}
+              </div>
+            )}
+            {/* 8px under the last message, on its text line: a reply's
+                text starts one avatar (28px) further in than a comment's. */}
+            {last && <div className={cn('mt-2', replies.length > 0 ? 'ml-14' : 'ml-7')}>{replyControl}</div>}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -322,10 +334,14 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
             {card.type === 'thread' && (
               <>
                 <CommentThread comments={card.comments} />
+                {/* Not part of the conversation: what the card as a whole
+                    does, set off at its foot under a hairline. */}
                 {destination && (
-                  <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
-                    <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
-                  </button>
+                  <div className="!mt-4 border-t border-white/[0.07] pt-3">
+                    <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+                      <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
+                    </button>
+                  </div>
                 )}
               </>
             )}
