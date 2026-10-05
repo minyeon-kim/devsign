@@ -62,6 +62,8 @@ Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
 found a difference|차이 감지
+Author|작성자
+Failing checks|미통과 검사
 Reason for this step|이 단계의 이유
 System activity|시스템 활동
 The why|왜

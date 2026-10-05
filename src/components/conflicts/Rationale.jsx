@@ -45,58 +45,38 @@ export function EvidenceLinks({ items, onOpen, className }) {
   )
 }
 
-const WHY_SOURCE = { purpose: 'Purpose of the work', rule: 'Design rule' }
-
-// The decision, in four lines: what, why, the evidence, and who decided —
-// first thing in a conflict's activity, so the reason is read before the
-// trail of events under it.
+// Decision and author share one line; sources are available on demand.
 export function DecisionSummary({ rationale, onOpen }) {
-  const { why, evidence, decision, deviation } = rationale
-  const rows = [
-    ['What', (
-      <>
-        <span className={decision.deviates ? 'text-amber-200' : 'text-slate-300'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
-      </>
-    )],
-    ['The why', why ? (
-      <>
-        <LocalizedText text={why.text} />
-        <span className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none font-medium whitespace-nowrap text-slate-400">
-          <LocalizedText text={deviation ? 'Reason entered' : WHY_SOURCE[why.source]} />
-        </span>
-      </>
-    ) : <span className="text-slate-500"><LocalizedText text="No reason linked yet" /></span>],
-    ['Evidence', evidence.length ? <EvidenceLinks items={evidence} onOpen={onOpen} /> : <span className="text-slate-500">—</span>],
-    ['Decided by', decision.by ? (
-      <>
-        <span translate="no" className="font-medium text-slate-100">{decision.by}</span>
-        {decision.at && <span className="text-slate-500"> · <LocalizedText text={decision.at} /></span>}
-      </>
-    ) : <span className="text-slate-500"><LocalizedText text="Not decided yet" /></span>],
-  ]
+  const { why, evidence, decision } = rationale
   return (
-    <section data-decision-summary aria-label="Decision summary" className="shrink-0 rounded-xl bg-white/[0.03] px-3 py-2.5">
-      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-xs leading-5">
-        {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-slate-500"><LocalizedText text={label} /></dt>
-            <dd className="min-w-0 text-slate-300">{value}</dd>
-          </div>
-        ))}
-      </dl>
+    <section data-decision-summary aria-label="Decision summary" className="shrink-0 px-1 py-1 text-xs leading-5">
+      <p className="flex flex-wrap items-center gap-x-2">
+        <span className={decision.deviates ? 'font-medium text-amber-200' : 'font-medium text-white'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
+        {decision.by && <span className="text-slate-500"><LocalizedText text="Decided by" /> <span translate="no">{decision.by}</span></span>}
+      </p>
+      {why && <p className="mt-1 text-slate-300"><LocalizedText text={why.text} /></p>}
+      <EvidenceDisclosure items={evidence} onOpen={onOpen} />
     </section>
   )
 }
 
+export function EvidenceDisclosure({ items, onOpen }) {
+  if (!items?.length) return null
+  return <details className="mt-1 text-[11px] text-slate-400">
+    <summary className="w-fit cursor-pointer hover:text-white"><LocalizedText text="Evidence" /> · {items.length}</summary>
+    <EvidenceLinks items={items} onOpen={onOpen} className="mt-1.5" />
+  </details>
+}
+
 // One step's reason and its evidence, as a strip (over the replay's code,
 // in a History checkpoint's header).
-export function ReasonStrip({ text, evidence, onOpen, className, label = 'The why' }) {
+export function ReasonStrip({ text, evidence, onOpen, className, label = 'The why', compact = false }) {
   if (!text && !evidence?.length) return null
   return (
     <div data-step-reason className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-5', className)}>
       <span className="shrink-0 font-medium text-slate-500"><LocalizedText text={label} /></span>
       {text && <span className="min-w-0 text-slate-300"><LocalizedText text={text} /></span>}
-      <EvidenceLinks items={evidence} onOpen={onOpen} />
+      {compact ? <EvidenceDisclosure items={evidence} onOpen={onOpen} /> : <EvidenceLinks items={evidence} onOpen={onOpen} />}
     </div>
   )
 }

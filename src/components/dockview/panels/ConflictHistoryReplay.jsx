@@ -198,7 +198,6 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
           <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Step replay" /></h3>
-          {selected && <span className="shrink-0 text-xs font-medium text-slate-300 tabular-nums">{selectedIndex + 1}/{entries.length}</span>}
           {/* The step in view — not the conflict's title (that's the page
               header's, once). */}
           <span data-replay-step className="min-w-0 flex-1 truncate text-[11px] text-slate-400">{selected && <LocalizedText text={stepName(selected, conflict)} />}</span>
@@ -211,7 +210,7 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
           )}
         </div>
         {/* Why this step happened, and what backs it — read before its code. */}
-        {step && <ReasonStrip label="Reason for this step" text={step.text} evidence={step.evidence} onOpen={onOpenEvidence} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
+        {step && <ReasonStrip compact label="Reason for this step" text={step.text} evidence={step.evidence} onOpen={onOpenEvidence} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? (
             // Code and its preview together, half the replay each — the
@@ -276,8 +275,8 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
         )}
       </section>
       {groups.length > 0 && (
-        <section aria-label="System activity" className="max-h-36 shrink-0 overflow-y-auto border-t border-white/[0.07] pt-2">
-          <p className="px-2 pb-1 text-[10.5px] font-medium text-slate-500"><LocalizedText text="System activity" /></p>
+        <details aria-label="System activity" className="max-h-36 shrink-0 overflow-y-auto border-t border-white/[0.07] pt-2">
+          <summary className="cursor-pointer px-2 pb-1 text-[11px] text-slate-500"><LocalizedText text="System activity" /> · {groups.length}</summary>
           <ol data-conversation-events className="space-y-0.5">
                   {groups.map((group) => {
                     const open = openGroup === group.kind
@@ -318,7 +317,7 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
                     )
                   })}
           </ol>
-        </section>
+        </details>
       )}
     </div>
   )

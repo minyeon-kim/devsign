@@ -394,7 +394,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
+      {conflict.rollback && <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
         {/* Dots and text — no chips: this line already sits in a panel. */}
         <ReviewStageBadge plain stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
         {severity && (
@@ -427,11 +427,11 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             </span>
           </>
         )}
-      </p>
+      </p>}
 
       {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
-      <section className="min-w-0 flex-1">
+      {conflict.rollback && <section className="min-w-0 flex-1">
         <button
           type="button"
           aria-expanded={showDetails}
@@ -455,7 +455,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             ))}
           </div>
         ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
-      </section>
+      </section>}
     </div>
   )
 }
@@ -1801,6 +1801,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {primary}
               </div>
             </div>
+
+            {!conflict.rollback && <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2 pl-11 text-[11px] text-slate-400">
+              <span><LocalizedText text="Author" /> · <span translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</span></span>
+              <span><LocalizedText text="Updated" /> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
+              <ReviewStageBadge plain stage={stage} />
+              {severity && <SeverityPill plain level={severity.label} />}
+              <Popover>
+                <PopoverTrigger className="cursor-pointer text-slate-400 hover:text-white"><LocalizedText text="Details" /> <span aria-hidden>↗</span></PopoverTrigger>
+                <PopoverContent className="max-h-[60vh] w-96 overflow-y-auto border-white/10 bg-card p-4 text-xs text-slate-300">
+                  <p><LocalizedText text={conflict.message ?? ''} /></p>
+                  <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                    <dt><LocalizedText text="Due date" /></dt><dd><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
+                    <dt><LocalizedText text="Checks" /></dt><dd>{checks ? <><LocalizedText text="Failing checks" /> · {checks.failing.length}</> : '—'}</dd>
+                    <dt><LocalizedText text="Reviewers" /></dt><dd>{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
+                  </dl>
+                  <ReviewDetails conflict={conflict} showProject />
+                </PopoverContent>
+              </Popover>
+            </div>}
 
             {/* Review and Activity are two views of the one conflict: tabs
                 under its title (said once, above). The only way back is the
