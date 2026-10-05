@@ -2,6 +2,7 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
+  ArrowRight,
   ArrowUpRight,
   Ban,
   Bell,
@@ -428,15 +429,20 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
 
       {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
+      {/* The way to History is a control, not more of the summary: a small
+          secondary button set apart from the text above — a thin edge and a
+          faint fill, the History icon in front and an arrow after it (it
+          leaves this screen). Quieter than the header's main action. */}
       {onOpenHistory && (
         <button
           type="button"
           onClick={onOpenHistory}
-          className="ds-intrinsic inline-flex h-7 w-fit shrink-0 items-center gap-1.5 text-xs font-medium text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline"
+          className="ds-intrinsic mt-2 inline-flex h-8 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] pr-2.5 pl-3 text-xs font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
         >
-          <History className="size-3.5" />
+          <History className="size-3.5 text-slate-400" />
           <LocalizedText text="Check the reasoning in History" />
           {conflict.historyInspected && <Check className="size-3.5 text-slate-400" strokeWidth={2.5} />}
+          <ArrowRight className="size-3.5 text-slate-400" />
         </button>
       )}
 
