@@ -22,6 +22,12 @@ const rules = [
     return `${MONTHS[mon]}월 ${day}일 ${ampm === 'AM' ? '오전' : '오후'} ${h}:${m}`
   }],
   [/^(\d+) comments$/, (_, n) => `코멘트 ${n}개`],
+  [/^(\d+) to resolve before merging$/, (_, n) => `병합 전 해결할 문제 ${n}개`],
+  [/^(\d+) suggestions$/, (_, n) => `권장 사항 ${n}개`],
+  [/^(\d+) of (\d+) values decided$/, (_, n, total) => `값 ${total}개 중 ${n}개 결정`],
+  [/^Rollback: (.+)$/, (_, label) => `롤백: ${core(label)}`],
+  [/^(.+) — only your own changes were rolled back\.$/, (_, label) => `${core(label)} — 본인 변경만 되돌렸습니다.`],
+  [/^(.+) — everyone affected had confirmed\.$/, (_, label) => `${core(label)} — 영향받는 작업자가 모두 확인했습니다.`],
   [/^(\d+) automated notes$/, (_, n) => `자동 피드백 ${n}개`],
   [/^(\d+) replies$/, (_, n) => `답글 ${n}개`],
   [/^Daily digest · (\d+) medium changes? needs? review$/, (_, n) => `일일 요약 · Medium 변경사항 ${n}개 검토 필요`],

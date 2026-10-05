@@ -1,7 +1,6 @@
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { toast } from '@/i18n/toast'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -92,7 +91,12 @@ function HistoryPage() {
           <HistoryCompare
             entryId={selectedId}
             compareLatest={compareLatest}
-            hideRestore
+            // Restore sits up in the viewer's header, with the checkpoint
+            // it applies to — not down at the end of the playback bar.
+            onRollback={(id) => {
+              pause()
+              setRollbackId(id)
+            }}
             playing={playing}
             baseEntryId={timeline[timelineIndex - 1]?.id}
           />
@@ -106,10 +110,7 @@ function HistoryPage() {
           compareLatest={compareLatest}
           onCompareLatestChange={setCompareLatest}
           isCurrent={selectedId === activeHistoryId}
-          onRestore={() => {
-            pause()
-            setRollbackId(selectedId)
-          }}
+          hideRestore
         />
       </div>
 
@@ -119,7 +120,6 @@ function HistoryPage() {
         onOpenChange={(open) => !open && setRollbackId(null)}
         onDone={(entry, restoredId) => {
           select(restoredId ?? entry.id)
-          toast('Rolled back to checkpoint', { description: `${entry.label} — saved as a new checkpoint` })
         }}
       />
     </div>

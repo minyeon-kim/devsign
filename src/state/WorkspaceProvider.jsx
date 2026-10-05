@@ -8,6 +8,7 @@ import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
 import { moveTab } from '@/lib/tabOrder'
 import { mergeBlockReason } from '@/lib/mergePolicy'
+import { rollbackImpact } from '@/lib/rollbackImpact'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { assemblyToOverride, frameWithLayers } from '@/components/mergestudio/mergeEffects'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
@@ -355,7 +356,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // issue timeline and replay available for seeded and newly detected issues.
   useEffect(() => {
     const recorded = new Set(historyEntries.flatMap((entry) => [entry.conflictId, ...(entry.conflictIds ?? [])]).filter(Boolean))
-    const missing = conflicts.filter((conflict) => !recorded.has(conflict.id))
+    // (A rollback agreement isn't a design ↔ code difference — no checkpoint.)
+    const missing = conflicts.filter((conflict) => !recorded.has(conflict.id) && !conflict.rollback)
     if (!missing.length) return
     setHistoryEntries((previous) => {
       const known = new Set(previous.flatMap((entry) => [entry.conflictId, ...(entry.conflictIds ?? [])]).filter(Boolean))
@@ -1329,6 +1331,58 @@ export function WorkspaceProvider({ children, projectId }) {
     [historyEntries, appendTerminalLines, recordHistory, setConflicts, setFileOverrides, setPreviewProps, setPrototypeEdits, setActivePageId, setChatMessages, currentUser.id]
   )
 
+  // What rolling back to a checkpoint would touch beyond your own work
+  // (see lib/rollbackImpact) — the rollback dialog reads this to decide
+  // between "roll back and share" and "ask the people it affects first".
+  const rollbackImpactFor = useCallback((entryId) => {
+    const entry = historyEntries.find((h) => h.id === entryId)
+    return rollbackImpact({ entries: historyEntries, entryId, viewerId: currentUser.id, viewers: entry ? getViewersForFile(entry.snapshot.fileId) : [] })
+  }, [historyEntries, currentUser.id, getViewersForFile])
+
+  // A rollback that touches other people isn't run — it's put on the
+  // Conflict list as an agreement: what's being rolled back, who it
+  // affects, and whether each of them has confirmed. The affected people
+  // are its reviewers, so confirming is the usual approval, and the
+  // rollback itself (`runAgreedRollback`) is its final step.
+  const requestRollbackAgreement = useCallback((entryId, options = {}) => {
+    const entry = historyEntries.find((h) => h.id === entryId)
+    const impact = rollbackImpactFor(entryId)
+    if (!entry || !impact.needsAgreement) return null
+    const irreversible = impact.reasons.some((reason) => reason.id === 'irreversible')
+    const record = scheduleDemoReview(toConflictRecord({
+      id: `rollback-${crypto.randomUUID()}`,
+      title: `Rollback: ${entry.label}`,
+      file: entry.target ?? files.find((f) => f.id === entry.snapshot.fileId)?.name ?? entry.label,
+      fileId: entry.snapshot.fileId,
+      projectId,
+      severity: irreversible ? 'high' : 'medium',
+      message: 'This rollback reaches other people’s work. Everyone it affects confirms here before it runs.',
+      changedBy: { type: 'person', id: currentUser.id, what: 'Requested this rollback' },
+      detectedBy: 'Rollback impact check',
+      reviewStage: 'in_review',
+      requestedBy: currentUser.id,
+      reviewers: impact.affected.map((id) => ({ id, status: 'pending' })),
+      timestamp: 'Just now',
+      detectedAt: timeLabel(),
+      rollback: { entryId: entry.id, label: entry.label, target: entry.target ?? files.find((f) => f.id === entry.snapshot.fileId)?.name ?? entry.label, timestamp: entry.timestamp, options, reasons: impact.reasons },
+    }), currentUser.id)
+    setConflicts((prev) => [...prev, record])
+    logEvent({ kind: 'review_requested', projectId, conflictId: record.id, actorId: currentUser.id, title: record.title })
+    appendTerminalLines([`$ devsign rollback --to "${entry.label}" --request-agreement`, `· waiting on ${impact.affected.length} affected`])
+    return record
+  }, [historyEntries, rollbackImpactFor, files, projectId, currentUser.id, setConflicts, logEvent, appendTerminalLines])
+
+  // Everyone affected has confirmed: run the rollback and close the record.
+  const runAgreedRollback = useCallback((conflictId) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict?.rollback || conflict.reviewStage !== 'approved') return null
+    const restoredId = rollbackTo(conflict.rollback.entryId, conflict.rollback.options)
+    if (!restoredId) return null
+    setConflicts((prev) => prev.map((c) => c.id === conflictId ? { ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', mergedBy: currentUser.id } : c))
+    logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    return restoredId
+  }, [conflicts, rollbackTo, setConflicts, logEvent, projectId, currentUser.id])
+
   // Does a scenario's change fall inside the request's target? The target
   // is what the user picked before sending (an element, a page or a file);
   // an AI change is only applied when it lands inside it, so the chat's
@@ -1914,6 +1968,9 @@ export function WorkspaceProvider({ children, projectId }) {
     historyEntries,
     activeHistoryId,
     rollbackTo,
+    rollbackImpactFor,
+    requestRollbackAgreement,
+    runAgreedRollback,
     archiveHistoryEntry,
     restoreHistoryEntry,
     activePageId,

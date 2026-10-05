@@ -380,7 +380,7 @@ function ChatConversation() {
         </p>
       )}
       <div className="relative flex min-h-0 flex-1">
-        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3" style={{ '--scroll-fade-size': '14px', '--scroll-fade-edge': 'rgb(0 0 0 / 30%)' }}>
+        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 py-3" style={{ '--scroll-fade-size': '8px', '--scroll-fade-edge': 'rgb(0 0 0 / 65%)' }}>
         {chatMessages.map((message, index) => (
           <div key={message.id} className={cn('group/chat flex w-full flex-col', message.role === 'user' ? 'items-end gap-1.5' : 'items-start gap-0.5')}>
             <div

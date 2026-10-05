@@ -2,10 +2,10 @@
 .conflict-list-table {
   /* Put the review state, issue, deadline and approval blockers before
      supporting details so the first scan answers what needs attention. */
-  --conflict-columns: 156px 132px minmax(190px, 1fr) 126px 58px 96px minmax(240px, 1.3fr) 156px 56px 78px;
+  --conflict-columns: 164px 132px minmax(210px, 1fr) 132px 58px 96px minmax(260px, 1.3fr) 176px 56px 92px;
   display: block;
   width: 100%;
-  min-width: 1460px;
+  min-width: 1560px;
   box-sizing: border-box;
   padding-inline: 16px;
   border-collapse: collapse;

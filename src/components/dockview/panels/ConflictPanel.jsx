@@ -6,6 +6,7 @@ import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, Clock3, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
 import { authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
@@ -18,6 +19,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allDecided } from '@/lib/driftDecisions'
+import { ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 
 // One icon per row, chosen by severity and carried only inside the badge.
 const severityConfig = {
@@ -219,12 +221,12 @@ function ConflictPanel({ inMergeStudio }) {
               aria-pressed={f.id === filter.id}
               onClick={() => setBottomPanel({ conflictFilter: f.id })}
               className={cn(
-                'ds-intrinsic inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors',
-                f.id === filter.id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
+                'ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 text-xs whitespace-nowrap transition-colors',
+                f.id === filter.id ? 'font-medium text-white' : 'text-slate-400 hover:text-slate-200'
               )}
             >
               <LocalizedText text={f.label} />
-              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-600')}>
+              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
                 {counts[f.count]}
               </span>
             </button>
@@ -249,7 +251,7 @@ function ConflictPanel({ inMergeStudio }) {
           <table className="conflict-list-table text-xs">
             {/* Headers, rows and expanded diffs share the same grid tracks. */}
             <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b text-left text-[11px] text-muted-foreground">
+              <tr className="border-b text-left text-xs text-slate-300">
                 <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium">
                   <div className="flex items-center gap-4">
@@ -315,7 +317,7 @@ function ConflictPanel({ inMergeStudio }) {
                     )}
                   >
                     <td className="px-1.5 py-2">
-                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} />
+                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
                     </td>
                     <td className="py-2">
                       <div className="flex items-center gap-4">
@@ -332,28 +334,28 @@ function ConflictPanel({ inMergeStudio }) {
                     </td>
                     <td className="min-w-0 px-1.5 py-2">
                       <div className="min-w-0 space-y-px">
-                        <p className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-4 font-medium text-white" title={conflict.title}>
+                        <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="line-clamp-1 min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
                           {/* Discussion at a glance (also what keeps a change out of batch approval). */}
                           {commentCount > 0 && (
-                            <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-normal text-slate-400" aria-label={`${commentCount} comments`}>
-                              <MessageSquare className="size-2.5" />{commentCount}
+                            <span className="inline-flex shrink-0 items-center gap-0.5 text-[11.5px] font-normal text-slate-300" aria-label={`${commentCount} comments`}>
+                              <MessageSquare className="size-3" />{commentCount}
                             </span>
                           )}
                         </p>
-                        <p className="flex min-w-0 items-start gap-1 text-[10px] leading-3 text-slate-400">
-                          <FileCode2 className="mt-0.5 size-2.5 shrink-0" />
+                        <p className="flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-slate-300">
+                          <FileCode2 className="size-3 shrink-0" />
                           <span className="line-clamp-1 font-mono [overflow-wrap:anywhere]" title={conflict.file}>{conflict.file}</span>
                         </p>
                       </div>
                     </td>
-                    <td className="py-2 text-[10.5px] whitespace-nowrap tabular-nums">
+                    <td className="py-2 text-xs whitespace-nowrap tabular-nums">
                       {conflict.dueLabel ? (
-                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-400')}>
-                          <Clock3 className="size-3 shrink-0" />
+                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-200')}>
+                          <Clock3 className="size-3.5 shrink-0" />
                           <LocalizedText text={conflict.dueLabel} />
                         </span>
-                      ) : <span className="text-slate-600">—</span>}
+                      ) : <span className="text-slate-500">—</span>}
                     </td>
                     {/* Status is the stage only — checks and "your review"
                         have their own places (the next column, and your
@@ -361,15 +363,15 @@ function ConflictPanel({ inMergeStudio }) {
                         decided but no review asked for yet says so. */}
                     <td className="py-2">
                       {!isOpen(conflict) ? (
-                        <span className="text-[10.5px] text-slate-600">—</span>
+                        <span className="text-xs text-slate-500">—</span>
                       ) : failingChecks > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-amber-300" title="Checks need attention — merging waits on them">
-                          <TriangleAlert className="size-3" />
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-300" title="Checks need attention — merging waits on them">
+                          <TriangleAlert className="size-3.5" />
                           <span className="tabular-nums">{failingChecks}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center text-emerald-300/80" title="All checks passed">
-                          <CircleCheck className="size-3" />
+                        <span className="inline-flex items-center text-emerald-300" title="All checks passed">
+                          <CircleCheck className="size-3.5" />
                         </span>
                       )}
                     </td>
@@ -377,26 +379,33 @@ function ConflictPanel({ inMergeStudio }) {
                       {reviewers.length ? (
                         <div className="flex flex-wrap justify-start gap-y-1 -space-x-1.5">
                           {reviewers.map((person) => (
-                            <Avatar
+                            <PersonHover
                               key={person.id}
-                              size="xs"
+                              person={person}
+                              note={mine && person.id === currentUser.id ? 'Needs your review' : (conflict.rollback ? ROLLBACK_NOTE : REVIEW_NOTE)[conflict.reviewers.find((r) => r.id === person.id)?.status]}
                               className={cn('ring-2', mine && person.id === currentUser.id ? 'z-10 ring-emerald-400' : 'ring-card')}
-                              title={mine && person.id === currentUser.id ? `${person.name} · needs your review` : person.name}
-                            >
-                              <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>
-                                {person.initials}
-                              </AvatarFallback>
-                            </Avatar>
+                            />
                           ))}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">Unassigned</span>
+                        <span className="text-slate-300">Unassigned</span>
                       )}
                     </td>
                     <td className="min-w-0 px-1.5 py-2">
                       <div className="min-w-0 space-y-1">
-                        {conflict.message ? (
-                          <p className="line-clamp-1 text-[11px] leading-4 text-slate-400" title={conflict.message}>
+                        {conflict.rollback ? (
+                          // A rollback agreement: what's rolled back, who
+                          // it affects, and how many of them have confirmed.
+                          <p className="line-clamp-1 text-[12.5px] leading-5 text-slate-200" title={conflict.rollback.label}>
+                            <span className="text-slate-400"><LocalizedText text="Rolling back" /> </span>
+                            <LocalizedText text={conflict.rollback.target} />
+                            <span className="text-slate-400"> · <LocalizedText text="Affected" /> </span>
+                            <span className="tabular-nums">{conflict.reviewers.length}</span>
+                            <span className="text-slate-400"> · <LocalizedText text="Confirmed" /> </span>
+                            <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
+                          </p>
+                        ) : conflict.message ? (
+                          <p className="line-clamp-1 text-[12.5px] leading-5 text-slate-200" title={conflict.message}>
                             <LocalizedText text={conflict.message} />
                           </p>
                         ) : <span className="text-slate-500">—</span>}
@@ -405,16 +414,14 @@ function ConflictPanel({ inMergeStudio }) {
                     <td className="min-w-0 py-2"><BranchInfo conflict={conflict} compact /></td>
                     <td className="py-2">
                       {author ? (
-                        <Avatar size="xs" title={author.name}>
-                          <AvatarFallback className={cn('font-medium text-white', author.colorClass)}>{author.initials}</AvatarFallback>
-                        </Avatar>
+                        <PersonHover person={author} note="Author" />
                       ) : (
                         // No person made it — design ↔ code sync found it.
-                        <span className="text-[10.5px] text-slate-600" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
+                        <span className="text-xs text-slate-500" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
                       )}
                     </td>
                     {/* The day only ("Yesterday", "2 hours ago"); the exact time is on hover. */}
-                    <td className="truncate py-2 pr-1 text-right text-[10.5px] whitespace-nowrap text-slate-500 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
+                    <td className="truncate py-2 pr-1 text-right text-xs whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
                       <LocalizedText text={(conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')} />
                     </td>
 
@@ -557,6 +564,36 @@ function BatchApproveDialog({ open, onOpenChange, conflicts, comments, onApprove
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+const REVIEW_NOTE = { approved: 'Approved', changes_requested: 'Changes requested', pending: 'Pending' }
+// On a rollback agreement the people listed are the ones it affects.
+const ROLLBACK_NOTE = { approved: 'Confirmed', changes_requested: 'Objected', pending: 'Not confirmed yet' }
+
+// A person in the list is only initials — hovering says who that is: the
+// name, role and team, plus what they are to this row (`note`).
+function PersonHover({ person, note, className }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex rounded-full" />} onClick={(event) => event.stopPropagation()}>
+        <Avatar size="xs" className={className}>
+          <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+        </Avatar>
+      </TooltipTrigger>
+      <TooltipContent className="flex items-center gap-2.5 px-3 py-2 text-left">
+        <Avatar size="sm">
+          <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold"><LocalizedText text={person.fullName ?? person.name} /></span>
+          <span className="block text-[11px] opacity-75">
+            <LocalizedText text={person.role} />{person.team && <> · <LocalizedText text={person.team} /></>}
+          </span>
+          {note && <span className="mt-0.5 block text-[11px] opacity-75"><LocalizedText text={note} /></span>}
+        </span>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

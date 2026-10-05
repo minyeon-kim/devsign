@@ -4,6 +4,43 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+View in Conflict list|충돌 목록에서 보기
+Rolling back|되돌리는 대상
+Affected people|영향받는 작업자
+Affected|영향
+Confirmed|확인
+Not confirmed yet|미확인
+Objected|이의 제기
+Why it needs agreement|합의가 필요한 이유
+Run rollback|롤백 실행
+Rolled back|롤백 완료
+Confirmation not requested|확인 요청 전
+Awaiting confirmation|확인 대기 중
+Confirmed · ready to roll back|확인 완료 · 롤백 대기
+Other people’s work goes with it|다른 사람의 작업이 함께 빠집니다
+Checkpoints after this one were made by someone else — rolling back takes their work out too.|이 버전 이후에 다른 사람이 만든 체크포인트가 있어, 롤백하면 그 작업도 함께 빠지거나 깨질 수 있습니다.
+Someone is working on top of this version|이 버전을 기준으로 작업 중인 사람이 있습니다
+They’re in this file right now, building on the version being undone.|지금 이 파일에서 되돌리려는 버전을 기준으로 작업하고 있습니다.
+Part of it can’t be fully undone|완전히 원복되지 않는 요소가 있습니다
+A merge after this checkpoint already went out, so rolling back won’t put everything back.|이 버전 이후에 이미 반영된 병합이 있어, 롤백해도 전부 되돌아가지 않습니다.
+This rollback needs agreement first|합의가 필요한 롤백입니다
+It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.|충돌 목록에 되돌리는 대상, 영향받는 작업자, 작업자별 확인 여부를 올려 합의를 진행합니다. 모두 확인하면 롤백을 실행할 수 있습니다.
+Only your own changes go back, so this doesn’t need anyone’s agreement. The team is told once it’s done.|본인이 수정한 내용만 되돌리므로 합의 없이 진행합니다. 롤백 후 팀에 공유됩니다.
+Request agreement|합의 요청
+Rollback and share|롤백 후 공유
+Rollback sent for agreement|롤백 합의를 요청했습니다
+It’s on the Conflict list — it runs once everyone affected has confirmed.|충돌 목록에 등록했습니다. 영향받는 작업자가 모두 확인하면 실행할 수 있습니다.
+Rollback shared with the team|롤백하고 팀에 공유했습니다
+This rollback reaches other people’s work. Everyone it affects confirms here before it runs.|다른 사람의 작업에 영향을 주는 롤백입니다. 영향받는 작업자가 모두 확인한 뒤 실행합니다.
+Requested this rollback|이 롤백을 요청함
+Rollback impact check|롤백 영향 검사
+vs. reference|vs 기준
+Current decision|현재 결정
+Merged decision|병합된 결정
+Merge with the design reference|디자인 기준으로 합치기
+Merge with the current implementation|현재 구현으로 합치기
+Not decided yet — pick a side on the card to the right.|아직 결정 전입니다. 오른쪽 카드에서 합칠 내용을 고르세요.
+Undo decision|되돌리기
 Applying as is|그대로 반영합니다
 Check the reasoning in History|History에서 근거 확인하기
 Back to review|검토 내용으로 돌아가기

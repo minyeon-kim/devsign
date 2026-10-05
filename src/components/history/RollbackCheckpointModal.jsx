@@ -1,10 +1,15 @@
 import { useState } from 'react'
-import { Bot, Check, Database, FileCode2, GitBranch, History, Palette, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bot, Check, Database, FileCode2, GitBranch, History, Palette, RotateCcw, Sparkles, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { diffLines } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { allPeople } from '@/data/mockData'
+import { ROLLBACK_REASON } from '@/lib/rollbackImpact'
+import { toast } from '@/i18n/toast'
 
 const ROW_TONES = {
   same: 'text-slate-500',
@@ -55,8 +60,15 @@ function RollbackItem({ icon: Icon, title, detail, checked, onChange, locked, di
 // back — Files and the preview always; the Conflict Points' review state
 // and the Agent's memory as options; Database listed but unavailable, as
 // this project has none connected.
+//
+// Whether it runs right away depends on who it touches (lib/
+// rollbackImpact): only your own work → it rolls back and is shared with
+// the team afterwards; other people's work, someone building on that
+// version, or something that can't be fully undone → it isn't run here but
+// put on the Conflict list, where everyone affected confirms first.
 function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
-  const { historyEntries, activeHistoryId, rollbackTo, chatMessages, getFileName } = useWorkspace()
+  const { historyEntries, activeHistoryId, rollbackTo, rollbackImpactFor, requestRollbackAgreement, projectId, chatMessages, getFileName } = useWorkspace()
+  const navigate = useNavigate()
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const [conflicts, setConflicts] = useState(true)
@@ -68,10 +80,27 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
   const changedRows = rows.filter((r) => r.kind !== 'same')
   const laterMessages = entry ? Math.max(0, chatMessages.length - (entry.snapshot.chatLength ?? 1)) : 0
 
+  const impact = entry ? rollbackImpactFor(entry.id) : null
+  const needsAgreement = Boolean(impact?.needsAgreement)
+
   function confirm() {
+    if (needsAgreement) {
+      const record = requestRollbackAgreement(entry.id, { conflicts, agentMemory })
+      onOpenChange(false)
+      if (!record) return
+      toast('Rollback sent for agreement', {
+        description: 'It’s on the Conflict list — it runs once everyone affected has confirmed.',
+        // From anywhere (History included): the Workspace opens on its review.
+        action: { label: 'View in Conflict list', onClick: () => navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: record.id } }) },
+      })
+      return
+    }
     const restoredId = rollbackTo(entry.id, { conflicts, agentMemory })
     onOpenChange(false)
-    onDone?.(entry, restoredId)
+    if (onDone) onDone(entry, restoredId)
+    // Only your own work went back, so nobody had to agree — the team is
+    // told after the fact instead.
+    toast('Rollback shared with the team', { description: `${entry.label} — only your own changes were rolled back.` })
   }
 
   return (
@@ -113,6 +142,47 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
                 </p>
                 {entry.prompt && <p className="mt-1 text-xs text-slate-400">“{entry.prompt}”</p>}
               </div>
+
+              {/* Who it reaches — decides whether this runs now or goes
+                  to the Conflict list for agreement first. */}
+              {needsAgreement ? (
+                <div className="rounded-xl bg-amber-400/10 p-4 ring-1 ring-amber-300/40 ring-inset">
+                  <p className="flex items-center gap-1.5 text-[13px] font-semibold text-amber-100">
+                    <Users className="size-4 shrink-0 text-amber-300" />
+                    This rollback needs agreement first
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {impact.reasons.map((reason) => (
+                      <li key={reason.id} className="text-xs leading-[18px] text-slate-200">
+                        <span className="font-medium text-white">{ROLLBACK_REASON[reason.id].title}</span>
+                        <span className="block text-slate-300">{ROLLBACK_REASON[reason.id].detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-[11px] font-medium text-slate-400">Affected people</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {impact.affected.map((id) => {
+                      const person = allPeople.find((p) => p.id === id)
+                      if (!person) return null
+                      return (
+                        <span key={id} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white/[0.07] pr-2.5 pl-1 text-xs text-slate-100">
+                          <Avatar size="xs"><AvatarFallback className={cn('font-semibold text-white', person.colorClass)}>{person.initials}</AvatarFallback></Avatar>
+                          {person.name}
+                          <span className="text-slate-400">{person.role}</span>
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-3 text-xs leading-[18px] text-slate-300">
+                    It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.
+                  </p>
+                </div>
+              ) : (
+                <p className="flex items-start gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-xs leading-[18px] text-slate-300">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                  Only your own changes go back, so this doesn’t need anyone’s agreement. The team is told once it’s done.
+                </p>
+              )}
 
               {/* Preview: the code this brings back */}
               <div>
@@ -195,8 +265,8 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
                 onClick={confirm}
                 className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-5 text-[13px] font-semibold', ACCENT_CTA)}
               >
-                <RotateCcw className="size-3.5" />
-                Rollback to checkpoint
+                {needsAgreement ? <Users className="size-3.5" /> : <RotateCcw className="size-3.5" />}
+                {needsAgreement ? 'Request agreement' : 'Rollback and share'}
               </button>
             </div>
           </>

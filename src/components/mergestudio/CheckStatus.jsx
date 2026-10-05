@@ -4,7 +4,9 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 
-export default function CheckStatus({ checks, onFix }) {
+// `quiet`: passing reads as neutral text (the review keeps its accent for
+// the decision), instead of the mint used on the canvas.
+export default function CheckStatus({ checks, onFix, quiet = false }) {
   const [open, setOpen] = useState(false)
   const language = useLanguage()
   if (!checks) return null
@@ -17,7 +19,7 @@ export default function CheckStatus({ checks, onFix }) {
   return <Popover open={open} onOpenChange={setOpen}>
     {/* Blocked is the one state that needs acting on, so it's a filled
         amber pill; passing stays quiet text. */}
-    <PopoverTrigger className={`ds-intrinsic inline-flex items-center gap-1.5 rounded-full ${blocked ? 'h-8 bg-amber-400/15 px-3 text-xs font-semibold text-amber-200 ring-1 ring-amber-300/50 ring-inset hover:bg-amber-400/25' : 'h-7 px-2 text-xs text-emerald-300 hover:bg-white/5'}`}>
+    <PopoverTrigger className={`ds-intrinsic inline-flex items-center gap-1.5 rounded-full ${blocked ? 'h-8 bg-amber-400/15 px-3 text-xs font-semibold text-amber-200 ring-1 ring-amber-300/50 ring-inset hover:bg-amber-400/25' : `h-7 px-2 text-xs hover:bg-white/5 ${quiet ? 'text-slate-300' : 'text-emerald-300'}`}`}>
       {blocked ? <TriangleAlert className="size-4" /> : <CircleCheck className="size-3.5" />}
       <span aria-live="polite">{label}</span><ChevronDown className="size-3.5" />
     </PopoverTrigger>

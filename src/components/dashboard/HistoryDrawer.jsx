@@ -1,4 +1,3 @@
-import HistoryGraph from '@/components/history/HistoryGraph'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
@@ -18,6 +17,9 @@ import { allPeople } from '@/data/mockData'
 import { diffStats } from '@/lib/lineDiff'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
+
+// The rail's dot, for the kinds worth telling apart at a glance.
+const RAIL_DOT = { merge: 'bg-emerald-300', rollback: 'bg-sky-300', conflict: 'bg-amber-300' }
 
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -98,7 +100,6 @@ function HistoryDrawer({ project }) {
   }
 
   // Keep the selected row in view as the slider / playback moves it.
-  const graphRef = useRef(null)
   const refs = useRef(new Map())
   useEffect(() => {
     refs.current.get(selectedId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -203,56 +204,69 @@ function HistoryDrawer({ project }) {
           {query.trim() ? 'No matching checkpoints.' : filtersActive ? 'No checkpoints match this filter.' : 'No checkpoints yet.'}
         </p>
       )}
-      <div ref={graphRef} className="relative">
-      {tab === 'active' && <HistoryGraph entries={historyEntries} visibleEntries={active} containerRef={graphRef} selectedId={selectedId} />}
+      {/* One quiet rail down the left — a dot per checkpoint, tinted for a
+          merge or a rollback — drawn by each row itself, so it's there on
+          first paint with nothing to measure. */}
+      <div className="space-y-1">
       {tab === 'active' &&
-        active.map((entry) => {
+        active.map((entry, index) => {
           const isCurrent = entry.id === activeHistoryId
           const selected = onHistoryPage && entry.id === selectedId
           const stats = diffStats(current?.snapshot.lines, entry.snapshot.lines)
+          const meta = historyMeta(entry, currentUser.id)
           return (
             <div
               key={entry.id}
               data-history-id={entry.id}
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
-              className={cn(
-                'group relative ml-12 rounded-lg transition-colors',
-                selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.035]'
-              )}
+              className="group relative flex items-stretch"
             >
+              <span aria-hidden className="relative w-6 shrink-0">
+                {index > 0 && <span className="absolute top-0 left-1/2 h-[18px] w-px -translate-x-1/2 bg-white/[0.1]" />}
+                {index < active.length - 1 && <span className="absolute top-[18px] -bottom-1 left-1/2 w-px -translate-x-1/2 bg-white/[0.1]" />}
+                <span className={cn(
+                  'absolute top-[18px] left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
+                  selected ? 'size-2.5 ring-4 ring-white/10' : 'size-1.5',
+                  RAIL_DOT[entry.kind] ?? (selected ? 'bg-white' : 'bg-slate-500')
+                )} />
+              </span>
+              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]')}>
               <button
                 type="button"
                 onClick={() => open(entry.id)}
                 aria-current={selected ? 'true' : undefined}
-                className="block w-full px-2.5 py-2 text-left"
+                className="block w-full px-3 py-2.5 text-left"
               >
-                <span className="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
+                {/* What happened first, then who / when, then the detail. */}
+                <span className="flex items-start gap-2">
+                  <span
+                    className={cn('line-clamp-2 min-w-0 flex-1 text-[13px] leading-[18px] font-medium', selected ? 'text-white' : 'text-slate-100')}
+                    title={entry.label}
+                  >
+                    {entry.label}
+                  </span>
+                  {isCurrent && (
+                    <span className={cn('mt-px shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold', ACCENT_SOFT)}>Current</span>
+                  )}
+                </span>
+                <span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-slate-400 tabular-nums">
                   <KindBadge kind={entry.kind} />
                   <ActorAvatar entry={entry} />
                   <span className="min-w-0 truncate">{entry.timestamp}</span>
                   {!isCurrent && (
-                    <span className="font-mono text-[10px] transition-opacity group-hover:opacity-0">
+                    <span className="ml-auto shrink-0 font-mono text-[10.5px] transition-opacity group-hover:opacity-0">
                       <span className="text-emerald-300/80">+{stats.added}</span> <span className="text-red-300/80">−{stats.removed}</span>
                     </span>
                   )}
-                  {isCurrent && (
-                    <span className={cn('ml-auto shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', ACCENT_SOFT)}>Current</span>
-                  )}
                 </span>
-                <span
-                  className={cn('mt-0.5 line-clamp-2 block text-[12.5px] leading-snug', selected ? 'text-white' : 'text-slate-300')}
-                  title={entry.label}
-                >
-                  {entry.label}
-                </span>
-                {historyMeta(entry, currentUser.id) && (
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={historyMeta(entry, currentUser.id)}>
-                    {historyMeta(entry, currentUser.id)}
+                {meta && (
+                  <span className="mt-1 block truncate text-[11px] text-slate-500" title={meta}>
+                    {meta}
                   </span>
                 )}
               </button>
               {!isCurrent && (
-                <div className="absolute top-1 right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute right-1.5 bottom-1.5 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
                     <Archive className="size-3" />
                   </button>
@@ -261,6 +275,7 @@ function HistoryDrawer({ project }) {
                   </button>
                 </div>
               )}
+              </div>
             </div>
           )
         })}
@@ -303,7 +318,6 @@ function HistoryDrawer({ project }) {
         onOpenChange={(isOpen) => !isOpen && setRollbackId(null)}
         onDone={(entry, restoredId) => {
           if (onHistoryPage && restoredId) select(restoredId)
-          toast('Rolled back to checkpoint', { description: `${entry.label} — saved as a new checkpoint` })
         }}
       />
     </div>
