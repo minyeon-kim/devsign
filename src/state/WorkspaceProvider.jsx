@@ -697,6 +697,32 @@ export function WorkspaceProvider({ children, projectId }) {
     return () => window.clearTimeout(timer)
   }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
 
+  // A merge request for a mix of drafts that has no Conflict Point of its
+  // own (drafts compared in Design Compare aren't a conflict until someone
+  // asks to merge one): the record the Conflict list reviews and merges it
+  // from. Reviewed by the rest of the team; whoever asks is its author.
+  const createMergeRequest = useCallback((item) => {
+    const record = toConflictRecord({
+      id: `mr-${item.id}`,
+      title: item.title,
+      file: files.find((f) => f.id === item.fileIds?.[0])?.path ?? item.title,
+      fileId: item.fileIds?.[0],
+      projectId,
+      mergeItemId: item.id,
+      severity: (item.conflictLevel ?? 'Low').toLowerCase() === 'none' ? 'low' : (item.conflictLevel ?? 'Low').toLowerCase(),
+      message: 'A mix of the drafts, submitted for review and merge.',
+      changedBy: { type: 'person', id: currentUser.id, what: 'Mixed the drafts' },
+      detectedBy: 'Merge Studio',
+      reviewStage: 'detected',
+      reviewers: otherMembers.slice(0, 2).map((member) => ({ id: member.id, status: 'pending' })),
+      submittedForMergeAt: Date.now(),
+      timestamp: 'Just now',
+      detectedAt: timeLabel(),
+    })
+    setConflicts((prev) => (prev.some((c) => c.id === record.id) ? prev : [...prev, record]))
+    return record
+  }, [files, projectId, currentUser.id, otherMembers, setConflicts])
+
   // Review-workflow edits from the conflict modal (stage, reviewers,
   // diff inspected) — everything short of the final resolve.
   const updateConflict = useCallback((conflictId, patch) => {
@@ -2019,6 +2045,7 @@ export function WorkspaceProvider({ children, projectId }) {
     projectPages,
     memberViewports,
     updateConflict,
+    createMergeRequest,
     reviewConflictId,
     bottomPanel,
     dsUpdates,

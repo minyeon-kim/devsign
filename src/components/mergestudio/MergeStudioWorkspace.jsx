@@ -282,6 +282,7 @@ function MergeStudioWorkspace({ item }) {
     checkGuide,
     conflicts,
     updateConflict,
+    createMergeRequest,
     currentUser,
     mergeItems,
   } = useWorkspace()
@@ -412,9 +413,12 @@ function MergeStudioWorkspace({ item }) {
   // Submit the saved composition to the conflict queue. Review and final
   // merge happen there; submitting a mix never applies it to the project.
   function finishMix() {
+    if (item.tag === 'Merged') return
     const conflict = conflicts.find(c => c.mergeItemId === item.id || c.id === item.conflictId)
-    if (!conflict || item.tag === 'Merged') return
-    updateConflict(conflict.id, { submittedForMergeAt: Date.now(), ...(!conflict.submittedForMergeAt && { reviewStage: 'detected', reviewers: conflict.reviewers.map(reviewer => ({ ...reviewer, status: 'pending' })) }) })
+    // Drafts with no conflict of their own get their merge request made
+    // here — otherwise the button had nothing to submit to and did nothing.
+    if (!conflict) createMergeRequest(item)
+    else updateConflict(conflict.id, { submittedForMergeAt: Date.now(), ...(!conflict.submittedForMergeAt && { reviewStage: 'detected', reviewers: conflict.reviewers.map(reviewer => ({ ...reviewer, status: 'pending' })) }) })
     endComparison()
     openConflictReview(null)
     exitMergeStudio()

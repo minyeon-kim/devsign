@@ -58,6 +58,11 @@ export function isOpen(conflict) {
 // project's others of that kind — "rv-4" — like every other item.
 const GENERATED_ID = /^(revert|rollback)-([0-9a-f]{4})[0-9a-f-]{20,}$/i
 export function conflictRef(conflict, conflicts = []) {
+  // A merge request made from a mix of drafts is named after its item.
+  if (conflict?.id?.startsWith('mr-')) {
+    const requests = conflicts.filter((c) => c.projectId === conflict.projectId && c.id.startsWith('mr-'))
+    return `mr-${Math.max(1, requests.findIndex((c) => c.id === conflict.id) + 1)}`
+  }
   const match = GENERATED_ID.exec(conflict?.id ?? '')
   if (!match) return conflict?.id ?? ''
   const prefix = match[1].toLowerCase() === 'revert' ? 'rv' : 'rb'

@@ -61,6 +61,8 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+A mix of the drafts, submitted for review and merge.|시안을 조합한 결과입니다. 검토 후 병합을 요청했습니다.
+Mixed the drafts|시안을 조합했습니다
 found a difference|차이 감지
 Author|작성자
 Failing checks|미통과 검사
