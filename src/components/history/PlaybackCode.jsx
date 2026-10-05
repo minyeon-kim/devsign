@@ -3,10 +3,12 @@ import { cn } from 'cn'
 import { diffLines } from '@/lib/lineDiff'
 
 // History playback, one step: the code at a checkpoint turning into the
-// code at the next one, typed. Only what differs moves — unchanged lines
-// just sit there; a changed line keeps what it shares with its new version
-// and types the rest, an added line types in whole, a removed one fades
-// out — one line at a time, top to bottom.
+// code at the next one, typed. Only the lines that differ move — unchanged
+// lines just sit there. A changed line shows its old text in red for a
+// moment, then the new line is typed out whole, from its first character
+// (typing only the few characters that differ — "5" → "6" — was over before
+// it could be seen); an added line types in whole; a removed one shows red
+// and fades out — one line at a time, top to bottom.
 //
 // Typing is frame-driven (requestAnimationFrame, a fixed number of
 // characters per frame) and written straight into the line being typed, so
@@ -46,64 +48,59 @@ function planOf(from, to) {
   return plan.map((item, index) => ({ ...item, index, order: item.kind === 'same' ? -1 : order++ }))
 }
 
-// What a changed line keeps (the text both versions start and end with)
-// and what it types in between.
-function partsOf(from, to) {
-  let head = 0
-  while (head < from.length && head < to.length && from[head] === to[head]) head++
-  let tail = 0
-  while (tail < from.length - head && tail < to.length - head && from[from.length - 1 - tail] === to[to.length - 1 - tail]) tail++
-  return { prefix: to.slice(0, head), typed: to.slice(head, to.length - tail), suffix: to.slice(to.length - tail) }
-}
-
 const ROW = 'flex min-w-0 py-px pr-3 whitespace-pre-wrap [word-break:break-all]'
 // ~32px of numbers, 12px before the code.
 export const GUTTER = 'mr-3 w-8 shrink-0 text-right text-[11px] text-slate-600 tabular-nums select-none'
 
-// The line being typed. Its characters go into the DOM directly, a few per
-// frame; nothing above it re-renders until it calls `onDone`.
+// The line in motion. A changed or removed line first shows what it was,
+// in red, then fades; a changed or added line then types its new text, a
+// few characters per frame, straight into the DOM — nothing above it
+// re-renders until it calls `onDone`.
 function TypingLine({ item, number, perFrame, onDone }) {
   const typedRef = useRef(null)
   const rowRef = useRef(null)
   const done = useRef(onDone)
   useEffect(() => { done.current = onDone }, [onDone])
-  const parts = useMemo(() => (item.kind === 'remove' ? null : partsOf(item.from ?? '', item.to)), [item])
+  // 'out': the old text leaving (changed / removed). 'in': the new text
+  // being typed (changed / added).
+  const [phase, setPhase] = useState(item.kind === 'add' ? 'in' : 'out')
 
   useEffect(() => {
     let frame
-    if (!parts) {
-      // A removed line: fade, then go.
+    if (phase === 'out') {
       const start = performance.now() + REMOVE_HOLD_MS
       const fade = (now) => {
         const progress = Math.min(1, Math.max(0, (now - start) / REMOVE_FADE_MS))
         if (rowRef.current) rowRef.current.style.opacity = String(1 - progress)
         if (progress < 1) frame = requestAnimationFrame(fade)
-        else done.current()
+        else if (item.kind === 'remove') done.current()
+        else {
+          if (rowRef.current) rowRef.current.style.opacity = '1'
+          setPhase('in')
+        }
       }
       frame = requestAnimationFrame(fade)
       return () => cancelAnimationFrame(frame)
     }
     let count = 0
     const type = () => {
-      count = Math.min(parts.typed.length, count + perFrame)
-      if (typedRef.current) typedRef.current.textContent = parts.typed.slice(0, Math.floor(count))
-      if (count < parts.typed.length) frame = requestAnimationFrame(type)
+      count = Math.min(item.to.length, count + perFrame)
+      if (typedRef.current) typedRef.current.textContent = item.to.slice(0, Math.floor(count))
+      if (count < item.to.length) frame = requestAnimationFrame(type)
       else done.current()
     }
     frame = requestAnimationFrame(type)
     return () => cancelAnimationFrame(frame)
-  }, [parts, perFrame])
+  }, [phase, item, perFrame])
 
   return (
-    <div ref={rowRef} data-playback-active className={cn(ROW, parts ? 'bg-emerald-500/[0.14] text-emerald-200' : 'bg-red-500/[0.14] text-red-300')}>
+    <div ref={rowRef} data-playback-active className={cn(ROW, phase === 'in' ? 'bg-emerald-500/[0.14] text-emerald-200' : 'bg-red-500/[0.18] text-red-300')}>
       <span className={GUTTER}>{number}</span>
       <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">
-        {parts ? (
+        {phase === 'in' ? (
           <>
-            {parts.prefix}
             <span ref={typedRef} />
             <span aria-hidden className="inline-block h-[1.05em] w-px translate-y-[2px] bg-emerald-300" />
-            {parts.suffix}
           </>
         ) : item.from || ' '}
       </span>
@@ -128,7 +125,7 @@ function PlaybackCode({ from, to, onTyped, onDone }) {
   // How many changed lines have finished.
   const [finished, setFinished] = useState(0)
   const perFrame = useMemo(() => {
-    const chars = plan.reduce((sum, item) => sum + (item.kind === 'add' || item.kind === 'change' ? partsOf(item.from ?? '', item.to).typed.length : 0), 0)
+    const chars = plan.reduce((sum, item) => sum + (item.kind === 'add' || item.kind === 'change' ? item.to.length : 0), 0)
     return Math.max(BASE_CHARS_PER_FRAME, chars / MAX_STEP_FRAMES)
   }, [plan])
   const callbacks = useRef({ onTyped, onDone })
