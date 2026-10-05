@@ -92,7 +92,7 @@ const severityConfig = {
 }
 
 const REVIEWER_STATUS = {
-  pending: { label: 'Pending', className: 'text-slate-300' },
+  pending: { label: 'Pending', className: 'text-slate-400' },
   approved: { label: 'Approved', className: 'text-emerald-300' },
   changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
@@ -1032,25 +1032,33 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
             const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
               <Fragment key={reviewer.id}>
-              <div className="group/rev -mx-1 flex h-8 min-w-0 items-center gap-2 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
+              {/* Three columns — avatar | name over role | status — every row
+                  the same height. The role sits under the name, so names of
+                  any length line up; the status is flush with the panel's
+                  right edge (the hover actions sit just before it). */}
+              <div className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
                 <PersonAvatar person={person} />
-                <span className="min-w-0 flex-1 truncate font-medium text-slate-200">
-                  {person.name}
-                  {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
-                  {/* Their discipline, so it's clear whose eyes are on it
-                      — a designer's or a developer's. */}
-                  {person.role && <span className="ml-1.5 text-xs font-normal text-slate-400"><LocalizedText text={person.role} /></span>}
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-1.5 leading-[18px]">
+                    <span className="min-w-0 truncate font-medium text-slate-100">{person.name}</span>
+                    {person.id === viewerId && (
+                      <span className="shrink-0 rounded bg-white/[0.08] px-1 py-0.5 text-[10px] leading-none font-medium text-slate-300"><LocalizedText text="You" /></span>
+                    )}
+                  </span>
+                  {/* Their discipline: whose eyes are on it — a designer's
+                      or a developer's. */}
+                  {person.role && <span className="block truncate text-[11px] leading-4 text-slate-500"><LocalizedText text={person.role} /></span>}
                 </span>
-                <span className={cn('shrink-0 truncate text-xs font-medium', reviewer.id === author ? 'text-slate-400' : status.className)}>
+                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-400' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
                     ? 'Request dismissed'
                     : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : statusLabels[reviewer.status] ?? status.label}
                 </span>
-                {/* A fixed slot (room for two actions) on every row, so the
-                    statuses line up whether or not a row has actions. */}
-                <div className="flex w-12 shrink-0 items-center justify-end opacity-0 transition-opacity group-hover/rev:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+                {/* Row actions, on hover, before the status (which stays at
+                    the right edge either way). */}
+                <div className="flex shrink-0 items-center justify-end opacity-0 transition-opacity group-hover/rev:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
                   {canRemind && reviewer.status !== 'approved' && reviewer.id !== viewerId && reviewer.id !== author && (
                     <button
                       type="button"
