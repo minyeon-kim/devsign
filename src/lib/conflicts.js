@@ -53,6 +53,26 @@ export function isOpen(conflict) {
   return conflict.reviewStage !== 'resolved'
 }
 
+// The one short status a list shows — the same five the list's filter uses.
+// A merge and a rollback share "Done"; which it was is in the item's title
+// ("Rollback · …"). Anything finer (decided or not, sign-offs so far) is the
+// status's hover, not its label.
+export const LIST_STATUSES = [
+  { id: 'detected', label: 'Review not requested', dot: 'bg-slate-400' },
+  { id: 'in_review', label: 'In review', dot: 'bg-sky-400' },
+  { id: 'pending_merge', label: 'Pending merge', dot: 'bg-emerald-400' },
+  { id: 'pending_rollback', label: 'Pending rollback', dot: 'bg-amber-400' },
+  { id: 'done', label: 'Done', dot: 'bg-violet-400' },
+]
+export function listStatusOf(conflict) {
+  const id = conflict.reviewStage === 'resolved'
+    ? 'done'
+    : conflict.reviewStage === 'approved'
+      ? (conflict.rollback ? 'pending_rollback' : 'pending_merge')
+      : conflict.reviewStage === 'in_review' ? 'in_review' : 'detected'
+  return LIST_STATUSES.find((status) => status.id === id)
+}
+
 export function isPendingMerge(conflict) {
   return conflict.reviewStage === 'approved'
 }

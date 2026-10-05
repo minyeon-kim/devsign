@@ -61,6 +61,10 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Pending rollback|롤백 대기
+Decided, review request needed|결정 완료, 검토 요청 필요
+Not decided yet|아직 결정 전
+Ready to roll back|롤백 가능
 Code window|코드 창
 Revert|되돌리기
 Branch|브랜치

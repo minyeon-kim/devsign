@@ -5,7 +5,7 @@
   /* Select, then the review state, risk, issue, deadline and approval
      blockers before supporting details, so the first scan answers what
      needs attention. Long values wrap inside their column. */
-  /* Status and severity are as wide as their chips; the issue as wide as
+  /* Status and severity are as wide as their label (a dot and a word); the issue as wide as
      its text (to a cap, then it wraps) so nothing gapes before the due
      date; from the due date on, fixed widths, so every row sits exactly
      under its header; the description is the one flexible column — it takes whatever's left,

@@ -1,5 +1,5 @@
 import './ConflictPanel.css'
-import { ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
+import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -8,7 +8,7 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, conflictCounts, gitFlowOf, isOpen, isPendingMerge, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
+import { authorOf, gitFlowOf, isOpen, LIST_STATUSES, listStatusOf, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -19,7 +19,6 @@ import { LocalizedText } from '@/i18n/runtime'
 import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allDecided } from '@/lib/driftDecisions'
-import { ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
 
 // One icon per row, chosen by severity and carried only inside the badge.
@@ -39,25 +38,20 @@ const severityConfig = {
 // conflicts), so a chip's number is always the rows it shows. The filter
 // lives in the bottom panel's state, so the tab's "Needs your review"
 // shortcut can open the list already filtered.
+// The status filters are the list's own five statuses (lib/conflicts), so a
+// filter and the status it shows in a row are always the same word.
 const FILTERS = [
-  { id: 'all', label: 'All', test: () => true, count: 'total' },
-  { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c), count: 'needsMyReview' },
-  { id: 'detected', label: 'Review not requested', test: (c) => c.reviewStage === 'detected', count: 'notRequested' },
-  { id: 'in_review', label: 'In review', test: (c) => c.reviewStage === 'in_review', count: 'awaitingReview' },
-  { id: 'pending_merge', label: 'Pending merge', test: isPendingMerge, count: 'pendingMerge' },
-  { id: 'merged', label: 'Merged', test: (c) => !isOpen(c), count: 'merged' },
+  { id: 'all', label: 'All', test: () => true },
+  { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c) },
+  ...LIST_STATUSES.map((status) => ({ id: status.id, label: status.label, test: (c) => listStatusOf(c).id === status.id })),
 ]
+// Filter ids from before the statuses were unified.
+const FILTER_ALIAS = { merged: 'done' }
 
 const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
 
 function matchesConflictFilters(conflict, filters) {
-  const stageMatches = {
-    'Pending merge': conflict.reviewStage === 'approved',
-    'Needs your review': needsReviewFrom(conflict),
-    'Review not requested': conflict.reviewStage === 'detected',
-    Merged: conflict.reviewStage === 'resolved',
-    'In review': conflict.reviewStage === 'in_review',
-  }
+  const stageMatches = { 'Needs your review': needsReviewFrom(conflict), [listStatusOf(conflict).label]: true }
 
   if (filters.status.length && !filters.status.some((status) => stageMatches[status])) return false
   if (filters.assignee.length && !filters.assignee.includes(conflict.assigneeId)) return false
@@ -120,20 +114,13 @@ function ConflictPanel({ inMergeStudio }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
-  const counts = conflictCounts(conflicts)
-  const filter = FILTERS.find((f) => f.id === bottomPanel.conflictFilter) ?? FILTERS[0]
+  const queued = conflicts.filter(isQueuedConflict)
+  const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
+  const filter = FILTERS.find((f) => f.id === filterId) ?? FILTERS[0]
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
   const filterItems = conflicts.map((conflict) => ({
     ...conflict,
-    tag: conflict.reviewStage === 'resolved'
-      ? 'Merged'
-      : conflict.reviewStage === 'detected'
-        ? 'Review not requested'
-        : conflict.reviewStage === 'approved'
-          ? 'Pending merge'
-          : needsReviewFrom(conflict)
-            ? 'Needs your review'
-            : 'In review',
+    tag: needsReviewFrom(conflict) && isOpen(conflict) ? 'Needs your review' : listStatusOf(conflict).label,
     conflictLevel: conflict.severity
       ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
       : 'None',
@@ -227,9 +214,7 @@ function ConflictPanel({ inMergeStudio }) {
               )}
             >
               <LocalizedText text={f.label} />
-              <span className={cn('tabular-nums', f.id === 'mine' && counts.needsMyReview > 0 ? 'text-emerald-300' : 'text-slate-500')}>
-                {counts[f.count]}
-              </span>
+              <FilterCount mine={f.id === 'mine'} count={queued.filter(f.test).length} />
             </button>
           ))}
           <MergeFilterButton
@@ -328,15 +313,10 @@ function ConflictPanel({ inMergeStudio }) {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="py-3.5">
-                      {/* Settled by resizing the element in Merge Studio —
-                          said beside the stage it's in. */}
-                      {isOpen(conflict) && sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current) && (
-                        <span className="mr-1.5 inline-flex h-6 items-center rounded-md bg-emerald-400/15 px-2 align-top text-[11px] font-medium whitespace-nowrap text-emerald-200">
-                          <LocalizedText text="Adjusted by hand" />
-                        </span>
-                      )}
-                      <ReviewStageBadge quiet stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
+                    {/* One short status — a dot and a word, the filter's own;
+                        how far along it is shows on hover. */}
+                    <td className="py-3.5 pt-4">
+                      <ListStatus conflict={conflict} ready={readyToRequest} />
                     </td>
                     <td className="py-3.5">
                       <SeverityPill bare quiet level={severity.label} />
@@ -347,6 +327,12 @@ function ConflictPanel({ inMergeStudio }) {
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
+                          {/* Settled by resizing the element in Merge Studio. */}
+                          {isOpen(conflict) && sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current) && (
+                            <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-emerald-400/15 px-1.5 text-[11px] font-medium whitespace-nowrap text-emerald-200">
+                              <LocalizedText text="Adjusted by hand" />
+                            </span>
+                          )}
                           {/* Discussion at a glance (also what keeps a change out of batch approval). */}
                           {commentCount > 0 && (
                             <span className="inline-flex shrink-0 items-center gap-0.5 text-[11.5px] font-normal text-slate-300" aria-label={`${commentCount} comments`}>
@@ -589,6 +575,36 @@ const NOTE_TONE = {
 // People in the list are only initials — hovering the stack says who they
 // are, one line each: avatar · name · role · where they stand on this row.
 // It opens under the avatars, so it never covers the column headers.
+function FilterCount({ mine, count }) {
+  return <span className={cn('tabular-nums', mine && count > 0 ? 'text-emerald-300' : 'text-slate-500')}>{count}</span>
+}
+
+// A row's status: the dot and the short word. The detail the label used to
+// carry — decided or not, how many have signed off, merged or rolled back —
+// is its tooltip.
+function ListStatus({ conflict, ready }) {
+  const status = listStatusOf(conflict)
+  const rollback = Boolean(conflict.rollback)
+  const signed = `${conflict.reviewers.filter((r) => r.status === 'approved').length}/${conflict.reviewers.length}`
+  const tally = <><LocalizedText text={rollback ? 'Confirmed' : 'Approvals'} /> <span className="tabular-nums">{signed}</span></>
+  const detail = {
+    detected: <LocalizedText text={rollback ? 'Confirmation not requested' : ready ? 'Decided, review request needed' : 'Not decided yet'} />,
+    in_review: conflict.reviewers.some((r) => r.status === 'changes_requested') ? <>{tally}, <LocalizedText text="Changes requested" /></> : tally,
+    pending_merge: <>{tally}, <LocalizedText text="Ready to merge" /></>,
+    pending_rollback: <>{tally}, <LocalizedText text="Ready to roll back" /></>,
+    done: <LocalizedText text={rollback ? 'Rolled back' : 'Merged'} />,
+  }[status.id]
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5 text-slate-200')} />}>
+        <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
+        <LocalizedText text={status.label} />
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" className="block px-2.5 py-1.5 text-left text-xs leading-5 whitespace-nowrap">{detail}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function PeopleHover({ people }) {
   return (
     <Tooltip>
