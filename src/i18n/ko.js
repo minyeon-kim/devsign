@@ -61,6 +61,9 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Detected automatically|자동 감지
+Updated the design|디자인을 수정했습니다
+Changed the code|코드를 수정했습니다
 Revert requested|되돌리기 요청됨
 Pending rollback|롤백 대기
 Decided, review request needed|결정 완료, 검토 요청 필요

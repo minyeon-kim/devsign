@@ -231,6 +231,10 @@ export const projects = [
 // branches, diff, comparisonFields, suggestion, reviewers — see
 // conflictPoints below), so the shared ConflictModal shows the full
 // Overview / Diff / AI suggestion view from every entry point.
+// `changedBy` is who made the change the conflict is about — shown in the
+// list's Author · Updated column, and never asked to review it. A conflict
+// without one wasn't anyone's change: a check found it on its own, and the
+// list marks it as detected automatically.
 export const conflictChecklist = [
   // Two samples for checking a precise (by-hand) adjustment end to end.
   //
@@ -271,6 +275,7 @@ export const conflictChecklist = [
   // the design), come back, and the card, code and summary follow.
   {
     id: 'cc-tab-icon-size',
+    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/tab-icon-size', target: 'develop' },
     token: 'Tab icon / Size',
     projectId: 'checkout-redesign',
@@ -375,6 +380,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-2',
+    changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
     gitFlow: { source: 'feature/canvas-frames', target: 'main' },
     token: 'Merge conflict · DesignCanvas.jsx',
     file: 'src/components/DesignCanvas.jsx',
@@ -416,6 +422,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-3',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/card-radius', target: 'develop' },
     token: 'Card / Radius',
     file: 'src/components/ui/Card.jsx',
@@ -491,6 +498,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-5',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/onboarding-colors', target: 'develop' },
     token: 'Color token drift',
     file: 'src/styles/tokens.css',
@@ -523,6 +531,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-6',
+    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/input-padding', target: 'develop' },
     token: 'Input / Padding',
     file: 'src/components/ui/Input.jsx',
@@ -554,6 +563,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-7',
+    changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
     gitFlow: { source: 'feature/checkout-form', target: 'develop' },
     token: 'Spacing scale mismatch',
     file: 'src/components/checkout/CheckoutForm.jsx',
@@ -588,6 +598,7 @@ export const conflictChecklist = [
   // Open low-risk token drift in Checkout — the kind batch approval is for.
   {
     id: 'cc-8',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'hotfix/checkout-divider', target: 'main' },
     token: 'Divider / Color',
     file: 'src/components/checkout/OrderSummary.jsx',
@@ -625,6 +636,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-9',
+    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/payment-label', target: 'develop' },
     token: 'Label / Letter spacing',
     file: 'src/components/checkout/PaymentForm.jsx',
@@ -655,6 +667,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-10',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/shipping-icon', target: 'develop' },
     token: 'Icon / Stroke width',
     file: 'src/components/checkout/ShippingOptions.jsx',

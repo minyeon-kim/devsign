@@ -2,16 +2,14 @@
    subgrids of it — so a column can be exactly as wide as its widest cell
    (the status chip, the severity pill) and still line up down the list. */
 .conflict-list-table {
-  /* Select, then the review state, risk, issue, deadline and approval
-     blockers before supporting details, so the first scan answers what
-     needs attention. Long values wrap inside their column. */
-  /* Status and severity are as wide as their label (a dot and a word); the issue as wide as
-     its text (to a cap, then it wraps) so nothing gapes before the due
-     date; from the due date on, fixed widths, so every row sits exactly
-     under its header; the description is the one flexible column — it takes whatever's left,
+  /* Select, status, severity, the issue, then its description; after it the
+     facts about the review — checks, reviewers, author · updated, due date.
+     The description is the one flexible column: it takes whatever's left,
      so the table always fills its panel (header and row lines run to the
-     right edge) at any width. */
-  --conflict-columns: 16px max-content max-content fit-content(400px) 72px 48px 64px minmax(200px, 1fr) 128px;
+     right edge). Every other column is exactly as wide as its content (the
+     issue to a cap, then it wraps), so no column leaves a gap before the
+     next, and a header starts where its cells do. */
+  --conflict-columns: 16px max-content max-content fit-content(400px) minmax(200px, 1fr) max-content max-content max-content max-content;
   display: grid;
   grid-template-columns: var(--conflict-columns);
   column-gap: 24px;

@@ -3,7 +3,7 @@ import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, TriangleAlert, X } from 'lucide-react'
+import { Check, CheckCheck, CircleCheck, FileCode2, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -250,11 +250,11 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Severity</th>
                 <th className="py-1.5 text-left font-medium">Issue</th>
-                <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
+                <th className="py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
-                <th className="py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author · Updated</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
               </tr>
             </thead>
             <tbody>
@@ -346,18 +346,26 @@ function ConflictPanel({ inMergeStudio }) {
                         </p>
                       </div>
                     </td>
-                    <td className="py-3.5 pt-4 text-xs leading-5 whitespace-nowrap tabular-nums">
-                      {shortDue(conflict.dueLabel) ? (
-                        // Just the when — the column already says "Due date".
-                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'font-medium text-amber-300' : 'text-slate-300')}>
-                          <LocalizedText text={shortDue(conflict.dueLabel)} />
-                        </span>
-                      ) : <span className="text-slate-500">—</span>}
+                    <td className="min-w-0 py-3.5 pt-4">
+                      <div className="min-w-0 space-y-1">
+                        {conflict.rollback ? (
+                          // A rollback agreement: what's rolled back, who
+                          // it affects, and how many of them have confirmed.
+                          <p className="truncate text-[12.5px] leading-5 text-slate-300">
+                            <span className="text-slate-400"><LocalizedText text="Rolling back" /> </span>
+                            <LocalizedText text={conflict.rollback.target} />
+                            <span className="text-slate-400"> · <LocalizedText text="Affected" /> </span>
+                            <span className="tabular-nums">{conflict.reviewers.length}</span>
+                            <span className="text-slate-400"> · <LocalizedText text="Confirmed" /> </span>
+                            <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
+                          </p>
+                        ) : conflict.message ? (
+                          <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
+                            <LocalizedText text={conflict.message} />
+                          </p>
+                        ) : <span className="text-slate-500">—</span>}
+                      </div>
                     </td>
-                    {/* Status is the stage only — checks and "your review"
-                        have their own places (the next column, and your
-                        avatar under Reviewers). A change with every value
-                        decided but no review asked for yet says so. */}
                     <td className="py-3.5 pt-4 leading-5">
                       {/* Every row says something: a count when checks need
                           attention, a quiet dash when there's nothing to do. */}
@@ -388,36 +396,23 @@ function ConflictPanel({ inMergeStudio }) {
                         <span title="Unassigned" aria-label="Unassigned" className="block size-5 rounded-full border border-dashed border-white/25" />
                       )}
                     </td>
-                    <td className="min-w-0 py-3.5 pt-4">
-                      <div className="min-w-0 space-y-1">
-                        {conflict.rollback ? (
-                          // A rollback agreement: what's rolled back, who
-                          // it affects, and how many of them have confirmed.
-                          <p className="truncate text-[12.5px] leading-5 text-slate-300">
-                            <span className="text-slate-400"><LocalizedText text="Rolling back" /> </span>
-                            <LocalizedText text={conflict.rollback.target} />
-                            <span className="text-slate-400"> · <LocalizedText text="Affected" /> </span>
-                            <span className="tabular-nums">{conflict.reviewers.length}</span>
-                            <span className="text-slate-400"> · <LocalizedText text="Confirmed" /> </span>
-                            <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
-                          </p>
-                        ) : conflict.message ? (
-                          <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
-                            <LocalizedText text={conflict.message} />
-                          </p>
-                        ) : <span className="text-slate-500">—</span>}
-                      </div>
-                    </td>
-                    {/* Who and when, together: the author (when a person made
-                        it) and the day; the exact time is on hover. */}
+                    {/* Who and when, together, in the same two places on every
+                        row: a 20px mark — the author, or the automatic-
+                        detection icon when no person made the change — then
+                        the day (the exact time is on hover). */}
                     <td className="py-3.5 pt-4">
-                      <span className="flex items-center gap-2 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
-                        {author
-                          ? <PeopleHover people={[{ person: author, note: 'Author' }]} />
-                          // No person made it — design ↔ code sync found it.
-                          : <span title={conflict.detectedBy ?? 'Detected by sync'} className="block size-5 shrink-0 rounded-full border border-dashed border-white/25" />}
-                        <LocalizedText text={updated} />
+                      <span className="flex items-center gap-2 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums">
+                        <AuthorMark person={author} />
+                        <span title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}><LocalizedText text={updated} /></span>
                       </span>
+                    </td>
+                    <td className="py-3.5 pt-4 text-xs leading-5 whitespace-nowrap tabular-nums">
+                      {shortDue(conflict.dueLabel) ? (
+                        // Just the when — the column already says "Due date".
+                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'font-medium text-amber-300' : 'text-slate-300')}>
+                          <LocalizedText text={shortDue(conflict.dueLabel)} />
+                        </span>
+                      ) : <span className="text-slate-500">—</span>}
                     </td>
 
                   </tr>
@@ -575,6 +570,30 @@ const NOTE_TONE = {
 // People in the list are only initials — hovering the stack says who they
 // are, one line each: avatar · name · role · where they stand on this row.
 // It opens under the avatars, so it never covers the column headers.
+// Who made the change, as one 20px mark: their avatar ("Alex · Designer" on
+// hover), or — for a conflict a check found on its own — a small system
+// icon ("Detected automatically"). Never an empty seat.
+function AuthorMark({ person }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span data-author-mark={person ? 'person' : 'auto'} className="flex size-5 shrink-0 items-center justify-center rounded-full" />} onClick={(event) => event.stopPropagation()}>
+        {person ? (
+          <Avatar size="xs">
+            <AvatarFallback className="bg-[#3A3A3D] font-medium text-slate-100">{person.initials}</AvatarFallback>
+          </Avatar>
+        ) : (
+          <span className="flex size-5 items-center justify-center rounded-full bg-white/[0.07] text-slate-300"><ScanSearch className="size-3" /></span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" className="block px-2.5 py-1.5 text-left text-xs leading-5 whitespace-nowrap">
+        {person
+          ? <><span translate="no" className="font-semibold">{person.fullName ?? person.name}</span> <span className="opacity-60">· <LocalizedText text={person.role} /></span></>
+          : <LocalizedText text="Detected automatically" />}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function FilterCount({ mine, count }) {
   return <span className={cn('tabular-nums', mine && count > 0 ? 'text-emerald-300' : 'text-slate-500')}>{count}</span>
 }
