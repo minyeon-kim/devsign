@@ -574,6 +574,15 @@ button.editor-line-comment {
      settles from a soft tint. */
   animation: history-row-flash-add 1100ms ease-out;
 }
+/* History list: the checkpoint a conflict's "check the reasoning" link
+   landed on — a ring and tint that pulse twice, then settle. */
+@keyframes history-row-arrived {
+  0%, 60% { box-shadow: inset 0 0 0 1.5px rgb(110 231 183 / 85%); background-color: rgb(52 211 153 / 16%); }
+  30%, 100% { box-shadow: inset 0 0 0 1.5px rgb(110 231 183 / 0%); }
+}
+.history-row-arrived {
+  animation: history-row-arrived 1100ms ease-in-out 2;
+}
 .history-row-flash-remove {
   animation: history-row-flash-remove 1100ms ease-out;
 }

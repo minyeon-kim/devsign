@@ -31,17 +31,30 @@ export function withBranches(entries, conflicts) {
   })
 }
 
+// The file a checkpoint is about, from its `target` ("src/x/Nav.jsx",
+// "Nav.jsx · line 7") — null when it doesn't name one.
+function fileOf(entry) {
+  const name = String(entry.target ?? '').split(' · ')[0].split('/').pop()
+  return /\.[a-z]+$/i.test(name) ? name : null
+}
+
 // Only saved versions are checkpoints in the graph. A Conflict Point's
-// detection isn't one — it's a fact about the version it was found on — so
+// detection isn't one — it's a fact about the version that caused it — so
 // those entries are folded away: each becomes a mark (`conflictMarks`) on
-// the saved version just before it (or, with none before, the first one).
+// the saved version it came from, and only on that one. That's the latest
+// version before it that touched the conflict's file; a conflict in a file
+// no saved version here touched has no version to blame and gets no mark.
+// (A detection that names no file falls back to the version just before
+// it — or the first one, with none before.)
 export function foldConflictCheckpoints(entries) {
   const versions = []
   const early = []
   for (const entry of entries) {
     if (entry.kind !== 'conflict') { versions.push({ ...entry, conflictMarks: [] }); continue }
     const mark = { id: entry.id, conflictId: entry.conflictId ?? entry.conflictIds?.[0] ?? null, label: entry.label }
-    if (versions.length) versions[versions.length - 1].conflictMarks.push(mark)
+    const file = fileOf(entry)
+    if (file) versions.findLast((version) => fileOf(version) === file)?.conflictMarks.push(mark)
+    else if (versions.length) versions[versions.length - 1].conflictMarks.push(mark)
     else early.push(mark)
   }
   if (versions.length) versions[0].conflictMarks.unshift(...early)

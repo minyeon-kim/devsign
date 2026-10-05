@@ -16,6 +16,7 @@ import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { TRUNK, branchColors, branchGraph, branchNames, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useLanguage } from '@/i18n/language'
+import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
 
@@ -147,6 +148,7 @@ function HistoryDrawer({ project }) {
   const currentId = branched.some((entry) => entry.id === activeHistoryId) ? activeHistoryId : branched.findLast((entry) => !entry.archived)?.id
   const currentBranch = branched.find((entry) => entry.id === currentId)?.branch ?? TRUNK
   const showConflicts = historyFilter.showConflicts ?? true
+  const showResolved = historyFilter.showResolvedConflicts ?? true
   const kindFilter = historyFilter.kind === 'conflict' ? 'all' : historyFilter.kind
   const targets = historyTargets(historyEntries)
   const filtered = filterHistoryEntries(branched, { ...historyFilter, kind: kindFilter })
@@ -169,6 +171,26 @@ function HistoryDrawer({ project }) {
     if (onHistoryPage) select(id)
     else navigate(`${historyPath}?v=${id}`)
   }
+
+  // Arriving from a conflict ("Check the reasoning in History"): the
+  // checkpoint it points at is selected by the link's `?v=`; here it's
+  // brought into view and lit for a moment, once per arrival.
+  const location = useLocation()
+  const [flashId, setFlashId] = useState(null)
+  const flashed = useRef(null)
+  useEffect(() => {
+    const target = location.state?.flashCheckpoint
+    if (!target || flashed.current === location.key) return
+    flashed.current = location.key
+    setFlashId(target)
+    requestAnimationFrame(() => refs.current.get(target)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+  }, [location.key, location.state])
+  // (Its own effect, so nothing else re-running can cancel the timer.)
+  useEffect(() => {
+    if (!flashId) return
+    const timer = window.setTimeout(() => setFlashId(null), 2400)
+    return () => window.clearTimeout(timer)
+  }, [flashId])
 
   // Keep the selected row in view as the slider / playback moves it.
   const refs = useRef(new Map())
@@ -230,6 +252,12 @@ function HistoryDrawer({ project }) {
               <TriangleAlert className="size-3 text-amber-300" />
               <span className="flex-1">Conflict marks</span>
               {showConflicts && <Check className="size-3.5 text-slate-300" />}
+            </DropdownMenuItem>
+            {/* Resolved ones are quiet already; this drops them altogether. */}
+            <DropdownMenuItem disabled={!showConflicts} onClick={() => setHistoryFilter({ showResolvedConflicts: !showResolved })} className="gap-1.5">
+              <Check className="size-3 text-slate-400" />
+              <span className="flex-1">Resolved conflicts</span>
+              {showConflicts && showResolved && <Check className="size-3.5 text-slate-300" />}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -312,7 +340,12 @@ function HistoryDrawer({ project }) {
           const row = graph.rows[active.length - 1 - index]
           // Every row names its branch; a merge names both ends.
           const branchLabel = entry.mergedBranches?.length ? `${entry.mergedBranches.join(', ')} → ${entry.branch}` : entry.branch ?? TRUNK
-          const marks = showConflicts ? entry.conflictMarks ?? [] : []
+          // The conflicts this version caused: open ones, and resolved ones
+          // unless they're filtered out.
+          const marks = showConflicts ? (entry.conflictMarks ?? []).map((mark) => ({ ...mark, resolved: conflicts.find((c) => c.id === mark.conflictId)?.reviewStage === 'resolved' })).filter((mark) => showResolved || !mark.resolved) : []
+          const openMarks = marks.filter((mark) => !mark.resolved)
+          // Where the mark goes: the first conflict still open, else the first.
+          const markTarget = openMarks[0] ?? marks[0]
           return (
             <div
               key={entry.id}
@@ -321,20 +354,27 @@ function HistoryDrawer({ project }) {
               className="group relative flex items-stretch"
             >
               <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
-              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]')}>
-              <button
-                type="button"
+              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]', flashId === entry.id && 'history-row-arrived')}>
+              <div
+                // A row acts as a button (it can't be one: the conflict
+                // mark in its meta line is a button of its own).
+                role="button"
+                tabIndex={0}
                 onClick={() => open(entry.id)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                  event.preventDefault()
+                  open(entry.id)
+                }}
                 aria-current={selected ? 'true' : undefined}
                 style={{ height: ROW_HEIGHT }}
-                // 6px + half a 20px line = 16px: the dot's center, whether or
-                // not a branch label sits under the title.
-                className="flex w-full flex-col justify-start px-2.5 pt-1.5 text-left"
+                // 6px + half a 20px line = 16px: the dot's center.
+                className="flex w-full cursor-pointer flex-col justify-start rounded-xl px-2.5 pt-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300"
               >
-                {/* One line: what happened, and when. Everything else —
-                    who, what kind, the detail — is the dot beside it, the
-                    hover, and the viewer. */}
-                <span className={cn('flex items-baseline gap-2', marks.length > 0 && 'pl-5')}>
+                {/* One line: what happened, and when — every title starts
+                    at the same place. Everything else is the dot beside it,
+                    the meta line under it, the hover, and the viewer. */}
+                <span className="flex items-baseline gap-2">
                   <span
                     className={cn('min-w-0 flex-1 truncate text-[13px] leading-5', selected ? 'font-medium text-white' : 'text-slate-200')}
                     title={meta ? `${entry.label} — ${meta}` : entry.label}
@@ -345,23 +385,33 @@ function HistoryDrawer({ project }) {
                     {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
                   </span>
                 </span>
-                {/* Its branch, in that lane's color (a merge: from → to). */}
-                <span translate="no" className="block truncate font-mono text-[10.5px] leading-4" style={{ color: colors.get(entry.branch ?? TRUNK) }}>{branchLabel}</span>
-              </button>
-              {/* Conflicts found on this version: a small warning beside
-                  its node, opening that conflict's review. */}
-              {marks.length > 0 && (
-                <button
-                  type="button"
-                  title={marks.map((mark) => mark.label).join(' · ')}
-                  aria-label={`Open conflict: ${marks[0].label}`}
-                  onClick={() => navigate(`/projects/${project.id}/workspace`, { state: { openConflictId: marks[0].conflictId } })}
-                  className="ds-intrinsic absolute top-1.5 left-1.5 flex h-5 items-center gap-0.5 rounded text-amber-300 transition-colors hover:text-amber-200"
-                >
-                  <TriangleAlert className="size-3.5" />
-                  {marks.length > 1 && <span className="text-[10px] font-semibold tabular-nums">{marks.length}</span>}
-                </button>
-              )}
+                {/* The meta line: its branch, in that lane's color (a merge:
+                    from → to), then — only on a version that caused one —
+                    the conflict: amber while it's open, a grey "Resolved"
+                    once it's settled. The mark opens that conflict. */}
+                <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] leading-4">
+                  <span translate="no" className="min-w-0 truncate font-mono" style={{ color: colors.get(entry.branch ?? TRUNK) }}>{branchLabel}</span>
+                  {markTarget && (
+                    <>
+                      <span aria-hidden className="text-slate-600">·</span>
+                      <button
+                        type="button"
+                        data-conflict-mark={openMarks.length ? 'open' : 'resolved'}
+                        title={marks.map((mark) => mark.label).join(' · ')}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          navigate(`/projects/${project.id}/workspace`, { state: { openConflictId: markTarget.conflictId } })
+                        }}
+                        className={cn('ds-intrinsic inline-flex h-4 shrink-0 items-center gap-0.5 rounded font-medium underline-offset-2 transition-colors hover:underline', openMarks.length ? 'text-amber-300 hover:text-amber-200' : 'text-slate-500 hover:text-slate-300')}
+                      >
+                        {openMarks.length ? <TriangleAlert className="size-3" /> : <Check className="size-3" />}
+                        <LocalizedText text={openMarks.length ? 'Conflict' : 'Resolved'} />
+                        {(openMarks.length || marks.length) > 1 && <span className="tabular-nums">{openMarks.length || marks.length}</span>}
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
               {!isCurrent && (
                 <div className="absolute top-1 right-1 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>

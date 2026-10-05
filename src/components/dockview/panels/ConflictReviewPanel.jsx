@@ -39,6 +39,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, currentUserFor } from '@/data/mockData'
 import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
+import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
+import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
 import {
   approvalStatus,
@@ -1397,6 +1399,7 @@ const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400
 
 function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
   const workspace = useWorkspaceOptional()
+  const navigate = useNavigate()
 
   const severity = conflict?.severity ? (severityConfig[conflict.severity] ?? severityConfig.medium) : null
 
@@ -1419,6 +1422,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (value === 'overview' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
       update({ diffInspected: true })
     }
+  }
+
+  // "Check the reasoning in History": go to History itself, on the saved
+  // version this conflict came from — selected (the link's `?v=`), scrolled
+  // to and lit for a moment in the list (`flashCheckpoint`).
+  function openHistoryEvidence() {
+    if (!conflict.historyInspected) update({ historyInspected: true })
+    const versions = foldConflictCheckpoints(withBranches(workspace?.historyEntries ?? [], workspace?.conflicts ?? []))
+    const checkpoint = versions.find((entry) => !entry.archived && entry.conflictMarks.some((mark) => mark.conflictId === conflict.id))
+    navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 
   function handleRequestReview() {
@@ -1732,7 +1745,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             blockedCount={decisionState.required.length}
                             adjustment={adjustment}
-                            onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
+                            onOpenHistory={conflict.rollback ? undefined : openHistoryEvidence}
                           />
                         </div>
                       </section>}

@@ -36,6 +36,15 @@ try {
   assert.deepEqual(folded.map((entry) => entry.id), ['v1', 'v2'])
   assert.deepEqual(folded[0].conflictMarks.map((mark) => mark.conflictId), ['c0', 'c1'])
   assert.deepEqual(folded[1].conflictMarks, [])
+  // A detection that names a file marks the version that touched that file
+  // — the latest one before it — and none when no version here did.
+  const byFile = foldConflictCheckpoints([
+    { id: 'nav', kind: 'edit', target: 'Nav.jsx · line 2' },
+    { id: 'btn', kind: 'edit', target: 'src/ui/Button.jsx' },
+    { id: 'nav-conflict', kind: 'conflict', conflictId: 'n', target: 'src/components/Nav.jsx' },
+    { id: 'other-conflict', kind: 'conflict', conflictId: 'o', target: 'src/components/Card.jsx' },
+  ])
+  assert.deepEqual(byFile.map((entry) => entry.conflictMarks.map((mark) => mark.conflictId)), [['n'], []])
 
   // The sample history: main forks into a feature branch and the hotfix,
   // they run side by side, the feature merges back, the hotfix carries on.
