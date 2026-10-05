@@ -1,3 +1,4 @@
+import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
@@ -362,9 +363,6 @@ function DueDate({ label, className }) {
   )
 }
 
-// Checks that follow from which values were picked.
-const DECISION_CHECKS = new Set(['tokens', 'contrast', 'text'])
-
 // The review's left card is context only: where it stands (one line —
 // stage · level · due · whether the merge is blocked), the summary sentence
 // and the way into History, with Details folded under it. The values, the
@@ -483,7 +481,7 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
       : decided ? `${decided} of ${rows.length} values decided` : null
   const required = checks && open ? checks.blocking : []
   const suggested = checks && open ? checks.failing.filter((check) => !checks.blocking.includes(check)) : []
-  const cardBlockers = side ? required.filter((check) => DECISION_CHECKS.has(check.id)) : []
+  const cardBlockers = comparisonBlockers(required, side, rows)
   // What would still fail with every value on one side — the checks
   // re-run with the decisions flipped. Tells which choice clears a check.
   const settled = [...(conflict?.acceptedChecks ?? [])]

@@ -153,6 +153,8 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
         : targetFailures > 1 ? `${targetFailures} controls with a touch area under 24px`
           : smallTargets.length ? `${smallTargets[0].name} touch area ${touchOf(smallTargets[0])}px`
             : `${untouchableIcons[0].name} icon ${untouchableIcons[0].value} with no larger touch area`,
+      editFields: smallTargets.length && sizeProp(smallTargets[0].id, TOUCH_PROP) == null
+        ? { layerId: smallTargets[0].id, minimum: 24 } : null,
       editHint: smallTargets.length ? 'Select the highlighted control. In Properties → Layout, set both W and H to at least 24px.' : null,
       hint: targetFailures ? 'WCAG 2.2 AA (2.5.8) asks for a touch area of at least 24px.' : null,
     },

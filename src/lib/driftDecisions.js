@@ -76,3 +76,12 @@ export function draftRows(conflict, item, decisions) {
     return { ...row, options, decided: decisions[row.key] != null }
   })
 }
+
+// Checks tied to an element in the selected comparison belong on that
+// card. File-wide checks (e.g. merge markers) stay below the comparison.
+export function comparisonBlockers(required, side, rows) {
+  if (!side) return []
+  return required.filter((check) => check.layerId
+    ? rows.some((row) => row.key.startsWith(`${check.layerId}:`))
+    : ['tokens', 'contrast', 'text'].includes(check.id))
+}

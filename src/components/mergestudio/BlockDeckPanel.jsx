@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n/language'
 import AssetsLibrary from '@/components/dockview/panels/AssetsLibrary'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
@@ -287,7 +288,7 @@ function InspectorSection({ title, action, children }) {
 }
 
 // A pill numeric field: prefix label (drag it to scrub), value, unit.
-function NumInput({ label, value, placeholder, unit = 'px', min = -9999, max = 9999, title, onChange }) {
+function NumInput({ label, value, placeholder, unit = 'px', min = -9999, max = 9999, title, onChange, highlighted = false, inputRef }) {
   const [draft, setDraft] = useState(null)
   const clamp = (n) => Math.min(max, Math.max(min, Math.round(n)))
   const shown = draft ?? (value === undefined || value === null ? '' : String(Math.round(value)))
@@ -309,11 +310,12 @@ function NumInput({ label, value, placeholder, unit = 'px', min = -9999, max = 9
   }
 
   return (
-    <label title={title} className={cn('flex min-w-0 items-center gap-1.5 px-2', CONTROL)}>
+    <label title={title} className={cn('flex min-w-0 items-center gap-1.5 px-2', CONTROL, highlighted && 'bg-amber-400/10 ring-2 ring-amber-300 focus-within:ring-2 focus-within:ring-amber-300')}>
       <span onPointerDown={scrub} className="flex w-4 shrink-0 cursor-ew-resize items-center justify-center text-[11px] font-medium text-slate-500 select-none">
         {label}
       </span>
       <input
+        ref={inputRef}
         inputMode="numeric"
         value={shown}
         placeholder={placeholder === undefined ? 'Auto' : String(placeholder)}
@@ -457,7 +459,16 @@ function AlignGrid({ h, v, onChange }) {
 
 // `driftEffect`: the Current Implementation's own drift for this layer, so
 // untouched W / H / radius read as what's actually rendered.
-function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections = ['layout', 'autolayout', 'appearance', 'fill', 'stroke', 'effects'] }) {
+function PrecisionInspector({ layer, assembly, driftEffect, onChange, fieldGuide, sections = ['layout', 'autolayout', 'appearance', 'fill', 'stroke', 'effects'] }) {
+  const ko = useLanguage() === 'ko'
+  const widthRef = useRef(null)
+  const heightRef = useRef(null)
+  const guideRef = useRef(null)
+  const minimum = fieldGuide?.layerId === layer.id ? fieldGuide.minimum : null
+  // Scroll the real controls into view without stealing typing focus.
+  useEffect(() => {
+    if (minimum) guideRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [minimum, layer.id])
   const a = assembly ?? {}
   const d = TYPE_DEFAULTS[layer.type] ?? {}
   const [lockRatio, setLockRatio] = useState(false)
@@ -472,6 +483,17 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
     <div>
       {has('layout') && (
         <InspectorSection title="Layout">
+          {minimum && <div ref={guideRef} className="space-y-2 rounded-lg bg-amber-400/10 p-2.5 text-xs text-amber-100" role="status">
+            <p className="font-semibold">{ko ? '여기서 터치 영역을 수정하세요' : 'Edit the touch area here'}</p>
+            <p>{ko ? `노란 입력칸에 ${minimum} 이상을 입력하세요.` : `Enter ${minimum} or more in the highlighted fields.`}</p>
+            <div className="flex flex-wrap gap-2">
+              {[['W', w, widthRef], ['H', h, heightRef]].map(([label, value, ref]) => <button
+                key={label} type="button" disabled={value >= minimum}
+                onClick={() => { ref.current?.focus(); ref.current?.select() }}
+                className="rounded bg-white/10 px-2 py-1 font-medium disabled:bg-transparent disabled:text-emerald-200"
+              >{label} {Math.round(value)}px {value >= minimum ? '✓' : `→ ${minimum}px`} {value < minimum && (ko ? '입력' : 'Edit')}</button>)}
+            </div>
+          </div>}
           <div className={ROW}>
             <NumInput label="X" value={layer.x + (a.dx ?? 0)} title="X position" onChange={(x) => onChange({ dx: x - layer.x })} />
             <NumInput label="Y" value={layer.y + (a.dy ?? 0)} title="Y position" onChange={(y) => onChange({ dy: y - layer.y })} />
@@ -479,6 +501,8 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
           <div className={ROW}>
             <NumInput
               label="W"
+              inputRef={widthRef}
+              highlighted={Boolean(minimum && w < minimum)}
               value={w}
               min={8}
               title="Width"
@@ -486,6 +510,8 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
             />
             <NumInput
               label="H"
+              inputRef={heightRef}
+              highlighted={Boolean(minimum && h < minimum)}
               value={h}
               min={8}
               title="Height"
@@ -668,7 +694,7 @@ function PrecisionInspector({ layer, assembly, driftEffect, onChange, sections =
 // up top, then the precision sections. Everything writes into the layer's
 // "assembly", which previews live on the Current Implementation and is
 // bundled into the merge.
-function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, onReset }) {
+function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, onReset, fieldGuide }) {
   return (
     <div className="pb-2">
       <div className="flex h-7 items-center gap-2 px-5">
@@ -695,7 +721,7 @@ function AssembleBuilder({ layer, frameWidth, assembly, driftEffect, onChange, o
           </button>
         ))}
       </div>
-      <PrecisionInspector layer={layer} assembly={assembly} driftEffect={driftEffect} onChange={onChange} />
+      <PrecisionInspector fieldGuide={fieldGuide} layer={layer} assembly={assembly} driftEffect={driftEffect} onChange={onChange} />
     </div>
   )
 }
@@ -1102,7 +1128,7 @@ function TokenBindingSection({ spec }) {
 // its token binding / an AI recommendation (when it has no drift), its
 // content copy (the Text card, bound to copy.json), its shape / size /
 // style, and AI style suggestions. Drift is resolved in Compare.
-export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, ...suggestionProps }) {
+export function BlockAssembleTab({ fieldGuide, selectedLayer, frameWidth, assembly, driftEffect, onAssemble, onAssembleReset, textSlots, onEditText, diffs, tokenSpec, ...suggestionProps }) {
   return (
     <DeckScroll>
       {selectedLayer && !diffs?.length && (
@@ -1117,6 +1143,7 @@ export function BlockAssembleTab({ selectedLayer, frameWidth, assembly, driftEff
       )}
       {selectedLayer ? (
         <AssembleBuilder
+          fieldGuide={fieldGuide}
           layer={selectedLayer}
           frameWidth={frameWidth}
           assembly={assembly}
@@ -1369,6 +1396,7 @@ export const DECK_WIDTH = 360
 const DECK_TOP = 60
 
 function BlockDeckPanel({
+  fieldGuide,
   embedded = false,
   activeTab,
   open,
@@ -1510,6 +1538,7 @@ function BlockDeckPanel({
         <AssetsLibrary layer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
       ) : (
         <BlockAssembleTab
+          fieldGuide={fieldGuide}
           selectedLayer={selectedLayer}
           frameWidth={frameWidth}
           assembly={assembly}
