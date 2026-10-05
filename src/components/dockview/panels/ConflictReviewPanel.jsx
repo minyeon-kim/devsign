@@ -38,8 +38,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, currentUserFor, projectFileSets } from '@/data/mockData'
-import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
+import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/mockData'
+import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
+import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import { mergedSizeAdjustment, sizeAdjustmentOf } from '@/lib/sizeAdjustment'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -265,11 +267,19 @@ function driftItemOf(conflict, workspace) {
 // is design work, so it's Merge Studio's: there each row also offers every
 // draft to switch to, beside the canvas. Elsewhere the list only reports,
 // and its action opens the drafts side by side in Merge Studio.
+const RESULT_WIDTH = 180
+
 function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel, decisionsOverride }) {
   const decisions = decisionsOverride ?? workspace.decisionsFor(item.id)
   const rows = draftRows(conflict, item, decisions)
   const decided = rows.filter((row) => row.decided).length
   const decide = (row, option) => workspace.decideDrift(item.id, row.key, option.picked ? null : option.decision)
+  // Drafts mixed by screen region: the picks composed into the one screen
+  // they make (parts not picked fall back to the first draft, as merging does).
+  const base = draftScreens[item.id] && canvasPages.find((page) => page.id === item.designPageId)?.frames[0]
+  const result = base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisions), item.authorAId ?? item.variants?.[0]?.key) : null
+  const resultHeight = result ? Math.max(120, ...result.layers.map((layer) => (layer.y ?? 0) + (layer.height ?? 0))) + 16 : 0
+  const resultScale = RESULT_WIDTH / 280
   const Letter = ({ option, on }) => (
     <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', on ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-300')}>{option.letter}</span>
   )
@@ -295,7 +305,20 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
           </button>
         )}
       </div>
-      <div className="min-h-0 flex-1 divide-y divide-white/[0.05] overflow-auto">
+      <div className="flex min-h-0 flex-1 gap-4 overflow-auto">
+      {/* The mix as one screen — what merging produces — beside the list
+          of where each part came from. */}
+      {result && (
+        <figure data-mix-result className="shrink-0">
+          <figcaption className="mb-1.5 text-[11px] font-medium text-slate-400"><LocalizedText text="Merged result" /></figcaption>
+          <div className="relative overflow-hidden rounded-xl bg-white" style={{ width: RESULT_WIDTH, height: resultHeight * resultScale }}>
+            <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: 280, height: resultHeight, transform: `scale(${resultScale})` }}>
+              {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
+            </div>
+          </div>
+        </figure>
+      )}
+      <div className="min-h-0 min-w-0 flex-1 divide-y divide-white/[0.05] overflow-auto">
         {rows.map((row) => {
           const picked = row.options.find((option) => option.picked)
           return (
@@ -335,6 +358,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
             </div>
           )
         })}
+      </div>
       </div>
       {!editable && (
         <p className="mt-2 text-[10.5px] text-slate-500"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>
@@ -1374,33 +1398,42 @@ function ReviewButton({ onSubmit, authorName }) {
         <LocalizedText text="Review" />
         <ChevronDown className="size-3.5" />
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 rounded-xl p-3">
+      <PopoverContent align="end" sideOffset={8} className="w-[360px] gap-0 rounded-xl p-3">
         {/* One choice as two equal buttons, then the note, then who hears
             about it beside the send button. */}
         <p className="mb-2 text-xs font-medium text-white"><LocalizedText text="Your review" /></p>
-        <div role="radiogroup" aria-label="Your review" className="grid grid-cols-2 gap-1 rounded-lg bg-white/[0.04] p-1">
+        {/* Each choice says when it's the right one and what happens
+            next — a label alone left "Request changes" unclear. */}
+        <div role="radiogroup" aria-label="Your review" className="mb-2 space-y-1.5">
           {[
-            ['approve', 'Approve', Check, 'bg-emerald-400/15 text-emerald-200'],
-            ['changes', 'Request changes', Pencil, 'bg-amber-400/15 text-amber-200'],
-          ].map(([id, label, Icon, on]) => (
+            ['approve', 'Approve', Check, 'border-emerald-300/50 bg-emerald-400/[0.08]', 'text-emerald-200',
+              'The change is right as it is.', 'It merges once every reviewer has approved.'],
+            ['changes', 'Request changes', Pencil, 'border-amber-300/50 bg-amber-400/[0.08]', 'text-amber-200',
+              'Something is wrong and the author needs to fix it — a value off the design reference, the wrong element changed, a failed check with no reason given.',
+              'It goes back to the author with your note; they fix it and request review again. Nothing merges meanwhile.'],
+          ].map(([id, label, Icon, on, tone, when, then]) => (
             <button
               key={id}
               type="button"
               role="radio"
               aria-checked={decision === id}
               onClick={() => setDecision(id)}
-              className={cn('ds-intrinsic flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors', decision === id ? on : 'text-slate-400 hover:bg-white/[0.05] hover:text-white')}
+              className={cn('ds-intrinsic block w-full cursor-pointer rounded-lg border px-2.5 py-2 text-left transition-colors', decision === id ? on : 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]')}
             >
-              <Icon className="size-3.5" />
-              <LocalizedText text={label} />
+              <span className={cn('flex items-center gap-1.5 text-xs font-medium', decision === id ? tone : 'text-slate-200')}>
+                <Icon className="size-3.5" />
+                <LocalizedText text={label} />
+              </span>
+              <span className="mt-1 block text-[11px] leading-4 text-slate-300"><span className="text-slate-500"><LocalizedText text="When" /> · </span><LocalizedText text={when} /></span>
+              <span className="mt-0.5 block text-[11px] leading-4 text-slate-400"><span className="text-slate-500"><LocalizedText text="Then" /> · </span><LocalizedText text={then} /></span>
             </button>
           ))}
         </div>
-        <p className="mt-1.5 mb-2 px-0.5 text-[11px] leading-4 text-slate-500">
-          <LocalizedText text={decision === 'approve'
-            ? 'Use when the change is right as it is — it can merge once everyone has approved.'
-            : 'Use when something is wrong and the author should fix it: say what, and it goes back to them. If you can fix the value yourself, adjust it in Merge Studio first, then request review again instead.'} />
-        </p>
+        {decision === 'changes' && (
+          <p data-changes-tip className="mb-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-[11px] leading-4 text-slate-300">
+            <LocalizedText text="Can you fix the value yourself? Then don’t request changes — adjust it in Merge Studio and request review again." />
+          </p>
+        )}
         <textarea
           rows={3}
           value={note}
@@ -1564,7 +1597,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // An exception departs from the standard, so it's asked why first; the
   // reason travels with the request, for the reviewers to weigh.
   function requestException(check) {
-    setReasonRequest({
+    const request = {
       kind: 'exception',
       subject: check.title,
       run: (reason) => {
@@ -1576,7 +1609,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         if (workspace) workspace.addComment(`Exception requested: ${check.title} — ${reason}`, { conflictId: conflict.id })
         toast('Exception requested', { description: 'It can merge once the reviewers approve the change.' })
       },
-    })
+    }
+    // The reason for departing from the standard is already on this
+    // conflict (given when the current implementation was kept): it's the
+    // exception's reason too, not asked a second time.
+    const given = conflict.deviation?.text?.trim()
+    if (given) request.run(given)
+    else setReasonRequest(request)
   }
 
   function undoException(check) {
@@ -1616,8 +1655,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     // Say that it happened: the merge itself only swaps the stage and the
     // button, which is easy to miss. (A blocked merge explains itself with
     // its own "Can't merge yet" toast and returns false.)
+    // A size set by hand is part of what merges: kept on the conflict, so
+    // the merged card goes on showing the value that was adopted.
+    const kept = adjustment ? { layerId: adjustment.layerId, layerName: adjustment.layerName, from: adjustment.from, to: adjustment.to, size: adjustment.size } : null
     const merged = onResolve ? onResolve(conflict.id) : (update({ reviewStage: 'resolved' }), true)
-    if (merged) toast('Change merged', { description: conflict.title })
+    if (merged) {
+      if (kept) update({ mergedAdjustment: kept })
+      toast('Change merged', { description: kept ? `${conflict.title} · ${kept.layerName} ${kept.to}` : conflict.title })
+    }
   }
 
   function handleRunRollback() {
@@ -1736,7 +1781,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // (Its merge item is looked up directly: an element with the same size on
   // both sides has nothing to pick, but can still be resized.)
   const mergeItem = conflict ? workspace?.mergeItems?.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id) ?? null : null
-  const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, mergeItem, workspace?.mergeDrafts?.current) : null
+  const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, mergeItem, workspace?.mergeDrafts?.current) : mergedSizeAdjustment(conflict, mergeItem)
   const changeAfter = adjustment ? (conflict?.diff?.after ?? []).map(adjustment.applyTo) : conflict?.diff?.after ?? []
   const generatedFile = fileLines && conflict.diff
     ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], changeAfter)

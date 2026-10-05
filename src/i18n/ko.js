@@ -61,6 +61,13 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+When|이럴 때
+Then|그 다음
+The change is right as it is.|변경 내용이 그대로 맞습니다.
+It merges once every reviewer has approved.|모든 검토자가 승인하면 병합됩니다.
+Something is wrong and the author needs to fix it — a value off the design reference, the wrong element changed, a failed check with no reason given.|문제가 있어 작성자가 고쳐야 합니다. 예: 값이 디자인 기준과 다름, 엉뚱한 요소가 바뀜, 검사에 걸렸는데 사유가 없음.
+It goes back to the author with your note; they fix it and request review again. Nothing merges meanwhile.|적은 내용과 함께 작성자에게 돌아갑니다. 작성자가 고친 뒤 다시 검토를 요청하며, 그동안 병합되지 않습니다.
+Can you fix the value yourself? Then don’t request changes — adjust it in Merge Studio and request review again.|값을 직접 고칠 수 있나요? 그렇다면 변경 요청 대신 병합 스튜디오에서 조정한 뒤 다시 검토를 요청하세요.
 Draft merge|시안 병합
 Draft merges|시안 병합
 Choose all that apply|여러 개 선택 가능

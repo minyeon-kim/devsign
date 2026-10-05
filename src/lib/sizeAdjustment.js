@@ -12,6 +12,38 @@ import { driftRowsFor } from '@/lib/driftDecisions'
 
 const sizeText = (size) => `${size.width} × ${size.height}px`
 
+// The adjustment as everything that shows it needs.
+function describe(layer, to) {
+  const square = (size) => (size.width === size.height ? `${size.width}px` : sizeText(size))
+  // The size as a class: on the 4px scale when it is ("size-6"), spelled
+  // out otherwise.
+  const sizeClass = to.width === to.height
+    ? (to.width % 4 === 0 ? `size-${to.width / 4}` : `size-[${to.width}px]`)
+    : `w-[${to.width}px] h-[${to.height}px]`
+  return {
+    layerId: layer.id, layerName: layer.name, from: sizeText(layer), to: sizeText(to), size: to,
+    // A compared value written either way ("20 × 20px", or "20px" for a
+    // square) reads as the original size: its old → new pair, else null.
+    display: (value) => (value === sizeText(layer) ? { from: sizeText(layer), to: sizeText(to) }
+      : value === `${layer.width}px` && layer.width === layer.height ? { from: value, to: square(to) } : null),
+    // The same change in the code: the element's size classes.
+    applyTo: (line) => line
+      .replace(/\bw-\[\d+(?:\.\d+)?px\]/, `w-[${to.width}px]`)
+      .replace(/\bh-\[\d+(?:\.\d+)?px\]/, `h-[${to.height}px]`)
+      .replace(/\bsize-(?:\d+(?:\.\d+)?|\[\d+(?:\.\d+)?px\])/, sizeClass),
+  }
+}
+
+// The size a merged conflict was merged with (`mergedAdjustment`, recorded
+// at merge): the same description, so its card keeps showing the adopted
+// value instead of going back to the original.
+export function mergedSizeAdjustment(conflict, item) {
+  const kept = conflict?.mergedAdjustment
+  if (!kept?.size || !item) return null
+  const layer = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers?.find((l) => l.id === kept.layerId)
+  return layer ? describe(layer, kept.size) : null
+}
+
 // What was adjusted, or null when the element is still its original size.
 // `drafts` is the workspace's merge drafts ({ [itemId]: draft }).
 export function sizeAdjustmentOf(conflict, item, drafts) {
@@ -30,25 +62,7 @@ export function sizeAdjustmentOf(conflict, item, drafts) {
     })
     .find(Boolean)
   if (!resized) return null
-  const { layer, to } = resized
-  const square = (size) => (size.width === size.height ? `${size.width}px` : sizeText(size))
-  // The size as a class: on the 4px scale when it is ("size-6"), spelled
-  // out otherwise.
-  const sizeClass = to.width === to.height
-    ? (to.width % 4 === 0 ? `size-${to.width / 4}` : `size-[${to.width}px]`)
-    : `w-[${to.width}px] h-[${to.height}px]`
-  return {
-    layerId: layer.id, layerName: layer.name, from: sizeText(layer), to: sizeText(to),
-    // A compared value written either way ("20 × 20px", or "20px" for a
-    // square) reads as the original size: its old → new pair, else null.
-    display: (value) => (value === sizeText(layer) ? { from: sizeText(layer), to: sizeText(to) }
-      : value === `${layer.width}px` && layer.width === layer.height ? { from: value, to: square(to) } : null),
-    // The same change in the code: the element's size classes.
-    applyTo: (line) => line
-      .replace(/\bw-\[\d+(?:\.\d+)?px\]/, `w-[${to.width}px]`)
-      .replace(/\bh-\[\d+(?:\.\d+)?px\]/, `h-[${to.height}px]`)
-      .replace(/\bsize-(?:\d+(?:\.\d+)?|\[\d+(?:\.\d+)?px\])/, sizeClass),
-  }
+  return describe(resized.layer, resized.to)
 }
 
 // The drafts a project starts with: a seeded conflict that's already been

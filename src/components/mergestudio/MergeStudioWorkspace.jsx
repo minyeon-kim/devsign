@@ -27,7 +27,7 @@ import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, designCompareOptions, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
-import { composeDraftFrame, draftFrame, draftScreens, layerSource, regionKey, regionPicks } from '@/data/draftScreens'
+import { composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, regionKey, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -106,6 +106,27 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     // Region requests arrive from a failed check in the review panel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedRegion])
+  // What each choice would do to the checks — worked out for every option
+  // up front, so nothing has to be picked just to find out. A check counts
+  // against a part when that part is one of the ones it's about.
+  const fallback = item.authorAId ?? columns[0]?.key
+  const issuesWith = (picks) => compositionChecks(item.id, picks, fallback).filter((check) => !check.ok && check.id !== 'picked')
+  const picksNow = regionPicks(item.id, decisions)
+  const issuesNow = issuesWith(picksNow)
+  const optionIssues = (row, option) => (row.region
+    ? issuesWith({ ...picksNow, [row.region.id]: option.key }).filter((check) => check.regionIds?.includes(row.region.id))
+    : [])
+  const rowIssues = (row) => (row.region ? issuesNow.filter((check) => check.regionIds?.includes(row.region.id)) : [])
+  // For a problem: the part to change and the drafts that clear it there.
+  const fixesFor = (check) => rows
+    .filter((row) => row.region && check.regionIds?.includes(row.region.id))
+    .map((row) => ({ row, index: rows.indexOf(row), options: row.options.filter((option) => {
+      if (option.picked) return false
+      // Clears this one without bringing in a problem that isn't there now.
+      const after = issuesWith({ ...picksNow, [row.region.id]: option.key })
+      return !after.some((other) => other.id === check.id) && after.every((other) => issuesNow.some((now) => now.id === other.id))
+    }) }))
+    .filter((fix) => fix.options.length)
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
   function pick(option) {
@@ -123,7 +144,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               aria-label={`${i + 1}. ${translateText(row.label, language)}`}
               aria-current={step === i ? 'step' : undefined}
               className={cn('ds-intrinsic flex h-6 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-300', step === i ? 'w-8' : 'w-3')}>
-              <span className={cn('h-2 rounded-full transition-all', step === i ? 'w-7 bg-emerald-400' : row.decided ? 'w-2 bg-emerald-400' : 'w-2 bg-white/25')} />
+              <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('h-2 rounded-full transition-all', step === i ? 'w-7' : 'w-2', rowIssues(row).length ? 'bg-amber-300' : step === i || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
             </button>
           ))}
         </nav>
@@ -185,6 +206,16 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                       {option.literal ? option.value : <LocalizedText text={option.value} />}
                     </span>
                   )}
+                {/* How this choice checks out, shown before it's picked. */}
+                {current.region && (() => {
+                  const issues = optionIssues(current, option)
+                  return (
+                    <span data-option-check={issues.length ? 'issue' : 'ok'} className={cn('flex items-center gap-1 px-0.5 text-[10.5px] leading-4', issues.length ? 'text-amber-200' : 'text-emerald-300/90')} title={issues.map((check) => translateText(check.title, language)).join(' · ') || undefined}>
+                      {issues.length ? <TriangleAlert className="size-3 shrink-0" /> : <Check className="size-3 shrink-0" />}
+                      <span className="truncate">{issues.length ? <LocalizedText text={issues[0].title} /> : (language === 'ko' ? '검사 통과' : 'Passes checks')}</span>
+                    </span>
+                  )
+                })()}
                 <span className="flex items-center gap-1.5 px-0.5 text-[10.5px]">
                   <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
                   <span className={cn('max-w-24 truncate', option.picked ? 'text-emerald-100' : 'text-slate-400')}>
@@ -199,6 +230,29 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           <ChevronRight className="size-4" />
         </button>
       </div>
+      {/* What's wrong with the mix as it stands, each with where to change
+          it and which drafts fix it — a click goes to that part. */}
+      {issuesNow.length > 0 && (
+        <ul data-mix-issues className="mt-3 space-y-1 border-t border-white/[0.08] pt-2.5 text-[11px] leading-4">
+          {issuesNow.map((check) => {
+            const fixes = fixesFor(check)
+            return (
+              <li key={check.id} className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-slate-300">
+                <TriangleAlert className="size-3 shrink-0 text-amber-300" />
+                <span className="font-medium text-amber-100"><LocalizedText text={check.title} /></span>
+                {fixes.length > 0 ? fixes.map((fix) => (
+                  <button key={fix.row.key} type="button" onClick={() => setStep(fix.index)} className="ds-intrinsic inline-flex h-5 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white">
+                    <LocalizedText text={fix.row.label} />
+                    <span className="text-slate-400">→</span>
+                    <span translate="no" className="font-semibold text-emerald-200">{fix.options.map((option) => option.letter).join(' · ')}</span>
+                  </button>
+                )) : <span className="text-slate-500">{language === 'ko' ? '시안을 바꿔서는 해결되지 않아요' : 'No draft clears this'}</span>}
+                {fixes.length > 0 && <span className="text-slate-500">{language === 'ko' ? '로 바꾸면 해결' : 'clears it'}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-2.5 text-[11px]">
         <span className="flex items-center gap-1 text-emerald-200">
           {decided === rows.length && <Check className="size-3" />}
@@ -280,6 +334,7 @@ function MergeStudioWorkspace({ item }) {
     saveMergeDraft,
     setStudioDecisions,
     checkGuide,
+    setCheckGuide,
     conflicts,
     updateConflict,
     createMergeRequest,
@@ -417,13 +472,15 @@ function MergeStudioWorkspace({ item }) {
     const conflict = conflicts.find(c => c.mergeItemId === item.id || c.id === item.conflictId)
     // Drafts with no conflict of their own get their merge request made
     // here — otherwise the button had nothing to submit to and did nothing.
-    if (!conflict) createMergeRequest(item)
-    else updateConflict(conflict.id, { submittedForMergeAt: Date.now(), ...(!conflict.submittedForMergeAt && { reviewStage: 'detected', reviewers: conflict.reviewers.map(reviewer => ({ ...reviewer, status: 'pending' })) }) })
+    const requestId = conflict?.id ?? createMergeRequest(item).id
+    if (conflict) updateConflict(conflict.id, { submittedForMergeAt: Date.now(), ...(!conflict.submittedForMergeAt && { reviewStage: 'detected', reviewers: conflict.reviewers.map(reviewer => ({ ...reviewer, status: 'pending' })) }) })
     endComparison()
-    openConflictReview(null)
     exitMergeStudio()
+    // Straight to the request just made — its review, with the merged
+    // result — rather than the list to find it in.
     setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'all' })
-    toast('충돌 리스트에 병합 요청을 추가했어요', { description: '선택한 조합을 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
+    openConflictReview(requestId)
+    toast('병합 요청을 만들었어요', { description: '조합한 결과를 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
   }
 
   function openReviewFor(target) {
@@ -1051,11 +1108,14 @@ function MergeStudioWorkspace({ item }) {
             onFix={(check) => {
               if (check.fileId) { openReviewFor(item); return }
               const layerId = check.layerId ?? defaultLayerFor(item)
-              if (layerId) { selectLayer(layerId); requestMergeFocus({ itemId: item.id, layerId, keepDeck: true }) }
+              // Says what to change and to what: the element marked on the
+              // canvas, its size fields lit, the steps to finish.
+              setCheckGuide({ itemId: item.id, check })
+              if (layerId) { selectLayer(layerId); requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, pulse: true }) }
             }}
           />
         )}
-        <MergeCheckGuide item={item} checks={liveChecks} />
+        <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={reserve}
@@ -1121,7 +1181,7 @@ function MergeStudioWorkspace({ item }) {
       {item && deckElement && createPortal(
         <BlockDeckPanel
           embedded
-          fieldGuide={checkGuide && conflicts.some((conflict) => conflict.id === checkGuide.conflictId && (conflict.mergeItemId === item.id || item.conflictId === conflict.id))
+          fieldGuide={checkGuide && (checkGuide.itemId === item.id || conflicts.some((conflict) => conflict.id === checkGuide.conflictId && (conflict.mergeItemId === item.id || item.conflictId === conflict.id)))
             ? liveChecks?.failing.find((check) => check.id === checkGuide.check?.id)?.editFields : null}
           activeTab={filesWindow.tab === 'assets' ? 'library' : 'assemble'}
           driftEffect={deckLayerId ? variantPreviews?.[deckLayerId] : undefined}

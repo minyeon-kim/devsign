@@ -180,22 +180,25 @@ export function CheckGuideHighlight({ layerId }) {
 // canvas, with the element marked — so arriving from the review's "Fix it"
 // says what to change here and when it's done. `checks` are the studio's
 // live ones, so the note turns to Fixed as soon as the check passes.
-export function MergeCheckGuide({ item, checks }) {
+export function MergeCheckGuide({ item, checks, low = false }) {
   const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
-  const conflict = conflicts.find((c) => c.id === checkGuide.conflictId)
-  if (!conflict || !(conflict.mergeItemId === item.id || item.conflictId === conflict.id)) return null
+  // For a conflict's item — or, with no conflict yet (drafts still being
+  // mixed), for the item itself (`itemId`).
+  const conflict = conflicts.find((c) => c.id === checkGuide.conflictId) ?? null
+  if (conflict ? !(conflict.mergeItemId === item.id || item.conflictId === conflict.id) : checkGuide.itemId !== item.id) return null
   // No check to fix: a precise adjustment by hand — the guide says how it
   // works and how to finish.
   const manual = !checkGuide.check
   const live = manual ? null : checks?.failing.find((check) => check.id === checkGuide.check.id)
   const resolved = !manual && Boolean(checks) && !live
   const check = manual ? null : live ?? checks?.checks?.find((entry) => entry.id === checkGuide.check.id) ?? checkGuide.check
-  const layerId = check?.layerId ?? conflict.layerId
+  const layerId = check?.layerId ?? conflict?.layerId
   // Done adjusting: back to the conflict's review, where the new value shows.
   const finish = () => {
     setCheckGuide(null)
+    if (!conflict) return
     setBottomPanel({ open: true, tab: 'conflict' })
     openConflictReview(conflict.id)
   }
@@ -208,12 +211,13 @@ export function MergeCheckGuide({ item, checks }) {
     check?.editFields
       ? (ko ? `속성 → 레이아웃에서 W와 H를 ${check.editFields.minimum}px 이상으로 입력합니다 (강조된 입력란).` : `In Properties → Layout, set W and H to at least ${check.editFields.minimum}px (the highlighted fields).`)
       : (ko ? '속성 패널에서 값을 직접 입력합니다. 바꾼 값은 충돌 내역의 카드와 코드에 바로 반영됩니다.' : 'Type the value in the Properties panel. It shows on the conflict’s card and code right away.'),
-    ko ? '"조정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done adjusting" to go back to the conflict and request review.',
+    !conflict ? (ko ? '"조정 완료"를 누른 뒤 위쪽의 "병합 요청"으로 이어갑니다.' : 'Press "Done adjusting", then continue with "Request merge" above.')
+      : ko ? '"조정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done adjusting" to go back to the conflict and request review.',
   ]
   return (
     <>
       {!resolved && !check?.details?.length && <CheckGuideHighlight layerId={layerId} />}
-      <div className="pointer-events-none fixed inset-x-0 top-[104px] z-[540] flex justify-center px-4">
+      <div className={cn('pointer-events-none fixed inset-x-0 z-[540] flex justify-center px-4', low ? 'bottom-24' : 'top-[104px]')}>
         <div data-merge-check-guide className="pointer-events-auto w-[440px] max-w-full rounded-xl bg-[#1D1D1D] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
           {check ? (
             <CheckGuideNote
@@ -227,12 +231,17 @@ export function MergeCheckGuide({ item, checks }) {
               <Wrench className="mt-0.5 size-4 shrink-0 text-slate-300" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] leading-4 font-medium text-slate-300">{ko ? '정밀 조정' : 'Precise adjustment'}</p>
-                <p className="mt-0.5 text-[13px] leading-5 font-medium break-words text-white"><LocalizedText text={conflict.title} /></p>
+                <p className="mt-0.5 text-[13px] leading-5 font-medium break-words text-white"><LocalizedText text={conflict?.title ?? item.title} /></p>
               </div>
               <button type="button" onClick={() => setCheckGuide(null)} aria-label={ko ? '가이드 닫기' : 'Close guide'} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
                 <X className="size-3.5" />
               </button>
             </div>
+          )}
+          {!resolved && check?.editFields && (
+            <p data-guide-target className="mx-3 mt-2.5 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-xs leading-[18px] text-amber-100">
+              {ko ? `바꿀 값: W · H를 각각 ${check.editFields.minimum}px 이상으로` : `Value to set: W and H each at least ${check.editFields.minimum}px`}
+            </p>
           )}
           {/* What to do next, in order — and the way to finish. */}
           <div className="px-3 pt-2.5 pb-3">
@@ -255,7 +264,7 @@ export function MergeCheckGuide({ item, checks }) {
                 className={cn(ACTION, 'ml-auto h-8 px-3', resolved || manual ? 'bg-emerald-400 font-semibold text-emerald-950 hover:bg-emerald-300' : ACTION_QUIET)}
               >
                 <Check className="size-3.5" />
-                {resolved || manual ? (ko ? '조정 완료' : 'Done adjusting') : (ko ? '충돌 내역으로 돌아가기' : 'Back to the conflict')}
+                {resolved || manual ? (ko ? '조정 완료' : 'Done adjusting') : conflict ? (ko ? '충돌 내역으로 돌아가기' : 'Back to the conflict') : (ko ? '가이드 닫기' : 'Close guide')}
               </button>
             </div>
           </div>
