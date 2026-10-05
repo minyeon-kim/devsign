@@ -642,10 +642,8 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              // The two sides as one radio group: each card is the option —
-              // a radio in its corner, the whole card the click target. No
-              // button inside, no "selected" line: the ring and the filled
-              // radio say it. Clicking the picked card again clears it.
+              // Each card is an option, with a trailing check on the picked
+              // side. Clicking the picked card again clears the choice.
               <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
@@ -674,9 +672,6 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <span aria-hidden className={cn('mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors', on ? 'border-emerald-300' : 'border-white/35')}>
-                        {on && <span className="size-2 rounded-full bg-emerald-300" />}
-                      </span>
                       <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} />}</div>
                       {/* This side passes what the other one fails. */}
                       {state.meets[decision] && (
@@ -684,6 +679,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                           <LocalizedText text="Meets the design standard" />
                         </span>
                       )}
+                      <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+                        {on && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
+                      </span>
                     </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
