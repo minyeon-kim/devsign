@@ -7,6 +7,7 @@ import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModa
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
+import { branchColors, withBranches } from '@/lib/historyBranches'
 
 // History — the project's version control as checkpoints (Replit style),
 // in two columns: the checkpoint list in the drawer beside it (which opens
@@ -20,17 +21,26 @@ import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
 // as a new checkpoint.
 function HistoryPage() {
   const { project } = useOutletContext()
-  const { historyEntries, activeHistoryId, historyFilter } = useWorkspace()
+  const { historyEntries, conflicts, activeHistoryId, historyFilter } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   const [compareLatest, setCompareLatest] = useState(true)
+
+  // Each checkpoint with its branch and that branch's color — the same
+  // ones the drawer's graph uses (lib/historyBranches).
+  const branched = useMemo(() => {
+    const entries = withBranches(historyEntries, conflicts)
+    const colors = branchColors(entries)
+    return entries.map((entry) => ({ ...entry, branchColor: colors.get(entry.branch) }))
+  }, [historyEntries, conflicts])
+  const selectedBranch = branched.find((entry) => entry.id === selectedId)
 
   // The timeline runs oldest → newest over the active checkpoints — filtered
   // the same way as the History drawer's list (see `historyFilter`), so
   // narrowing to one file or kind there also narrows what plays back here.
   const timeline = useMemo(
-    () => filterHistoryEntries(historyEntries.filter((e) => !e.archived), historyFilter),
-    [historyEntries, historyFilter]
+    () => filterHistoryEntries(branched.filter((e) => !e.archived), historyFilter),
+    [branched, historyFilter]
   )
   const scopeLabel = historyFilter.target !== 'all' && historyFilter.kind !== 'all'
     ? `${KIND_LABEL[historyFilter.kind]} · ${historyFilter.target}`
@@ -90,6 +100,7 @@ function HistoryPage() {
         <div className="min-h-0 flex-1">
           <HistoryCompare
             entryId={selectedId}
+            branch={selectedBranch ? { name: selectedBranch.branch, color: selectedBranch.branchColor } : null}
             compareLatest={compareLatest}
             // Restore sits up in the viewer's header, with the checkpoint
             // it applies to — not down at the end of the playback bar.

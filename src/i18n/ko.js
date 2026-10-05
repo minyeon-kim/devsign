@@ -57,6 +57,7 @@ Notify Toggle|알림 토글
 Chip Color|칩 색상
 Pick a version for the conflicting lines (<<<<<<< / >>>>>>>) in the code.|코드에서 충돌 표시(<<<<<<< / >>>>>>>)가 있는 줄의 버전을 선택하세요.
 Request review again|재검토 요청
+All branches|전체 브랜치
 Pick which side to merge|합칠 쪽을 고르세요
 left unpicked, it merges with the current implementation|고르지 않으면 현재 구현으로 합쳐져요
 Meets the design standard|디자인 기준 충족

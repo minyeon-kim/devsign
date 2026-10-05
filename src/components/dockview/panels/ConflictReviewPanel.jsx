@@ -664,7 +664,8 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                     data-side={side}
                     data-decision={decision}
                     className={cn(
-                      'flex min-w-0 flex-col gap-2 rounded-xl border p-3 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                      // Roomy: ~20px inside, 16px between its parts.
+                      'flex min-w-0 flex-col gap-4 rounded-xl border p-5 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
                       on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
                       canPick && !on && 'cursor-pointer hover:border-white/35',
                       canPick && on && 'cursor-pointer'
@@ -682,20 +683,27 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                       </span>
                     </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
-                    <dl className="mt-1 min-w-0 space-y-1.5">
-                      {conflict.comparisonFields.map((field) => (
-                        <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-2">
+                    <dl className="min-w-0 space-y-3">
+                      {conflict.comparisonFields.map((field) => {
+                        // A color value gets its swatch beside it.
+                        const swatch = /#[0-9a-fA-F]{3,8}\b/.exec(value(field) ?? '')?.[0]
+                        return (
+                        <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {/* Red / green only where the two sides differ — a
                               value that's the same on both isn't a change. */}
-                          <dd className={cn('min-w-0 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}><LocalizedText text={value(field)} /></dd>
+                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}>
+                            {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
+                            <span className="min-w-0"><LocalizedText text={value(field)} /></span>
+                          </dd>
                         </div>
-                      ))}
+                        )
+                      })}
                     </dl>
                     {/* The picked side breaks a required standard: say so on
                         this card, with what clears it. */}
                     {on && state.cardBlockers.length > 0 && (
-                      <div onClick={(event) => event.stopPropagation()} className="mt-1 cursor-default border-t border-amber-300/30 pt-2.5">
+                      <div onClick={(event) => event.stopPropagation()} className="cursor-default border-t border-amber-300/30 pt-3">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
                           <TriangleAlert className="size-3.5 shrink-0" />
                           <LocalizedText text="Can’t merge · required standard not met" />

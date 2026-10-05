@@ -60,19 +60,29 @@ function ChangePreview({ preview, side, showLabels = true }) {
 
   if (kind === 'divider') {
     // Per theme: the fixed color stays put, the token follows the theme.
+    // The line is drawn thick (a 1px hairline in two near-identical greys
+    // can't be told apart), and each value carries a round swatch of its
+    // color beside the hex, ringed so it reads on either surface. Every
+    // row is the same height, so two sides shown next to each other line
+    // their values up.
+    const sample = (theme, color) => {
+      const dark = theme.surface !== '#ffffff'
+      return (
+        <div className="flex h-14 min-w-0 flex-col justify-center gap-2 rounded-lg px-4" style={{ background: theme.surface }}>
+          <div className="h-1 w-full rounded-full" style={{ background: color }} />
+          <p className="flex items-center gap-1.5 font-mono text-[11px] leading-none" style={{ color: dark ? '#d4d4d8' : '#475569' }}>
+            <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 0 1px ${dark ? 'rgb(255 255 255 / 35%)' : 'rgb(15 23 42 / 30%)'}` }} />
+            {color}
+          </p>
+        </div>
+      )
+    }
     return (
-      <div className="space-y-2">
+      <div className="space-y-4">
         {preview.themes.map((t) => (
-          <div key={t.label} className={side ? 'grid grid-cols-[60px_minmax(0,1fr)] items-center gap-3' : 'grid grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3'}>
-            <span className="text-[11px] text-slate-400"><LocalizedText text={t.label} /></span>
-            {(side ? [side === 'before' ? t.before : t.after] : [t.before, t.after]).map((color, i) => (
-              <div key={i} className="rounded-lg px-4 py-4" style={{ background: t.surface }}>
-                <div className="h-px w-full" style={{ background: color }} />
-                <p className="mt-1.5 font-mono text-[10px]" style={{ color: t.surface === '#ffffff' ? '#64748b' : '#a1a1aa' }}>
-                  {color}
-                </p>
-              </div>
-            ))}
+          <div key={t.label} className={side ? 'grid grid-cols-[72px_minmax(0,1fr)] items-center gap-4' : 'grid grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4'}>
+            <span className="text-[11.5px] text-slate-400"><LocalizedText text={t.label} /></span>
+            {(side ? [side === 'before' ? t.before : t.after] : [t.before, t.after]).map((color, i) => <div key={i} className="min-w-0">{sample(t, color)}</div>)}
           </div>
         ))}
       </div>

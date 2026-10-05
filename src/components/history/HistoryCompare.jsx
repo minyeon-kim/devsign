@@ -48,7 +48,7 @@ function snapshotLines(snapshot) {
 // preview follows the code as it's typed — one shared state, the code so
 // far. When the step is in, `onStepDone` moves the selection (and the
 // timeline) on to the next checkpoint.
-function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, nextEntryId, onStepDone }) {
+function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, nextEntryId, onStepDone, branch }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser, projectId } = useWorkspace()
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
@@ -149,7 +149,16 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
     <div className={cn('flex h-full min-h-0 flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}>
       <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-4 pb-3">
         <div className="min-w-0">
-          <p className="text-[11px] text-slate-500 tabular-nums">{entry.timestamp}</p>
+          <p className="flex items-center gap-2 text-[11px] text-slate-500 tabular-nums">
+            {entry.timestamp}
+            {/* The branch this checkpoint is on, in its graph color. */}
+            {branch && (
+              <span translate="no" className="inline-flex h-5 items-center gap-1.5 rounded-full px-2 font-mono text-[10.5px] font-medium" style={{ color: branch.color, background: `${branch.color}1f` }}>
+                <span className="size-1.5 rounded-full" style={{ background: branch.color }} />
+                {branch.name}
+              </span>
+            )}
+          </p>
           <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] font-semibold text-white">
             {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
             {entry.label}

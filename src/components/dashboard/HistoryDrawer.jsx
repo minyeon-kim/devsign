@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
 import { Archive, ArchiveRestore, ChevronDown, RotateCcw, Search, Sparkles, X } from 'lucide-react'
@@ -13,12 +13,46 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { TRUNK, branchColors, branchGraph, branchNames, withBranches } from '@/lib/historyBranches'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
 
-// The rail's dot, for the kinds worth telling apart at a glance.
-const RAIL_DOT = { merge: 'bg-emerald-300', rollback: 'bg-sky-300', conflict: 'bg-amber-300' }
+// The branch graph beside the list (Git-graph style), one slice per row:
+// a vertical lane per branch in that branch's color, the checkpoint as a
+// dot on its lane, and a curve where a branch leaves the trunk or comes
+// back into it. The current branch's lane is drawn heavier. Rows are a
+// fixed height (taller where a branch's name is shown), so the slices
+// join up exactly.
+const ROW_HEIGHT = 32
+const ROW_LABELED = 46
+const LANE_GAP = 12
+const LANE_X = 9
+const DOT_Y = 16
+
+function GraphRow({ row, lanes, colors, currentBranch, selected, height }) {
+  const x = (lane) => LANE_X + lane * LANE_GAP
+  const stroke = (name) => ({ stroke: colors.get(name), strokeWidth: name === currentBranch ? 2.5 : 1.5 })
+  return (
+    <svg aria-hidden width={LANE_X * 2 + (lanes - 1) * LANE_GAP} height={height} className="shrink-0" fill="none" strokeLinecap="round">
+      {row.lanes.map((lane, index) => lane && (
+        <g key={index} {...stroke(lane.name)}>
+          {/* Newer is up: `up` runs to the top edge, `down` to the bottom. */}
+          {lane.up && <path d={`M ${x(index)} 0 L ${x(index)} ${lane.dot ? DOT_Y : height}`} />}
+          {lane.down && lane.dot && !(row.fork?.lane === index) && <path d={`M ${x(index)} ${DOT_Y} L ${x(index)} ${height}`} />}
+          {lane.down && !lane.dot && !lane.up && <path d={`M ${x(index)} 0 L ${x(index)} ${height}`} />}
+        </g>
+      ))}
+      {/* A branch starting here curves out of the trunk below… */}
+      {row.fork && <path {...stroke(row.fork.name)} d={`M ${x(0)} ${height} C ${x(0)} ${height - 8}, ${x(row.fork.lane)} ${DOT_Y + 14}, ${x(row.fork.lane)} ${DOT_Y}`} />}
+      {/* …and a merged one curves from its lane into this trunk checkpoint. */}
+      {row.merges.map((merge) => (
+        <path key={merge.lane} {...stroke(merge.name)} d={`M ${x(merge.lane)} ${height} C ${x(merge.lane)} ${height - 8}, ${x(row.lane)} ${DOT_Y + 14}, ${x(row.lane)} ${DOT_Y}`} />
+      ))}
+      <circle cx={x(row.lane)} cy={DOT_Y} r={selected ? 4.5 : 3.5} fill={selected ? '#fff' : colors.get(row.lanes[row.lane]?.name)} stroke="#131314" strokeWidth="2" />
+    </svg>
+  )
+}
 
 // "Yesterday, 5:20 PM" → "Yesterday": the day is enough in the list; the
 // full time is on hover and in the viewer.
@@ -79,7 +113,7 @@ function ActorAvatar({ entry }) {
 function HistoryDrawer({ project }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter } = useWorkspace()
+  const { historyEntries, conflicts, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const language = useLanguage()
   const [tab, setTab] = useState('active')
@@ -88,16 +122,25 @@ function HistoryDrawer({ project }) {
   const historyPath = `/projects/${project.id}/history`
   const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
 
+  // Every checkpoint with the branch it sits on (lib/historyBranches); the
+  // colors are fixed for the whole history, so a branch keeps its color
+  // whatever the filters leave in view.
+  const branched = useMemo(() => withBranches(historyEntries, conflicts), [historyEntries, conflicts])
+  const colors = useMemo(() => branchColors(branched), [branched])
+  const branches = branchNames(branched)
+  const currentBranch = branched.find((entry) => entry.id === activeHistoryId)?.branch ?? TRUNK
   const targets = historyTargets(historyEntries)
-  const filtered = filterHistoryEntries(historyEntries, historyFilter)
+  const filtered = filterHistoryEntries(branched, historyFilter)
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   const matches = filtered.filter((entry) => {
     const text = [entry.label, entry.timestamp, entry.prompt, historyMeta(entry, currentUser.id)].filter(Boolean).join(' ').toLocaleLowerCase()
     return terms.every((term) => text.includes(term))
   })
   const active = [...matches].filter((e) => !e.archived).reverse()
+  // The graph is laid out oldest → newest; the list shows it newest first.
+  const graph = branchGraph([...active].reverse())
   const archived = [...matches].filter((e) => e.archived).reverse()
-  const filtersActive = historyFilter.kind !== 'all' || historyFilter.target !== 'all'
+  const filtersActive = historyFilter.kind !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
 
   const open = (id) => {
     if (onHistoryPage && id === selectedId) {
@@ -141,7 +184,7 @@ function HistoryDrawer({ project }) {
           touched, otherwise shows in one undifferentiated list. Both also
           narrow the History page's playback timeline (see `historyFilter`
           in WorkspaceProvider). */}
-      <div className="mb-2 flex items-center gap-1.5 px-1">
+      <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-0.5 px-1">
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
@@ -167,7 +210,7 @@ function HistoryDrawer({ project }) {
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
-                'ml-auto flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+                'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
                 historyFilter.target !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
               )}
             >
@@ -184,6 +227,29 @@ function HistoryDrawer({ project }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {branches.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'flex h-6 min-w-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+                (historyFilter.branch ?? 'all') !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+              )}
+            >
+              {(historyFilter.branch ?? 'all') !== 'all' && <span className="size-1.5 shrink-0 rounded-full" style={{ background: colors.get(historyFilter.branch) }} />}
+              <span translate="no" className="max-w-24 truncate font-mono">{(historyFilter.branch ?? 'all') === 'all' ? 'All branches' : historyFilter.branch}</span>
+              <ChevronDown className="size-3 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => setHistoryFilter({ branch: 'all' })}>All branches</DropdownMenuItem>
+              {branches.map((name) => (
+                <DropdownMenuItem key={name} onClick={() => setHistoryFilter({ branch: name })} className="gap-2 font-mono">
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: colors.get(name) }} />
+                  <span translate="no" className="truncate">{name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {/* Archived is a view of the same list, not a second tab row. */}
         {(archived.length > 0 || tab === 'archived') && (
           <button
@@ -192,7 +258,7 @@ function HistoryDrawer({ project }) {
             onClick={() => setTab(tab === 'archived' ? 'active' : 'archived')}
             className={cn(
               'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-              targets.length === 0 && 'ml-auto',
+              'ml-auto',
               tab === 'archived' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
             )}
           >
@@ -216,6 +282,7 @@ function HistoryDrawer({ project }) {
           const isCurrent = entry.id === activeHistoryId
           const selected = onHistoryPage && entry.id === selectedId
           const meta = historyMeta(entry, currentUser.id)
+          const row = graph.rows[active.length - 1 - index]
           return (
             <div
               key={entry.id}
@@ -223,21 +290,14 @@ function HistoryDrawer({ project }) {
               ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
               className="group relative flex items-stretch"
             >
-              <span aria-hidden className="relative w-6 shrink-0">
-                {index > 0 && <span className="absolute top-0 left-1/2 h-4 w-px -translate-x-1/2 bg-white/[0.1]" />}
-                {index < active.length - 1 && <span className="absolute top-4 bottom-0 left-1/2 w-px -translate-x-1/2 bg-white/[0.1]" />}
-                <span className={cn(
-                  'absolute top-4 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
-                  selected ? 'size-2.5 ring-4 ring-white/10' : 'size-1.5',
-                  RAIL_DOT[entry.kind] ?? (selected ? 'bg-white' : 'bg-slate-500')
-                )} />
-              </span>
+              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} height={row.label ? ROW_LABELED : ROW_HEIGHT} />
               <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]')}>
               <button
                 type="button"
                 onClick={() => open(entry.id)}
                 aria-current={selected ? 'true' : undefined}
-                className="block w-full px-2.5 py-1.5 text-left"
+                style={{ height: row.label ? ROW_LABELED : ROW_HEIGHT }}
+                className="flex w-full flex-col justify-center px-2.5 text-left"
               >
                 {/* One line: what happened, and when. Everything else —
                     who, what kind, the detail — is the dot beside it, the
@@ -253,6 +313,10 @@ function HistoryDrawer({ project }) {
                     {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
                   </span>
                 </span>
+                {/* Where a branch starts, its name — in its lane's color. */}
+                {row.label && (
+                  <span translate="no" className="block truncate font-mono text-[10.5px] leading-4" style={{ color: colors.get(row.label) }}>{row.label}</span>
+                )}
               </button>
               {!isCurrent && (
                 <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

@@ -43,6 +43,8 @@ export function filterHistoryEntries(entries, filter) {
   return entries.filter((entry) => {
     if (filter.kind && filter.kind !== 'all' && entry.kind !== filter.kind) return false
     if (filter.target && filter.target !== 'all' && targetFileOf(entry) !== filter.target) return false
+    // (Entries carry `branch` once run through lib/historyBranches.)
+    if (filter.branch && filter.branch !== 'all' && (entry.branch ?? 'main') !== filter.branch) return false
     return true
   })
 }

@@ -88,21 +88,27 @@ function HistoryTimeline({
         <div className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2">
           {entries.map((entry, i) => (
               (() => {
+                // A checkpoint off the trunk (or tied to an issue) is a dot;
+                // the rest are quiet ticks. With `branchColor` on the entry
+                // (History's branch graph), the dot takes its branch's color.
                 const hasConflictMarker = entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length)
                 const isMergeMarker = entry.kind === 'merge' && hasConflictMarker
                 if (count > MAX_TICKS && !hasConflictMarker) return null
                 return (
               <span
                 key={entry.id}
-                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${isMergeMarker ? 'Merged issue' : 'Issue history'}` : undefined}
+                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${entry.branch ?? (isMergeMarker ? 'Merged issue' : 'Issue history')}` : undefined}
                 aria-label={hasConflictMarker ? `${isMergeMarker ? 'Merged issue' : 'Issue history'}: ${entry.label}` : undefined}
                 className={cn(
                   'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
                   hasConflictMarker
-                    ? cn('z-10 size-2 rounded-full ring-1 ring-offset-1 ring-offset-[#19191B]', isMergeMarker ? 'bg-emerald-300 ring-emerald-200/60' : 'bg-amber-300 ring-amber-200/60')
+                    ? cn('z-10 size-2 rounded-full ring-1 ring-offset-1 ring-offset-[#19191B]', !entry.branchColor && (isMergeMarker ? 'bg-emerald-300 ring-emerald-200/60' : 'bg-amber-300 ring-amber-200/60'))
                     : cn('h-1 w-px', i <= index ? 'bg-emerald-950/60' : 'bg-white/20')
                 )}
-                style={{ left: `${count > 1 ? (i / (count - 1)) * 100 : 100}%` }}
+                style={{
+                  left: `${count > 1 ? (i / (count - 1)) * 100 : 100}%`,
+                  ...(hasConflictMarker && entry.branchColor && { background: entry.branchColor, '--tw-ring-color': `${entry.branchColor}99` }),
+                }}
               />
                 )
               })()
