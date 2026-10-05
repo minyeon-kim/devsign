@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
+// History playback. A step isn't a timer: the viewer types the code from
+// the selected checkpoint to the next one and calls `advance()` when it's
+// in — only then does the selection (and the timeline's handle) move on.
+// Selecting something by hand stops playback.
 export function useHistoryPlayback(timeline, selectedId, select) {
   const [playing, setPlaying] = useState(false)
   const expected = useRef(null)
@@ -15,22 +19,18 @@ export function useHistoryPlayback(timeline, selectedId, select) {
     expected.current = null
   }, [selectedId])
 
+  // Landed on the last checkpoint: nothing left to play.
   useEffect(() => {
-    if (!playing) return
-    const next = timeline[index + 1]
-    const timer = window.setTimeout(() => {
-      if (!next || index < 0) { setPlaying(false); return }
-      expected.current = next.id
-      // The last step plays like the rest (its code types in too); the
-      // tick after it finds nothing next and stops.
-      selectRef.current(next.id)
-    // Long enough for a step's code to finish typing and the preview to
-    // settle before the next one starts.
-    }, 2400)
-    return () => window.clearTimeout(timer)
-  }, [playing, index, timeline])
+    if (playing && !expected.current && index === timeline.length - 1) setPlaying(false)
+  }, [playing, index, timeline.length])
 
   function pause() { expected.current = null; setPlaying(false) }
+  function advance() {
+    const next = timeline[index + 1]
+    if (!playing || !next) { pause(); return }
+    expected.current = next.id
+    selectRef.current(next.id)
+  }
   function toggle() {
     if (playing) { pause(); return }
     if (timeline.length < 2) return
@@ -40,5 +40,5 @@ export function useHistoryPlayback(timeline, selectedId, select) {
     }
     setPlaying(true)
   }
-  return { playing, pause, toggle }
+  return { playing, pause, toggle, advance }
 }

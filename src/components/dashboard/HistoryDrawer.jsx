@@ -11,13 +11,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ACCENT_SOFT } from '@/components/mergestudio/floatingStyles'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTargets, filterHistoryEntries } from '@/lib/historyMeta'
 
 // The rail's dot, for the kinds worth telling apart at a glance.
 const RAIL_DOT = { merge: 'bg-emerald-300', rollback: 'bg-sky-300', conflict: 'bg-amber-300' }
+
+// "Yesterday, 5:20 PM" → "Yesterday": the day is enough in the list; the
+// full time is on hover and in the viewer.
+// Translated first, so the day that's left reads in the viewer's language
+// ("Mon, 2:10 PM" → "월요일 오후 2:10" → "월요일").
+function shortTime(timestamp, language) {
+  const text = translateText(String(timestamp ?? ''), language)
+  const day = text.replace(/,? \d{1,2}:\d{2} (AM|PM)$/, '').replace(/ ?(오전|오후) \d{1,2}:\d{2}$/, '')
+  return day || text
+}
 
 const ROW_ACTION =
   'flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
@@ -70,6 +81,7 @@ function HistoryDrawer({ project }) {
   const { pathname } = useLocation()
   const { historyEntries, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
+  const language = useLanguage()
   const [tab, setTab] = useState('active')
   const [query, setQuery] = useState('')
   const [rollbackId, setRollbackId] = useState(null)
@@ -172,28 +184,22 @@ function HistoryDrawer({ project }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
-
-      <div className="mb-2 flex items-center gap-1 px-1" role="tablist" aria-label="Checkpoints">
-        {[
-          ['active', 'Checkpoints', active.length],
-          ['archived', 'Archived', archived.length],
-        ].map(([id, label, count]) => (
+        {/* Archived is a view of the same list, not a second tab row. */}
+        {(archived.length > 0 || tab === 'archived') && (
           <button
-            key={id}
             type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
+            aria-pressed={tab === 'archived'}
+            onClick={() => setTab(tab === 'archived' ? 'active' : 'archived')}
             className={cn(
-              'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors',
-              tab === id ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-slate-200'
+              'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
+              targets.length === 0 && 'ml-auto',
+              tab === 'archived' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
             )}
           >
-            {label}
-            <span className="text-[10px] text-slate-500 tabular-nums">{count}</span>
+            <Archive className="size-3" />
+            <span className="tabular-nums">{archived.length}</span>
           </button>
-        ))}
+        )}
       </div>
 
       {tab === 'active' && active.length === 0 && (
@@ -204,7 +210,7 @@ function HistoryDrawer({ project }) {
       {/* One quiet rail down the left — a dot per checkpoint, tinted for a
           merge or a rollback — drawn by each row itself, so it's there on
           first paint with nothing to measure. */}
-      <div className="space-y-1">
+      <div>
       {tab === 'active' &&
         active.map((entry, index) => {
           const isCurrent = entry.id === activeHistoryId
@@ -218,10 +224,10 @@ function HistoryDrawer({ project }) {
               className="group relative flex items-stretch"
             >
               <span aria-hidden className="relative w-6 shrink-0">
-                {index > 0 && <span className="absolute top-0 left-1/2 h-[18px] w-px -translate-x-1/2 bg-white/[0.1]" />}
-                {index < active.length - 1 && <span className="absolute top-[18px] -bottom-1 left-1/2 w-px -translate-x-1/2 bg-white/[0.1]" />}
+                {index > 0 && <span className="absolute top-0 left-1/2 h-4 w-px -translate-x-1/2 bg-white/[0.1]" />}
+                {index < active.length - 1 && <span className="absolute top-4 bottom-0 left-1/2 w-px -translate-x-1/2 bg-white/[0.1]" />}
                 <span className={cn(
-                  'absolute top-[18px] left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
+                  'absolute top-4 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
                   selected ? 'size-2.5 ring-4 ring-white/10' : 'size-1.5',
                   RAIL_DOT[entry.kind] ?? (selected ? 'bg-white' : 'bg-slate-500')
                 )} />
@@ -231,28 +237,25 @@ function HistoryDrawer({ project }) {
                 type="button"
                 onClick={() => open(entry.id)}
                 aria-current={selected ? 'true' : undefined}
-                className="block w-full px-3 py-2.5 text-left"
+                className="block w-full px-2.5 py-1.5 text-left"
               >
-                {/* Two things only: what happened, and who / when. The kind
-                    is the rail's dot; the rest is in the viewer. */}
-                <span className="flex items-start gap-2">
+                {/* One line: what happened, and when. Everything else —
+                    who, what kind, the detail — is the dot beside it, the
+                    hover, and the viewer. */}
+                <span className="flex items-baseline gap-2">
                   <span
-                    className={cn('line-clamp-2 min-w-0 flex-1 text-[13px] leading-[18px] font-medium', selected ? 'text-white' : 'text-slate-100')}
+                    className={cn('min-w-0 flex-1 truncate text-[13px] leading-5', selected ? 'font-medium text-white' : 'text-slate-200')}
                     title={meta ? `${entry.label} — ${meta}` : entry.label}
                   >
                     {entry.label}
                   </span>
-                  {isCurrent && (
-                    <span className={cn('mt-px shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold', ACCENT_SOFT)}>Current</span>
-                  )}
-                </span>
-                <span className="mt-1 flex items-center gap-1.5 text-[11.5px] text-slate-500 tabular-nums">
-                  <ActorAvatar entry={entry} />
-                  <span className="min-w-0 truncate">{entry.timestamp}</span>
+                  <span className={cn('shrink-0 text-[11px] tabular-nums transition-opacity', isCurrent ? 'font-medium text-emerald-300' : 'text-slate-500 group-hover:opacity-0')}>
+                    {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
+                  </span>
                 </span>
               </button>
               {!isCurrent && (
-                <div className="absolute right-1.5 bottom-1.5 flex items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center rounded-full bg-[#1D1D1D] opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button type="button" title="Archive" aria-label="Archive this checkpoint" onClick={() => archive(entry)} className={ROW_ACTION}>
                     <Archive className="size-3" />
                   </button>

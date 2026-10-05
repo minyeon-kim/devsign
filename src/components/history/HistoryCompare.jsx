@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import SplitHandle from '@/components/layout/SplitHandle'
+import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 import { historyMeta } from '@/lib/historyMeta'
@@ -18,36 +19,6 @@ const ROW_TONES = {
 const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 const MIN_CODE = 280
 const MIN_CANVAS = 260
-
-// Playback: an added line writes itself out a character at a time, starting
-// after `delay` ms and taking `duration` ms — so a step reads as the code
-// being typed, not a block swapping in.
-function TypedText({ text, delay, duration }) {
-  const [shown, setShown] = useState(0)
-  useEffect(() => {
-    let frame
-    const start = performance.now() + delay
-    const tick = (now) => {
-      const progress = Math.min(1, Math.max(0, (now - start) / Math.max(1, duration)))
-      setShown(Math.round(progress * text.length))
-      if (progress < 1) frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [text, delay, duration])
-  return (
-    <>
-      {text.slice(0, shown)}
-      {shown < text.length && <span aria-hidden className="ml-px inline-block h-[1.05em] w-px translate-y-[2px] bg-emerald-300" />}
-      {/* Keeps the row's height while it's still empty. */}
-      {shown === 0 && ' '}
-    </>
-  )
-}
-
-// How long a playback step's typing takes in all, and at most per character.
-const TYPE_BUDGET_MS = 1300
-const TYPE_MS_PER_CHAR = 14
 
 function snapshotLines(snapshot) {
   if (!snapshot) return []
@@ -72,7 +43,12 @@ function snapshotLines(snapshot) {
 // split by a draggable handle, so a change reads in both at a glance.
 // `hideRestore` drops the header's restore button when the caller has its
 // own (History's control bar).
-function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId }) {
+// Playback (`playing`, with `nextEntryId` and `onStepDone`): the code types
+// its way from this checkpoint to the next one (PlaybackCode) and the
+// preview follows the code as it's typed — one shared state, the code so
+// far. When the step is in, `onStepDone` moves the selection (and the
+// timeline) on to the next checkpoint.
+function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, nextEntryId, onStepDone }) {
   const { historyEntries, activeHistoryId, rollbackTo, getFileName, currentUser, projectId } = useWorkspace()
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
@@ -87,56 +63,26 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const isCurrent = entryId === activeHistoryId
-  // While replaying, each step diffs against the one before it — so the
-  // diff and the canvas build up incrementally, step by step, instead of
-  // always comparing back to the latest checkpoint. The first step in the
-  // timeline has nothing before it, so it shows plain (no diff). Scrubbing
-  // by hand keeps comparing against the latest, as before.
-  const diffBase = playing ? historyEntries.find((h) => h.id === baseEntryId) ?? null : current
+  const nextEntry = playing ? historyEntries.find((h) => h.id === nextEntryId) ?? null : null
+  const diffBase = current
 
   const rows = useMemo(
     () => (entry && diffBase ? diffLines(snapshotLines(diffBase.snapshot), snapshotLines(entry.snapshot)) : []),
     [entry, diffBase]
   )
-  // While playing, the final step is still stepping forward from the one
-  // before it — even though it lands on the current checkpoint. Gating on
-  // `isCurrent` here too would collapse the diff and the canvas compare
-  // right at the last step, an abrupt cut after every prior step built up
-  // smoothly. Manual scrubbing keeps the old behavior: landing on the
-  // actual current checkpoint shows it plainly, nothing to compare.
-  const showDiff = compareLatest && Boolean(diffBase) && (playing || !isCurrent)
+  // Playback shows the code itself, being typed — no diff against latest.
+  const showDiff = compareLatest && Boolean(diffBase) && !playing && !isCurrent
   const codeRows = useMemo(() => {
     const source = showDiff ? rows : snapshotLines(entry?.snapshot).map((text) => ({ kind: 'same', text }))
     // Old (latest) / new (this version) line numbers, like a split gutter.
-    // Added lines type in one after another: each gets the time its own
-    // characters need (`typeDelay` / `typeDuration`), scaled so the whole
-    // step fits the budget. `key` is the line itself, so lines that don't
-    // change between steps stay mounted instead of the whole file
-    // re-rendering (which made every step blink).
-    const addedChars = source.reduce((total, row) => total + (row.kind === 'add' ? row.text.length : 0), 0)
-    const perChar = Math.min(TYPE_MS_PER_CHAR, TYPE_BUDGET_MS / Math.max(1, addedChars))
     let a = 0
     let b = 0
-    let typed = 0
-    const seen = new Map()
-    return source.map((row) => {
-      const nth = (seen.get(row.text) ?? 0) + 1
-      seen.set(row.text, nth)
-      const typeDelay = typed * perChar
-      if (row.kind === 'add') typed += row.text.length
-      return {
-        ...row,
-        key: row.kind === 'same' ? `same:${nth}:${row.text}` : `${entry?.id}:${row.kind}:${nth}:${row.text}`,
-        from: row.kind === 'add' ? null : ++a,
-        to: row.kind === 'remove' ? null : ++b,
-        typeDelay,
-        typeDuration: row.text.length * perChar,
-      }
-    })
+    return source.map((row) => ({
+      ...row,
+      from: row.kind === 'add' ? null : ++a,
+      to: row.kind === 'remove' ? null : ++b,
+    }))
   }, [showDiff, rows, entry])
-  // While playing, the preview is this step's own design — it changes with
-  // the code, step by step. Scrubbing by hand with Compare latest on keeps
-  // showing the latest design beside the diff.
   const shownSnapshot = playing ? entry : showDiff ? diffBase : entry
   // A checkpoint about another file doesn't say what the screen looked
   // like, so its design is the last one before it that does — otherwise
@@ -150,6 +96,26 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
     }
     return {}
   }, [historyEntries, shownSnapshot?.id, projectId])
+
+  // The one playback state both panes share: the code as typed so far.
+  // The preview is rendered from it after every finished line; code that
+  // can't be rendered mid-step (half a tag, another file) changes nothing,
+  // so the last preview that worked stays up.
+  const playFrom = useMemo(() => snapshotLines(entry?.snapshot), [entry])
+  const playTo = useMemo(() => snapshotLines(nextEntry?.snapshot), [nextEntry])
+  const [played, setPlayed] = useState(null)
+  const playFileId = nextEntry?.snapshot.fileId
+  const handleCode = useCallback((lines) => {
+    let edits = null
+    try {
+      edits = deriveComponentOverride(projectId, playFileId, lines)
+    } catch {
+      edits = null
+    }
+    if (edits) setPlayed({ entryId, edits, key: JSON.stringify(edits) })
+  }, [projectId, playFileId, entryId])
+  const playedHere = playing && played?.entryId === entryId ? played : null
+  const previewEdits = playedHere?.edits ?? shownEdits
 
   if (!entry) {
     return (
@@ -197,7 +163,7 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
               'The file as it was at this version.'
             ) : (
               <>
-                {playing ? 'Compared with the previous step ·' : 'Compared with current ·'}{' '}
+                Compared with current ·{' '}
                 <span className="text-emerald-300">+{added}</span>
                 <span className="text-red-300">−{removed}</span> lines
                 {propChanges.length > 0 && ` · ${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`}
@@ -256,41 +222,32 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
         >
           <p className="flex shrink-0 items-center gap-1.5 px-3 pt-2 pb-1 font-mono text-[11px] text-slate-500">
             <Code2 className="size-3" />
-            {getFileName(entry.snapshot.fileId)}
+            {/* Playing into a checkpoint about another file: that file's name. */}
+            {getFileName((nextEntry ?? entry).snapshot.fileId)}
           </p>
           <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[12px] leading-5">
             {showDiff && rows.every((r) => r.kind === 'same') && (
-              <p className="px-3 pb-2 font-sans text-xs text-slate-500">
-                {playing ? 'No code changes from the previous step.' : 'No code changes between this version and the latest.'}
-              </p>
+              <p className="px-3 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
             )}
-            {codeRows.map((row, index) => (
-              // Unchanged lines keep their place across steps; added and
-              // removed ones are keyed to the step, so they mount fresh —
-              // added lines type in, removed ones fade from a tint.
+            {nextEntry ? (
+              // Keyed to the step: each one starts from this checkpoint's
+              // exact code.
+              <PlaybackCode key={`${entryId}:${nextEntry.id}`} from={playFrom} to={playTo} onCode={handleCode} onDone={onStepDone} />
+            ) : codeRows.map((row, index) => (
               <div
-                key={`${row.key}:${index}`}
+                key={index}
                 className={cn(
-                  'flex min-w-0 py-px pr-3 pl-2 whitespace-pre-wrap [word-break:break-all]',
-                  showDiff ? ROW_TONES[row.kind] : 'text-slate-300',
-                  showDiff && row.kind === 'add' && 'history-row-typein',
-                  showDiff && row.kind === 'remove' && 'history-row-flash-remove'
+                  'flex min-w-0 py-px pr-3 whitespace-pre-wrap [word-break:break-all]',
+                  showDiff ? ROW_TONES[row.kind] : 'text-slate-300'
                 )}
               >
-                {/* The gutter as its own group, divided from the code by a
-                    hairline — a flush, unbordered set of numbers read as
-                    part of the code text itself rather than as a separate
-                    column next to it. */}
-                <span className="mr-2 flex shrink-0 items-center gap-1 border-r border-white/[0.07] pr-1.5 text-[11px] text-slate-600 select-none">
-                  {showDiff && <span className="w-5 text-right tabular-nums">{row.from ?? ''}</span>}
-                  <span className="w-5 text-right tabular-nums">{row.to ?? ''}</span>
-                  {showDiff && <span className="w-2.5 text-center opacity-70">{ROW_MARKS[row.kind]}</span>}
-                </span>
-                <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">
-                  {playing && showDiff && row.kind === 'add' && row.text
-                    ? <TypedText text={row.text} delay={row.typeDelay} duration={row.typeDuration} />
-                    : row.text || ' '}
-                </span>
+                {/* Numbers in about 32px, 12px before the code. Comparing
+                    with the latest adds the other side's number and the
+                    +/− mark. */}
+                {showDiff && <span className="w-7 shrink-0 text-right text-[11px] text-slate-600 tabular-nums select-none">{row.from ?? ''}</span>}
+                <span className={cn(GUTTER, showDiff && 'mr-1.5 w-7')}>{row.to ?? ''}</span>
+                {showDiff && <span className="mr-3 w-2.5 shrink-0 text-center opacity-70 select-none">{ROW_MARKS[row.kind]}</span>}
+                <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
               </div>
             ))}
           </div>
@@ -310,9 +267,11 @@ function HistoryCompare({ entryId, onRollback, compareLatest = true, onCompareLa
             switch do overlapping jobs was confusing — one control. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
           <PreviewPanelContent
-            snapshotKey={shownSnapshot.id}
+            // A new key fades the preview over — on each checkpoint, and
+            // during playback each time the typed code changes the design.
+            snapshotKey={playedHere ? `${entryId}:${playedHere.key}` : shownSnapshot.id}
             previewProps={shownSnapshot.snapshot.previewProps ?? {}}
-            prototypeEdits={shownEdits}
+            prototypeEdits={previewEdits}
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
             frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
             historical

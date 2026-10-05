@@ -41,7 +41,7 @@ function HistoryPage() {
         : null
   const timelineIndex = timeline.findIndex((e) => e.id === selectedId)
 
-  const { playing, pause, toggle } = useHistoryPlayback(timeline, selectedId, select)
+  const { playing, pause, toggle, advance } = useHistoryPlayback(timeline, selectedId, select)
 
   function selectVersion(id) {
     pause()
@@ -98,7 +98,8 @@ function HistoryPage() {
               setRollbackId(id)
             }}
             playing={playing}
-            baseEntryId={timeline[timelineIndex - 1]?.id}
+            nextEntryId={timeline[timelineIndex + 1]?.id}
+            onStepDone={advance}
           />
         </div>
         <HistoryTimeline
