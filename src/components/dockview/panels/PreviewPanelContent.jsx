@@ -29,7 +29,7 @@ function parsePadding(value) {
 // larger), so nothing has to be scrolled to — the zoom control goes closer.
 // `embedded` drops the panel's own surface and top inset, for a preview
 // placed inside another card (the conflict review's change replay).
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '' } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -88,6 +88,16 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             otherwise scrubbing/replaying through checkpoints swaps this
             content with no transition at all, reading as an abrupt jump
             instead of the design settling into its next state. */}
+        {/* `highlightLayerId`: the element this step changed, ringed for a
+            moment as the new state comes in. */}
+        {highlightLayerId && (
+          // The keyframes are named per `highlightKey`, so each step's ring
+          // is a new animation and plays even on the same element.
+          <style>{`
+            @keyframes preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} { 0% { box-shadow: 0 0 0 3px rgb(52 211 153 / 90%), 0 0 0 10px rgb(52 211 153 / 28%); } 100% { box-shadow: 0 0 0 3px rgb(52 211 153 / 0%), 0 0 0 10px rgb(52 211 153 / 0%); } }
+            [data-layer-id="${CSS.escape(highlightLayerId)}"] { animation: preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} 1200ms ease-out backwards; border-radius: 6px; z-index: 5; }
+          `}</style>
+        )}
         <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('m-auto flex items-center animate-in fade-in duration-500', inRow ? 'flex-row' : 'w-full flex-col')}>
           {conflictPreview ? (
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
@@ -109,7 +119,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                     const override = overrideFromEdit(renderedEdits[layer.id])
                     const withPadding =
                       layer.id === 'primary-button' && buttonPadding ? { ...override, padding: buttonPadding } : override
-                    return <StaticLayer key={layer.id} layer={layer} override={withPadding} onSelect={() => {}} />
+                    // A tab bar is drawn from the preview props a History
+                    // checkpoint recorded (icon size, tap area, badge).
+                    const withProps = layer.type === 'tabs' && previewProps?.iconSize ? { ...withPadding, nav: previewProps } : withPadding
+                    return <StaticLayer key={layer.id} layer={layer} override={withProps} onSelect={() => {}} />
                   })}
                 </div>
               </div>

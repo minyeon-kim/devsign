@@ -7,7 +7,7 @@ import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModa
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
-import { branchColors, withBranches } from '@/lib/historyBranches'
+import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
 // History — the project's version control as checkpoints (Replit style),
 // in two columns: the checkpoint list in the drawer beside it (which opens
@@ -29,7 +29,9 @@ function HistoryPage() {
   // Each checkpoint with its branch and that branch's color — the same
   // ones the drawer's graph uses (lib/historyBranches).
   const branched = useMemo(() => {
-    const entries = withBranches(historyEntries, conflicts)
+    // Saved versions only — a conflict's detection is a mark on a version,
+    // not a step of its own (as in the drawer's graph).
+    const entries = foldConflictCheckpoints(withBranches(historyEntries, conflicts))
     const colors = branchColors(entries)
     return entries.map((entry) => ({ ...entry, branchColor: colors.get(entry.branch) }))
   }, [historyEntries, conflicts])
@@ -109,8 +111,9 @@ function HistoryPage() {
               setRollbackId(id)
             }}
             playing={playing}
-            nextEntryId={timeline[timelineIndex + 1]?.id}
+            baseEntryId={timeline[timelineIndex - 1]?.id}
             onStepDone={advance}
+            position={timelineIndex >= 0 ? { index: timelineIndex, total: timeline.length } : null}
           />
         </div>
         <HistoryTimeline

@@ -91,7 +91,7 @@ function HistoryTimeline({
                 // A checkpoint off the trunk (or tied to an issue) is a dot;
                 // the rest are quiet ticks. With `branchColor` on the entry
                 // (History's branch graph), the dot takes its branch's color.
-                const hasConflictMarker = entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length)
+                const hasConflictMarker = entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length) || Boolean(entry.conflictMarks?.length) || Boolean(entry.branch && entry.branch !== 'main')
                 const isMergeMarker = entry.kind === 'merge' && hasConflictMarker
                 if (count > MAX_TICKS && !hasConflictMarker) return null
                 return (

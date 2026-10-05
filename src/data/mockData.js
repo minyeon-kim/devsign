@@ -3325,163 +3325,64 @@ const designSystemButtonLines = ({ radius = 'rounded-full', md = 'h-8', ghost = 
   '})',
 ]
 
+// BottomNav.jsx as it stood at a checkpoint, whole — written from the same
+// values its preview is drawn with, so the code and the preview can't
+// disagree: the icon's size class, the tap area, and the unread badge
+// (none, the raw count, or the count capped).
+function navSnapshot({ iconSize, hitArea, badgeCount = 0, badgeCap, expectedIconSize }) {
+  const badge = !badgeCount ? '' : badgeCap ? ` badge={Math.min(unread, ${badgeCap})}` : ' badge={unread}'
+  return {
+    activeFileId: 'app',
+    fileId: 'app',
+    lines: [
+      'export function BottomNav({ items' + (badgeCount ? ', unread' : '') + ' }) {',
+      '  return <nav className="bottom-nav">',
+      '    {items.map((item) => (',
+      `      <NavItem key={item.id} {...item} iconClassName="size-${iconSize / 4}" hitArea="${hitArea}px"${badge} />`,
+      '    ))}',
+      '  </nav>',
+      '}',
+    ],
+    previewProps: { iconSize, hitArea, badgeCount, ...(badgeCap && { badgeCap }), ...(expectedIconSize && { expectedIconSize }) },
+    conflicts: [],
+    selectedLayerId: 'tab-bar',
+  }
+}
+
+function navCheckpoint({ id, label, branch, actorId, target, timestamp, ...values }) {
+  return { id, label, kind: 'edit', branch, ...(actorId && { actorId }), target, timestamp, archived: false, snapshot: navSnapshot(values) }
+}
+
 export const projectHistorySeeds = {
+  // Mobile Nav Revamp — the sample History playback runs on. Every
+  // checkpoint keeps the whole file as it was then (`snapshot.lines`, via
+  // navSnapshot) *and* the values the preview draws from
+  // (`snapshot.previewProps`: iconSize, hitArea, badgeCount / badgeCap), and
+  // each one changes something you can see — 16px icons → 20px, no badge →
+  // 3 → 99+, 24px on the hotfix — so stepping through it moves the code and
+  // the preview together.
+  //
+  // It also branches, for the graph: main forks into feature/nav-badge and
+  // hotfix/mobile-nav-icon (Conflict Point cc-4's branch — still in
+  // progress, like its review); the feature merges back into main while the
+  // hotfix carries on. `branch` puts a checkpoint on its lane; a merge names
+  // what it brings in with `mergedBranches`. Labels are short enough to
+  // read whole in the list. The conflict's own checkpoint isn't a node — it
+  // shows as a warning mark on the version it was found on (the one before).
   'mobile-nav-revamp': [
+    navCheckpoint({ id: 'history-nav-1', label: 'Add bottom nav', branch: 'main', actorId: 'james', target: 'BottomNav.jsx', timestamp: 'Yesterday, 9:10 AM', iconSize: 16, hitArea: 36 }),
+    navCheckpoint({ id: 'history-nav-2', label: 'Set icons to 20px', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 9:42 AM', iconSize: 20, hitArea: 44 }),
     {
-      id: 'history-nav-1',
-      label: 'Add bottom nav',
-      kind: 'edit',
-      branch: 'main',
-      actorId: 'james',
-      target: 'BottomNav.jsx',
-      timestamp: 'Yesterday, 9:10 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-    {
-      id: 'history-nav-2',
-      label: 'Keep icons at 20px',
-      kind: 'edit',
-      branch: 'main',
-      actorId: 'jane',
-      target: 'BottomNav.jsx · line 10',
-      timestamp: 'Yesterday, 9:42 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
-    // From here the history branches, so the graph has something to show:
-    // main forks into hotfix/mobile-nav-icon (Conflict Point cc-4's branch —
-    // still in progress, like its review) and feature/nav-badge; the two
-    // collect checkpoints side by side, and the feature merges back into
-    // main while the hotfix carries on. `branch` puts a checkpoint on its
-    // lane; a merge names what it brings in with `mergedBranches`.
-    // Labels are kept short enough to read whole in the History list. The
-    // conflict's own checkpoint isn't a node in the graph — it shows as a
-    // warning mark on the version it was found on (the one before it).
-    {
-      id: 'history-conflict-cc-4',
-      label: 'Navigation icon size differs from the 24px design',
+      ...navCheckpoint({ id: 'history-conflict-cc-4', label: 'Navigation icon size differs from the 24px design', branch: 'hotfix/mobile-nav-icon', target: 'BottomNav.jsx · Nav Icon / Size', timestamp: 'Yesterday, 10:00 AM', iconSize: 20, hitArea: 44, expectedIconSize: 24 }),
       kind: 'conflict',
-      branch: 'hotfix/mobile-nav-icon',
       conflictId: 'cc-4',
       actorLabel: 'Devsign design ↔ code sync',
-      target: 'BottomNav.jsx · Nav Icon / Size',
-      timestamp: 'Yesterday, 10:00 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" />'],
-        previewProps: { iconSize: 20, expectedIconSize: 24, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
     },
-    {
-      id: 'history-nav-feature-1',
-      label: 'Add unread badge',
-      kind: 'edit',
-      branch: 'feature/nav-badge',
-      actorId: 'min',
-      target: 'BottomNav.jsx · line 7',
-      timestamp: 'Yesterday, 10:25 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" badge={unread} />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
-    {
-      id: 'history-nav-hotfix-2',
-      label: 'Draft 24px icons',
-      kind: 'edit',
-      branch: 'hotfix/mobile-nav-icon',
-      actorId: 'james',
-      target: 'BottomNav.jsx · line 7',
-      timestamp: 'Yesterday, 11:05 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-6" hitArea="44px" />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
-    {
-      id: 'history-nav-feature-2',
-      label: 'Cap badge at 99',
-      kind: 'edit',
-      branch: 'feature/nav-badge',
-      actorId: 'min',
-      target: 'BottomNav.jsx · line 7',
-      timestamp: 'Yesterday, 1:40 PM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" badge={Math.min(unread, 99)} />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
-    {
-      id: 'history-nav-merge-badge',
-      label: 'Merge unread badge',
-      kind: 'merge',
-      branch: 'main',
-      mergedBranches: ['feature/nav-badge'],
-      actorId: 'jane',
-      target: 'BottomNav.jsx',
-      timestamp: 'Yesterday, 3:15 PM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-5" hitArea="44px" badge={Math.min(unread, 99)} />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
-    {
-      id: 'history-nav-hotfix-3',
-      label: 'Check 44px tap area',
-      kind: 'edit',
-      branch: 'hotfix/mobile-nav-icon',
-      actorId: 'james',
-      target: 'BottomNav.jsx · line 7',
-      timestamp: 'Yesterday, 4:30 PM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: ['export function BottomNav({ items }) {', '  return <nav className="bottom-nav">', '    {items.map((item) => <NavItem key={item.id} {...item} />)}', '  </nav>', '}', '', '<NavItem iconClassName="size-6" hitArea="44px" />'],
-        previewProps: { iconSize: 20, hitArea: 44 },
-        conflicts: [],
-        selectedLayerId: 'tab-bar',
-      },
-    },
+    navCheckpoint({ id: 'history-nav-feature-1', label: 'Add unread badge', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 10:25 AM', iconSize: 20, hitArea: 44, badgeCount: 3 }),
+    navCheckpoint({ id: 'history-nav-feature-2', label: 'Cap badge at 99', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 11:05 AM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }),
+    navCheckpoint({ id: 'history-nav-hotfix-2', label: 'Draft 24px icons', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
+    { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'Merge unread badge', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx', timestamp: 'Yesterday, 3:15 PM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'] },
+    navCheckpoint({ id: 'history-nav-hotfix-3', label: 'Tap area to 48px', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
   ],
   'checkout-redesign': [
     {

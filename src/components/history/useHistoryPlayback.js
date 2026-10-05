@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 
-// History playback. A step isn't a timer: the viewer types the code from
-// the selected checkpoint to the next one and calls `advance()` when it's
-// in — only then does the selection (and the timeline's handle) move on.
-// Selecting something by hand stops playback.
+// History playback. The selected checkpoint is the one being played: the
+// viewer types the code from the checkpoint before it, and calls
+// `advance()` when that's in and it has rested — which selects the next
+// one. Checkpoints go in time order, whatever branch they're on. Selecting
+// something by hand stops playback.
 export function useHistoryPlayback(timeline, selectedId, select) {
   const [playing, setPlaying] = useState(false)
   const expected = useRef(null)
@@ -19,12 +20,9 @@ export function useHistoryPlayback(timeline, selectedId, select) {
     expected.current = null
   }, [selectedId])
 
-  // Landed on the last checkpoint: nothing left to play.
-  useEffect(() => {
-    if (playing && !expected.current && index === timeline.length - 1) setPlaying(false)
-  }, [playing, index, timeline.length])
-
   function pause() { expected.current = null; setPlaying(false) }
+  // The checkpoint in view has finished playing: on to the next, or stop
+  // after the last.
   function advance() {
     const next = timeline[index + 1]
     if (!playing || !next) { pause(); return }

@@ -11,18 +11,19 @@ import { diffLines } from '@/lib/lineDiff'
 // Typing is frame-driven (requestAnimationFrame, a fixed number of
 // characters per frame) and written straight into the line being typed, so
 // a keystroke never re-renders the block: React only renders again when a
-// line finishes. `onCode(lines)` reports the code as it stands after each
-// finished line (what the preview beside it renders); `onDone()` fires once
-// the last line is in, when the code is exactly the next checkpoint's.
+// line finishes. `onTyped()` fires the moment the last line is in — the code
+// is then exactly the checkpoint's, and the preview beside it switches to
+// that checkpoint — and `onDone()` half a second later, to move on.
 
 // Characters added per frame: slow enough to read as typing, raised for a
 // long step so it still ends within about three seconds.
 const BASE_CHARS_PER_FRAME = 1.5
 const MAX_STEP_FRAMES = 190
-// How long a removed line takes to fade, and a step with nothing to type
-// rests before moving on.
-const REMOVE_MS = 220
-const IDLE_STEP_MS = 700
+// A removed line shows red for a moment, then fades out.
+const REMOVE_HOLD_MS = 260
+const REMOVE_FADE_MS = 240
+// The rest after a checkpoint is in, before the next one starts.
+const STEP_REST_MS = 500
 
 export const LINE_HEIGHT = 20
 
@@ -72,9 +73,9 @@ function TypingLine({ item, number, perFrame, onDone }) {
     let frame
     if (!parts) {
       // A removed line: fade, then go.
-      const start = performance.now()
+      const start = performance.now() + REMOVE_HOLD_MS
       const fade = (now) => {
-        const progress = Math.min(1, (now - start) / REMOVE_MS)
+        const progress = Math.min(1, Math.max(0, (now - start) / REMOVE_FADE_MS))
         if (rowRef.current) rowRef.current.style.opacity = String(1 - progress)
         if (progress < 1) frame = requestAnimationFrame(fade)
         else done.current()
@@ -121,7 +122,7 @@ const StillLine = memo(function StillLine({ text, number, changed }) {
   )
 })
 
-function PlaybackCode({ from, to, onCode, onDone }) {
+function PlaybackCode({ from, to, onTyped, onDone }) {
   const plan = useMemo(() => planOf(from, to), [from, to])
   const total = plan.filter((item) => item.order >= 0).length
   // How many changed lines have finished.
@@ -130,21 +131,17 @@ function PlaybackCode({ from, to, onCode, onDone }) {
     const chars = plan.reduce((sum, item) => sum + (item.kind === 'add' || item.kind === 'change' ? partsOf(item.from ?? '', item.to).typed.length : 0), 0)
     return Math.max(BASE_CHARS_PER_FRAME, chars / MAX_STEP_FRAMES)
   }, [plan])
-  const callbacks = useRef({ onCode, onDone })
-  useEffect(() => { callbacks.current = { onCode, onDone } }, [onCode, onDone])
+  const callbacks = useRef({ onTyped, onDone })
+  useEffect(() => { callbacks.current = { onTyped, onDone } }, [onTyped, onDone])
   const containerRef = useRef(null)
 
-  // The code as it stands: finished lines in their new form, the rest as
-  // they were. Reported after every finished line, and the step ends when
-  // the last one is in (or after a short rest when nothing changed).
+  // The step ends when the last changed line is in (straight away when
+  // nothing changed): the code now matches the checkpoint, and after a
+  // short rest playback moves on.
   useEffect(() => {
-    const lines = plan.flatMap((item) => {
-      const text = item.order >= 0 && item.order < finished ? item.to : item.from
-      return text == null ? [] : [text]
-    })
-    callbacks.current.onCode?.(lines)
     if (finished < total) return
-    const timer = window.setTimeout(() => callbacks.current.onDone?.(), total ? 350 : IDLE_STEP_MS)
+    callbacks.current.onTyped?.()
+    const timer = window.setTimeout(() => callbacks.current.onDone?.(), STEP_REST_MS)
     return () => window.clearTimeout(timer)
   }, [plan, finished, total])
 

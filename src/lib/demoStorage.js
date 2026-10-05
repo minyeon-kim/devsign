@@ -39,7 +39,8 @@ export function readDemo(key, fallback) {
     // branch (a label reworded in the seed shouldn't stay stale forever).
     if (key === 'project:mobile-nav-revamp:historyEntries' && Array.isArray(value) && Array.isArray(fallback)) {
       const seeded = new Set(fallback.map((row) => row.id))
-      const fresh = (seed, saved) => (saved ? { ...saved, label: seed.label, branch: seed.branch, mergedBranches: seed.mergedBranches } : seed)
+      // (the seed's code and preview values too — only `archived` is the session's)
+      const fresh = (seed, saved) => (saved ? { ...seed, archived: saved.archived } : seed)
       return [...fallback.map((seed) => fresh(seed, value.find((row) => row.id === seed.id))), ...value.filter((row) => !seeded.has(row.id))]
     }
     return value

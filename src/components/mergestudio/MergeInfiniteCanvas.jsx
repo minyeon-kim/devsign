@@ -445,10 +445,23 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
       <div style={contentStyle} className={cn('flex h-full w-full items-center justify-around border-t border-slate-200 px-2 text-[8px]', fill ?? 'bg-white', extra)}>
         {(mock.tabs ?? [['home', 'Home'], ['search', 'Search'], ['user', 'Profile']]).map(([icon, t], i) => {
           const Icon = icons[icon] ?? House
+          // `override.nav` (History's preview props): the icons at their
+          // real size, the tap area as a faint box behind the active one,
+          // and the unread badge — none, the count, or capped ("99+").
+          const nav = override?.nav
+          const badge = nav?.badgeCount ? (nav.badgeCap && nav.badgeCount > nav.badgeCap ? `${nav.badgeCap}+` : String(nav.badgeCount)) : null
           return (
-            <span key={t} className={cn('flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
-              <Icon className="size-3" />
-              {t}
+            <span key={t} className={cn('relative flex flex-col items-center gap-0.5', i === 0 ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
+              {nav?.hitArea && i === 0 && (
+                <span aria-hidden className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-indigo-500/10 ring-1 ring-indigo-400/40" style={{ width: nav.hitArea, height: nav.hitArea }} />
+              )}
+              <span className="relative">
+                <Icon className={nav?.iconSize ? undefined : 'size-3'} style={nav?.iconSize ? { width: nav.iconSize, height: nav.iconSize } : undefined} />
+                {badge && i === 1 && (
+                  <span className="absolute -top-1.5 left-1/2 ml-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] leading-none font-bold text-white">{badge}</span>
+                )}
+              </span>
+              {!nav?.iconSize && t}
             </span>
           )
         })}

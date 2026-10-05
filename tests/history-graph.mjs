@@ -50,9 +50,8 @@ try {
   assert.deepEqual(row('history-nav-feature-1').fork, { lane: 1, name: 'feature/nav-badge' })
   assert.deepEqual(row('history-nav-hotfix-2').fork, { lane: 2, name: 'hotfix/mobile-nav-icon' })
   // Between its first and last checkpoint a branch's lane runs through
-  // every row, unbroken.
+  // every row, unbroken — here the feature's, past the hotfix's first.
   assert.deepEqual(row('history-nav-hotfix-2').lanes[1], { name: 'feature/nav-badge', dot: false, up: true, down: true })
-  assert.deepEqual(row('history-nav-feature-2').lanes[2], { name: 'hotfix/mobile-nav-icon', dot: false, up: true, down: true })
   // The merge takes the feature's lane into the trunk; the hotfix passes by.
   const merge = sample.find((entry) => entry.id === 'history-nav-merge-badge')
   assert.deepEqual([merge.mergedBranches, merge.branch], [['feature/nav-badge'], TRUNK])
@@ -64,11 +63,25 @@ try {
   assert.deepEqual(row('history-nav-hotfix-3').lanes[2], { name: 'hotfix/mobile-nav-icon', dot: true, up: false, down: true })
   assert.deepEqual(row('history-nav-hotfix-3').merges, [])
 
+  // For playback: every checkpoint keeps its whole file and the values its
+  // preview is drawn from, the code is written from those values, and each
+  // step (in time order, whatever the branch) changes something visible.
+  const visible = (entry) => JSON.stringify([entry.snapshot.previewProps.iconSize, entry.snapshot.previewProps.hitArea, entry.snapshot.previewProps.badgeCount, entry.snapshot.previewProps.badgeCap])
+  for (const [index, entry] of sample.entries()) {
+    const { lines, previewProps } = entry.snapshot
+    assert.ok(lines.length >= 5 && lines[0].startsWith('export function BottomNav'), `${entry.id} keeps the whole file`)
+    assert.ok(lines.some((line) => line.includes(`size-${previewProps.iconSize / 4}`) && line.includes(`hitArea="${previewProps.hitArea}px"`)), `${entry.id}: code matches its preview values`)
+    assert.equal(lines.some((line) => line.includes('badge=')), previewProps.badgeCount > 0)
+    if (index) assert.notEqual(visible(entry), visible(sample[index - 1]), `${entry.id} changes the preview`)
+  }
+  assert.deepEqual(sample.map((entry) => entry.snapshot.previewProps.iconSize), [16, 20, 20, 20, 24, 20, 24])
+  assert.deepEqual(sample.map((entry) => entry.snapshot.previewProps.badgeCount), [0, 0, 3, 128, 0, 128, 0])
+
   // A lane is reused once its branch has ended.
   const reused = branchGraph([{ id: 'a' }, { id: 'b', branch: 'one' }, { id: 'c' }, { id: 'd', branch: 'two' }])
   assert.equal(reused.lanes, 2)
   assert.deepEqual(branchGraph([]).rows, [])
-  console.log('Passed: derived branches and merges, stable colors, conflicts folded into marks, forks, unbroken lanes, merge curves, open branches and lane reuse.')
+  console.log('Passed: derived branches and merges, stable colors, conflicts folded into marks, forks, unbroken lanes, merge curves, open branches, lane reuse and playback snapshots that match their preview values.')
 } finally {
   await server.close()
 }
