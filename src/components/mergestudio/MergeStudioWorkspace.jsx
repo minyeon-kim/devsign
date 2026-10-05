@@ -8,6 +8,7 @@ import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
+import { studioAdjustmentsOf } from '@/lib/sizeAdjustment'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -488,6 +489,12 @@ function MergeStudioWorkspace({ item }) {
     if (conflict) openConflictReview(conflict.id)
     setBottomPanel({ tab: 'conflict', open: true })
   }
+  // The open conflict this item is being adjusted for (a draft merge is
+  // finished with Request merge instead).
+  const adjustingFor = item && item.tag !== 'Merged' && !draftScreens[item.id]
+    ? conflicts.find((c) => c.reviewStage !== 'resolved' && !c.rollback && (c.mergeItemId === item.id || c.id === item.conflictId)) ?? null
+    : null
+  const adjustmentCount = studioAdjustmentsOf(item, { [item?.id]: { assemblies } }).reduce((sum, entry) => sum + entry.changes.length, 0)
   const mixPicked = designComparison && item ? draftRows({}, item, resolutions).filter((row) => row.decided).length : 0
   // Design Compare's selected drafts, reshaped as frames for
   // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
@@ -1093,6 +1100,32 @@ function MergeStudioWorkspace({ item }) {
             >
               <Check className="size-3.5" strokeWidth={2.5} />
               <LocalizedText text="병합 요청" />
+            </button>
+          </div>
+        )}
+        {/* Adjusting for a conflict: what's been changed so far, and the
+            one button that finishes — back to that conflict's review, where
+            the adjustments are listed. Always here, guide open or not. */}
+        {!designComparison && adjustingFor && (
+          <div data-adjust-bar className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 pr-1 pl-3 font-normal')}>
+            <span className="max-w-56 truncate text-[13px] font-semibold text-white"><LocalizedText text={adjustingFor.title} /></span>
+            <span className="text-xs whitespace-nowrap text-slate-400 tabular-nums">
+              {adjustmentCount ? <LocalizedText text={`${adjustmentCount} adjusted`} /> : <LocalizedText text="Nothing adjusted yet" />}
+            </span>
+            <button
+              type="button"
+              data-adjust-done
+              onClick={() => {
+                setCheckGuide(null)
+                exitMergeStudio()
+                setBottomPanel({ tab: 'conflict', open: true })
+                openConflictReview(adjustingFor.id)
+                toast(adjustmentCount ? '조정 내용을 충돌 내역에 반영했어요' : '충돌 내역으로 돌아왔어요', adjustmentCount ? { description: '검토 화면의 "병합 스튜디오에서 조정한 내용"에서 확인하세요.' } : undefined)
+              }}
+              className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+            >
+              <Check className="size-3.5" strokeWidth={2.5} />
+              <LocalizedText text="Done adjusting" />
             </button>
           </div>
         )}

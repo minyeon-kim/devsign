@@ -85,3 +85,47 @@ export function seedMergeDrafts(projectId) {
       })),
   }
 }
+
+// Everything changed by hand in Merge Studio on an item's elements — not
+// only size: position, radius, fill, padding and so on — as lines a review
+// can show: [{ layerId, layerName, changes: [{ label, from, to }] }].
+// `from` is given where the original is known (size); elsewhere the new
+// value says it.
+const ADJUSTED = {
+  radius: ['Corner radius', (v) => `${v}px`],
+  opacity: ['Opacity', (v) => `${v}%`],
+  gap: ['Gap', (v) => `${v}px`],
+  padX: ['Horizontal padding', (v) => `${v}px`],
+  padY: ['Vertical padding', (v) => `${v}px`],
+  fill: ['Fill', (v) => String(v)],
+  fillColor: ['Fill', (v) => String(v)],
+  stroke: ['Stroke', (v) => [v?.width != null ? `${v.width}px` : null, v?.color].filter(Boolean).join(' ')],
+  shadow: ['Shadow', (v) => String(v)],
+  icon: ['Icon', (v) => String(v)],
+  direction: ['Direction', (v) => String(v)],
+  align: ['Alignment', (v) => String(v)],
+  shape: ['Shape', (v) => String(v)],
+  border: ['Border', (v) => String(v)],
+}
+export function studioAdjustmentsOf(item, drafts) {
+  if (!item) return []
+  const layers = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers ?? []
+  return Object.entries(drafts?.[item.id]?.assemblies ?? {}).map(([layerId, assembly]) => {
+    const layer = layers.find((l) => l.id === layerId)
+    const changes = []
+    if (layer && (assembly.width != null || assembly.height != null)) {
+      const to = { width: assembly.width ?? layer.width, height: assembly.height ?? layer.height }
+      if (to.width !== layer.width || to.height !== layer.height) changes.push({ label: 'Size', from: sizeText(layer), to: sizeText(to) })
+    }
+    if (layer && (assembly.dx || assembly.dy)) {
+      changes.push({ label: 'Position', from: `${layer.x}, ${layer.y}`, to: `${layer.x + (assembly.dx ?? 0)}, ${layer.y + (assembly.dy ?? 0)}` })
+    }
+    for (const [key, [label, text]] of Object.entries(ADJUSTED)) {
+      const value = assembly[key]
+      if (value == null || value === '' || changes.some((change) => change.label === label)) continue
+      const to = text(value)
+      if (to) changes.push({ label, from: null, to })
+    }
+    return { layerId, layerName: layer?.name ?? layerId, changes }
+  }).filter((entry) => entry.changes.length)
+}

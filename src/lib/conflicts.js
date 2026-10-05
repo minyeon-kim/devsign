@@ -192,7 +192,8 @@ export function toConflictRecord(raw) {
       : { dueBucket: 'soon', dueLabel: 'Due tomorrow' }
   return {
     ...raw,
-    title: raw.title ?? raw.token ?? raw.file,
+    // (A title saved with the prefix stacked reads as one.)
+    title: (raw.title ?? raw.token ?? raw.file)?.replace(/^(?:Revert: ){2,}/, 'Revert: '),
     // Records saved before the samples named their authors pick them up.
     changedBy: raw.changedBy ?? conflictChecklist.find((seed) => seed.id === raw.id)?.changedBy,
     // …and so do the registered reasons (lib/rationale) the samples carry.

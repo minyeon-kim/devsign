@@ -67,6 +67,7 @@ const rules = [
   [/^line (\d+)$/, (_, n) => `${n}번째 줄`],
   [/^(\d+) preview props?$/, (_, n) => `미리보기 속성 ${n}개`],
   [/^([+-]\d+) conflicts?$/, (_, n) => `충돌 ${n}개`],
+  [/^(\d+) adjusted$/, (_, n) => `조정 ${n}개`],
   [/^(\d+) applied$/, (_, n) => `${n}개 적용됨`],
   [/^Daily digest · (\d+) changes? needs? review$/, (_, n) => `일일 요약 · 변경 ${n}개 검토 필요`],
   [/^Immediate review · High risk: (.+)$/, (_, title) => `즉시 검토 · High 위험도: ${title}`],

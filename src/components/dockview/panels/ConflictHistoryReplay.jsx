@@ -152,8 +152,16 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
       }
       byKind.set(item.kind, group)
     })
+    // Where it began — who made the change and what caught it — closes the
+    // list (it used to be the review's "Record").
+    const author = conflict.changedBy
+    const origin = [author?.what, conflict.detectedBy].filter(Boolean)
+    const who = author?.type === 'person' ? allPeople.find((person) => person.id === author.id)?.name : author?.type === 'ai' ? 'Devsign AI' : null
+    if (origin.length) {
+      byKind.set('origin', { kind: 'origin', label: origin[0], extra: origin.slice(1), icon: History, timestamp: conflict.detectedAt ?? conflict.timestamp ?? '', actors: who ? [who] : [], items: [] })
+    }
     return [...byKind.values()]
-  }, [activity])
+  }, [activity, conflict])
   const [openGroup, setOpenGroup] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [playing, setPlaying] = useState(false)
@@ -207,16 +215,28 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
                     const Icon = group.icon
                     return (
                       <li key={group.kind}>
-                        <button type="button" aria-expanded={open} onClick={() => setOpenGroup(open ? null : group.kind)} className="ds-intrinsic flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
-                          <Icon className="size-3 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">
-                            <span translate="no" className="text-slate-300">{group.actors.join(', ')}</span>{' '}
-                            <LocalizedText text={group.label} />
-                            <span className="text-slate-500"> · <LocalizedText text={group.timestamp} /></span>
-                          </span>
-                          <ChevronDown className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')} />
-                        </button>
-                        {open && (
+                        {/* A line that opens only when there's more behind it:
+                            one event by one person is already all of it. */}
+                        {(() => {
+                          const line = (
+                            <>
+                              <Icon className="size-3 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate">
+                                {group.actors.length > 0 && <><span translate="no" className="text-slate-300">{group.actors.join(', ')}</span>{' '}</>}
+                                <LocalizedText text={group.label} />
+                                {group.extra?.map((part) => <span key={part} className="text-slate-500"> · <LocalizedText text={part} /></span>)}
+                                {group.timestamp && <span className="text-slate-500"> · <LocalizedText text={group.timestamp} /></span>}
+                              </span>
+                            </>
+                          )
+                          return group.items.length > 1 ? (
+                            <button type="button" aria-expanded={open} onClick={() => setOpenGroup(open ? null : group.kind)} className="ds-intrinsic flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-slate-200">
+                              {line}
+                              <ChevronDown className={cn('size-3 shrink-0 transition-transform', open && 'rotate-180')} />
+                            </button>
+                          ) : <p data-single-event className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-slate-400">{line}</p>
+                        })()}
+                        {open && group.items.length > 1 && (
                           <ol className="mb-1 ml-5 space-y-0.5 border-l border-white/[0.07] pl-2">
                             {group.items.map(({ id, actor, timestamp, detail, historyId, index }) => {
                               const replayEntry = entries.find((entry) => entry.id === historyId || entry.id === id)

@@ -61,6 +61,14 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Adjusted in Merge Studio|병합 스튜디오에서 조정한 내용
+Merged with these adjustments|이 조정 내용으로 병합됨
+Nothing adjusted yet|아직 조정한 내용 없음
+Done adjusting|조정 완료
+Shadow|그림자
+Shape|모양
+Border|테두리
+Not requested yet|요청 전
 When|이럴 때
 Then|그 다음
 The change is right as it is.|변경 내용이 그대로 맞습니다.

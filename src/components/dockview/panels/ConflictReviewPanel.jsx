@@ -41,7 +41,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/mockData'
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { mergedSizeAdjustment, sizeAdjustmentOf } from '@/lib/sizeAdjustment'
+import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -181,33 +181,14 @@ function ComparisonTable({ fields, sources }) {
   )
 }
 
-function personName(id, viewerId) {
-  if (id === viewerId) return 'You'
-  return allPeople.find((p) => p.id === id)?.name ?? id
-}
-
 // Where the change is and where it came from — the review's folded
-// Details, as two short groups: Location (branch, components, files) and
-// Record (who changed it and what detected it, on one line).
+// Details: Location (branch, components, files). Who changed it and what
+// detected it is part of its trail — the Activity tab's.
 function ReviewDetails({ conflict, showProject }) {
-  const viewerId = currentUserFor(conflict.projectId).id
-  const { detectedBy, impact } = conflict
-  // Older user-applied drafts stored AI as the actor; honor the recorded requester.
-  const legacyRequester = conflict.changedBy?.type === 'ai' && !conflict.applicationMode
-    ? allPeople.find((person) => conflict.changedBy.what?.includes(`(requested by ${person.name} in AI chat)`))
-    : null
-  const changedBy = legacyRequester
-    ? { type: 'person', id: legacyRequester.id, what: conflict.changedBy.what.replace(/ \(requested by .* in AI chat\)$/, '') }
-    : conflict.changedBy
+  const { impact } = conflict
   const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
   const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
   const components = impact?.components ?? []
-  const record = [
-    changedBy && (changedBy.type === 'ai' ? 'Devsign AI' : personName(changedBy.id, viewerId)),
-    changedBy?.what,
-    detectedBy,
-    conflict.detectedAt,
-  ].filter(Boolean)
   const GROUP = 'text-[11px] leading-4 font-medium text-slate-500'
   const ROW = 'grid min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3'
   const LABEL = 'text-xs leading-[18px] text-slate-400'
@@ -231,19 +212,6 @@ function ReviewDetails({ conflict, showProject }) {
           </div>
         )}
       </div>
-      {record.length > 0 && (
-        <div className="space-y-1.5">
-          <p className={GROUP}><LocalizedText text="Record" /></p>
-          <p className={VALUE}>
-            {record.map((part, i) => (
-              <Fragment key={i}>
-                {i > 0 && <span className="text-slate-500"> · </span>}
-                <LocalizedText text={part} />
-              </Fragment>
-            ))}
-          </p>
-        </div>
-      )}
     </div>
   )
 }
@@ -306,10 +274,10 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
         )}
       </div>
       <div className="flex min-h-0 flex-1 gap-4 overflow-auto">
-      {/* The mix as one screen — what merging produces — beside the list
-          of where each part came from. */}
+      {/* Where each part came from, then — at the card's right, like the
+          Activity tab's preview — the mix as the one screen merging makes. */}
       {result && (
-        <figure data-mix-result className="shrink-0">
+        <figure data-mix-result className="order-last shrink-0 border-l border-white/[0.06] pl-4">
           <figcaption className="mb-1.5 text-[11px] font-medium text-slate-400"><LocalizedText text="Merged result" /></figcaption>
           <div className="relative overflow-hidden rounded-xl bg-white" style={{ width: RESULT_WIDTH, height: resultHeight * resultScale }}>
             <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: 280, height: resultHeight, transform: `scale(${resultScale})` }}>
@@ -454,7 +422,12 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         )}
       </p>
 
-      {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
+      {summary && (
+        <>
+          <p className="mt-2 text-[11px] leading-4 font-medium text-slate-500"><LocalizedText text="Summary" /></p>
+          <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>
+        </>
+      )}
 
       {!conflict.rollback && <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
         <dt className="text-slate-500"><LocalizedText text="Author" /></dt>
@@ -733,11 +706,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       )}
                       {/* The side that merges carries the hand adjustment. */}
                       {adjustment && adjusted(decision) && (
-                        // Which element, and from what to what — said on the
-                        // tag itself, so it reads even when no compared
-                        // value below is that size.
-                        <span data-adjusted-tag className="min-w-0 shrink truncate rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200" title={`${adjustment.layerName}: ${adjustment.from} → ${adjustment.to}`}>
-                          <LocalizedText text="Adjusted by hand" /> · <LocalizedText text={adjustment.layerName} /> <span translate="no" className="tabular-nums">{adjustment.from} → {adjustment.to}</span>
+                        // (What was adjusted is listed above the cards.)
+                        <span data-adjusted-tag className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200" title={`${adjustment.layerName}: ${adjustment.from} → ${adjustment.to}`}>
+                          <LocalizedText text="Adjusted by hand" />
                         </span>
                       )}
                       {/* Picked: a check at the end of the header (its slot is
@@ -808,7 +779,10 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                     onSave={state.saveReason}
                     readOnly={readOnly}
                   />}
-                  {state.exceptionReason && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+                  {/* One question, one form: with the kept-implementation
+                      reason on this card, the exception uses that same
+                      reason (see saveReason) instead of asking beside it. */}
+                  {state.exceptionReason && !(decision === 'B' && state.reasonApplies) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
                   </div>}
                   </div>
                   )
@@ -1096,7 +1070,11 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
                     ? 'Request dismissed'
-                    : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}` : statusLabels[reviewer.status] ?? status.label}
+                    : reviewer.status !== 'approved' && reviewer.remindedAt ? `Reminded ${reviewer.remindedAt}`
+                      // Nobody's been asked yet: not "waiting" — that starts
+                      // once the review is requested.
+                      : reviewer.status === 'pending' && reviewStage === 'detected' && !conflict.rollback ? 'Not requested yet'
+                        : statusLabels[reviewer.status] ?? status.label}
                 </span>
                 {/* Row actions, on hover, before the status (which stays at
                     the right edge either way). */}
@@ -1660,7 +1638,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const kept = adjustment ? { layerId: adjustment.layerId, layerName: adjustment.layerName, from: adjustment.from, to: adjustment.to, size: adjustment.size } : null
     const merged = onResolve ? onResolve(conflict.id) : (update({ reviewStage: 'resolved' }), true)
     if (merged) {
-      if (kept) update({ mergedAdjustment: kept })
+      if (kept || studioAdjustments.length) update({ ...(kept ? { mergedAdjustment: kept } : {}), mergedAdjustments: studioAdjustments })
       toast('Change merged', { description: kept ? `${conflict.title} · ${kept.layerName} ${kept.to}` : conflict.title })
     }
   }
@@ -1716,7 +1694,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   decisionState.reasonApplies = decisionState.side === 'B' && (!decisionState.meets.B || conflict?.deviation?.kind === 'keep-current')
   decisionState.savedReason = conflict?.deviation?.kind === 'keep-current' ? conflict.deviation.text : null
   decisionState.reasonNeeded = stage !== 'resolved' && decisionState.reasonApplies && !decisionState.savedReason?.trim()
-  decisionState.saveReason = (reason) => recordSide('B', reason)
+  decisionState.saveReason = (reason) => {
+    recordSide('B', reason)
+    // An exception waiting on a reason takes this one.
+    if (reasonRequest) { reasonRequest.run(reason); setReasonRequest(null) }
+  }
   decisionState.exceptionReason = reasonRequest
   decisionState.saveExceptionReason = (reason) => { reasonRequest?.run(reason); setReasonRequest(null) }
   // Evidence goes to the thing itself: the rule in the rule list, the Figma
@@ -1782,6 +1764,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // both sides has nothing to pick, but can still be resized.)
   const mergeItem = conflict ? workspace?.mergeItems?.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id) ?? null : null
   const adjustment = stage !== 'resolved' ? sizeAdjustmentOf(conflict, mergeItem, workspace?.mergeDrafts?.current) : mergedSizeAdjustment(conflict, mergeItem)
+  // Everything adjusted by hand in Merge Studio on this item (any property,
+  // any of its elements) — listed in the review so what was changed there
+  // is seen here. Kept on the conflict at merge, so it stays after.
+  const studioAdjustments = stage === 'resolved' ? conflict?.mergedAdjustments ?? [] : studioAdjustmentsOf(mergeItem, workspace?.mergeDrafts?.current)
   const changeAfter = adjustment ? (conflict?.diff?.after ?? []).map(adjustment.applyTo) : conflict?.diff?.after ?? []
   const generatedFile = fileLines && conflict.diff
     ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], changeAfter)
@@ -1957,6 +1943,26 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>}
                       <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1', )}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          {studioAdjustments.length > 0 && !conflict.rollback && (
+                            <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
+                              <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-100">
+                                <Check className="size-3.5 shrink-0 text-emerald-300" />
+                                <LocalizedText text={stage === 'resolved' ? 'Merged with these adjustments' : 'Adjusted in Merge Studio'} />
+                                <span className="font-normal text-emerald-100/70 tabular-nums">· {studioAdjustments.reduce((sum, entry) => sum + entry.changes.length, 0)}</span>
+                              </p>
+                              <ul className="mt-1.5 space-y-0.5 text-xs leading-[18px] text-slate-200">
+                                {studioAdjustments.flatMap((entry) => entry.changes.map((change) => (
+                                  <li key={`${entry.layerId}:${change.label}`} className="flex flex-wrap gap-x-1.5">
+                                    <span className="text-slate-400"><LocalizedText text={entry.layerName} /> · <LocalizedText text={change.label} /></span>
+                                    <span translate="no" className="tabular-nums">
+                                      {change.from && <><span className="text-slate-500 line-through">{change.from}</span> → </>}
+                                      <span className="font-medium text-emerald-200">{change.to}</span>
+                                    </span>
+                                  </li>
+                                )))}
+                              </ul>
+                            </section>
+                          )}
                           {conflict.rollback ? (
                             <RollbackAgreement conflict={conflict} />
                           ) : driftItem && draftColumns(driftItem) ? (

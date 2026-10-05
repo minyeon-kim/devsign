@@ -1132,8 +1132,9 @@ export function WorkspaceProvider({ children, projectId }) {
       const revert = {
         ...conflict,
         id: `revert-${crypto.randomUUID()}`,
-        title: `Revert: ${conflict.title}`,
-        message: `Reverts the change merged as ${conflict.title} (#${conflict.id}).`,
+        // One "Revert:" however many times it goes back and forth.
+        title: `Revert: ${conflict.title.replace(/^(?:Revert: )+/, '')}`,
+        message: `Reverts the change merged as ${conflict.title.replace(/^(?:Revert: )+/, '')}.`,
         reviewStage: 'detected',
         diffInspected: false,
         resolved: false,
