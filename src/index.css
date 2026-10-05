@@ -574,6 +574,16 @@ button.editor-line-comment {
      settles from a soft tint. */
   animation: history-row-flash-add 1100ms ease-out;
 }
+/* Canvas: the comment pin "Show on canvas" landed on — rings spreading
+   out from it a few times. */
+@keyframes canvas-pin-arrived {
+  0% { box-shadow: 0 0 0 0 rgb(52 211 153 / 85%); }
+  100% { box-shadow: 0 0 0 18px rgb(52 211 153 / 0%); }
+}
+.canvas-pin-arrived {
+  animation: canvas-pin-arrived 800ms ease-out 3;
+}
+
 /* History list: the checkpoint a conflict's "check the reasoning" link
    landed on — a ring and tint that pulse twice, then settle. */
 @keyframes history-row-arrived {

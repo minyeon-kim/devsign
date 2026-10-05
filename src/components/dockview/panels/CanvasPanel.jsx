@@ -194,7 +194,10 @@ function SelectionHandles() {
 // canvas surface (so it tracks the design at any zoom level, like a real
 // annotation pinned to the artwork), and its own detail popover is a plain
 // child so it doesn't get stretched/shrunk by that scale.
-function CommentPin({ comment, open, onToggle }) {
+// `flash`: the pin the Inbox's "Show on canvas" just landed on — ringed for
+// a moment so it's clear where that is. `comment.thread` (replies carried
+// over from the Inbox) shows under the comment.
+function CommentPin({ comment, open, flash, onToggle }) {
   const author = allPeople.find((p) => p.id === comment.authorId)
 
   return (
@@ -203,12 +206,14 @@ function CommentPin({ comment, open, onToggle }) {
         event.stopPropagation()
         onToggle()
       }}
+      data-comment-pin={comment.id}
       className="absolute z-20 -translate-x-1/2 -translate-y-full cursor-pointer"
       style={{ left: comment.target.x, top: comment.target.y }}
     >
+      {flash && <span aria-hidden className="canvas-pin-arrived absolute inset-0 rounded-full rounded-bl-sm" />}
       <span
         className={cn(
-          'flex size-6 items-center justify-center rounded-full rounded-bl-sm text-white shadow-lg ring-2 ring-background',
+          'relative flex size-6 items-center justify-center rounded-full rounded-bl-sm text-white shadow-lg ring-2 ring-background',
           author?.colorClass ?? 'bg-emerald-500'
         )}
       >
@@ -232,6 +237,19 @@ function CommentPin({ comment, open, onToggle }) {
             <span className="ml-auto shrink-0 text-muted-foreground">{comment.timeLabel}</span>
           </div>
           <p className="mt-1.5 text-xs leading-relaxed text-foreground/85">{comment.text}</p>
+          {comment.thread?.length > 0 && (
+            <div className="mt-2 space-y-2 border-t pt-2">
+              {comment.thread.map((reply) => {
+                const who = allPeople.find((p) => p.id === reply.authorId)
+                return (
+                  <div key={reply.id} className="text-xs leading-relaxed">
+                    <span className="font-medium text-foreground">{who?.name}</span>{' '}
+                    <span className="text-foreground/85">{reply.text}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -379,6 +397,7 @@ function CanvasPanel() {
     setFilesWindow,
     comments,
     addComment,
+    canvasFocus,
     getViewersForCanvasPage,
     prototypeEdits,
     editPrototypeLayer,
@@ -550,6 +569,34 @@ function CanvasPanel() {
     setCanvasTool('move')
   }
 
+  // The Inbox's "Show on canvas" (WorkspaceProvider's `canvasFocus`): once
+  // its page is the one showing, bring the spot to the middle of the view
+  // — zoomed in to at least 100% — open the comment's thread there and ring
+  // its pin for a moment. A target without a comment pulses its element.
+  const handledFocus = useRef(null)
+  const [flashPinId, setFlashPinId] = useState(null)
+  useEffect(() => {
+    if (!canvasFocus || handledFocus.current === canvasFocus.nonce || activePage?.id !== canvasFocus.pageId) return
+    const viewport = scrollRef.current
+    if (!viewport) return
+    handledFocus.current = canvasFocus.nonce
+    if (dockApi) openOrFocusPanel(dockApi, panelById.canvas)
+    const scale = Math.max(view.zoom, 100) / 100
+    // A little above center: the thread opens below the pin.
+    setView({ zoom: scale * 100, x: viewport.clientWidth / 2 - canvasFocus.x * scale, y: viewport.clientHeight * 0.4 - canvasFocus.y * scale })
+    setPendingComment(null)
+    if (canvasFocus.commentId) {
+      setOpenPinId(canvasFocus.commentId)
+      setFlashPinId(canvasFocus.commentId)
+    } else if (canvasFocus.layerId) {
+      setOpenPinId(null)
+      setAiPulseId(canvasFocus.layerId)
+    }
+    const timer = window.setTimeout(() => { setFlashPinId(null); if (!canvasFocus.commentId) setAiPulseId(null) }, 2400)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasFocus?.nonce, activePage?.id])
+
   const pinsForPage = comments.filter(
     (c) => c.target?.type === 'canvas' && c.target.pageId === activePage?.id
   )
@@ -603,6 +650,7 @@ function CanvasPanel() {
                 key={comment.id}
                 comment={comment}
                 open={openPinId === comment.id}
+                flash={flashPinId === comment.id}
                 onToggle={() => setOpenPinId((cur) => (cur === comment.id ? null : comment.id))}
               />
             ))}

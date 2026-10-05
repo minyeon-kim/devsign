@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { ArrowUpRight, Bell, CheckCheck, ChevronDown, ChevronRight, MapPin, Send, Sparkles } from 'lucide-react'
+import { ArrowRight, Bell, CheckCheck, ChevronDown, ChevronRight, Send } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -17,8 +19,13 @@ import { LocalizedText } from '@/i18n/runtime'
 // Workspace/Merge Studio header, a project's own overview) — same content
 // and design in every host, not a separate simpler notifications widget
 // per page. Each host owns its own open/close state and passes it in.
+// The Inbox is for people: reviews to do, approvals, and comments. Automated
+// notes (CI results, AI feedback) aren't listed or counted here — they're
+// read where they apply, on the canvas and in the conflict's review.
+const forInbox = (notifications) => notifications.filter((n) => n.kind !== 'feedback')
+
 export function InboxButton({ open, onToggle }) {
-  const { notifications } = useWorkspace()
+  const notifications = forInbox(useWorkspace().notifications)
   const unreadCount = notifications.filter((n) => n.unread).length
 
   return (
@@ -116,19 +123,25 @@ function ThreadMessage({ authorId, text, timeLabel }) {
   )
 }
 
-// A conversation, as one thread: each comment, its replies indented under
-// it, and the reply box once, at the very end (it answers the latest
-// comment).
+// A conversation, as one thread: each comment and its replies indented
+// under it. Replying is one small "Reply" under the thread — the box only
+// appears (focused) when that's pressed, answers the latest comment, and
+// goes away again on send, on Esc, or when it's left empty.
 function CommentThread({ comments }) {
   const { replyToNotification } = useWorkspace()
+  const [replying, setReplying] = useState(false)
   const [draft, setDraft] = useState('')
   const latest = comments[comments.length - 1]
 
+  function close() {
+    setReplying(false)
+    setDraft('')
+  }
   function send(e) {
     e.preventDefault()
     if (!draft.trim()) return
     replyToNotification(latest.id, draft.trim())
-    setDraft('')
+    close()
   }
 
   return (
@@ -143,60 +156,38 @@ function CommentThread({ comments }) {
           )}
         </div>
       ))}
-      {/* One line, a thin edge, and the send arrow inside it — live only
-          once there's something to send. */}
-      <form onSubmit={send} className="relative ml-7">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={tr('Write a reply')}
-          aria-label={tr('Write a reply')}
-          className="h-8 w-full min-w-0 rounded-full border border-white/[0.12] bg-transparent pr-9 pl-3 text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/30"
-        />
-        <button
-          type="submit"
-          aria-label="Send"
-          title="Send"
-          disabled={!draft.trim()}
-          className="ds-intrinsic absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-emerald-300 transition-colors hover:bg-white/[0.08] disabled:pointer-events-none disabled:text-slate-600"
-        >
-          <Send className="size-3.5" />
+      {replying ? (
+        // One line, a thin edge, and the send arrow inside it — live only
+        // once there's something to send.
+        <form onSubmit={send} className="relative ml-7">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}
+            // Left with nothing typed: back to the "Reply" button.
+            onBlur={() => { if (!draft.trim()) close() }}
+            placeholder={tr('Write a reply')}
+            aria-label={tr('Write a reply')}
+            className="h-8 w-full min-w-0 rounded-full border border-white/[0.12] bg-transparent pr-9 pl-3 text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 focus:border-white/30"
+          />
+          <button
+            type="submit"
+            aria-label="Send"
+            title="Send"
+            disabled={!draft.trim()}
+            // (Keeps the input from blurring — and closing — before the click lands.)
+            onMouseDown={(e) => e.preventDefault()}
+            className="ds-intrinsic absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-emerald-300 transition-colors hover:bg-white/[0.08] disabled:pointer-events-none disabled:text-slate-600"
+          >
+            <Send className="size-3.5" />
+          </button>
+        </form>
+      ) : (
+        <button type="button" onClick={() => setReplying(true)} className="ds-intrinsic ml-7 inline-flex h-6 items-center text-xs font-medium text-slate-400 transition-colors hover:text-white">
+          <LocalizedText text="Reply" />
         </button>
-      </form>
-    </div>
-  )
-}
-
-// Automated notes (AI / CI) are not part of the conversation: their own
-// section under the thread, marked with the AI icon instead of a person,
-// each with a link to the place it's about.
-function AutomatedFeedback({ notes, onJump }) {
-  return (
-    <div className="space-y-2">
-      <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-        <Sparkles className="size-3.5" />
-        <LocalizedText text="Automated feedback" />
-      </p>
-      {notes.map((n) => {
-        const { source, body } = splitSource(n.text)
-        return (
-          <div key={n.id} className="flex items-start gap-2">
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-slate-300">
-              <Sparkles className="size-2.5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] leading-relaxed text-slate-300">
-                {source && <span className="mr-1.5 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">{source}</span>}
-                <CondensedText text={body} />
-              </p>
-              <button type="button" onClick={() => onJump(n)} title={n.target.label} className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11.5px] text-slate-400 underline-offset-2 transition-colors hover:text-white hover:underline">
-                <MapPin className="size-3 shrink-0" />
-                <span translate="no" className="truncate font-mono">{n.target.label}</span>
-              </button>
-            </div>
-          </div>
-        )
-      })}
+      )}
     </div>
   )
 }
@@ -217,10 +208,9 @@ function cardOf(group, conflicts, mergeItems) {
   const author = allPeople.find((p) => p.id === first.authorId)
   if (group.kind === 'comment') {
     const comments = group.notifications.filter((n) => n.kind === 'comment')
-    const feedback = group.notifications.filter((n) => n.kind === 'feedback')
     const latest = splitSource(first.text)
     return {
-      type: 'thread', comments: [...comments].reverse(), feedback, authorId: comments.length ? first.authorId : null,
+      type: 'thread', comments: [...comments].reverse(), authorId: comments.length ? first.authorId : null,
       title: mergeItems.find((item) => item.id === group.target.itemId)?.title ?? group.target.label,
       // Who said it, then the message — translated on its own.
       summaryLead: latest.source ?? author?.name ?? 'Comment', summary: latest.body,
@@ -240,6 +230,24 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   const card = cardOf(group, conflicts, mergeItems)
   const openChange = (change) => onJump({ target: { conflictId: change.id, label: change.title } })
   const first = group.notifications[0]
+  // Where the card's button goes: a conflict's review, or the place on the
+  // canvas the notification is about — the Inbox closes, that canvas tab
+  // and frame come up centered on it, a comment's thread open on its pin.
+  // With neither (no tab, frame or position to go to) there's no button.
+  const { canvasLocationFor, revealOnCanvas, dockApi } = useWorkspace()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const onCanvas = !first.target?.conflictId && Boolean(canvasLocationFor(first.target))
+  function showOnCanvas() {
+    if (!revealOnCanvas(first)) return
+    if (dockApi) openOrFocusPanel(dockApi, panelById.canvas)
+    // From a page without the canvas (a project's overview): go to it.
+    const workspacePath = pathname.replace(/\/(history|overview|docs|activity)?\/?$/, '/workspace')
+    if (!/\/workspace\/?$/.test(pathname)) navigate(workspacePath)
+  }
+  const destination = first.target?.conflictId
+    ? { label: 'Open review', go: () => onJump(first) }
+    : onCanvas ? { label: 'Show on canvas', go: showOnCanvas } : null
   // Open, a conversation is its thread: the header's avatar and one-line
   // preview would only repeat the first comment right under them.
   const openThread = expanded && card.type === 'thread'
@@ -248,9 +256,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
     <div className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
       <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-white/[0.03]">
         {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
-          {card.authorId ? <Person id={card.authorId} /> : card.type === 'thread' ? (
-            <span className="flex size-6 items-center justify-center rounded-full bg-white/[0.07] text-slate-300"><Sparkles className="size-3" /></span>
-          ) : (
+          {card.authorId ? <Person id={card.authorId} /> : (
             <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-slate-400')} />
           )}
         </span>}
@@ -291,7 +297,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>
                 <p translate="no" className="font-mono text-[11.5px] break-all text-slate-400">{card.change.file}</p>
                 <button type="button" onClick={() => openChange(card.change)} className={ACTION_BUTTON}>
-                  <LocalizedText text="Open review" /><ArrowUpRight className="size-3.5 opacity-70" />
+                  <LocalizedText text="Open review" /><ArrowRight className="size-3.5 opacity-70" />
                 </button>
               </>
             )}
@@ -308,18 +314,17 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
                 ))}
               </div>
             )}
-            {card.type === 'event' && (
-              <button type="button" onClick={() => onJump(first)} className={ACTION_BUTTON}>
-                <LocalizedText text={first.target.conflictId ? 'Open review' : 'Show on canvas'} /><ArrowUpRight className="size-3.5 opacity-70" />
+            {card.type === 'event' && destination && (
+              <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+                <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
               </button>
             )}
             {card.type === 'thread' && (
               <>
-                {card.comments.length > 0 && <CommentThread comments={card.comments} />}
-                {card.feedback.length > 0 && <AutomatedFeedback notes={card.feedback} onJump={onJump} />}
-                {card.comments.length > 0 && (
-                  <button type="button" onClick={() => onJump(first)} className={ACTION_BUTTON}>
-                    <LocalizedText text={first.target.conflictId ? 'Open review' : 'Show on canvas'} /><ArrowUpRight className="size-3.5 opacity-70" />
+                <CommentThread comments={card.comments} />
+                {destination && (
+                  <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+                    <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
                   </button>
                 )}
               </>
@@ -334,7 +339,8 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
 // The Inbox. Every notification is a closed card until it's clicked; it
 // opens in place, one at a time — opening another closes the last.
 function MergeInboxDrawer({ onJump, onClose, inset }) {
-  const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
+  const { notifications: allNotifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
+  const notifications = forInbox(allNotifications)
   const [tab, setTab] = useState('unread')
   const [expandedId, setExpandedId] = useState(null)
   const [unreadIds, setUnreadIds] = useState(() => new Set(notifications.filter(n => n.unread).map(n => n.id)))
@@ -361,7 +367,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
       </button>
     }>
       <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-2" role="tablist" aria-label="Filter notifications">
-        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-description={id === 'comment' ? 'Comments and AI / CI feedback' : undefined} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
+        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
           <span className="truncate">{label}</span>
           {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
         </button>)}

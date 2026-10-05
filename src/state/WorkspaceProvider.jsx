@@ -1892,6 +1892,54 @@ export function WorkspaceProvider({ children, projectId }) {
     ])
   }, [conflicts, currentUser.id, logEvent, projectId])
 
+  // Where on the Workspace canvas a notification's target is: the page (the
+  // canvas tab), the frame, and the point — from the element it names on a
+  // merge item's design page, or from coordinates it carries itself. Null
+  // when there's nothing to go to (a target on an item this project doesn't
+  // have, or one that names a file or a conflict rather than an element) —
+  // the Inbox hides "Show on canvas" then.
+  const canvasLocationFor = useCallback((target) => {
+    if (!target || target.conflictId) return null
+    if (target.pageId && target.x != null && target.y != null) return { pageId: target.pageId, x: target.x, y: target.y }
+    if (!target.layerId) return null
+    // The element's own page: the merge item's design page when this
+    // project has that item, otherwise whichever canvas page has the element.
+    const item = mergeItems.find((m) => m.id === target.itemId)
+    const itemPage = item && projectPages.find((candidate) => candidate.id === item.designPageId)
+    for (const page of [itemPage, ...projectPages].filter(Boolean)) {
+      for (const frame of page.frames ?? []) {
+        const layer = frame.layers.find((candidate) => candidate.id === target.layerId)
+        // The pin sits on the element's top edge, centered.
+        if (layer) return { pageId: page.id, frameId: frame.id, layerId: layer.id, x: frame.x + layer.x + layer.width / 2, y: frame.y + layer.y }
+      }
+    }
+    return null
+  }, [mergeItems, projectPages])
+
+  // "Show on canvas" from the Inbox: leave Merge Studio and the Inbox, open
+  // that canvas tab, and hand the canvas a focus request — it pans / zooms
+  // to the spot (CanvasPanel). A comment gets its pin there, carrying the
+  // comment and its replies, so the canvas can open the thread.
+  const [canvasFocus, setCanvasFocus] = useState(null)
+  const revealOnCanvas = useCallback((notification) => {
+    const location = canvasLocationFor(notification.target)
+    if (!location) return false
+    const commentId = notification.kind === 'comment' ? `pin-${notification.id}` : null
+    if (commentId) {
+      const pin = {
+        id: commentId, authorId: notification.authorId, timeLabel: notification.timeLabel, text: notification.text,
+        status: 'open', likes: 0, replies: notification.replies?.length ?? 0, thread: notification.replies ?? [],
+        target: { type: 'canvas', pageId: location.pageId, x: location.x, y: location.y },
+      }
+      setComments((prev) => (prev.some((comment) => comment.id === commentId) ? prev.map((comment) => (comment.id === commentId ? pin : comment)) : [...prev, pin]))
+    }
+    exitMergeStudio()
+    setMergeDrawer(null)
+    setActivePageId(location.pageId)
+    setCanvasFocus({ ...location, commentId, nonce: nextId('canvas-focus') })
+    return true
+  }, [canvasLocationFor, exitMergeStudio])
+
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's
   // Comments and logged to its History. The reviewer stays on the change,
@@ -2050,6 +2098,9 @@ export function WorkspaceProvider({ children, projectId }) {
     requestMergeFocus,
     checkGuide,
     setCheckGuide,
+    canvasLocationFor,
+    revealOnCanvas,
+    canvasFocus,
     historyDrawerRequest,
     requestHistoryDrawer,
     mergePreviewOpen,
