@@ -1031,6 +1031,9 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                 <span className="min-w-0 flex-1 truncate font-medium text-slate-200">
                   {person.name}
                   {person.id === viewerId && <span className="font-normal text-slate-500"> (you)</span>}
+                  {/* Their discipline, so it's clear whose eyes are on it
+                      — a designer's or a developer's. */}
+                  {person.role && <span className="ml-1.5 text-xs font-normal text-slate-400"><LocalizedText text={person.role} /></span>}
                 </span>
                 <span className={cn('shrink-0 truncate text-xs font-medium', reviewer.id === author ? 'text-slate-400' : status.className)}>
                   {reviewer.id === author
