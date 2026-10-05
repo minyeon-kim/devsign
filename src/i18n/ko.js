@@ -4,6 +4,10 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+Pick which side to merge|합칠 쪽을 고르세요
+left unpicked, it merges with the current implementation|고르지 않으면 현재 구현으로 합쳐져요
+Meets the design standard|디자인 기준 충족
+Suggestion|권장
 Target file|대상 파일
 Roll back to|되돌릴 버전
 Requested by|요청자

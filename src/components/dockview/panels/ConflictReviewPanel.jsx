@@ -497,6 +497,10 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
   // The side that makes this check pass (the other one first, if a side is
   // already picked), or null when neither does.
   const resolvingSide = (checkId) => [side === 'A' ? 'B' : 'A', side === 'A' ? 'A' : 'B'].find((candidate) => failing[candidate] && !failing[candidate].has(checkId)) ?? null
+  // A side "meets the design standard" when the other side fails a check
+  // that this one passes.
+  const meetsOver = (mine, theirs) => Boolean(failing[mine] && failing[theirs]) && [...failing[theirs]].some((id) => !failing[mine].has(id))
+  const meets = { A: meetsOver('A', 'B'), B: meetsOver('B', 'A') }
   const other = side === 'A' ? 'B' : 'A'
   const otherClears = cardBlockers.length > 0 && Boolean(failing[other]) && !cardBlockers.some((check) => failing[other].has(check.id))
   return {
@@ -504,16 +508,15 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
     canPick: rows.length > 0 && open,
     pick: (decision) => rows.forEach((row) => workspace.decideDrift(item.id, row.key, decision)),
     undo: () => rows.forEach((row) => workspace.decideDrift(item.id, row.key, null)),
-    required, suggested, cardBlockers, otherClears, resolvingSide,
+    required, suggested, cardBlockers, otherClears, resolvingSide, meets,
     otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
   }
 }
 
 // The checks that aren't about the picked card, under the comparison:
-// required ones as "can't merge" (amber), then suggestions in a quiet tone.
+// required ones as "can't merge" (amber), then each suggestion as a note.
 function CheckBlocks({ checks, state, actions }) {
-  const accepted = state.open ? checks?.accepted ?? [] : []
-  if (!state.otherBlockers.length && !state.suggested.length && !accepted.length) return null
+  if (!state.otherBlockers.length && !state.suggested.length) return null
   return (
     <div className="min-w-0 space-y-3">
       {state.otherBlockers.length > 0 && (
@@ -526,15 +529,15 @@ function CheckBlocks({ checks, state, actions }) {
           <CheckDecisions checks={checks} only={state.otherBlockers} {...actions} />
         </section>
       )}
-      {(state.suggested.length > 0 || accepted.length > 0) && (
-        <section className="min-w-0 opacity-90">
-          <p className="text-xs font-medium text-slate-400">
-            <LocalizedText text="Suggestions" />
-            {state.suggested.length > 0 && <span className="font-normal tabular-nums"> · {state.suggested.length}</span>}
-          </p>
-          <CheckDecisions checks={checks} only={state.suggested} showAccepted {...actions} />
-        </section>
-      )}
+      {/* Suggestions are settled by the choice above, not by buttons of
+          their own: one quiet line each, saying what it is. */}
+      {state.suggested.map((check) => (
+        <p key={check.id} className="min-w-0 text-xs leading-[18px] text-slate-400">
+          <span className="mr-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-300"><LocalizedText text="Suggestion" /></span>
+          <span className="font-medium text-slate-300"><LocalizedText text={check.title} /></span>
+          {check.hint && <> — <LocalizedText text={check.hint} /></>}
+        </p>
+      ))}
     </div>
   )
 }
@@ -615,35 +618,18 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
 
   return (
     <div className="flex h-full flex-col">
-      {/* One row over the comparison: what it's waiting on — a side to be
-          chosen ("Choice needed"), or the choice made and the way to take it
-          back — and, on the right, the one way into Merge Studio. A choice
-          to make is not a failed check, so it isn't amber. */}
-      {(state.rows.length > 0 || studioAction) && (
+      {/* One line over the comparison: how to choose (the choice itself
+          is the radio cards below — no second place that shows or undoes
+          it), and on the right the one way into Merge Studio. */}
+      {(state.canPick || studioAction) && (
         <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
-          {state.rows.length > 0 && (state.label ? (
-            <>
-              <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-semibold text-emerald-300">
-                <Check className="size-4 shrink-0" strokeWidth={2.5} />
-                <span className="min-w-0 break-words"><LocalizedText text={state.label} /></span>
-              </p>
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={state.undo}
-                  className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.07] px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white"
-                >
-                  <RotateCcw className="size-3" />
-                  <LocalizedText text="Undo decision" />
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-sky-200"><span className="size-1.5 rounded-full bg-sky-400" /><LocalizedText text="Choice needed" /></span>
-              <span className="min-w-0 text-xs text-slate-300"><LocalizedText text="Pick which side to merge. Left unpicked, it merges with the current implementation’s values." /></span>
-            </>
-          ))}
+          {state.canPick && (
+            <p className="min-w-0 text-xs leading-5 text-slate-300">
+              <LocalizedText text="Pick which side to merge" />
+              <span className="text-slate-500"> · </span>
+              <span className="text-slate-400"><LocalizedText text="left unpicked, it merges with the current implementation" /></span>
+            </p>
+          )}
           {studioAction && (
             <button
               type="button"
@@ -662,21 +648,49 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              <div ref={cardsRef} role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 divide-x divide-white/[0.08]">
+              // The two sides as one radio group: each card is the option —
+              // a radio in its corner, the whole card the click target. No
+              // button inside, no "selected" line: the ring and the filled
+              // radio say it. Clicking the picked card again clears it.
+              <div ref={cardsRef} role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
-                ].map(({ side, decision, source, tone, value }) => (
-                  // Each side keeps one soft surface so its source, preview and
-                  // values read as a group; the values inside stay plain text.
+                ].map(({ side, decision, source, tone, value }) => {
+                  const on = picked(decision)
+                  const choose = () => (on ? state.undo() : pick(decision))
+                  return (
                   <div key={side}
-                    onClick={() => pick(decision)}
+                    role="radio"
+                    aria-checked={on}
+                    aria-disabled={!canPick}
+                    tabIndex={canPick ? 0 : -1}
+                    onClick={canPick ? choose : undefined}
+                    onKeyDown={(event) => {
+                      if (!canPick || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
+                      event.preventDefault()
+                      choose()
+                    }}
                     data-side={side}
                     data-decision={decision}
-                    // No boxes: the two sides are columns either side of a line.
-                    // Only the picked one is tinted.
-                    className={cn('flex min-w-0 flex-col gap-2 p-3 transition-colors first:rounded-l-lg last:rounded-r-lg focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'bg-emerald-400/[0.08]' : fixSide === decision ? 'bg-white/[0.06]' : canPick && 'cursor-pointer hover:bg-white/[0.03]')}>
-                    {source && <ComparisonSource {...source} />}
+                    className={cn(
+                      'flex min-w-0 flex-col gap-2 rounded-xl border p-3 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                      on ? 'border-emerald-300 bg-emerald-400/[0.06]' : fixSide === decision ? 'border-white/30 bg-white/[0.04]' : 'border-white/10',
+                      canPick && !on && 'cursor-pointer hover:border-white/35',
+                      canPick && on && 'cursor-pointer'
+                    )}>
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span aria-hidden className={cn('mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors', on ? 'border-emerald-300' : 'border-white/35')}>
+                        {on && <span className="size-2 rounded-full bg-emerald-300" />}
+                      </span>
+                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} />}</div>
+                      {/* This side passes what the other one fails. */}
+                      {state.meets[decision] && (
+                        <span className="shrink-0 rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
+                          <LocalizedText text="Meets the design standard" />
+                        </span>
+                      )}
+                    </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
                       {conflict.comparisonFields.map((field) => (
@@ -690,7 +704,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                     </dl>
                     {/* The picked side breaks a required standard: say so on
                         this card, with what clears it. */}
-                    {picked(decision) && state.cardBlockers.length > 0 && (
+                    {on && state.cardBlockers.length > 0 && (
                       <div onClick={(event) => event.stopPropagation()} className="mt-1 cursor-default border-t border-amber-300/30 pt-2.5">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
                           <TriangleAlert className="size-3.5 shrink-0" />
@@ -704,31 +718,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                         )}
                       </div>
                     )}
-                    {!picked(decision) && !readOnly && (fixSide === decision || (state.side && state.cardBlockers.length > 0 && state.otherClears)) && (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs leading-[18px] font-medium text-slate-100">
-                        <Check className="size-3.5 shrink-0 text-emerald-300" strokeWidth={2.5} />
-                        <LocalizedText text="Choosing this value resolves it." />
-                      </p>
-                    )}
-                    {/* Picked is a state, not something to press: a plain check
-                        and label. Only the side that isn't picked offers a
-                        button (to switch to it). */}
-                    {picked(decision) ? (
-                      <p role="radio" aria-checked className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 text-xs font-medium text-emerald-300">
-                        <Check className="size-3.5" strokeWidth={2.5} />
-                        {readOnly ? '이 내용으로 합쳐짐' : '선택됨 · 이 내용으로 합쳐집니다'}
-                      </p>
-                    ) : readOnly ? (
-                      <p role="radio" aria-checked={false} className="mt-2 flex h-8 w-full items-center justify-center text-xs text-slate-500">미선택</p>
-                    ) : (
-                      <button type="button" role="radio" aria-checked={false} disabled={!canPick}
-                        onClick={event => { event.stopPropagation(); pick(decision) }}
-                        className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-md bg-white/[0.07] text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.12] disabled:cursor-default">
-                        {side === 'before' ? '현재 구현으로 합치기' : '디자인 기준으로 합치기'}
-                      </button>
-                    )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : conflict.preview && (
               <div className="min-w-0">
