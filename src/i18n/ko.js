@@ -61,6 +61,7 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Revert requested|되돌리기 요청됨
 Pending rollback|롤백 대기
 Decided, review request needed|결정 완료, 검토 요청 필요
 Not decided yet|아직 결정 전
@@ -83,8 +84,8 @@ Conflict activity|충돌 활동
 Project history|프로젝트 전체 히스토리
 Conversation|대화
 Step replay|단계별 리플레이
-commented|댓글을 남겼습니다
-replied|답글을 남겼습니다
+commented|댓글을 남겼어요
+replied|답글을 남겼어요
 Resolved conflicts|해결된 충돌 표시
 Change merged|변경을 병합했습니다
 Set icons to 20px|아이콘 20px 적용
@@ -1277,13 +1278,14 @@ Issue activity|충돌 활동
 Change replay|변경 리플레이
 No activity has been recorded for this conflict yet.|이 충돌에 기록된 활동이 없습니다.
 No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline.|아직 이 충돌에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
-requested a review|검토를 요청했습니다
-approved this change|변경을 승인했습니다
-requested changes|변경을 요청했습니다
-merged this change|변경을 병합했습니다
-reopened this conflict|이 충돌을 다시 열었습니다
-pushed code changes|코드를 수정했습니다
-commented on this conflict|이 충돌에 댓글을 남겼습니다.
+requested a review|검토를 요청했어요
+approved this change|이 변경을 승인했어요
+requested changes|변경을 요청했어요
+merged this change|이 변경을 병합했어요
+reopened this conflict|이 충돌을 다시 열었어요
+pushed code changes|코드를 수정했어요
+commented on this conflict|이 충돌에 댓글을 남겼어요
+opened a revert of this change|이 변경의 되돌리기를 요청했어요
 Merge the approved change|승인된 변경 병합
 Assign reviewers|검토자 배정
 Review and approve|검토 후 승인

@@ -2,7 +2,6 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ArrowLeft,
   ArrowRight,
   Ban,
   Bell,
@@ -47,6 +46,7 @@ import {
   allReviewersApproved,
   requiredReviewers,
   authorOf,
+  conflictRef,
   shortDue,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
@@ -374,7 +374,7 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onOpenHistory, adjustment }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment }) {
   // A rollback's details (what, to which version, who asked) are the
   // whole of its left card, so they start open; a conflict's stay folded.
   const [showDetails, setShowDetails] = useState(Boolean(conflict.rollback))
@@ -428,16 +428,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
       </p>
 
       {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
-
-      {/* The way to History is a control, not more of the summary: a small
-          secondary button set apart from the text above (NAV_BUTTON) — the
-          label and an arrow. Quieter than the header's main action. */}
-      {onOpenHistory && (
-        <button type="button" onClick={onOpenHistory} className={cn(NAV_BUTTON, 'mt-2')}>
-          <LocalizedText text="Check the reasoning in History" />
-          <ArrowRight className={NAV_BUTTON_ICON} />
-        </button>
-      )}
 
       <section className="min-w-0 flex-1">
         <button
@@ -1435,9 +1425,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
-  // "Check the reasoning in History" opens this conflict's own activity, here
-  // in the panel (openTab('history') — see ConflictHistoryReplay). From
-  // there, "Project history" is the way out to the project's archive: it
+  // The Activity tab is this conflict's own activity, here in the panel
+  // (see ConflictHistoryReplay). From there, "Project history" is the way out to the project's archive: it
   // goes to History itself, on the saved version this conflict came from —
   // selected (the link's `?v=`), scrolled to and lit for a moment in the
   // list (`flashCheckpoint`).
@@ -1720,27 +1709,34 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <h2 className="min-w-0 truncate text-[13px] font-semibold text-white">
                   <LocalizedText text={conflict.title} />
                 </h2>
-                {!conflict.rollback && <span className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflict.id}</span>}
+                {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {/* History took the review's place — the way back sits up
-                    here with the title, not on a row of its own. */}
-                {tab === 'history' && (
-                  <button
-                    type="button"
-                    onClick={() => openTab('overview')}
-                    className={NAV_BUTTON}
-                  >
-                    {/* Going back: the arrow leads, pointing left. */}
-                    <ArrowLeft className={NAV_BUTTON_ICON} />
-                    <LocalizedText text="Back to review" />
-                  </button>
-                )}
                 {primary}
               </div>
             </div>
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-0 pb-3">
+            {/* Review and Activity are two views of the one conflict: tabs
+                under its title (said once, above). The only way back is the
+                "<" beside the title, and it always goes to the list. */}
+            {!conflict.rollback && (
+              <div role="tablist" aria-label="Conflict views" className="flex h-8 shrink-0 items-stretch gap-4 px-3 pl-11">
+                {[['overview', 'Review'], ['history', 'Activity']].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === value}
+                    onClick={() => openTab(value)}
+                    className="ds-intrinsic -mb-px inline-flex items-center border-b-2 border-transparent px-0.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
+                  >
+                    <LocalizedText text={label} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-2 pb-3">
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
@@ -1759,7 +1755,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             showProject={!workspace}
                             blockedCount={decisionState.required.length}
                             adjustment={adjustment}
-                            onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
                           />
                         </div>
                       </section>}

@@ -5,10 +5,10 @@ import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { LocalizedText } from '@/i18n/runtime'
+import { useLanguage } from '@/i18n/language'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { useConflictStore } from '@/state/ConflictStore'
-import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
 const EVENT_COPY = {
@@ -73,6 +73,16 @@ function conflictEvents(conflict, events, historyEntries) {
   return [...saved, ...seeded]
 }
 
+// A step's name in the replay header: what happened, without the conflict's
+// title or description (the page header and the review have those). The
+// conflict's own checkpoints are named by kind — for a revert, its detection
+// is the revert being requested; a saved version keeps its own name.
+function stepName(entry, conflict) {
+  if (entry?.kind === 'conflict') return conflict.revertOf ? 'Revert requested' : 'Conflict detected'
+  if (entry?.kind === 'merge') return 'Merged'
+  return entry?.label ?? ''
+}
+
 function snapshotLines(entry, conflict) {
   const snapshot = entry?.snapshot
   if (!snapshot) return []
@@ -85,8 +95,8 @@ function snapshotLines(entry, conflict) {
   return []
 }
 
-// "Conflict activity": the conflict's own trail, inside its review — named
-// apart from the sidebar's History on purpose.
+// The review's Activity tab: the conflict's own trail — named apart from the
+// sidebar's History on purpose.
 //
 // The sidebar's History is the project's archive: every saved version, to
 // look back over. This is the opposite end: only what bears on the one
@@ -98,9 +108,11 @@ function snapshotLines(entry, conflict) {
 // (Who was asked to approve and where they stand is the Reviewers panel
 // beside it.)
 // `onOpenProjectHistory` is the one way out to the archive, for when the
-// wider picture is what's needed.
+// wider picture is what's needed: a text link at the replay's right.
 function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
   const { events } = useConflictStore()
+  // Korean marks who did it: "Jordan님이 …".
+  const subjectMark = useLanguage() === 'ko' ? '님이' : ''
   const activity = useMemo(() => conflictEvents(conflict, events, workspace?.historyEntries ?? []), [conflict, events, workspace?.historyEntries])
   const entries = useMemo(() => {
     const all = (workspace?.historyEntries ?? []).filter((entry) => !entry.archived)
@@ -159,22 +171,6 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
   )
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      {/* What this view is — and isn't: this conflict's activity, named
-          apart from the sidebar's project History (the version archive),
-          which is one click away. */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-white/[0.03] px-3 py-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300"><History className="size-3.5" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-white"><LocalizedText text="Conflict activity" /> <span className="font-normal text-slate-400">· <LocalizedText text={conflict.title} /></span></p>
-        </div>
-        {onOpenProjectHistory && (
-          <button type="button" onClick={onOpenProjectHistory} className={NAV_BUTTON}>
-            <LocalizedText text="Project history" />
-            <ArrowRight className={NAV_BUTTON_ICON} />
-          </button>
-        )}
-      </div>
     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.5fr)]">
       <div className="flex min-h-0 flex-col gap-3">
       {/* (Who was asked and where they stand is the Reviewers panel on the
@@ -203,7 +199,7 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-xs leading-5 text-slate-300">
-                          <span className="font-medium text-slate-100">{actor}</span>{' '}
+                          <span translate="no" className="font-medium text-slate-100">{actor}{actor !== 'Devsign' && action !== 'was recorded in History' ? subjectMark : ''}</span>{' '}
                           <LocalizedText text={action} />
                         </span>
                         {detail && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-slate-400">{detail}</span>}
@@ -229,8 +225,17 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
         <div className="flex shrink-0 items-center gap-2 px-3 py-3">
           <History className="size-3.5 text-slate-500" />
           <h3 className="text-xs font-medium text-slate-300"><LocalizedText text="Step replay" /></h3>
-          {selected && <span className="shrink-0 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-300 tabular-nums">{selectedIndex + 1}/{entries.length}</span>}
-          {selected && <span className="min-w-0 flex-1 truncate text-[11px] text-slate-400">{selected.label}</span>}
+          {selected && <span className="shrink-0 text-xs font-medium text-slate-300 tabular-nums">{selectedIndex + 1}/{entries.length}</span>}
+          {/* The step in view — not the conflict's title (that's the page
+              header's, once). */}
+          <span data-replay-step className="min-w-0 flex-1 truncate text-[11px] text-slate-400">{selected && <LocalizedText text={stepName(selected, conflict)} />}</span>
+          {/* The way out to the project's archive: a quiet text link. */}
+          {onOpenProjectHistory && (
+            <button type="button" onClick={onOpenProjectHistory} className="ds-intrinsic inline-flex shrink-0 items-center gap-1 text-[11px] whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+              <LocalizedText text="Project history" />
+              <ArrowRight className="size-3" />
+            </button>
+          )}
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected ? (
@@ -295,7 +300,6 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
           />
         )}
       </section>
-    </div>
     </div>
   )
 }

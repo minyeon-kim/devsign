@@ -53,6 +53,19 @@ export function isOpen(conflict) {
   return conflict.reviewStage !== 'resolved'
 }
 
+// A conflict's id as it's shown: "#cc-4". A revert or rollback is created
+// under a long unique id, so it's shown as its kind and its place among the
+// project's others of that kind — "rv-4" — like every other item.
+const GENERATED_ID = /^(revert|rollback)-([0-9a-f]{4})[0-9a-f-]{20,}$/i
+export function conflictRef(conflict, conflicts = []) {
+  const match = GENERATED_ID.exec(conflict?.id ?? '')
+  if (!match) return conflict?.id ?? ''
+  const prefix = match[1].toLowerCase() === 'revert' ? 'rv' : 'rb'
+  const same = conflicts.filter((c) => c.projectId === conflict.projectId && c.id.toLowerCase().startsWith(`${match[1].toLowerCase()}-`))
+  const place = same.findIndex((c) => c.id === conflict.id)
+  return `${prefix}-${place >= 0 ? place + 1 : match[2]}`
+}
+
 // The one short status a list shows — the same five the list's filter uses.
 // A merge and a rollback share "Done"; which it was is in the item's title
 // ("Rollback · …"). Anything finer (decided or not, sign-offs so far) is the
