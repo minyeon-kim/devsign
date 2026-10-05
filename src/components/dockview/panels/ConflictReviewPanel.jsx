@@ -592,13 +592,7 @@ function CodeDiffColumns({ rows }) {
 // `state`: the decision and checks (decisionStateOf). `checkBlocks`: the
 // checks that aren't about the picked card, placed right under the
 // comparison. `checkActions`: fix / apply-as-is for the ones on the card.
-// `fixSide`: "Fix it" was pressed on a check this side resolves — the card
-// scrolls into view, lightly marked, saying so.
-function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks, fixSide }) {
-  const cardsRef = useRef(null)
-  useEffect(() => {
-    if (fixSide) cardsRef.current?.querySelector(`[data-decision="${fixSide}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [fixSide])
+function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
@@ -652,7 +646,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
               // a radio in its corner, the whole card the click target. No
               // button inside, no "selected" line: the ring and the filled
               // radio say it. Clicking the picked card again clears it.
-              <div ref={cardsRef} role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
+              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
@@ -675,7 +669,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                     data-decision={decision}
                     className={cn(
                       'flex min-w-0 flex-col gap-2 rounded-xl border p-3 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-                      on ? 'border-emerald-300 bg-emerald-400/[0.06]' : fixSide === decision ? 'border-white/30 bg-white/[0.04]' : 'border-white/10',
+                      on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
                       canPick && !on && 'cursor-pointer hover:border-white/35',
                       canPick && on && 'cursor-pointer'
                     )}>
@@ -1353,7 +1347,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The review itself ('overview') or the History behind it, reset to the
   // review whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
-  const [fixTarget, setFixTarget] = useState(null)
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
@@ -1432,15 +1425,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     else onRequestChanges?.(conflict.id)
   }
 
-  // Fix: go to what fixes it. When picking a side on the comparison would,
-  // that card scrolls into view, lightly marked ("Choosing this value
-  // resolves it") — no banner repeating the check.
+  // Apply a resolving side directly; otherwise open the relevant editor.
   function startFix(check) {
     if (!workspace) return
     setTab('overview')
-    // A choice on the comparison clears it: go to that card and mark it.
+    // Use the same decision path as selecting the named comparison card.
     const side = decisionState.resolvingSide(check.id)
-    if (side) { setFixTarget({ conflictId: conflict.id, checkId: check.id, side }); return }
+    if (side) { decisionState.pick(side); return }
     // Nothing here does — it's adjusted on the canvas, where the same note
     // and a highlight on the element wait (see MergeCheckGuide).
     workspace.setCheckGuide({ conflictId: conflict.id, check })
@@ -1512,16 +1503,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
   })
   const checkActions = {
+    fixSideFor: (check) => decisionState.resolvingSide(check.id),
     onFix: stage !== 'resolved' && workspace ? startFix : undefined,
     onAccept: stage !== 'resolved' && onUpdate ? acceptCheck : undefined,
     onUndoAccept: stage !== 'resolved' && onUpdate ? undoAcceptCheck : undefined,
     onRequestException: stage !== 'resolved' && onUpdate ? requestException : undefined,
     onUndoException: stage !== 'resolved' && onUpdate ? undoException : undefined,
   }
-  // The card "Fix it" pointed at — until that side is picked, the check
-  // passes, or another conflict is opened.
-  const fixSide = fixTarget && conflict && fixTarget.conflictId === conflict.id && decisionState.side !== fixTarget.side
-    && checks?.failing.some((check) => check.id === fixTarget.checkId) ? fixTarget.side : null
   const checkBlocks = <CheckBlocks checks={checks} state={decisionState} actions={checkActions} />
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
@@ -1707,7 +1695,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             checks={checks}
                             checkActions={checkActions}
                             checkBlocks={checkBlocks}
-                            fixSide={fixSide}
                             // The one way into Merge Studio. With a fix
                             // guide open it goes there for that check (the
                             // element marked, the guide kept on the canvas).

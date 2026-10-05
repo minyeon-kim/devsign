@@ -4,11 +4,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-// A failing check is a decision, not just a status: fix it, or ship the
-// change as it is. The review lists each one with both choices (the
-// popover behind CheckStatus only reported them), and choosing Fix leaves a
-// guide — the same note here, on the review's comparison card and in Merge
-// Studio — saying what to change, with the element highlighted.
+// Each check offers a concrete resolution, or navigation to its editor.
 
 const ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors'
 const ACTION_PRIMARY = 'bg-white/[0.1] text-white hover:bg-white/[0.16]'
@@ -31,7 +27,7 @@ function Tag({ required, ko }) {
 //   · a required one — fix it, or request an exception. It can't simply be
 //     waived: the exception goes to the reviewers, and the check stops
 //     blocking only once they've approved the change with it.
-export function CheckDecisions({ checks, only, showAccepted = !only, onFix, onAccept, onUndoAccept, onRequestException, onUndoException }) {
+export function CheckDecisions({ checks, only, showAccepted = !only, onFix, fixSideFor, onAccept, onUndoAccept, onRequestException, onUndoException }) {
   const ko = useLanguage() === 'ko'
   const failing = only ?? checks?.failing ?? []
   const accepted = showAccepted ? checks?.accepted ?? [] : []
@@ -45,6 +41,7 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, onAc
       {failing.map((check) => {
         const required = checks.blocking.includes(check)
         const requested = exceptions.includes(check)
+        const fixSide = fixSideFor?.(check)
         return (
           <li key={check.id} className="py-2.5">
             <p className="flex min-w-0 items-start gap-1.5 text-xs leading-[18px] font-medium text-white">
@@ -68,8 +65,10 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, onAc
               <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-5">
                 {onFix && (
                   <button type="button" onClick={() => onFix(check)} className={cn(ACTION, ACTION_PRIMARY)}>
-                    <Wrench className="size-3" />
-                    {ko ? '수정하기' : 'Fix it'}
+                    {fixSide ? <Check className="size-3" /> : <ArrowUpRight className="size-3" />}
+                    {fixSide === 'A' ? (ko ? '디자인 기준 적용' : 'Apply design reference')
+                      : fixSide === 'B' ? (ko ? '현재 구현 적용' : 'Apply current implementation')
+                        : (ko ? '수정 위치로 이동' : 'Go to fix')}
                   </button>
                 )}
                 {required ? onRequestException && (
