@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
+import { ArrowRight, Check, Clock3, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
@@ -170,7 +170,7 @@ function ConflictHistoryReplay({ conflict, workspace, onOpenProjectHistory }) {
         {onOpenProjectHistory && (
           <button type="button" onClick={onOpenProjectHistory} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/[0.12] px-2.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white">
             <LocalizedText text="Project history" />
-            <ArrowUpRight className="size-3 opacity-70" />
+            <ArrowRight className="size-3 opacity-70" />
           </button>
         )}
       </div>

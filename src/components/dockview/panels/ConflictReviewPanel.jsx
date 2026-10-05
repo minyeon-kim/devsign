@@ -2,13 +2,12 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ArrowUpRight,
+  ArrowRight,
   Ban,
   Bell,
   Check,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   Clock3,
   GitMerge,
   History,
@@ -99,6 +98,13 @@ const REVIEWER_STATUS = {
 }
 
 const REVIEW_GUTTER = 'gap-3'
+// The review's secondary "go there" buttons — History, Merge Studio — are
+// one style: same height, radius, fill, edge and type, one icon in front
+// (NAV_BUTTON_ICON), the label, and an arrow after it. The arrow is → for
+// a screen inside the app; ↗ is kept for what opens a new window or leaves
+// the app (nothing here does).
+const NAV_BUTTON = 'ds-intrinsic inline-flex h-8 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] pr-2.5 pl-3 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
+const NAV_BUTTON_ICON = 'size-3.5 shrink-0 text-slate-400'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
@@ -431,20 +437,13 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
       {summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
       {/* The way to History is a control, not more of the summary: a small
-          secondary button set apart from the text above — a thin edge and a
-          faint fill, the History icon in front and a chevron after it (it
-          opens this issue's history, here in the panel). Quieter than the
-          header's main action. */}
+          secondary button set apart from the text above (NAV_BUTTON) — one
+          icon, the label, an arrow. Quieter than the header's main action. */}
       {onOpenHistory && (
-        <button
-          type="button"
-          onClick={onOpenHistory}
-          className="ds-intrinsic mt-2 inline-flex h-8 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] pr-2.5 pl-3 text-xs font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
-          <History className="size-3.5 text-slate-400" />
+        <button type="button" onClick={onOpenHistory} className={cn(NAV_BUTTON, 'mt-2')}>
+          <History className={NAV_BUTTON_ICON} />
           <LocalizedText text="Check the reasoning in History" />
-          {conflict.historyInspected && <Check className="size-3.5 text-slate-400" strokeWidth={2.5} />}
-          <ChevronRight className="size-3.5 text-slate-400" />
+          <ArrowRight className={NAV_BUTTON_ICON} />
         </button>
       )}
 
@@ -654,11 +653,12 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
               type="button"
               title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
               onClick={studioAction.onClick}
-              className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.05] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white"
+              className={cn(NAV_BUTTON, 'ml-auto')}
             >
-              <GitMerge className="size-3.5" />
+              <GitMerge className={NAV_BUTTON_ICON} />
               <LocalizedText text={studioAction.label} />
-              <ArrowUpRight className="size-3.5 opacity-70" />
+              {/* Merge Studio is a screen of this app: →, not ↗. */}
+              <ArrowRight className={NAV_BUTTON_ICON} />
             </button>
           )}
         </div>
