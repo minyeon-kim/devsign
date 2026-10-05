@@ -9,13 +9,14 @@ export function reviewAlerts(conflicts, userId, day) {
     && authorOf(c) !== userId)
   const alerts = pending.filter(c => c.severity === 'high').map(c => ({
     id: `review-high-${c.id}`, kind: 'approval', notificationType: 'review_request', severity: 'high',
-    text: `Immediate review · High risk: ${c.title}`, timeLabel: c.createdAtLabel ?? 'Now', unread: true,
+    // The card shows the level once, as its own chip — not in the title too.
+    text: c.title, timeLabel: c.createdAtLabel ?? 'Now', unread: true,
     reviewConflictIds: [c.id], target: { conflictId: c.id, label: c.title },
   }))
   const medium = pending.filter(c => c.severity === 'medium')
   if (medium.length) alerts.push({
     id: `review-medium-${day}-${medium.map(c => c.id).sort().join('-')}`, kind: 'approval', notificationType: 'review_request', severity: 'medium',
-    text: `Daily digest · ${medium.length} medium change${medium.length === 1 ? '' : 's'} need${medium.length === 1 ? 's' : ''} review`,
+    text: `Daily digest · ${medium.length} change${medium.length === 1 ? '' : 's'} need${medium.length === 1 ? 's' : ''} review`,
     // `day` (an ISO date, so re-digesting the same day doesn't duplicate
     // the alert) is only the id's cache key — showing it as the time would
     // print a raw "2026-10-01" instead of a label the Today/Yesterday
@@ -47,16 +48,6 @@ export function groupInboxNotifications(notifications) {
     group.text = `Comments · ${group.notifications.length} conversation${group.notifications.length === 1 ? '' : 's'}`
   }
   return groups
-}
-
-export function commentGroupSummary(group) {
-  const notes = group.notifications
-  return {
-    latest: notes[0],
-    comments: notes.filter(n => n.kind === 'comment').length,
-    feedback: notes.filter(n => n.kind === 'feedback').length,
-    replies: notes.reduce((total, n) => total + (n.replies?.length ?? 0), 0),
-  }
 }
 
 // Prefer the linked review record over a generic canvas destination.

@@ -1,16 +1,15 @@
 import { useState } from 'react'
-import { Bell, CheckCheck, ChevronDown, ChevronRight, MessageSquare, Smile } from 'lucide-react'
+import { ArrowUpRight, Bell, CheckCheck, ChevronDown, ChevronRight, MapPin, Smile, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { commentGroupSummary, groupInboxNotifications } from '@/lib/inboxNotifications'
-import { needsReviewFrom } from '@/lib/conflicts'
-import { RiskBadge } from '@/components/conflicts/ConflictRow'
+import { groupInboxNotifications } from '@/lib/inboxNotifications'
+import { RISK_LABEL, needsReviewFrom } from '@/lib/conflicts'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { useLanguage } from '@/i18n/language'
+import { getLanguage, useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { LocalizedText } from '@/i18n/runtime'
 
@@ -68,16 +67,13 @@ function Person({ id, className, size = 'sm' }) {
   )
 }
 
+// Placeholders skip the JSX translation pass, so they're translated here.
+const tr = (text) => translateText(text, getLanguage())
+
 const EMOJI = ['👍', '🎉', '👀', '🔥', '✅', '💜']
 
-// Keep long labels from stretching the row: "FlowBank - Homepage…Header" style
-// middle truncation for targets, and for path-like words in messages only
-// the last segment, in quiet monospace (full path on hover).
-function shortLabel(label, max = 26) {
-  if (!label || label.length <= max) return label
-  const keep = max - 1
-  return `${label.slice(0, Math.ceil(keep / 2))}…${label.slice(-Math.floor(keep / 2))}`
-}
+// For path-like words in messages only the last segment shows, in quiet
+// monospace (full path on hover).
 // Text passed here bypasses the JSX-boundary translator below (it's split
 // into path-aware segments, a raw prop rather than an isolated child), so
 // it's translated explicitly first.
@@ -93,247 +89,264 @@ function CondensedText({ text }) {
     )
   )
 }
-// "approved the design changes on Hero CTA" → "approved the design changes"
-// (the target is rendered separately, as its own inline link).
-function stripTarget(text, label) {
-  const suffix = ` on ${label}`
-  return text.endsWith(suffix) ? text.slice(0, -suffix.length) : text
-}
 // "AI: …" / "CI: …" → a small source label + the rest of the message.
 function splitSource(text) {
   const m = /^([A-Z]{2,4}):\s*(.*)$/.exec(text)
   return m ? { source: m[1], body: m[2] } : { source: null, body: text }
 }
 
-// One feed item. The layout follows what the item *is*, so the stream has
-// a natural rhythm instead of identical blocks:
-//   comment  — a conversation: name · role ··· time, "commented on Target",
-//              the message in white, replies, and the comment bar;
-//   approval — a compact one-line event ("Alex approved … Hero CTA");
-//   feedback — AI / CI notes: a small source label and the note as
-//              secondary text, paths condensed.
-// No pills in the header: role and target are plain inline text. Unread is
-// carried by a bolder name and the mint dot. Clicking the item jumps the
-// canvas to the target (with the pulse).
-function InboxItem({ n, onJump }) {
-  const { markNotificationRead, replyToNotification } = useWorkspace()
-  const [draft, setDraft] = useState('')
-  const [emojiOpen, setEmojiOpen] = useState(false)
-  const author = allPeople.find((p) => p.id === n.authorId)
-  const isThread = n.kind === 'comment'
-  const isEvent = n.kind === 'approval'
-  const replies = n.replies ?? []
-  const { source, body } = splitSource(n.text)
+const ACTION_BUTTON = 'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-white/[0.07] px-3 text-xs font-medium text-slate-100 transition-colors hover:bg-white/[0.12] hover:text-white'
 
-  function jump() {
-    markNotificationRead(n.id)
-    onJump(n)
-  }
-
-  function send(e) {
-    e.preventDefault()
-    if (!draft.trim()) return
-    replyToNotification(n.id, draft.trim())
-    setDraft('')
-    setEmojiOpen(false)
-  }
-
-  const name = (
-    <span className={cn('text-[13px]', n.unread ? 'font-semibold text-[#FFFFFF]' : 'font-medium text-slate-200')}><LocalizedText text={author?.name ?? ''} /></span>
-  )
-  const target = (
-    <span title={n.target.label} className="font-medium text-[#FFFFFF] underline-offset-2 group-hover:underline">
-      {n.target.conflictId ? <LocalizedText text={n.target.label} /> : shortLabel(n.target.label)}
-    </span>
-  )
-  const meta = (
-    <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
-      <span className="text-[11px] text-slate-500 tabular-nums"><LocalizedText text={n.timeLabel} /></span>
-      <span aria-label={n.unread ? 'Unread' : undefined} className={cn('ds-status-dot rounded-full', n.unread ? 'bg-emerald-400' : 'bg-transparent')} />
-    </span>
-  )
-
+// One message in a thread — the same for a comment and its replies: no
+// box, just avatar · name (· role · time) and the text under it.
+function ThreadMessage({ authorId, text, timeLabel }) {
+  const author = allPeople.find((p) => p.id === authorId)
   return (
-    <div className={cn('group', isEvent ? 'py-2.5' : 'py-3')}>
-      <button
-        type="button"
-        title={n.target.conflictId ? `Open the review of ${n.target.label}` : `Jump to ${n.target.label} on the canvas`}
-        onClick={jump} className="flex w-full items-start gap-3 text-left">
-        {/* Fixed avatar slot so every text column lines up. */}
-        <span className="flex w-8 shrink-0 justify-center">
-          <Person id={n.authorId} size={isEvent ? 'sm' : 'default'} />
-        </span>
-        <span className="min-w-0 flex-1">
-          {isEvent ? (
-            // Approval: one quiet line.
-            <span className="flex items-start gap-2">
-              <span className="min-w-0 flex-1 text-[13px] leading-6 text-slate-400">
-                {name}{' '}
-                {n.target.conflictId
-                  ? <LocalizedText text={n.text} />
-                  : <><LocalizedText text={stripTarget(n.text, n.target.label)} /> on {target}</>}
-              </span>
-              {meta}
-            </span>
-          ) : (
-            <>
-              <span className="flex items-start gap-2">
-                <span className="min-w-0 flex-1 truncate leading-6">
-                  {name}
-                  {author?.role && <span className="ml-1.5 text-xs text-slate-500"><LocalizedText text={author.role} /></span>}
-                </span>
-                {meta}
-              </span>
-              <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
-                {isThread && <span className="shrink-0 text-emerald-300/80">Comment</span>}
-                {!isThread && source && <span className="shrink-0 text-slate-500">{source}</span>}
-                <span className="truncate text-slate-400">· {target}</span>
-              </span>
-              {isThread ? (
-                // The comment is the one soft surface in the item — no rail,
-                // no border. Pulled left under the avatar slot (w-8 + gap-3)
-                // so it spans the full row, not just the text column.
-                <span className="mt-2 -ml-11 block rounded-lg bg-white/[0.04] px-3 py-2 text-[13px] leading-relaxed text-slate-100">
-                  <CondensedText text={n.text} />
-                </span>
-              ) : (
-                <span className="mt-2 flex items-baseline gap-2 text-[13px] leading-relaxed text-slate-300">
-                  {source && <span className="shrink-0 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">{source}</span>}
-                  <span className="min-w-0">
-                    <CondensedText text={body} />
-                  </span>
-                </span>
-              )}
-            </>
-          )}
-        </span>
-      </button>
-
-      {/* Replies flow on in the message column — no boxes, no rail. */}
-      {replies.length > 0 && (
-        <div className="mt-4 ml-11 space-y-3.5">
-          {replies.map((r) => {
-            const who = allPeople.find((p) => p.id === r.authorId)
-            return (
-              <div key={r.id} className="flex items-start gap-2.5">
-                <Person id={r.authorId} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] leading-6 font-medium text-slate-200">
-                    {who?.name}
-                    {who?.role && <span className="ml-1.5 text-xs font-normal text-slate-500">{who.role}</span>}
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-[#FFFFFF]">
-                    <CondensedText text={r.text} />
-                  </p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Pill input: Write a comment · emoji · solid dark Send. */}
-      {isThread && (
-        <form onSubmit={send} className="relative mt-4 ml-11">
-          <div className="flex h-10 items-center gap-1 rounded-full bg-white/[0.04] pr-1 pl-4 transition-colors focus-within:bg-white/[0.07]">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Write a comment"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-500"
-            />
-            <button
-              type="button"
-              title="Add emoji"
-              aria-expanded={emojiOpen}
-              onClick={() => setEmojiOpen((v) => !v)}
-              className={cn('flex size-8 items-center justify-center rounded-full transition-colors', emojiOpen ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white')}
-            >
-              <Smile className="size-4" />
-            </button>
-            <button
-              type="submit"
-              disabled={!draft.trim()}
-              className="flex h-8 items-center justify-center rounded-full bg-[#2E2E2E] px-4 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500 disabled:hover:bg-[#2E2E2E]"
-            >
-              Send
-            </button>
-          </div>
-          {emojiOpen && (
-            <div className="absolute right-16 bottom-full z-10 mb-2 flex gap-0.5 rounded-full border border-white/10 bg-popover p-1 shadow-xl shadow-black/50">
-              {EMOJI.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setDraft((d) => d + e)}
-                  className="flex size-8 items-center justify-center rounded-full text-base transition-colors hover:bg-white/10"
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          )}
-        </form>
-      )}
+    <div className="flex items-start gap-2.5">
+      <Person id={authorId} />
+      <div className="min-w-0 flex-1">
+        <p className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
+          <span className="font-medium text-slate-100"><LocalizedText text={author?.name ?? ''} /></span>
+          {author?.role && <span className="text-xs text-slate-500"><LocalizedText text={author.role} /></span>}
+          {timeLabel && <span className="ml-auto shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={timeLabel} /></span>}
+        </p>
+        <p className="text-[13px] leading-relaxed text-slate-200"><CondensedText text={text} /></p>
+      </div>
     </div>
   )
 }
 
-function NotificationSummary({ group, conflicts, mergeItems, expanded, onOpen }) {
-  const changes = (group.reviewConflictIds ?? []).map(id => conflicts.find(c => c.id === id)).filter(Boolean)
-  const first = group.notifications[0]
-  const author = allPeople.find(p => p.id === first.authorId)
-  const comment = group.kind === 'comment' ? commentGroupSummary(group) : null
-  const itemName = mergeItems.find(item => item.id === group.target.itemId)?.title
-  const subject = itemName ?? group.target.label
-  const latest = splitSource(first.text)
-  const preview = changes.length ? changes.map(c => c.title).join(' · ')
-    : group.kind === 'comment' ? first.text : group.target.label
+// A conversation, as one thread: each comment, its replies indented under
+// it, and the reply box once, at the very end (it answers the latest
+// comment).
+function CommentThread({ comments }) {
+  const { replyToNotification } = useWorkspace()
+  const [draft, setDraft] = useState('')
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const latest = comments[comments.length - 1]
+
+  function send(e) {
+    e.preventDefault()
+    if (!draft.trim()) return
+    replyToNotification(latest.id, draft.trim())
+    setDraft('')
+    setEmojiOpen(false)
+  }
+
   return (
-    <button
-      type="button"
-      aria-expanded={expanded}
-      onClick={onOpen}
-      className="flex w-full items-start gap-2 rounded-xl px-2.5 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
-    >
-      <span className="mt-0.5 shrink-0">
-        {group.severity ? <RiskBadge severity={group.severity} /> : group.kind === 'comment' ? (
-          <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
-            <MessageSquare className="size-3.5" />
-          </span>
-        ) : <CheckCheck className="size-4 text-slate-500" />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-white">{comment ? subject : <>{!group.reviewConflictIds && group.kind === 'approval' && author ? `${author.name} ` : ''}{group.text}</>}</span>
-          <span className="shrink-0 text-[11px] text-slate-500">{group.timeLabel}</span>
-        </span>
-        {comment ? <>
-          {itemName && itemName !== group.target.label && <span className="mt-1.5 block truncate text-[11px] text-slate-500">{group.target.label}</span>}
-          {/* Open, the conversation itself is right below — no need for
-              its one-line preview too. */}
-          {!expanded && <span className="mt-1.5 block line-clamp-2 text-xs leading-5 text-slate-300">
-            <span className="font-medium text-emerald-300">{latest.source ?? author?.name ?? 'Comment'}: </span>{latest.body}
-          </span>}
-          <span className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-slate-500">
-            {comment.comments > 0 && <span className="text-emerald-300/80">{`${comment.comments} comments`}</span>}
-            {comment.feedback > 0 && <span>{`${comment.feedback} automated notes`}</span>}
-            {comment.replies > 0 && <span>{`${comment.replies} replies`}</span>}
-          </span>
-        </> : !expanded && <span className="mt-2 block line-clamp-2 text-xs leading-5 text-slate-400">{preview}</span>}
-      </span>
-      <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
-        {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
-        <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform', expanded && 'rotate-180')} />
-      </span>
-    </button>
+    <div className="space-y-3">
+      {comments.map((n) => (
+        <div key={n.id} className="space-y-3">
+          <ThreadMessage authorId={n.authorId} text={n.text} timeLabel={n.timeLabel} />
+          {(n.replies ?? []).length > 0 && (
+            <div className="ml-[34px] space-y-3">
+              {n.replies.map((r) => <ThreadMessage key={r.id} authorId={r.authorId} text={r.text} />)}
+            </div>
+          )}
+        </div>
+      ))}
+      <form onSubmit={send} className="relative ml-[34px]">
+        <div className="flex h-9 items-center gap-1 rounded-full bg-white/[0.05] pr-1 pl-3.5 transition-colors focus-within:bg-white/[0.08]">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={tr('Write a reply')}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-500"
+          />
+          <button
+            type="button"
+            title="Add emoji"
+            aria-expanded={emojiOpen}
+            onClick={() => setEmojiOpen((v) => !v)}
+            className={cn('flex size-7 items-center justify-center rounded-full transition-colors', emojiOpen ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white')}
+          >
+            <Smile className="size-4" />
+          </button>
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            className="flex h-7 items-center justify-center rounded-full bg-[#2E2E2E] px-3.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-colors hover:bg-[#3A3A3A] disabled:text-slate-500 disabled:hover:bg-[#2E2E2E]"
+          >
+            Send
+          </button>
+        </div>
+        {emojiOpen && (
+          <div className="absolute right-14 bottom-full z-10 mb-2 flex gap-0.5 rounded-full border border-white/10 bg-popover p-1 shadow-xl shadow-black/50">
+            {EMOJI.map((e) => (
+              <button key={e} type="button" onClick={() => setDraft((d) => d + e)} className="flex size-8 items-center justify-center rounded-full text-base transition-colors hover:bg-white/10">
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+      </form>
+    </div>
   )
 }
 
-// A notification opens in place: its box grows downward to show what it's
-// about — the changes to review, or the conversation with its reply box —
-// instead of swapping the list for a second screen. Rows inside it open
-// the target.
+// Automated notes (AI / CI) are not part of the conversation: their own
+// section under the thread, marked with the AI icon instead of a person,
+// each with a link to the place it's about.
+function AutomatedFeedback({ notes, onJump }) {
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+        <Sparkles className="size-3.5" />
+        <LocalizedText text="Automated feedback" />
+      </p>
+      {notes.map((n) => {
+        const { source, body } = splitSource(n.text)
+        return (
+          <div key={n.id} className="flex items-start gap-2.5">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-slate-300">
+              <Sparkles className="size-3" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] leading-relaxed text-slate-300">
+                {source && <span className="mr-1.5 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">{source}</span>}
+                <CondensedText text={body} />
+              </p>
+              <button type="button" onClick={() => onJump(n)} title={n.target.label} className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11.5px] text-slate-400 underline-offset-2 transition-colors hover:text-white hover:underline">
+                <MapPin className="size-3 shrink-0" />
+                <span translate="no" className="truncate font-mono">{n.target.label}</span>
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// What a notification is, worked out once for its card: the closed card's
+// three things (title · one-line summary · time) and what opens under it.
+// A digest of a single change isn't a group — it's that change.
+function cardOf(group, conflicts, mergeItems) {
+  if (group.reviewConflictIds) {
+    const changes = group.reviewConflictIds.map((id) => conflicts.find((c) => c.id === id)).filter(Boolean)
+    if (changes.length === 1) {
+      const [change] = changes
+      return { type: 'change', change, severity: change.severity, title: change.title, summary: needsReviewFrom(change) ? 'Needs your review' : 'Review completed' }
+    }
+    return { type: 'changes', changes, severity: group.severity, title: group.text, summary: changes.map((c) => c.title).join(' · ') }
+  }
+  const first = group.notifications[0]
+  const author = allPeople.find((p) => p.id === first.authorId)
+  if (group.kind === 'comment') {
+    const comments = group.notifications.filter((n) => n.kind === 'comment')
+    const feedback = group.notifications.filter((n) => n.kind === 'feedback')
+    const latest = splitSource(first.text)
+    return {
+      type: 'thread', comments: [...comments].reverse(), feedback, authorId: comments.length ? first.authorId : null,
+      title: mergeItems.find((item) => item.id === group.target.itemId)?.title ?? group.target.label,
+      // Who said it, then the message — translated on its own.
+      summaryLead: latest.source ?? author?.name ?? 'Comment', summary: latest.body,
+    }
+  }
+  // An approval: "Alex approved … on Hero CTA". The target is only added
+  // as the summary when the title doesn't already name it.
+  const named = first.text.includes(group.target.label)
+  return { type: 'event', authorId: first.authorId, title: `${author?.name ?? ''} ${first.text}`.trim(), summary: named ? null : group.target.label }
+}
+
+// One notification. Closed, every card is the same three things — title,
+// a one-line summary, the time. Clicking opens it in place (the box grows
+// downward) with what it's about: the description and file, the thread and
+// its reply box, and the button that goes there.
+function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump }) {
+  const card = cardOf(group, conflicts, mergeItems)
+  const openChange = (change) => onJump({ target: { conflictId: change.id, label: change.title } })
+  const first = group.notifications[0]
+
+  return (
+    <div className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
+      <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-white/[0.03]">
+        <span className="mt-0.5 flex w-6 shrink-0 justify-center">
+          {card.authorId ? <Person id={card.authorId} /> : card.type === 'thread' ? (
+            <span className="flex size-6 items-center justify-center rounded-full bg-white/[0.07] text-slate-300"><Sparkles className="size-3" /></span>
+          ) : (
+            <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-slate-400')} />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium text-white', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
+            <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={group.timeLabel} /></span>
+          </span>
+          {(card.summary || card.severity) && (
+            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-slate-400">
+              {/* The level, once per card. */}
+              {card.severity && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
+              {card.severity && card.summary && <span aria-hidden className="text-slate-600">·</span>}
+              {card.summary && (
+                <span className="min-w-0 flex-1 truncate">
+                  {card.summaryLead && <span className="text-slate-300"><LocalizedText text={card.summaryLead} />: </span>}
+                  <LocalizedText text={card.summary} />
+                </span>
+              )}
+              {/* A count only says something from two up. */}
+              {card.type === 'thread' && card.comments.length >= 2 && <span className="shrink-0 text-slate-500"><LocalizedText text={`${card.comments.length} comments`} /></span>}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 flex shrink-0 items-center gap-1.5">
+          {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
+          <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-300', expanded && 'rotate-180')} />
+        </span>
+      </button>
+
+      {/* Opens by growing (grid rows 0fr → 1fr), so the cards under it
+          slide down instead of jumping. */}
+      <div className={cn('grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+        <div className="min-h-0 overflow-hidden" inert={!expanded}>
+          <div className="space-y-3.5 pr-3 pb-3 pl-[46px]">
+            {card.type === 'change' && (
+              <>
+                <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>
+                <p translate="no" className="font-mono text-[11.5px] break-all text-slate-400">{card.change.file}</p>
+                <button type="button" onClick={() => openChange(card.change)} className={ACTION_BUTTON}>
+                  <LocalizedText text="Open review" /><ArrowUpRight className="size-3.5 opacity-70" />
+                </button>
+              </>
+            )}
+            {card.type === 'changes' && (
+              <div className="-ml-2 space-y-0.5">
+                {card.changes.map((change) => (
+                  <button key={change.id} type="button" onClick={() => openChange(change)} className="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.05]">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium text-white"><LocalizedText text={change.title} /></span>
+                      <span translate="no" className="mt-0.5 block truncate font-mono text-[11px] text-slate-500">{change.file}</span>
+                    </span>
+                    <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {card.type === 'event' && (
+              <button type="button" onClick={() => onJump(first)} className={ACTION_BUTTON}>
+                <LocalizedText text={first.target.conflictId ? 'Open review' : 'Show on canvas'} /><ArrowUpRight className="size-3.5 opacity-70" />
+              </button>
+            )}
+            {card.type === 'thread' && (
+              <>
+                {card.comments.length > 0 && <CommentThread comments={card.comments} />}
+                {card.feedback.length > 0 && <AutomatedFeedback notes={card.feedback} onJump={onJump} />}
+                {card.comments.length > 0 && (
+                  <button type="button" onClick={() => onJump(first)} className={ACTION_BUTTON}>
+                    <LocalizedText text={first.target.conflictId ? 'Open review' : 'Show on canvas'} /><ArrowUpRight className="size-3.5 opacity-70" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// The Inbox. Every notification is a closed card until it's clicked; it
+// opens in place, one at a time — opening another closes the last.
 function MergeInboxDrawer({ onJump, onClose, inset }) {
   const { notifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const [tab, setTab] = useState('unread')
@@ -368,35 +381,9 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
         </button>)}
       </div>
       <div className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3">
-        {visible.map(group => {
-          const expanded = expandedId === group.id
-          const reviewItems = group.reviewConflictIds?.map(id => conflicts.find(c => c.id === id)).filter(Boolean)
-          return (
-            <div key={group.id} className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.kind === 'comment' && group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
-              <NotificationSummary group={group} conflicts={conflicts} mergeItems={mergeItems} expanded={expanded} onOpen={() => toggleGroup(group)} />
-              {expanded && (
-                <div className="px-2.5 pb-2.5 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
-                  {reviewItems ? <div className="space-y-0.5">
-                    {reviewItems.map(conflict => <button key={conflict.id} type="button" onClick={() => onJump({ target: { conflictId: conflict.id, label: conflict.title } })} className="flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/[0.05]">
-                      <RiskBadge severity={conflict.severity} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-medium text-white"><LocalizedText text={conflict.title} /></span>
-                        <span className="mt-1 block truncate text-[11px] text-slate-500">{conflict.file}</span>
-                        <span className="mt-2 block text-xs leading-5 text-slate-300"><LocalizedText text={conflict.message ?? conflict.suggestion} /></span>
-                        <span className="mt-2 block text-[11px] text-emerald-300">{needsReviewFrom(conflict) ? 'Needs your review' : 'Review completed'}</span>
-                      </span>
-                      <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-500" />
-                    </button>)}
-                    {!reviewItems.length && <p className="py-4 text-center text-xs text-slate-500">No changes waiting for review.</p>}
-                  </div> : group.notifications.map(saved => {
-                    const n = notifications.find(current => current.id === saved.id) ?? saved
-                    return <InboxItem key={n.id} n={n} onJump={onJump} />
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })}
+        {visible.map(group => (
+          <InboxCard key={group.id} group={group} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
+        ))}
         {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
       </div>
     </MergeDrawer>

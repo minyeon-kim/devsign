@@ -1,5 +1,5 @@
 import './ConflictPanel.css'
-import { BranchInfo, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
+import { ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { isQueuedConflict } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -8,7 +8,7 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, conflictCounts, isOpen, isPendingMerge, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
+import { authorOf, conflictCounts, gitFlowOf, isOpen, isPendingMerge, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -267,15 +267,13 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 text-left font-medium">Description</th>
-                <th className="py-1.5 text-left font-medium">Branch</th>
-                <th className="py-1.5 text-left font-medium whitespace-nowrap">Author</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Updated</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -293,6 +291,8 @@ function ConflictPanel({ inMergeStudio }) {
                 const author = allPeople.find((p) => p.id === authorOf(conflict))
                 const commentCount = threadOf(conflict, comments).count
                 const failingChecks = isOpen(conflict) ? (conflictChecks(conflict)?.failing.length ?? 0) : 0
+                const flow = gitFlowOf(conflict)
+                const updated = (conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')
                 const mine = isOpen(conflict) && needsReviewFrom(conflict)
                 const readyToRequest = conflict.reviewStage === 'detected' && allDecided(conflict, mergeItems, decisionsFor)
                 return (
@@ -311,13 +311,14 @@ function ConflictPanel({ inMergeStudio }) {
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
                       'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60',
-                      !isOpen(conflict) && 'opacity-60'
+                      // Done: the whole row steps back.
+                      !isOpen(conflict) && 'opacity-45'
                     )}
                   >
                     {/* Every cell starts at the same top inset. Chips are
                         24px tall, so the checkbox (16px), avatars and text
                         (20px lines) are nudged onto the chip's center line. */}
-                    <td className="py-2.5 pt-[14px]" onClick={(event) => event.stopPropagation()}>
+                    <td className="py-3.5 pt-[18px]" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         checked={selection.includes(conflict.id)}
                         disabled={Boolean(blocker)}
@@ -325,13 +326,15 @@ function ConflictPanel({ inMergeStudio }) {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    <td className="py-2.5">
-                      <ReviewStageBadge stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
+                    <td className="py-3.5">
+                      <ReviewStageBadge quiet stage={conflict.reviewStage} ready={readyToRequest} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[conflict.reviewStage] : undefined} />
                     </td>
-                    <td className="py-2.5">
-                      <SeverityPill level={severity.label} className="ds-project-severity" data-level={severity.label.toLowerCase()} />
+                    <td className="py-3.5">
+                      <SeverityPill bare quiet level={severity.label} />
                     </td>
-                    <td className="min-w-0 py-2.5 pt-3">
+                    {/* The branch isn't a column — it's on hover here, and in
+                        the review's Details. */}
+                    <td className="min-w-0 py-3.5 pt-4" title={flow ? `${flow.source} → ${flow.target}` : undefined}>
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
@@ -348,10 +351,10 @@ function ConflictPanel({ inMergeStudio }) {
                         </p>
                       </div>
                     </td>
-                    <td className="py-2.5 pt-3 text-xs leading-5 whitespace-nowrap tabular-nums">
+                    <td className="py-3.5 pt-4 text-xs leading-5 whitespace-nowrap tabular-nums">
                       {shortDue(conflict.dueLabel) ? (
                         // Just the when — the column already says "Due date".
-                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'text-amber-300' : 'text-slate-200')}>
+                        <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'font-medium text-amber-300' : 'text-slate-300')}>
                           <LocalizedText text={shortDue(conflict.dueLabel)} />
                         </span>
                       ) : <span className="text-slate-500">—</span>}
@@ -360,21 +363,16 @@ function ConflictPanel({ inMergeStudio }) {
                         have their own places (the next column, and your
                         avatar under Reviewers). A change with every value
                         decided but no review asked for yet says so. */}
-                    <td className="py-2.5 pt-3 leading-5">
-                      {!isOpen(conflict) ? (
-                        <span className="text-xs text-slate-500">—</span>
-                      ) : failingChecks > 0 ? (
+                    <td className="py-3.5 pt-4 leading-5">
+                      {/* Only when something's wrong — passing is the quiet default. */}
+                      {failingChecks > 0 ? (
                         <span className="inline-flex h-5 items-center gap-1 text-xs font-medium text-amber-300" title="Checks need attention — merging waits on them">
                           <TriangleAlert className="size-3.5" />
                           <span className="tabular-nums">{failingChecks}</span>
                         </span>
-                      ) : (
-                        <span className="inline-flex h-5 items-center text-emerald-300" title="All checks passed">
-                          <CircleCheck className="size-3.5" />
-                        </span>
-                      )}
+                      ) : null}
                     </td>
-                    <td className="py-2.5 pt-3 text-left">
+                    <td className="py-3.5 pt-4 text-left">
                       {reviewers.length ? (
                         <PeopleHover
                           people={reviewers.map((person) => {
@@ -392,12 +390,12 @@ function ConflictPanel({ inMergeStudio }) {
                         <span className="text-slate-300">Unassigned</span>
                       )}
                     </td>
-                    <td className="min-w-0 py-2.5 pt-3">
+                    <td className="min-w-0 py-3.5 pt-4">
                       <div className="min-w-0 space-y-1">
                         {conflict.rollback ? (
                           // A rollback agreement: what's rolled back, who
                           // it affects, and how many of them have confirmed.
-                          <p className="text-[12.5px] leading-5 break-words text-slate-200">
+                          <p className="truncate text-[12.5px] leading-5 text-slate-300">
                             <span className="text-slate-400"><LocalizedText text="Rolling back" /> </span>
                             <LocalizedText text={conflict.rollback.target} />
                             <span className="text-slate-400"> · <LocalizedText text="Affected" /> </span>
@@ -406,24 +404,19 @@ function ConflictPanel({ inMergeStudio }) {
                             <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
                           </p>
                         ) : conflict.message ? (
-                          <p className="text-[12.5px] leading-5 break-words text-slate-200">
+                          <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
                             <LocalizedText text={conflict.message} />
                           </p>
                         ) : <span className="text-slate-500">—</span>}
                       </div>
                     </td>
-                    <td className="min-w-0 py-2.5 pt-3"><BranchInfo conflict={conflict} compact /></td>
-                    <td className="py-2.5 pt-3">
-                      {author ? (
-                        <PeopleHover people={[{ person: author, note: 'Author' }]} />
-                      ) : (
-                        // No person made it — design ↔ code sync found it.
-                        <span className="text-xs text-slate-500" title={conflict.detectedBy ?? 'Detected by sync'}>—</span>
-                      )}
-                    </td>
-                    {/* The day only ("Yesterday", "2 hours ago"); the exact time is on hover. */}
-                    <td className="py-2.5 pt-3 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
-                      <LocalizedText text={(conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')} />
+                    {/* Who and when, together: the author (when a person made
+                        it) and the day; the exact time is on hover. */}
+                    <td className="py-3.5 pt-4">
+                      <span className="flex items-center gap-2 text-xs leading-5 whitespace-nowrap text-slate-300 tabular-nums" title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}>
+                        {author && <PeopleHover people={[{ person: author, note: 'Author' }]} />}
+                        <LocalizedText text={updated} />
+                      </span>
                     </td>
 
                   </tr>
@@ -585,9 +578,10 @@ function PeopleHover({ people }) {
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex flex-wrap justify-start gap-y-1 -space-x-1.5 rounded-full" />} onClick={(event) => event.stopPropagation()}>
+        {/* Neutral in the list — a person's color isn't a status. */}
         {people.map(({ person, className }) => (
           <Avatar key={person.id} size="xs" className={className}>
-            <AvatarFallback className={cn('font-medium text-white', person.colorClass)}>{person.initials}</AvatarFallback>
+            <AvatarFallback className="bg-[#3A3A3D] font-medium text-slate-100">{person.initials}</AvatarFallback>
           </Avatar>
         ))}
       </TooltipTrigger>

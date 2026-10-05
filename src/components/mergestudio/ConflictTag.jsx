@@ -25,19 +25,24 @@ function ConflictTag({ level, className }) {
 
 // Level and review status share badge geometry; color identifies severity.
 const SEVERITY_PILL_CLASS = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300', none: 'text-slate-400' }
+// In lists color is kept for what needs acting on: only High is tinted.
+const SEVERITY_QUIET_CLASS = { high: 'text-rose-300', medium: 'text-slate-200', low: 'text-slate-300', none: 'text-slate-400' }
 
-export function SeverityPill({ level, className, ...props }) {
+// `bare`: just the level ("Medium"), for places whose column or context
+// already says it's a level. `quiet`: color only for High.
+export function SeverityPill({ level, className, bare = false, quiet = false, ...props }) {
   const key = String(level).toLowerCase()
+  const tones = quiet ? SEVERITY_QUIET_CLASS : SEVERITY_PILL_CLASS
   return (
     <span
       {...props}
       className={cn(
         CONFLICT_BADGE,
-        SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium,
+        tones[key] ?? tones.medium,
         className
       )}
     >
-      <span className="text-slate-400">Level</span>
+      {!bare && <span className="text-slate-400">Level</span>}
       <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>
   )
