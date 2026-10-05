@@ -251,7 +251,7 @@ function ConflictPanel({ inMergeStudio }) {
         <div className="scroll-fade-bottom relative min-h-0 min-w-0 flex-1 overflow-auto">
           <table className="conflict-list-table text-xs">
             {/* Headers, rows and expanded diffs share the same grid tracks. */}
-            <thead className="sticky top-0 z-10 bg-card">
+            <thead className="sticky top-0 z-20 bg-card">
               <tr className="border-b text-left text-xs text-slate-300">
                 <th className="py-1.5 text-left font-medium">
                   <Checkbox

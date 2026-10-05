@@ -50,7 +50,7 @@ export const ROLLBACK_REASON_ORDER = ['based-on', 'other-work', 'irreversible']
 const TOKEN_LABELS = [
   [/^bg-/, 'Background'], [/^h-/, 'Height'], [/^w-/, 'Width'], [/^text-/, 'Text'], [/^rounded/, 'Radius'],
   [/^(p|px|py|pt|pb|pl|pr)-/, 'Padding'], [/^(m|mx|my|mt|mb|ml|mr|gap)-/, 'Spacing'], [/^tracking-/, 'Letter spacing'],
-  [/^font-/, 'Font'], [/^border/, 'Border'], [/^size=/, 'Size'], [/^variant=/, 'Variant'], [/^stroke/i, 'Stroke'],
+  [/^font-/, 'Font'], [/^border/, 'Border'], [/^size[=-]/, 'Size'], [/^variant=/, 'Variant'], [/^stroke/i, 'Stroke'],
 ]
 
 function tokensOf(lines) {
@@ -62,16 +62,27 @@ function tokensOf(lines) {
   return tokens
 }
 
+// A token as it's read in the table: the class or value itself, with the
+// size it stands for when it's on the 4px scale — "size-5 (20px)".
 function tokenValue(token) {
   const bracket = /\[(.+)\]/.exec(token)
   if (bracket) return bracket[1]
   const prop = /^[a-zA-Z]+=(.+)$/.exec(token)
   if (prop) return prop[1]
-  const step = /^(?:h|w)-(\d+(?:\.\d+)?)$/.exec(token)
-  return step ? `${Number(step[1]) * 4}px` : token
+  const step = /^(?:size|h|w|p[xytblr]?|m[xytblr]?|gap)-(\d+(?:\.\d+)?)$/.exec(token)
+  return step ? `${token} (${Number(step[1]) * 4}px)` : token
 }
 
 const colorOf = (value) => /#[0-9a-fA-F]{3,8}\b/.exec(value ?? '')?.[0] ?? null
+
+// What a side falls back to when it sets nothing itself — the component's
+// own default, named, instead of a bare "default". (The Button's: the
+// primary color token and its 40px default size — see cc-11 in mockData.)
+const FALLBACK_VALUE = {
+  Background: { value: 'color.primary', color: '#6366f1' },
+  Height: { value: 'h-10 (40px)' },
+  Size: { value: 'default (40px)' },
+}
 
 export function rollbackChanges(rows) {
   const current = tokensOf(rows.filter((row) => row.kind === 'remove').map((row) => row.text))
@@ -86,9 +97,14 @@ export function rollbackChanges(rows) {
   current.filter((token) => !target.includes(token)).forEach((token) => add(token, 'from'))
   target.filter((token) => !current.includes(token)).forEach((token) => add(token, 'to'))
   return [...groups.values()].slice(0, 6).map(({ label, from, to }) => {
-    const fromValue = from.join(' ') || null
-    const toValue = to.join(' ') || null
-    return { label, from: fromValue, to: toValue, fromColor: colorOf(fromValue), toColor: colorOf(toValue) }
+    const fallback = FALLBACK_VALUE[label]
+    const fromValue = from.join(' ') || fallback?.value || null
+    const toValue = to.join(' ') || fallback?.value || null
+    return {
+      label, from: fromValue, to: toValue,
+      fromColor: colorOf(fromValue) ?? (from.length ? null : fallback?.color ?? null),
+      toColor: colorOf(toValue) ?? (to.length ? null : fallback?.color ?? null),
+    }
   })
 }
 

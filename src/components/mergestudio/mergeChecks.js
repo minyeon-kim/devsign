@@ -71,8 +71,29 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
   const screens = [...bySection.values()]
 
   // Automated checks.
-  const interactive = layers.filter((l) => ['button', 'input', 'iconbtn', 'chip', 'toggle'].includes(l.type))
-  const smallTargets = interactive.filter((l) => Math.min(l.width, l.height) < 24)
+  // Target size (WCAG 2.5.8) is about the touch area, not how big the
+  // glyph is drawn: a control's touch area is its decided Tap / Hit area
+  // when it has one, otherwise its own size. Only what this merge changes
+  // is checked — an untouched element elsewhere on the screen isn't this
+  // change's to fix (with nothing mapped, the whole frame still is).
+  const TOUCH_PROP = /tap area|hit area|touch/i
+  const sizeProp = (layerId, pattern) => {
+    const size = parseFloat(props.find((p) => p.layerId === layerId && pattern.test(p.diff.label))?.value)
+    return Number.isFinite(size) ? size : null
+  }
+  const touchOf = (l) => sizeProp(l.id, TOUCH_PROP) ?? Math.min(l.width, l.height)
+  const changedLayers = new Set(Object.keys(layerDiffs))
+  const interactive = layers.filter((l) => ['button', 'input', 'iconbtn', 'chip', 'toggle'].includes(l.type) && (!changedLayers.size || changedLayers.has(l.id)))
+  const smallTargets = interactive.filter((l) => touchOf(l) < 24)
+  // An icon drawn under 24px. With a touch area of 24px or more that isn't
+  // an accessibility failure — it's the icon not matching the design
+  // system, a suggestion. Without one, it's a real target-size failure.
+  const smallIcons = props
+    .filter((p) => /icon size/i.test(p.diff.label) && parseFloat(p.value) < 24)
+    .map((p) => ({ ...p, touch: sizeProp(p.layerId, TOUCH_PROP), name: item.category ?? layers.find((l) => l.id === p.layerId)?.name ?? p.layerId }))
+  const untouchableIcons = smallIcons.filter((icon) => icon.touch == null || icon.touch < 24)
+  const mismatchedIcons = smallIcons.filter((icon) => icon.touch != null && icon.touch >= 24)
+  const targetFailures = smallTargets.length + untouchableIcons.length
   const accents = [...new Set(props.filter((p) => /accent/i.test(p.diff.label) && ACCENT_HEX[p.value]).map((p) => p.value))]
   const worstAccent = accents.map((a) => ({ a, ratio: contrastOnWhite(ACCENT_HEX[a]) })).sort((x, y) => x.ratio - y.ratio)[0]
   const fontSizes = props.filter((p) => /font size/i.test(p.diff.label)).map((p) => parseFloat(p.value))
@@ -112,11 +133,25 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     },
     {
       id: 'targets',
-      layerId: smallTargets[0]?.id,
+      layerId: smallTargets[0]?.id ?? untouchableIcons[0]?.layerId,
       group: 'Accessibility',
-      ok: smallTargets.length === 0,
-      title: smallTargets.length === 0 ? `Target size ≥ 24px on all ${interactive.length} controls` : `${smallTargets.length} control${smallTargets.length === 1 ? '' : 's'} under 24px`,
-      hint: smallTargets.length ? 'WCAG 2.2 AA (2.5.8) target size.' : null,
+      ok: targetFailures === 0,
+      // Named, not counted, when it's one thing: "Menu Button touch area 20px".
+      title: targetFailures === 0 ? `Target size ≥ 24px on all ${interactive.length} controls`
+        : targetFailures > 1 ? `${targetFailures} controls with a touch area under 24px`
+          : smallTargets.length ? `${smallTargets[0].name} touch area ${touchOf(smallTargets[0])}px`
+            : `${untouchableIcons[0].name} icon ${untouchableIcons[0].value} with no larger touch area`,
+      hint: targetFailures ? 'WCAG 2.2 AA (2.5.8) asks for a touch area of at least 24px.' : null,
+    },
+    mismatchedIcons.length > 0 && {
+      id: 'icon-size',
+      layerId: mismatchedIcons[0].layerId,
+      // Not Accessibility: the touch area passes. It's the design system's
+      // size that isn't matched — a suggestion, never a blocker.
+      group: 'Consistency',
+      ok: false,
+      title: `${mismatchedIcons[0].name} icon ${mismatchedIcons[0].value}`,
+      hint: `Its ${mismatchedIcons[0].touch}px touch area meets WCAG 2.5.8, so this doesn’t block the merge — the icon is just smaller than the design system’s ${mismatchedIcons[0].diff.optionA}.`,
     },
     fontSizes.length > 0 && {
       id: 'text',
@@ -183,7 +218,7 @@ export function checksFor(item, draft = {}, linesOf = () => []) {
     // Drafts mixed by region: the composed screen's own checks in place of
     // the per-property ones (there are no property decisions to check).
     ...(draftScreens[item.id]
-      ? [...compositionChecks(item.id, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId), ...assessed.checks.filter((c) => ['targets', 'ai'].includes(c.id))]
+      ? [...compositionChecks(item.id, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId), ...assessed.checks.filter((c) => ['targets', 'icon-size', 'ai'].includes(c.id))]
       : assessed.checks.filter((c) => c.id !== 'conflict')),
   ]
   const failing = checks.filter((c) => !c.ok)

@@ -397,18 +397,29 @@ export function WorkspaceProvider({ children, projectId }) {
   const conflictChecks = useCallback((conflict) => {
     if (!conflict) return null
     const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
-    const result = item ? checksFor(item, mergeDrafts.current[item.id], (id) => id === conflict.fileId && conflict.workingFile ? conflict.workingFile : linesOfFile(id)) : null
-    // A failing check someone decided to ship as it is (the review's "Apply
-    // as is") no longer counts as failing or blocking — it's listed apart,
-    // as `accepted`, so the decision stays visible and can be undone.
-    const acceptedIds = conflict.acceptedChecks ?? []
-    if (!result || !acceptedIds.length) return result && { ...result, accepted: [] }
-    const isAccepted = (check) => acceptedIds.includes(check.id)
+    const raw = item ? checksFor(item, mergeDrafts.current[item.id], (id) => id === conflict.fileId && conflict.workingFile ? conflict.workingFile : linesOfFile(id)) : null
+    if (!raw) return null
+    // "Options undecided" isn't listed as a check here: the review shows it
+    // as the choice still to make, once.
+    const listed = (check) => check.id !== 'decided'
+    const result = { ...raw, failing: raw.failing.filter(listed), blocking: raw.blocking.filter(listed) }
+    // A failing check stops counting once it's settled another way:
+    //   · a suggestion someone chose to ship as it is ("Apply as is");
+    //   · a required one with an exception requested — but only after the
+    //     reviewers have approved the change with that exception on it.
+    // Both stay listed apart (`accepted`, `exceptions`) so the decision is
+    // visible and can be undone.
+    const exceptionIds = conflict.exceptionChecks ?? []
+    const granted = conflict.reviewStage === 'approved' || conflict.reviewStage === 'resolved'
+    const settledIds = [...(conflict.acceptedChecks ?? []), ...(granted ? exceptionIds : [])]
+    const isSettled = (check) => settledIds.includes(check.id)
     return {
       ...result,
-      failing: result.failing.filter((check) => !isAccepted(check)),
-      blocking: result.blocking.filter((check) => !isAccepted(check)),
-      accepted: result.failing.filter(isAccepted),
+      failing: result.failing.filter((check) => !isSettled(check)),
+      blocking: result.blocking.filter((check) => !isSettled(check)),
+      accepted: result.failing.filter((check) => (conflict.acceptedChecks ?? []).includes(check.id)),
+      exceptions: result.failing.filter((check) => exceptionIds.includes(check.id)),
+      exceptionsGranted: granted,
     }
   }, [mergeItems, linesOfFile])
   const saveMergeDraft = useCallback((id, draft) => {
@@ -914,7 +925,7 @@ export function WorkspaceProvider({ children, projectId }) {
     // Checks gate the merge (not the review request): failing design-system
     // or accessibility checks, or a merge conflict, keep it from landing.
     // …except the ones the review chose to apply as they are.
-    const acceptedChecks = new Set(related.flatMap((c) => c.acceptedChecks ?? []))
+    const acceptedChecks = new Set(related.flatMap((c) => [...(c.acceptedChecks ?? []), ...(c.reviewStage === 'approved' ? c.exceptionChecks ?? [] : [])]))
     const blocking = item ? checksFor(item, draft, (id) => finalFiles[id] ?? fileOverrides[id] ?? files.find((f) => f.id === id)?.lines ?? []).blocking.filter((check) => !acceptedChecks.has(check.id)) : []
     const reason = mergeBlockReason({ conflicts: related, item, lines: Object.values(finalFiles).flat() })
       ?? (blocking.length ? `${blocking.length} check${blocking.length === 1 ? '' : 's'} failing: ${blocking.map((c) => c.title).join(' · ')}` : null)
@@ -1368,6 +1379,7 @@ export function WorkspaceProvider({ children, projectId }) {
       detectedAt: timeLabel(),
       rollback: {
         entryId: entry.id, label: entry.label, target: fileName, timestamp: entry.timestamp, options, reasons: impact.reasons,
+        component: fileName.replace(/\.[a-z]+$/i, ''), requestedBy: currentUser.id,
         // The values it changes, now → after the rollback.
         changes: rollbackChanges(diffLines(linesOfFile(entry.snapshot.fileId), entry.snapshot.lines ?? [])),
       },

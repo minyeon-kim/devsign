@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, CircleCheck, RotateCcw, TriangleAlert, Wrench, X } from 'lucide-react'
+import { ArrowUpRight, Check, CircleCheck, Clock3, RotateCcw, TriangleAlert, Wrench, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
@@ -11,48 +11,73 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // Studio — saying what to change, with the element highlighted.
 
 const ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors'
+const ACTION_PRIMARY = 'bg-white/[0.1] text-white hover:bg-white/[0.16]'
+const ACTION_QUIET = 'bg-white/[0.05] text-slate-200 hover:bg-white/[0.1] hover:text-white'
 
+// Neutral: amber is kept for the "can't merge" label these sit under.
 function Tag({ required, ko }) {
   return (
-    <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10.5px] leading-none font-medium', required ? 'bg-amber-400/15 text-amber-200' : 'bg-white/[0.07] text-slate-300')}>
+    <span className="shrink-0 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-300">
       {required ? (ko ? '필수' : 'Required') : (ko ? '권장' : 'Suggestion')}
     </span>
   )
 }
 
-// `activeId`: the check being fixed right now (its guide is open).
 // `only`: the failing checks to list here (the review shows required ones
 // and suggestions in different places); `showAccepted` adds the ones being
-// applied as they are. Amber is for required checks only.
-export function CheckDecisions({ checks, only, showAccepted = !only, activeId, onFix, onAccept, onUndoAccept }) {
+// applied as they are.
+// What can be done about a check depends on which kind it is:
+//   · a suggestion — fix it, or apply the change as it is;
+//   · a required one — fix it, or request an exception. It can't simply be
+//     waived: the exception goes to the reviewers, and the check stops
+//     blocking only once they've approved the change with it.
+export function CheckDecisions({ checks, only, showAccepted = !only, onFix, onAccept, onUndoAccept, onRequestException, onUndoException }) {
   const ko = useLanguage() === 'ko'
   const failing = only ?? checks?.failing ?? []
   const accepted = showAccepted ? checks?.accepted ?? [] : []
-  if (!checks || (!failing.length && !accepted.length)) return null
+  const exceptions = checks?.exceptions ?? []
+  // Exceptions the reviewers approved, listed with what was applied as is.
+  const granted = showAccepted && checks?.exceptionsGranted ? exceptions : []
+  if (!checks || (!failing.length && !accepted.length && !granted.length)) return null
   return (
-    // Rows, not boxes: a hairline between checks; the one being fixed gets
-    // a faint background.
+    // Rows, not boxes: a hairline between checks.
     <ul className="mt-1.5 divide-y divide-white/[0.07]">
       {failing.map((check) => {
         const required = checks.blocking.includes(check)
+        const requested = exceptions.includes(check)
         return (
-          <li key={check.id} className={cn('py-2.5', activeId === check.id && '-mx-2 rounded-lg bg-white/[0.05] px-2')}>
+          <li key={check.id} className="py-2.5">
             <p className="flex min-w-0 items-start gap-1.5 text-xs leading-[18px] font-medium text-white">
-              <TriangleAlert className={cn('mt-0.5 size-3.5 shrink-0', required ? 'text-amber-300' : 'text-slate-400')} />
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 break-words"><LocalizedText text={check.title} /></span>
               <Tag required={required} ko={ko} />
             </p>
             {check.hint && <p className="mt-1 pl-5 text-xs leading-[18px] text-slate-300"><LocalizedText text={check.hint} /></p>}
-            {(onFix || onAccept) && (
+            {requested ? (
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-xs leading-[18px] text-slate-300">
+                <Clock3 className="size-3.5 shrink-0 text-slate-400" />
+                {ko ? '예외 요청됨 · 검토자가 승인하면 병합할 수 있어요' : 'Exception requested · it can merge once the reviewers approve'}
+                {onUndoException && (
+                  <button type="button" onClick={() => onUndoException(check)} className={cn(ACTION, 'h-6 px-2 text-slate-400 hover:bg-white/[0.07] hover:text-white')}>
+                    <RotateCcw className="size-3" />
+                    {ko ? '요청 취소' : 'Withdraw'}
+                  </button>
+                )}
+              </p>
+            ) : (onFix || onAccept || onRequestException) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-5">
                 {onFix && (
-                  <button type="button" onClick={() => onFix(check)} className={cn(ACTION, required ? 'bg-amber-300 text-slate-950 hover:bg-amber-200' : 'bg-white/[0.1] text-white hover:bg-white/[0.16]')}>
+                  <button type="button" onClick={() => onFix(check)} className={cn(ACTION, ACTION_PRIMARY)}>
                     <Wrench className="size-3" />
                     {ko ? '수정하기' : 'Fix it'}
                   </button>
                 )}
-                {onAccept && (
-                  <button type="button" onClick={() => onAccept(check)} className={cn(ACTION, 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.12] hover:text-white')}>
+                {required ? onRequestException && (
+                  <button type="button" onClick={() => onRequestException(check)} className={cn(ACTION, ACTION_QUIET)}>
+                    {ko ? '예외 요청' : 'Request exception'}
+                  </button>
+                ) : onAccept && (
+                  <button type="button" onClick={() => onAccept(check)} className={cn(ACTION, ACTION_QUIET)}>
                     {ko ? '그대로 반영' : 'Apply as is'}
                   </button>
                 )}
@@ -74,6 +99,15 @@ export function CheckDecisions({ checks, only, showAccepted = !only, activeId, o
               {ko ? '되돌리기' : 'Undo'}
             </button>
           )}
+        </li>
+      ))}
+      {granted.map((check) => (
+        <li key={check.id} className="flex min-w-0 items-center gap-1.5 py-2 text-xs leading-[18px] text-slate-400">
+          <Check className="size-3.5 shrink-0 text-slate-400" />
+          <span className="min-w-0 flex-1 break-words">
+            <LocalizedText text={check.title} />
+            <span className="text-slate-500"> · {ko ? '예외 승인됨' : 'Exception approved'}</span>
+          </span>
         </li>
       ))}
     </ul>

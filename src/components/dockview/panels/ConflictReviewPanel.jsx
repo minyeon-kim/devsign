@@ -46,7 +46,7 @@ import {
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
-import { CheckDecisions, CheckGuideNote } from '@/components/conflicts/CheckDecisions'
+import { CheckDecisions } from '@/components/conflicts/CheckDecisions'
 import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
@@ -371,8 +371,11 @@ const DECISION_CHECKS = new Set(['tokens', 'contrast', 'text'])
 // decision and every check live on the comparison card in the middle, so
 // nothing is said twice.
 function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onOpenHistory }) {
-  const [showDetails, setShowDetails] = useState(false)
+  // A rollback's details (what, to which version, who asked) are the
+  // whole of its left card, so they start open; a conflict's stay folded.
+  const [showDetails, setShowDetails] = useState(Boolean(conflict.rollback))
   const open = stage !== 'resolved'
+  const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
   const riskExplanation = riskPrefix
     ? conflict.riskReason.slice(riskPrefix[0].length)
@@ -444,14 +447,16 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, onO
         </button>
         {showDetails && (conflict.rollback ? (
           <div className="mt-2 space-y-1.5">
-            <div className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
-              <span className="text-xs leading-[18px] text-slate-400">Files</span>
-              <span translate="no" className="min-w-0 font-mono text-[11.5px] leading-[18px] break-all text-slate-300">{conflict.rollback.target}</span>
-            </div>
-            <div className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
-              <span className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Changed at" /></span>
-              <span className="min-w-0 text-xs leading-[18px] text-slate-200"><LocalizedText text={conflict.rollback.timestamp ?? conflict.detectedAt} /></span>
-            </div>
+            {[
+              ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all text-slate-300">{conflict.rollback.target}</span>],
+              ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
+              requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
+            ].filter(Boolean).map(([label, value]) => (
+              <div key={label} className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] gap-x-3">
+                <span className="text-xs leading-[18px] text-slate-400"><LocalizedText text={label} /></span>
+                <span className="min-w-0 text-xs leading-[18px] break-words text-slate-200">{value}</span>
+              </div>
+            ))}
           </div>
         ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
       </section>
@@ -479,20 +484,27 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
   const required = checks && open ? checks.blocking : []
   const suggested = checks && open ? checks.failing.filter((check) => !checks.blocking.includes(check)) : []
   const cardBlockers = side ? required.filter((check) => DECISION_CHECKS.has(check.id)) : []
-  let otherClears = false
-  if (cardBlockers.length && workspace?.mergeDrafts) {
-    const other = side === 'A' ? 'B' : 'A'
+  // What would still fail with every value on one side — the checks
+  // re-run with the decisions flipped. Tells which choice clears a check.
+  const settled = [...(conflict?.acceptedChecks ?? [])]
+  const failingWith = (decision) => {
+    if (!rows.length || !workspace?.mergeDrafts) return null
     const draft = workspace.mergeDrafts.current?.[item.id] ?? {}
-    const flipped = checksFor(item, { ...draft, resolutions: { ...decisions, ...Object.fromEntries(rows.map((row) => [row.key, other])) } }, workspace.linesOfFile)
-    const accepted = conflict.acceptedChecks ?? []
-    otherClears = !flipped.blocking.some((check) => DECISION_CHECKS.has(check.id) && !accepted.includes(check.id))
+    const run = checksFor(item, { ...draft, resolutions: { ...decisions, ...Object.fromEntries(rows.map((row) => [row.key, decision])) } }, workspace.linesOfFile)
+    return new Set(run.failing.map((check) => check.id).filter((id) => !settled.includes(id)))
   }
+  const failing = open ? { A: failingWith('A'), B: failingWith('B') } : { A: null, B: null }
+  // The side that makes this check pass (the other one first, if a side is
+  // already picked), or null when neither does.
+  const resolvingSide = (checkId) => [side === 'A' ? 'B' : 'A', side === 'A' ? 'A' : 'B'].find((candidate) => failing[candidate] && !failing[candidate].has(checkId)) ?? null
+  const other = side === 'A' ? 'B' : 'A'
+  const otherClears = cardBlockers.length > 0 && Boolean(failing[other]) && !cardBlockers.some((check) => failing[other].has(check.id))
   return {
     rows, side, label, open,
     canPick: rows.length > 0 && open,
     pick: (decision) => rows.forEach((row) => workspace.decideDrift(item.id, row.key, decision)),
     undo: () => rows.forEach((row) => workspace.decideDrift(item.id, row.key, null)),
-    required, suggested, cardBlockers, otherClears,
+    required, suggested, cardBlockers, otherClears, resolvingSide,
     otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
   }
 }
@@ -577,7 +589,13 @@ function CodeDiffColumns({ rows }) {
 // `state`: the decision and checks (decisionStateOf). `checkBlocks`: the
 // checks that aren't about the picked card, placed right under the
 // comparison. `checkActions`: fix / apply-as-is for the ones on the card.
-function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks }) {
+// `fixSide`: "Fix it" was pressed on a check this side resolves — the card
+// scrolls into view, lightly marked, saying so.
+function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, checkActions, checkBlocks, fixSide }) {
+  const cardsRef = useRef(null)
+  useEffect(() => {
+    if (fixSide) cardsRef.current?.querySelector(`[data-decision="${fixSide}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [fixSide])
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
@@ -623,7 +641,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
           ) : (
             <>
               <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-sky-200"><span className="size-1.5 rounded-full bg-sky-400" /><LocalizedText text="Choice needed" /></span>
-              <span className="min-w-0 text-xs text-slate-300"><LocalizedText text="Pick which side to merge." /></span>
+              <span className="min-w-0 text-xs text-slate-300"><LocalizedText text="Pick which side to merge. Left unpicked, it merges with the current implementation’s values." /></span>
             </>
           ))}
           {studioAction && (
@@ -644,7 +662,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (
-              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 divide-x divide-white/[0.08]">
+              <div ref={cardsRef} role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 divide-x divide-white/[0.08]">
                 {[
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
@@ -654,16 +672,19 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                   <div key={side}
                     onClick={() => pick(decision)}
                     data-side={side}
+                    data-decision={decision}
                     // No boxes: the two sides are columns either side of a line.
                     // Only the picked one is tinted.
-                    className={cn('flex min-w-0 flex-col gap-2 p-3 transition-colors first:rounded-l-lg last:rounded-r-lg focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'bg-emerald-400/[0.08]' : canPick && 'cursor-pointer hover:bg-white/[0.03]')}>
+                    className={cn('flex min-w-0 flex-col gap-2 p-3 transition-colors first:rounded-l-lg last:rounded-r-lg focus-visible:outline-2 focus-visible:outline-emerald-300', picked(decision) ? 'bg-emerald-400/[0.08]' : fixSide === decision ? 'bg-white/[0.06]' : canPick && 'cursor-pointer hover:bg-white/[0.03]')}>
                     {source && <ComparisonSource {...source} />}
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
                     <dl className="mt-1 min-w-0 space-y-1.5">
                       {conflict.comparisonFields.map((field) => (
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-2">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                          <dd className={cn('min-w-0 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', tone)}><LocalizedText text={value(field)} /></dd>
+                          {/* Red / green only where the two sides differ — a
+                              value that's the same on both isn't a change. */}
+                          <dd className={cn('min-w-0 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}><LocalizedText text={value(field)} /></dd>
                         </div>
                       ))}
                     </dl>
@@ -683,10 +704,10 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
                         )}
                       </div>
                     )}
-                    {!picked(decision) && state.side && state.cardBlockers.length > 0 && state.otherClears && !readOnly && (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs leading-[18px] text-emerald-300">
-                        <Check className="size-3.5 shrink-0" strokeWidth={2.5} />
-                        <LocalizedText text="Choosing this side clears the block." />
+                    {!picked(decision) && !readOnly && (fixSide === decision || (state.side && state.cardBlockers.length > 0 && state.otherClears)) && (
+                      <p className="mt-1 flex items-center gap-1.5 text-xs leading-[18px] font-medium text-slate-100">
+                        <Check className="size-3.5 shrink-0 text-emerald-300" strokeWidth={2.5} />
+                        <LocalizedText text="Choosing this value resolves it." />
                       </p>
                     )}
                     {/* Picked is a state, not something to press: a plain check
@@ -769,16 +790,16 @@ function DiffTab({ conflict, code, studioAction, mergedLines, state, checks, che
 }
 
 // A rollback that reaches other people, as the agreement it needs — kept
-// to what's checked here: why it needs agreement (one badge per reason),
-// what it changes (each value now → after, colors as swatches), and the one
-// list of who it affects with whether each has confirmed.
+// to what's checked here: one line saying what goes back to which version,
+// why it needs agreement (a badge per reason — or, once everyone has
+// confirmed, one quiet badge saying so), what it changes (a table:
+// property · now · after, colors as swatches), and the one list of who it
+// affects with whether each has confirmed.
 function RollbackValue({ value, color }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       {color && <span aria-hidden className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/20" style={{ background: color }} />}
-      {value
-        ? <span translate="no" className="min-w-0 font-mono text-[12px] break-all">{value}</span>
-        : <span className="text-xs text-slate-400"><LocalizedText text="Default" /></span>}
+      <span translate="no" className="min-w-0 font-mono text-[12px] break-all">{value ?? '—'}</span>
     </span>
   )
 }
@@ -786,11 +807,30 @@ function RollbackValue({ value, color }) {
 function RollbackAgreement({ conflict }) {
   const { rollback, reviewers } = conflict
   const confirmed = reviewers.filter((r) => r.status === 'approved').length
+  const allConfirmed = reviewers.length > 0 && confirmed === reviewers.length
   const changes = rollback.changes ?? []
+  const names = reviewers.map((r) => allPeople.find((p) => p.id === r.id)?.name).filter(Boolean)
+  const component = rollback.component ?? String(rollback.target ?? '').replace(/\.[a-z]+$/i, '')
   return (
     <div className="flex h-full min-w-0 flex-col gap-4">
+      {/* What goes back to which version: component · checkpoint · time · file. */}
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs leading-5 text-slate-300">
+        <span translate="no" className="text-[13px] font-semibold text-white">{component}</span>
+        <span aria-hidden className="text-slate-500">→</span>
+        <span className="min-w-0 font-medium break-words text-slate-100"><LocalizedText text={rollback.label} /></span>
+        {rollback.timestamp && <><span aria-hidden className="text-slate-600">·</span><span className="text-slate-400"><LocalizedText text={rollback.timestamp} /></span></>}
+        <span aria-hidden className="text-slate-600">·</span>
+        <span translate="no" className="font-mono text-[11.5px] text-slate-400">{rollback.target}</span>
+      </p>
+
       <div className="flex min-w-0 flex-wrap gap-1.5">
-        {rollback.reasons.map((reason) => (
+        {allConfirmed ? (
+          // Everyone it touches has agreed — no longer a warning.
+          <span className="inline-flex h-6 items-center gap-1 rounded-md bg-white/[0.06] px-2 text-[11px] font-medium text-slate-200">
+            <Check className="size-3 text-slate-400" strokeWidth={2.5} />
+            <LocalizedText text={`Affects ${names.join(', ')}’s work · confirmed`} />
+          </span>
+        ) : rollback.reasons.map((reason) => (
           <span key={reason.id} className="inline-flex h-6 items-center gap-1 rounded-md bg-amber-400/15 px-2 text-[11px] font-medium text-amber-200">
             <LocalizedText text={ROLLBACK_REASON[reason.id].short} />
           </span>
@@ -798,27 +838,32 @@ function RollbackAgreement({ conflict }) {
       </div>
 
       {changes.length > 0 && (
-        <section className="min-w-0">
-          <p className={cn(REVIEW_INFO_LABEL, 'flex items-center gap-1.5')}>
-            <LocalizedText text="Now" /><span aria-hidden className="text-slate-500">→</span><LocalizedText text="After rollback" />
-          </p>
-          <dl className="mt-1.5 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+        // Three columns sized to their content, so a value sits right
+        // beside the one it's compared with.
+        <table className="w-fit max-w-full border-collapse text-left text-slate-100">
+          <thead>
+            <tr className="border-b border-white/[0.07] text-xs font-medium text-slate-400">
+              <th className="py-1.5 pr-6 font-medium"><LocalizedText text="Property" /></th>
+              <th className="py-1.5 pr-6 font-medium"><LocalizedText text="Now" /></th>
+              <th className="py-1.5 font-medium"><LocalizedText text="After rollback" /></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.07]">
             {changes.map((change) => (
-              <div key={change.label} className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2.5 py-2 text-slate-100">
-                <dt className="text-xs text-slate-400"><LocalizedText text={change.label} /></dt>
-                <dd className="min-w-0"><RollbackValue value={change.from} color={change.fromColor} /></dd>
-                <span aria-hidden className="text-slate-500">→</span>
-                <dd className="min-w-0"><RollbackValue value={change.to} color={change.toColor} /></dd>
-              </div>
+              <tr key={change.label}>
+                <td className="py-2 pr-6 align-top text-xs text-slate-400"><LocalizedText text={change.label} /></td>
+                <td className="py-2 pr-6 align-top"><RollbackValue value={change.from} color={change.fromColor} /></td>
+                <td className="py-2 align-top"><RollbackValue value={change.to} color={change.toColor} /></td>
+              </tr>
             ))}
-          </dl>
-        </section>
+          </tbody>
+        </table>
       )}
 
       <section className="min-w-0">
         <p className={cn(REVIEW_INFO_LABEL, 'flex items-center gap-2')}>
           <LocalizedText text="Affected people" />
-          <span className={cn('tabular-nums', confirmed === reviewers.length ? 'text-emerald-300' : 'text-slate-300')}>
+          <span className={cn('tabular-nums', allConfirmed ? 'text-emerald-300' : 'text-slate-300')}>
             {confirmed}/{reviewers.length} <LocalizedText text="Confirmed" />
           </span>
         </p>
@@ -1316,6 +1361,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The review itself ('overview') or the History behind it, reset to the
   // review whenever a different conflict loads.
   const [tab, setTab] = useState('overview')
+  const [fixTarget, setFixTarget] = useState(null)
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
@@ -1394,13 +1440,31 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     else onRequestChanges?.(conflict.id)
   }
 
-  // Fix: nothing moves yet — the guide opens on the comparison card, saying
-  // what to change and where (pick the other side here, or adjust it in
-  // Merge Studio, which keeps the same guide and marks the element).
+  // Fix: go to what fixes it. When picking a side on the comparison would,
+  // that card scrolls into view, lightly marked ("Choosing this value
+  // resolves it") — no banner repeating the check.
   function startFix(check) {
     if (!workspace) return
-    workspace.setCheckGuide({ conflictId: conflict.id, check })
     setTab('overview')
+    // A choice on the comparison clears it: go to that card and mark it.
+    const side = decisionState.resolvingSide(check.id)
+    if (side) { setFixTarget({ conflictId: conflict.id, checkId: check.id, side }); return }
+    // Nothing here does — it's adjusted on the canvas, where the same note
+    // and a highlight on the element wait (see MergeCheckGuide).
+    workspace.setCheckGuide({ conflictId: conflict.id, check })
+    fixCheck(check)
+  }
+
+  // A required check can't be waived — an exception is asked of the
+  // reviewers; it stops blocking once they've approved the change with it.
+  function requestException(check) {
+    update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), check.id])] })
+    if (workspace) workspace.addComment(`Exception requested: ${check.title}`, { conflictId: conflict.id })
+    toast('Exception requested', { description: 'It can merge once the reviewers approve the change.' })
+  }
+
+  function undoException(check) {
+    update({ exceptionChecks: (conflict.exceptionChecks ?? []).filter((id) => id !== check.id) })
   }
 
   // Ship the change with this check as it is: it stops counting against
@@ -1451,22 +1515,21 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const stage = conflict?.reviewStage
   const checks = conflict && workspace?.conflictChecks ? workspace.conflictChecks(conflict) : null
   const driftItem = conflict ? driftItemOf(conflict, workspace) : null
-  // The check being fixed, if its guide is open for this conflict — read
-  // back from the live checks, so the guide follows it as it changes.
-  const guide = conflict && workspace?.checkGuide?.conflictId === conflict.id ? workspace.checkGuide.check : null
-  const guideCheck = guide ? (checks?.failing.find((check) => check.id === guide.id) ?? guide) : null
-  const guideResolved = Boolean(guide) && !checks?.failing.some((check) => check.id === guide.id)
-  const guideInEditor = Boolean(guide && (guide.fileId || guide.id === 'markers'))
   const decisionState = decisionStateOf({
     conflict, item: driftItem, workspace, checks, stage,
     mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
   })
   const checkActions = {
-    activeId: guide && !guideResolved ? guide.id : null,
     onFix: stage !== 'resolved' && workspace ? startFix : undefined,
     onAccept: stage !== 'resolved' && onUpdate ? acceptCheck : undefined,
     onUndoAccept: stage !== 'resolved' && onUpdate ? undoAcceptCheck : undefined,
+    onRequestException: stage !== 'resolved' && onUpdate ? requestException : undefined,
+    onUndoException: stage !== 'resolved' && onUpdate ? undoException : undefined,
   }
+  // The card "Fix it" pointed at — until that side is picked, the check
+  // passes, or another conflict is opened.
+  const fixSide = fixTarget && conflict && fixTarget.conflictId === conflict.id && decisionState.side !== fixTarget.side
+    && checks?.failing.some((check) => check.id === fixTarget.checkId) ? fixTarget.side : null
   const checkBlocks = <CheckBlocks checks={checks} state={decisionState} actions={checkActions} />
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
@@ -1611,7 +1674,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
                   {tab === 'overview' ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
+                      {/* A rollback with nothing to detail has no left card —
+                          the middle takes the room. */}
+                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
                             conflict={conflict}
@@ -1622,29 +1687,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             onOpenHistory={conflict.rollback ? undefined : () => openTab('history')}
                           />
                         </div>
-                      </section>
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1', guide && !guideResolved && 'ring-1 ring-amber-300/60 ring-inset')}>
+                      </section>}
+                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1', )}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          {guide && (
-                            <CheckGuideNote
-                              className="mb-3"
-                              check={guideCheck}
-                              resolved={guideResolved}
-                              where={guideInEditor
-                                ? '코드에서 충돌한 줄을 정리하세요.'
-                                : inMergeStudio
-                                  ? '아래 카드에서 다른 값을 고르거나, 캔버스에서 표시된 요소를 직접 조정하세요.'
-                                  : '아래 카드에서 다른 값을 고르거나, ‘병합 스튜디오에서 조정’으로 표시된 요소를 정밀 조정하세요.'}
-                              // Outside Merge Studio the way there is the one
-                              // studio button on the comparison, which takes
-                              // this guide along — no second button here.
-                              action={guideInEditor || inMergeStudio ? {
-                                label: guideInEditor ? '에디터에서 열기' : '캔버스에서 보기',
-                                onClick: () => fixCheck(guideCheck),
-                              } : null}
-                              onClose={() => workspace.setCheckGuide(null)}
-                            />
-                          )}
                           {conflict.rollback ? (
                             <RollbackAgreement conflict={conflict} />
                           ) : driftItem && draftColumns(driftItem) ? (
@@ -1670,11 +1715,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             checks={checks}
                             checkActions={checkActions}
                             checkBlocks={checkBlocks}
+                            fixSide={fixSide}
                             // The one way into Merge Studio. With a fix
                             // guide open it goes there for that check (the
                             // element marked, the guide kept on the canvas).
                             studioAction={stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio
-                              ? { label: 'Adjust in Merge Studio', onClick: () => (guide && !guideResolved && !guideInEditor ? fixCheck(guideCheck) : onOpenMergeStudio(conflict)) }
+                              ? { label: 'Adjust in Merge Studio', onClick: () => onOpenMergeStudio(conflict) }
                               : null}
                           />
                           )}

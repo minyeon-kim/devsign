@@ -4,6 +4,14 @@ import { docsHistoryKo } from './docsHistoryKo'
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
 Request review again|재검토 요청
+Target file|대상 파일
+Roll back to|되돌릴 버전
+Requested by|요청자
+Pick which side to merge. Left unpicked, it merges with the current implementation’s values.|합칠 쪽을 고르세요. 선택하지 않으면 현재 구현 값으로 합쳐져요.
+Choosing this value resolves it.|이 값을 고르면 해결돼요
+Exception requested|예외를 요청했습니다
+It can merge once the reviewers approve the change.|검토자가 변경을 승인하면 병합할 수 있어요.
+WCAG 2.2 AA (2.5.8) asks for a touch area of at least 24px.|WCAG 2.2 AA (2.5.8)는 24px 이상의 터치 영역을 요구합니다.
 This step|이 단계
 Author · Updated|작성 · 수정
 Automated feedback|자동 피드백
