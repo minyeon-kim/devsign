@@ -15,6 +15,13 @@ const GUIDANCE = {
   'summary-missing': ['결제 화면에 주문 요약이 있는지 검사했어요.', '주문 요약이 없으면 무엇을 결제하는지 확인하기 어려워요.', '주문 요약이 있는 시안을 선택하세요.', '주문 요약 표시'],
 }
 
+// Why a failing check matters and how to resolve it, as two sentences.
+export function checkGuidance(check) {
+  if (!check) return null
+  const [, impact, fix] = GUIDANCE[check.id] ?? [null, '기준과 다른 결과가 화면에 반영될 수 있어요.', '해당 항목의 디자인 기준을 확인하고 값을 수정하세요.']
+  return { impact, fix }
+}
+
 export function CheckExplanation({ check }) {
   const [subject, impact, fix, expected] = GUIDANCE[check.id] ?? ['디자인 기준을 충족하는지 검사했어요.', '기준과 다른 결과가 화면에 반영될 수 있어요.', '해당 항목의 디자인 기준을 확인하고 값을 수정하세요.']
   return <li className="space-y-1.5 py-2 first:pt-0 last:pb-0">

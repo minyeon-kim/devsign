@@ -61,6 +61,9 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Why it matters|왜 중요한지
+How to resolve it|어떻게 해결하는지
+Standard|기준
 Adjusted in Merge Studio|병합 스튜디오에서 조정한 내용
 Merged with these adjustments|이 조정 내용으로 병합됨
 Nothing adjusted yet|아직 조정한 내용 없음

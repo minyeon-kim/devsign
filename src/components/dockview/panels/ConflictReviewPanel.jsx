@@ -1,4 +1,4 @@
-import { CheckExplanation } from '@/components/conflicts/CheckExplanation'
+import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
@@ -371,6 +371,14 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
+// A compared value: the value itself, then its code form in brackets,
+// quieter — "36px (h-9)". Code is left as written.
+function ComparedValue({ value }) {
+  const match = /^(.*?)\s*\(([^()]+)\)$/.exec(String(value))
+  if (!match) return <LocalizedText text={String(value)} />
+  return <><LocalizedText text={match[1]} /> <span translate="no" className="font-mono text-[11.5px] font-normal text-slate-400">({match[2]})</span></>
+}
+
 function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence }) {
   // Keep the review's original context visible alongside list metadata.
   const [showDetails, setShowDetails] = useState(true)
@@ -385,6 +393,18 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
     : adjustment && open ? `${adjustment.layerName} was adjusted to ${adjustment.to}${blockedCount ? '.' : ', which resolves it.'}`
       : conflict.message || riskExplanation
   const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
+  // The comparison as its headline: a hand adjustment when there is one,
+  // else each value that differs ("Height 36px (h-9) → Standard 40px (…)").
+  const fields = conflict.comparisonFields ?? []
+  const differing = fields.filter((field) => field.current !== field.expected)
+  const headline = conflict.rollback ? []
+    : adjustment && open ? [{ label: adjustment.layerName, from: adjustment.from, to: adjustment.to }]
+      : differing.map((field) => ({ label: field.label, from: field.current, to: field.expected, reference: true }))
+  // Why it matters and how to resolve it: the conflict's own words, else
+  // what its first failing check says.
+  const guidance = checkGuidance(checks?.failing[0])
+  const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? guidance?.impact
+  const how = conflict.suggestion ?? guidance?.fix
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -423,29 +443,43 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         )}
       </p>
 
-      {summary && (
-        <>
-          <p className="mt-2 text-[11px] leading-4 font-medium text-slate-400"><LocalizedText text="Summary" /></p>
-          <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>
-        </>
+      {/* Summary and checks are one thing — what differs — so they're one
+          block, first: the values compared in bold (a code value in
+          brackets after it), then why it matters and how to resolve it,
+          each a full-width line. Nothing here is cut short. */}
+      {!conflict.rollback && (
+        <section data-review-summary className="min-w-0 space-y-2.5">
+          <div className="space-y-1">
+            {headline.length > 0 ? headline.map((line) => (
+              <p key={line.label} className="text-[13px] leading-5 font-semibold break-words text-white [overflow-wrap:anywhere]">
+                <LocalizedText text={line.label} />{' '}
+                <ComparedValue value={line.from} />
+                <span className="font-normal text-slate-400"> → </span>
+                {line.reference && <span className="font-normal text-slate-400"><LocalizedText text="Standard" /> </span>}
+                <ComparedValue value={line.to} />
+              </p>
+            )) : summary && (
+              <p className="text-[13px] leading-5 font-semibold break-words text-white [overflow-wrap:anywhere]"><LocalizedText text={summary} /></p>
+            )}
+          </div>
+          {[['Why it matters', why], ['How to resolve it', how]].filter(([, text]) => text).map(([label, text]) => (
+            <p key={label} className={cn(REVIEW_DETAIL_COPY, 'break-words text-slate-300 [overflow-wrap:anywhere]')}>
+              <span className="font-medium text-slate-400"><LocalizedText text={label} /> · </span>
+              <LocalizedText text={text} />
+            </p>
+          ))}
+          {/* The checks' verdict, in a line — each one is worked through
+              beside the comparison, not repeated here. */}
+          {checks && (
+            <p className={cn('text-xs leading-[18px]', checks.failing.length ? 'text-amber-200' : 'text-slate-400')}>
+              {checks.failing.length
+                ? <>{checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}</>
+                : <LocalizedText text="All design checks passed" />}
+            </p>
+          )}
+        </section>
       )}
-
-      {!conflict.rollback && <dl className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="Author" /></dt>
-        <dd translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</dd>
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="Updated" /></dt>
-        <dd className="text-slate-200"><LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></dd>
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="Checks" /></dt>
-        <dd className="min-w-0 text-slate-200">{checks ? <>
-          <p>{checks.failing.length ? `기준과 다른 항목 ${checks.failing.length}개` : <LocalizedText text="All design checks passed" />}</p>
-          {checks.failing.length > 0 && <ul className="mt-2 divide-y divide-white/[0.07] text-xs leading-[18px] text-slate-200">{checks.failing.map((check) => <CheckExplanation key={check.id} check={check} />)}</ul>}
-          {checks.blocking?.length > 0 && <p className="mt-1 text-[11px] leading-4 text-slate-400"><LocalizedText text="Resolve the required standards below before merging." /></p>}
-        </> : <LocalizedText text="No check results yet" />}</dd>
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="Reviewers" /></dt>
-        <dd className="text-slate-200">{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="Due date" /></dt>
-        <dd className="text-slate-200"><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
-      </dl>}
+      {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
       {!conflict.rollback && rationale && <DecisionSummary embedded rationale={rationale} onOpen={onOpenEvidence} />}
 
@@ -474,6 +508,14 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           </div>
         ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
       </section>
+      {/* Who and when — context, not content: a quiet line at the foot. */}
+      {!conflict.rollback && (
+        <p data-review-meta className="shrink-0 border-t border-white/[0.07] pt-2.5 text-[11px] leading-4 text-slate-500">
+          <span translate="no">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</span>
+          {' · '}<LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} />
+          {open && shortDue(conflict.dueLabel) && <>{' · '}<LocalizedText text={conflict.dueLabel} /></>}
+        </p>
+      )}
     </div>
   )
 }

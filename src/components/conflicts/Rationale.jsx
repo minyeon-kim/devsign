@@ -71,8 +71,12 @@ export function DecisionSummary({ rationale, onOpen, embedded = false }) {
   return (
     <section data-decision-summary aria-label="Decision summary" className={cn('shrink-0 text-xs leading-[18px]', embedded ? 'border-t border-white/[0.07] pt-3' : 'rounded-xl bg-white/[0.03] px-3 py-3')}>
       <dl className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-        <dt className="text-[11px] text-slate-400"><LocalizedText text="The why" /></dt>
-        <dd className="text-slate-200"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
+        {/* Embedded in the review's left card, the why is already its
+            "Why it matters" line above — not said a second time here. */}
+        {!embedded && <>
+          <dt className="text-[11px] text-slate-400"><LocalizedText text="The why" /></dt>
+          <dd className="text-slate-200"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
+        </>}
         <dt className="text-[11px] text-slate-400"><LocalizedText text="Evidence" /></dt>
         <dd className="min-w-0">{ordered.length ? <EvidenceLinks items={ordered} onOpen={onOpen} limit={3} /> : '—'}</dd>
         <dt className="text-[11px] text-slate-400"><LocalizedText text="Decision" /></dt>

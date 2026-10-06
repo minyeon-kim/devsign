@@ -365,8 +365,8 @@ export const conflictChecklist = [
       { id: 'jane', status: 'pending' },
     ],
     comparisonFields: [
-      { label: 'Height', expected: '40px (size/md)', current: '36px (h-9)' },
-      { label: 'Token', expected: '--button-height-md', current: 'none — hard-coded' },
+      // The value, then its code form in brackets — one row says both.
+      { label: 'Button height', expected: '40px (--button-height-md)', current: '36px (h-9)' },
     ],
     diff: {
       before: ["    size: { sm: 'h-7 px-3', md: 'h-9 px-4' },"],
