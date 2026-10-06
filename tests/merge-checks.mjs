@@ -33,6 +33,7 @@ try {
     const draftKey = Object.keys(screen.drafts)[0]
     const picks = Object.fromEntries(screen.regions.map((region) => [region.id, draftKey]))
     const checks = compositionChecks(id, picks, draftKey)
+    assert.ok(!checks.some((check) => check.id === 'amounts'), 'sample total differences are not composition checks')
     assert.ok(checks.find((check) => check.id === 'picked').ok)
     for (const check of checks) for (const region of check.regionIds ?? []) assert.ok(screen.regions.some((candidate) => candidate.id === region))
   }

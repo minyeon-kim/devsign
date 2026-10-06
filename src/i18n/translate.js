@@ -175,7 +175,6 @@ const rules = [
   [/^(\d+) of (\d+) parts not picked$/, (_, a, b) => `영역 ${b}개 중 ${a}개 안 고름`],
   [/^(\d+) accent colors mixed$/, (_, n) => `강조 색 ${n}개가 섞임`],
   [/^(.+) — the parts come from drafts with different accents\.$/, (_, list) => `${list} — 강조 색이 다른 시안의 영역이 섞였어요.`],
-  [/^(\$[\d.]+(?: vs \$[\d.]+)+) — (.+) come from drafts with different sample totals\. It doesn’t block the merge; pick these parts from one draft to make them match\.$/, (_, amounts, parts) => `${amounts} — ${parts.split(', ').map((p) => core(p)).join(', ')}이(가) 서로 다른 시안에서 와서 예시 합계가 다르게 표시돼요. 병합을 막지는 않으며, 같은 시안의 영역으로 고르면 맞춰집니다.`],
   [/^(\$[\d.]+(?: vs \$[\d.]+)+) — (.+) show different totals\.$/, (_, amounts, parts) => `${amounts} — ${parts.split(', ').map((p) => core(p)).join(', ')}의 합계가 달라요.`],
   [/^(\d+) of (\d+) drafts$/, (_, a, b) => `시안 ${b}개 중 ${a}개`],
   [/^Comparing (\d+) drafts$/, (_, n) => `시안 ${n}개 비교 중`],

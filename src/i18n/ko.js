@@ -223,8 +223,6 @@ Use when the change is right as it is — it can merge once everyone has approve
 Use when something is wrong and the author should fix it: say what, and it goes back to them. If you can fix the value yourself, adjust it in Merge Studio first, then request review again instead.|문제가 있어 작성자가 고쳐야 할 때 선택합니다. 무엇을 고칠지 적으면 작성자에게 돌아갑니다. 값을 직접 고칠 수 있다면 변경 요청 대신 병합 스튜디오에서 먼저 조정한 뒤 다시 검토를 요청하세요.
 This change is applied to the code. Nothing is left to review.|이 변경은 코드에 반영되었습니다. 더 검토할 것이 없어요.
 The rollback has run.|롤백이 실행되었습니다.
-Totals shown match|표시된 합계 일치
-Parts show different sample totals|영역마다 예시 합계가 다름
 A mix of the drafts, submitted for review and merge.|시안을 조합한 결과입니다. 검토 후 병합을 요청했습니다.
 Mixed the drafts|시안을 조합했습니다
 found a difference|차이 감지

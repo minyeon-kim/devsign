@@ -208,8 +208,8 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
 // read the item's risk level (Low / Medium) as a conflict, so it failed for
 // every item; real conflict markers are caught when merging
 // (mergeBlockReason).
-// Content (e.g. two totals that disagree) is a real bug on screen, so it
-// blocks too; Consistency findings are warnings.
+// Content (e.g. a checkout with no order summary) is a real bug on screen,
+// so it blocks too; Consistency findings are warnings.
 const BLOCKING_GROUPS = new Set(['Design system', 'Accessibility', 'Content'])
 
 // `linesOf(fileId)`: the item's files as they are now, for the conflict-
