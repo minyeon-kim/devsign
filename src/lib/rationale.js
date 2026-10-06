@@ -20,6 +20,10 @@ const WCAG_TARGET_SIZE = 'https://www.w3.org/WAI/WCAG22/Understanding/target-siz
 export const DESIGN_RULES = [
   {
     id: 'button-color',
+    standard: 'Buttons use the primary color token.',
+    purpose: 'It makes the color follow the theme automatically when the theme changes.',
+    consequence: 'When the theme changes, this button alone keeps its fixed color.',
+    origin: 'Design system v2',
     title: 'Buttons use the primary color token',
     reason: 'A hard-coded hex stops following the brand color when the token or the theme changes.',
     sources: [
@@ -30,6 +34,10 @@ export const DESIGN_RULES = [
   },
   {
     id: 'button-height',
+    standard: 'Main buttons are the large size (44px).',
+    purpose: 'It keeps the main button the same size on every checkout screen.',
+    consequence: 'The button looks different from screen to screen.',
+    origin: 'Design system v2',
     title: 'Main buttons are the 44px large size',
     reason: 'The main call to action is the large button, so it is easy to hit and reads as the primary action.',
     sources: [
@@ -40,6 +48,10 @@ export const DESIGN_RULES = [
   },
   {
     id: 'touch-target',
+    standard: 'Anything that can be tapped has a touch area of at least 24px.',
+    purpose: 'It keeps controls easy to hit on a touch screen, for everyone.',
+    origin: 'Design system v2',
+    required: true,
     title: 'Touch areas are at least 24px',
     reason: 'A smaller target is easy to miss on a touch screen; 24px is the minimum WCAG 2.2 AA asks for.',
     sources: [{ kind: 'wcag', label: 'WCAG 2.2 · 2.5.8 Target Size (Minimum)', url: WCAG_TARGET_SIZE }],
@@ -48,6 +60,10 @@ export const DESIGN_RULES = [
   },
   {
     id: 'divider-color',
+    standard: 'Dividers use the border color token.',
+    purpose: 'It makes dividers follow the light and dark themes.',
+    consequence: 'In the dark theme this divider stays its fixed light gray.',
+    origin: 'Design system v2',
     title: 'Dividers use the border color token',
     reason: 'A fixed gray does not follow the light and dark themes the way the border token does.',
     sources: [
@@ -183,4 +199,22 @@ export function mergeEvidence(...groups) {
     seen.add(key)
     return true
   })
+}
+
+// The standard behind a conflict, spelled out from its registered rules:
+// what it is, where it's set, what it's for, and what happens if it isn't
+// kept. It's required when a rule says so or when a check that blocks the
+// merge is one of its rules' — then it can't merge without it; otherwise
+// it's a recommendation, with the consequence of ignoring it.
+export function standardOf(rules, checks) {
+  if (!rules?.length) return null
+  const blocking = new Set((checks?.blocking ?? []).map((check) => check.id))
+  const unique = (list) => [...new Set(list.filter(Boolean))]
+  return {
+    what: unique(rules.map((rule) => rule.standard ?? rule.title)),
+    sources: unique([...rules.map((rule) => rule.origin), ...rules.flatMap((rule) => rule.sources.filter((source) => source.kind === 'figma' || source.kind === 'wcag').map((source) => source.label))]),
+    purpose: unique(rules.map((rule) => rule.purpose ?? rule.reason)),
+    consequence: unique(rules.map((rule) => rule.consequence)),
+    required: rules.some((rule) => rule.required || rule.checkIds?.some((id) => blocking.has(id))),
+  }
 }

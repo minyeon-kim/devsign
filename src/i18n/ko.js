@@ -61,6 +61,27 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+What it’s for|목적
+Buttons use the primary color token.|버튼은 primary 색상 토큰을 써요.
+It makes the color follow the theme automatically when the theme changes.|테마가 바뀌면 색이 자동으로 따라가게 하기 위해서예요.
+When the theme changes, this button alone keeps its fixed color.|테마를 바꾸면 이 버튼만 고정된 색으로 남아요.
+Main buttons are the large size (44px).|주요 버튼은 large 크기(44px)를 써요.
+It keeps the main button the same size on every checkout screen.|모든 결제 화면에서 버튼 크기를 같게 유지하기 위해서예요.
+The button looks different from screen to screen.|화면마다 버튼이 달라 보여요.
+Anything that can be tapped has a touch area of at least 24px.|누를 수 있는 요소는 터치 영역이 24px 이상이어야 해요.
+It keeps controls easy to hit on a touch screen, for everyone.|터치 화면에서 누구나 쉽게 누를 수 있게 하기 위해서예요.
+Dividers use the border color token.|구분선은 border 색상 토큰을 써요.
+It makes dividers follow the light and dark themes.|구분선이 라이트·다크 테마를 따라가게 하기 위해서예요.
+In the dark theme this divider stays its fixed light gray.|다크 테마에서 이 구분선만 밝은 회색으로 남아요.
+Design system v2|디자인 시스템 v2
+Source|출처
+Purpose|목적
+If not kept|지키지 않으면
+It can’t be merged.|병합할 수 없어요.
+It can still merge.|병합은 가능해요.
+Required standard|필수 기준
+Recommended standard|권장 기준
+Version this difference came in with|이 차이가 생긴 버전
 Difference|차이
 Resolution|해결
 Why it matters|왜 중요한지

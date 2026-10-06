@@ -64,7 +64,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
 import { EvidenceLinks, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
-import { rationaleOf } from '@/lib/rationale'
+import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
@@ -401,7 +401,7 @@ function SummaryPart({ label, children }) {
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause }) {
   // Where it is and who made it: folded until asked for.
   const [showDetails, setShowDetails] = useState(false)
   const open = stage !== 'resolved'
@@ -427,6 +427,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   const guidance = checkGuidance(checks?.failing[0])
   const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? guidance?.impact
   const how = conflict.suggestion ?? guidance?.fix
+  const standard = rationale ? standardOf(rationale.rules, checks) : null
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -502,10 +503,53 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               </p>
             )}
           </SummaryPart>
+          {/* Why the design reference is the one to follow, from the rules
+              registered for it (lib/rationale): what it is, where it's set,
+              what it's for, and what happens if it isn't kept. */}
+          {standard && (
+            <SummaryPart label="Standard">
+              <dl data-standard className="space-y-1">
+                {[
+                  ['Standard', standard.what.map((text) => <LocalizedText key={text} text={text} />)],
+                  ['Source', standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
+                  ['What it’s for', standard.purpose.map((text) => <LocalizedText key={text} text={text} />)],
+                  ['If not kept', (
+                    <>
+                      {standard.required
+                        ? <LocalizedText text="It can’t be merged." />
+                        : <><LocalizedText text="It can still merge." /> {standard.consequence.map((text) => <LocalizedText key={text} text={text} />).flatMap((node, index) => (index ? [' ', node] : [node]))}</>}
+                      <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
+                    </>
+                  )],
+                ].map(([label, content]) => (
+                  <div key={label} className={SUMMARY_BODY}>
+                    <dt className="inline text-slate-400"><LocalizedText text={label} /> · </dt>
+                    <dd className="inline">{Array.isArray(content) ? content.flatMap((node, index) => (index && typeof node !== 'string' && label !== 'Source' ? [' ', node] : [node])) : content}</dd>
+                  </div>
+                ))}
+              </dl>
+            </SummaryPart>
+          )}
           {why && <SummaryPart label="Reason"><p className={SUMMARY_BODY}><LocalizedText text={why} /></p></SummaryPart>}
           {how && <SummaryPart label="Resolution"><p className={SUMMARY_BODY}><LocalizedText text={how} /></p></SummaryPart>}
-          {rationale?.evidence.length > 0 && (
-            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
+          {(rationale?.evidence.length > 0 || cause) && (
+            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
+              {/* Where it began: the saved version the difference first
+                  came in with — a way straight to it in History. */}
+              {cause && (
+                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic mt-2 flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.04] px-2.5 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] leading-4 text-slate-400"><LocalizedText text="Version this difference came in with" /></span>
+                    <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
+                    <span className="block text-[11px] leading-4 text-slate-400">
+                      <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
+                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+                </button>
+              )}
+            </SummaryPart>
           )}
           {rationale && (
             <SummaryPart label="Decision">
@@ -1571,9 +1615,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // goes to History itself, on the saved version this conflict came from —
   // selected (the link's `?v=`), scrolled to and lit for a moment in the
   // list (`flashCheckpoint`).
+  // The saved version this difference first came in with (the one its
+  // conflict is marked on in History).
+  const causeVersion = conflict
+    ? foldConflictCheckpoints(withBranches(workspace?.historyEntries ?? [], workspace?.conflicts ?? []))
+      .find((entry) => !entry.archived && entry.conflictMarks.some((mark) => mark.conflictId === conflict.id)) ?? null
+    : null
   function openProjectHistory() {
-    const versions = foldConflictCheckpoints(withBranches(workspace?.historyEntries ?? [], workspace?.conflicts ?? []))
-    const checkpoint = versions.find((entry) => !entry.archived && entry.conflictMarks.some((mark) => mark.conflictId === conflict.id))
+    const checkpoint = causeVersion
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 
@@ -1985,7 +2034,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 The back button occupies the separate 32px gutter. */}
             <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-auto',
                 REVIEW_GUTTER
               )}>
                 <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
@@ -2007,24 +2056,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                   {tab === 'overview' ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
-                      {/* A rollback with nothing to detail has no left card —
-                          the middle takes the room. */}
-                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
-                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <OverviewTab
-                            rationale={rationale}
-                            onOpenEvidence={openEvidence}
-                            checks={checks}
-                            conflict={conflict}
-                            severity={severity}
-                            stage={stage}
-                            showProject={!workspace}
-                            blockedCount={decisionState.required.length}
-                            adjustment={adjustment}
-                          />
-                        </div>
-                      </section>}
-                      <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1', )}>
+                      {/* The difference itself, on the left with the most room:
+                          the two cards compared, and the code diff under them. */}
+                      <section data-review-diff className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[420px] xl:flex-1')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {studioAdjustments.length > 0 && !conflict.rollback && (
                             <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
@@ -2110,6 +2144,27 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           {!conflict.rollback && driftItem && draftColumns(driftItem) && <div className="mt-3">{checkBlocks}</div>}
                         </div>
                       </section>
+                      {/* The reasoning, in the middle: what differs, the
+                          standard behind it, why, how, the evidence and the
+                          decision. (A rollback with nothing to detail has
+                          none — the comparison takes the room.) */}
+                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[32%] xl:min-w-[260px] xl:max-w-[360px] xl:shrink-0')}>
+                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          <OverviewTab
+                            rationale={rationale}
+                            onOpenEvidence={openEvidence}
+                            checks={checks}
+                            conflict={conflict}
+                            severity={severity}
+                            stage={stage}
+                            showProject={!workspace}
+                            blockedCount={decisionState.required.length}
+                            adjustment={adjustment}
+                            cause={causeVersion}
+                            onOpenCause={openProjectHistory}
+                          />
+                        </div>
+                      </section>}
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1">
