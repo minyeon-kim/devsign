@@ -78,6 +78,23 @@ function RegionPreview({ part, width = 132 }) {
   )
 }
 
+// A property value drawn small, for a pick card: a color as its swatch, a
+// radius as a corner, spacing as an inset, anything else as the value.
+function ValuePreview({ label, value, swatch }) {
+  const px = parseFloat(value)
+  const kind = swatch ? 'color' : /radius/i.test(label) && px >= 0 ? 'radius' : /spacing|padding|gap/i.test(label) && px >= 0 ? 'spacing' : 'text'
+  if (kind === 'color') return <span data-value-preview="color" className={cn('h-12 w-24 rounded-lg ring-1 ring-white/15', swatch)} />
+  if (kind === 'radius') return <span data-value-preview="radius" className="h-12 w-24 border-2 border-white/70 bg-white/10" style={{ borderRadius: Math.min(px, 24) }} />
+  if (kind === 'spacing') {
+    return (
+      <span data-value-preview="spacing" className="flex h-14 w-24 items-stretch rounded-md border border-dashed border-white/40" style={{ padding: Math.max(2, Math.min(px / 2.5, 16)) }}>
+        <span className="flex-1 rounded-sm bg-white/60" />
+      </span>
+    )
+  }
+  return <span data-value-preview="text" className="px-2 text-center text-sm font-semibold text-white"><LocalizedText text={String(value)} /></span>
+}
+
 // Mixing drafts one part at a time: the current part's version from every
 // compared draft side by side; picking keeps the same part open for comparison.
 // The region selector jumps between parts; the letters take
@@ -88,6 +105,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
   const columns = rows[0]?.options ?? []
+  const partName = (row) => [row.layer && translateText(row.layer, language), translateText(row.label, language)].filter(Boolean).join(' · ')
   const screen = draftScreens[item.id]
   const decided = rows.filter((row) => row.decided).length
   const [step, setStep] = useState(() => Math.max(0, rows.findIndex((row) => !row.decided)))
@@ -133,7 +151,25 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   function pick(option) {
     onDecide(current.key, option.decision)
   }
+  // The arrows page through the options when there are more than fit;
+  // moving between parts is the dots and the dropdown above.
+  const optionsRef = useRef(null)
+  const [overflow, setOverflow] = useState({ left: false, right: false })
+  const measureOverflow = useCallback(() => {
+    const el = optionsRef.current
+    if (!el) return
+    const next = { left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 }
+    setOverflow((prev) => (prev.left === next.left && prev.right === next.right ? prev : next))
+  }, [])
+  useEffect(() => {
+    if (optionsRef.current) optionsRef.current.scrollLeft = 0
+    measureOverflow()
+  }, [step, measureOverflow])
+  const pageOptions = (direction) => optionsRef.current?.scrollBy({ left: direction * 340, behavior: 'smooth' })
   if (!current) return null
+  // The distinct things this part can be: fewer than two means there's
+  // nothing to pick.
+  const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
 
   return (
     <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
@@ -141,8 +177,8 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         <nav aria-label={language === 'ko' ? '영역 선택' : 'Screen regions'} className="flex items-center gap-1.5">
           {rows.map((row, i) => (
             <button key={row.key} type="button" onClick={() => setStep(i)}
-              title={translateText(row.label, language)}
-              aria-label={`${i + 1}. ${translateText(row.label, language)}`}
+              title={partName(row)}
+              aria-label={`${i + 1}. ${partName(row)}`}
               aria-current={step === i ? 'step' : undefined}
               className={cn('ds-intrinsic flex h-6 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-300', step === i ? 'w-8' : 'w-3')}>
               <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('h-2 rounded-full transition-all', step === i ? 'w-7' : 'w-2', rowIssues(row).length ? 'bg-amber-300' : step === i || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
@@ -156,7 +192,9 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           onChange={(event) => setStep(Number(event.target.value))}
           className="ds-intrinsic h-7 min-w-28 rounded-md bg-transparent px-1 text-xs font-medium text-slate-100 outline-none focus-visible:ring-1 focus-visible:ring-emerald-300"
         >
-          {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{translateText(row.label, language)}</option>)}
+          {/* A property part is named with its element — several parts can
+              share a property ("Corner Radius" on three elements). */}
+          {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{partName(row)}</option>)}
         </select>
         <div className="ml-auto flex items-center gap-1.5">
           <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
@@ -183,12 +221,18 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
 
       {/* The current part, every draft's version of it. */}
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" aria-label="Previous part" disabled={step === 0} onClick={() => setStep(step - 1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+        <button type="button" aria-label="Previous options" disabled={!overflow.left} onClick={() => pageOptions(-1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
           <ChevronLeft className="size-4" />
         </button>
         <div className="min-w-0">
-          <div className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto p-1">
-            {current.options.map((option) => (
+          <div ref={optionsRef} onScroll={measureOverflow} data-mix-options className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto scroll-smooth p-1">
+            {/* Nothing to choose between here: said, rather than left blank. */}
+            {choices.length < 2 && (
+              <p data-mix-single className="flex h-24 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
+                {language === 'ko' ? '이 영역은 시안이 하나뿐이라 그대로 사용돼요' : 'This part has only one draft, so it’s used as it is'}
+              </p>
+            )}
+            {choices.length >= 2 && current.options.map((option) => (
               <button
                 key={option.key}
                 type="button"
@@ -202,11 +246,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               >
                 {current.region
                   ? <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
-                  : (
-                    <span className="flex h-12 w-28 items-center justify-center rounded-md bg-white/[0.06] text-sm font-semibold text-white" {...(option.literal && { translate: 'no' })}>
-                      {option.literal ? option.value : <LocalizedText text={option.value} />}
-                    </span>
-                  )}
+                  : <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
                 {/* How this choice checks out, shown before it's picked. */}
                 {current.region && (() => {
                   const issues = optionIssues(current, option)
@@ -219,15 +259,23 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 })()}
                 <span className="flex items-center gap-1.5 px-0.5 text-[10.5px]">
                   <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
-                  <span className={cn('max-w-24 truncate', option.picked ? 'text-emerald-100' : 'text-slate-400')}>
+                  <span className={cn('max-w-28 truncate', option.picked ? 'text-emerald-100' : 'text-slate-400')}>
                     {current.region ? <LocalizedText text={option.value} /> : <LocalizedText text={option.name} />}
                   </span>
                 </span>
+                {/* A property's choice: where it's from (above), then the
+                    value it gives this property. */}
+                {!current.region && (
+                  <span data-option-value className="truncate px-0.5 text-[11px] leading-4 text-slate-200">
+                    <LocalizedText text={current.label} />{' '}
+                    <span className="font-semibold text-white" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
+                  </span>
+                )}
               </button>
             ))}
           </div>
         </div>
-        <button type="button" aria-label="Next part" disabled={step === rows.length - 1} onClick={() => setStep(step + 1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+        <button type="button" aria-label="Next options" disabled={!overflow.right} onClick={() => pageOptions(1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
           <ChevronRight className="size-4" />
         </button>
       </div>

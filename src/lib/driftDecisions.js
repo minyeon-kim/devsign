@@ -42,6 +42,9 @@ export function driftRowsFor(conflict, item) {
     return real.map((diff) => ({
       key: `${layerId}:${diff.id}`,
       element: real.length > 1 ? layerName(layerId) : null,
+      // (Always the element's name — for telling apart parts that share a
+      // property, e.g. three "Corner Radius" rows.)
+      layer: layerName(layerId),
       label: diff.label,
       diff,
     }))
@@ -61,8 +64,16 @@ export function allDecided(conflict, mergeItems, decisionsFor) {
 // Every row of a multi-draft item with each draft's option and which one is
 // picked: a region row offers each draft's version of that region (its
 // summary, e.g. "Two tiles"); a property row each draft's value.
+// An ordinary design-vs-code item has no drafts of its own: its two
+// choices are the two sides — the design reference and what's built now.
+// (Without these a new merge's Mix panel had rows and nothing to pick.)
+const SIDE_COLUMNS = [
+  { key: 'A', letter: 'A', name: 'Design reference', valueOf: (diff) => diff.optionA, classOf: (diff) => diff.optionAClass },
+  { key: 'B', letter: 'B', name: 'Current implementation', valueOf: (diff) => diff.optionB, classOf: (diff) => diff.optionBClass },
+]
+
 export function draftRows(conflict, item, decisions) {
-  const columns = draftColumns(item) ?? []
+  const columns = draftColumns(item) ?? SIDE_COLUMNS
   const screen = draftScreens[item.id]
   return driftRowsFor(conflict, item).map((row) => {
     const options = columns.map((column) => {
@@ -71,7 +82,9 @@ export function draftRows(conflict, item, decisions) {
         return { ...column, value: part?.summary ?? '—', literal: false, decision: { custom: column.key }, picked: decisions[row.key]?.custom === column.key }
       }
       const value = column.valueOf(row.diff)
-      return { ...column, value, literal: Boolean(row.diff.literal), decision: decisionFor(row.diff, value), picked: decisions[row.key] != null && decidedValue(row.diff, decisions[row.key]) === value }
+      // (`swatch`: the option's color, as a class, when the diff has one.)
+      const swatch = column.classOf?.(row.diff) ?? (value === row.diff.optionA ? row.diff.optionAClass : value === row.diff.optionB ? row.diff.optionBClass : null)
+      return { ...column, value, swatch, literal: Boolean(row.diff.literal), decision: decisionFor(row.diff, value), picked: decisions[row.key] != null && decidedValue(row.diff, decisions[row.key]) === value }
     })
     return { ...row, options, decided: decisions[row.key] != null }
   })

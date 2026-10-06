@@ -61,6 +61,9 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+New Merge — Current Work|새 병합 · 현재 작업
+Previous options|이전 선택지
+Next options|다음 선택지
 Coupon close button 20 × 20px in code and design|닫기 버튼이 코드·디자인 모두 20 × 20px
 under the 24px touch area|터치 영역 24px 미달
 Hard to tap on a touch screen|터치 화면에서 누르기 어려움
