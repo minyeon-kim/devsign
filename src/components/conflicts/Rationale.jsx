@@ -264,3 +264,31 @@ export function InlineDeviationReason({ value, onSave, readOnly = false, editabl
   </form>
   </div></div>
 }
+
+// The reason for a chosen way, under the choice: the usual ones as chips
+// (any number), plus one typed in. Nothing to save — every change is
+// handed back (`onChange`, joined with " · ") and the decision settles it.
+// Read-only: the reason as one line.
+export function ReasonField({ title, reasons, value, onChange, readOnly = false }) {
+  const parts = (value ?? '').split(' · ').filter(Boolean)
+  const picked = parts.filter((part) => reasons.includes(part))
+  // The typed one is kept as typed (spaces and all) until it's handed back.
+  const [typed, setTyped] = useState(() => parts.filter((part) => !reasons.includes(part)).join(' · '))
+  const emit = (nextPicked, nextTyped) => onChange([...reasons.filter((reason) => nextPicked.includes(reason)), nextTyped.trim()].filter(Boolean).join(' · '))
+  if (readOnly) {
+    if (!parts.length) return null
+    return <p role="status" data-saved-reason className="flex flex-wrap items-center gap-x-1 text-xs leading-5 text-slate-300">
+      <span className="text-slate-500"><LocalizedText text="Reason" /></span>
+      {parts.map((part) => <span key={part}><span className="text-slate-500">· </span><LocalizedText text={part} /></span>)}
+    </p>
+  }
+  return (
+    <div data-reason-field className="space-y-2">
+      <p className="text-xs font-medium text-slate-200"><LocalizedText text={title} /> <span className="font-normal text-slate-500">· <LocalizedText text="Required · choose all that apply" /></span></p>
+      <div className="flex flex-wrap gap-1.5">
+        {reasons.map((reason) => <button key={reason} type="button" role="checkbox" aria-checked={picked.includes(reason)} onClick={() => emit(picked.includes(reason) ? picked.filter((entry) => entry !== reason) : [...picked, reason], typed)} className="ds-intrinsic ds-reason-chip inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">{picked.includes(reason) && <Check aria-hidden className="size-3 text-emerald-300" />}<LocalizedText text={reason} /></button>)}
+      </div>
+      <input aria-label="Your own reason" placeholder="직접 입력" value={typed} onChange={(event) => { setTyped(event.target.value); emit(picked, event.target.value) }} className="h-8 w-full min-w-0 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />
+    </div>
+  )
+}

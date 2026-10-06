@@ -33,7 +33,6 @@ import { getLanguage } from '@/i18n/language'
 const tr = (text) => translateText(text, getLanguage())
 const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,8 +65,8 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
-import { InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
-import { ADJUSTMENT_REASONS } from '@/lib/rationale'
+import { InlineDeviationReason, ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
+import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -728,18 +727,17 @@ function CodeDiffColumns({ rows }) {
 // checks that aren't about the picked card, placed right under the
 // comparison. `checkActions`: fix / apply-as-is for the ones on the card.
 // `result` (lib/mergeResult): what merges — the picked side with whatever
-// was set by hand in Merge Studio. The card that merges shows its values
-// (old → new where one was set), its picture and, below, its code, all
-// from that one object. `adjustment`: a size set by hand resolved it.
-// `adjust`: the one group of adjustment controls, in the header —
-// { adjusted, onOpen, onUndo }.
+// was set by hand in Merge Studio; the code below is read from it.
+// `flow`: the resolution as one top-to-bottom pass — choose a way (three
+// cards: the design reference, the current value, a value set by hand),
+// say why, see the code, decide:
+//   { choice, editing, decided, canChange, choose, custom, openStudio,
+//     reason, decide, changeDecision }
 const HAND_VALUE = 'flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums'
+const TEXT_ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, changeAfter, state, checks, checkActions, checkBlocks, codeChange }) {
-  const [confirmUndo, setConfirmUndo] = useState(false)
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks, checkActions, checkBlocks, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
-  const { canPick } = state
-  const picked = decision => state.side === decision
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
@@ -754,38 +752,11 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
     const from = Math.max(0, at - 2)
     return mergedFile.slice(from, at + Math.max(after.length, 1) + 2).map((text, index) => ({ number: from + index + 1, text }))
   })()
-  // Finished: the card it merged with (the design reference when no side
-  // was recorded — that's what a merge takes by default once approved).
-  const applied = decision => (state.side ?? conflict.decidedSide ?? 'A') === decision
-  // The line over the comparison. Before a pick: what resolves it, the
-  // standard's level, the review's state. After: what the pick does, then
-  // the next step — a reason if keeping the current value needs one, else
-  // whatever the review is waiting on.
   const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
   // (Terse, like the summary beside it — statements, not sentences.)
   const reviewState = conflict.reviewStage === 'detected' ? 'Before the review request'
     : conflict.reviewStage === 'approved' ? 'Every reviewer approved'
       : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
-  const nextStep = conflict.reviewStage === 'detected' ? 'Review request needed'
-    : conflict.reviewStage === 'approved' ? 'Ready to merge' : reviewState
-  const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
-  const handAdjusted = Boolean(result?.adjusted)
-  const conclusion = state.side === 'A' ? { lead: 'Changes to the design reference value', rest: state.reasonNeeded ? [] : [nextStep] }
-    : state.side === 'B' ? { lead: handAdjusted ? 'Merges with the adjusted value' : 'Keeps the current value', rest: state.reasonNeeded ? [] : [nextStep] }
-      : {
-        // (Resolved: a value both sides shared was the one set by hand.)
-        lead: adjustment && result?.rows.some((row) => row.same && row.to) ? 'Resolved by the adjustment'
-          : handAdjusted ? 'Merges with the adjusted value'
-          : state.bothFail ? 'Needs adjusting in Merge Studio'
-            : differs && !state.meets.B ? 'Resolved by choosing the design reference' : 'Value to merge not chosen',
-        rest: [state.required.length > 0 ? 'Can’t merge' : null, reviewState].filter(Boolean),
-      }
-  // The card the adjustment shows on: the picked one — or, with nothing
-  // picked, the current implementation, since that's what merges then.
-  const adjusted = decision => (readOnly ? applied(decision) : state.side ? state.side === decision : decision === 'B')
-  function pick(decision) {
-    if (canPick) state.pick(decision)
-  }
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
       <div className="h-full">
@@ -796,178 +767,162 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], changeAfter ?? conflict.diff.after ?? []) : []
   const pairedPreview = Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
-  // The decision's reason, as one line under the conclusion (the cards hold
-  // values only): what was saved, with a way to edit it — and, while it's
-  // being entered, the choices and the field in that same place. Adjusted
-  // by hand: why it was adjusted (picked or not — the value isn't being
-  // kept). Otherwise: why the current value is kept, once that's picked.
-  // An exception waiting on a reason uses the same one (see saveReason).
-  const asksReason = pairedPreview && (state.adjustmentReason || (state.side === 'B' && state.reasonApplies)) && (!readOnly || Boolean(state.savedReason))
-  const reasonSlot = asksReason ? (
-    <InlineDeviationReason
-      key={`${conflict.id}:${state.adjustmentReason ? 'adjusted' : 'kept'}`}
-      value={state.savedReason}
-      onSave={state.saveReason}
-      readOnly={readOnly}
-      // (An adjustment's reason is changed where the adjustment is: in
-      // Merge Studio, through "Edit adjustment".)
-      {...(state.adjustmentReason ? { title: 'Why was it adjusted?', reasons: ADJUSTMENT_REASONS, editable: false } : null)}
-    />
-  ) : pairedPreview && state.exceptionReason ? <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} /> : null
+  // The three ways to resolve it, as cards. Each header is two lines: what
+  // choosing it does, then where its values come from.
+  const designReference = sources?.[1]?.label === 'Design reference'
+  const custom = flow?.custom ?? null
+  const cards = [
+    { id: 'A', side: 'after', title: designReference ? 'Change to the design reference' : 'Remote branch', source: sources?.[1]?.source, value: (field) => field.expected },
+    { id: 'B', side: 'before', title: designReference ? 'Keeps the current value' : 'Local branch', source: sources?.[0]?.source, value: (field) => field.current },
+    { id: 'C', side: custom?.side === 'A' ? 'after' : 'before', title: 'Adjust by hand', source: 'You set the values yourself' },
+  ]
+  const choice = flow?.choice ?? null
+  const chosen = cards.find((card) => card.id === choice) ?? null
+  const editing = Boolean(flow?.editing)
+  // Red only for a value that breaks the standard, green for one that
+  // matches it, plain for anything else (a value both sides share, one set
+  // by hand to something of its own).
+  const toneOf = (text, field) => (readOnly || field.current === field.expected ? 'text-slate-200'
+    : text === field.expected || String(field.expected).toLowerCase().includes(String(text).toLowerCase()) ? 'text-emerald-200'
+      : text === field.current ? 'text-red-300' : 'text-slate-100')
+  const swatchIn = (text) => /#[0-9a-fA-F]{3,8}\b/.exec(text ?? '')?.[0]
+  const reasonCount = (flow?.reason?.value ?? '').split(' · ').filter(Boolean).length
 
   return (
     <div className="flex h-full flex-col">
-      {/* One line over the comparison: how to choose (the choice itself
-          is the radio cards below — no second place that shows or undoes
-          it), and on the right the one way into Merge Studio. */}
-      {(state.canPick || adjust) && (
-        <div className={cn('flex min-w-0 flex-wrap items-center gap-2', reasonSlot ? 'mb-1.5' : 'mb-3')}>
-          {state.canPick && (
-            // The conclusion in one line: what to do now, how binding the
-            // standard is, and where the review stands — and, once a side is
-            // picked, what that does and the next thing to do.
-            <p data-pick-guide={state.side ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
-              <span className="text-[13px] font-semibold text-white"><LocalizedText text={conclusion.lead} /></span>
-              {conclusion.rest.map((part) => <span key={part}><span className="text-slate-500"> · </span><LocalizedText text={part} /></span>)}
-
-            </p>
-          )}
-          {/* Everything about adjusting, in this one place. Before: the way
-              into Merge Studio. After: edit it (there — values and the
-              reason both) or undo it, side by side. That it is adjusted
-              is said by the line itself and the card, not a badge here. */}
-          {adjust?.adjusted && (adjust.onOpen || adjust.onUndo) && (
-            <div data-adjust-controls className="ml-auto flex shrink-0 items-center gap-2">
-              {adjust.onOpen && (
-                <button type="button" data-adjust-edit onClick={adjust.onOpen} className={cn(NAV_BUTTON, 'bg-transparent')}>
-                  <Pencil className={NAV_BUTTON_ICON} />
-                  <LocalizedText text="Edit adjustment" />
-                </button>
-              )}
-              {adjust.onUndo && (
-                <button type="button" data-adjust-undo onClick={() => setConfirmUndo(true)} className="ds-intrinsic inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                  <RotateCcw className="size-3.5 shrink-0" />
-                  <LocalizedText text="Undo adjustment" />
-                </button>
-              )}
-            </div>
-          )}
-          {!adjust?.adjusted && adjust?.onOpen && (
-            <button
-              type="button"
-              title="Adjust the design in Merge Studio. This doesn't approve or merge the change."
-              onClick={adjust.onOpen}
-              className={cn(NAV_BUTTON, 'ml-auto')}
-            >
-              <LocalizedText text="Adjust in Merge Studio" />
-              {/* Merge Studio is a screen of this app: →, not ↗. */}
-              <ArrowRight className={NAV_BUTTON_ICON} />
+      {/* ① The section's title: what to do here — fixed while choosing,
+          the outcome once decided — and where the review stands. */}
+      {pairedPreview && flow && !readOnly && (
+        <div className="mb-3 flex min-w-0 items-center gap-2">
+          <p data-pick-guide={choice ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
+            <span className="text-[13px] font-semibold text-white">
+              {flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
+            </span>
+            <span className="text-slate-500"> · </span><LocalizedText text={reviewState} />
+          </p>
+          {flow.canChange && (
+            <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
+              <LocalizedText text="Change decision" />
             </button>
           )}
         </div>
       )}
-      {reasonSlot && <div data-decision-reason className="mb-3 min-w-0">{reasonSlot}</div>}
-      <Dialog open={confirmUndo} onOpenChange={setConfirmUndo}>
-        <DialogContent showCloseButton={false} className="gap-0 bg-card p-0 sm:max-w-[400px]">
-          <div className="px-5 pt-4 pb-3">
-            <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Undo the adjustment?" /></DialogTitle>
-            <DialogDescription className="mt-1 text-xs leading-[18px] text-slate-400">
-              <LocalizedText text="Undoing the adjustment returns it to the current implementation value and resets the review approvals in progress." />
-            </DialogDescription>
-          </div>
-          <div className="flex items-center justify-end gap-2 px-5 pb-4">
-            <button type="button" onClick={() => setConfirmUndo(false)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Close" /></button>
-            <button type="button" data-undo-adjustment onClick={() => { setConfirmUndo(false); adjust?.onUndo?.() }} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-white/[0.1] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-white/[0.16]"><LocalizedText text="Undo adjustment" /></button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {!pairedPreview && flow?.editing && flow.openStudio && (
+        <div className="mb-3 flex min-w-0 items-center">
+          <button type="button" title="Adjust the design in Merge Studio. This doesn't approve or merge the change." onClick={flow.openStudio} className={cn(NAV_BUTTON, 'ml-auto')}>
+            <LocalizedText text="Adjust in Merge Studio" />
+            {/* Merge Studio is a screen of this app: →, not ↗. */}
+            <ArrowRight className={NAV_BUTTON_ICON} />
+          </button>
+        </div>
+      )}
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
-            {pairedPreview ? (
-              // Each card is an option, with a trailing check on the picked
-              // side. Clicking the picked card again clears the choice.
-              <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
-                {[
-                  // The standard first (left), what's there now beside it
-                  // (right). Each card keeps its own decision — the pick
-                  // and its check follow the card, not the position. Both
-                  // are the same height (the reason is above, not in one).
-                  { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
-                  { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
-                ].map(({ side, decision, source, tone, value }) => {
-                  const on = picked(decision)
-                  const choose = () => (on ? state.undo() : pick(decision))
+            {pairedPreview ? (<>
+              {/* ② One of three, like radio options, all the same height:
+                  the picked one in green with a check, the others with an
+                  empty ring. Decided: the chosen one stands, the rest fade. */}
+              <div role="radiogroup" aria-label="해결 방법 선택" className="grid grid-cols-3 gap-2">
+                {cards.map((card) => {
+                  const on = choice === card.id
+                  const isCustom = card.id === 'C'
+                  const empty = isCustom && !custom
+                  const choose = editing && !on ? () => flow.choose(card.id) : undefined
+                  // A card with nothing to choose (no way into the studio).
+                  const inert = !choose || (empty && !flow.openStudio)
                   return (
-                  <div key={side} className={cn(
+                  <div key={card.id} className={cn(
                     'min-w-0 overflow-hidden rounded-xl border transition-colors',
-                    readOnly ? (applied(decision) ? 'border-white/40 bg-white/[0.04]' : 'border-white/10 opacity-50')
-                      : on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
-                    canPick && !on && 'hover:border-white/35'
-                  )} data-applied={readOnly && applied(decision) ? '' : undefined}>
+                    readOnly ? (on ? 'border-white/40 bg-white/[0.04]' : 'border-white/10 opacity-50')
+                      : on ? 'border-emerald-300 bg-emerald-400/[0.06]'
+                        : cn(empty ? 'border-dashed border-white/20' : 'border-white/10', !editing && 'opacity-50'),
+                    !inert && 'hover:border-white/35'
+                  )} data-applied={readOnly && on ? '' : undefined}>
                   <div
                     role="radio"
                     aria-checked={on}
-                    aria-disabled={!canPick}
-                    tabIndex={canPick ? 0 : -1}
-                    onClick={canPick ? choose : undefined}
+                    aria-disabled={inert}
+                    tabIndex={inert ? -1 : 0}
+                    onClick={inert ? undefined : choose}
                     onKeyDown={(event) => {
-                      if (!canPick || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
+                      if (inert || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
                       event.preventDefault()
                       choose()
                     }}
-                    data-side={side}
-                    data-decision={decision}
+                    data-side={card.side}
+                    data-decision={card.id}
                     className={cn(
                       // 16px inside, 12px between its parts.
                       'flex h-full min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
-                      canPick && !on && 'cursor-pointer',
-                      canPick && on && 'cursor-pointer'
+                      !inert && 'cursor-pointer'
                     )}>
-                    <div className="flex min-w-0 items-start gap-2.5">
-                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : handAdjusted && adjusted(decision) ? 'Adjusted' : 'Keeps the value as it is now'} />}</div>
-                      {/* This side passes what the other one fails. */}
+                    <div className="flex min-w-0 items-start gap-2">
+                      {/* What choosing it does, then where the values are from. */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs leading-5 font-semibold text-white"><LocalizedText text={card.title} /></p>
+                        <p className="truncate text-[10px] text-slate-500" title={card.source}><LocalizedText text={card.source} /></p>
+                        {/* This side passes what the other one fails. (Under
+                            the title — three across, there's no room beside it.) */}
+                        {!isCustom && state.meets[card.id] && !readOnly && (
+                          <span className="mt-1.5 inline-block rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
+                            <LocalizedText text="Meets the design standard" />
+                          </span>
+                        )}
+                      </div>
                       {/* Finished: which card it was merged with. */}
-                      {readOnly && applied(decision) && (
+                      {readOnly && on && (
                         <span data-applied-tag className="shrink-0 rounded bg-white/[0.1] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-white">
                           <LocalizedText text="Applied" />
                         </span>
                       )}
-                      {state.meets[decision] && !readOnly && (
-                        <span className="shrink-0 rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
-                          <LocalizedText text="Meets the design standard" />
+                      {isCustom && custom && editing && flow.openStudio && (
+                        <button type="button" data-adjust-edit onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(TEXT_ACTION, '-my-1 h-7')}>
+                          <Pencil className="size-3 shrink-0" />
+                          <LocalizedText text="Edit" />
+                        </button>
+                      )}
+                      {/* Picked: a check. Not picked: an empty ring. */}
+                      {!readOnly && (
+                        <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+                          {on ? <Check className="size-5 text-emerald-300" strokeWidth={2.5} /> : editing && <span className="size-4 rounded-full border border-white/30" />}
                         </span>
                       )}
-                      {/* Picked: a check at the end of the header (its slot is
-                          always there, so the tags don't shift). */}
-                      <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-                        {on && !readOnly && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
-                      </span>
                     </div>
-                    {/* The card that merges is drawn as adjusted. */}
-                    <ChangePreview preview={conflict.preview} side={side} showLabels={false} override={adjusted(decision) ? result?.preview : undefined} />
+                    {empty ? (
+                      // Nothing set yet: the way into Merge Studio (the
+                      // whole card does the same).
+                      <div className="flex min-h-24 flex-1 items-center justify-center">
+                        {editing && flow.openStudio && (
+                          <span data-adjust-start className={cn(NAV_BUTTON, 'pointer-events-none bg-transparent')}>
+                            <Plus className={NAV_BUTTON_ICON} />
+                            <LocalizedText text="Set the values yourself" />
+                          </span>
+                        )}
+                      </div>
+                    ) : (<>
+                    <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom ? custom.preview : undefined} />
                     <dl className="min-w-0 space-y-2">
                       {conflict.comparisonFields.map((field, index) => {
-                        // Set by hand on this value: what it was → what it is.
-                        const hand = adjusted(decision) && result?.rows[index]?.to ? result.rows[index] : null
+                        // Set by hand: what it was → what it is.
+                        const hand = isCustom && custom.rows[index]?.to ? custom.rows[index] : null
+                        const text = isCustom ? custom.rows[index]?.base ?? field.current : card.value(field)
                         // A color value gets its swatch beside it.
-                        const swatch = hand ? hand.swatch : /#[0-9a-fA-F]{3,8}\b/.exec(value(field) ?? '')?.[0]
+                        const swatch = hand ? hand.swatch : swatchIn(text)
                         return (
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                          {/* Red only for a value that differs from the
-                              standard as it is — never for one set by hand. */}
                           {hand ? (
                             <dd data-adjusted-value className={HAND_VALUE}>
                               <span className="font-normal text-slate-500 line-through"><LocalizedText text={hand.base} /></span>
                               <span aria-hidden className="font-normal text-slate-500">→</span>
                               {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
-                              <span translate="no" className="text-emerald-300">{hand.to}</span>
+                              <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
                             </dd>
                           ) : (
-                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', readOnly || field.current === field.expected ? 'text-slate-200' : tone)}>
+                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', toneOf(text, field))}>
                             {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
-                            <span className="min-w-0"><LocalizedText text={value(field)} /></span>
+                            <span className="min-w-0"><LocalizedText text={text} /></span>
                           </dd>
                           )}
                         </div>
@@ -976,7 +931,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
                       {/* Set by hand on something the comparison doesn't
                           list (another property, another element) — the
                           same "old → new" form. */}
-                      {adjusted(decision) && result?.extras.map((change) => (
+                      {isCustom && custom.extras.map((change) => (
                         <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
                             {change.layerName && <><LocalizedText text={change.layerName} /> · </>}
@@ -988,14 +943,15 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
                               <span aria-hidden className="font-normal text-slate-500">→</span>
                             </>}
                             {change.swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: change.swatch }} />}
-                            <span className="text-emerald-300">{change.to}</span>
+                            <span className="text-slate-100">{change.to}</span>
                           </dd>
                         </div>
                       ))}
                     </dl>
+                    </>)}
                     {/* The picked side breaks a required standard: say so on
                         this card, with what clears it. */}
-                    {on && state.cardBlockers.length > 0 && (
+                    {on && !isCustom && state.cardBlockers.length > 0 && (
                       <div onClick={(event) => event.stopPropagation()} className="cursor-default border-t border-amber-300/30 pt-3">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
                           <TriangleAlert className="size-3.5 shrink-0" />
@@ -1004,7 +960,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
                         <CheckDecisions checks={checks} only={state.cardBlockers} {...checkActions} />
                         {state.otherClears && (
                           <p className="mt-2 text-xs leading-[18px] text-slate-200">
-                            <LocalizedText text={side === 'before' ? 'Choosing the design reference clears it.' : 'Choosing the current implementation clears it.'} />
+                            <LocalizedText text={card.side === 'before' ? 'Choosing the design reference clears it.' : 'Choosing the current implementation clears it.'} />
                           </p>
                         )}
                       </div>
@@ -1014,7 +970,16 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
                   )
                 })}
               </div>
-            ) : conflict.preview && (
+              {/* ③ Why — under the cards, for the way that was chosen.
+                  Following the standard needs no reason. No button of its
+                  own: it's kept as it's entered, and settled by Decide. */}
+              {flow?.reason && (!readOnly || flow.reason.value) && (
+                <div data-decision-reason={choice} className="min-w-0">
+                  <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
+                </div>
+              )}
+              {state.exceptionReason && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+            </>) : conflict.preview && (
               <div className="min-w-0">
                 {conflict.preview.kind === 'divider' && sources && (
                   <div className="mb-2 grid min-w-0 grid-cols-[minmax(48px,88px)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
@@ -1051,7 +1016,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
             )}
             {/* Both sides miss a required standard: the cards still choose
                 which side merges, but choosing can't fix it. */}
-            {pairedPreview && state.bothFail && !adjustment && !readOnly && (
+            {pairedPreview && state.bothFail && choice !== 'C' && editing && (
               <p className="flex items-center gap-1.5 text-xs leading-[18px] text-slate-300">
                 <TriangleAlert className="size-3.5 shrink-0 text-slate-400" />
                 <LocalizedText text="Both values miss the standard · it needs adjusting in Merge Studio" />
@@ -1111,6 +1076,25 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
             )}
           </div>
         </section>
+      )}
+      {/* ⑤ The one place it's settled: what was chosen, and the button
+          that decides it (and asks the reviewers). While it can't be
+          pressed, the line over it says what's missing. */}
+      {pairedPreview && editing && flow.decide && (
+        <div data-decide-bar className="mt-3 flex min-w-0 items-end gap-3 border-t border-white/[0.07] pt-3">
+          <p data-decide-summary className="min-w-0 flex-1 truncate pb-1.5 text-xs text-slate-300">
+            {chosen ? <>
+              <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
+              {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
+            </> : <LocalizedText text="Nothing chosen yet" />}
+          </p>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
+            <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
+              <LocalizedText text="Decide on this" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -1997,7 +1981,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     setReasonRequest(null)
     update({ decidedSide: null, decidedBy: null, deviation: null })
   }
-  decisionState.reasonApplies = decisionState.side === 'B' && (!decisionState.meets.B || conflict?.deviation?.kind === 'keep-current')
+  // Choosing between cards (no drafts to mix, no rollback): keeping the
+  // current value always says why.
+  const cardFlow = Boolean(conflict?.comparisonFields?.length) && !conflict.rollback && !(driftItem && draftColumns(driftItem))
+  decisionState.reasonApplies = decisionState.side === 'B' && (cardFlow || !decisionState.meets.B || conflict?.deviation?.kind === 'keep-current')
   decisionState.savedReason = conflict?.deviation?.kind === 'keep-current' ? conflict.deviation.text : null
   decisionState.reasonNeeded = stage !== 'resolved' && decisionState.reasonApplies && !decisionState.savedReason?.trim()
   decisionState.saveReason = (reason) => {
@@ -2079,55 +2066,98 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // the current implementation with none — with those values laid over it.
   // The card's rows, its picture and the code below all read this.
   const handAssembly = stage === 'resolved' ? conflict?.mergedAssembly : workspace?.mergeDrafts?.current?.[mergeItem?.id]?.assemblies?.[conflict?.layerId]
-  const mergeSide = stage === 'resolved' ? mergedSide : decisionState.side ?? 'B'
-  const result = mergeResultOf(conflict, mergeItem, mergeSide, { assembly: handAssembly, adjustments: studioAdjustments })
   const adjustedByHand = Boolean(adjustment) || studioAdjustments.length > 0
+  // (Decided with no side recorded: the design reference, which is what a
+  // merge takes by default — unless it was adjusted by hand, which sits on
+  // the current implementation.)
+  const mergeSide = stage === 'resolved' ? mergedSide : decisionState.side ?? (stage !== 'detected' && !adjustedByHand ? mergedSide : 'B')
+  const result = mergeResultOf(conflict, mergeItem, mergeSide, { assembly: handAssembly, adjustments: studioAdjustments })
   // Adjusted by hand: the reason to give is why it was adjusted (kept on the
   // conflict as `adjustmentReason`) — asked in place of the kept-value one,
   // and needed before a review request the same way.
-  // Undo everything set by hand: back to the values the sides have. The
-  // side picked then is still picked; with none, the current implementation
-  // is (it's what merges by default). A seeded "settled by hand" record
-  // reopens too. (Changing the draft resets the approvals — the provider's
-  // saveMergeDraft.) The toast puts all of it back.
-  function undoAdjustments() {
-    const before = {
-      assemblies: workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {},
-      conflict: { resolution: conflict.resolution ?? null, adjustment: conflict.adjustment ?? null, pickedSide: conflict.pickedSide ?? null, reviewStage: conflict.reviewStage, reviewers: conflict.reviewers },
+  // The resolution as three choices: the design reference (A), the current
+  // value (B), or a value set by hand (C — anything adjusted in Merge
+  // Studio). Choosing A or B while adjusted sets the adjustment aside
+  // (`stashedAssemblies`, on the conflict) rather than dropping it, so
+  // choosing C again brings it back as it was.
+  const stash = stage !== 'resolved' && conflict?.stashedAssemblies && Object.keys(conflict.stashedAssemblies).length ? conflict.stashedAssemblies : null
+  const choice = !conflict ? null : adjustedByHand ? 'C' : stage === 'detected' ? decisionState.side : mergedSide
+  const openStudio = stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio ? () => {
+    // Arriving there says what to do: the check to fix (its element
+    // marked, the value to reach) or, with none failing, how a precise
+    // adjustment works — and how to finish and come back.
+    workspace?.setCheckGuide({ conflictId: conflict.id, check: checks?.blocking[0] ?? checks?.failing[0] ?? null })
+    onOpenMergeStudio(conflict)
+  } : null
+  function chooseWay(next) {
+    if (next === choice) return
+    if (next === 'C') {
+      if (!stash) { openStudio?.(); return }
+      // Back on the current implementation, where it was set.
+      workspace.setLayerAdjustments(mergeItem.id, stash)
+      if (decisionState.side) undoSide()
+      update({ stashedAssemblies: null, decidedSide: null, decidedBy: null })
+      return
     }
-    workspace.setLayerAdjustments(mergeItem.id, {})
-    const reopened = conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null
-    if (decisionState.sideOnly) update({ ...reopened, pickedSide: decisionState.side ?? 'B' })
-    else {
-      if (!decisionState.side) pickSide('B')
-      if (reopened) update(reopened)
+    if (adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
+      const set = workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {}
+      workspace.setLayerAdjustments(mergeItem.id, {})
+      // (A seeded "settled by hand" record reopens with it.)
+      update({ stashedAssemblies: set, ...(conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null) })
     }
-    toast('Adjustment undone', {
-      action: {
-        label: 'Put back',
-        onClick: () => {
-          workspace.setLayerAdjustments(mergeItem.id, before.assemblies)
-          update(before.conflict)
-        },
-      },
-    })
+    decisionState.pick(next)
   }
+  // The third card's values: what's set now, or what was set aside.
+  const customResult = adjustedByHand ? result
+    : stash && mergeItem ? mergeResultOf(conflict, mergeItem, 'B', { assembly: stash[conflict.layerId], adjustments: studioAdjustmentsOf(mergeItem, { [mergeItem.id]: { assemblies: stash } }) })
+      : null
   if (adjustedByHand) {
     decisionState.adjustmentReason = true
     decisionState.reasonApplies = true
     decisionState.savedReason = conflict.adjustmentReason?.text ?? null
     decisionState.reasonNeeded = stage !== 'resolved' && !decisionState.savedReason?.trim()
-    decisionState.saveReason = (reason) => {
-      update({ adjustmentReason: { text: reason, by: viewerId, at: 'Just now' } })
-      if (reasonRequest) { reasonRequest.run(reason); setReasonRequest(null) }
-    }
   }
+  // Why, for the way that's chosen — kept on the conflict as it's entered
+  // (no save of its own; Decide settles it). Following the standard needs
+  // none.
+  const flowReason = choice === 'C' ? {
+    title: 'Why was it adjusted?',
+    reasons: ADJUSTMENT_REASONS,
+    value: conflict.adjustmentReason?.text ?? '',
+    onChange: (text) => update({ adjustmentReason: text ? { text, by: viewerId, at: 'Just now' } : null }),
+  } : choice === 'B' && decisionState.reasonApplies ? {
+    title: 'Why depart from the standard?',
+    reasons: DEVIATION_REASONS,
+    value: decisionState.savedReason ?? '',
+    onChange: (text) => update({ deviation: text ? { kind: 'keep-current', text, by: viewerId, at: 'Just now' } : null }),
+  } : null
+  // Decided once review is asked for; whoever isn't there as a reviewer
+  // (the author) can take it back to choose again.
+  const reviewerOnly = Boolean(myReviewer && !ownChange)
+  const flow = conflict && cardFlow ? {
+    choice,
+    editing: stage === 'detected' && Boolean(onUpdate),
+    decided: stage !== 'detected',
+    canChange: stage !== 'detected' && stage !== 'resolved' && !reviewerOnly && Boolean(onUpdate),
+    choose: chooseWay,
+    custom: customResult,
+    openStudio,
+    reason: flowReason,
+    changeDecision: () => update({ reviewStage: 'detected', reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
+    decide: {
+      run: handleRequestReview,
+      blocked: !choice ? null
+        : decisionState.reasonNeeded ? 'Choose at least one reason'
+          : !requiredReviewers(conflict).length ? 'Assign a reviewer other than the author to request review.'
+            : reasonRequest ? 'Reason needed' : null,
+    },
+  } : conflict ? { editing: stage !== 'resolved', openStudio } : null
   // The code that merges follows the card that's picked: the design
   // reference's lines, or the current ones — either with a hand-adjusted
   // size written in. So the diff's "−" is always the current
   // implementation's value and its "+" the chosen one. With nothing picked
   // (and nothing adjusted) the code doesn't change, and there is no diff.
-  const pickedSide = stage === 'resolved' ? 'A' : decisionState.side
+  const pickedSide = stage === 'resolved' ? 'A' : decisionState.side ?? (stage !== 'detected' && !adjustedByHand ? mergedSide : null)
   const changeAfter = stage === 'resolved'
     ? (conflict?.diff?.after ?? []).map((line) => (adjustment ? adjustment.applyTo(line) : line))
     : result?.lines ?? []
@@ -2160,7 +2190,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // waiting on someone else (the Status card says who).
   let primary = null
   if (conflict) {
-    if (stage === 'detected') {
+    if (stage === 'detected' && cardFlow) {
+      // Decided at the bottom of the choice itself ("Decide on this").
+      primary = null
+    } else if (stage === 'detected') {
       primary = (
         <>
           {!requiredReviewers(conflict).length && <span className={STATUS_NOTE}><LocalizedText text="Assign a reviewer other than the author to request review." /></span>}
@@ -2324,25 +2357,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             conflict={conflict}
                             code={codeView}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
-                            adjustment={adjustment}
-                            result={result}
                             changeAfter={changeAfter}
                             state={decisionState}
                             checks={checks}
                             checkActions={checkActions}
                             checkBlocks={checkBlocks}
-                            // The adjustment controls: into Merge Studio
-                            // (with a fix guide open, for that check — its
-                            // element marked, the value to reach, how to
-                            // finish and come back), and undo once adjusted.
-                            adjust={stage !== 'resolved' ? {
-                              adjusted: adjustedByHand,
-                              onOpen: onOpenMergeStudio && !inMergeStudio ? () => {
-                                workspace?.setCheckGuide({ conflictId: conflict.id, check: checks?.blocking[0] ?? checks?.failing[0] ?? null })
-                                onOpenMergeStudio(conflict)
-                              } : null,
-                              onUndo: adjustedByHand && mergeItem && workspace?.setLayerAdjustments ? undoAdjustments : null,
-                            } : null}
+                            flow={flow}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —

@@ -271,7 +271,18 @@ comment|댓글
 Design system rules|디자인 시스템 규칙
 Registered reasons — linked to a change automatically when it runs into a rule.|사전 등록된 근거 · 관련 규칙 감지 시 자동 연결
 Why depart from the standard?|현재 값을 유지하는 이유
-Why was it adjusted?|값을 조정한 이유
+Why was it adjusted?|직접 조정한 이유
+Choose how to resolve it|해결 방법 선택
+Decided|결정됨
+Change decision|결정 변경
+Change to the design reference|디자인 기준으로 변경
+Adjust by hand|직접 조정
+You set the values yourself|값을 직접 정해요
+Set the values yourself|값 직접 정하기
+Required · choose all that apply|필수 · 여러 개 선택 가능
+Decide on this|이 방법으로 결정
+Choose at least one reason|이유를 하나 이상 선택해 주세요
+Nothing chosen yet|아직 선택하지 않았어요
 Edit adjustment|조정 편집
 Adjusted|조정됨
 Undo the adjustment?|조정을 취소할까요?
