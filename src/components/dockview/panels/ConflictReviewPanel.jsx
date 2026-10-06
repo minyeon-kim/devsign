@@ -15,7 +15,6 @@ import {
   GitMerge,
   Layers3,
   MapPin,
-  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -429,7 +428,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest, reasonNeeded = false, needsMyReview = false }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest, reasonNeeded = false }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -457,13 +456,13 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   const cause_text = conflict.cause ?? conflict.message ?? summary
 
   // What the viewer has to do now — and only that: nothing shows when the
-  // next move is someone else's.
+  // next move is someone else's. (A review that's yours to give is said on
+  // the Review button itself.)
   const todo = stage === 'resolved' ? null
     : reasonNeeded ? null
       : blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
         : stage === 'detected' ? 'Review request needed'
-          : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge')
-            : needsMyReview ? 'Your review needed' : null
+          : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge') : null
   const status = listStatusOf(conflict)
   // One label column for the whole tab: every row's label starts at the
   // same x, and so does every value.
@@ -800,6 +799,22 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], changeAfter ?? conflict.diff.after ?? []) : []
   const pairedPreview = Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
+  // The decision's reason, as one line under the conclusion (the cards hold
+  // values only): what was saved, with a way to edit it — and, while it's
+  // being entered, the choices and the field in that same place. Adjusted
+  // by hand: why it was adjusted (picked or not — the value isn't being
+  // kept). Otherwise: why the current value is kept, once that's picked.
+  // An exception waiting on a reason uses the same one (see saveReason).
+  const asksReason = pairedPreview && (state.adjustmentReason || (state.side === 'B' && state.reasonApplies)) && (!readOnly || Boolean(state.savedReason))
+  const reasonSlot = asksReason ? (
+    <InlineDeviationReason
+      key={`${conflict.id}:${state.adjustmentReason ? 'adjusted' : 'kept'}`}
+      value={state.savedReason}
+      onSave={state.saveReason}
+      readOnly={readOnly}
+      {...(state.adjustmentReason ? { title: 'Why was it adjusted?', reasons: ADJUSTMENT_REASONS } : null)}
+    />
+  ) : pairedPreview && state.exceptionReason ? <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} /> : null
 
   return (
     <div className="flex h-full flex-col">
@@ -807,7 +822,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
           is the radio cards below — no second place that shows or undoes
           it), and on the right the one way into Merge Studio. */}
       {(state.canPick || studioAction) && (
-        <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+        <div className={cn('flex min-w-0 flex-wrap items-center gap-2', reasonSlot ? 'mb-1.5' : 'mb-3')}>
           {state.canPick && (
             // The conclusion in one line: what to do now, how binding the
             // standard is, and where the review stands — and, once a side is
@@ -832,6 +847,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
           )}
         </div>
       )}
+      {reasonSlot && <div data-decision-reason className="mb-3 min-w-0">{reasonSlot}</div>}
       {(conflict.preview || conflict.comparisonFields?.length > 0 || conflict.diff || conflict.suggestion) && (
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
@@ -841,9 +857,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
               <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
                   // The standard first (left), what's there now beside it
-                  // (right). Each card keeps its own decision — the pick,
-                  // its check, and its reason form follow the card, not
-                  // the position.
+                  // (right). Each card keeps its own decision — the pick
+                  // and its check follow the card, not the position. Both
+                  // are the same height (the reason is above, not in one).
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
                   { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                 ].map(({ side, decision, source, tone, value }) => {
@@ -851,7 +867,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
                   const choose = () => (on ? state.undo() : pick(decision))
                   return (
                   <div key={side} className={cn(
-                    'min-w-0 self-start overflow-hidden rounded-xl border transition-colors',
+                    'min-w-0 overflow-hidden rounded-xl border transition-colors',
                     readOnly ? (applied(decision) ? 'border-white/40 bg-white/[0.04]' : 'border-white/10 opacity-50')
                       : on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
                     canPick && !on && 'hover:border-white/35'
@@ -871,7 +887,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
                     data-decision={decision}
                     className={cn(
                       // 16px inside, 12px between its parts.
-                      'flex min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
+                      'flex h-full min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
                       canPick && !on && 'cursor-pointer',
                       canPick && on && 'cursor-pointer'
                     )}>
@@ -978,28 +994,6 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
                       </div>
                     )}
                   </div>
-                  {/* The reason this card asks for. Adjusted by hand: why it
-                      was adjusted, on the card that merges (picked or not) —
-                      the value isn't being kept, so that isn't the question.
-                      Otherwise: why the current value is kept, once picked. */}
-                  {(() => {
-                    const asks = (state.adjustmentReason ? adjusted(decision) : on && decision === 'B' && state.reasonApplies) && (!readOnly || Boolean(state.savedReason))
-                    const exception = on && state.exceptionReason && !asks
-                    if (!asks && !exception) return null
-                    return <div className="mx-4 border-t border-white/10 pb-3">
-                  {asks && <InlineDeviationReason
-                    key={`${conflict.id}:${decision}:${state.adjustmentReason ? 'adjusted' : 'kept'}`}
-                    value={state.savedReason}
-                    onSave={state.saveReason}
-                    readOnly={readOnly}
-                    {...(state.adjustmentReason ? { title: 'Why was it adjusted?', reasons: ADJUSTMENT_REASONS } : null)}
-                  />}
-                  {/* One question, one form: with a reason asked on this
-                      card, the exception uses that same reason (see
-                      saveReason) instead of asking beside it. */}
-                  {exception && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
-                  </div>
-                  })()}
                   </div>
                   )
                 })}
@@ -1048,7 +1042,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studio
               </p>
             )}
             {checkBlocks}
-            {state.exceptionReason && (!pairedPreview || !state.side) && !(pairedPreview && state.adjustmentReason) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+            {state.exceptionReason && !pairedPreview && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {/* Finished: the code as it was merged. What it looked like
                 before — the conflict itself, markers and all — is there to
                 compare with, behind a toggle. */}
@@ -1620,8 +1614,9 @@ function CommentThread({ conflict, workspace, flashId }) {
 // Your sign-off, as one button (GitHub's "Review changes"): pick Approve or
 // Request changes and leave a note. Requesting changes needs one — the
 // author has to know what to fix — and the note goes to the conflict's
-// Comments either way.
-function ReviewButton({ onSubmit, authorName }) {
+// Comments either way. `needed`: it's your turn — the button says so, with
+// a dot (that's the one place the to-do shows).
+function ReviewButton({ onSubmit, authorName, needed = false }) {
   const [open, setOpen] = useState(false)
   const [decision, setDecision] = useState('approve')
   const [note, setNote] = useState('')
@@ -1638,46 +1633,38 @@ function ReviewButton({ onSubmit, authorName }) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className={cn(PRIMARY_BUTTON, 'gap-1')}>
-        <LocalizedText text="Review" />
+      <PopoverTrigger data-review-needed={needed ? '' : undefined} className={cn(PRIMARY_BUTTON, 'gap-1')}>
+        {needed && <span aria-hidden className="mr-0.5 size-1.5 shrink-0 rounded-full bg-current" />}
+        <LocalizedText text={needed ? 'Review needed' : 'Review'} />
         <ChevronDown className="size-3.5" />
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[360px] gap-0 rounded-xl p-3">
-        {/* One choice as two equal buttons, then the note, then who hears
-            about it beside the send button. */}
-        <p className="mb-2 text-xs font-medium text-white"><LocalizedText text="Your review" /></p>
-        {/* Each choice says when it's the right one and what happens
-            next — a label alone left "Request changes" unclear. */}
-        <div role="radiogroup" aria-label="Your review" className="mb-2 space-y-1.5">
+      <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-xl p-3">
+        <p className="mb-1 text-xs font-medium text-white"><LocalizedText text="Your review" /></p>
+        {/* One line each: the choice, and what it means. What happens next
+            is said once, for the picked one, over the submit button. */}
+        <div role="radiogroup" aria-label="Your review" className="mb-2">
           {[
-            ['approve', 'Approve', Check, 'border-emerald-300/50 bg-emerald-400/[0.08]', 'text-emerald-200',
-              'The change is right as it is.', 'It merges once every reviewer has approved.'],
-            ['changes', 'Request changes', Pencil, 'border-amber-300/50 bg-amber-400/[0.08]', 'text-amber-200',
-              'Something is wrong and the author needs to fix it — a value off the design reference, the wrong element changed, a failed check with no reason given.',
-              'It goes back to the author with your note; they fix it and request review again. Nothing merges meanwhile.'],
-          ].map(([id, label, Icon, on, tone, when, then]) => (
+            ['approve', 'Approve', 'The change is right'],
+            ['changes', 'Request changes', 'The author needs to fix it'],
+          ].map(([id, label, meaning]) => (
             <button
               key={id}
               type="button"
               role="radio"
               aria-checked={decision === id}
               onClick={() => setDecision(id)}
-              className={cn('ds-intrinsic block w-full cursor-pointer rounded-lg border px-2.5 py-2 text-left transition-colors', decision === id ? on : 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]')}
+              className="ds-intrinsic flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 text-left text-xs transition-colors hover:bg-white/[0.05]"
             >
-              <span className={cn('flex items-center gap-1.5 text-xs font-medium', decision === id ? tone : 'text-slate-200')}>
-                <Icon className="size-3.5" />
-                <LocalizedText text={label} />
+              <span aria-hidden className={cn('flex size-3.5 shrink-0 items-center justify-center rounded-full border', decision === id ? 'border-emerald-300' : 'border-white/30')}>
+                {decision === id && <span className="size-1.5 rounded-full bg-emerald-300" />}
               </span>
-              <span className="mt-1 block text-[11px] leading-4 text-slate-300"><span className="text-slate-500"><LocalizedText text="When" /> · </span><LocalizedText text={when} /></span>
-              <span className="mt-0.5 block text-[11px] leading-4 text-slate-400"><span className="text-slate-500"><LocalizedText text="Then" /> · </span><LocalizedText text={then} /></span>
+              <span className="min-w-0 truncate">
+                <span className={cn('font-medium', decision === id ? 'text-white' : 'text-slate-200')}><LocalizedText text={label} /></span>
+                <span className="text-slate-400"> · <LocalizedText text={meaning} /></span>
+              </span>
             </button>
           ))}
         </div>
-        {decision === 'changes' && (
-          <p data-changes-tip className="mb-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-[11px] leading-4 text-slate-300">
-            <LocalizedText text="Can you fix the value yourself? Then don’t request changes — adjust it in Merge Studio and request review again." />
-          </p>
-        )}
         <textarea
           rows={3}
           value={note}
@@ -1686,7 +1673,10 @@ function ReviewButton({ onSubmit, authorName }) {
           placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
           className="block w-full resize-none rounded-lg bg-white/[0.04] px-2.5 py-2 text-xs leading-5 text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.06]"
         />
-        <div className="mt-2.5 flex items-center gap-2">
+        <p data-review-outcome className="mt-2 text-[11px] leading-4 text-slate-300">
+          <LocalizedText text={decision === 'approve' ? 'It merges once everyone approves' : 'It goes back to the author and the merge stops'} />
+        </p>
+        <div className="mt-2 flex items-center gap-2">
           {authorName && (
             <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
               <Bell className="size-3 shrink-0" />
@@ -2126,7 +2116,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     } else if (stage === 'in_review' && canReview) {
       // Yours to decide — also after requesting changes, so you can approve
       // once they're fixed (or change your mind).
-      primary = <ReviewButton onSubmit={handleReview} authorName={authorName} />
+      primary = <ReviewButton onSubmit={handleReview} authorName={authorName} needed={myReviewer.status === 'pending'} />
     } else if (stage === 'in_review' && myReviewer && ownChange) {
       primary = <span className={STATUS_NOTE}><LocalizedText text="You can’t review your own change" /></span>
     } else if (stage === 'in_review') {
@@ -2374,7 +2364,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         onOpenCause={openProjectHistory}
                         onUpdateReviewers={update}
                         reasonNeeded={decisionState.reasonNeeded}
-                        needsMyReview={stage === 'in_review' && canReview}
                         onDismissRequest={workspace?.dismissChangeRequest}
                       />
                     </div>

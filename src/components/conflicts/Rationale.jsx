@@ -225,7 +225,9 @@ function DeviationReasonForm({ request, onSubmit, onCancel }) {
   )
 }
 
-// Lives below the selected card, outside its radio click target.
+// Lives under the comparison's conclusion line: the saved reason as one
+// line ("Reason · … · Edit"), opening into the choices and a field only
+// while it's being entered.
 // `title` / `reasons`: the question and its usual answers — departing from
 // the standard by default; a hand adjustment asks why it was adjusted.
 export function InlineDeviationReason({ value, onSave, readOnly = false, title = 'Why depart from the standard?', reasons = DEVIATION_REASONS }) {
@@ -242,14 +244,14 @@ export function InlineDeviationReason({ value, onSave, readOnly = false, title =
     onSave(combined.join(' · '))
     setEditing(false)
   }
-  if (value && !editing) return <p key="saved" role="status" className="ds-reason-enter mt-3 flex flex-wrap items-center gap-x-1 text-xs leading-5 text-slate-300">
-    <Check aria-hidden className="mr-1 size-3.5 text-slate-400" />
-    <LocalizedText text="Reason" />: <LocalizedText text={value} />
-    {!readOnly && <button type="button" onClick={() => setEditing(true)} className="ml-1 rounded px-1 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">· <LocalizedText text="Edit reason" /></button>}
+  if (value && !editing) return <p key="saved" role="status" data-saved-reason className="ds-reason-enter flex flex-wrap items-center gap-x-1 text-xs leading-5 text-slate-300">
+    <span className="text-slate-500"><LocalizedText text="Reason" /></span>
+    {parts.map((part) => <span key={part}><span className="text-slate-500">· </span><LocalizedText text={part} /></span>)}
+    {!readOnly && <><span className="text-slate-500">·</span><button type="button" onClick={() => setEditing(true)} className="-ml-0.5 rounded px-1 text-slate-400 underline-offset-2 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text="Edit reason" /></button></>}
   </p>
   if (readOnly) return null
   return <div key="editing" className="ds-reason-reveal"><div className="min-h-0 overflow-hidden">
-  <form data-inline-deviation-reason className="space-y-2.5 px-1 pt-3 pb-1" onSubmit={(event) => { event.preventDefault(); save() }}>
+  <form data-inline-deviation-reason className="space-y-2.5 pt-1 pb-1" onSubmit={(event) => { event.preventDefault(); save() }}>
     <p className="text-xs font-medium text-slate-300"><LocalizedText text={title} /> <span className="font-normal text-slate-500">· <LocalizedText text="Choose all that apply" /></span></p>
     <div className="flex flex-wrap gap-1.5">
       {reasons.map((reason) => <button key={reason} type="button" role="checkbox" aria-checked={picked.includes(reason)} onClick={() => toggle(reason)} className="ds-intrinsic ds-reason-chip inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">{picked.includes(reason) && <Check aria-hidden className="size-3 text-emerald-300" />}<LocalizedText text={reason} /></button>)}

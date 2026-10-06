@@ -71,6 +71,11 @@ View origin version in History|히스토리에서 발생 버전 보기
 View origin version|발생 버전 보기
 Reason for keeping the current value needed|현재 값 유지 이유 입력 필요
 Your review needed|내 검토 필요
+Review needed|검토 필요
+The change is right|변경 내용이 맞아요
+The author needs to fix it|작성자가 고쳐야 해요
+It merges once everyone approves|모두 승인하면 병합돼요
+It goes back to the author and the merge stops|작성자에게 돌아가고 병합이 멈춰요
 Can’t merge|병합 불가
 View this step’s replay|이 단계의 리플레이 보기
 Applied the brand violet|브랜드 보라색 적용
