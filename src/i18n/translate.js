@@ -106,6 +106,8 @@ const rules = [
   // Korean-mode sweep: dynamic copy that was still showing in English.
   [/^Edited (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^(\d+) unchanged lines?$/, (_, n) => `변경 없는 ${n}줄`],
+  [/^(\d+) lines hidden$/, (_, n) => `${n}줄 숨김`],
+  [/^Waiting on (\d+) reviewers?$/, (_, n) => `검토자 ${n}명 대기`],
   [/^(.+) \(author\) will be notified\.$/, (_, name) => `작성자 ${core(name)}님에게 알림이 가요.`],
   [/^requested changes on (.+)$/, (_, title) => `${core(title)}에 변경을 요청했어요`],
   [/^approved (.+)$/, (_, title) => `${core(title)}을(를) 승인했어요`],

@@ -157,8 +157,11 @@ function comparisonSources(branches) {
 function ComparisonSource({ label, source, outcome }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-medium text-slate-300"><LocalizedText text={label} /></p>
-      {outcome && <p data-card-outcome className="text-[11px] leading-4 text-slate-200"><LocalizedText text={outcome} /></p>}
+      {/* One title line — which side, and what picking it does. */}
+      <p className={cn('truncate font-medium', outcome ? 'text-xs leading-5 text-white' : 'text-[10px] text-slate-300')}>
+        <LocalizedText text={label} />
+        {outcome && <span data-card-outcome className="font-normal text-slate-300"> · <LocalizedText text={outcome} /></span>}
+      </p>
       <p className="truncate text-[10px] text-slate-500" title={source}><LocalizedText text={source} /></p>
     </div>
   )
@@ -385,8 +388,10 @@ function DueDate({ label, className }) {
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
 // The summary's two text styles: body, and the small grey label over it.
-const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
-const SUMMARY_LABEL = 'mb-1 text-[11px] leading-4 text-slate-400'
+// (A step quieter than the comparison beside it, which is what's acted on.)
+const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-300 [overflow-wrap:anywhere]'
+const SUMMARY_LABEL = 'mb-1 text-[11px] leading-4 text-slate-500'
+const SUMMARY_ROW_LABEL = 'text-[11px] leading-[18px] whitespace-nowrap text-slate-500'
 function SummaryPart({ label, children }) {
   return (
     <div data-summary-part={label ?? ''} className="min-w-0">
@@ -405,6 +410,13 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   useEffect(() => {
     if (showDetails) detailsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [showDetails])
+  // The backing for the standard — source, purpose, evidence links, the
+  // version it began in — folded the same way.
+  const [showEvidence, setShowEvidence] = useState(false)
+  const evidenceRef = useRef(null)
+  useEffect(() => {
+    if (showEvidence) evidenceRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [showEvidence])
   const open = stage !== 'resolved'
   const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
@@ -420,6 +432,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // first failing check says. (How to resolve it is the comparison's line.)
   const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
   const standard = rationale ? standardOf(rationale.rules, checks) : null
+  const hasEvidence = !conflict.rollback && Boolean(standard || rationale?.evidence.length || cause)
 
   return (
     // (As tall as its content — the panel it's in does the scrolling.)
@@ -465,68 +478,78 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           colors; monospace only for the difference itself. */}
       {!conflict.rollback && (
         <section data-review-summary className="min-w-0 space-y-3">
-          {/* The standard behind the comparison, from the rules registered
-              for it (lib/rationale) — named, not restated: the values
-              themselves are the cards' and the code's, beside this. What
-              not keeping it means carries the reason this difference
-              matters. */}
-          {standard ? (
-            // (No heading over it: its first row is already labelled
-            // "Standard" — the word isn't said twice.)
-            <SummaryPart>
-              {/* A label column as wide as its longest label, so every
-                  line's content starts at the same place and wraps under
-                  itself. */}
-              <dl data-standard className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1">
-                {[
-                  ['Standard', standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
-                  ['Source', standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
-                  ['What it’s for', standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)],
-                  ['If not kept', (
-                    <>
-                      <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} />
-                      {(why ? [why] : standard.consequence).map((text) => <Fragment key={text}> <LocalizedText text={text} /></Fragment>)}
-                      <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
-                    </>
-                  )],
-                ].map(([label, content]) => (
-                  <Fragment key={label}>
-                    <dt className="text-[11px] leading-[18px] whitespace-nowrap text-slate-400"><LocalizedText text={label} /></dt>
-                    <dd className={SUMMARY_BODY}>{content}</dd>
-                  </Fragment>
-                ))}
-              </dl>
-            </SummaryPart>
-          ) : why && (
-            // No registered rule behind it: why it matters, in its own words.
-            <SummaryPart label="Reason"><p className={SUMMARY_BODY}><LocalizedText text={why} /></p></SummaryPart>
-          )}
-          {rationale?.evidence.length > 0 && (
-            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
-          )}
-          {/* Where it began: the saved version the difference first came in
-              with — a way straight to it in History. */}
-          {cause && (
-            <SummaryPart label="Version this difference came in with">
-              <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <span className="min-w-0 flex-1">
-                  <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
-                  <span className="block text-[11px] leading-4 text-slate-400">
-                    <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
-                    {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
-                  </span>
-                </span>
-                <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+          {/* What's shown at once is the essentials: the standard (by name),
+              what not keeping it means, and the decision. Where the
+              standard comes from, what it's for, the evidence links and the
+              version the difference came in with are one press away, under
+              "Show evidence". */}
+          <dl data-summary-essentials className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1.5">
+            {[
+              standard && ['Standard', standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
+              standard ? ['If not kept', (
+                <>
+                  <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} />
+                  {(why ? [why] : standard.consequence).map((text) => <Fragment key={text}> <LocalizedText text={text} /></Fragment>)}
+                  <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
+                </>
+              )] : why && ['Reason', <LocalizedText key="why" text={why} />],
+              rationale && ['Decision', (
+                <>
+                  <LocalizedText text={rationale.decision.label ?? 'Not decided yet'} />
+                  {rationale.decision.by && <span translate="no" className="text-slate-500"> · {rationale.decision.by}</span>}
+                </>
+              )],
+            ].filter(Boolean).map(([label, content]) => (
+              <Fragment key={label}>
+                <dt className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
+                <dd data-summary-row={label} className={SUMMARY_BODY}>{content}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          {hasEvidence && (
+            <div ref={evidenceRef} className="scroll-mb-3">
+              <button
+                type="button"
+                data-evidence-toggle
+                aria-expanded={showEvidence}
+                onClick={() => setShowEvidence((value) => !value)}
+                className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
+              >
+                <LocalizedText text="Show evidence" />
+                <ChevronDown className={cn('size-3.5 transition-transform', showEvidence && 'rotate-180')} />
               </button>
-            </SummaryPart>
-          )}
-          {rationale && (
-            <SummaryPart label="Decision">
-              <p className={SUMMARY_BODY}>
-                <LocalizedText text={rationale.decision.label ?? 'Not decided yet'} />
-                {rationale.decision.by && <span translate="no" className="text-slate-400"> · {rationale.decision.by}</span>}
-              </p>
-            </SummaryPart>
+              {showEvidence && (
+                <div data-evidence-body className="mt-1 space-y-3">
+                  {standard && (
+                    <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1.5">
+                      <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Source" /></dt>
+                      <dd className={SUMMARY_BODY}>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</dd>
+                      <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="What it’s for" /></dt>
+                      <dd className={SUMMARY_BODY}>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}</dd>
+                    </dl>
+                  )}
+                  {rationale?.evidence.length > 0 && (
+                    <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
+                  )}
+                  {/* Where it began: the saved version the difference first
+                      came in with — a way straight to it in History. */}
+                  {cause && (
+                    <SummaryPart label="Version this difference came in with">
+                      <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                        <span className="min-w-0 flex-1">
+                          <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
+                          <span className="block text-[11px] leading-4 text-slate-500">
+                            <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
+                            {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+                          </span>
+                        </span>
+                        <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-500" />
+                      </button>
+                    </SummaryPart>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </section>
       )}
@@ -699,10 +722,29 @@ function CodeDiffColumns({ rows }) {
 // `adjustment` (a size set by hand in Merge Studio): the card that merges
 // shows that value as old → new and is tagged, with a way to undo it;
 // `changeAfter` is the change's code with the adjustment in it.
-function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks }) {
+function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, standardLevel }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
+  // The line over the comparison. Before a pick: what resolves it, the
+  // standard's level, the review's state. After: what the pick does, then
+  // the next step — a reason if keeping the current value needs one, else
+  // whatever the review is waiting on.
+  const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
+  const reviewState = conflict.reviewStage === 'detected' ? 'Before the review request'
+    : conflict.reviewStage === 'approved' ? 'Every reviewer approved'
+      : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
+  const nextStep = conflict.reviewStage === 'detected' ? 'Send the review request'
+    : conflict.reviewStage === 'approved' ? 'It can be merged now' : reviewState
+  const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
+  const conclusion = state.side === 'A' ? { lead: 'It changes to the design reference value', rest: [nextStep] }
+    : state.side === 'B' ? { lead: 'It keeps the current value as it is', rest: [state.reasonNeeded ? 'Enter the reason below' : nextStep] }
+      : {
+        lead: adjustment ? 'Resolved by the adjustment'
+          : state.bothFail ? 'It needs adjusting in Merge Studio'
+            : differs && !state.meets.B ? 'Choosing the design reference resolves it' : 'Choose the value to use when merging',
+        rest: [standardLevel === 'required' ? 'Required standard' : standardLevel === 'recommended' ? 'Recommended standard' : null, reviewState].filter(Boolean),
+      }
   // The card the adjustment shows on: the picked one — or, with nothing
   // picked, the current implementation, since that's what merges then.
   const adjusted = decision => (state.side ? state.side === decision : decision === 'B')
@@ -728,17 +770,12 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
       {(state.canPick || studioAction) && (
         <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
           {state.canPick && (
-            // What's being asked, then what the choice so far will do — it
-            // changes with the pick — and, once picked, the way to take it
-            // back.
+            // The conclusion in one line: what to do now, how binding the
+            // standard is, and where the review stands — and, once a side is
+            // picked, what that does and the next thing to do.
             <p data-pick-guide={state.side ?? 'none'} className="min-w-0 text-xs leading-5 text-slate-300">
-              <LocalizedText text="Choose the value to use when merging" />
-              <span className="text-slate-500"> · </span>
-              <span className="text-slate-400">
-                <LocalizedText text={state.side === 'A' ? 'It changes to the design reference value'
-                  : state.side === 'B' ? 'It keeps the current value as it is'
-                    : 'With nothing chosen, the current implementation stays as it is'} />
-              </span>
+              <span className="text-[13px] font-semibold text-white"><LocalizedText text={conclusion.lead} /></span>
+              {conclusion.rest.map((part) => <span key={part}><span className="text-slate-500"> · </span><LocalizedText text={part} /></span>)}
               {state.side && (
                 <button type="button" data-pick-undo onClick={() => state.undo()} className="ds-intrinsic ml-2 inline-flex h-5 items-center rounded px-1 text-xs text-slate-400 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
                   <LocalizedText text="Clear choice" />
@@ -942,7 +979,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
             {state.exceptionReason && (!pairedPreview || !state.side) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {conflict.diff && (
               <div className="min-w-0 [&>div]:space-y-1.5">
-                {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
+                {code ? <ConflictCodeView {...code} context={2} /> : <CodeDiffColumns rows={rows} />}
               </div>
             )}
             {readOnly && (mergedLines?.length || conflict.mergedFileLines?.length) && (() => {
@@ -2084,6 +2121,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <DiffTab
+                            standardLevel={rationale?.rules.length ? (standardOf(rationale.rules, checks).required ? 'required' : 'recommended') : null}
                             conflict={conflict}
                             code={codeView}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
@@ -2164,7 +2202,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     discussion — not two boxes stacked. (A rollback agreement
                     lists who it affects in the middle, so this is comments
                     only.) */}
-                <div data-review-scroll="people" className={cn('flex h-full min-h-0 min-w-0 flex-col xl:overflow-y-auto', REVIEW_CONTEXT_CARD)}>
+                <div data-review-scroll="people" className={cn('flex h-full min-h-0 min-w-0 flex-col opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100 xl:overflow-y-auto', REVIEW_CONTEXT_CARD)}>
                   {!conflict.rollback && (
                     <section className="mb-3 max-h-48 shrink-0 overflow-auto border-b border-white/[0.07] pb-3">
                       {/* Approval progress lives here, in the title — once. */}

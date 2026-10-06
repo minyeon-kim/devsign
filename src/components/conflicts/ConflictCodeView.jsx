@@ -3,6 +3,8 @@ import { Check, ChevronsUpDown, FileCode2, Pencil, Sparkles } from 'lucide-react
 import { cn } from 'cn'
 import { diffLines } from '@/lib/lineDiff'
 import { LocalizedText } from '@/i18n/runtime'
+import { translateText } from '@/i18n/translate'
+import { useLanguage } from '@/i18n/language'
 
 export { placeChange } from '@/lib/placeChange'
 
@@ -173,13 +175,17 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
 }
 
 function HiddenLines({ count, onExpand }) {
+  const language = useLanguage()
   return (
     <button
       type="button"
       onClick={onExpand}
+      data-hidden-lines
       className="ds-intrinsic flex h-6 w-full items-center gap-2 pl-[46px] font-sans text-[10px] text-slate-500 transition-colors hover:bg-white/[0.03] hover:text-slate-300"
     >
-      ⋯ <LocalizedText text={`${count} unchanged lines`} />
+      {/* (Translated here: it sits inside the code block, whose text is
+          otherwise left as written.) */}
+      … {translateText(`${count} lines hidden`, language)}
     </button>
   )
 }

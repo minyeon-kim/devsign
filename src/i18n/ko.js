@@ -61,6 +61,15 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Show evidence|근거 보기
+Choosing the design reference resolves it|디자인 기준을 선택하면 해결돼요
+Before the review request|검토 요청 전
+Every reviewer approved|검토자 모두 승인
+Send the review request|검토 요청을 보내세요
+It can be merged now|이제 병합할 수 있어요
+Enter the reason below|아래에 이유를 입력하세요
+Resolved by the adjustment|직접 조정으로 해결됐어요
+It needs adjusting in Merge Studio|병합 스튜디오에서 조정이 필요해요
 Color token use|색상 토큰 사용
 Main button size|주요 버튼 규격
 Minimum touch area|최소 터치 영역
