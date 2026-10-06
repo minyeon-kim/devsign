@@ -64,7 +64,8 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
-import { EvidenceLinks, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
+import { InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
@@ -387,6 +388,16 @@ const INFO_BADGE = 'inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06
 const INFO_VALUE = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
 const STATUS_TEXT = { detected: 'text-slate-200', in_review: 'text-sky-300', pending_merge: 'text-emerald-300', pending_rollback: 'text-amber-300', done: 'text-violet-300' }
 const RISK_TEXT = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300' }
+// A value that goes somewhere — a Figma frame (the element on the canvas),
+// a token (where it's defined), WCAG (its page) — as a quiet inline link.
+function InfoLink({ item, onOpen, literal = false }) {
+  return (
+    <button type="button" data-info-link={item.kind} onClick={() => onOpen?.(item)} className="ds-intrinsic inline cursor-pointer text-left text-slate-200 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-2 focus-visible:outline-emerald-300">
+      {literal ? <span translate="no">{item.label}</span> : <LocalizedText text={item.label} />}
+    </button>
+  )
+}
+
 // A label and its value, as a row of the Info tab's grid.
 function Row({ label, children, ...rest }) {
   return (
@@ -426,13 +437,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   useEffect(() => {
     if (showDetails) detailsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [showDetails])
-  // The backing for the standard — source, purpose, evidence links, the
-  // version it began in — folded the same way.
-  const [showEvidence, setShowEvidence] = useState(false)
-  const evidenceRef = useRef(null)
-  useEffect(() => {
-    if (showEvidence) evidenceRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [showEvidence])
   const open = stage !== 'resolved'
   const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
@@ -448,7 +452,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // first failing check says. (How to resolve it is the comparison's line.)
   const why = conflict.effect ?? conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
   const standard = rationale ? standardOf(rationale.rules, checks) : null
-  const hasEvidence = !conflict.rollback && Boolean(standard || rationale?.evidence.length || cause)
   // Why it conflicts: its own account when it has one, else what was found.
   const cause_text = conflict.cause ?? conflict.message ?? summary
 
@@ -461,7 +464,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge')
             : needsMyReview ? 'Your review needed' : null
   const status = listStatusOf(conflict)
-  const evidenceCount = (standard ? 1 : 0) + (rationale?.evidence.length ?? 0) + (cause ? 1 : 0)
   // One label column for the whole tab: every row's label starts at the
   // same x, and so does every value.
   const GRID = 'grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2'
@@ -486,13 +488,16 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               <LocalizedText text={severity.label} />
             </span>
           )}
-          {/* Recommended or required is said here, once — not at the end
-              of the lines below. */}
-          {standard && (
-            <span data-standard-badge={standard.required ? 'required' : 'recommended'} className={cn(INFO_BADGE, standard.required ? 'bg-rose-500/15 text-rose-300' : 'text-slate-200')}>
-              <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} />
-              {standard.required && <><span className="font-normal opacity-70">·</span><LocalizedText text="Can’t merge" /></>}
-            </span>
+          {/* Whether it can merge is said only when it can't: a red badge,
+              with why on hover. (How binding the rule is sits quietly on
+              the Rule line below.) */}
+          {blockedCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger render={<span data-blocked-badge tabIndex={0} className={cn(INFO_BADGE, 'bg-rose-500/15 text-rose-300')} />}>
+                <LocalizedText text="Can’t merge" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="start" className="text-xs"><LocalizedText text="It can’t be merged: a required rule isn’t kept." /></TooltipContent>
+            </Tooltip>
           )}
           {isAiDraft && (
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>
@@ -503,48 +508,57 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
       </InfoSection>
 
-      {/* 2 · Problem: why it conflicts, and what goes wrong if it stays. */}
+      {/* 2 · Problem: why it conflicts — with a small link to the version
+          it came in with, right under — and what goes wrong if it stays. */}
       {!conflict.rollback && (cause_text || why || standard) && (
         <InfoSection>
           <dl data-info-problem className={GRID}>
-            {cause_text && <Row label="Cause" data-summary-row="Cause"><LocalizedText text={cause_text} /></Row>}
+            {cause_text && (
+              <Row label="Cause" data-summary-row="Cause">
+                <LocalizedText text={cause_text} />
+                {cause && (
+                  <button type="button" data-cause-version onClick={onOpenCause} title="Open this version in History" className="ds-intrinsic mt-1 flex w-full cursor-pointer items-center gap-1 text-left text-[11px] leading-4 text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    <span className="min-w-0 truncate">
+                      <LocalizedText text="Began" /> · <LocalizedText text={cause.label} /> · <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
+                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+                    </span>
+                    <ArrowRight className="size-3 shrink-0" />
+                  </button>
+                )}
+              </Row>
+            )}
             {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
           </dl>
         </InfoSection>
       )}
 
-      {/* 3 · Evidence: counted in its header, folded until asked for. */}
-      {hasEvidence && (
-        <InfoSection sectionRef={evidenceRef} title="Evidence" count={evidenceCount} open={showEvidence} onToggle={() => setShowEvidence((value) => !value)} toggleProps={{ 'data-evidence-toggle': '' }}>
-          {showEvidence && (
-            <div data-evidence-body className="space-y-2.5">
-              {standard && (
-                <dl className={GRID}>
-                  <Row label="Standard">{list(standard.names)}</Row>
-                  <Row label="Source">{list(standard.sources)}</Row>
-                  <Row label="What it’s for">{list(standard.purpose)}</Row>
-                </dl>
-              )}
-              {rationale?.evidence.length > 0 && (
-                <EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
-              )}
-              {/* Where it began: the saved version the difference first
-                  came in with — a way straight to it in History. */}
-              {cause && (
-                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-2.5 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[11px] leading-4 text-slate-400"><LocalizedText text="Version this difference came in with" /></span>
-                    <span className={cn(INFO_VALUE, 'block')}><LocalizedText text={cause.label} /></span>
-                    <span className="block text-[11px] leading-4 text-slate-400">
-                      <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
-                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
-                    </span>
-                  </span>
-                  <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
-                </button>
-              )}
-            </div>
-          )}
+      {/* 3 · Standard: always open, three lines — the rule (its token a
+          link to where it's defined, its grade a quiet tag), where it comes
+          from (the Figma frame a link) and what it's for. No chip list, no
+          count; comments are the Comments tab's. */}
+      {!conflict.rollback && standard && (
+        <InfoSection title="Standard">
+          <dl data-info-standard className={GRID}>
+            <Row label="Rule">
+              {standard.rules.map((rule, index) => (
+                <Fragment key={rule.id}>
+                  {index > 0 && ' · '}
+                  <LocalizedText text={rule.name} />
+                  {rule.tokens.map((token) => (
+                    <Fragment key={token.label}>{' '}<InfoLink item={token} onOpen={onOpenEvidence} literal /></Fragment>
+                  ))}
+                </Fragment>
+              ))}
+              <span data-rule-grade className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none whitespace-nowrap text-slate-400">
+                <LocalizedText text={standard.required ? 'Required rule' : 'Recommended rule'} />
+              </span>
+            </Row>
+            <Row label="Source">
+              {[...standard.origins.map((text) => <LocalizedText key={text} text={text} />), ...standard.links.map((link) => <InfoLink key={link.label} item={link} onOpen={onOpenEvidence} literal={link.kind === 'wcag'} />)]
+                .flatMap((node, index) => (index ? [' · ', node] : [node]))}
+            </Row>
+            <Row label="What it’s for">{list(standard.purpose)}</Row>
+          </dl>
         </InfoSection>
       )}
 
@@ -709,7 +723,7 @@ function CodeDiffColumns({ rows }) {
 // `adjustment` (a size set by hand in Merge Studio): the card that merges
 // shows that value as old → new and is tagged, with a way to undo it;
 // `changeAfter` is the change's code with the adjustment in it.
-function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, standardLevel, codeChange }) {
+function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
@@ -748,7 +762,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
         lead: adjustment ? 'Resolved by the adjustment'
           : state.bothFail ? 'Needs adjusting in Merge Studio'
             : differs && !state.meets.B ? 'Resolved by choosing the design reference' : 'Value to merge not chosen',
-        rest: [standardLevel === 'required' ? 'Required standard' : standardLevel === 'recommended' ? 'Recommended standard' : null, reviewState].filter(Boolean),
+        rest: [state.required.length > 0 ? 'Can’t merge' : null, reviewState].filter(Boolean),
       }
   // The card the adjustment shows on: the picked one — or, with nothing
   // picked, the current implementation, since that's what merges then.
@@ -2195,7 +2209,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           ) : (
                           <DiffTab
                             codeChange={codeChange}
-                            standardLevel={rationale?.rules.length ? (standardOf(rationale.rules, checks).required ? 'required' : 'recommended') : null}
                             conflict={conflict}
                             code={codeView}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}

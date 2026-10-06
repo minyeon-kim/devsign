@@ -310,6 +310,8 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
   // Shared sources stay in the summary; only step-specific additions repeat here.
   const stepEvidence = mergeEvidence(rationale?.evidence, step?.evidence)
     .slice(mergeEvidence(rationale?.evidence).length)
+    // (Comments are the sidebar's Comments tab's, not evidence here.)
+    .filter((item) => item.kind !== 'comment')
 
   return (
     <section data-conflict-replay aria-label="Conflict change replay" className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">

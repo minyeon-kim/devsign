@@ -17,6 +17,13 @@ import { allPeople } from '@/data/mockData'
 const TOKENS = 'src/design/tokens.json'
 const WCAG_TARGET_SIZE = 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html'
 
+// Each rule is what a review's Standard section shows in three lines:
+//   Rule    — `name` (and the token that defines it, among `sources`);
+//   Source  — `origin`, and the Figma frame / WCAG entry among `sources`;
+//   Purpose — `purpose`.
+// (`required`: not keeping it blocks the merge. `title`, `reason`,
+// `standard` and `consequence` word the same rule for the rule list, a
+// step's reason and the impact line.)
 export const DESIGN_RULES = [
   {
     id: 'button-color',
@@ -217,6 +224,13 @@ export function standardOf(rules, checks) {
   return {
     // The rules by name — what they say is the comparison's to show.
     names: unique(rules.map((rule) => rule.name ?? rule.title)),
+    // The three lines a review shows for the standard — Rule, Source,
+    // Purpose — as things that can be linked: each rule by name with the
+    // token it's defined by, and each source (a Figma frame, WCAG) as itself.
+    rules: rules.map((rule) => ({ id: rule.id, name: rule.name ?? rule.title, tokens: rule.sources.filter((source) => source.kind === 'token') })),
+    origins: unique(rules.map((rule) => rule.origin)),
+    links: rules.flatMap((rule) => rule.sources.filter((source) => source.kind === 'figma' || source.kind === 'wcag'))
+      .filter((source, index, all) => all.findIndex((other) => other.label === source.label) === index),
     what: unique(rules.map((rule) => rule.standard ?? rule.title)),
     sources: unique([...rules.map((rule) => rule.origin), ...rules.flatMap((rule) => rule.sources.filter((source) => source.kind === 'figma' || source.kind === 'wcag').map((source) => source.label))]),
     purpose: unique(rules.map((rule) => rule.purpose ?? rule.reason)),

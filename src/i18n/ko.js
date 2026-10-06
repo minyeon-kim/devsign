@@ -61,6 +61,12 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Required rule|필수
+Recommended rule|권장
+It can’t be merged: a required rule isn’t kept.|필수 규칙을 지키지 않아 병합할 수 없어요
+Began|발생
+Rule|규칙
+Open this version in History|히스토리에서 이 버전 열기
 Reason for keeping the current value needed|현재 값 유지 이유 입력 필요
 Your review needed|내 검토 필요
 Can’t merge|병합 불가

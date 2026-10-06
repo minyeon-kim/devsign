@@ -108,7 +108,7 @@ const rules = [
   [/^(\d+) unchanged lines?$/, (_, n) => `변경 없는 ${n}줄`],
   [/^Merged with the (remote|local) branch \((.+)\) value$/, (_, which, name) => `${which === 'remote' ? '원격' : '로컬'} 브랜치(${name}) 값으로 병합`],
   [/^Sign-off from (.+)$/, (_, names) => `${names} 승인`],
-  [/^Resolve (\d+) required standards?$/, (_, n) => `필수 기준 ${n}개 해결 필요`],
+  [/^Resolve (\d+) required standards?$/, (_, n) => `필수 규칙 ${n}개 해결 필요`],
   [/^Step (\d+)\/(\d+)$/, (_, a, b) => `${a}/${b} 단계`],
   [/^(\d+) lines hidden$/, (_, n) => `${n}줄 숨김`],
   [/^Waiting on (\d+) reviewers?$/, (_, n) => `검토자 ${n}명 대기`],
