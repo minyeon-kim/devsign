@@ -1294,11 +1294,9 @@ function MergeInfiniteCanvas({
       else if (l >= rect.width / 2) visRight = Math.min(visRight, l - GAP)
     }
     const availW = Math.max(160, visRight - startX)
-    // Comparing drafts, the mix panel sits under the header — start below it.
-    // (Measured: it grows and shrinks with what it shows.)
-    const mixPanel = designCompare ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
-    // (…with room for the Result's view controls, which sit over its label.)
-    const top = designCompare ? 72 : mixPanel ? mixPanel.bottom - rect.top + 56 : TOP_CONTROLS_CLEARANCE
+    // The design-pick panel floats over the canvas; never reserve canvas
+    // space for it. The Result controls still need their normal top clearance.
+    const top = designCompare ? 72 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100

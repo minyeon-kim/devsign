@@ -14,7 +14,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -119,18 +119,22 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const decided = rows.filter((row) => row.decided).length
   const [step, setStep] = useState(() => Math.max(0, rows.findIndex((row) => !row.decided)))
   const current = rows[Math.min(step, rows.length - 1)]
+  // Categories first: a category's drafts (A, B, C, D) show once it's
+  // chosen, so the panel stays a slim bar over the canvas until then.
+  const [open, setOpen] = useState(false)
+  const show = (index) => { setStep(index); setOpen(true) }
   // Selecting a part on the canvas brings its step up.
   const source = layerSource(selectedLayerId)
   const activeKey = source ? regionKey(source.regionId) : rows.find((row) => row.key.startsWith(`${selectedLayerId}:`))?.key
   useEffect(() => {
     const index = rows.findIndex((row) => row.key === activeKey)
-    if (index >= 0) setStep(index)
+    if (index >= 0) show(index)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
   useEffect(() => {
     if (!requestedRegion) return
     const index = rows.findIndex((row) => row.region?.id === requestedRegion)
-    if (index >= 0) setStep(index)
+    if (index >= 0) show(index)
     // Region requests arrive from a failed check in the review panel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedRegion])
@@ -161,7 +165,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   function use(option) {
     onDecide(current.key, option.picked ? null : option.decision)
   }
-  const stepRegion = useEffectEvent((direction) => setStep((value) => Math.max(0, Math.min(rows.length - 1, value + direction))))
+  const stepRegion = useEffectEvent((direction) => { setStep((value) => Math.max(0, Math.min(rows.length - 1, value + direction))); setOpen(true) })
   useEffect(() => {
     function onKey(event) {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
@@ -181,32 +185,22 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
 
   return (
-    <div data-mix-panel className="relative h-full min-w-0 overflow-y-auto border-r border-white/10 bg-popover p-4">
-      <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
-        <nav aria-label={language === 'ko' ? '영역 선택' : 'Screen regions'} className="flex items-center gap-1.5">
+    <div data-mix-panel className="pointer-events-auto flex max-h-[min(42vh,360px)] min-w-0 flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#17191d]/95 p-3 shadow-2xl backdrop-blur-xl">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] pb-2.5">
+        <nav aria-label={language === 'ko' ? '요소 카테고리' : 'Element categories'} className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {rows.map((row, i) => (
-            <button key={row.key} type="button" onClick={() => setStep(i)}
+            <button key={row.key} type="button" onClick={() => (open && step === i ? setOpen(false) : show(i))}
               title={partName(row)}
               aria-label={`${i + 1}. ${partName(row)}`}
-              aria-current={step === i ? 'step' : undefined}
-              className={cn('ds-intrinsic flex h-6 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-300', step === i ? 'w-8' : 'w-3')}>
-              <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('h-2 rounded-full transition-all', step === i ? 'w-7' : 'w-2', rowIssues(row).length ? 'bg-amber-300' : step === i || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
+              aria-expanded={open && step === i}
+              aria-current={open && step === i ? 'step' : undefined}
+              className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', open && step === i ? 'border-emerald-300/50 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20 hover:bg-white/[0.08]')}>
+              <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('size-1.5 shrink-0 rounded-full', rowIssues(row).length ? 'bg-amber-300' : (open && step === i) || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
+              <span className="max-w-32 truncate">{partName(row)}</span>
             </button>
           ))}
         </nav>
-        <span className="text-xs tabular-nums text-emerald-300">{decided}/{rows.length}</span>
-        <button type="button" aria-label={language === 'ko' ? '이전 영역' : 'Previous region'} disabled={step <= 0} onClick={() => setStep(step - 1)} className="ds-intrinsic rounded-md p-1 text-slate-200 hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="size-4" /></button>
-        <select
-          aria-label={language === 'ko' ? '화면 영역 선택' : 'Choose screen region'}
-          value={step}
-          onChange={(event) => setStep(Number(event.target.value))}
-          className="ds-intrinsic h-7 min-w-28 rounded-md bg-transparent px-1 text-xs font-medium text-slate-100 outline-none focus-visible:ring-1 focus-visible:ring-emerald-300"
-        >
-          {/* A property part is named with its element — several parts can
-              share a property ("Corner Radius" on three elements). */}
-          {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{partName(row)}</option>)}
-        </select>
-        <button type="button" aria-label={language === 'ko' ? '다음 영역' : 'Next region'} disabled={step >= rows.length - 1} onClick={() => setStep(step + 1)} className="ds-intrinsic rounded-md p-1 text-slate-200 hover:bg-white/10 disabled:opacity-30"><ChevronRight className="size-4" /></button>
+        <span className="shrink-0 text-[11px] tabular-nums text-emerald-300">{decided}/{rows.length}</span>
         <div className="ml-auto flex items-center gap-1.5">
           <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
           {columns.map((column) => {
@@ -233,7 +227,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           disabled={decided === 0 && !decisions[LAYOUT_KEY]}
           title="Reset picks"
           aria-label="Reset picks"
-          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
+          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0); setOpen(false) }}
           className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" />
@@ -241,9 +235,9 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
       </div>
 
       {/* Each card applies its draft to the current region. */}
-      <div className="mt-3 flex items-center gap-2">
+      {open && <div className="mt-2.5 flex min-h-0 items-center gap-2">
         <div className="min-w-0 w-full">
-          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 p-1">
+          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2 p-1">
             {/* Nothing to choose between here: said, rather than left blank. */}
             {choices.length < 2 && (
               <p data-mix-single className="flex h-24 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
@@ -313,9 +307,8 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           {current.region && removedRegions.includes(current.region.id) && (
             <p data-mix-removed className="mt-1 text-center text-[11px] text-amber-200/90">{language === 'ko' ? '결과 화면에서 뺀 영역이에요 · 시안을 사용하면 다시 들어가요' : 'Taken out of the result · using a draft puts it back'}</p>
           )}
-          {/* Which draft is being looked at, of how many. */}
         </div>
-      </div>
+      </div>}
       {/* What's wrong with the mix as it stands, each with where to change
           it and which drafts fix it — a click goes to that part. */}
       {issuesNow.length > 0 && (
@@ -327,7 +320,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 <TriangleAlert className="size-3 shrink-0 text-amber-300" />
                 <span className="font-medium text-amber-100"><LocalizedText text={check.title} /></span>
                 {fixes.length > 0 ? fixes.map((fix) => (
-                  <button key={fix.row.key} type="button" onClick={() => setStep(fix.index)} className="ds-intrinsic inline-flex h-5 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white">
+                  <button key={fix.row.key} type="button" onClick={() => show(fix.index)} className="ds-intrinsic inline-flex h-5 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white">
                     <LocalizedText text={fix.row.label} />
                     <span className="text-slate-400">→</span>
                     <span translate="no" className="font-semibold text-emerald-200">{fix.options.map((option) => option.letter).join(' · ')}</span>
@@ -347,7 +340,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         <span className="text-slate-400">{language === 'ko' ? '선택한 시안이 결과 화면에 반영됩니다.' : 'Your choices appear in the result preview.'}</span>
         <CheckStatus checks={checks} onFix={(check) => {
           const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
-          if (index >= 0) setStep(index)
+          if (index >= 0) show(index)
           else onFix(check)
         }} />
       </div>
@@ -456,30 +449,6 @@ function MergeStudioWorkspace({ item }) {
   const [designCompareKeys, setDesignCompareKeys] = useState([])
   const [designComparison, setDesignComparison] = useState(null)
   const studioRootRef = useRef(null)
-  const [paneInsets, setPaneInsets] = useState({ left: 0, right: 0 })
-  useEffect(() => {
-    if (!designComparison || !studioRootRef.current) return
-    const root = studioRootRef.current
-    const windows = [...document.querySelectorAll('[data-window]')]
-    const measure = () => {
-      const bounds = root.getBoundingClientRect()
-      let left = 0, right = 0
-      for (const element of windows) {
-        const rect = element.getBoundingClientRect()
-        if (!rect.width || !rect.height) continue
-        if (rect.right <= bounds.left + bounds.width / 2) left = Math.max(left, rect.right - bounds.left + 12)
-        else if (rect.left >= bounds.left + bounds.width / 2) right = Math.max(right, bounds.right - rect.left + 12)
-      }
-      setPaneInsets((previous) => previous.left === left && previous.right === right ? previous : { left, right })
-    }
-    const resize = new ResizeObserver(measure)
-    resize.observe(root)
-    windows.forEach((element) => resize.observe(element))
-    const mutation = new MutationObserver(measure)
-    windows.forEach((element) => mutation.observe(element, { attributes: true, attributeFilter: ['style', 'class'] }))
-    measure()
-    return () => { resize.disconnect(); mutation.disconnect() }
-  }, [designComparison])
 
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -1241,7 +1210,7 @@ function MergeStudioWorkspace({ item }) {
       <div className="relative flex min-h-0 flex-1">
 
       {item ? (
-        <div className={cn("flex min-h-0 min-w-0 flex-1", designComparison && "pt-12")} data-merge-split={designComparison ? "equal" : undefined} style={designComparison ? { marginLeft: paneInsets.left, marginRight: paneInsets.right } : undefined}>
+        <div className="flex min-h-0 min-w-0 flex-1">
         {designComparison && (
           // Floating over the canvas rather than its own screen — Design
           // Compare's drafts now render as real frames on the infinite
@@ -1326,7 +1295,7 @@ function MergeStudioWorkspace({ item }) {
           </div>
         )}
         {designComparison && (
-          <div className="min-h-0 w-1/2 min-w-0 shrink-0" data-mix-pane>
+          <div className="pointer-events-none absolute top-14 left-1/2 z-40 w-[min(760px,calc(100%-2rem))] -translate-x-1/2" data-mix-pane>
           <MixPanel
             item={item}
             options={designComparison.options}
