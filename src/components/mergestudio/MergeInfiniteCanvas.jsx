@@ -633,7 +633,7 @@ function RegionTools({ frame, scale, boxH, tools }) {
     // Over the artboard, not inside it: the bar stands beside the screen
     // (clear of the element's own handles), so nothing here is clipped.
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div data-region-selected={region.id} className="absolute inset-x-0 rounded-sm ring-2 ring-emerald-400 ring-inset" style={{ top: region.y * scale, height: region.height * scale }} />
+      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? "영역 전체 드래그해서 옮기기" : "Drag the whole region to move"} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
       {/* Which draft it's from, on the region itself. */}
       <span data-region-source className="absolute left-0 rounded-br-md bg-emerald-400 px-1.5 py-0.5 text-[10px] leading-none font-semibold whitespace-nowrap text-slate-950" style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}>
         {letter ? (ko ? (region.picked ? `시안 ${letter}에서 가져옴` : `시안 ${letter} · 기본값`) : (region.picked ? `From draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
@@ -735,14 +735,14 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
                 key={layer.id}
                 layer={layer}
                 override={override}
-                selected={selectedLayerId === layer.id}
+                selected={regionTools ? layer.regionId === regionTools.selected : selectedLayerId === layer.id}
                 linked={linkedLayerIds?.has(layer.id)}
                 hovered={hoverLayerId === layer.id}
                 drift={driftLayerIds?.has(layer.id)}
-                dimmed={Boolean(selectedLayerId)}
+                dimmed={!regionTools && Boolean(selectedLayerId)}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
-                onEditText={onEditText}
+                onEditText={regionTools ? undefined : onEditText}
               />
             )
           })}
@@ -795,6 +795,7 @@ function defaultLayoutForKeys(frame, keys) {
   if (!frame || !keys.length) return {}
   const artW = Math.round(Math.min(ARTBOARD_PREVIEW_WIDTH, (ARTBOARD_MAX_H * frame.width) / frame.height))
   const layout = {}
+  if (keys.length === 1 && keys[0] === 'result') return { result: { x: 0, y: 0, w: frame.width, h: null } }
   // With a Result: the drafts small, in a grid of up to two rows, and the
   // Result beside them as tall as the grid — it's what you work on.
   if (keys.includes('result')) {
@@ -1297,7 +1298,7 @@ function MergeInfiniteCanvas({
     // (Measured: it grows and shrinks with what it shows.)
     const mixPanel = designCompare ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
     // (…with room for the Result's view controls, which sit over its label.)
-    const top = mixPanel ? mixPanel.bottom - rect.top + 56 : TOP_CONTROLS_CLEARANCE + (designCompare ? 230 : 0)
+    const top = designCompare ? 72 : mixPanel ? mixPanel.bottom - rect.top + 56 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -1325,7 +1326,7 @@ function MergeInfiniteCanvas({
     // (never past their real size) rather than shrunk until all of them fit
     // under the mix panel: the Result is what's worked on, and the rest of
     // it is a scroll away.
-    const fitFor = (target) => (designCompare ? fitView(target, { byWidth: true, maxZoom: 1 }) : fitView(target))
+    const fitFor = (target) => (designCompare ? fitView(target, { byWidth: true, maxZoom: MAX_ZOOM / 100 }) : fitView(target))
     const firstFit = fitFor(lay)
     setView(firstFit)
     setLayout(lay)
@@ -1508,6 +1509,12 @@ function MergeInfiniteCanvas({
   // Selection wrappers: remember the clicked element (inline-AI anchor) and
   // open the inline bar.
   function pickLayer(layerId, el) {
+    if (composedResult && designCompare) {
+      setFrameSel(null)
+      setAiStage(null)
+      onSelectLayer(layerId)
+      return
+    }
     anchorElRef.current = el
     anchorMetaRef.current = { kind: 'layer', frameKey: el.closest('[data-frame-key]')?.dataset.frameKey }
     setFrameSel(null)
@@ -1515,6 +1522,7 @@ function MergeInfiniteCanvas({
     onSelectLayer(layerId)
   }
   function pickFrame(key, el) {
+    if (composedResult && designCompare) return
     anchorElRef.current = el
     anchorMetaRef.current = { kind: 'frame', frameKey: key }
     setFrameSel(key)
@@ -2111,7 +2119,7 @@ function MergeInfiniteCanvas({
 
         {/* Selection / link highlight boxes and connector lines — hidden
             with the eye toggle on the canvas tools. */}
-        {guidesVisible && (
+        {guidesVisible && !(composedResult && designCompare) && (
         <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible">
           <defs>
             <linearGradient id="accent-link" x1="0" y1="0" x2="1" y2="0">
@@ -2158,7 +2166,7 @@ function MergeInfiniteCanvas({
             spilling sideways into whatever neighboring element happens to
             sit directly to the right (a Subscribe button next to a form
             field, say), which centering *or* a rightward offset both did. */}
-        {guidesVisible && links.boxes
+        {guidesVisible && !(composedResult && designCompare) && links.boxes
           // Design boxes only — code-line selections (`code-*`) already
           // read clearly from their own row highlight, and a size readout
           // on them was just clutter.

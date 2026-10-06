@@ -29,7 +29,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, designCompareOptions, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
+import { DesignComparePanel, designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
 import { LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
@@ -160,29 +160,14 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   function use(option) {
     onDecide(current.key, option.picked ? null : option.decision)
   }
-  // The draft being looked at. (It starts on the one in use here, else the
-  // first — and follows nothing but the arrows, the keys and a click.)
-  const [viewKey, setViewKey] = useState(null)
-  const viewable = current?.options ?? []
-  const viewIndex = Math.max(0, viewable.findIndex((option) => option.key === (viewKey ?? viewable.find((o) => o.picked)?.key)))
-  const viewing = viewable[viewIndex]?.key ?? null
-  const optionsRef = useRef(null)
-  const view = useCallback((index) => {
-    const option = viewable[index]
-    if (!option) return
-    setViewKey(option.key)
-    // (Brought into sight when there are more drafts than fit.)
-    optionsRef.current?.querySelector(`[data-mix-option="${option.key}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
-  }, [viewable])
-  // ← / → move it too — not while typing somewhere.
-  const stepView = useEffectEvent((direction) => view(viewIndex + direction))
+  const stepRegion = useEffectEvent((direction) => setStep((value) => Math.max(0, Math.min(rows.length - 1, value + direction))))
   useEffect(() => {
     function onKey(event) {
-      if ((event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
       const target = event.target
-      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName))) return
       event.preventDefault()
-      stepView(event.key === 'ArrowLeft' ? -1 : 1)
+      stepRegion(event.key === 'ArrowLeft' ? -1 : 1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -195,7 +180,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
 
   return (
-    <div data-mix-panel className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
+    <div data-mix-panel className="relative h-full min-w-0 overflow-y-auto border-r border-white/10 bg-popover p-4">
       <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
         <nav aria-label={language === 'ko' ? '영역 선택' : 'Screen regions'} className="flex items-center gap-1.5">
           {rows.map((row, i) => (
@@ -209,6 +194,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           ))}
         </nav>
         <span className="text-xs tabular-nums text-emerald-300">{decided}/{rows.length}</span>
+        <button type="button" aria-label={language === 'ko' ? '이전 영역' : 'Previous region'} disabled={step <= 0} onClick={() => setStep(step - 1)} className="ds-intrinsic rounded-md p-1 text-slate-200 hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="size-4" /></button>
         <select
           aria-label={language === 'ko' ? '화면 영역 선택' : 'Choose screen region'}
           value={step}
@@ -219,6 +205,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               share a property ("Corner Radius" on three elements). */}
           {rows.map((row, i) => <option className="bg-popover" key={row.key} value={i}>{partName(row)}</option>)}
         </select>
+        <button type="button" aria-label={language === 'ko' ? '다음 영역' : 'Next region'} disabled={step >= rows.length - 1} onClick={() => setStep(step + 1)} className="ds-intrinsic rounded-md p-1 text-slate-200 hover:bg-white/10 disabled:opacity-30"><ChevronRight className="size-4" /></button>
         <div className="ml-auto flex items-center gap-1.5">
           <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
           {columns.map((column) => {
@@ -252,37 +239,31 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </button>
       </div>
 
-      {/* The current part, every draft's version of it. The arrows move
-          which one is being looked at. */}
+      {/* Each card applies its draft to the current region. */}
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" data-mix-prev aria-label="Previous draft" title="Previous draft" disabled={viewIndex <= 0 || choices.length < 2} onClick={() => view(viewIndex - 1)} className="ds-intrinsic flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white active:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent">
-          <ChevronLeft className="size-4" />
-        </button>
-        <div className="min-w-0">
-          <div ref={optionsRef} data-mix-options className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto scroll-smooth p-1">
+        <div className="min-w-0 w-full">
+          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 p-1">
             {/* Nothing to choose between here: said, rather than left blank. */}
             {choices.length < 2 && (
               <p data-mix-single className="flex h-24 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
                 {language === 'ko' ? '이 영역은 시안이 하나뿐이라 그대로 사용돼요' : 'This part has only one draft, so it’s used as it is'}
               </p>
             )}
-            {choices.length >= 2 && current.options.map((option, index) => {
-              const seen = option.key === viewing
+            {choices.length >= 2 && current.options.map((option) => {
               const parts = usedFrom(option.key)
               return (
               <div
                 key={option.key}
                 data-mix-option={option.key}
-                data-viewing={seen ? '' : undefined}
                 data-in-use={option.picked ? '' : undefined}
                 title={option.name}
                 className={cn(
-                  'flex w-40 shrink-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
-                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : seen ? 'border-white/60 bg-white/[0.05]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
+                  'flex min-w-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
+                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
                 )}
               >
-                {/* Looking at it: a click on the card, not a choice. */}
-                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 보기` : `View draft ${option.letter}`} aria-current={seen ? 'true' : undefined} onClick={() => view(index)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+                {/* The card and its action share one applied state. */}
+                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 적용` : `Use draft ${option.letter}`} aria-pressed={option.picked} onClick={() => onDecide(current.key, option.decision)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
                 {current.region
                   ? <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
                   : <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
@@ -316,10 +297,10 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 <span data-option-state className="flex min-h-4 flex-wrap items-center gap-1 px-0.5 text-[10px] leading-4">
                   {option.picked
                     ? <span data-state="in-use" className="inline-flex items-center gap-0.5 font-medium text-emerald-200"><Check className="size-3" />{language === 'ko' ? '사용 중' : 'In use'}</span>
-                    : seen && <span data-state="viewing" className="font-medium text-slate-200">{language === 'ko' ? '보는 중' : 'Viewing'}</span>}
+                    : null}
                   {!option.picked && parts > 0 && <span data-state="parts" className="rounded bg-white/[0.08] px-1 text-slate-300">{language === 'ko' ? `요소 ${parts}개 사용` : `${parts} part${parts === 1 ? '' : 's'} used`}</span>}
                 </span>
-                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => { view(index); use(option) }}
+                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => use(option)}
                   className={cn('ds-intrinsic flex h-7 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
                   {option.picked ? (language === 'ko' ? '사용 해제' : 'Stop using') : (language === 'ko' ? '이 시안 사용' : 'Use this draft')}
                 </button>
@@ -332,11 +313,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
             <p data-mix-removed className="mt-1 text-center text-[11px] text-amber-200/90">{language === 'ko' ? '결과 화면에서 뺀 영역이에요 · 시안을 사용하면 다시 들어가요' : 'Taken out of the result · using a draft puts it back'}</p>
           )}
           {/* Which draft is being looked at, of how many. */}
-          {choices.length >= 2 && <p data-mix-position className="mt-1 text-center text-[11px] text-slate-400 tabular-nums">{viewIndex + 1} / {viewable.length}</p>}
         </div>
-        <button type="button" data-mix-next aria-label="Next draft" title="Next draft" disabled={viewIndex >= viewable.length - 1 || choices.length < 2} onClick={() => view(viewIndex + 1)} className="ds-intrinsic flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white active:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent">
-          <ChevronRight className="size-4" />
-        </button>
       </div>
       {/* What's wrong with the mix as it stands, each with where to change
           it and which drafts fix it — a click goes to that part. */}
@@ -477,6 +454,32 @@ function MergeStudioWorkspace({ item }) {
   const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
   const [designCompareKeys, setDesignCompareKeys] = useState([])
   const [designComparison, setDesignComparison] = useState(null)
+  const studioRootRef = useRef(null)
+  const [paneInsets, setPaneInsets] = useState({ left: 0, right: 0 })
+  useEffect(() => {
+    if (!designComparison || !studioRootRef.current) return
+    const root = studioRootRef.current
+    const windows = [...document.querySelectorAll('[data-window]')]
+    const measure = () => {
+      const bounds = root.getBoundingClientRect()
+      let left = 0, right = 0
+      for (const element of windows) {
+        const rect = element.getBoundingClientRect()
+        if (!rect.width || !rect.height) continue
+        if (rect.right <= bounds.left + bounds.width / 2) left = Math.max(left, rect.right - bounds.left + 12)
+        else if (rect.left >= bounds.left + bounds.width / 2) right = Math.max(right, bounds.right - rect.left + 12)
+      }
+      setPaneInsets((previous) => previous.left === left && previous.right === right ? previous : { left, right })
+    }
+    const resize = new ResizeObserver(measure)
+    resize.observe(root)
+    windows.forEach((element) => resize.observe(element))
+    const mutation = new MutationObserver(measure)
+    windows.forEach((element) => mutation.observe(element, { attributes: true, attributeFilter: ['style', 'class'] }))
+    measure()
+    return () => { resize.disconnect(); mutation.disconnect() }
+  }, [designComparison])
+
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   // Variant Compare state lives here (not in the deck) so choosing — or
@@ -613,26 +616,18 @@ function MergeStudioWorkspace({ item }) {
   // re-render, which would otherwise reset its pan/zoom/layout each time.
   const designCompare = useMemo(() => {
     if (!designComparison) return null
-    const { item: compareItem, options } = designComparison
+    const { item: compareItem } = designComparison
     const framePage = canvasPages.find((p) => p.id === compareItem.designPageId)
     const compareFrame = framePage?.frames[0]
     if (!compareFrame) return null
     return {
       frame: compareFrame,
-      entries: options.map((option) => ({
-        key: option.key,
-        // A letter and the draft's name — the values themselves are on the
-        // artboards and in the mixing panel.
-        label: option.label,
-        overrides: optionEffects(compareItem, option),
-        // Drafts with their own layouts bring their own screen.
-        ...(draftScreens[compareItem.id] && { frame: draftFrame(compareItem.id, compareFrame, option.key) }),
-      })).concat({
+      entries: [{
         // The mix so far, beside the drafts it's drawn from.
         key: 'result',
         label: 'Result — your picks',
         overrides: {},
-      }),
+      }],
     }
   }, [designComparison])
   // The line being typed in the code window right now ({ key, text }), so
@@ -678,7 +673,13 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function selectLayer(layerId, { openDeck = true } = {}) {
-    // Selecting never applies a draft; choices are made explicitly in Mix.
+    const regionId = layerSource(layerId)?.regionId
+    if (designComparison && draftScreens[item.id] && !regionId) return
+    if (designComparison && regionId) {
+      const first = frame0?.layers.find((layer) => layer.regionId === regionId)
+      setSyncSelection({ layerId: first?.id ?? layerId })
+      return
+    }
     const target = codeTargetFor(layerId)
     setSyncSelection({
       layerId,
@@ -1227,7 +1228,7 @@ function MergeStudioWorkspace({ item }) {
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-background">
+    <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <button
         type="button"
         onClick={exitMergeStudio}
@@ -1239,7 +1240,7 @@ function MergeStudioWorkspace({ item }) {
       <div className="relative flex min-h-0 flex-1">
 
       {item ? (
-        <div className="flex min-h-0 flex-1">
+        <div className={cn("flex min-h-0 min-w-0 flex-1", designComparison && "pt-12")} data-merge-split={designComparison ? "equal" : undefined} style={designComparison ? { marginLeft: paneInsets.left, marginRight: paneInsets.right } : undefined}>
         {designComparison && (
           // Floating over the canvas rather than its own screen — Design
           // Compare's drafts now render as real frames on the infinite
@@ -1324,6 +1325,7 @@ function MergeStudioWorkspace({ item }) {
           </div>
         )}
         {designComparison && (
+          <div className="min-h-0 w-1/2 min-w-0 shrink-0" data-mix-pane>
           <MixPanel
             item={item}
             options={designComparison.options}
@@ -1342,12 +1344,14 @@ function MergeStudioWorkspace({ item }) {
               if (layerId) { selectLayer(layerId); requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, pulse: true }) }
             }}
           />
+          </div>
         )}
         <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
+        <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
-          reserve={reserve}
-          layoutReserve={deckReserve}
+          reserve={designComparison ? 0 : reserve}
+          layoutReserve={designComparison ? 0 : deckReserve}
           guidesVisible={guidesVisible}
           onToggleGuides={() => setGuidesVisible((v) => !v)}
           focus={mergeFocus}
@@ -1389,6 +1393,7 @@ function MergeStudioWorkspace({ item }) {
           onSelectLine={selectLine}
           onSelectFrame={selectFrame}
         />
+        </div>
         </div>
       ) : (
         // Keep an explicit empty state only when this project has no saved
@@ -1450,7 +1455,7 @@ function MergeStudioWorkspace({ item }) {
 
       {/* The selected canvas element: bounding box handles to move / resize
           (plus delete for Library-added layers, reset for edited ones). */}
-      {selLayer && frame0 && guidesVisible && !placing && !mergePreviewOpen && (
+      {!selectedRegion && selLayer && frame0 && guidesVisible && !placing && !mergePreviewOpen && (
         <LayerTransformHandles
           layerId={selLayer.id}
           frame={frame0}
