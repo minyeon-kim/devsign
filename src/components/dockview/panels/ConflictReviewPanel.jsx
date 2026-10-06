@@ -303,7 +303,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
       {/* Equal columns keep the composition and its result visible together. */}
       {result && (
         <figure data-mix-result className="order-last min-h-0 min-w-0 overflow-auto border-l border-white/[0.06] pl-4">
-          <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text="Merged result" /></figcaption>
+          <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
           <DraftResultPreview result={result} height={resultHeight} />
         </figure>
       )}

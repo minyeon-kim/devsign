@@ -1,3 +1,4 @@
+import { reviewTabFor } from '@/lib/conflicts'
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
@@ -576,8 +577,7 @@ function MergeStudioWorkspace({ item }) {
     setBottomPanel({ open: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, designCompareRequest])
-  // Submit the saved composition to the conflict queue. Review and final
-  // merge happen there; submitting a mix never applies it to the project.
+  // Submit the composition to its review, without applying it to the project.
   function finishMix() {
     if (item.tag === 'Merged') return
     const conflict = conflicts.find(c => c.mergeItemId === item.id || c.id === item.conflictId)
@@ -589,7 +589,7 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio()
     // Straight to the request just made — its review, with the merged
     // result — rather than the list to find it in.
-    setBottomPanel({ tab: 'conflict', open: true, conflictFilter: 'all' })
+    setBottomPanel({ tab: reviewTabFor(conflict ?? { id: requestId }), open: true })
     openConflictReview(requestId)
     toast('병합 요청을 만들었어요', { description: '조합한 결과를 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
   }
@@ -1173,6 +1173,7 @@ function MergeStudioWorkspace({ item }) {
       icon: Layers3,
       Panel: DesignComparePanel,
       panelProps: {
+        inMergeStudio: true,
         items: designCompareItems,
         itemId: designCompareItem?.id ?? null,
         selectedKeys: designCompareKeys,

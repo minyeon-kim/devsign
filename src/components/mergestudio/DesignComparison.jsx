@@ -1,5 +1,8 @@
+import ReviewDetail from '@/components/conflicts/ReviewDetail'
+import { isDesignReview } from '@/lib/conflicts'
+import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
 import { useEffect, useRef, useState } from 'react'
-import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Play, Send, X } from 'lucide-react'
+import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -21,8 +24,8 @@ export function designCompareOptions(item) {
   ]
 }
 
-function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare }) {
-  const { conflicts, addComment, openConflictReview, setBottomPanel } = useWorkspace()
+function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
+  const { conflicts, addComment, openConflictReview, reviewConflictId } = useWorkspace()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key))
@@ -31,7 +34,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   const [commentDraft, setCommentDraft] = useState('')
   // Comments on a draft go to the item's conflict — its Comments are the
   // one thread — tagged with the draft and element they're pinned to.
-  const conflict = item ? conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId) : null
+  const conflict = reviewForDesign(item, conflicts)
+  const activeReview = conflicts.find(record => record.id === reviewConflictId && isDesignReview(record))
+  const status = designReviewStatus(item, conflict)
 
   function chooseLayer(option, layer) {
     if (commentModeVariantKey === option.key) {
@@ -56,11 +61,13 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
     })
     setCommentDraft('')
     setCommentAnchor(null)
-    toast('Comment added to the conflict', {
+    toast('코멘트를 추가했어요', {
       description: conflict.title,
-      action: { label: 'View', onClick: () => { openConflictReview(conflict.id); setBottomPanel({ tab: 'conflict', open: true }) } },
+      action: { label: 'View', onClick: () => { openConflictReview(conflict.id) } },
     })
   }
+
+  if (activeReview) return <ReviewDetail conflict={activeReview} inMergeStudio={inMergeStudio} />
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-card text-xs">
@@ -85,7 +92,10 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                 )}
               >
                 <Layers3 className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{candidate.title}</span>
+                  {(() => { const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts)); return <span data-design-status={state.id} className={cn('mt-1 block text-[10px]', state.className)}>{state.label}</span> })()}
+                </span>
                 <span className="shrink-0 text-[10px] text-slate-500">{designCompareOptions(candidate).length}</span>
               </button>
             ))}
@@ -125,6 +135,15 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               Compare on canvas
             </button>
           </div>
+          {item && (
+            <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 px-3 py-2">
+              <span data-design-status={status.id} className={cn('text-xs font-medium', status.className)}>{status.label}</span>
+              <span className="min-w-0 flex-1 text-[11px] text-slate-400">{status.id === 'merged' ? '승인된 조합이 프로젝트에 반영되었습니다.' : '조합 → 검토 요청 → 승인 → 병합 완료'}</span>
+              {conflict && <button type="button" onClick={() => openConflictReview(conflict.id)} className="ds-intrinsic rounded-md bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-400/20">
+                {!isDesignReview(conflict) ? '충돌 검토' : status.id === 'merged' ? '병합 결과 보기' : status.id === 'approved' ? '승인 확인 및 병합' : '조합 검토'}
+              </button>}
+            </div>
+          )}
           {commentModeVariantKey && (
             <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
               <MapPin className="size-3 shrink-0" />
@@ -145,7 +164,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                 value={commentDraft}
                 onChange={(event) => setCommentDraft(event.target.value)}
                 onKeyDown={(event) => event.key === 'Escape' && setCommentAnchor(null)}
-                placeholder="Comment — it goes to the conflict’s Comments"
+                placeholder="시안에 대한 코멘트"
                 aria-label="Write a design comment"
                 className="h-7 min-w-0 flex-1 bg-transparent text-[11px] text-slate-100 outline-none placeholder:text-slate-500"
               />

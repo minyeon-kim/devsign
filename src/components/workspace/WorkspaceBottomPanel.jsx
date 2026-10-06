@@ -9,7 +9,7 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { conflictCounts } from '@/lib/conflicts'
+import { conflictCounts, reviewTabFor } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const DEFAULT_TABS = [
@@ -74,7 +74,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     // A height the user dragged to is theirs: it's what opens. Otherwise
     // the default share of the window.
     const target = userHeight ?? Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * REVIEW_SHARE))
-    setBottomPanel({ open: true, height: target })
+    setBottomPanel({ open: true, height: target, tab: reviewTabFor(conflicts.find(record => record.id === reviewConflictId) ?? { id: reviewConflictId }) })
   }, [reviewConflictId, setBottomPanel])
 
   // Opening Conflict Points itself (the list, before any row is picked)

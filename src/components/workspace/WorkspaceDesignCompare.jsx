@@ -3,14 +3,13 @@ import { DesignComparePanel, designCompareOptions } from '@/components/mergestud
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 export default function WorkspaceDesignCompare() {
-  const { mergeItems, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio } = useWorkspace()
+  const { mergeItems, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio, bottomPanel, setBottomPanel } = useWorkspace()
   const items = mergeItems.filter(item => item.hasDesign)
-  const [selectedId, setSelectedId] = useState(null)
-  const item = items.find(item => item.id === selectedId) ?? items.find(item => item.id === 'merge-checkout-payment-drafts') ?? items[0]
+  const item = items.find(item => item.id === bottomPanel.designCompareItemId) ?? items.find(item => item.id === 'merge-checkout-payment-drafts') ?? items[0]
   const [keys, setKeys] = useState(null)
   const selectedKeys = keys ?? (item ? designCompareOptions(item).map(option => option.key) : [])
   return <DesignComparePanel items={items} itemId={item?.id} selectedKeys={selectedKeys}
-    onSelectItem={id => { setSelectedId(id); setKeys(null) }}
+    onSelectItem={id => { setBottomPanel({ designCompareItemId: id }); setKeys(null) }}
     onToggleVariant={key => setKeys(selectedKeys.includes(key) ? selectedKeys.filter(value => value !== key) : [...selectedKeys, key])}
     onSelectAll={setKeys}
     onCompare={(candidate, options) => {

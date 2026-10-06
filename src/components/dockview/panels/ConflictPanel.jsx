@@ -1,6 +1,6 @@
 import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
-import { isQueuedConflict } from '@/lib/conflicts'
+import { isQueuedConflict, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
@@ -14,9 +14,8 @@ import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { useNavigate } from 'react-router-dom'
 import { LocalizedText } from '@/i18n/runtime'
-import ConflictReviewPanel from '@/components/dockview/panels/ConflictReviewPanel'
+import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allDecided } from '@/lib/driftDecisions'
 import { sizeAdjustmentOf } from '@/lib/sizeAdjustment'
@@ -51,14 +50,6 @@ const FILTER_ALIAS = { merged: 'done' }
 // project card's badge, a project home's stat). Not one of the standing
 // tabs: it shows as one only while it's the filter in use.
 const OPEN_FILTER = { id: 'open', label: 'Open', test: isOpen }
-// A merge request for a mix of design drafts (sent from Design Compare):
-// its item has several drafts rather than one design ↔ code difference.
-function isDraftMerge(conflict, mergeItems = []) {
-  if (conflict.id.startsWith('mr-')) return true
-  const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
-  return (item?.variants?.length ?? 0) > 1
-}
-
 const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
 
 function matchesConflictFilters(conflict, filters) {
@@ -77,11 +68,10 @@ function matchesConflictFilters(conflict, filters) {
 // list is the project-wide one either way, but picking a conflict there
 // also puts its item on the canvas (see the effect below).
 function ConflictPanel({ inMergeStudio }) {
-  const navigate = useNavigate()
-  const { projectId, conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    updateConflict, approveConflict, requestChanges, resolveConflict, revertConflict, currentUser, requestMergeFocus, mergeFocus } =
+  const { conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
+    currentUser, requestMergeFocus, mergeFocus } =
     useWorkspace()
-  const reviewConflict = conflicts.find((c) => c.id === reviewConflictId) ?? null
+  const reviewConflict = conflicts.find((c) => c.id === reviewConflictId && !isDesignReview(c)) ?? null
   // A conflict links to its merge item either way round — its own
   // `mergeItemId`, or the item's `conflictId` pointing back at it (most of
   // conflictChecklist only has the latter; see mockData). Resolve both so
@@ -128,21 +118,17 @@ function ConflictPanel({ inMergeStudio }) {
   const queued = conflicts.filter(isQueuedConflict)
   const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
   const picked = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? null
-  const filter = picked ?? (filterId === 'drafts' ? { id: 'drafts', label: 'Draft merges', test: (c) => isDraftMerge(c, mergeItems) } : FILTERS[0])
-  // Draft merges get their own filter once there is one to find.
-  const draftFilter = { id: 'drafts', label: 'Draft merges', test: (c) => isDraftMerge(c, mergeItems) }
-  const hasDrafts = queued.some(draftFilter.test)
-  const base = hasDrafts ? [...FILTERS, draftFilter] : FILTERS
-  const shownFilters = filter === OPEN_FILTER ? [base[0], OPEN_FILTER, ...base.slice(1)] : base
+  const filter = picked ?? FILTERS[0]
+  const shownFilters = filter === OPEN_FILTER ? [FILTERS[0], OPEN_FILTER, ...FILTERS.slice(1)] : FILTERS
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
-  const filterItems = conflicts.map((conflict) => ({
+  const filterItems = queued.map((conflict) => ({
     ...conflict,
     tag: needsReviewFrom(conflict) && isOpen(conflict) ? 'Needs your review' : listStatusOf(conflict).label,
     conflictLevel: conflict.severity
       ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
       : 'None',
   }))
-  const markedDueDates = conflicts.map(dueDateOf).filter(Boolean)
+  const markedDueDates = queued.map(dueDateOf).filter(Boolean)
   // Open first, and among those the ones waiting on your review on top —
   // the list stays "All", but what you're asked to do leads it.
   const visible = sortOpenFirst(
@@ -177,38 +163,7 @@ function ConflictPanel({ inMergeStudio }) {
     })
   }
 
-  if (reviewConflict) {
-    return (
-      <div className="h-full min-h-0 min-w-0 bg-card">
-          <ConflictReviewPanel
-            conflict={reviewConflict}
-            inMergeStudio={inMergeStudio}
-            onOpenChange={(open) => !open && openConflictReview(null)}
-            onUpdate={updateConflict}
-            onApprove={approveConflict}
-            onRequestChanges={requestChanges}
-            onResolve={resolveConflict}
-            onRevert={(conflictId) => {
-              const revert = revertConflict(conflictId)
-              if (revert) openConflictReview(revert.id)
-            }}
-            onOpenMergeStudio={(conflict, options) => {
-              // The review stays open: it carries over into Merge Studio's
-              // bottom panel, beside the canvas showing this item.
-              // `conflict` here is always `reviewConflict`, so its item id
-              // is `reviewConflictItemId` — most conflicts only carry the
-              // reverse link (see its definition above), never their own
-              // `mergeItemId`, so reading that field directly left Merge
-              // Studio with nothing selected (a near-black empty canvas)
-              // for most conflicts.
-              navigate(`/projects/${projectId}/workspace`, {
-                state: { openMergeStudio: true, conflictId: conflict.id, mergeItemId: reviewConflictItemId, layerId: conflict.layerId, fileId: conflict.fileId, line: conflict.line, collapsePanel: options?.collapsePanel },
-              })
-            }}
-          />
-      </div>
-    )
-  }
+  if (reviewConflict) return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-card">

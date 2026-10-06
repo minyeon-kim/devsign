@@ -2,7 +2,7 @@ import { scheduleDemoReview, applyDueDemoReviews } from '@/lib/demoReview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
-import { authorOf, requiredReviewers } from '@/lib/conflicts'
+import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -210,6 +210,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // Start on Conflict Points; keep each project's last panel selection.
   const [bottomPanel, setBottomPanelState] = useDemoState(`project:${projectId}:bottomPanel`, { tab: 'conflict', open: true, height: 320 })
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
+  const openConflictReview = useCallback((id) => {
+    setReviewConflictId(id)
+    if (!id) return
+    const record = conflicts.find(candidate => candidate.id === id) ?? { id }
+    setBottomPanel({ tab: reviewTabFor(record), open: true, ...(reviewTabFor(record) === 'design-compare' && record.mergeItemId ? { designCompareItemId: record.mergeItemId } : {}) })
+  }, [conflicts, setBottomPanel])
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
   // file tree is where files are opened.
@@ -694,13 +700,11 @@ export function WorkspaceProvider({ children, projectId }) {
     return () => window.clearTimeout(timer)
   }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
 
-  // A merge request for a mix of drafts that has no Conflict Point of its
-  // own (drafts compared in Design Compare aren't a conflict until someone
-  // asks to merge one): the record the Conflict list reviews and merges it
-  // from. Reviewed by the rest of the team; whoever asks is its author.
+  // Design reviews use the shared approval model and remain in Design Compare.
   const createMergeRequest = useCallback((item) => {
     const record = toConflictRecord({
       id: `mr-${item.id}`,
+      kind: 'design-review',
       title: item.title,
       file: files.find((f) => f.id === item.fileIds?.[0])?.path ?? item.title,
       fileId: item.fileIds?.[0],
@@ -2092,7 +2096,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setHistoryFilter,
     assetAssemblies,
     assembleAsset,
-    openConflictReview: setReviewConflictId,
+    openConflictReview,
     focusChange,
     chatDraft,
     setChatDraft,

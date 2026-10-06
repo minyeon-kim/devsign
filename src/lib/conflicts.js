@@ -42,9 +42,19 @@ export function gitFlowOf(conflict) {
   return conflict.gitFlow ?? conflictChecklist.find(c => c.id === conflict.id)?.gitFlow ?? null
 }
 
+// Design compositions share approval records, but are not conflict points.
+// Recognize saved requests from before the explicit kind was introduced.
+export function isDesignReview(record) {
+  if (!record || record.rollback) return false
+  return record.kind === 'design-review' || record.id?.startsWith('mr-') || Boolean(record.designDraft ?? conflictChecklist.find(c => c.id === record.id)?.designDraft)
+}
+
+export function reviewTabFor(record) {
+  return isDesignReview(record) ? 'design-compare' : 'conflict'
+}
+
 export function isQueuedConflict(conflict) {
-  const draft = conflict.designDraft ?? conflictChecklist.find(c => c.id === conflict.id)?.designDraft
-  return !draft || Boolean(conflict.submittedForMergeAt) || conflict.reviewStage === 'resolved'
+  return !isDesignReview(conflict)
 }
 
 export const RISK_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
