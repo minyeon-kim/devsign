@@ -9,6 +9,9 @@ import { createPortal } from 'react-dom'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { studioAdjustmentsOf } from '@/lib/sizeAdjustment'
+import { ADJUSTMENT_REASONS } from '@/lib/rationale'
+import { InlineDeviationReason } from '@/components/conflicts/Rationale'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -850,14 +853,9 @@ function MergeStudioWorkspace({ item }) {
         else next[key] = decision
         return next
       }),
-      // The review's "Undo adjustment": drop a hand-set W / H on a layer.
-      resetSize: (layerId) => setAssemblies((prev) => {
-        const { width: _width, height: _height, ...rest } = prev[layerId] ?? {}
-        const next = { ...prev }
-        if (Object.keys(rest).length) next[layerId] = rest
-        else delete next[layerId]
-        return next
-      }),
+      // The review's "Undo adjustment" (and its undo): every hand-set
+      // value at once.
+      setAssemblies: (next) => setAssemblies(next),
     })
   }, [item?.id, resolutions, setStudioDecisions])
   useEffect(() => () => setStudioDecisions(null), [setStudioDecisions])
@@ -1160,6 +1158,26 @@ function MergeStudioWorkspace({ item }) {
             <span className="text-xs whitespace-nowrap text-slate-400 tabular-nums">
               {adjustmentCount ? <LocalizedText text={`${adjustmentCount} adjusted`} /> : <LocalizedText text="Nothing adjusted yet" />}
             </span>
+            {/* Why it was adjusted — chosen and changed here, with the values
+                (the review shows it as a line, with no edit of its own). */}
+            {adjustmentCount > 0 && (
+              <Popover>
+                <PopoverTrigger data-adjust-reason className={cn('ds-intrinsic inline-flex h-7 max-w-48 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium transition-colors hover:bg-white/[0.08]', adjustingFor.adjustmentReason?.text ? 'text-slate-200' : 'text-amber-200')}>
+                  {adjustingFor.adjustmentReason?.text
+                    ? <span className="truncate"><span className="text-slate-400"><LocalizedText text="Reason" /> · </span><LocalizedText text={adjustingFor.adjustmentReason.text.split(' · ')[0]} />{adjustingFor.adjustmentReason.text.includes(' · ') && ' …'}</span>
+                    : <LocalizedText text="Reason needed" />}
+                </PopoverTrigger>
+                <PopoverContent align="center" sideOffset={8} className="w-[340px] gap-0 rounded-xl p-3">
+                  <InlineDeviationReason
+                    key={adjustingFor.id}
+                    value={adjustingFor.adjustmentReason?.text ?? null}
+                    onSave={(reason) => updateConflict(adjustingFor.id, { adjustmentReason: { text: reason, by: currentUser?.id ?? null, at: 'Just now' } })}
+                    title="Why was it adjusted?"
+                    reasons={ADJUSTMENT_REASONS}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
             <button
               type="button"
               data-adjust-done
@@ -1168,7 +1186,7 @@ function MergeStudioWorkspace({ item }) {
                 exitMergeStudio()
                 setBottomPanel({ tab: 'conflict', open: true })
                 openConflictReview(adjustingFor.id)
-                toast(adjustmentCount ? '조정 내용을 충돌 내역에 반영했어요' : '충돌 내역으로 돌아왔어요', adjustmentCount ? { description: '검토 화면의 카드에 조정한 값이 표시돼요. 조정한 이유를 선택하세요.' } : undefined)
+                toast(adjustmentCount ? '조정 내용을 충돌 내역에 반영했어요' : '충돌 내역으로 돌아왔어요', adjustmentCount ? { description: adjustingFor.adjustmentReason?.text ? '검토 화면의 카드에 조정한 값이 표시돼요.' : '검토 화면의 카드에 조정한 값이 표시돼요. 조정한 이유를 선택하세요.' } : undefined)
               }}
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
             >

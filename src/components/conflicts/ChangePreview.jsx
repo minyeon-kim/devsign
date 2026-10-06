@@ -43,12 +43,14 @@ function Pair({ before, after, side, showLabel, contentClassName }) {
   )
 }
 
-// `adjust` (lib/sizeAdjustment's previewAdjustmentOf): the shown side drawn
-// with the values set by hand in Merge Studio.
-function ChangePreview({ preview, side, showLabels = true, adjust }) {
+// `override` (lib/mergeResult's `preview`): the shown side's spec as it
+// merges — with the values set by hand in Merge Studio. Every value is
+// drawn through inline styles, never a class put together at runtime
+// (Tailwind only ships classes it finds written out in the source).
+function ChangePreview({ preview, side, showLabels = true, override }) {
   if (!preview) return null
   const { kind } = preview
-  const drawn = (which) => (adjust && side === which && preview[which] ? adjust(preview[which]) : preview[which])
+  const drawn = (which) => (override && side === which ? override : preview[which])
   const before = drawn('before')
   const after = drawn('after')
 

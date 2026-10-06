@@ -163,7 +163,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
               {onSave && (
                 <button type="button" onClick={startEdit} className={ACTION}>
                   <Pencil className="size-3" />
-                  <LocalizedText text="Edit" />
+                  <LocalizedText text="Edit code directly" />
                 </button>
               )}
             </>
