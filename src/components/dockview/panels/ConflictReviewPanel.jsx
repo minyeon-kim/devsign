@@ -1,6 +1,6 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
-import { NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
+import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
   ArrowRight,
@@ -49,10 +49,10 @@ import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
 import {
   approvalStatus,
-  allReviewersApproved,
   requiredReviewers,
   authorOf,
   conflictRef,
+  listStatusOf,
   gitFlowOf,
   shortDue,
 } from '@/lib/conflicts'
@@ -68,10 +68,8 @@ import { EvidenceLinks, InlineDeviationReason, RulesDialog } from '@/components/
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
-import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
-  PANEL_LABEL,
 } from '@/components/mergestudio/floatingStyles'
 
 // ─── The one conflict review window ────────────────────────────────────
@@ -109,7 +107,6 @@ const REVIEW_GUTTER = 'gap-3'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
-const REVIEW_DETAIL_COPY = 'text-xs leading-[18px] text-slate-200'
 
 function EmptyNote({ children }) {
   return <p className="rounded-xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">{children}</p>
@@ -383,7 +380,35 @@ function DueDate({ label, className }) {
 const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-300 [overflow-wrap:anywhere]'
 const SUMMARY_ROW_LABEL = 'text-[11px] leading-[18px] whitespace-nowrap text-slate-500'
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause }) {
+// One section of the Info tab: a hairline above (not on the first), a small
+// grey title with an optional count, and — when it folds — the whole header
+// as the toggle with its arrow at the right.
+const INFO_SECTION = 'border-t border-white/[0.07] py-2.5 first:border-t-0 first:pt-0'
+const INFO_TITLE = 'text-[11px] leading-4 text-slate-400'
+const INFO_VALUE = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
+const STATUS_TEXT = { detected: 'text-slate-200', in_review: 'text-sky-300', pending_merge: 'text-emerald-300', pending_rollback: 'text-amber-300', done: 'text-violet-300' }
+const RISK_TEXT = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300' }
+function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, children }) {
+  const heading = title && (
+    <>
+      <span className={INFO_TITLE}><LocalizedText text={title} /></span>
+      {count != null && <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums">{count}</span>}
+    </>
+  )
+  return (
+    <section ref={sectionRef} data-info-section={title ?? 'Status'} className={cn(INFO_SECTION, 'scroll-mb-3')}>
+      {title && (onToggle ? (
+        <button type="button" aria-expanded={Boolean(open)} onClick={onToggle} {...toggleProps} className={cn('ds-intrinsic flex w-full cursor-pointer items-center gap-1.5 text-left transition-colors hover:text-white', open && 'mb-2')}>
+          {heading}
+          <ChevronDown className={cn('ml-auto size-3.5 text-slate-400 transition-transform', open && 'rotate-180')} />
+        </button>
+      ) : <div className="mb-1 flex items-center gap-1.5">{heading}</div>)}
+      {children}
+    </section>
+  )
+}
+
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -418,174 +443,132 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // Why it conflicts: its own account when it has one, else what was found.
   const cause_text = conflict.cause ?? conflict.message ?? summary
 
+  // The next thing to do, in a line under the status.
+  const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
+  const nextStep = blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
+    : stage === 'detected' ? 'Review request needed'
+      : stage === 'approved' ? 'Ready to merge'
+        : stage === 'resolved' ? null
+          : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
+  const status = listStatusOf(conflict)
+  const approved = requiredReviewers(conflict).filter((reviewer) => reviewer.status === 'approved').length
+  const required = requiredReviewers(conflict).length
+  const evidenceCount = (standard ? 1 : 0) + (rationale?.evidence.length ?? 0) + (cause ? 1 : 0)
+
   return (
-    // (As tall as its content — the panel it's in does the scrolling.)
-    <div className="flex min-h-full flex-col gap-3">
-      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
-        {/* Dots and text — no chips: this line already sits in a panel. */}
-        <ReviewStageBadge plain stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
-        {severity && (
-          <>
-            <span aria-hidden>·</span>
-            <SeverityPill plain labeled level={severity.label} />
-          </>
-        )}
-        {conflict.rollback && open && shortDue(conflict.dueLabel) && (
-          <>
-            <span aria-hidden>·</span>
-            <DueDate label={conflict.dueLabel} />
-          </>
-        )}
-        {/* A chip of its own — no dot before it, so nothing dangles when it
-            wraps onto the next line. */}
-        {blockedCount > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-200">
-            <span aria-hidden className="mr-0.5 font-normal text-slate-400">·</span>
-            <TriangleAlert className="size-3 shrink-0" />
-            <LocalizedText text={`Can’t merge ${blockedCount}`} />
+    // The sidebar's Info tab: short sections stacked under hairlines, each
+    // a small grey title (with a count, and an action at its right where it
+    // has one) over a little content. Labels grey, values the default color.
+    <div data-review-info className="flex min-h-full flex-col">
+      <InfoSection>
+        {/* Status and risk, as colored badges; then what to do next. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span data-status-badge className={cn('inline-flex h-7 items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold', STATUS_TEXT[status.id])}>
+            <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
+            <LocalizedText text={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : status.label} />
           </span>
-        )}
-        {isAiDraft && (
-          <>
-            <span aria-hidden>·</span>
-            <span className="inline-flex items-center gap-1 text-slate-400">
-              <Sparkles className="size-3 shrink-0" aria-hidden />
-              <LocalizedText text="AI draft" />
+          {severity && (
+            <span data-risk-badge className={cn('inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold', RISK_TEXT[severity.label.toLowerCase()])}>
+              <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
+              <LocalizedText text={severity.label} />
             </span>
-          </>
-        )}
-      </p>
+          )}
+          {isAiDraft && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>
+          )}
+        </div>
+        {nextStep && <p data-next-step className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={nextStep} /></p>}
+        {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
+        {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
+      </InfoSection>
 
-      {/* The summary, in one form throughout: a small grey label, then its
-          content under it at full width — Difference / Reason / Resolution /
-          Evidence / Decision. Two sizes (body, label), two weights, two
-          colors; monospace only for the difference itself. */}
-      {!conflict.rollback && (
-        // The same four labels for every conflict, in one column of small
-        // grey labels: Cause (why it conflicts), Impact (what goes wrong if
-        // it isn't resolved), Evidence (the rule, links and version behind
-        // it — the rest folded), Details (folded).
-        <dl data-review-summary className="grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2.5">
-          {cause_text && (
-            <>
-              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Cause" /></dt>
-              <dd data-summary-row="Cause" className={SUMMARY_BODY}><LocalizedText text={cause_text} /></dd>
-            </>
-          )}
-          {(why || standard) && (
-            <>
-              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Impact" /></dt>
-              <dd data-summary-row="Impact" className={SUMMARY_BODY}>
-                {/* Terse items, " · " between them — then whether it can
-                    still merge. */}
-                {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
-                {standard && <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Can’t merge (required standard)' : 'Can merge (recommended standard)'} /></span>}
-              </dd>
-            </>
-          )}
-          {hasEvidence && (
-            <>
-              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Evidence" /></dt>
-              <dd ref={evidenceRef} data-summary-row="Evidence" className={cn(SUMMARY_BODY, 'scroll-mb-3')}>
-                {/* The standard by name and how binding it is; where it
-                    comes from, what it's for, the links and the version it
-                    began in open under it. */}
-                {standard && (
-                  <p>
-                    {standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
-                    <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
-                  </p>
-                )}
-                <button
-                  type="button"
-                  data-evidence-toggle
-                  aria-expanded={showEvidence}
-                  onClick={() => setShowEvidence((value) => !value)}
-                  className="ds-intrinsic inline-flex h-6 w-fit items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
-                >
-                  <LocalizedText text="Show evidence" />
-                  <ChevronDown className={cn('size-3.5 transition-transform', showEvidence && 'rotate-180')} />
-                </button>
-                {showEvidence && (
-                  <div data-evidence-body className="mt-1 space-y-2.5">
-                    {standard && (
-                      <>
-                        <p><span className="text-slate-500"><LocalizedText text="Source" /> · </span>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
-                        <p><span className="text-slate-500"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
-                      </>
-                    )}
-                    {rationale?.evidence.length > 0 && (
-                      <EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
-                    )}
-                    {/* Where it began: the saved version the difference first
-                        came in with — a way straight to it in History. */}
-                    {cause && (
-                      <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[11px] leading-4 text-slate-500"><LocalizedText text="Version this difference came in with" /></span>
-                          <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
-                          <span className="block text-[11px] leading-4 text-slate-500">
-                            <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
-                            {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
-                          </span>
-                        </span>
-                        <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-500" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </dd>
-            </>
-          )}
-          {/* The toggle is its row's label; what it opens are more rows of
-              this same grid, so their labels and values line up with the
-              ones above. */}
-          <dt className={SUMMARY_ROW_LABEL}>
-            <button
-              type="button"
-              data-details-toggle
-              aria-expanded={showDetails}
-              onClick={() => setShowDetails((v) => !v)}
-              className="ds-intrinsic inline-flex h-[18px] items-center gap-0.5 text-[11px] whitespace-nowrap text-slate-500 transition-colors hover:text-white"
-            >
-              <LocalizedText text="Details" />
-              <ChevronDown className={cn('size-3 transition-transform', showDetails && 'rotate-180')} />
-            </button>
-          </dt>
-          <dd aria-hidden className={SUMMARY_BODY} />
-          {showDetails && <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
-          {/* (What opening Details scrolls to: the end of its rows.) */}
-          <div ref={detailsRef} aria-hidden className="col-span-2 -mt-2.5 h-0 scroll-mb-3" />
-        </dl>
+      {!conflict.rollback && cause_text && (
+        <InfoSection title="Cause"><p data-summary-row="Cause" className={INFO_VALUE}><LocalizedText text={cause_text} /></p></InfoSection>
       )}
-      {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
+      {!conflict.rollback && (why || standard) && (
+        <InfoSection title="Impact">
+          <p data-summary-row="Impact" className={INFO_VALUE}>
+            {/* Terse items, " · " between them — then whether it can
+                still merge. */}
+            {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
+            {standard && <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Can’t merge (required standard)' : 'Can merge (recommended standard)'} /></span>}
+          </p>
+        </InfoSection>
+      )}
 
-      {conflict.rollback && <section ref={detailsRef} className="min-w-0 shrink-0 scroll-mb-3 pb-1">
-        <button
-          type="button"
-          data-details-toggle
-          aria-expanded={showDetails}
-          onClick={() => setShowDetails((v) => !v)}
-          className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
-        >
-          <LocalizedText text="Details" />
-          <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
-        </button>
+      {/* Evidence: counted in its title, folded until asked for. */}
+      {hasEvidence && (
+        <InfoSection sectionRef={evidenceRef} title="Evidence" count={evidenceCount} open={showEvidence} onToggle={() => setShowEvidence((value) => !value)} toggleProps={{ 'data-evidence-toggle': '' }}>
+          {showEvidence && (
+            <div data-evidence-body className="space-y-2">
+              {standard && (
+                <p className={INFO_VALUE}>
+                  {standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
+                  <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
+                </p>
+              )}
+              {standard && (
+                <>
+                  <p className={INFO_VALUE}><span className="text-slate-400"><LocalizedText text="Source" /> · </span>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
+                  <p className={INFO_VALUE}><span className="text-slate-400"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
+                </>
+              )}
+              {rationale?.evidence.length > 0 && (
+                <EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
+              )}
+              {/* Where it began: the saved version the difference first
+                  came in with — a way straight to it in History. */}
+              {cause && (
+                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-2.5 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] leading-4 text-slate-400"><LocalizedText text="Version this difference came in with" /></span>
+                    <span className={cn(INFO_VALUE, 'block')}><LocalizedText text={cause.label} /></span>
+                    <span className="block text-[11px] leading-4 text-slate-400">
+                      <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
+                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+                </button>
+              )}
+            </div>
+          )}
+        </InfoSection>
+      )}
+
+      {/* Sign-off so far, as a bar. */}
+      {!conflict.rollback && required > 0 && (
+        <InfoSection title="Approvals" count={`${approved}/${required}`}>
+          <div data-approval-bar role="progressbar" aria-valuemin={0} aria-valuemax={required} aria-valuenow={approved} className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+            <div className={cn('h-full rounded-full transition-all', approved === required ? 'bg-emerald-400' : 'bg-sky-400')} style={{ width: `${(approved / required) * 100}%` }} />
+          </div>
+        </InfoSection>
+      )}
+
+      {/* Reviewers — the section renders its own header, with + to add one. */}
+      {!conflict.rollback && onUpdateReviewers && (
+        <section data-info-section="Reviewers" className={INFO_SECTION}>
+          <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdateReviewers} onDismiss={onDismissRequest} />
+        </section>
+      )}
+
+      {/* Details: folded; its rows share one label column. */}
+      <InfoSection sectionRef={detailsRef} title="Details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
         {showDetails && (
-          <div className="mt-2 space-y-2">
-            {[
-              ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all text-slate-300">{conflict.rollback.target}</span>],
+          <dl data-review-summary className="grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2">
+            {conflict.rollback ? [
+              ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all">{conflict.rollback.target}</span>],
               ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
               requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
             ].filter(Boolean).map(([label, value]) => (
-              <div key={label} className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
-                <span className="text-xs leading-[18px] text-slate-400"><LocalizedText text={label} /></span>
-                <span className="min-w-0 text-xs leading-[18px] break-words text-slate-200">{value}</span>
-              </div>
-            ))}
-          </div>
+              <Fragment key={label}>
+                <dt className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
+                <dd className={SUMMARY_BODY}>{value}</dd>
+              </Fragment>
+            )) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
+          </dl>
         )}
-      </section>}
+      </InfoSection>
     </div>
   )
 }
@@ -1166,7 +1149,7 @@ const iconActionClass =
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onDismiss }) {
+function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) {
   // On a rollback agreement the reviewers are the people it affects, and
   // their sign-off is a confirmation.
   const statusLabels = conflict.rollback ? { pending: 'Not confirmed yet', approved: 'Confirmed' } : {}
@@ -1222,8 +1205,37 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
   // the grid's own label column): one short row per reviewer — avatar,
   // name, status — with its actions on hover, and Add reviewer / Remind all as
   // quiet text actions underneath.
+  // `sectioned` (the sidebar's Info tab): its own header — title, how many,
+  // and + at the right to add one — instead of the text action underneath.
+  const addMenu = reviewStage !== 'resolved' && (assignable.length === 0 ? sectioned && (
+    // Everyone who could review already is: the + stays, saying so.
+    <span data-add-reviewer aria-disabled="true" title="Everyone on the project is already on this review" className="ml-auto flex size-5 items-center justify-center rounded text-slate-600"><Plus className="size-3.5" /></span>
+  ) : (
+    <DropdownMenu>
+      <DropdownMenuTrigger data-add-reviewer aria-label="Add reviewer" title="Add reviewer" className={sectioned ? 'ds-intrinsic ml-auto flex size-5 items-center justify-center rounded text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white data-[popup-open]:text-white' : REVIEWER_TEXT_ACTION}>
+        <Plus className="size-3.5" />
+        {!sectioned && 'Add reviewer'}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={sectioned ? 'end' : 'start'} className="w-44">
+        {assignable.map((person) => (
+          <DropdownMenuItem key={person.id} onClick={() => assign(person)} className="gap-2">
+            <PersonAvatar person={person} />
+            {person.name}
+            {person.id === viewerId && <span className="text-muted-foreground">(you)</span>}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ))
   return (
     <div className="min-w-0">
+      {sectioned && (
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
+          <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums">{reviewers.length}</span>
+          {addMenu}
+        </div>
+      )}
       {reviewers.length === 0 ? (
         <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
       ) : (
@@ -1339,25 +1351,9 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
           })}
         </div>
       )}
-      {(canRemind && pending.length > 1) || (reviewStage !== 'resolved' && assignable.length > 0) ? (
+      {(canRemind && pending.length > 1) || (!sectioned && addMenu) ? (
         <div className="mt-0.5 flex items-center gap-3">
-          {reviewStage !== 'resolved' && assignable.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className={REVIEWER_TEXT_ACTION}>
-                <Plus className="size-3.5" />
-                Add reviewer
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                {assignable.map((person) => (
-                  <DropdownMenuItem key={person.id} onClick={() => assign(person)} className="gap-2">
-                    <PersonAvatar person={person} />
-                    {person.name}
-                    {person.id === viewerId && <span className="text-muted-foreground">(you)</span>}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {!sectioned && addMenu}
           {canRemind && pending.length > 1 && (
             <button type="button" onClick={() => remind(pending.map((r) => r.id))} className={REVIEWER_TEXT_ACTION}>
               <Bell className="size-3.5" />
@@ -1652,6 +1648,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // Evidence links and the one question a departure asks.
   const [ruleFocus, setRuleFocus] = useState(null)
   const [flashComment, setFlashComment] = useState(null)
+  // The sidebar's tab, and how many comments there were when Comments was
+  // last looked at (more than that since puts a dot on the tab).
+  const [sideTab, setSideTab] = useState('info')
+  const commentCount = conflict && workspace ? workspace.comments.filter((c) => c.id === conflict.linkedCommentId || c.target?.conflictId === conflict.id).length : 0
+  const [seen, setSeen] = useState({ id: conflict?.id, count: commentCount })
+  if (conflict && seen.id !== conflict.id) setSeen({ id: conflict.id, count: commentCount })
+  const seenComments = sideTab === 'comments' ? commentCount : seen.count
+  function openSideTab(value) {
+    // Leaving or entering Comments: everything there has now been seen.
+    if (value === 'comments' || sideTab === 'comments') setSeen({ id: conflict.id, count: commentCount })
+    setSideTab(value)
+  }
   const [reasonRequest, setReasonRequest] = useState(null)
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
@@ -1906,6 +1914,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (item.kind === 'rule') { setRuleFocus(item.id); return }
     if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
     if (item.kind === 'comment') {
+      openSideTab('comments')
       setFlashComment(item.id)
       window.setTimeout(() => setFlashComment((current) => (current === item.id ? null : current)), 1800)
       return
@@ -2095,7 +2104,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 wrappers scrolls; narrower, where they stack, the page does. */}
             <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,4fr)_minmax(240px,1fr)] xl:overflow-hidden',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', tab === 'overview' && 'xl:overflow-hidden')} role="tabpanel">
@@ -2130,7 +2139,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[380px] xl:flex-[45_1_0%]')}>
+                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {studioAdjustments.length > 0 && !conflict.rollback && (
                             <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
@@ -2217,28 +2226,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           {!conflict.rollback && driftItem && draftColumns(driftItem) && <div className="mt-3">{checkBlocks}</div>}
                         </div>
                       </section>
-                      {/* The reasoning, in the middle: what differs, the
-                          standard behind it, why, how, the evidence and the
-                          decision. (A rollback with nothing to detail has
-                          none — the comparison takes the room.) */}
-                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'min-h-0 xl:min-w-[300px] xl:flex-[35_1_0%]')}>
-                        <div data-review-scroll="reasoning" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          <OverviewTab
-                            key={conflict.id}
-                            rationale={rationale}
-                            onOpenEvidence={openEvidence}
-                            checks={checks}
-                            conflict={conflict}
-                            severity={severity}
-                            stage={stage}
-                            showProject={!workspace}
-                            blockedCount={decisionState.required.length}
-                            adjustment={adjustment}
-                            cause={causeVersion}
-                            onOpenCause={openProjectHistory}
-                          />
-                        </div>
-                      </section>}
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1">
@@ -2247,32 +2234,58 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                 </div>
 
-                {/* One panel on the right: reviewers, a hairline, then the
-                    discussion — not two boxes stacked. (A rollback agreement
-                    lists who it affects in the middle, so this is comments
-                    only.) */}
-                <div data-review-scroll="people" className={cn('flex h-full min-h-0 min-w-0 flex-col opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100 xl:overflow-y-auto', REVIEW_CONTEXT_CARD)}>
-                  {!conflict.rollback && (
-                    <section className="mb-3 max-h-48 shrink-0 overflow-auto border-b border-white/[0.07] pb-3">
-                      {/* Approval progress lives here, in the title — once. */}
-                      <p className={cn(PANEL_LABEL, 'mb-2')}>
-                        <LocalizedText text="Reviewers" />
-                        {requiredReviewers(conflict).length > 0 && (
-                          <span className={cn('text-[11px] font-normal tabular-nums', allReviewersApproved(conflict) ? 'text-emerald-300' : 'text-slate-400')}>
-                            <LocalizedText text="Approvals" /> {requiredReviewers(conflict).filter((r) => r.status === 'approved').length}/{requiredReviewers(conflict).length}
-                          </span>
+                {/* One sidebar on the right, 320px: Info (status, cause,
+                    impact, evidence, approvals, reviewers, details) and
+                    Comments (the thread and its composer), as two tabs. The
+                    comparison beside it takes all the rest. */}
+                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
+                  <div role="tablist" aria-label="Conflict sidebar" className="-mt-1 mb-2 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
+                    {[['info', 'Info'], ['comments', 'Comments']].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        data-side-tab={value}
+                        aria-selected={sideTab === value}
+                        onClick={() => openSideTab(value)}
+                        className="ds-intrinsic -mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
+                      >
+                        <LocalizedText text={label} />
+                        {value === 'comments' && (
+                          <>
+                            <span data-comment-count className="text-[11px] font-normal text-slate-400 tabular-nums">{commentCount}</span>
+                            {/* Something new since the tab was last open. */}
+                            {commentCount > seenComments && sideTab !== 'comments' && <span data-comment-dot aria-label="New comments" className="size-1.5 rounded-full bg-emerald-300" />}
+                          </>
                         )}
-                      </p>
-                      <ReviewersSection conflict={conflict} onUpdate={update} onDismiss={workspace?.dismissChangeRequest} />
-                    </section>
-                  )}
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <p className={cn(PANEL_LABEL, 'ds-review-context-heading shrink-0')}>
-                      <LocalizedText text="Comments" />
-                    </p>
-                    <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
+                      </button>
+                    ))}
                   </div>
-                </div>
+                  {sideTab === 'info' ? (
+                    <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                      <OverviewTab
+                        key={conflict.id}
+                        rationale={rationale}
+                        onOpenEvidence={openEvidence}
+                        checks={checks}
+                        conflict={conflict}
+                        severity={severity}
+                        stage={stage}
+                        showProject={!workspace}
+                        blockedCount={decisionState.required.length}
+                        adjustment={adjustment}
+                        cause={causeVersion}
+                        onOpenCause={openProjectHistory}
+                        onUpdateReviewers={update}
+                        onDismissRequest={workspace?.dismissChangeRequest}
+                      />
+                    </div>
+                  ) : (
+                    <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">
+                      <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
+                    </div>
+                  )}
+                </aside>
               </div>
             </div>
           </>

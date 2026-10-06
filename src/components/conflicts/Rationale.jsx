@@ -54,7 +54,9 @@ export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
         const withTail = (node) => (tail ? <span key={key} className="inline-flex max-w-full min-w-0 items-center gap-1.5">{node}{tail}</span> : node)
         if (!rule && !item.text) return withTail(chip)
         return withTail(<Tooltip key={key}>
-          <TooltipTrigger render={chip} />
+          {/* (The click is given to the trigger too: wrapped as a tooltip's
+              trigger, the chip's own handler wasn't reaching it.) */}
+          <TooltipTrigger render={chip} onClick={rule ? undefined : () => onOpen?.(item)} />
           <TooltipContent side="top" align="start" className="max-w-xs flex-col items-start gap-1 py-2 leading-5">
             {rule ? <>
               <span className="font-medium"><LocalizedText text={rule.title} /></span>

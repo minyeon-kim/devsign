@@ -61,6 +61,9 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Everyone on the project is already on this review|프로젝트 구성원이 모두 이미 검토자예요
+Info|정보
+New comments|새 댓글
 New Merge — Current Work|새 병합 · 현재 작업
 Previous options|이전 선택지
 Next options|다음 선택지
