@@ -1,7 +1,7 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Maximize2, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -661,7 +661,7 @@ function RegionTools({ frame, scale, boxH, tools }) {
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools, viewTools }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -675,6 +675,24 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
+      {/* How the Result is looked at, on its own label row: fitted to the
+          room, at its real size, a step in or out, or opened large (where
+          the device widths are). Kept its size whatever the zoom. */}
+      {viewTools && (() => {
+        const ko = getLanguage() === 'ko'
+        const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
+        return (
+          <div data-result-view onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute right-0 bottom-full z-10 mb-1.5 flex cursor-default items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 shadow-lg ring-1 ring-white/15" style={{ transform: `scale(${1 / viewTools.zoom})`, transformOrigin: 'bottom right' }}>
+            <button type="button" data-view-fit title={ko ? '폭에 맞춤' : 'Fit to width'} onClick={viewTools.onFit} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
+            <button type="button" data-view-actual onClick={viewTools.onActual} className={BUTTON}>100%</button>
+            <button type="button" data-view-out aria-label={ko ? '축소' : 'Zoom out'} title={ko ? '축소' : 'Zoom out'} onClick={() => viewTools.onZoom(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
+            <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(viewTools.percent)}%</span>
+            <button type="button" data-view-in aria-label={ko ? '확대' : 'Zoom in'} title={ko ? '확대' : 'Zoom in'} onClick={() => viewTools.onZoom(10)} className={BUTTON}><Plus className="size-3.5" /></button>
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />
+            <button type="button" data-view-expand title={ko ? '크게 보기 · 기기 폭 전환 (Esc로 닫기)' : 'Open large · device widths (Esc closes)'} onClick={viewTools.onExpand} className={cn(BUTTON, 'gap-1')}><Maximize2 className="size-3" />{ko ? '크게 보기' : 'Open large'}</button>
+          </div>
+        )
+      })()}
       <p
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
@@ -783,13 +801,18 @@ function defaultLayoutForKeys(frame, keys) {
     const drafts = keys.filter((key) => key !== 'result')
     const rows = Math.min(2, drafts.length)
     const cols = Math.ceil(drafts.length / rows)
-    const draftW = Math.round(artW * 0.5)
+    // (About 4 : 6, drafts to Result: the Result at the artboard's full
+    // width, the drafts at a little over a third of it, closer together.)
+    const draftW = Math.round(artW * 0.36)
     const draftH = (draftW * frame.height) / frame.width
+    const gap = CARD_GAP / 2
+    const resultH = (artW * frame.height) / frame.width
+    const gridH = rows * (draftH + ARTBOARD_LABEL_H) + (rows - 1) * gap
+    const gridY = Math.max(0, (resultH + ARTBOARD_LABEL_H - gridH) / 2)
     drafts.forEach((key, i) => {
-      layout[key] = { x: (i % cols) * (draftW + CARD_GAP), y: Math.floor(i / cols) * (draftH + CARD_GAP), w: draftW, h: null }
+      layout[key] = { x: (i % cols) * (draftW + gap), y: gridY + Math.floor(i / cols) * (draftH + ARTBOARD_LABEL_H + gap), w: draftW, h: null }
     })
-    const resultH = rows * draftH + (rows - 1) * CARD_GAP
-    layout.result = { x: cols * (draftW + CARD_GAP) + CARD_GAP, y: 0, w: Math.round((resultH * frame.width) / frame.height), h: null }
+    layout.result = { x: cols * (draftW + gap) + gap, y: 0, w: artW, h: null }
     return layout
   }
   keys.forEach((key, i) => {
@@ -1230,13 +1253,15 @@ function MergeInfiniteCanvas({
 
   // Zoom/pan so the whole card row sits inside the visible canvas, left of
   // any docked Block Deck, with breathing room.
-  function fitView(lay) {
+  // (`only`: just these cards. `byWidth`: as wide as the room allows, however
+  // tall that makes it — the rest is a scroll away.)
+  function fitView(lay, { only = null, byWidth = false, maxZoom = MAX_FIT_ZOOM } = {}) {
     const c = containerRef.current
     if (!c) return DEFAULT_VIEW
     const rect = c.getBoundingClientRect()
     const artW = (k) => lay[k].w ?? ARTBOARD_PREVIEW_WIDTH
     const compareFrame = designCompare?.frame
-    const cards = designCompare ? designCompare.entries.map((e) => e.key) : frame ? ['a', 'b'] : []
+    const cards = only ?? (designCompare ? designCompare.entries.map((e) => e.key) : frame ? ['a', 'b'] : [])
     if (!cards.length) return DEFAULT_VIEW
     const box = (k) =>
       k === 'code'
@@ -1269,9 +1294,12 @@ function MergeInfiniteCanvas({
     }
     const availW = Math.max(160, visRight - startX)
     // Comparing drafts, the mix panel sits under the header — start below it.
-    const top = TOP_CONTROLS_CLEARANCE + (designCompare ? 230 : 0)
+    // (Measured: it grows and shrinks with what it shows.)
+    const mixPanel = designCompare ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
+    // (…with room for the Result's view controls, which sit over its label.)
+    const top = mixPanel ? mixPanel.bottom - rect.top + 56 : TOP_CONTROLS_CLEARANCE + (designCompare ? 230 : 0)
     const availH = Math.max(160, visBottom - top)
-    const zoom = clampZoom(Math.floor(Math.min(MAX_FIT_ZOOM, availW / worldW, availH / worldH) * 100))
+    const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
     const contentW = worldW * k
     // Center within the canvas space available between the panels.
@@ -1285,7 +1313,7 @@ function MergeInfiniteCanvas({
       x: left - minX * k,
       // Below the top controls, vertically centered in what's left when the
       // content is shorter than the available height.
-      y: top + Math.max(0, (availH - worldH * k) / 2) - minY * k,
+      y: top + (byWidth ? 0 : Math.max(0, (availH - worldH * k) / 2)) - minY * k,
     }
   }
 
@@ -1293,7 +1321,12 @@ function MergeInfiniteCanvas({
     const lay = designCompare
       ? defaultLayoutForKeys(designCompare.frame, designCompare.entries.map((e) => e.key))
       : defaultLayout(frame)
-    const firstFit = fitView(lay)
+    // Comparing drafts, the screens are shown as wide as the room allows
+    // (never past their real size) rather than shrunk until all of them fit
+    // under the mix panel: the Result is what's worked on, and the rest of
+    // it is a scroll away.
+    const fitFor = (target) => (designCompare ? fitView(target, { byWidth: true, maxZoom: 1 }) : fitView(target))
+    const firstFit = fitFor(lay)
     setView(firstFit)
     setLayout(lay)
     setOrder(designCompare ? Object.fromEntries(designCompare.entries.map((e, i) => [e.key, i + 1])) : { code: 1, a: 2, b: 3 })
@@ -1306,7 +1339,7 @@ function MergeInfiniteCanvas({
     // after the studio mounts — fit once more when they have, unless the
     // user has already moved the view.
     const timer = window.setTimeout(() => {
-      if (viewRef.current === firstFit) setView(fitView(lay))
+      if (viewRef.current === firstFit) setView(fitFor(lay))
     }, 150)
     return () => window.clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2009,6 +2042,19 @@ function MergeInfiniteCanvas({
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                     regionTools={entry.key === 'result' && regionTools ? { ...regionTools, zoom: scale } : undefined}
+                    viewTools={entry.key === 'result' ? {
+                      zoom: scale,
+                      percent: view.zoom,
+                      onFit: () => setView(fitView(layout, { only: ['result'], byWidth: true })),
+                      onActual: () => setView((v) => {
+                        // (Its top-left stays where the fit would put it.)
+                        const fitted = fitView(layout, { only: ['result'], byWidth: true })
+                        const k = 100 / fitted.zoom
+                        return { zoom: 100, x: fitted.x + (layout.result?.x ?? 0) * (fitted.zoom / 100) * (1 - k), y: fitted.y + (layout.result?.y ?? 0) * (fitted.zoom / 100) * (1 - k) }
+                      }),
+                      onZoom: zoomFromCenter,
+                      onExpand: () => setMergePreviewOpen(true),
+                    } : undefined}
                   />
                 ))
               ) : frame && (

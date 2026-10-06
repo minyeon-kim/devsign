@@ -195,7 +195,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
 
   return (
-    <div className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
+    <div data-mix-panel className="absolute top-12 left-1/2 z-40 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
       <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
         <nav aria-label={language === 'ko' ? '영역 선택' : 'Screen regions'} className="flex items-center gap-1.5">
           {rows.map((row, i) => (
@@ -979,6 +979,21 @@ function MergeStudioWorkspace({ item }) {
   useEffect(() => {
     window.addEventListener('keydown', regionKeys, true)
     return () => window.removeEventListener('keydown', regionKeys, true)
+  }, [])
+  // ⌘Z / Ctrl+Z undoes the last edit here, with Shift (or Ctrl+Y) redoing
+  // it — not while typing somewhere (a field has its own).
+  const historyKeys = useEffectEvent((event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+    const key = event.key.toLowerCase()
+    if (key !== 'z' && key !== 'y') return
+    const target = event.target
+    if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+    event.preventDefault()
+    restoreEdit(key === 'y' || event.shiftKey ? 'redo' : 'undo')
+  })
+  useEffect(() => {
+    window.addEventListener('keydown', historyKeys)
+    return () => window.removeEventListener('keydown', historyKeys)
   }, [])
 
   function resolveDiff(layerId, diffId, side) {
