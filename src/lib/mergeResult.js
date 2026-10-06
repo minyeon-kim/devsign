@@ -66,18 +66,48 @@ function putClass(lines, pattern, className, focus = []) {
   return lines.map((line, index) => (index === host ? line.replace(/className="([^"]*)"/, (_, classes) => `className="${`${classes} ${className}`.trim()}"`) : line))
 }
 
-// The tokens a single compared height can be set to without leaving the
-// review (the third card's dropdown): the button heights, for a conflict
-// that is only about a button's height. Null: it's set in Merge Studio.
+// The one value a conflict is about, when it's a number that can be set
+// without leaving the review (the third card's chips and field): a single
+// compared height, width, size or corner radius of the conflict's own
+// element. Null: several values, or one a number can't say (a color, a
+// shadow, a gradient) — that's set in Merge Studio.
+//   { property, label, current, standard, tokens: [{ name, px }], min, max,
+//     assemblyFor(px), valueOf(assembly) }
 const BUTTON_HEIGHTS = [
-  { token: '--button-height-sm', px: 32 },
-  { token: '--button-height-md', px: 40 },
-  { token: '--button-height-lg', px: 44 },
+  { name: '--button-height-sm', px: 32 },
+  { name: '--button-height-md', px: 40 },
+  { name: '--button-height-lg', px: 44 },
 ]
-export function heightTokensFor(conflict) {
+const RADII = [{ name: 'rounded-md', px: 6 }, { name: 'rounded-lg', px: 8 }, { name: 'rounded-xl', px: 12 }, { name: 'rounded-2xl', px: 16 }]
+const SIZES = [{ name: 'size-4', px: 16 }, { name: 'size-5', px: 20 }, { name: 'size-6', px: 24 }]
+const RANGES = { radius: [0, 64], height: [16, 96], width: [16, 640], size: [8, 96] }
+export function valueControlFor(conflict, item) {
   const fields = conflict?.comparisonFields ?? []
-  if (!conflict?.layerId || fields.length !== 1 || propertyOf(fields[0].label) !== 'height') return null
-  return /button/i.test(`${fields[0].label} ${conflict.token ?? ''}`) ? BUTTON_HEIGHTS : null
+  const layer = layerOf(item, conflict?.layerId)
+  if (!layer || fields.length !== 1) return null
+  const [field] = fields
+  const property = propertyOf(field.label)
+  if (!RANGES[property]) return null
+  const current = numbersIn(field.current)
+  const standard = numbersIn(field.expected)
+  if (!current.length || !standard.length || !/px/.test(`${field.current}${field.expected}`)) return null
+  // A size is one number here only when it's a square on both sides.
+  if (property === 'size' && [current, standard].some((numbers) => numbers.length > 1 && numbers[0] !== numbers[1])) return null
+  // …and a dimension only when it's this element's own.
+  const own = (dim) => [current[0], standard[0]].includes(layer[dim])
+  if ((property === 'height' && !own('height')) || ((property === 'width' || property === 'size') && !own('width'))) return null
+  const buttonHeight = property === 'height' && /button/i.test(`${field.label} ${conflict.token ?? ''}`)
+  const [min, max] = RANGES[property]
+  return {
+    property, label: field.label, current: current[0], standard: standard[0], min, max,
+    tokens: property === 'radius' ? RADII : buttonHeight ? BUTTON_HEIGHTS : property === 'size' ? SIZES : [],
+    // What setting it to `px` puts on the element (as Merge Studio would).
+    assemblyFor: (px) => (property === 'radius' ? { radius: px }
+      : property === 'size' ? { width: px, height: px }
+        : property === 'width' ? { width: px }
+          : { height: px, heightToken: buttonHeight ? BUTTON_HEIGHTS.find((token) => token.px === px)?.name : undefined }),
+    valueOf: (assembly) => (!assembly ? null : property === 'radius' ? assembly.radius ?? null : property === 'height' ? assembly.height ?? null : assembly.width ?? null),
+  }
 }
 
 // What two versions of the code differ by, as the values themselves
@@ -189,8 +219,15 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
     if (changed.width) lines = putClass(lines, CLASS.width, `w-[${w}px]`, focus)
     if (changed.height) lines = putClass(lines, CLASS.height, set.heightToken ? `h-[var(${set.heightToken})]` : `h-[${h}px]`, focus)
   }
-  if (changed.radius) lines = putClass(lines, CLASS.radius, `rounded-[${radius}px]`, focus)
+  // (A token's class when the value is a token's, spelled out otherwise.)
+  if (changed.radius) lines = putClass(lines, CLASS.radius, RADII.find((token) => token.px === radius)?.name ?? `rounded-[${radius}px]`, focus)
   if (changed.fill) lines = putClass(lines, CLASS.fill, fill.className, focus)
 
-  return { side, rows, extras, preview, lines, adjusted: rows.some((row) => row.to) || extras.length > 0 }
+  // Set to exactly what the standard says, and nothing else: it's the
+  // design reference's code, written the way the reference writes it.
+  const isReference = side !== 'A' && extras.length === 0 && rows.some((row) => row.to) && Boolean(conflict.diff?.after)
+    && rows.every((row, index) => row.same || (row.to && numbersIn(row.to).join() === numbersIn(fields[index].expected).join() && numbersIn(row.to).length > 0))
+  if (isReference) lines = [...conflict.diff.after]
+
+  return { side, rows, extras, preview, lines, isReference, adjusted: rows.some((row) => row.to) || extras.length > 0 }
 }

@@ -290,6 +290,12 @@ Shown once a value is chosen|값을 고르면 표시돼요
 No change|변경 없음
 Selected|선택됨
 Removed|제거
+Current|현재
+Standard|기준
+Decrease|줄이기
+Increase|늘리기
+Set a value first|값을 정해 주세요
+Set it on the canvas above: select the element and change its values.|위 캔버스에서 요소를 선택해 값을 조정하세요.
 Preview|미리보기
 Design standard|디자인 기준
 It breaks a required rule, so keeping the current value needs the reviewers’ exception approval.|필수 규칙 위반이라, 현재 값을 유지하려면 검토자의 예외 승인이 필요해요.
