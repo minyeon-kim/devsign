@@ -944,17 +944,25 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     </div>
                     {/* 3 · The picture. (No value of one's own yet: what's
                         there now, faint — the same place on every card.) */}
-                    <div className={cn('min-w-0', empty && 'opacity-40')}>
-                      <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
-                    </div>
+                    {conflict.preview && (
+                      <div className={cn('min-w-0', empty && 'opacity-40')}>
+                        <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
+                      </div>
+                    )}
                     {/* Several values, or one a number can't say (a color,
                         a shadow): set in Merge Studio. Never left empty. */}
-                    {isCustom && editing && !flow.control && empty && (flow.openStudio ? (
-                      <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'bg-transparent')}>
-                        <Plus className={NAV_BUTTON_ICON} />
-                        <LocalizedText text="Set it in Merge Studio" />
-                      </button>
-                    ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
+                    {/* (In the middle of what's left between the picture and
+                        the code line — both ways — at its own width.) */}
+                    {isCustom && editing && !flow.control && empty && (
+                      <div className="flex min-w-0 flex-1 items-center justify-center">
+                        {flow.openStudio ? (
+                          <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'justify-center bg-transparent')}>
+                            <Plus className={NAV_BUTTON_ICON} />
+                            <LocalizedText text="Set it in Merge Studio" />
+                          </button>
+                        ) : <p data-adjust-start className="text-center text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>}
+                      </div>
+                    )}
                     {/* 4 · The value, one line: its name, then it (and the
                         token it comes from, short). On the third card the
                         value is the dropdown that sets it. */}
