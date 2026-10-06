@@ -106,7 +106,7 @@ const rules = [
   // Korean-mode sweep: dynamic copy that was still showing in English.
   [/^Edited (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^(\d+) unchanged lines?$/, (_, n) => `변경 없는 ${n}줄`],
-  [/^Merged with the (remote|local) branch \((.+)\) value$/, (_, which, name) => `${which === 'remote' ? '원격' : '로컬'} 브랜치(${name}) 값으로 합쳐졌어요`],
+  [/^Merged with the (remote|local) branch \((.+)\) value$/, (_, which, name) => `${which === 'remote' ? '원격' : '로컬'} 브랜치(${name}) 값으로 병합`],
   [/^Sign-off from (.+)$/, (_, names) => `${names} 승인`],
   [/^(\d+) lines hidden$/, (_, n) => `${n}줄 숨김`],
   [/^Waiting on (\d+) reviewers?$/, (_, n) => `검토자 ${n}명 대기`],

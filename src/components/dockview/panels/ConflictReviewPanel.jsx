@@ -485,8 +485,10 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             <>
               <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Impact" /></dt>
               <dd data-summary-row="Impact" className={SUMMARY_BODY}>
-                {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}
-                {standard && <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} /></span>}
+                {/* Terse items, " · " between them — then whether it can
+                    still merge. */}
+                {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
+                {standard && <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Can’t merge (required standard)' : 'Can merge (recommended standard)'} /></span>}
               </dd>
             </>
           )}
@@ -518,7 +520,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
                     {standard && (
                       <>
                         <p><span className="text-slate-500"><LocalizedText text="Source" /> · </span>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
-                        <p><span className="text-slate-500"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}</p>
+                        <p><span className="text-slate-500"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
                       </>
                     )}
                     {rationale?.evidence.length > 0 && (
@@ -755,18 +757,19 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
   // the next step — a reason if keeping the current value needs one, else
   // whatever the review is waiting on.
   const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
+  // (Terse, like the summary beside it — statements, not sentences.)
   const reviewState = conflict.reviewStage === 'detected' ? 'Before the review request'
     : conflict.reviewStage === 'approved' ? 'Every reviewer approved'
       : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
-  const nextStep = conflict.reviewStage === 'detected' ? 'Send the review request'
-    : conflict.reviewStage === 'approved' ? 'It can be merged now' : reviewState
+  const nextStep = conflict.reviewStage === 'detected' ? 'Review request needed'
+    : conflict.reviewStage === 'approved' ? 'Ready to merge' : reviewState
   const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
-  const conclusion = state.side === 'A' ? { lead: 'It changes to the design reference value', rest: [nextStep] }
-    : state.side === 'B' ? { lead: 'It keeps the current value as it is', rest: [state.reasonNeeded ? 'Enter the reason below' : nextStep] }
+  const conclusion = state.side === 'A' ? { lead: 'Changes to the design reference value', rest: [nextStep] }
+    : state.side === 'B' ? { lead: 'Keeps the current value', rest: [state.reasonNeeded ? 'Reason needed' : nextStep] }
       : {
         lead: adjustment ? 'Resolved by the adjustment'
-          : state.bothFail ? 'It needs adjusting in Merge Studio'
-            : differs && !state.meets.B ? 'Choosing the design reference resolves it' : 'Choose the value to use when merging',
+          : state.bothFail ? 'Needs adjusting in Merge Studio'
+            : differs && !state.meets.B ? 'Resolved by choosing the design reference' : 'Value to merge not chosen',
         rest: [standardLevel === 'required' ? 'Required standard' : standardLevel === 'recommended' ? 'Recommended standard' : null, reviewState].filter(Boolean),
       }
   // The card the adjustment shows on: the picked one — or, with nothing

@@ -61,10 +61,62 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Coupon close button 20 × 20px in code and design|닫기 버튼이 코드·디자인 모두 20 × 20px
+under the 24px touch area|터치 영역 24px 미달
+Hard to tap on a touch screen|터치 화면에서 누르기 어려움
+Tab icon 20px in code|탭 아이콘이 코드 20px
+24px in the design|디자인 24px
+Tab icons smaller than the design|탭 아이콘이 디자인보다 작게 표시
+Coupon close button 20 × 20px in both versions|닫기 버튼이 두 버전 모두 20 × 20px
+neither side fixes it|어느 쪽을 골라도 미해결
+Button height 36px in code|버튼 높이가 코드 36px
+design token 40px|디자인 토큰 40px
+Buttons 4px short of the medium size|버튼 높이 4px 부족(medium 기준)
+Two branches changed lines 9–14 of DesignCanvas.jsx differently|두 브랜치가 DesignCanvas.jsx 9~14번째 줄을 서로 다르게 수정
+no automatic merge|자동 병합 불가
+Frame loses its selection handler or its key|프레임의 선택 핸들러 또는 key 누락
+selecting frames can break|선택 기능 오류 가능
+Card radius 8px in code|카드 모서리 반경이 코드 8px
+design system 12px|디자인 시스템 12px
+Cards sharper than the rest of the design system|카드 모서리가 다른 요소보다 각지게 표시
+Nav icons 20px in code|내비게이션 아이콘이 코드 20px
+24px in the redesigned nav|새 디자인 24px
+Tab icons smaller than the redesigned tab bar|탭 아이콘이 새 탭 바보다 작게 표시
+44px tap area unchanged|터치 영역 44px 유지
+Primary color #5B5BD6 in code|primary 색상이 코드 #5B5BD6
+brand token #5E6AD2|브랜드 토큰 #5E6AD2
+Primary color a different shade from the brand color|primary 색상이 브랜드 색과 미세하게 다름
+Input horizontal padding 10px in code|입력 필드 가로 여백이 코드 10px
+Input text 2px closer to the edge than the design|입력 텍스트가 디자인보다 가장자리에 2px 가까움
+Checkout spacing uses 6px|결제 화면 간격에 6px 사용
+not on the 4/8 scale|4/8 단위 밖
+Form fields 2px closer than the 8px scale|폼 필드 간격 2px 부족(8px 기준)
+Order summary divider uses slate-200|주문 요약 구분선에 slate-200 사용
+not the border token|border 토큰 미사용
+Fixed color does not follow theme changes|고정 색상으로 테마 변경 미반영
+Field labels use tracking-wide|필드 레이블에 tracking-wide 적용
+design system uses normal tracking|디자인 시스템은 기본 자간
+Labels wider-spaced than the rest of the form|레이블 자간이 폼의 다른 텍스트보다 넓음
+Shipping icons at stroke 2.5|배송 옵션 아이콘 선 두께 2.5
+icon set drawn at 2|아이콘 세트 기준 2
+Shipping icons heavier than the rest of the icon set|배송 아이콘이 다른 아이콘보다 굵게 표시
+Place order button 40px tall with fixed violet (#7c3aed)|주문 버튼 높이 40px에 보라색(#7c3aed) 고정
+design uses the 44px large button and the primary token|디자인은 44px large 버튼과 primary 토큰
+Button 4px short|버튼 높이 4px 부족
+fixed color does not follow theme changes|고정 색상으로 테마 변경 미반영
+Can merge (recommended standard)|병합 가능(권장 기준)
+Can’t merge (required standard)|병합 불가(필수 기준)
+Resolved by choosing the design reference|디자인 기준 선택 시 해결
+Value to merge not chosen|병합에 쓸 값 선택 필요
+Needs adjusting in Merge Studio|병합 스튜디오에서 조정 필요
+Changes to the design reference value|디자인 기준 값으로 변경
+Keeps the current value|현재 값 유지
+Review request needed|검토 요청 필요
+Reason needed|이유 입력 필요
 Cause|원인
 Branch, components, files|브랜치 · 컴포넌트 · 파일
-Merged with the design reference value|디자인 기준 값으로 합쳐졌어요
-Merged with the current implementation value|현재 구현 값으로 합쳐졌어요
+Merged with the design reference value|디자인 기준 값으로 병합
+Merged with the current implementation value|현재 구현 값으로 병합
 Merged code|병합된 코드
 Before it was resolved|해결 전
 Show the conflict before it was resolved|해결 전 충돌 보기
@@ -78,7 +130,7 @@ Every reviewer approved|검토자 모두 승인
 Send the review request|검토 요청을 보내세요
 It can be merged now|이제 병합할 수 있어요
 Enter the reason below|아래에 이유를 입력하세요
-Resolved by the adjustment|직접 조정으로 해결됐어요
+Resolved by the adjustment|직접 조정으로 해결
 It needs adjusting in Merge Studio|병합 스튜디오에서 조정이 필요해요
 Color token use|색상 토큰 사용
 Main button size|주요 버튼 규격
@@ -96,17 +148,17 @@ Maximize panel|패널 최대화
 Restore panel height|패널 높이 복원
 Drag to resize · double-click to maximize|끌어서 높이 조절 · 두 번 눌러 최대화
 What it’s for|목적
-Buttons use the primary color token.|버튼은 primary 색상 토큰을 써요.
-It makes the color follow the theme automatically when the theme changes.|테마가 바뀌면 색이 자동으로 따라가게 하기 위해서예요.
-When the theme changes, this button alone keeps its fixed color.|테마를 바꾸면 이 버튼만 고정된 색으로 남아요.
-Main buttons are the large size (44px).|주요 버튼은 large 크기(44px)를 써요.
-It keeps the main button the same size on every checkout screen.|모든 결제 화면에서 버튼 크기를 같게 유지하기 위해서예요.
-The button looks different from screen to screen.|화면마다 버튼이 달라 보여요.
-Anything that can be tapped has a touch area of at least 24px.|누를 수 있는 요소는 터치 영역이 24px 이상이어야 해요.
-It keeps controls easy to hit on a touch screen, for everyone.|터치 화면에서 누구나 쉽게 누를 수 있게 하기 위해서예요.
-Dividers use the border color token.|구분선은 border 색상 토큰을 써요.
-It makes dividers follow the light and dark themes.|구분선이 라이트·다크 테마를 따라가게 하기 위해서예요.
-In the dark theme this divider stays its fixed light gray.|다크 테마에서 이 구분선만 밝은 회색으로 남아요.
+Buttons use the primary color token.|버튼 색상에 primary 토큰 사용
+It makes the color follow the theme automatically when the theme changes.|테마 변경 시 색상 자동 반영
+When the theme changes, this button alone keeps its fixed color.|테마 변경 시 이 버튼만 고정 색상 유지
+Main buttons are the large size (44px).|주요 버튼은 large 크기(44px)
+It keeps the main button the same size on every checkout screen.|결제 화면 간 버튼 크기 통일
+The button looks different from screen to screen.|화면마다 버튼 모양 불일치
+Anything that can be tapped has a touch area of at least 24px.|누를 수 있는 요소의 터치 영역 24px 이상
+It keeps controls easy to hit on a touch screen, for everyone.|터치 화면에서 누구나 쉽게 누를 수 있도록 보장
+Dividers use the border color token.|구분선 색상에 border 토큰 사용
+It makes dividers follow the light and dark themes.|라이트·다크 테마에 구분선 색상 자동 반영
+In the dark theme this divider stays its fixed light gray.|다크 테마에서 이 구분선만 밝은 회색 유지
 Design system v2|디자인 시스템 v2
 Source|출처
 Purpose|목적
@@ -167,13 +219,13 @@ System activity|시스템 활동
 The why|왜
 Exception request|예외 요청
 Buttons use the primary color token|버튼 색은 primary 토큰 사용
-A hard-coded hex stops following the brand color when the token or the theme changes.|하드코딩된 hex는 토큰이나 테마가 바뀌어도 브랜드 색을 따라가지 못합니다.
+A hard-coded hex stops following the brand color when the token or the theme changes.|하드코딩된 hex는 토큰·테마 변경 미반영
 Main buttons are the 44px large size|버튼 높이는 44px large
-The main call to action is the large button, so it is easy to hit and reads as the primary action.|주요 행동 버튼은 누르기 쉽고 주된 동작으로 읽히도록 large 크기를 씁니다.
+The main call to action is the large button, so it is easy to hit and reads as the primary action.|주요 행동 버튼은 누르기 쉽고 눈에 띄도록 large 크기 사용
 Touch areas are at least 24px|터치 영역 24px 이상
-A smaller target is easy to miss on a touch screen; 24px is the minimum WCAG 2.2 AA asks for.|이보다 작으면 터치 화면에서 누르기 어렵습니다. 24px는 WCAG 2.2 AA의 최소 기준입니다.
+A smaller target is easy to miss on a touch screen; 24px is the minimum WCAG 2.2 AA asks for.|24px 미만은 터치 화면에서 누르기 어려움(WCAG 2.2 AA 최소 기준)
 Dividers use the border color token|구분선은 border 토큰 사용
-A fixed gray does not follow the light and dark themes the way the border token does.|고정된 회색은 border 토큰과 달리 라이트·다크 테마를 따라가지 못합니다.
+A fixed gray does not follow the light and dark themes the way the border token does.|고정 회색은 라이트·다크 테마 미반영
 Release schedule: applying it in the next sprint|출시 일정상 다음 스프린트에 반영
 Kept temporarily until the design is final|디자인 확정 전 임시 유지
 Agreed with the design owner as an exception|디자인 담당자와 예외로 합의

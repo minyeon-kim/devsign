@@ -235,6 +235,8 @@ export const projects = [
 // list's Author · Updated column, and never asked to review it. A conflict
 // without one wasn't anyone's change: a check found it on its own, and the
 // list marks it as detected automatically.
+// `cause` / `effect`: the review summary's Cause and Impact — terse, noun-
+// phrase items separated by " · ", not sentences.
 export const conflictChecklist = [
   // Two samples for checking a precise (by-hand) adjustment end to end.
   //
@@ -247,6 +249,8 @@ export const conflictChecklist = [
   // read — so undoing it there really undoes it.
   {
     id: 'cc-touch-adjusted',
+    cause: 'Coupon close button 20 × 20px in code and design · under the 24px touch area',
+    effect: 'Hard to tap on a touch screen',
     impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
     ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-touch-area', target: 'develop' },
@@ -277,6 +281,8 @@ export const conflictChecklist = [
   // the design), come back, and the card, code and summary follow.
   {
     id: 'cc-tab-icon-size',
+    cause: 'Tab icon 20px in code · 24px in the design',
+    effect: 'Tab icons smaller than the design',
     impact: { components: ['CheckoutTabs'], files: ['src/components/checkout/CheckoutTabs.jsx'] },
     changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/tab-icon-size', target: 'develop' },
@@ -302,6 +308,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-manual-target',
+    cause: 'Coupon close button 20 × 20px in both versions · neither side fixes it',
+    effect: 'Hard to tap on a touch screen',
     impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
     ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
@@ -330,6 +338,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-1',
+    cause: 'Button height 36px in code · design token 40px',
+    effect: 'Buttons 4px short of the medium size',
     gitFlow: { source: 'feature/button-sizing', target: 'develop' },
     token: 'Button / Height',
     file: 'src/components/ui/Button.jsx',
@@ -385,13 +395,11 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-2',
+    cause: 'Two branches changed lines 9–14 of DesignCanvas.jsx differently · no automatic merge',
+    effect: 'Frame loses its selection handler or its key · selecting frames can break',
     changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
     gitFlow: { source: 'feature/canvas-frames', target: 'main' },
     token: 'Merge conflict · DesignCanvas.jsx',
-    // Why it conflicted and what goes wrong if it isn't resolved — the
-    // review's Cause and Impact.
-    cause: 'Two branches changed lines 9–14 of DesignCanvas.jsx differently, so it couldn’t be merged automatically.',
-    effect: 'A frame loses either its selection handler or its key, which can break selecting frames.',
     file: 'src/components/DesignCanvas.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',
@@ -431,6 +439,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-3',
+    cause: 'Card radius 8px in code · design system 12px',
+    effect: 'Cards sharper than the rest of the design system',
     changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/card-radius', target: 'develop' },
     token: 'Card / Radius',
@@ -467,6 +477,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-4',
+    cause: 'Nav icons 20px in code · 24px in the redesigned nav',
+    effect: 'Tab icons smaller than the redesigned tab bar · 44px tap area unchanged',
     gitFlow: { source: 'hotfix/mobile-nav-icon', target: 'main' },
     token: 'Nav Icon / Size',
     file: 'src/components/nav/BottomNav.jsx',
@@ -507,6 +519,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-5',
+    cause: 'Primary color #5B5BD6 in code · brand token #5E6AD2',
+    effect: 'Primary color a different shade from the brand color',
     changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/onboarding-colors', target: 'develop' },
     token: 'Color token drift',
@@ -540,6 +554,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-6',
+    cause: 'Input horizontal padding 10px in code · design system 12px',
+    effect: 'Input text 2px closer to the edge than the design',
     changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/input-padding', target: 'develop' },
     token: 'Input / Padding',
@@ -572,6 +588,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-7',
+    cause: 'Checkout spacing uses 6px · not on the 4/8 scale',
+    effect: 'Form fields 2px closer than the 8px scale',
     changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
     gitFlow: { source: 'feature/checkout-form', target: 'develop' },
     token: 'Spacing scale mismatch',
@@ -607,6 +625,8 @@ export const conflictChecklist = [
   // Open low-risk token drift in Checkout — the kind batch approval is for.
   {
     id: 'cc-8',
+    cause: 'Order summary divider uses slate-200 · not the border token',
+    effect: 'Fixed color does not follow theme changes',
     // The example of a decision that departs from the standard: the current
     // implementation was kept, which is the one case a reason is asked for.
     ruleIds: ['divider-color'],
@@ -651,6 +671,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-9',
+    cause: 'Field labels use tracking-wide · design system uses normal tracking',
+    effect: 'Labels wider-spaced than the rest of the form',
     changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/payment-label', target: 'develop' },
     token: 'Label / Letter spacing',
@@ -682,6 +704,8 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-10',
+    cause: 'Shipping icons at stroke 2.5 · icon set drawn at 2',
+    effect: 'Shipping icons heavier than the rest of the icon set',
     changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
     gitFlow: { source: 'feature/shipping-icon', target: 'develop' },
     token: 'Icon / Stroke width',
@@ -717,6 +741,8 @@ export const conflictChecklist = [
   // activity) points at this one change.
   {
     id: 'cc-11',
+    cause: 'Place order button 40px tall with fixed violet (#7c3aed) · design uses the 44px large button and the primary token',
+    effect: 'Button 4px short · fixed color does not follow theme changes',
     // Its reason, registered ahead of time: the two design system rules it
     // runs into (lib/rationale), and the purpose the work was started for.
     // Nobody types these on the conflict — they're linked when it's detected,
