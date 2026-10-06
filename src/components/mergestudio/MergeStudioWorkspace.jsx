@@ -12,7 +12,7 @@ import { studioAdjustmentsOf } from '@/lib/sizeAdjustment'
 import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -99,7 +99,12 @@ function ValuePreview({ label, value, swatch }) {
 }
 
 // Mixing drafts one part at a time: the current part's version from every
-// compared draft side by side; picking keeps the same part open for comparison.
+// compared draft side by side. Looking and using are two things: the
+// arrows (and ← / →, and a click on a card) move which draft is being
+// looked at — a border and "Viewing", nothing more; a draft is used for
+// this part only by its own "Use this draft" (again takes it back), which
+// is what puts the check and "In use" on it. A draft used for some parts
+// but not all says how many.
 // The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
@@ -151,24 +156,39 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     .filter((fix) => fix.options.length)
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
-  function pick(option) {
-    onDecide(current.key, option.decision)
+  // Used for this part, or taken back.
+  function use(option) {
+    onDecide(current.key, option.picked ? null : option.decision)
   }
-  // The arrows page through the options when there are more than fit;
-  // moving between parts is the dots and the dropdown above.
+  // The draft being looked at. (It starts on the one in use here, else the
+  // first — and follows nothing but the arrows, the keys and a click.)
+  const [viewKey, setViewKey] = useState(null)
+  const viewable = current?.options ?? []
+  const viewIndex = Math.max(0, viewable.findIndex((option) => option.key === (viewKey ?? viewable.find((o) => o.picked)?.key)))
+  const viewing = viewable[viewIndex]?.key ?? null
   const optionsRef = useRef(null)
-  const [overflow, setOverflow] = useState({ left: false, right: false })
-  const measureOverflow = useCallback(() => {
-    const el = optionsRef.current
-    if (!el) return
-    const next = { left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 }
-    setOverflow((prev) => (prev.left === next.left && prev.right === next.right ? prev : next))
-  }, [])
+  const view = useCallback((index) => {
+    const option = viewable[index]
+    if (!option) return
+    setViewKey(option.key)
+    // (Brought into sight when there are more drafts than fit.)
+    optionsRef.current?.querySelector(`[data-mix-option="${option.key}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+  }, [viewable])
+  // ← / → move it too — not while typing somewhere.
+  const stepView = useEffectEvent((direction) => view(viewIndex + direction))
   useEffect(() => {
-    if (optionsRef.current) optionsRef.current.scrollLeft = 0
-    measureOverflow()
-  }, [step, measureOverflow])
-  const pageOptions = (direction) => optionsRef.current?.scrollBy({ left: direction * 340, behavior: 'smooth' })
+    function onKey(event) {
+      if ((event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      event.preventDefault()
+      stepView(event.key === 'ArrowLeft' ? -1 : 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  // How much of the mix each draft is: every part, or so many of them.
+  const usedFrom = (key) => rows.filter((row) => row.options.find((o) => o.key === key)?.picked).length
   if (!current) return null
   // The distinct things this part can be: fewer than two means there's
   // nothing to pick.
@@ -201,14 +221,24 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </select>
         <div className="ml-auto flex items-center gap-1.5">
           <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
-          {columns.map((column) => (
-            <button key={column.key} type="button" onClick={() => takeAll(column.key)}
-              aria-pressed={wholeFrom(column.key)}
-              title={language === 'ko' ? `시안 ${column.letter}로 모든 영역 바꾸기` : `Replace every region with draft ${column.letter}`}
-              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[11px] font-medium transition-colors', wholeFrom(column.key) ? 'bg-emerald-300/15 text-emerald-200 ring-1 ring-emerald-300/40' : 'bg-white/[0.06] text-slate-300 hover:bg-white/10')}>
+          {columns.map((column) => {
+            const whole = wholeFrom(column.key)
+            const parts = usedFrom(column.key)
+            return (
+            <button key={column.key} type="button" onClick={() => (whole ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}
+              aria-pressed={whole}
+              data-draft-tab={column.key}
+              data-draft-use={whole ? 'whole' : parts ? 'parts' : 'none'}
+              title={language === 'ko'
+                ? (whole ? `시안 ${column.letter} 사용 중 · 다시 누르면 해제` : parts ? `시안 ${column.letter} · 요소 ${parts}개 사용 · 누르면 모든 영역을 이 시안으로` : `시안 ${column.letter}로 모든 영역 바꾸기`)
+                : (whole ? `Draft ${column.letter} in use · press again to take it back` : parts ? `Draft ${column.letter} · ${parts} part${parts === 1 ? '' : 's'} used · press to use it for every region` : `Replace every region with draft ${column.letter}`)}
+              className={cn('ds-intrinsic flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', whole ? 'bg-emerald-300/15 text-emerald-200 ring-1 ring-emerald-300/40' : 'bg-white/[0.06] text-slate-300 hover:bg-white/10')}>
               {column.letter}
+              {/* Used for all of it: a check. For some of it: how many. */}
+              {whole ? <Check className="size-3" /> : parts > 0 && <span className="rounded bg-white/[0.12] px-1 text-[9.5px] leading-4 text-slate-200 tabular-nums">{parts}</span>}
             </button>
-          ))}
+            )
+          })}
         </div>
         <button
           type="button"
@@ -222,34 +252,40 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </button>
       </div>
 
-      {/* The current part, every draft's version of it. */}
+      {/* The current part, every draft's version of it. The arrows move
+          which one is being looked at. */}
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" aria-label="Previous options" disabled={!overflow.left} onClick={() => pageOptions(-1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+        <button type="button" data-mix-prev aria-label="Previous draft" title="Previous draft" disabled={viewIndex <= 0 || choices.length < 2} onClick={() => view(viewIndex - 1)} className="ds-intrinsic flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white active:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent">
           <ChevronLeft className="size-4" />
         </button>
         <div className="min-w-0">
-          <div ref={optionsRef} onScroll={measureOverflow} data-mix-options className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto scroll-smooth p-1">
+          <div ref={optionsRef} data-mix-options className="flex max-w-[min(720px,calc(100vw-160px))] items-stretch gap-2 overflow-x-auto scroll-smooth p-1">
             {/* Nothing to choose between here: said, rather than left blank. */}
             {choices.length < 2 && (
               <p data-mix-single className="flex h-24 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
                 {language === 'ko' ? '이 영역은 시안이 하나뿐이라 그대로 사용돼요' : 'This part has only one draft, so it’s used as it is'}
               </p>
             )}
-            {choices.length >= 2 && current.options.map((option) => (
-              <button
+            {choices.length >= 2 && current.options.map((option, index) => {
+              const seen = option.key === viewing
+              const parts = usedFrom(option.key)
+              return (
+              <div
                 key={option.key}
-                type="button"
-                aria-pressed={option.picked}
-                onClick={() => pick(option)}
+                data-mix-option={option.key}
+                data-viewing={seen ? '' : undefined}
+                data-in-use={option.picked ? '' : undefined}
                 title={option.name}
                 className={cn(
-                  'ds-intrinsic flex w-40 shrink-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
-                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
+                  'flex w-40 shrink-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
+                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : seen ? 'border-white/60 bg-white/[0.05]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
                 )}
               >
+                {/* Looking at it: a click on the card, not a choice. */}
+                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 보기` : `View draft ${option.letter}`} aria-current={seen ? 'true' : undefined} onClick={() => view(index)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
                 {current.region
-                  ? <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
-                  : <span className="flex h-24 items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
+                  ? <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
+                  : <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
                 {/* How this choice checks out, shown before it's picked. */}
                 {current.region && (() => {
                   const issues = optionIssues(current, option)
@@ -274,11 +310,27 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                     <span className="font-semibold text-white" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
                   </span>
                 )}
-              </button>
-            ))}
+                </button>
+                {/* Where it stands: in use here (a check), being looked at,
+                    or — used elsewhere in the mix — for how many parts. */}
+                <span data-option-state className="flex min-h-4 flex-wrap items-center gap-1 px-0.5 text-[10px] leading-4">
+                  {option.picked
+                    ? <span data-state="in-use" className="inline-flex items-center gap-0.5 font-medium text-emerald-200"><Check className="size-3" />{language === 'ko' ? '사용 중' : 'In use'}</span>
+                    : seen && <span data-state="viewing" className="font-medium text-slate-200">{language === 'ko' ? '보는 중' : 'Viewing'}</span>}
+                  {!option.picked && parts > 0 && <span data-state="parts" className="rounded bg-white/[0.08] px-1 text-slate-300">{language === 'ko' ? `요소 ${parts}개 사용` : `${parts} part${parts === 1 ? '' : 's'} used`}</span>}
+                </span>
+                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => { view(index); use(option) }}
+                  className={cn('ds-intrinsic flex h-7 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
+                  {option.picked ? (language === 'ko' ? '사용 해제' : 'Stop using') : (language === 'ko' ? '이 시안 사용' : 'Use this draft')}
+                </button>
+              </div>
+              )
+            })}
           </div>
+          {/* Which draft is being looked at, of how many. */}
+          {choices.length >= 2 && <p data-mix-position className="mt-1 text-center text-[11px] text-slate-400 tabular-nums">{viewIndex + 1} / {viewable.length}</p>}
         </div>
-        <button type="button" aria-label="Next options" disabled={!overflow.right} onClick={() => pageOptions(1)} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30">
+        <button type="button" data-mix-next aria-label="Next draft" title="Next draft" disabled={viewIndex >= viewable.length - 1 || choices.length < 2} onClick={() => view(viewIndex + 1)} className="ds-intrinsic flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white active:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent">
           <ChevronRight className="size-4" />
         </button>
       </div>
