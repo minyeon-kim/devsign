@@ -44,6 +44,16 @@ const FILTERS = [
   { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c) },
   ...LIST_STATUSES.map((status) => ({ id: status.id, label: status.label, test: (c) => listStatusOf(c).id === status.id })),
 ]
+
+// A merge request for a mix of design drafts has several drafts rather
+// than one design ↔ code difference. Keep this predicate local to the
+// panel because it is only used to label rows in the shared queue.
+function isDraftMerge(conflict, mergeItems = []) {
+  if (conflict.id.startsWith('mr-')) return true
+  const item = mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id)
+  return (item?.variants?.length ?? 0) > 1
+}
+
 // Filter ids from before the statuses were unified.
 const FILTER_ALIAS = { merged: 'done' }
 // "Everything not done yet" — where a count of open conflicts links to (a

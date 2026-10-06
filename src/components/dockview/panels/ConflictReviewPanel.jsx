@@ -853,9 +853,24 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
 
   return (
     <div className="flex h-full flex-col">
-      {/* (What's chosen from scrolls; the bar that settles it stays at the
-          foot of the panel.) */}
+      {/* The decision action stays above the choices; the comparison scrolls
+          beneath it when the panel is short. */}
       <div data-choice-scroll className={cn('min-w-0', pairedPreview && 'min-h-0 flex-1 overflow-auto')}>
+      {pairedPreview && editing && flow.decide && (
+        <div data-decide-bar className="mb-3 flex min-w-0 flex-wrap items-center gap-2 border-b border-white/[0.07] pb-3">
+          <p data-decide-summary className="min-w-0 flex-1 basis-40 text-xs text-slate-300">
+            {chosen ? <>
+              <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
+              {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
+              {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
+            </> : <LocalizedText text="Nothing chosen yet" />}
+          </p>
+          {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
+          <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
+            <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
+          </button>
+        </div>
+      )}
       {/* ① The section's title: what to do here — fixed while choosing,
           the outcome once decided — then how it stands with the rules. */}
       {pairedPreview && flow && !readOnly && (
@@ -1199,27 +1214,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
           </div>
         </section>
       )}
-      {/* ⑤ The one place it's settled: what was chosen, and the button
-          that decides it (and asks the reviewers). While it can't be
-          pressed, the line over it says what's missing. */}
       </div>
-      {pairedPreview && editing && flow.decide && (
-        <div data-decide-bar className="mt-3 flex min-w-0 shrink-0 items-center gap-3 border-t border-white/[0.07] pt-3">
-          <p data-decide-summary className="min-w-0 flex-1 truncate text-xs text-slate-300">
-            {chosen ? <>
-              <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
-              {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
-              {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
-            </> : <LocalizedText text="Nothing chosen yet" />}
-          </p>
-          {/* (What's missing, on the button's own line.) */}
-          {flow.decide.blocked && <p data-decide-hint className="shrink-0 text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
-          {/* Says what pressing it does, for the way that's chosen. */}
-          <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
-            <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

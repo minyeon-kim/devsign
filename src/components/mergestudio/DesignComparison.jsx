@@ -132,7 +132,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-slate-500 disabled:ring-white/10', !onSelectAll && 'ml-auto')}
             >
               <Layers3 className="size-3.5" />
-              Compare on canvas
+              Compose
             </button>
           </div>
           {item && (

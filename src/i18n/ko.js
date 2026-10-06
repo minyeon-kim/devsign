@@ -1956,6 +1956,7 @@ Object.assign(ko, {
   'Design comments': '디자인 코멘트',
   'Pin a comment to a design element to start a focused thread.': '디자인 요소에 코멘트를 고정하면 그 요소에 대한 대화가 시작돼요.',
   'Compare on canvas': '캔버스에서 비교',
+  'Compose': '조합하기',
   'Cancel pinning': '고정 취소',
   'Choose a design set to view its comments.': '시안을 고르면 코멘트를 볼 수 있어요.',
   'No design preview': '디자인 미리보기 없음',

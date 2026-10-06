@@ -5,8 +5,8 @@ const listeners = new Set()
 export function readLanguage() {
   try {
     const saved = JSON.parse(localStorage.getItem(LANGUAGE_KEY))
-    return saved?.version === 1 && saved.language === 'ko' ? 'ko' : 'en'
-  } catch { return 'en' }
+    return saved?.version === 1 && (saved.language === 'ko' || saved.language === 'en') ? saved.language : 'ko'
+  } catch { return 'ko' }
 }
 let language = readLanguage()
 export function getLanguage() { return language }
@@ -20,5 +20,5 @@ export function setLanguage(next, persist = true) {
   listeners.forEach((listener) => listener())
 }
 export function useLanguage() {
-  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener) }, getLanguage, () => 'en')
+  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener) }, getLanguage, () => 'ko')
 }
