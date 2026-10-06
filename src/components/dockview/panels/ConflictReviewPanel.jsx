@@ -211,15 +211,13 @@ function ReviewDetails({ conflict, showProject, open }) {
         <span className={LABEL}>Branch</span>
         <span translate="no" className={VALUE}>{flow ? `${flow.source} → ${flow.target}` : '—'}</span>
       </div>
-      {components.length > 0 && (
-        <div className={ROW}><span className={LABEL}>Components</span><span translate="no" className={VALUE}>{components.join(', ')}</span></div>
-      )}
-      {files.length > 0 && (
-        <div className={ROW}>
-          <span className={LABEL}>Files</span>
-          <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px]')}>{files.join(', ')}</span>
-        </div>
-      )}
+      {/* Every row is always there — an empty one reads "—", so a missing
+          value is seen as missing rather than as a row that isn't shown. */}
+      <div className={ROW}><span className={LABEL}>Components</span><span translate="no" className={VALUE}>{components.join(', ') || '—'}</span></div>
+      <div className={ROW}>
+        <span className={LABEL}>Files</span>
+        <span translate="no" className={cn(VALUE, files.length > 0 && 'font-mono text-[11.5px]')}>{files.join(', ') || '—'}</span>
+      </div>
       <div className={ROW}>
         <span className={LABEL}><LocalizedText text="Author · Updated" /></span>
         <span className={VALUE}>
@@ -227,9 +225,7 @@ function ReviewDetails({ conflict, showProject, open }) {
           <span className="text-slate-400"> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
         </span>
       </div>
-      {open && shortDue(conflict.dueLabel) && (
-        <div className={ROW}><span className={LABEL}><LocalizedText text="Due date" /></span><span className={VALUE}><LocalizedText text={conflict.dueLabel} /></span></div>
-      )}
+      <div className={ROW}><span className={LABEL}><LocalizedText text="Due date" /></span><span className={VALUE}>{open && shortDue(conflict.dueLabel) ? <LocalizedText text={conflict.dueLabel} /> : '—'}</span></div>
     </div>
   )
 }
@@ -405,8 +401,14 @@ function SummaryPart({ label, children }) {
 }
 
 function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause }) {
-  // Where it is and who made it: folded until asked for.
+  // Where it is and who made it: folded until asked for. Opening it brings
+  // it into view — it sits at the foot of a panel that scrolls, so without
+  // that the arrow turned and nothing seemed to happen.
   const [showDetails, setShowDetails] = useState(false)
+  const detailsRef = useRef(null)
+  useEffect(() => {
+    if (showDetails) detailsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [showDetails])
   const open = stage !== 'resolved'
   const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
@@ -433,7 +435,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   const standard = rationale ? standardOf(rationale.rules, checks) : null
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    // (As tall as its content — the panel it's in does the scrolling.)
+    <div className="flex min-h-full flex-col gap-3">
       <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
         {/* Dots and text — no chips: this line already sits in a panel. */}
         <ReviewStageBadge plain stage={stage} label={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : undefined} />
@@ -567,9 +570,10 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
       )}
       {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
-      <section className="min-w-0 flex-1">
+      <section ref={detailsRef} className="min-w-0 shrink-0 scroll-mb-3 pb-1">
         <button
           type="button"
+          data-details-toggle
           aria-expanded={showDetails}
           onClick={() => setShowDetails((v) => !v)}
           className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
@@ -2171,6 +2175,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'min-h-0 xl:min-w-[300px] xl:flex-[35_1_0%]')}>
                         <div data-review-scroll="reasoning" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
+                            key={conflict.id}
                             rationale={rationale}
                             onOpenEvidence={openEvidence}
                             checks={checks}

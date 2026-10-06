@@ -61,6 +61,7 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Color tokens|색상 토큰
 Choose the value to use when merging|병합할 때 쓸 값을 선택하세요
 With nothing chosen, the current implementation stays as it is|선택하지 않으면 현재 구현이 그대로 유지돼요
 It changes to the design reference value|디자인 기준 값으로 바뀌어요

@@ -247,6 +247,7 @@ export const conflictChecklist = [
   // read — so undoing it there really undoes it.
   {
     id: 'cc-touch-adjusted',
+    impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
     ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-touch-area', target: 'develop' },
     token: 'Coupon close button / Touch area',
@@ -276,6 +277,7 @@ export const conflictChecklist = [
   // the design), come back, and the card, code and summary follow.
   {
     id: 'cc-tab-icon-size',
+    impact: { components: ['CheckoutTabs'], files: ['src/components/checkout/CheckoutTabs.jsx'] },
     changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
     gitFlow: { source: 'feature/tab-icon-size', target: 'develop' },
     token: 'Tab icon / Size',
@@ -300,6 +302,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-manual-target',
+    impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
     ruleIds: ['touch-target'],
     gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
     token: 'Coupon close button / Manual adjustment',
@@ -510,7 +513,7 @@ export const conflictChecklist = [
     resolved: true,
     severity: 'low',
     riskReason: 'Low: one color token value; components keep reading the same token.',
-    impact: { files: ['src/styles/tokens.css'] },
+    impact: { components: ['Color tokens'], files: ['src/styles/tokens.css'] },
     detectedBy: 'Devsign design ↔ code sync',
     uxNote: 'The primary color is a slightly different shade from the brand color.',
     preview: { kind: 'swatch', before: { color: '#5B5BD6' }, after: { color: '#5E6AD2' } },

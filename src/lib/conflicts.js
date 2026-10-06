@@ -196,6 +196,8 @@ export function toConflictRecord(raw) {
     title: (raw.title ?? raw.token ?? raw.file)?.replace(/^(?:Revert: ){2,}/, 'Revert: '),
     // Records saved before the samples named their authors pick them up.
     changedBy: raw.changedBy ?? conflictChecklist.find((seed) => seed.id === raw.id)?.changedBy,
+    // …their details (components, files)…
+    impact: raw.impact?.components?.length ? raw.impact : conflictChecklist.find((seed) => seed.id === raw.id)?.impact ?? raw.impact,
     // …and so do the registered reasons (lib/rationale) the samples carry.
     ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation']
       .filter((key) => raw[key] === undefined)
