@@ -20,7 +20,6 @@ const WCAG_TARGET_SIZE = 'https://www.w3.org/WAI/WCAG22/Understanding/target-siz
 export const DESIGN_RULES = [
   {
     id: 'button-color',
-    name: 'Color token use',
     standard: 'Buttons use the primary color token.',
     purpose: 'It makes the color follow the theme automatically when the theme changes.',
     consequence: 'When the theme changes, this button alone keeps its fixed color.',
@@ -35,7 +34,6 @@ export const DESIGN_RULES = [
   },
   {
     id: 'button-height',
-    name: 'Main button size',
     standard: 'Main buttons are the large size (44px).',
     purpose: 'It keeps the main button the same size on every checkout screen.',
     consequence: 'The button looks different from screen to screen.',
@@ -50,7 +48,6 @@ export const DESIGN_RULES = [
   },
   {
     id: 'touch-target',
-    name: 'Minimum touch area',
     standard: 'Anything that can be tapped has a touch area of at least 24px.',
     purpose: 'It keeps controls easy to hit on a touch screen, for everyone.',
     origin: 'Design system v2',
@@ -63,7 +60,6 @@ export const DESIGN_RULES = [
   },
   {
     id: 'divider-color',
-    name: 'Divider color token use',
     standard: 'Dividers use the border color token.',
     purpose: 'It makes dividers follow the light and dark themes.',
     consequence: 'In the dark theme this divider stays its fixed light gray.',
@@ -215,8 +211,6 @@ export function standardOf(rules, checks) {
   const blocking = new Set((checks?.blocking ?? []).map((check) => check.id))
   const unique = (list) => [...new Set(list.filter(Boolean))]
   return {
-    // The rules by name — what they say is the comparison's to show.
-    names: unique(rules.map((rule) => rule.name ?? rule.title)),
     what: unique(rules.map((rule) => rule.standard ?? rule.title)),
     sources: unique([...rules.map((rule) => rule.origin), ...rules.flatMap((rule) => rule.sources.filter((source) => source.kind === 'figma' || source.kind === 'wcag').map((source) => source.label))]),
     purpose: unique(rules.map((rule) => rule.purpose ?? rule.reason)),

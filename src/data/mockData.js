@@ -717,7 +717,7 @@ export const conflictChecklist = [
     // runs into (lib/rationale), and the purpose the work was started for.
     // Nobody types these on the conflict — they're linked when it's detected,
     // along with Jordan's comment on it.
-    ruleIds: ['button-height', 'button-color'],
+    ruleIds: ['button-color', 'button-height'],
     purpose: {
       text: 'Remove the hard-coded hex (#7c3aed) and match the new checkout design’s primary token and 44px large button',
       by: 'james',

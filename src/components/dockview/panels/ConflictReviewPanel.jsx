@@ -384,6 +384,10 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
+// A compared value as the difference shows it: the value alone, without a
+// bracketed note after it ("40px (default size)" → "40px").
+const bareValue = (value) => String(value).replace(/\s*\([^()]*\)\s*$/, '')
+
 // The summary's two text styles: body, and the small grey label over it.
 const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
 const SUMMARY_LABEL = 'mb-1 text-[11px] leading-4 text-slate-400'
@@ -416,9 +420,18 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
     : adjustment && open ? `${adjustment.layerName} was adjusted to ${adjustment.to}${blockedCount ? '.' : ', which resolves it.'}`
       : conflict.message || riskExplanation
   const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
-  // Why this difference matters: the conflict's own words, else what its
-  // first failing check says. (How to resolve it is the comparison's line.)
-  const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
+  // The comparison as its headline: a hand adjustment when there is one,
+  // else each value that differs ("Height 36px (h-9) → Standard 40px (…)").
+  const fields = conflict.comparisonFields ?? []
+  const differing = fields.filter((field) => field.current !== field.expected)
+  const headline = conflict.rollback ? []
+    : adjustment && open ? [{ label: adjustment.layerName, from: adjustment.from, to: adjustment.to }]
+      : differing.map((field) => ({ label: field.label, from: field.current, to: field.expected }))
+  // Why it matters and how to resolve it: the conflict's own words, else
+  // what its first failing check says.
+  const guidance = checkGuidance(checks?.failing[0])
+  const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? guidance?.impact
+  const how = conflict.suggestion ?? guidance?.fix
   const standard = rationale ? standardOf(rationale.rules, checks) : null
 
   return (
@@ -465,57 +478,84 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           colors; monospace only for the difference itself. */}
       {!conflict.rollback && (
         <section data-review-summary className="min-w-0 space-y-3">
-          {/* The standard behind the comparison, from the rules registered
-              for it (lib/rationale) — named, not restated: the values
-              themselves are the cards' and the code's, beside this. What
-              not keeping it means carries the reason this difference
-              matters. */}
-          {standard ? (
+          <SummaryPart label="Difference">
+            {headline.length > 0 ? (
+              // The values as aligned code lines — property, current, →,
+              // standard, each starting in its own column — set apart on a
+              // faint block. One line each: it scrolls rather than wraps.
+              <div data-diff-lines className="overflow-x-auto rounded-lg bg-white/[0.05] px-3 py-2">
+                {/* (The mono face by its variable: the `font-mono` class
+                    marks text as code, which would leave the property
+                    names untranslated.) */}
+                <div className="grid w-max grid-cols-[repeat(4,max-content)] gap-x-3 gap-y-1 [font-family:var(--font-mono)] text-xs leading-5 whitespace-nowrap text-slate-200">
+                  {headline.map((line) => (
+                    <Fragment key={line.label}>
+                      <span><LocalizedText text={line.label} /></span>
+                      <span translate="no">{bareValue(line.from)}</span>
+                      <span aria-hidden className="text-slate-400">→</span>
+                      <span translate="no">{bareValue(line.to)}</span>
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            ) : summary && <p className={SUMMARY_BODY}><LocalizedText text={summary} /></p>}
+            {/* The checks' verdict, in a line — each one is worked through
+                beside the comparison, not repeated here. */}
+            {checks?.failing.length > 0 && (
+              <p className={cn(SUMMARY_BODY, 'mt-1.5 text-slate-400')}>
+                {checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}
+              </p>
+            )}
+          </SummaryPart>
+          {/* Why the design reference is the one to follow, from the rules
+              registered for it (lib/rationale): what it is, where it's set,
+              what it's for, and what happens if it isn't kept. */}
+          {standard && (
             <SummaryPart label="Standard">
               {/* A label column as wide as its longest label, so every
                   line's content starts at the same place and wraps under
                   itself. */}
               <dl data-standard className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1">
                 {[
-                  ['Standard', standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
+                  ['Standard', standard.what.map((text) => <LocalizedText key={text} text={text} />)],
                   ['Source', standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
-                  ['What it’s for', standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)],
+                  ['What it’s for', standard.purpose.map((text) => <LocalizedText key={text} text={text} />)],
                   ['If not kept', (
                     <>
-                      <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} />
-                      {(why ? [why] : standard.consequence).map((text) => <Fragment key={text}> <LocalizedText text={text} /></Fragment>)}
+                      {standard.required
+                        ? <LocalizedText text="It can’t be merged." />
+                        : <><LocalizedText text="It can still merge." /> {standard.consequence.map((text) => <LocalizedText key={text} text={text} />).flatMap((node, index) => (index ? [' ', node] : [node]))}</>}
                       <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
                     </>
                   )],
                 ].map(([label, content]) => (
                   <Fragment key={label}>
                     <dt className="text-[11px] leading-[18px] whitespace-nowrap text-slate-400"><LocalizedText text={label} /></dt>
-                    <dd className={SUMMARY_BODY}>{content}</dd>
+                    <dd className={SUMMARY_BODY}>{Array.isArray(content) ? content.flatMap((node, index) => (index && typeof node !== 'string' && label !== 'Source' ? [' ', node] : [node])) : content}</dd>
                   </Fragment>
                 ))}
               </dl>
             </SummaryPart>
-          ) : why && (
-            // No registered rule behind it: why it matters, in its own words.
-            <SummaryPart label="Reason"><p className={SUMMARY_BODY}><LocalizedText text={why} /></p></SummaryPart>
           )}
-          {rationale?.evidence.length > 0 && (
-            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
-          )}
-          {/* Where it began: the saved version the difference first came in
-              with — a way straight to it in History. */}
-          {cause && (
-            <SummaryPart label="Version this difference came in with">
-              <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <span className="min-w-0 flex-1">
-                  <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
-                  <span className="block text-[11px] leading-4 text-slate-400">
-                    <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
-                    {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+          {why && <SummaryPart label="Reason"><p className={SUMMARY_BODY}><LocalizedText text={why} /></p></SummaryPart>}
+          {how && <SummaryPart label="Resolution"><p className={SUMMARY_BODY}><LocalizedText text={how} /></p></SummaryPart>}
+          {(rationale?.evidence.length > 0 || cause) && (
+            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
+              {/* Where it began: the saved version the difference first
+                  came in with — a way straight to it in History. */}
+              {cause && (
+                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic mt-2 flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] leading-4 text-slate-400"><LocalizedText text="Version this difference came in with" /></span>
+                    <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
+                    <span className="block text-[11px] leading-4 text-slate-400">
+                      <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
+                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
+                    </span>
                   </span>
-                </span>
-                <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
-              </button>
+                  <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+                </button>
+              )}
             </SummaryPart>
           )}
           {rationale && (
@@ -737,10 +777,6 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                   : state.side === 'B' ? 'It keeps the current value as it is'
                     : 'With nothing chosen, the current implementation stays as it is'} />
               </span>
-              {/* How it's resolved, said once, here: picking the standard. */}
-              {state.side !== 'A' && !state.bothFail && !state.meets.B && !adjustment && conflict.comparisonFields?.some((field) => field.current !== field.expected) && (
-                <span data-pick-resolve className="text-slate-300"><span className="text-slate-500"> · </span><LocalizedText text="Choosing the design reference resolves it" /></span>
-              )}
               {state.side && (
                 <button type="button" data-pick-undo onClick={() => state.undo()} className="ds-intrinsic ml-2 inline-flex h-5 items-center rounded px-1 text-xs text-slate-400 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
                   <LocalizedText text="Clear choice" />
@@ -2022,7 +2058,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 wrappers scrolls; narrower, where they stack, the page does. */}
             <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,4fr)_minmax(240px,1fr)] xl:overflow-hidden',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', tab === 'overview' && 'xl:overflow-hidden')} role="tabpanel">
