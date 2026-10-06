@@ -94,6 +94,14 @@ export const DEVIATION_REASONS = [
   'Needs more verification before changing',
 ]
 
+// Why a value was set by hand in Merge Studio instead of taking a side.
+export const ADJUSTMENT_REASONS = [
+  'Neither value met the standard',
+  'Raised to the accessibility minimum',
+  'Fitted to the real screen',
+  'Agreed with the design owner',
+]
+
 export const DEVIATION_LABEL = {
   exception: 'Exception request',
   'keep-current': 'Kept the current implementation',

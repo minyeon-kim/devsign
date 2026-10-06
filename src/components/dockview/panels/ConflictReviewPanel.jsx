@@ -43,7 +43,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/mockData'
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
+import { mergedSizeAdjustment, previewAdjustmentOf, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -65,6 +65,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
+import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -727,7 +728,10 @@ function CodeDiffColumns({ rows }) {
 // `adjustment` (a size set by hand in Merge Studio): the card that merges
 // shows that value as old → new and is tagged, with a way to undo it;
 // `changeAfter` is the change's code with the adjustment in it.
-function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, codeChange }) {
+// `studioAdjustments`: everything set by hand there, on any property — each
+// shown on that same card, on its own value's row or as a row of its own.
+// `previewAdjust`: the card's picture drawn with those values.
+function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, studioAdjustments, previewAdjust, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
@@ -760,8 +764,11 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
   const nextStep = conflict.reviewStage === 'detected' ? 'Review request needed'
     : conflict.reviewStage === 'approved' ? 'Ready to merge' : reviewState
   const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
-  const conclusion = state.side === 'A' ? { lead: 'Changes to the design reference value', rest: [nextStep] }
-    : state.side === 'B' ? { lead: 'Keeps the current value', rest: state.reasonNeeded ? [] : [nextStep] }
+  // Everything adjusted by hand, as rows for the card that merges.
+  const handChanges = (studioAdjustments ?? []).flatMap((entry) => entry.changes.map((change) => ({ ...change, layerId: entry.layerId, layerName: entry.layerName })))
+  const handAdjusted = Boolean(adjustment) || handChanges.length > 0
+  const conclusion = state.side === 'A' ? { lead: 'Changes to the design reference value', rest: state.reasonNeeded ? [] : [nextStep] }
+    : state.side === 'B' ? { lead: handAdjusted ? 'Merges with the adjusted value' : 'Keeps the current value', rest: state.reasonNeeded ? [] : [nextStep] }
       : {
         lead: adjustment ? 'Resolved by the adjustment'
           : state.bothFail ? 'Needs adjusting in Merge Studio'
@@ -770,7 +777,16 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
       }
   // The card the adjustment shows on: the picked one — or, with nothing
   // picked, the current implementation, since that's what merges then.
-  const adjusted = decision => (state.side ? state.side === decision : decision === 'B')
+  const adjusted = decision => (readOnly ? applied(decision) : state.side ? state.side === decision : decision === 'B')
+  // A hand-set value that is one of the compared values goes on that
+  // value's row (the conflict's own element only); the rest get their own.
+  const HAND_FIELD = { 'Corner radius': /radius/i, Fill: /background|fill|colou?r/i }
+  const handChangeFor = (field) => handChanges.find((change) => change.layerId === conflict.layerId && HAND_FIELD[change.label]?.test(field.label)) ?? null
+  const handRows = (value) => {
+    const fields = conflict.comparisonFields ?? []
+    const sizeOnRow = Boolean(adjustment) && fields.some((field) => adjustment.display(value(field)))
+    return handChanges.filter((change) => !(change.label === 'Size' && change.layerId === adjustment?.layerId && sizeOnRow) && !fields.some((field) => handChangeFor(field) === change))
+  }
   function pick(decision) {
     if (canPick) state.pick(decision)
   }
@@ -860,7 +876,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : 'Keeps the value as it is now'} />}</div>
+                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : handAdjusted && adjusted(decision) ? 'Merges with the adjusted value' : 'Keeps the value as it is now'} />}</div>
                       {/* This side passes what the other one fails. */}
                       {/* Finished: which card it was merged with. */}
                       {readOnly && applied(decision) && (
@@ -874,9 +890,9 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                         </span>
                       )}
                       {/* The side that merges carries the hand adjustment. */}
-                      {adjustment && adjusted(decision) && (
-                        // (What was adjusted is listed above the cards.)
-                        <span data-adjusted-tag className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200" title={`${adjustment.layerName}: ${adjustment.from} → ${adjustment.to}`}>
+                      {handAdjusted && adjusted(decision) && (
+                        // (What was adjusted is in the card's values below.)
+                        <span data-adjusted-tag className="shrink-0 rounded bg-emerald-400/15 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-emerald-200" title={adjustment ? `${adjustment.layerName}: ${adjustment.from} → ${adjustment.to}` : undefined}>
                           <LocalizedText text="Adjusted by hand" />
                         </span>
                       )}
@@ -886,23 +902,27 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                         {on && !readOnly && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
                       </span>
                     </div>
-                    <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
+                    {/* The card that merges is drawn as adjusted. */}
+                    <ChangePreview preview={conflict.preview} side={side} showLabels={false} adjust={adjusted(decision) ? previewAdjust : undefined} />
                     <dl className="min-w-0 space-y-2">
                       {conflict.comparisonFields.map((field) => {
                         // A color value gets its swatch beside it.
                         const swatch = /#[0-9a-fA-F]{3,8}\b/.exec(value(field) ?? '')?.[0]
+                        // Set by hand on this value: what it was → what it is.
+                        const hand = !adjusted(decision) ? null
+                          : (adjustment?.display(value(field)) ?? (handChangeFor(field) ? { from: value(field), to: handChangeFor(field).to } : null))
                         return (
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {/* Red / green only where the two sides differ — a
                               value that's the same on both isn't a change. */}
-                          {adjustment && adjusted(decision) && adjustment.display(value(field)) ? (
+                          {hand ? (
                             // Adjusted by hand: what it was, struck through,
                             // then what it is now.
-                            <dd className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums">
-                              <span className="font-normal text-slate-500 line-through">{adjustment.display(value(field)).from}</span>
+                            <dd data-adjusted-value className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums">
+                              <span className="font-normal text-slate-500 line-through"><LocalizedText text={hand.from} /></span>
                               <span aria-hidden className="font-normal text-slate-500">→</span>
-                              <span className="text-emerald-300">{adjustment.display(value(field)).to}</span>
+                              <span className="text-emerald-300">{hand.to}</span>
                             </dd>
                           ) : (
                           <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', readOnly || field.current === field.expected ? 'text-slate-200' : tone)}>
@@ -913,6 +933,23 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                         </div>
                         )
                       })}
+                      {/* Set by hand on something the comparison doesn't
+                          list (another property, another element). */}
+                      {adjusted(decision) && handRows(value).map((change) => (
+                        <div key={`${change.layerId}:${change.label}`} data-adjusted-row className="flex min-w-0 items-baseline justify-between gap-3">
+                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
+                            {change.layerId !== conflict.layerId && <><LocalizedText text={change.layerName} /> · </>}
+                            <LocalizedText text={change.label} />
+                          </dt>
+                          <dd translate="no" className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums">
+                            {change.from && <>
+                              <span className="font-normal text-slate-500 line-through">{change.from}</span>
+                              <span aria-hidden className="font-normal text-slate-500">→</span>
+                            </>}
+                            <span className="text-emerald-300">{change.to}</span>
+                          </dd>
+                        </div>
+                      ))}
                     </dl>
                     {adjustment && adjusted(decision) && onUndoAdjustment && !readOnly && (
                       <button
@@ -941,18 +978,28 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       </div>
                     )}
                   </div>
-                  {on && ((decision === 'B' && state.reasonApplies) || state.exceptionReason) && <div className="mx-4 border-t border-white/10 pb-3">
-                  {decision === 'B' && state.reasonApplies && <InlineDeviationReason
-                    key={`${conflict.id}:${decision}`}
+                  {/* The reason this card asks for. Adjusted by hand: why it
+                      was adjusted, on the card that merges (picked or not) —
+                      the value isn't being kept, so that isn't the question.
+                      Otherwise: why the current value is kept, once picked. */}
+                  {(() => {
+                    const asks = (state.adjustmentReason ? adjusted(decision) : on && decision === 'B' && state.reasonApplies) && (!readOnly || Boolean(state.savedReason))
+                    const exception = on && state.exceptionReason && !asks
+                    if (!asks && !exception) return null
+                    return <div className="mx-4 border-t border-white/10 pb-3">
+                  {asks && <InlineDeviationReason
+                    key={`${conflict.id}:${decision}:${state.adjustmentReason ? 'adjusted' : 'kept'}`}
                     value={state.savedReason}
                     onSave={state.saveReason}
                     readOnly={readOnly}
+                    {...(state.adjustmentReason ? { title: 'Why was it adjusted?', reasons: ADJUSTMENT_REASONS } : null)}
                   />}
-                  {/* One question, one form: with the kept-implementation
-                      reason on this card, the exception uses that same
-                      reason (see saveReason) instead of asking beside it. */}
-                  {state.exceptionReason && !(decision === 'B' && state.reasonApplies) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
-                  </div>}
+                  {/* One question, one form: with a reason asked on this
+                      card, the exception uses that same reason (see
+                      saveReason) instead of asking beside it. */}
+                  {exception && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+                  </div>
+                  })()}
                   </div>
                   )
                 })}
@@ -1001,7 +1048,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
               </p>
             )}
             {checkBlocks}
-            {state.exceptionReason && (!pairedPreview || !state.side) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
+            {state.exceptionReason && (!pairedPreview || !state.side) && !(pairedPreview && state.adjustmentReason) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {/* Finished: the code as it was merged. What it looked like
                 before — the conflict itself, markers and all — is there to
                 compare with, behind a toggle. */}
@@ -1875,7 +1922,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const kept = adjustment ? { layerId: adjustment.layerId, layerName: adjustment.layerName, from: adjustment.from, to: adjustment.to, size: adjustment.size } : null
     const merged = onResolve ? onResolve(conflict.id) : (update({ reviewStage: 'resolved' }), true)
     if (merged) {
-      if (kept || studioAdjustments.length) update({ ...(kept ? { mergedAdjustment: kept } : {}), mergedAdjustments: studioAdjustments })
+      if (kept || studioAdjustments.length) update({ ...(kept ? { mergedAdjustment: kept } : {}), mergedAdjustments: studioAdjustments, mergedAssembly: handAssembly ?? null })
       toast('Change merged', { description: kept ? `${conflict.title} · ${kept.layerName} ${kept.to}` : conflict.title })
     }
   }
@@ -2013,6 +2060,22 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // any of its elements) — listed in the review so what was changed there
   // is seen here. Kept on the conflict at merge, so it stays after.
   const studioAdjustments = stage === 'resolved' ? conflict?.mergedAdjustments ?? [] : studioAdjustmentsOf(mergeItem, workspace?.mergeDrafts?.current)
+  // The same values on the conflict's own element, for the card's picture.
+  const handAssembly = stage === 'resolved' ? conflict?.mergedAssembly : workspace?.mergeDrafts?.current?.[mergeItem?.id]?.assemblies?.[conflict?.layerId]
+  const previewAdjust = previewAdjustmentOf(conflict, mergeItem, null, handAssembly)
+  // Adjusted by hand: the reason to give is why it was adjusted (kept on the
+  // conflict as `adjustmentReason`) — asked in place of the kept-value one,
+  // and needed before a review request the same way.
+  if (adjustment || studioAdjustments.length > 0) {
+    decisionState.adjustmentReason = true
+    decisionState.reasonApplies = true
+    decisionState.savedReason = conflict.adjustmentReason?.text ?? null
+    decisionState.reasonNeeded = stage !== 'resolved' && !decisionState.savedReason?.trim()
+    decisionState.saveReason = (reason) => {
+      update({ adjustmentReason: { text: reason, by: viewerId, at: 'Just now' } })
+      if (reasonRequest) { reasonRequest.run(reason); setReasonRequest(null) }
+    }
+  }
   // The code that merges follows the card that's picked: the design
   // reference's lines, or the current ones — either with a hand-adjusted
   // size written in. So the diff's "−" is always the current
@@ -2169,7 +2232,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           the two cards compared, and the code diff under them. */}
                       <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                          {studioAdjustments.length > 0 && !conflict.rollback && (
+                          {/* (Listed here only where there's no comparison
+                              card to carry them — the card shows its own.) */}
+                          {studioAdjustments.length > 0 && !conflict.rollback && !(conflict.comparisonFields?.length && !(driftItem && draftColumns(driftItem))) && (
                             <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
                               <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-100">
                                 <Check className="size-3.5 shrink-0 text-emerald-300" />
@@ -2212,6 +2277,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             code={codeView}
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
                             adjustment={adjustment}
+                            studioAdjustments={studioAdjustments}
+                            previewAdjust={previewAdjust}
                             changeAfter={changeAfter}
                             onUndoAdjustment={adjustment && workspace?.resetLayerSize ? () => {
                               workspace.resetLayerSize(mergeItem.id, adjustment.layerId)

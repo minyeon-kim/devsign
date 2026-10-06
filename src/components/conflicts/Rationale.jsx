@@ -226,15 +226,17 @@ function DeviationReasonForm({ request, onSubmit, onCancel }) {
 }
 
 // Lives below the selected card, outside its radio click target.
-export function InlineDeviationReason({ value, onSave, readOnly = false }) {
+// `title` / `reasons`: the question and its usual answers — departing from
+// the standard by default; a hand adjustment asks why it was adjusted.
+export function InlineDeviationReason({ value, onSave, readOnly = false, title = 'Why depart from the standard?', reasons = DEVIATION_REASONS }) {
   const [editing, setEditing] = useState(false)
   // Several reasons can apply at once: any of the usual ones, ticked, plus
   // one typed in. They're kept as one line, joined with " · ".
   const parts = (value ?? '').split(' · ').filter(Boolean)
-  const [picked, setPicked] = useState(() => parts.filter((part) => DEVIATION_REASONS.includes(part)))
-  const [draft, setDraft] = useState(() => parts.filter((part) => !DEVIATION_REASONS.includes(part)).join(' · '))
+  const [picked, setPicked] = useState(() => parts.filter((part) => reasons.includes(part)))
+  const [draft, setDraft] = useState(() => parts.filter((part) => !reasons.includes(part)).join(' · '))
   const toggle = (reason) => setPicked((current) => (current.includes(reason) ? current.filter((entry) => entry !== reason) : [...current, reason]))
-  const combined = [...DEVIATION_REASONS.filter((reason) => picked.includes(reason)), draft.trim()].filter(Boolean)
+  const combined = [...reasons.filter((reason) => picked.includes(reason)), draft.trim()].filter(Boolean)
   const save = () => {
     if (!combined.length) return
     onSave(combined.join(' · '))
@@ -248,9 +250,9 @@ export function InlineDeviationReason({ value, onSave, readOnly = false }) {
   if (readOnly) return null
   return <div key="editing" className="ds-reason-reveal"><div className="min-h-0 overflow-hidden">
   <form data-inline-deviation-reason className="space-y-2.5 px-1 pt-3 pb-1" onSubmit={(event) => { event.preventDefault(); save() }}>
-    <p className="text-xs font-medium text-slate-300"><LocalizedText text="Why depart from the standard?" /> <span className="font-normal text-slate-500">· <LocalizedText text="Choose all that apply" /></span></p>
+    <p className="text-xs font-medium text-slate-300"><LocalizedText text={title} /> <span className="font-normal text-slate-500">· <LocalizedText text="Choose all that apply" /></span></p>
     <div className="flex flex-wrap gap-1.5">
-      {DEVIATION_REASONS.map((reason) => <button key={reason} type="button" role="checkbox" aria-checked={picked.includes(reason)} onClick={() => toggle(reason)} className="ds-intrinsic ds-reason-chip inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">{picked.includes(reason) && <Check aria-hidden className="size-3 text-emerald-300" />}<LocalizedText text={reason} /></button>)}
+      {reasons.map((reason) => <button key={reason} type="button" role="checkbox" aria-checked={picked.includes(reason)} onClick={() => toggle(reason)} className="ds-intrinsic ds-reason-chip inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-left text-[11px] text-slate-400 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">{picked.includes(reason) && <Check aria-hidden className="size-3 text-emerald-300" />}<LocalizedText text={reason} /></button>)}
     </div>
     <div className="flex items-center gap-2">
       <input autoFocus={editing} aria-label="Your own reason" placeholder="직접 이유 입력" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-8 min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />

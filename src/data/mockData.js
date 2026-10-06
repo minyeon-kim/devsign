@@ -275,6 +275,7 @@ export const conflictChecklist = [
     diff: { before: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'], after: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'] },
     resolution: 'manual',
     adjustment: { from: { width: 20, height: 20 }, to: { width: 24, height: 24 } },
+    adjustmentReason: { text: 'Raised to the accessibility minimum', by: 'min', at: 'Just now' },
   },
   // 2 — not adjusted yet. 20px in code, 24px in the design, nothing picked
   // or resized: open it in Merge Studio, change the icon's W / H (or pick

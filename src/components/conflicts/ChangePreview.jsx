@@ -16,12 +16,12 @@ function Frame({ label, children, showLabel = true, contentClassName = 'h-14' })
   )
 }
 
-function ButtonSample({ height, background, label }) {
+function ButtonSample({ height, background, radius, label }) {
   return (
     <div className="flex w-full items-center justify-center">
       <span
         className="flex w-full max-w-[220px] items-center justify-center rounded-lg text-[13px] font-semibold text-white"
-        style={{ height, background }}
+        style={{ height, background, borderRadius: radius }}
       >
         <LocalizedText text={label} />
       </span>
@@ -43,9 +43,14 @@ function Pair({ before, after, side, showLabel, contentClassName }) {
   )
 }
 
-function ChangePreview({ preview, side, showLabels = true }) {
+// `adjust` (lib/sizeAdjustment's previewAdjustmentOf): the shown side drawn
+// with the values set by hand in Merge Studio.
+function ChangePreview({ preview, side, showLabels = true, adjust }) {
   if (!preview) return null
-  const { kind, before, after } = preview
+  const { kind } = preview
+  const drawn = (which) => (adjust && side === which && preview[which] ? adjust(preview[which]) : preview[which])
+  const before = drawn('before')
+  const after = drawn('after')
 
   if (kind === 'button') {
     return (

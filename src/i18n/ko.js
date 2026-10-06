@@ -266,6 +266,12 @@ comment|댓글
 Design system rules|디자인 시스템 규칙
 Registered reasons — linked to a change automatically when it runs into a rule.|사전 등록된 근거 · 관련 규칙 감지 시 자동 연결
 Why depart from the standard?|현재 값을 유지하는 이유
+Why was it adjusted?|값을 조정한 이유
+Neither value met the standard|두 값 모두 기준 미달
+Raised to the accessibility minimum|접근성 최소 기준에 맞춤
+Fitted to the real screen|실제 화면에 맞게 보정
+Agreed with the design owner|디자인 담당자와 합의
+Merges with the adjusted value|조정한 값으로 병합
 A choice that follows the standard needs no reason — this one is kept with the decision.|기준 준수 시 이유 입력 불필요 · 예외 이유는 결정과 함께 기록
 Or write your own reason|직접 입력
 Save reason|이유 저장

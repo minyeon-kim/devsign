@@ -65,6 +65,32 @@ export function sizeAdjustmentOf(conflict, item, drafts) {
   return describe(resized.layer, resized.to)
 }
 
+// The hand-set values as a card's rendering needs them: a function that
+// takes one side's `preview` spec and returns it with what was set in Merge
+// Studio on the conflict's own element — so the picture on the card that
+// merges is the adjusted element, not the original. A size is applied in
+// proportion (the spec's 40px drawn for a 44px layer set to 48px grows by
+// the same ratio). Null when nothing set there shows in the picture.
+// `kept`: the element's values a merged conflict was merged with.
+export function previewAdjustmentOf(conflict, item, drafts, kept) {
+  if (!conflict?.preview || !conflict.layerId || !item) return null
+  const layer = canvasPages.find((page) => page.id === item.designPageId)?.frames[0]?.layers?.find((l) => l.id === conflict.layerId)
+  const assembly = kept ?? drafts?.[item.id]?.assemblies?.[conflict.layerId]
+  if (!layer || !assembly) return null
+  const scaled = (value, to, from) => (to == null || !from ? value : Math.round((value * to / from) * 10) / 10)
+  const color = [assembly.fillColor, assembly.fill].find((value) => typeof value === 'string' && /^(#|rgb|hsl|oklch)/.test(value))
+  const apply = (spec) => ({
+    ...spec,
+    ...('height' in spec ? { height: scaled(spec.height, assembly.height, layer.height) } : {}),
+    ...('size' in spec ? { size: assembly.width != null ? scaled(spec.size, assembly.width, layer.width) : scaled(spec.size, assembly.height, layer.height) } : {}),
+    ...(assembly.radius != null && ['button', 'card'].includes(conflict.preview.kind) ? { radius: assembly.radius } : {}),
+    ...(color && 'background' in spec ? { background: color } : {}),
+    ...(color && 'color' in spec ? { color } : {}),
+  })
+  const shows = ['before', 'after'].some((side) => conflict.preview[side] && JSON.stringify(apply(conflict.preview[side])) !== JSON.stringify(conflict.preview[side]))
+  return shows ? apply : null
+}
+
 // The drafts a project starts with: a seeded conflict that's already been
 // adjusted by hand (`adjustment.to`, see mockData) opens with that size in
 // its item's draft, exactly as if it had been set in Merge Studio.

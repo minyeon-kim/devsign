@@ -199,7 +199,7 @@ export function toConflictRecord(raw) {
     // …their details (components, files)…
     impact: raw.impact?.components?.length ? raw.impact : conflictChecklist.find((seed) => seed.id === raw.id)?.impact ?? raw.impact,
     // …and so do the registered reasons (lib/rationale) the samples carry.
-    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation']
+    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation', 'adjustmentReason']
       .filter((key) => raw[key] === undefined)
       .map((key) => [key, conflictChecklist.find((seed) => seed.id === raw.id)?.[key]])
       .filter(([, value]) => value !== undefined)),
