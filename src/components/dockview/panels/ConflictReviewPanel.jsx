@@ -14,7 +14,7 @@ import {
   Clock3,
   GitMerge,
   Layers3,
-  Ellipsis,
+  Pencil,
   MapPin,
   Plus,
   RotateCcw,
@@ -810,7 +810,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
       onSave={state.saveReason}
       readOnly={readOnly}
       // (An adjustment's reason is changed where the adjustment is: in
-      // Merge Studio, through "Adjust again".)
+      // Merge Studio, through "Edit adjustment".)
       {...(state.adjustmentReason ? { title: 'Why was it adjusted?', reasons: ADJUSTMENT_REASONS, editable: false } : null)}
     />
   ) : pairedPreview && state.exceptionReason ? <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} /> : null
@@ -826,39 +826,29 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
             // The conclusion in one line: what to do now, how binding the
             // standard is, and where the review stands — and, once a side is
             // picked, what that does and the next thing to do.
-            <p data-pick-guide={state.side ?? 'none'} className="min-w-0 text-xs leading-5 text-slate-300">
+            <p data-pick-guide={state.side ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
               <span className="text-[13px] font-semibold text-white"><LocalizedText text={conclusion.lead} /></span>
               {conclusion.rest.map((part) => <span key={part}><span className="text-slate-500"> · </span><LocalizedText text={part} /></span>)}
 
             </p>
           )}
           {/* Everything about adjusting, in this one place. Before: the way
-              into Merge Studio. After: that it was adjusted, the way back
-              in (values and the reason are both changed there), and undo
-              behind "more". */}
-          {adjust?.adjusted && (
-            <div data-adjust-controls className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span data-adjusted-tag className="inline-flex h-6 items-center gap-1.5 rounded-full bg-emerald-400/15 px-2 text-[11px] leading-none font-medium text-emerald-200">
-                <span aria-hidden className="size-1.5 rounded-full bg-emerald-300" />
-                <LocalizedText text="Adjusted by hand" />
-              </span>
+              into Merge Studio. After: edit it (there — values and the
+              reason both) or undo it, side by side. That it is adjusted
+              is said by the line itself and the card, not a badge here. */}
+          {adjust?.adjusted && (adjust.onOpen || adjust.onUndo) && (
+            <div data-adjust-controls className="ml-auto flex shrink-0 items-center gap-2">
               {adjust.onOpen && (
-                <button type="button" onClick={adjust.onOpen} className={NAV_BUTTON}>
-                  <LocalizedText text="Adjust again" />
+                <button type="button" data-adjust-edit onClick={adjust.onOpen} className={cn(NAV_BUTTON, 'bg-transparent')}>
+                  <Pencil className={NAV_BUTTON_ICON} />
+                  <LocalizedText text="Edit adjustment" />
                 </button>
               )}
               {adjust.onUndo && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger aria-label="More" className={cn(NAV_BUTTON, 'w-8 justify-center px-0')}>
-                    <Ellipsis className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={() => setConfirmUndo(true)}>
-                      <RotateCcw className="size-3.5" />
-                      <LocalizedText text="Undo adjustment" />
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <button type="button" data-adjust-undo onClick={() => setConfirmUndo(true)} className="ds-intrinsic inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <RotateCcw className="size-3.5 shrink-0" />
+                  <LocalizedText text="Undo adjustment" />
+                </button>
               )}
             </div>
           )}
@@ -886,7 +876,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
             </DialogDescription>
           </div>
           <div className="flex items-center justify-end gap-2 px-5 pb-4">
-            <button type="button" onClick={() => setConfirmUndo(false)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Cancel" /></button>
+            <button type="button" onClick={() => setConfirmUndo(false)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Close" /></button>
             <button type="button" data-undo-adjustment onClick={() => { setConfirmUndo(false); adjust?.onUndo?.() }} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-white/[0.1] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-white/[0.16]"><LocalizedText text="Undo adjustment" /></button>
           </div>
         </DialogContent>
@@ -935,7 +925,7 @@ function DiffTab({ conflict, code, adjust, mergedLines, adjustment, result, chan
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : handAdjusted && adjusted(decision) ? 'Merges with the adjusted value' : 'Keeps the value as it is now'} />}</div>
+                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : handAdjusted && adjusted(decision) ? 'Adjusted' : 'Keeps the value as it is now'} />}</div>
                       {/* This side passes what the other one fails. */}
                       {/* Finished: which card it was merged with. */}
                       {readOnly && applied(decision) && (

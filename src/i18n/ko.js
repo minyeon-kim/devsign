@@ -272,7 +272,8 @@ Design system rules|디자인 시스템 규칙
 Registered reasons — linked to a change automatically when it runs into a rule.|사전 등록된 근거 · 관련 규칙 감지 시 자동 연결
 Why depart from the standard?|현재 값을 유지하는 이유
 Why was it adjusted?|값을 조정한 이유
-Adjust again|다시 조정
+Edit adjustment|조정 편집
+Adjusted|조정됨
 Undo the adjustment?|조정을 취소할까요?
 Undoing the adjustment returns it to the current implementation value and resets the review approvals in progress.|조정을 취소하면 현재 구현 값으로 돌아가고, 진행 중인 검토 승인이 초기화돼요.
 Adjustment undone|조정을 취소했어요
