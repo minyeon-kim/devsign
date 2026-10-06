@@ -230,23 +230,50 @@ export function taskFor(conflict, userId) {
   return isDesignReview(conflict) || conflict.rollback ? null : task('decide')
 }
 
-// Due today, tomorrow, or already past.
-export function isDueSoon(conflict) {
-  return ['overdue', 'today', 'soon'].includes(conflict.dueBucket) || /^(Due today|Due tomorrow|Overdue)/.test(conflict.dueLabel ?? '')
+// How soon it's due, as a number to sort by: past due first, then today,
+// tomorrow, in N days; no due date last.
+export function dueRank(conflict) {
+  const text = conflict.dueLabel ?? ''
+  let match
+  if (conflict.dueBucket === 'overdue' || /^Overdue/.test(text)) return -1
+  if (conflict.dueBucket === 'today' || /^Due today$/.test(text)) return 0
+  if (/^Due tomorrow$/.test(text)) return 1
+  if ((match = /^Due in (\d+) days?$/.exec(text))) return Number(match[1])
+  return Infinity
+}
+// Due today or already past — the only due dates worth an accent.
+export function isDueNow(conflict) {
+  return dueRank(conflict) <= 0
 }
 
-// The viewer's tasks across `conflicts`, most pressing first: due soon,
-// then ones that can't merge as they stand (`isBlocked`), then the rest —
-// each group in its original order.
-export function myTasks(conflicts, { isBlocked = () => false, userId } = {}) {
-  const rank = (entry) => (isDueSoon(entry.conflict) ? 0 : entry.blocked ? 1 : 2)
-  return conflicts
-    .map((conflict) => ({ conflict, task: taskFor(conflict, userId) }))
-    .filter((entry) => entry.task)
-    .map((entry) => ({ ...entry, blocked: Boolean(isBlocked(entry.conflict)) }))
-    .map((entry, index) => ({ entry, index }))
-    .sort((a, b) => rank(a.entry) - rank(b.entry) || a.index - b.index)
-    .map(({ entry }) => entry)
+// What's left on a task that's "continue" (or only needs merging), in a
+// line: a reason still to give, the review still to request, changes to
+// answer, the merge itself.
+export function remainingWorkOf(conflict) {
+  if (conflict.reviewStage === 'approved') return 'Only the merge is left'
+  if (conflict.reviewStage === 'in_review') return 'Changes were requested'
+  const reasonMissing = (conflict.customChosen && !conflict.adjustmentReason?.text?.trim())
+    || (conflict.decidedSide === 'B' && !conflict.deviation?.text?.trim())
+  return reasonMissing ? 'A reason is still needed' : 'The review request is still left'
+}
+
+// The viewer's tasks across `conflicts`, in the three groups the Dashboard
+// shows: work of your own that's left (`continue` — a merge that's the
+// only thing left counts here), conflicts with a value to choose
+// (`decide`), and approvals asked of you (`review`). Within a group: ones
+// that can't merge as they stand (`isBlocked`) first, then by how soon
+// they're due — otherwise in their original order.
+export function taskGroups(conflicts, { isBlocked = () => false, userId } = {}) {
+  const groups = { continue: [], decide: [], review: [] }
+  conflicts.forEach((conflict, index) => {
+    const task = taskFor(conflict, userId)
+    if (!task) return
+    groups[task.kind === 'merge' ? 'continue' : task.kind].push({ conflict, task, blocked: Boolean(isBlocked(conflict)), index })
+  })
+  for (const list of Object.values(groups)) {
+    list.sort((a, b) => Number(b.blocked) - Number(a.blocked) || dueRank(a.conflict) - dueRank(b.conflict) || a.index - b.index)
+  }
+  return groups
 }
 
 // Normalizes a raw conflict (a conflictChecklist item or a workspace

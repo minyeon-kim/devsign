@@ -178,7 +178,8 @@ function ProjectsSection() {
             </button>
           </div>
 
-          <Button size="sm" className="gap-1" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
+          {/* Outlined: the page's one filled button is My tasks' first task. */}
+          <Button variant="outline" size="sm" className="gap-1" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
             <Plus className="size-3.5" />
             New project
           </Button>

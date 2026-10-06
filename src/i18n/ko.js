@@ -350,6 +350,17 @@ Continue your work|이어서 하기
 Merge now|병합하기
 My tasks|내 할 일
 Nothing to do right now|지금 처리할 일이 없어요
+Needs a decision|결정 필요
+Approval requests|승인 요청
+A value has to be chosen|값을 골라야 해요
+Waiting for your approval|내 승인을 기다려요
+A reason is still needed|이유 입력이 남았어요
+The review request is still left|검토 요청이 남았어요
+Changes were requested|수정 요청이 왔어요
+Only the merge is left|병합만 남았어요
+No conflicts to decide|결정할 충돌이 없어요
+No approval requests|승인 요청이 없어요
+Show more|더 보기
 Next step|다음 할 일
 Show all|모두 보기
 Open conflicts|미해결 충돌
