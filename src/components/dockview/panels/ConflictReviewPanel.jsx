@@ -34,6 +34,7 @@ import { getLanguage } from '@/i18n/language'
 const tr = (text) => translateText(text, getLanguage())
 const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,7 +68,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
-import { InlineDeviationReason, ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
+import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -1160,7 +1161,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             {/* Both sides miss a required standard: the cards still choose
                 which side merges, but choosing can't fix it. */}
             {!pairedPreview && checkBlocks}
-            {state.exceptionReason && !pairedPreview && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {/* Finished: the code as it was merged. What it looked like
                 before — the conflict itself, markers and all — is there to
                 compare with, behind a toggle. */}
@@ -2028,6 +2028,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     setSideTab(value)
   }
   const [reasonRequest, setReasonRequest] = useState(null)
+  const [exceptionReasonDraft, setExceptionReasonDraft] = useState('')
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
@@ -2152,12 +2153,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         toast('Exception requested', { description: 'It can merge once the reviewers approve the change.' })
       },
     }
-    // The reason for departing from the standard is already on this
-    // conflict (given when the current implementation was kept): it's the
-    // exception's reason too, not asked a second time.
-    const given = conflict.deviation?.text?.trim()
-    if (given) request.run(given)
-    else setReasonRequest(request)
+    setExceptionReasonDraft(conflict.deviation?.text ?? '')
+    setReasonRequest(request)
   }
 
   function undoException(check) {
@@ -2273,8 +2270,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     // An exception waiting on a reason takes this one.
     if (reasonRequest) { reasonRequest.run(reason); setReasonRequest(null) }
   }
-  decisionState.exceptionReason = reasonRequest
-  decisionState.saveExceptionReason = (reason) => { reasonRequest?.run(reason); setReasonRequest(null) }
   // Evidence goes to the thing itself: the rule in the rule list, the Figma
   // frame on the canvas, the token where it's defined, the comment in the
   // thread beside the review (lit for a moment).
@@ -2787,6 +2782,44 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
           </>
         )}
+        <Dialog open={Boolean(reasonRequest)} onOpenChange={(open) => { if (!open) setReasonRequest(null) }}>
+          <DialogContent className="gap-0 bg-card p-0 sm:max-w-[480px]">
+            <form onSubmit={(event) => {
+              event.preventDefault()
+              const reason = exceptionReasonDraft.trim()
+              if (!reason || !reasonRequest) return
+              reasonRequest.run(reason)
+              setReasonRequest(null)
+              setExceptionReasonDraft('')
+            }}>
+              <div className="px-5 pt-5 pb-3">
+                <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Send exception request" /></DialogTitle>
+                <DialogDescription className="mt-1 text-xs leading-[18px] text-slate-400">
+                  <LocalizedText text="Reason for the exception request" /> · <LocalizedText text={reasonRequest?.subject ?? ''} />
+                </DialogDescription>
+              </div>
+              <div className="space-y-3 px-5 pb-4">
+                <ReasonField
+                  key={`${conflict.id}:${reasonRequest?.subject ?? ''}`}
+                  title="Reason for the exception request"
+                  hint="Required · choose all that apply"
+                  reasons={DEVIATION_REASONS}
+                  value={exceptionReasonDraft}
+                  onChange={setExceptionReasonDraft}
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-5 py-4">
+                <button type="button" onClick={() => { setReasonRequest(null); setExceptionReasonDraft('') }} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">
+                  <LocalizedText text="Cancel" />
+                </button>
+                <button type="submit" disabled={!exceptionReasonDraft.trim()} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
+                  <Send className="mr-1.5 size-3.5" />
+                  <LocalizedText text="Send exception request" />
+                </button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
         <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
 
     </div>
