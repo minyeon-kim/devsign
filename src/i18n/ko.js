@@ -61,6 +61,8 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Difference|차이
+Resolution|해결
 Why it matters|왜 중요한지
 How to resolve it|어떻게 해결하는지
 Standard|기준

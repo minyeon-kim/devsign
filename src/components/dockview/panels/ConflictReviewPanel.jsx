@@ -1,6 +1,6 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
-import { BranchInfo, NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
+import { NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
   ArrowRight,
@@ -52,6 +52,7 @@ import {
   requiredReviewers,
   authorOf,
   conflictRef,
+  gitFlowOf,
   shortDue,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
@@ -62,7 +63,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
-import { DecisionSummary, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
+import { EvidenceLinks, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
 import { rationaleOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
@@ -185,34 +186,47 @@ function ComparisonTable({ fields, sources }) {
 // Where the change is and where it came from — the review's folded
 // Details: Location (branch, components, files). Who changed it and what
 // detected it is part of its trail — the Activity tab's.
-function ReviewDetails({ conflict, showProject }) {
+function ReviewDetails({ conflict, showProject, open }) {
   const { impact } = conflict
   const primaryFile = conflict.file ? `${conflict.file}${conflict.line ? `:${conflict.line}` : ''}` : null
   const files = [...new Set([primaryFile, ...(impact?.files ?? []).filter((file) => file !== conflict.file)].filter(Boolean))]
   const components = impact?.components ?? []
-  const GROUP = 'text-[11px] leading-4 font-medium text-slate-500'
+  const flow = gitFlowOf(conflict)
+  const author = allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')
   const ROW = 'grid min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3'
   const LABEL = 'text-[11px] leading-[18px] text-slate-400'
   const VALUE = 'min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]'
 
+  // One list, no sub-heading: branch, components, files, then who made the
+  // change and when. Only the file paths are monospace.
   return (
-    <div className="mt-2 space-y-3.5">
-      <div className="space-y-2">
-        <p className={GROUP}><LocalizedText text="Location" /></p>
-        {showProject && conflict.projectName && (
-          <div className={ROW}><span className={LABEL}>Project</span><span className={VALUE}><LocalizedText text={conflict.projectName} /></span></div>
-        )}
-        <div className={ROW}><span className={LABEL}>Branch</span><BranchInfo conflict={conflict} /></div>
-        {components.length > 0 && (
-          <div className={ROW}><span className={LABEL}>Components</span><span className={VALUE}>{components.join(', ')}</span></div>
-        )}
-        {files.length > 0 && (
-          <div className={ROW}>
-            <span className={LABEL}>Files</span>
-            <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px] text-slate-200')}>{files.join(', ')}</span>
-          </div>
-        )}
+    <div data-review-details className="mt-2 space-y-2">
+      {showProject && conflict.projectName && (
+        <div className={ROW}><span className={LABEL}>Project</span><span className={VALUE}><LocalizedText text={conflict.projectName} /></span></div>
+      )}
+      <div className={ROW}>
+        <span className={LABEL}>Branch</span>
+        <span translate="no" className={VALUE}>{flow ? `${flow.source} → ${flow.target}` : '—'}</span>
       </div>
+      {components.length > 0 && (
+        <div className={ROW}><span className={LABEL}>Components</span><span translate="no" className={VALUE}>{components.join(', ')}</span></div>
+      )}
+      {files.length > 0 && (
+        <div className={ROW}>
+          <span className={LABEL}>Files</span>
+          <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px]')}>{files.join(', ')}</span>
+        </div>
+      )}
+      <div className={ROW}>
+        <span className={LABEL}><LocalizedText text="Author · Updated" /></span>
+        <span className={VALUE}>
+          <span translate="no">{author}</span>
+          <span className="text-slate-400"> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
+        </span>
+      </div>
+      {open && shortDue(conflict.dueLabel) && (
+        <div className={ROW}><span className={LABEL}><LocalizedText text="Due date" /></span><span className={VALUE}><LocalizedText text={conflict.dueLabel} /></span></div>
+      )}
     </div>
   )
 }
@@ -371,17 +385,25 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
-// A compared value: the value itself, then its code form in brackets,
-// quieter — "36px (h-9)". Code is left as written.
-function ComparedValue({ value }) {
-  const match = /^(.*?)\s*\(([^()]+)\)$/.exec(String(value))
-  if (!match) return <LocalizedText text={String(value)} />
-  return <><LocalizedText text={match[1]} /> <span translate="no" className="font-mono text-[11.5px] font-normal text-slate-400">({match[2]})</span></>
+// A compared value as the difference shows it: the value alone, without a
+// bracketed note after it ("40px (default size)" → "40px").
+const bareValue = (value) => String(value).replace(/\s*\([^()]*\)\s*$/, '')
+
+// The summary's two text styles: body, and the small grey label over it.
+const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
+const SUMMARY_LABEL = 'mb-1 text-[11px] leading-4 text-slate-400'
+function SummaryPart({ label, children }) {
+  return (
+    <div data-summary-part={label} className="min-w-0">
+      <p className={SUMMARY_LABEL}><LocalizedText text={label} /></p>
+      {children}
+    </div>
+  )
 }
 
 function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence }) {
-  // Keep the review's original context visible alongside list metadata.
-  const [showDetails, setShowDetails] = useState(true)
+  // Where it is and who made it: folded until asked for.
+  const [showDetails, setShowDetails] = useState(false)
   const open = stage !== 'resolved'
   const requester = conflict.rollback ? allPeople.find((p) => p.id === (conflict.rollback.requestedBy ?? conflict.requestedBy)) : null
   const riskPrefix = /^(Low|Medium|High):\s*/.exec(conflict.riskReason ?? '')
@@ -399,7 +421,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   const differing = fields.filter((field) => field.current !== field.expected)
   const headline = conflict.rollback ? []
     : adjustment && open ? [{ label: adjustment.layerName, from: adjustment.from, to: adjustment.to }]
-      : differing.map((field) => ({ label: field.label, from: field.current, to: field.expected, reference: true }))
+      : differing.map((field) => ({ label: field.label, from: field.current, to: field.expected }))
   // Why it matters and how to resolve it: the conflict's own words, else
   // what its first failing check says.
   const guidance = checkGuidance(checks?.failing[0])
@@ -443,45 +465,59 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         )}
       </p>
 
-      {/* Summary and checks are one thing — what differs — so they're one
-          block, first: the values compared in bold (a code value in
-          brackets after it), then why it matters and how to resolve it,
-          each a full-width line. Nothing here is cut short. */}
+      {/* The summary, in one form throughout: a small grey label, then its
+          content under it at full width — Difference / Reason / Resolution /
+          Evidence / Decision. Two sizes (body, label), two weights, two
+          colors; monospace only for the difference itself. */}
       {!conflict.rollback && (
-        <section data-review-summary className="min-w-0 space-y-2.5">
-          <div className="space-y-1">
-            {headline.length > 0 ? headline.map((line) => (
-              <p key={line.label} className="text-[13px] leading-5 font-semibold break-words text-white [overflow-wrap:anywhere]">
-                <LocalizedText text={line.label} />{' '}
-                <ComparedValue value={line.from} />
-                <span className="font-normal text-slate-400"> → </span>
-                {line.reference && <span className="font-normal text-slate-400"><LocalizedText text="Standard" /> </span>}
-                <ComparedValue value={line.to} />
+        <section data-review-summary className="min-w-0 space-y-3">
+          <SummaryPart label="Difference">
+            {headline.length > 0 ? (
+              // The values as aligned code lines — property, current, →,
+              // standard, each starting in its own column — set apart on a
+              // faint block. One line each: it scrolls rather than wraps.
+              <div data-diff-lines className="overflow-x-auto rounded-lg bg-white/[0.05] px-3 py-2">
+                {/* (The mono face by its variable: the `font-mono` class
+                    marks text as code, which would leave the property
+                    names untranslated.) */}
+                <div className="grid w-max grid-cols-[repeat(4,max-content)] gap-x-3 gap-y-1 [font-family:var(--font-mono)] text-xs leading-5 whitespace-nowrap text-slate-200">
+                  {headline.map((line) => (
+                    <Fragment key={line.label}>
+                      <span><LocalizedText text={line.label} /></span>
+                      <span translate="no">{bareValue(line.from)}</span>
+                      <span aria-hidden className="text-slate-400">→</span>
+                      <span translate="no">{bareValue(line.to)}</span>
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            ) : summary && <p className={SUMMARY_BODY}><LocalizedText text={summary} /></p>}
+            {/* The checks' verdict, in a line — each one is worked through
+                beside the comparison, not repeated here. */}
+            {checks && (
+              <p className={cn(SUMMARY_BODY, 'mt-1.5 text-slate-400')}>
+                {checks.failing.length
+                  ? <>{checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}</>
+                  : <LocalizedText text="All design checks passed" />}
               </p>
-            )) : summary && (
-              <p className="text-[13px] leading-5 font-semibold break-words text-white [overflow-wrap:anywhere]"><LocalizedText text={summary} /></p>
             )}
-          </div>
-          {[['Why it matters', why], ['How to resolve it', how]].filter(([, text]) => text).map(([label, text]) => (
-            <p key={label} className={cn(REVIEW_DETAIL_COPY, 'break-words text-slate-300 [overflow-wrap:anywhere]')}>
-              <span className="font-medium text-slate-400"><LocalizedText text={label} /> · </span>
-              <LocalizedText text={text} />
-            </p>
-          ))}
-          {/* The checks' verdict, in a line — each one is worked through
-              beside the comparison, not repeated here. */}
-          {checks && (
-            <p className={cn('text-xs leading-[18px]', checks.failing.length ? 'text-amber-200' : 'text-slate-400')}>
-              {checks.failing.length
-                ? <>{checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}</>
-                : <LocalizedText text="All design checks passed" />}
-            </p>
+          </SummaryPart>
+          {why && <SummaryPart label="Reason"><p className={SUMMARY_BODY}><LocalizedText text={why} /></p></SummaryPart>}
+          {how && <SummaryPart label="Resolution"><p className={SUMMARY_BODY}><LocalizedText text={how} /></p></SummaryPart>}
+          {rationale?.evidence.length > 0 && (
+            <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
+          )}
+          {rationale && (
+            <SummaryPart label="Decision">
+              <p className={SUMMARY_BODY}>
+                <LocalizedText text={rationale.decision.label ?? 'Not decided yet'} />
+                {rationale.decision.by && <span translate="no" className="text-slate-400"> · {rationale.decision.by}</span>}
+              </p>
+            </SummaryPart>
           )}
         </section>
       )}
       {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
-
-      {!conflict.rollback && rationale && <DecisionSummary embedded rationale={rationale} onOpen={onOpenEvidence} />}
 
       <section className="min-w-0 flex-1">
         <button
@@ -490,7 +526,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           onClick={() => setShowDetails((v) => !v)}
           className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
         >
-          <LocalizedText text={showDetails ? 'Hide details' : 'Details'} />
+          <LocalizedText text="Details" />
           <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
         </button>
         {showDetails && (conflict.rollback ? (
@@ -506,16 +542,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               </div>
             ))}
           </div>
-        ) : <ReviewDetails conflict={conflict} showProject={showProject} />)}
+        ) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />)}
       </section>
-      {/* Who and when — context, not content: a quiet line at the foot. */}
-      {!conflict.rollback && (
-        <p data-review-meta className="shrink-0 border-t border-white/[0.07] pt-2.5 text-[11px] leading-4 text-slate-500">
-          <span translate="no">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</span>
-          {' · '}<LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} />
-          {open && shortDue(conflict.dueLabel) && <>{' · '}<LocalizedText text={conflict.dueLabel} /></>}
-        </p>
-      )}
     </div>
   )
 }
@@ -714,8 +742,12 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
               // side. Clicking the picked card again clears the choice.
               <div role="radiogroup" aria-label="적용할 버전 선택" className="grid grid-cols-2 gap-2">
                 {[
-                  { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
+                  // The standard first (left), what's there now beside it
+                  // (right). Each card keeps its own decision — the pick,
+                  // its check, and its reason form follow the card, not
+                  // the position.
                   { side: 'after', decision: 'A', source: sources?.[1], tone: 'text-emerald-200', value: (field) => field.expected },
+                  { side: 'before', decision: 'B', source: sources?.[0], tone: 'text-red-300', value: (field) => field.current },
                 ].map(({ side, decision, source, tone, value }) => {
                   const on = picked(decision)
                   const choose = () => (on ? state.undo() : pick(decision))
