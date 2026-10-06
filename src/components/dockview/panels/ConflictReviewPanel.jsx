@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleCheck,
   FileCode2,
+  Code,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -44,7 +45,7 @@ import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/
 import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
-import { mergeResultOf } from '@/lib/mergeResult'
+import { codeChangeOf, heightTokensFor, mergeResultOf } from '@/lib/mergeResult'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -60,14 +61,13 @@ import {
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { CheckDecisions } from '@/components/conflicts/CheckDecisions'
-import { diffLines } from '@/lib/lineDiff'
+import { changedTokens, diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { InlineDeviationReason, ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
@@ -462,7 +462,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // the Review button itself.)
   const todo = stage === 'resolved' ? null
     : reasonNeeded ? null
-      : blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
         : stage === 'detected' ? 'Review request needed'
           : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge') : null
   const status = listStatusOf(conflict)
@@ -490,16 +489,12 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               <LocalizedText text={severity.label} />
             </span>
           )}
-          {/* Whether it can merge is said only when it can't: a red badge,
-              with why on hover. (How binding the rule is sits quietly on
-              the Rule line below.) */}
+          {/* Required rules it breaks: one badge, here only. (What they
+              are, and what going on needs, is beside the choice.) */}
           {blockedCount > 0 && (
-            <Tooltip>
-              <TooltipTrigger render={<span data-blocked-badge tabIndex={0} className={cn(INFO_BADGE, 'bg-rose-500/15 text-rose-300')} />}>
-                <LocalizedText text="Can’t merge" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="start" className="text-xs"><LocalizedText text="It can’t be merged: a required rule isn’t kept." /></TooltipContent>
-            </Tooltip>
+            <span data-blocked-badge className={cn(INFO_BADGE, 'bg-amber-400/15 text-amber-200')}>
+              <LocalizedText text={`${blockedCount} required rule${blockedCount === 1 ? '' : 's'} broken`} />
+            </span>
           )}
           {isAiDraft && (
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>
@@ -556,7 +551,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
                 </Fragment>
               ))}
               <span data-rule-grade className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none whitespace-nowrap text-slate-400">
-                <LocalizedText text={standard.required ? 'Required rule' : 'Recommended rule'} />
+                <LocalizedText text={standard.required || blockedCount > 0 ? 'Required rule' : 'Recommended rule'} />
               </span>
             </Row>
             <Row label="Source">
@@ -619,13 +614,18 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
   // What would still fail with every value on one side — the checks
   // re-run with the decisions flipped. Tells which choice clears a check.
   const settled = [...(conflict?.acceptedChecks ?? [])]
-  const failingWith = (decision) => {
+  const runWith = (decision) => {
     if (!rows.length || !workspace?.mergeDrafts) return null
     const draft = workspace.mergeDrafts.current?.[item.id] ?? {}
-    const run = checksFor(item, { ...draft, resolutions: { ...decisions, ...Object.fromEntries(rows.map((row) => [row.key, decision])) } }, workspace.linesOfFile)
-    return new Set(run.failing.map((check) => check.id).filter((id) => !settled.includes(id)))
+    return checksFor(item, { ...draft, resolutions: { ...decisions, ...Object.fromEntries(rows.map((row) => [row.key, decision])) } }, workspace.linesOfFile)
   }
-  const failing = open ? { A: failingWith('A'), B: failingWith('B') } : { A: null, B: null }
+  const runs = open ? { A: runWith('A'), B: runWith('B') } : { A: null, B: null }
+  const failingOf = (run) => run && new Set(run.failing.map((check) => check.id).filter((id) => !settled.includes(id)))
+  const failing = { A: failingOf(runs.A), B: failingOf(runs.B) }
+  // The required checks each side would break (null: the sides can't be
+  // told apart — whatever is required now holds for either).
+  const blockingOf = (run) => run && run.blocking.filter((check) => !settled.includes(check.id))
+  const blockingWith = { A: blockingOf(runs.A), B: blockingOf(runs.B) }
   // The side that makes this check pass (the other one first, if a side is
   // already picked), or null when neither does.
   const resolvingSide = (checkId) => [side === 'A' ? 'B' : 'A', side === 'A' ? 'A' : 'B'].find((candidate) => failing[candidate] && !failing[candidate].has(checkId)) ?? null
@@ -642,7 +642,7 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
     undo: () => (sideOnly ? onPickSide(null) : rows.forEach((row) => workspace.decideDrift(item.id, row.key, null))),
     // Neither side passes what's required: picking a card can't settle it.
     bothFail: required.length > 0 && required.every((check) => resolvingSide(check.id) === null),
-    required, suggested, cardBlockers, otherClears, resolvingSide, meets,
+    required, suggested, cardBlockers, otherClears, resolvingSide, meets, blockingWith,
     otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
   }
 }
@@ -736,12 +736,14 @@ function CodeDiffColumns({ rows }) {
 const HAND_VALUE = 'flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums'
 const TEXT_ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks, checkActions, checkBlocks, codeChange }) {
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
   const [showBefore, setShowBefore] = useState(false)
+  // The card under the pointer: the code block shows its result meanwhile.
+  const [hover, setHover] = useState(null)
   const mergedFile = mergedLines ?? conflict.mergedFileLines ?? code?.generated ?? null
   const mergedExcerpt = (() => {
     const after = conflict.diff?.after ?? []
@@ -787,18 +789,46 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
       : text === field.current ? 'text-red-300' : 'text-slate-100')
   const swatchIn = (text) => /#[0-9a-fA-F]{3,8}\b/.exec(text ?? '')?.[0]
   const reasonCount = (flow?.reason?.value ?? '').split(' · ').filter(Boolean).length
+  // The required rules each way would break — never "can't merge": going
+  // that way needs the reviewers' exception approval, asked for with a
+  // reason. (Said once, under the cards, for the way that's chosen.)
+  const breaks = (id) => flow?.violations?.[id] ?? []
+  const exception = Boolean(choice) && breaks(choice).length > 0
+  const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
+  // One badge a card: how it stands with the standard.
+  const badgeOf = (id) => (breaks(id).length ? { tone: 'bg-amber-400/15 text-amber-200', icon: TriangleAlert, text: 'Breaks the standard · exception needed' }
+    : id === 'A' && differs ? { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard', recommended: breaks('B').length > 0 }
+      : id === 'B' && differs ? { tone: 'bg-white/[0.07] text-slate-300', text: 'Differs from the standard' }
+        : id === 'C' && custom && flow?.customIsReference ? { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard' } : null)
+  // What each way does to the code — in full for the block under the
+  // cards, and as the one value that changes for the card's last line.
+  const codeBefore = conflict.diff?.before ?? []
+  const linesOf = (id) => (id === 'A' ? conflict.diff?.after : id === 'B' ? codeBefore : custom?.lines) ?? null
+  const between = conflict.diff ? codeChangeOf(codeBefore, conflict.diff.after ?? []) : null
+  const codeResultOf = (id) => {
+    if (!conflict.diff || !linesOf(id)) return null
+    const change = id === 'B' ? { from: '', to: '' } : codeChangeOf(codeBefore, linesOf(id))
+    return change.from || change.to ? change : { from: between?.from, same: true }
+  }
+  const shown = hover && hover !== choice && linesOf(hover) ? hover : choice
+  const shownCard = cards.find((card) => card.id === shown) ?? null
+  // What it breaks, in a line: each compared value against the standard's.
+  const brokenSummary = exception ? [
+    ...(conflict.comparisonFields ?? []).filter((field) => field.current !== field.expected).map((field) => ({ label: field.label, from: choice === 'C' ? custom?.rows.find((row) => row.label === field.label)?.to ?? field.current : field.current, to: field.expected })),
+  ] : []
 
   return (
     <div className="flex h-full flex-col">
       {/* ① The section's title: what to do here — fixed while choosing,
-          the outcome once decided — and where the review stands. */}
+          the outcome once decided — then how it stands with the rules. */}
       {pairedPreview && flow && !readOnly && (
         <div className="mb-3 flex min-w-0 items-center gap-2">
           <p data-pick-guide={choice ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
             <span className="text-[13px] font-semibold text-white">
               {flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
             </span>
-            <span className="text-slate-500"> · </span><LocalizedText text={reviewState} />
+            {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className={flow.ruleStatus.required ? 'text-amber-200' : undefined}><LocalizedText text={flow.ruleStatus.text} /></span></>}
+            {(flow.decided || !flow.ruleStatus) && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
           </p>
           {flow.canChange && (
             <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
@@ -830,7 +860,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                   const empty = isCustom && !custom
                   const choose = editing && !on ? () => flow.choose(card.id) : undefined
                   // A card with nothing to choose (no way into the studio).
-                  const inert = !choose || (empty && !flow.openStudio)
+                  const inert = !choose || (empty && (!flow.openStudio || Boolean(flow.tokens)))
+                  const badge = badgeOf(card.id)
+                  const codeResult = codeResultOf(card.id)
                   return (
                   <div key={card.id} className={cn(
                     'min-w-0 overflow-hidden rounded-xl border transition-colors',
@@ -838,11 +870,11 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                       : on ? 'border-emerald-300 bg-emerald-400/[0.06]'
                         : cn(empty ? 'border-dashed border-white/20' : 'border-white/10', !editing && 'opacity-50'),
                     !inert && 'hover:border-white/35'
-                  )} data-applied={readOnly && on ? '' : undefined}>
+                  )} data-applied={readOnly && on ? '' : undefined} onMouseEnter={editing ? () => setHover(card.id) : undefined} onMouseLeave={editing ? () => setHover(null) : undefined}>
                   <div
                     role="radio"
                     aria-checked={on}
-                    aria-disabled={inert}
+                    aria-disabled={!editing}
                     tabIndex={inert ? -1 : 0}
                     onClick={inert ? undefined : choose}
                     onKeyDown={(event) => {
@@ -857,18 +889,11 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                       'flex h-full min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
                       !inert && 'cursor-pointer'
                     )}>
+                    {/* 1 · What choosing it does, where its values are from. */}
                     <div className="flex min-w-0 items-start gap-2">
-                      {/* What choosing it does, then where the values are from. */}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs leading-5 font-semibold text-white"><LocalizedText text={card.title} /></p>
                         <p className="truncate text-[10px] text-slate-500" title={card.source}><LocalizedText text={card.source} /></p>
-                        {/* This side passes what the other one fails. (Under
-                            the title — three across, there's no room beside it.) */}
-                        {!isCustom && state.meets[card.id] && !readOnly && (
-                          <span className="mt-1.5 inline-block rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
-                            <LocalizedText text="Meets the design standard" />
-                          </span>
-                        )}
                       </div>
                       {/* Finished: which card it was merged with. */}
                       {readOnly && on && (
@@ -876,7 +901,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                           <LocalizedText text="Applied" />
                         </span>
                       )}
-                      {isCustom && custom && editing && flow.openStudio && (
+                      {isCustom && custom && editing && flow.openStudio && !flow.tokens && (
                         <button type="button" data-adjust-edit onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(TEXT_ACTION, '-my-1 h-7')}>
                           <Pencil className="size-3 shrink-0" />
                           <LocalizedText text="Edit" />
@@ -889,24 +914,58 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                         </span>
                       )}
                     </div>
-                    {empty ? (
-                      // Nothing set yet: the way into Merge Studio (the
-                      // whole card does the same).
-                      <div className="flex min-h-24 flex-1 items-center justify-center">
-                        {editing && flow.openStudio && (
-                          <span data-adjust-start className={cn(NAV_BUTTON, 'pointer-events-none bg-transparent')}>
-                            <Plus className={NAV_BUTTON_ICON} />
-                            <LocalizedText text="Set the values yourself" />
-                          </span>
-                        )}
+                    {/* 2 · One badge: how it stands with the standard. (Its
+                        row is always there, so the cards line up.) */}
+                    <div data-card-badge className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
+                      {badge && !readOnly && (
+                        <span className={cn('inline-flex h-5 items-center gap-1 rounded px-1.5 text-[10.5px] leading-none font-medium', badge.tone)}>
+                          {badge.icon && <badge.icon className="size-3 shrink-0" />}
+                          <LocalizedText text={badge.text} />
+                        </span>
+                      )}
+                      {badge?.recommended && !readOnly && (
+                        <span className="inline-flex h-5 items-center rounded bg-white/[0.08] px-1.5 text-[10.5px] leading-none font-medium text-slate-200"><LocalizedText text="Recommended" /></span>
+                      )}
+                    </div>
+                    {/* 3 · The picture — or, for a value of one's own not
+                        set yet, the way to set it. */}
+                    {!empty && <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom ? custom.preview : undefined} />}
+                    {isCustom && editing && flow.tokens && (
+                      // One value, and a token says it: chosen right here.
+                      <div onClick={(event) => event.stopPropagation()} className="flex min-w-0 cursor-default items-center justify-between gap-3">
+                        <span className="shrink-0 text-[11.5px] text-slate-400"><LocalizedText text={flow.tokens.label} /></span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger data-token-select className="ds-intrinsic inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.14] bg-white/[0.03] px-2 font-mono text-[11px] text-slate-200 transition-colors hover:border-white/25 hover:text-white">
+                            <span className="truncate">{flow.tokens.value ? `${flow.tokens.value.token} · ${flow.tokens.value.px}px` : <LocalizedText text="Choose a value" />}</span>
+                            <ChevronDown className="size-3 shrink-0 text-slate-400" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-60">
+                            {flow.tokens.options.map((option) => (
+                              <DropdownMenuItem key={option.token} data-token-option={option.token} onClick={() => flow.tokens.pick(option)} className="gap-2 font-mono text-[11px]">
+                                <span className="min-w-0 flex-1 truncate">{option.token}</span>
+                                <span className="text-slate-400 tabular-nums">{option.px}px</span>
+                                {flow.tokens.value?.token === option.token && <Check className="size-3.5 text-emerald-300" />}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    ) : (<>
-                    <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom ? custom.preview : undefined} />
-                    <dl className="min-w-0 space-y-2">
+                    )}
+                    {empty && editing && flow.openStudio && !flow.tokens && (
+                      // Several values, or one a token can't say: set in
+                      // Merge Studio (the whole card goes there too).
+                      <span data-adjust-start className={cn(NAV_BUTTON, 'pointer-events-none bg-transparent')}>
+                        <Plus className={NAV_BUTTON_ICON} />
+                        <LocalizedText text="Set it in Merge Studio" />
+                      </span>
+                    )}
+                    {/* 4 · The values. (Not yet set by its own dropdown:
+                        that row already names the value.) */}
+                    <dl className={cn('min-w-0 space-y-2', empty && flow?.tokens && 'hidden')}>
                       {conflict.comparisonFields.map((field, index) => {
                         // Set by hand: what it was → what it is.
-                        const hand = isCustom && custom.rows[index]?.to ? custom.rows[index] : null
-                        const text = isCustom ? custom.rows[index]?.base ?? field.current : card.value(field)
+                        const hand = isCustom && custom?.rows[index]?.to ? custom.rows[index] : null
+                        const text = empty ? '—' : isCustom ? custom.rows[index]?.base ?? field.current : card.value(field)
                         // A color value gets its swatch beside it.
                         const swatch = hand ? hand.swatch : swatchIn(text)
                         return (
@@ -920,7 +979,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                               <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
                             </dd>
                           ) : (
-                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', toneOf(text, field))}>
+                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', empty ? 'text-slate-500' : toneOf(text, field))}>
                             {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
                             <span className="min-w-0"><LocalizedText text={text} /></span>
                           </dd>
@@ -931,7 +990,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                       {/* Set by hand on something the comparison doesn't
                           list (another property, another element) — the
                           same "old → new" form. */}
-                      {isCustom && custom.extras.map((change) => (
+                      {isCustom && custom?.extras.map((change) => (
                         <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
                             {change.layerName && <><LocalizedText text={change.layerName} /> · </>}
@@ -948,37 +1007,53 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                         </div>
                       ))}
                     </dl>
-                    </>)}
-                    {/* The picked side breaks a required standard: say so on
-                        this card, with what clears it. */}
-                    {on && !isCustom && state.cardBlockers.length > 0 && (
-                      <div onClick={(event) => event.stopPropagation()} className="cursor-default border-t border-amber-300/30 pt-3">
-                        <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-200">
-                          <TriangleAlert className="size-3.5 shrink-0" />
-                          <LocalizedText text="Can’t merge · required standard not met" />
-                        </p>
-                        <CheckDecisions checks={checks} only={state.cardBlockers} {...checkActions} />
-                        {state.otherClears && (
-                          <p className="mt-2 text-xs leading-[18px] text-slate-200">
-                            <LocalizedText text={card.side === 'before' ? 'Choosing the design reference clears it.' : 'Choosing the current implementation clears it.'} />
-                          </p>
-                        )}
-                      </div>
+                    {/* 5 · What it does to the code, as the one value that
+                        changes — at the foot of every card, so the three
+                        read across. (The whole line is under the cards.) */}
+                    {conflict.diff && (
+                      <p data-card-code className="mt-auto flex min-w-0 items-center gap-1.5 border-t border-white/[0.07] pt-3 font-mono text-[11px] leading-4">
+                        <Code aria-hidden className="size-3 shrink-0 text-slate-500" />
+                        {!codeResult ? <span className="truncate font-sans text-slate-500"><LocalizedText text="Shown once a value is chosen" /></span>
+                          : codeResult.same ? <span translate="no" className="truncate text-slate-400">{codeResult.from}{codeResult.from && ' · '}<span className="font-sans"><LocalizedText text="No change" /></span></span>
+                            : <span translate="no" className="truncate">
+                              {codeResult.from && <><span className="text-slate-500 line-through">{codeResult.from}</span><span className="text-slate-500"> → </span></>}
+                              {/* (A class taken off has nothing after the arrow.) */}
+                              {codeResult.to ? <span className="text-emerald-200">{codeResult.to}</span> : <span className="font-sans text-emerald-200"><LocalizedText text="Removed" /></span>}
+                            </span>}
+                      </p>
                     )}
                   </div>
                   </div>
                   )
                 })}
               </div>
-              {/* ③ Why — under the cards, for the way that was chosen.
-                  Following the standard needs no reason. No button of its
-                  own: it's kept as it's entered, and settled by Decide. */}
+              {/* ③ The code, in full, once: for the way that's chosen — or,
+                  while another card is under the pointer, for that one. */}
+              {conflict.diff && !readOnly && (
+                <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && shown !== choice} onOpenFile={code?.onOpenFile} />
+              )}
+              {/* ④ What the chosen way needs said — one thing at a time.
+                  Following the standard: nothing. Breaking a required rule:
+                  that it needs an exception, what it breaks, and why.
+                  Otherwise why. Kept as it's entered; ⑤ settles it. */}
               {flow?.reason && (!readOnly || flow.reason.value) && (
-                <div data-decision-reason={choice} className="min-w-0">
+                <div data-decision-reason={choice} className="min-w-0 space-y-2.5">
+                  {exception && editing && (
+                    <div data-exception-notice className="space-y-1">
+                      <p className="flex items-start gap-1.5 text-xs leading-[18px] text-amber-100">
+                        <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
+                        <LocalizedText text={choice === 'B' ? 'It breaks a required rule, so keeping the current value needs the reviewers’ exception approval.' : 'It breaks a required rule, so this needs the reviewers’ exception approval.'} />
+                      </p>
+                      <p className="pl-5 text-xs leading-[18px] text-slate-400">
+                        {brokenSummary.length ? brokenSummary.map((entry) => (
+                          <span key={entry.label} className="mr-3 inline-block"><LocalizedText text={entry.label} /> · <span translate="no" className="text-slate-300">{entry.from}</span> → <LocalizedText text="Design standard" /> <span translate="no" className="text-slate-300">{entry.to}</span></span>
+                        )) : breaks(choice).map((check) => <span key={check.id} className="mr-3 inline-block"><LocalizedText text={check.title} /></span>)}
+                      </p>
+                    </div>
+                  )}
                   <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
                 </div>
               )}
-              {state.exceptionReason && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             </>) : conflict.preview && (
               <div className="min-w-0">
                 {conflict.preview.kind === 'divider' && sources && (
@@ -1016,13 +1091,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
             )}
             {/* Both sides miss a required standard: the cards still choose
                 which side merges, but choosing can't fix it. */}
-            {pairedPreview && state.bothFail && choice !== 'C' && editing && (
-              <p className="flex items-center gap-1.5 text-xs leading-[18px] text-slate-300">
-                <TriangleAlert className="size-3.5 shrink-0 text-slate-400" />
-                <LocalizedText text="Both values miss the standard · it needs adjusting in Merge Studio" />
-              </p>
-            )}
-            {checkBlocks}
+            {!pairedPreview && checkBlocks}
             {state.exceptionReason && !pairedPreview && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {/* Finished: the code as it was merged. What it looked like
                 before — the conflict itself, markers and all — is there to
@@ -1049,7 +1118,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
             )}
             {/* The code follows the card that's picked: its diff when the
                 pick changes the code, a line saying it doesn't otherwise. */}
-            {conflict.diff && !readOnly && codeChange !== 'diff' && (
+            {conflict.diff && !readOnly && !pairedPreview && codeChange !== 'diff' && (
               <div data-code-note={codeChange} className="min-w-0 space-y-1.5">
                 <p className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
                   <FileCode2 className="size-3 shrink-0" />
@@ -1069,7 +1138,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
                 </p>
               </div>
             )}
-            {conflict.diff && !readOnly && codeChange === 'diff' && (
+            {conflict.diff && !readOnly && !pairedPreview && codeChange === 'diff' && (
               <div className="min-w-0 [&>div]:space-y-1.5">
                 {code ? <ConflictCodeView {...code} context={2} /> : <CodeDiffColumns rows={rows} />}
               </div>
@@ -1085,17 +1154,72 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checks
           <p data-decide-summary className="min-w-0 flex-1 truncate pb-1.5 text-xs text-slate-300">
             {chosen ? <>
               <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
+              {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
               {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
             </> : <LocalizedText text="Nothing chosen yet" />}
           </p>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
+            {/* Says what pressing it does, for the way that's chosen. */}
             <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
-              <LocalizedText text="Decide on this" />
+              <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
             </button>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// The code for one way of resolving it, in full — the one block under the
+// cards. Nothing changes: the line as it is, marked so. Something does: the
+// line removed and the line added, the part that differs lit. `preview`:
+// it's a card being hovered, not the chosen one.
+function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
+  const before = conflict.diff.before ?? []
+  const rows = diffLines(before, lines ?? before)
+  const changed = rows.some((row) => row.kind !== 'same')
+  let number = (conflict.line ?? 1) - 1
+  const numbered = rows.map((row) => {
+    if (row.kind !== 'add') number += 1
+    return { ...row, number: Math.max(number, conflict.line ?? 1) }
+  })
+  // A removed line and the one added in its place: only what differs is lit.
+  const lit = new Map()
+  numbered.forEach((row, index) => {
+    const next = numbered[index + 1]
+    if (row.kind !== 'remove' || next?.kind !== 'add') return
+    const [left, right] = changedTokens(row.text, next.text)
+    lit.set(index, left)
+    lit.set(index + 1, right)
+  })
+  return (
+    <div data-choice-code={preview ? 'preview' : title ? 'chosen' : 'none'} className="min-w-0 space-y-1.5">
+      <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
+        <FileCode2 className="size-3 shrink-0" />
+        <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}{conflict.line ? `:${conflict.line}` : ''}</span>
+        {title && <span data-choice-code-title className="shrink-0"><span className="text-slate-500">· </span><LocalizedText text={title} /> <LocalizedText text={preview ? 'Preview' : 'Selected'} /></span>}
+        {!changed && <span data-code-unchanged className="shrink-0 text-slate-500">· <LocalizedText text={title ? 'No change' : 'With nothing chosen, the code doesn’t change.'} /></span>}
+        {onOpenFile && (
+          <button type="button" onClick={onOpenFile} className="ds-intrinsic ml-auto inline-flex h-5 shrink-0 items-center text-[10.5px] text-slate-400 transition-colors hover:text-white">
+            <LocalizedText text="Open in editor" />
+          </button>
+        )}
+      </p>
+      {/* (Re-keyed per way, so switching fades in.) */}
+      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed duration-150 fade-in">
+        {numbered.map((row, index) => (
+          <div key={index} className={cn('flex min-w-0 pr-3', changed ? DIFF_TONES[row.kind] : 'text-slate-400')}>
+            <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{row.number}</span>
+            {changed && <span aria-hidden className="w-4 shrink-0 select-none">{DIFF_MARKS[row.kind]}</span>}
+            <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">
+              {lit.has(index)
+                ? lit.get(index).map((run, at) => <span key={at} className={run.changed ? (row.kind === 'add' ? 'rounded-sm bg-emerald-400/30' : 'rounded-sm bg-red-400/30') : undefined}>{run.text}</span>)
+                : row.text || ' '}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -2066,7 +2190,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // the current implementation with none — with those values laid over it.
   // The card's rows, its picture and the code below all read this.
   const handAssembly = stage === 'resolved' ? conflict?.mergedAssembly : workspace?.mergeDrafts?.current?.[mergeItem?.id]?.assemblies?.[conflict?.layerId]
-  const adjustedByHand = Boolean(adjustment) || studioAdjustments.length > 0
+  // (A height set to a token counts even when it's the layer's own px.)
+  const adjustedByHand = Boolean(adjustment) || studioAdjustments.length > 0 || Boolean(handAssembly?.heightToken)
   // (Decided with no side recorded: the design reference, which is what a
   // merge takes by default — unless it was adjusted by hand, which sits on
   // the current implementation.)
@@ -2120,17 +2245,43 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // Why, for the way that's chosen — kept on the conflict as it's entered
   // (no save of its own; Decide settles it). Following the standard needs
   // none.
+  // The required rules each way would break. Going that way isn't blocked:
+  // it becomes an exception request, which the reviewers approve. (Checks
+  // already asked an exception for still count — that's what was asked.)
+  const customIsReference = Boolean(customResult && conflict?.diff && customResult.lines.join('\n') === (conflict.diff.after ?? []).join('\n'))
+  const requiredNow = conflict ? [...decisionState.required, ...(checks?.exceptions ?? []).filter((check) => !decisionState.required.includes(check))] : []
+  const violations = {
+    A: decisionState.blockingWith.A ?? requiredNow,
+    B: decisionState.blockingWith.B ?? requiredNow,
+    // (Set to exactly what the design reference is: it stands as that does.)
+    C: !adjustedByHand ? [] : customIsReference ? decisionState.blockingWith.A ?? [] : requiredNow,
+  }
+  const broken = choice ? violations[choice] : []
+  const reasonOf = (kind) => (conflict?.deviation?.kind === kind ? conflict.deviation.text ?? '' : '')
   const flowReason = choice === 'C' ? {
     title: 'Why was it adjusted?',
+    hint: 'Required',
     reasons: ADJUSTMENT_REASONS,
     value: conflict.adjustmentReason?.text ?? '',
     onChange: (text) => update({ adjustmentReason: text ? { text, by: viewerId, at: 'Just now' } : null }),
-  } : choice === 'B' && decisionState.reasonApplies ? {
-    title: 'Why depart from the standard?',
+  } : choice === 'B' ? {
+    title: broken.length ? 'Reason for the exception request' : 'Why depart from the standard?',
+    hint: broken.length ? 'Required · choose all that apply' : 'Required',
     reasons: DEVIATION_REASONS,
-    value: decisionState.savedReason ?? '',
+    value: reasonOf('keep-current'),
     onChange: (text) => update({ deviation: text ? { kind: 'keep-current', text, by: viewerId, at: 'Just now' } : null }),
+  } : choice === 'A' && broken.length ? {
+    // (Both sides break it: following the reference still needs one.)
+    title: 'Reason for the exception request',
+    hint: 'Required · choose all that apply',
+    reasons: DEVIATION_REASONS,
+    value: reasonOf('exception'),
+    onChange: (text) => update({ deviation: text ? { kind: 'exception', text, by: viewerId, at: 'Just now' } : null }),
   } : null
+  if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.value.trim()
+  // A single height a token can say is set on the third card itself.
+  const tokenOptions = cardFlow && mergeItem && workspace?.setLayerAdjustments ? heightTokensFor(conflict) : null
+  const tokenSet = (adjustedByHand ? handAssembly : stash?.[conflict?.layerId])?.heightToken
   // Decided once review is asked for; whoever isn't there as a reviewer
   // (the author) can take it back to choose again.
   const reviewerOnly = Boolean(myReviewer && !ownChange)
@@ -2142,14 +2293,47 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     choose: chooseWay,
     custom: customResult,
     openStudio,
+    violations,
+    customIsReference,
+    // How it stands with the rules, for the title's line.
+    ruleStatus: requiredNow.length ? { required: true, text: `${requiredNow.length} required rule${requiredNow.length === 1 ? '' : 's'} broken` }
+      : decisionState.suggested.length ? { text: `${decisionState.suggested.length} recommended rule${decisionState.suggested.length === 1 ? '' : 's'} not followed` } : null,
+    tokens: tokenOptions ? {
+      label: conflict.comparisonFields[0].label,
+      options: tokenOptions,
+      value: tokenOptions.find((option) => option.token === tokenSet) ?? null,
+      // Choosing a value is choosing this way: it's set on the element
+      // (as if in Merge Studio), on the current implementation.
+      pick: (option) => {
+        const set = workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {}
+        const base = adjustedByHand ? set : stash ?? {}
+        workspace.setLayerAdjustments(mergeItem.id, { ...base, [conflict.layerId]: { ...base[conflict.layerId], height: option.px, heightToken: option.token } })
+        if (decisionState.side) undoSide()
+        update({ stashedAssemblies: null, decidedSide: null, decidedBy: null })
+      },
+    } : null,
     reason: flowReason,
-    changeDecision: () => update({ reviewStage: 'detected', reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
+    changeDecision: () => update({ reviewStage: 'detected', exceptionChecks: [], reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
     decide: {
-      run: handleRequestReview,
+      // Breaking a required rule: the exception is asked for with the
+      // decision, its reason the one given here.
+      run: () => {
+        // A value set by hand that is the design reference's: decided as
+        // the design reference (the same code, with nothing left set).
+        if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
+          workspace.setLayerAdjustments(mergeItem.id, {})
+          update({ stashedAssemblies: null })
+          decisionState.pick('A')
+        }
+        if (broken.length) {
+          update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
+          if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${flowReason?.value ?? ''}`, { conflictId: conflict.id })
+        }
+        handleRequestReview()
+      },
       blocked: !choice ? null
         : decisionState.reasonNeeded ? 'Choose at least one reason'
-          : !requiredReviewers(conflict).length ? 'Assign a reviewer other than the author to request review.'
-            : reasonRequest ? 'Reason needed' : null,
+          : !requiredReviewers(conflict).length ? 'Assign a reviewer other than the author to request review.' : null,
     },
   } : conflict ? { editing: stage !== 'resolved', openStudio } : null
   // The code that merges follows the card that's picked: the design
@@ -2359,8 +2543,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             mergedLines={mergedLinesForConflict(conflict, workspace)}
                             changeAfter={changeAfter}
                             state={decisionState}
-                            checks={checks}
-                            checkActions={checkActions}
                             checkBlocks={checkBlocks}
                             flow={flow}
                           />

@@ -53,7 +53,22 @@ export const DESIGN_RULES = [
       { kind: 'token', label: 'button.height.lg = 44', source: TOKENS, find: 'lg' },
       { kind: 'figma', label: 'Checkout · Payment step (Figma)' },
     ],
-    applies: (text) => /button/.test(text) && /height|tall/.test(text) && !/size\/md|--button-height-md|40px.*token/.test(text),
+    applies: (text) => /button/.test(text) && /height|tall/.test(text) && !/size\/md|--button-height-md|40px.*token|design system token/.test(text),
+  },
+  {
+    id: 'button-height-md',
+    name: 'Button height uses --button-height-md (40px)',
+    standard: 'Buttons take their height from the size token (40px at medium).',
+    purpose: 'It keeps every button the same height wherever the shared component is used.',
+    consequence: 'Buttons render shorter than the design system’s medium size.',
+    origin: 'Design system v2',
+    title: 'Buttons take their height from the size token',
+    reason: 'A hard-coded height bypasses the size token, so the button stops following the design system.',
+    sources: [
+      { kind: 'token', label: '--button-height-md = 40px', source: 'src/styles/tokens.css', find: 'button-height-md' },
+      { kind: 'figma', label: 'Button · Size/MD (Figma)' },
+    ],
+    applies: (text) => /button/.test(text) && /height/.test(text) && /size\/md|--button-height-md|design system token/.test(text),
   },
   {
     id: 'touch-target',

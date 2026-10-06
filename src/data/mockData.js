@@ -343,6 +343,7 @@ export const conflictChecklist = [
     effect: 'Buttons 4px short of the medium size',
     gitFlow: { source: 'feature/button-sizing', target: 'develop' },
     token: 'Button / Height',
+    ruleIds: ['button-height-md'],
     file: 'src/components/ui/Button.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',

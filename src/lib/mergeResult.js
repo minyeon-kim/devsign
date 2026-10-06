@@ -1,5 +1,6 @@
 import { canvasPages } from '@/data/mockData'
 import { ASSEMBLY_FILLS, SHAPES } from '@/components/mergestudio/mergeEffects'
+import { changedTokens } from '@/lib/lineDiff'
 
 // What a conflict merges with: the picked side's own values with whatever
 // was set by hand in Merge Studio laid over them. One object, built once —
@@ -50,12 +51,41 @@ const CLASS = {
   radius: /(?<![\w-])rounded(?:-(?:\[[^\]]+\]|none|sm|md|lg|xl|2xl|3xl|full))?(?=[\s"'`])/,
   fill: /(?<![\w-])bg-(?:\[[^\]]+\]|[a-z]+-\d{2,3}|primary|card|transparent)(?=[\s"'`])/,
 }
-function putClass(lines, pattern, className) {
+// (`focus`: the classes the two sides differ by — on a line with several of
+// a kind, `sm: 'h-7 …', md: 'h-9 …'`, that's the one to replace.)
+function putClass(lines, pattern, className, focus = []) {
+  const own = focus.find((token) => pattern.test(`${token} `) && lines.some((line) => line.includes(token)))
+  if (own) {
+    const at = lines.findIndex((line) => line.includes(own))
+    return lines.map((line, index) => (index === at ? line.replace(own, className) : line))
+  }
   const at = lines.findIndex((line) => pattern.test(line))
   if (at >= 0) return lines.map((line, index) => (index === at ? line.replace(pattern, className) : line))
   const host = lines.findIndex((line) => /className="[^"]*"/.test(line))
   if (host < 0) return lines
   return lines.map((line, index) => (index === host ? line.replace(/className="([^"]*)"/, (_, classes) => `className="${`${classes} ${className}`.trim()}"`) : line))
+}
+
+// The tokens a single compared height can be set to without leaving the
+// review (the third card's dropdown): the button heights, for a conflict
+// that is only about a button's height. Null: it's set in Merge Studio.
+const BUTTON_HEIGHTS = [
+  { token: '--button-height-sm', px: 32 },
+  { token: '--button-height-md', px: 40 },
+  { token: '--button-height-lg', px: 44 },
+]
+export function heightTokensFor(conflict) {
+  const fields = conflict?.comparisonFields ?? []
+  if (!conflict?.layerId || fields.length !== 1 || propertyOf(fields[0].label) !== 'height') return null
+  return /button/i.test(`${fields[0].label} ${conflict.token ?? ''}`) ? BUTTON_HEIGHTS : null
+}
+
+// What two versions of the code differ by, as the values themselves
+// ("h-9" → "h-10") — a card's one-line code result.
+export function codeChangeOf(before = [], after = []) {
+  const [left, right] = changedTokens(before.join('\n'), after.join('\n'))
+  const text = (runs) => runs.filter((run) => run.changed).map((run) => run.text.trim()).filter(Boolean).join(' ')
+  return { from: text(left), to: text(right) }
 }
 
 // `side`: the side that merges ('A' the design reference, 'B' the current
@@ -83,9 +113,10 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
     const property = propertyOf(field.label)
     const numbers = numbersIn(base)
     let to = null
-    if (property === 'height' && height != null && isLayers(field, 'height')) {
+    if (property === 'height' && height != null && (set.heightToken || isLayers(field, 'height'))) {
       placed.add('height')
-      if (numbers[0] !== height) to = `${height}px`
+      // (Set to a token: the value, then the token it comes from.)
+      if (set.heightToken ? !String(base).includes(set.heightToken) : numbers[0] !== height) to = set.heightToken ? `${height}px (${set.heightToken})` : `${height}px`
     } else if (property === 'width' && width != null && isLayers(field, 'width')) {
       placed.add('width')
       if (numbers[0] !== width) to = `${width}px`
@@ -148,16 +179,18 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
 
   // The code: the side's lines with each changed value's class.
   let lines = [...((side === 'A' ? conflict.diff?.after : conflict.diff?.before) ?? [])]
+  const differ = changedTokens((conflict.diff?.before ?? []).join('\n'), (conflict.diff?.after ?? []).join('\n'))[side === 'A' ? 1 : 0]
+  const focus = differ.filter((run) => run.changed).flatMap((run) => run.text.split(/[\s"'`]+/)).filter(Boolean)
   const w = width ?? layer?.width
   const h = height ?? layer?.height
   if ((changed.width || changed.height) && w === h && lines.some((line) => CLASS.size.test(line))) {
     lines = putClass(lines, CLASS.size, w % 4 === 0 ? `size-${w / 4}` : `size-[${w}px]`)
   } else {
-    if (changed.width) lines = putClass(lines, CLASS.width, `w-[${w}px]`)
-    if (changed.height) lines = putClass(lines, CLASS.height, `h-[${h}px]`)
+    if (changed.width) lines = putClass(lines, CLASS.width, `w-[${w}px]`, focus)
+    if (changed.height) lines = putClass(lines, CLASS.height, set.heightToken ? `h-[var(${set.heightToken})]` : `h-[${h}px]`, focus)
   }
-  if (changed.radius) lines = putClass(lines, CLASS.radius, `rounded-[${radius}px]`)
-  if (changed.fill) lines = putClass(lines, CLASS.fill, fill.className)
+  if (changed.radius) lines = putClass(lines, CLASS.radius, `rounded-[${radius}px]`, focus)
+  if (changed.fill) lines = putClass(lines, CLASS.fill, fill.className, focus)
 
   return { side, rows, extras, preview, lines, adjusted: rows.some((row) => row.to) || extras.length > 0 }
 }

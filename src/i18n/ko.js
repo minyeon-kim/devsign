@@ -281,6 +281,31 @@ You set the values yourself|값을 직접 정해요
 Set the values yourself|값 직접 정하기
 Required · choose all that apply|필수 · 여러 개 선택 가능
 Decide on this|이 방법으로 결정
+Breaks the standard · exception needed|기준 위반 · 예외 필요
+Differs from the standard|기준과 다름
+Recommended|권장
+Choose a value|값 선택
+Set it in Merge Studio|병합 스튜디오에서 정하기
+Shown once a value is chosen|값을 고르면 표시돼요
+No change|변경 없음
+Selected|선택됨
+Removed|제거
+Preview|미리보기
+Design standard|디자인 기준
+It breaks a required rule, so keeping the current value needs the reviewers’ exception approval.|필수 규칙 위반이라, 현재 값을 유지하려면 검토자의 예외 승인이 필요해요.
+It breaks a required rule, so this needs the reviewers’ exception approval.|필수 규칙 위반이라, 검토자의 예외 승인이 필요해요.
+Reason for the exception request|예외 요청 이유
+Required|필수
+Send exception request|예외 요청 보내기
+Apply design reference|디자인 기준 적용
+Decide to keep the current value|현재 값 유지로 결정
+Apply the adjusted value|조정값 적용
+Button height uses --button-height-md (40px)|버튼 높이는 --button-height-md(40px) 사용
+Buttons take their height from the size token (40px at medium).|버튼 높이는 크기 토큰 사용 (MD 40px)
+It keeps every button the same height wherever the shared component is used.|공용 컴포넌트를 쓰는 모든 화면에서 버튼 높이를 같게 유지합니다.
+Buttons render shorter than the design system’s medium size.|버튼이 디자인 시스템 MD 크기보다 낮게 표시됩니다.
+Buttons take their height from the size token|버튼 높이는 크기 토큰 사용
+A hard-coded height bypasses the size token, so the button stops following the design system.|하드코딩된 높이는 크기 토큰을 우회해 디자인 시스템을 따르지 않게 됩니다.
 Choose at least one reason|이유를 하나 이상 선택해 주세요
 Nothing chosen yet|아직 선택하지 않았어요
 Edit adjustment|조정 편집
