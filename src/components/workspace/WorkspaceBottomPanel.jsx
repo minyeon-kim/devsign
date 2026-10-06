@@ -19,7 +19,7 @@ const DEFAULT_TABS = [
   { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
 ]
 
-const STRIP_HEIGHT = 48
+const STRIP_HEIGHT = 40
 const MIN_HEIGHT = 120
 // Leave the canvas at least this much room above the panel.
 const MIN_CANVAS = 220
@@ -147,7 +147,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       />
 
       <div
-        className="flex shrink-0 cursor-pointer items-center gap-1.5 px-3 py-2"
+        className="flex shrink-0 cursor-pointer items-center gap-1.5 px-3 py-1"
         style={{ height: STRIP_HEIGHT }}
         role="tablist"
         onClick={(event) => {

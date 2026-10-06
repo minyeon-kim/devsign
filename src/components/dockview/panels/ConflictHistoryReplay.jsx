@@ -9,7 +9,7 @@ import HistoryTimeline from '@/components/history/HistoryTimeline'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { useConflictStore } from '@/state/ConflictStore'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
-import { DecisionSummary, ReasonStrip } from '@/components/conflicts/Rationale'
+import { ReasonStrip } from '@/components/conflicts/Rationale'
 import { mergeEvidence, stepRationale } from '@/lib/rationale'
 
 const EVENT_COPY = {
@@ -204,7 +204,6 @@ function ConflictHistoryReplay({ conflict, workspace, rationale, onOpenEvidence,
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
     {/* The decision first — what, why, the evidence, who — then its trail. */}
-    {rationale && <DecisionSummary rationale={rationale} onOpen={onOpenEvidence} />}
       <div className={cn('grid min-h-[280px] min-w-0 flex-1 grid-cols-1 gap-3', groups.length > 0 && 'xl:grid-cols-[240px_minmax(0,1fr)]')}>
       {groups.length > 0 && (
         <section aria-label="System activity" className="min-h-0 overflow-y-auto rounded-xl bg-white/[0.03] p-3">

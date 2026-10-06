@@ -61,7 +61,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
-import { InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
+import { DecisionSummary, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
 import { rationaleOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
@@ -98,7 +98,7 @@ const severityConfig = {
 }
 
 const REVIEWER_STATUS = {
-  pending: { label: 'Pending', className: 'text-slate-400' },
+  pending: { label: 'Pending', className: 'text-slate-200' },
   approved: { label: 'Approved', className: 'text-emerald-300' },
   changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
@@ -370,7 +370,7 @@ function DueDate({ label, className }) {
 // nothing is said twice.
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence }) {
   // Keep the review's original context visible alongside list metadata.
   const [showDetails, setShowDetails] = useState(true)
   const open = stage !== 'resolved'
@@ -429,18 +429,24 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         </>
       )}
 
-      {!conflict.rollback && <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
+      {!conflict.rollback && <dl className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
         <dt className="text-slate-500"><LocalizedText text="Author" /></dt>
         <dd translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</dd>
         <dt className="text-slate-500"><LocalizedText text="Updated" /></dt>
         <dd className="text-slate-300"><LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></dd>
         <dt className="text-slate-500"><LocalizedText text="Checks" /></dt>
-        <dd className="text-slate-300">{checks ? <><LocalizedText text="Failing checks" /> · {checks.failing.length}</> : '—'}</dd>
+        <dd className="min-w-0 text-slate-300">{checks ? <>
+          <p><LocalizedText text={checks.failing.length ? 'Design standards needing attention' : 'All design checks passed'} />{checks.failing.length > 0 && ` · ${checks.failing.length}`}</p>
+          {checks.failing.length > 0 && <ul className="mt-1 space-y-1 text-[11px] leading-4 text-slate-400">{checks.failing.map((check) => <li key={check.id}><LocalizedText text={check.title} /></li>)}</ul>}
+          {checks.blocking?.length > 0 && <p className="mt-1 text-[11px] leading-4 text-slate-400"><LocalizedText text="Resolve the required standards below before merging." /></p>}
+        </> : <LocalizedText text="No check results yet" />}</dd>
         <dt className="text-slate-500"><LocalizedText text="Reviewers" /></dt>
         <dd className="text-slate-300">{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
         <dt className="text-slate-500"><LocalizedText text="Due date" /></dt>
         <dd className="text-slate-300"><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
       </dl>}
+
+      {!conflict.rollback && rationale && <DecisionSummary embedded rationale={rationale} onOpen={onOpenEvidence} />}
 
       <section className="min-w-0 flex-1">
         <button
@@ -1065,7 +1071,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss }) {
                       or a developer's. */}
                   {person.role && <span className="block truncate text-[11px] leading-4 text-slate-500"><LocalizedText text={person.role} /></span>}
                 </span>
-                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-400' : status.className)}>
+                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
@@ -1859,7 +1865,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-12 shrink-0 items-center gap-3 bg-card px-3">
+            <div className="flex h-10 shrink-0 items-center gap-3 bg-card px-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
@@ -1884,7 +1890,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 under its title (said once, above). The only way back is the
                 "<" beside the title, and it always goes to the list. */}
             {!conflict.rollback && (
-              <div role="tablist" aria-label="Conflict views" className="flex h-8 shrink-0 items-stretch gap-4 px-3 pl-11">
+              <div role="tablist" aria-label="Conflict views" className="flex h-7 shrink-0 items-stretch gap-4 px-3 pl-11">
                 {[['overview', 'Review'], ['history', 'Activity']].map(([value, label]) => (
                   <button
                     key={value}
@@ -1902,7 +1908,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
-            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-3 pb-3', tab === 'history' && !conflict.rollback && 'pl-11')}>
+            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-auto',
                 REVIEW_GUTTER
@@ -1931,6 +1937,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[30%] xl:min-w-[220px] xl:max-w-[320px] xl:shrink-0')}>
                         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
+                            rationale={rationale}
+                            onOpenEvidence={openEvidence}
                             checks={checks}
                             conflict={conflict}
                             severity={severity}

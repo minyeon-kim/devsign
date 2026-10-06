@@ -5,6 +5,9 @@ const server = await createServer({ server: { middlewareMode: true, hmr: false, 
 try {
   const { DESIGN_RULES, mergeEvidence, rationaleOf, stepRationale, checkpointRationale } = await server.ssrLoadModule('/src/lib/rationale.js')
   assert.equal(DESIGN_RULES.length, 4)
+  const mediumButton = rationaleOf({ id: 'medium', title: 'Button height', message: 'Use size/md and --button-height-md (40px)', suggestionReason: 'Use the medium token' })
+  assert.equal(mediumButton.rules.some((rule) => rule.id === 'button-height'), false)
+  assert.equal(mediumButton.why.text, 'Use the medium token')
   const original = { id: 'order', ruleIds: ['button-color', 'button-height'], purpose: { text: 'Original request' } }
   const comments = [
     { id: 'one', authorId: 'james', text: 'Use primary', target: { conflictId: 'order' } },

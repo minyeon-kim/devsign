@@ -89,6 +89,10 @@ A mix of the drafts, submitted for review and merge.|시안을 조합한 결과�
 Mixed the drafts|시안을 조합했습니다
 found a difference|차이 감지
 Author|작성자
+Design standards needing attention|기준과 달라 확인이 필요한 항목
+All design checks passed|디자인 기준을 모두 충족해요
+Resolve the required standards below before merging.|필수 항목은 아래 비교 영역에서 수정하거나 예외 승인을 받아야 병합할 수 있어요.
+No check results yet|아직 검사 결과가 없어요
 Failing checks|미통과 검사
 Decision|결정
 Show less|접기

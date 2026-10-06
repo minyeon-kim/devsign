@@ -36,7 +36,7 @@ export const DESIGN_RULES = [
       { kind: 'token', label: 'button.height.lg = 44', source: TOKENS, find: 'lg' },
       { kind: 'figma', label: 'Checkout · Payment step (Figma)' },
     ],
-    applies: (text) => /button/.test(text) && /height|tall/.test(text),
+    applies: (text) => /button/.test(text) && /height|tall/.test(text) && !/size\/md|--button-height-md|40px.*token/.test(text),
   },
   {
     id: 'touch-target',
