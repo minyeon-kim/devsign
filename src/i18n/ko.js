@@ -294,6 +294,8 @@ Standard|기준
 Decrease|줄이기
 Increase|늘리기
 Set a value first|값을 정해 주세요
+The design reference doesn’t keep the rule either. Adjusting it by hand can.|디자인 기준도 규칙을 만족하지 않아요. 직접 조정으로 해결할 수 있어요.
+At least 24 × 24px needed (WCAG 2.5.8)|최소 24 × 24px 필요 (WCAG 2.5.8)
 Type a value…|직접 입력…
 Back to the token list|토큰 목록으로 돌아가기
 token|토큰

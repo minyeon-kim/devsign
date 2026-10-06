@@ -493,7 +493,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           {/* Required rules it breaks: one badge, here only. (What they
               are, and what going on needs, is beside the choice.) */}
           {blockedCount > 0 && (
-            <span data-blocked-badge className={cn(INFO_BADGE, 'bg-amber-400/15 text-amber-200')}>
+            <span data-blocked-badge className={cn(INFO_BADGE, 'gap-1 bg-white/[0.07] text-slate-200')}>
+              <TriangleAlert aria-hidden className="size-3 shrink-0 text-amber-300" />
               <LocalizedText text={`${blockedCount} required rule${blockedCount === 1 ? '' : 's'} broken`} />
             </span>
           )}
@@ -786,6 +787,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   ]
   const choice = flow?.choice ?? null
   const chosen = cards.find((card) => card.id === choice) ?? null
+  // The reference is exactly what's there now: choosing it changes nothing,
+  // so it isn't offered — two cards, what's there and a value of one's own.
+  // (Unless it's what was decided: that still has to show.)
+  const sameSides = !conflict.comparisonFields?.some((field) => field.current !== field.expected)
+  const hideReference = sameSides && choice !== 'A'
+  const offered = hideReference ? cards.filter((card) => card.id !== 'A') : cards
   const editing = Boolean(flow?.editing)
   // Red only for a value that breaks the standard, green for one that
   // matches it, plain for anything else (a value both sides share, one set
@@ -804,7 +811,11 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // One badge a card: how it stands with the standard.
   const MEETS = { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard' }
   const DIFFERS = { tone: 'bg-white/[0.07] text-slate-300', text: 'Differs from the standard' }
-  const badgeOf = (id) => (breaks(id).length ? { tone: 'bg-amber-400/15 text-amber-200', icon: TriangleAlert, text: 'Breaks the standard · exception needed' }
+  // (A broken rule is said quietly on a card — an outline, a small amber
+  // mark: the one loud place is what has to be done about it, below.)
+  const badgeOf = (id) => (breaks(id).length ? { tone: 'border border-white/15 text-slate-300', icon: TriangleAlert, iconTone: 'text-amber-300', text: 'Breaks the standard · exception needed' }
+    // (The only way that keeps the rule: a value of one's own.)
+    : id === 'C' && !peeked && (hideReference || breaks('A').length > 0) && breaks('B').length > 0 ? { ...MEETS, text: 'Recommended' }
     // (The reference, where keeping the current value breaks a required
     // rule: recommended — that says it meets the standard, too.)
     : id === 'A' && differs ? (breaks('B').length ? { ...MEETS, text: 'Recommended' } : MEETS)
@@ -830,6 +841,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
 
   return (
     <div className="flex h-full flex-col">
+      {/* (What's chosen from scrolls; the bar that settles it stays at the
+          foot of the panel.) */}
+      <div data-choice-scroll className={cn('min-w-0', pairedPreview && 'min-h-0 flex-1 overflow-auto')}>
       {/* ① The section's title: what to do here — fixed while choosing,
           the outcome once decided — then how it stands with the rules. */}
       {pairedPreview && flow && !readOnly && (
@@ -838,7 +852,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             <span className="text-[13px] font-semibold text-white">
               {flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
             </span>
-            {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className={flow.ruleStatus.required ? 'text-amber-200' : undefined}><LocalizedText text={flow.ruleStatus.text} /></span></>}
+            {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className="text-slate-400">{flow.ruleStatus.required && <TriangleAlert aria-hidden className="mr-1 inline size-3 -translate-y-px text-amber-300" />}<LocalizedText text={flow.ruleStatus.text} /></span></>}
             {(flow.decided || !flow.ruleStatus) && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
           </p>
           {flow.canChange && (
@@ -847,6 +861,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             </button>
           )}
         </div>
+      )}
+      {pairedPreview && flow && !readOnly && hideReference && breaks('B').length > 0 && (
+        <p data-no-reference className="-mt-1.5 mb-3 text-xs leading-[18px] text-slate-400"><LocalizedText text="The design reference doesn’t keep the rule either. Adjusting it by hand can." /></p>
       )}
       {!pairedPreview && flow?.editing && flow.openStudio && (
         <div className="mb-3 flex min-w-0 items-center">
@@ -864,8 +881,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               {/* ② One of three, like radio options, all the same height:
                   the picked one in green with a check, the others with an
                   empty ring. Decided: the chosen one stands, the rest fade. */}
-              <div role="radiogroup" aria-label="해결 방법 선택" className="grid grid-cols-3 gap-2">
-                {cards.map((card) => {
+              <div role="radiogroup" aria-label="해결 방법 선택" className={cn('grid gap-2', offered.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+                {offered.map((card) => {
                   const on = choice === card.id
                   const isCustom = card.id === 'C'
                   const empty = isCustom && !custom
@@ -937,7 +954,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     <div data-card-badge className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
                       {badge && !readOnly && (
                         <span className={cn('inline-flex h-5 items-center gap-1 rounded px-1.5 text-[10.5px] leading-none font-medium', badge.tone)}>
-                          {badge.icon && <badge.icon className="size-3 shrink-0" />}
+                          {badge.icon && <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} />}
                           <LocalizedText text={badge.text} />
                         </span>
                       )}
@@ -1046,16 +1063,19 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               {/* ③ The code, in full, once: for the way that's chosen — or,
                   while another card is under the pointer, for that one. */}
               {conflict.diff && !readOnly && (
-                <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />
+                // (24px from the cards, and to what follows.)
+                <div className="mt-3 min-w-0"><ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} /></div>
               )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
               {flow?.reason && (!readOnly || flow.reason.value) && (
-                <div data-decision-reason={choice} className="min-w-0 space-y-2.5">
+                <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
                   {exception && editing && (
-                    <div data-exception-notice className="space-y-1">
+                    // The one loud place: what going this way needs. What
+                    // it breaks, in the rule's own numbers, under it.
+                    <div data-exception-notice className="space-y-1 rounded-lg bg-amber-400/[0.08] px-4 py-3">
                       <p className="flex items-start gap-1.5 text-xs leading-[18px] text-amber-100">
                         <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
                         <LocalizedText text={choice === 'B' ? 'It breaks a required rule, so keeping the current value needs the reviewers’ exception approval.' : 'It breaks a required rule, so this needs the reviewers’ exception approval.'} />
@@ -1063,7 +1083,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       <p className="pl-5 text-xs leading-[18px] text-slate-400">
                         {brokenSummary.length ? brokenSummary.map((entry) => (
                           <span key={entry.label} className="mr-3 inline-block"><LocalizedText text={entry.label} /> · <span translate="no" className="text-slate-300">{entry.from}</span> → <LocalizedText text="Design standard" /> <span translate="no" className="text-slate-300">{entry.to}</span></span>
-                        )) : breaks(choice).map((check) => <span key={check.id} className="mr-3 inline-block"><LocalizedText text={check.title} /></span>)}
+                        )) : breaks(choice).map((check) => {
+                          // A touch area: its size, and the least it has to be.
+                          const area = check.id === 'targets' ? conflict.comparisonFields.find((field) => /touch area|size/i.test(field.label)) : null
+                          return area ? <span key={check.id} className="mr-3 inline-block"><LocalizedText text={area.label} /> <span translate="no" className="text-slate-300">{choice === 'C' ? custom?.rows.find((row) => row.label === area.label)?.to ?? area.current : area.current}</span> · <LocalizedText text="At least 24 × 24px needed (WCAG 2.5.8)" /></span>
+                            : <span key={check.id} className="mr-3 inline-block"><LocalizedText text={check.title} />{check.hint && <> · <LocalizedText text={check.hint} /></>}</span>
+                        })}
                       </p>
                     </div>
                   )}
@@ -1165,22 +1190,22 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       {/* ⑤ The one place it's settled: what was chosen, and the button
           that decides it (and asks the reviewers). While it can't be
           pressed, the line over it says what's missing. */}
+      </div>
       {pairedPreview && editing && flow.decide && (
-        <div data-decide-bar className="mt-3 flex min-w-0 items-end gap-3 border-t border-white/[0.07] pt-3">
-          <p data-decide-summary className="min-w-0 flex-1 truncate pb-1.5 text-xs text-slate-300">
+        <div data-decide-bar className="mt-3 flex min-w-0 shrink-0 items-center gap-3 border-t border-white/[0.07] pt-3">
+          <p data-decide-summary className="min-w-0 flex-1 truncate text-xs text-slate-300">
             {chosen ? <>
               <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
               {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
               {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
             </> : <LocalizedText text="Nothing chosen yet" />}
           </p>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
-            {/* Says what pressing it does, for the way that's chosen. */}
-            <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
-              <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
-            </button>
-          </div>
+          {/* (What's missing, on the button's own line.) */}
+          {flow.decide.blocked && <p data-decide-hint className="shrink-0 text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
+          {/* Says what pressing it does, for the way that's chosen. */}
+          <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
+            <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
+          </button>
         </div>
       )}
     </div>
@@ -1319,7 +1344,7 @@ function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
     lit.set(index + 1, right)
   })
   return (
-    <div data-choice-code={preview ? 'preview' : title ? 'chosen' : 'none'} className="min-w-0 space-y-1.5">
+    <div data-choice-code={preview ? 'preview' : title ? 'chosen' : 'none'} className="min-w-0 space-y-2">
       <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
         <FileCode2 className="size-3 shrink-0" />
         <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}{conflict.line ? `:${conflict.line}` : ''}</span>
@@ -1332,9 +1357,9 @@ function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
         )}
       </p>
       {/* (Re-keyed per way, so switching fades in.) */}
-      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed duration-150 fade-in">
+      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 px-4 py-3 font-mono text-[11px] leading-relaxed duration-150 fade-in">
         {numbered.map((row, index) => (
-          <div key={index} className={cn('flex min-w-0 pr-3', changed ? DIFF_TONES[row.kind] : 'text-slate-400')}>
+          <div key={index} className={cn('-mx-4 flex min-w-0 px-4', changed ? DIFF_TONES[row.kind] : 'text-slate-400')}>
             <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{row.number}</span>
             {changed && <span aria-hidden className="w-4 shrink-0 select-none">{DIFF_MARKS[row.kind]}</span>}
             <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">
@@ -2377,9 +2402,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // already asked an exception for still count — that's what was asked.)
   const customIsReference = Boolean(customResult && conflict?.diff && (customResult.isReference || customResult.lines.join('\n') === (conflict.diff.after ?? []).join('\n')))
   const requiredNow = conflict ? [...decisionState.required, ...(checks?.exceptions ?? []).filter((check) => !decisionState.required.includes(check))] : []
+  // (The two sides as they are — without what's set by hand, which is the
+  // third way's: a value that fixes the rule doesn't fix it for them.)
+  const plainRequired = adjustedByHand && mergeItem && workspace?.linesOfFile
+    ? checksFor(mergeItem, { ...workspace.mergeDrafts?.current?.[mergeItem.id], assemblies: {} }, workspace.linesOfFile).blocking.filter((check) => !(conflict.acceptedChecks ?? []).includes(check.id))
+    : requiredNow
   const violations = {
-    A: decisionState.blockingWith.A ?? requiredNow,
-    B: decisionState.blockingWith.B ?? requiredNow,
+    A: decisionState.blockingWith.A ?? plainRequired,
+    B: decisionState.blockingWith.B ?? plainRequired,
     // (Set to exactly what the design reference is: it stands as that does.)
     C: !adjustedByHand ? [] : customIsReference ? decisionState.blockingWith.A ?? [] : requiredNow,
   }

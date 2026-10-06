@@ -213,8 +213,13 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
   const focus = differ.filter((run) => run.changed).flatMap((run) => run.text.split(/[\s"'`]+/)).filter(Boolean)
   const w = width ?? layer?.width
   const h = height ?? layer?.height
+  const sizeClass = w % 4 === 0 ? `size-${w / 4}` : `size-[${w}px]`
+  const squared = lines.findIndex((line) => CLASS.width.test(line) && CLASS.height.test(line))
   if ((changed.width || changed.height) && w === h && lines.some((line) => CLASS.size.test(line))) {
-    lines = putClass(lines, CLASS.size, w % 4 === 0 ? `size-${w / 4}` : `size-[${w}px]`)
+    lines = putClass(lines, CLASS.size, sizeClass)
+  } else if (changed.width && changed.height && w === h && squared >= 0) {
+    // A square written as w-[…] h-[…]: one size class says both.
+    lines = lines.map((line, index) => (index === squared ? line.replace(CLASS.width, sizeClass).replace(new RegExp(`\\s*${CLASS.height.source}`), '') : line))
   } else {
     if (changed.width) lines = putClass(lines, CLASS.width, `w-[${w}px]`, focus)
     if (changed.height) lines = putClass(lines, CLASS.height, set.heightToken ? `h-[var(${set.heightToken})]` : `h-[${h}px]`, focus)
@@ -226,7 +231,10 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
   // Set to exactly what the standard says, and nothing else: it's the
   // design reference's code, written the way the reference writes it.
   const isReference = side !== 'A' && extras.length === 0 && rows.some((row) => row.to) && Boolean(conflict.diff?.after)
-    && rows.every((row, index) => row.same || (row.to && numbersIn(row.to).join() === numbersIn(fields[index].expected).join() && numbersIn(row.to).length > 0))
+    // (A value left as it is doesn't count against it; one set by hand has
+    // to be the standard's — also where both sides share a value, which
+    // setting it differently is exactly what changes.)
+    && rows.every((row, index) => !row.to || (numbersIn(row.to).join() === numbersIn(fields[index].expected).join() && numbersIn(row.to).length > 0))
   if (isReference) lines = [...conflict.diff.after]
 
   return { side, rows, extras, preview, lines, isReference, adjusted: rows.some((row) => row.to) || extras.length > 0 }
