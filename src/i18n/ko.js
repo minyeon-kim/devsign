@@ -61,6 +61,12 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Reason for keeping the current value needed|현재 값 유지 이유 입력 필요
+Your review needed|내 검토 필요
+Can’t merge|병합 불가
+View this step’s replay|이 단계의 리플레이 보기
+Applied the brand violet|브랜드 보라색 적용
+before the design tokens were final|디자인 토큰 확정 전
 No change — the current code stays as it is.|변경 없음 · 현재 코드 그대로 유지
 With nothing chosen, the code doesn’t change.|선택하지 않으면 코드는 바뀌지 않아요
 View replay|리플레이 보기

@@ -216,7 +216,7 @@ function ReviewDetails({ conflict, showProject, open }) {
   ].filter(Boolean).map(([label, value]) => (
     <Fragment key={label}>
       <dt data-detail-label className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
-      <dd data-detail-value className={SUMMARY_BODY}>{value}</dd>
+      <dd data-detail-value className={INFO_VALUE}>{value}</dd>
     </Fragment>
   ))
 }
@@ -376,18 +376,27 @@ function DueDate({ label, className }) {
 // `adjustment`: a size set by hand in Merge Studio — the summary then says
 // what was done (and that it's resolved, once nothing blocks the merge).
 // The summary's two text styles: body, and the small grey label over it.
-// (A step quieter than the comparison beside it, which is what's acted on.)
-const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-300 [overflow-wrap:anywhere]'
 const SUMMARY_ROW_LABEL = 'text-[11px] leading-[18px] whitespace-nowrap text-slate-500'
 
 // One section of the Info tab: a hairline above (not on the first), a small
 // grey title with an optional count, and — when it folds — the whole header
 // as the toggle with its arrow at the right.
-const INFO_SECTION = 'border-t border-white/[0.07] py-2.5 first:border-t-0 first:pt-0'
+const INFO_SECTION = 'border-t border-white/[0.07] py-3 first:border-t-0 first:pt-0'
 const INFO_TITLE = 'text-[11px] leading-4 text-slate-400'
+const INFO_BADGE = 'inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold whitespace-nowrap'
 const INFO_VALUE = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
 const STATUS_TEXT = { detected: 'text-slate-200', in_review: 'text-sky-300', pending_merge: 'text-emerald-300', pending_rollback: 'text-amber-300', done: 'text-violet-300' }
 const RISK_TEXT = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300' }
+// A label and its value, as a row of the Info tab's grid.
+function Row({ label, children, ...rest }) {
+  return (
+    <>
+      <dt className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
+      <dd className={INFO_VALUE} {...rest}>{children}</dd>
+    </>
+  )
+}
+
 function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, children }) {
   const heading = title && (
     <>
@@ -408,7 +417,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest, reasonNeeded = false, needsMyReview = false }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -443,75 +452,78 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // Why it conflicts: its own account when it has one, else what was found.
   const cause_text = conflict.cause ?? conflict.message ?? summary
 
-  // The next thing to do, in a line under the status.
-  const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
-  const nextStep = blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
-    : stage === 'detected' ? 'Review request needed'
-      : stage === 'approved' ? 'Ready to merge'
-        : stage === 'resolved' ? null
-          : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
+  // What the viewer has to do now — and only that: nothing shows when the
+  // next move is someone else's.
+  const todo = stage === 'resolved' ? null
+    : reasonNeeded ? 'Reason for keeping the current value needed'
+      : blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
+        : stage === 'detected' ? 'Review request needed'
+          : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge')
+            : needsMyReview ? 'Your review needed' : null
   const status = listStatusOf(conflict)
-  const approved = requiredReviewers(conflict).filter((reviewer) => reviewer.status === 'approved').length
-  const required = requiredReviewers(conflict).length
   const evidenceCount = (standard ? 1 : 0) + (rationale?.evidence.length ?? 0) + (cause ? 1 : 0)
+  // One label column for the whole tab: every row's label starts at the
+  // same x, and so does every value.
+  const GRID = 'grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2'
+  const list = (items) => items.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)
 
   return (
-    // The sidebar's Info tab: short sections stacked under hairlines, each
-    // a small grey title (with a count, and an action at its right where it
-    // has one) over a little content. Labels grey, values the default color.
+    // The sidebar's Info tab, as four groups under equal hairlines — Status,
+    // Problem, Evidence, Review — then Details. Labels are one small grey
+    // column; values the default color.
     <div data-review-info className="flex min-h-full flex-col">
+      {/* 1 · Status: where it stands, how risky, how binding — as badges —
+          and, under them, the one thing to do (when there is one). */}
       <InfoSection>
-        {/* Status and risk, as colored badges; then what to do next. */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span data-status-badge className={cn('inline-flex h-7 items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold', STATUS_TEXT[status.id])}>
+        <div data-status-badges className="flex flex-wrap items-center gap-1.5">
+          <span data-status-badge className={cn(INFO_BADGE, STATUS_TEXT[status.id])}>
             <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
             <LocalizedText text={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : status.label} />
           </span>
           {severity && (
-            <span data-risk-badge className={cn('inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold', RISK_TEXT[severity.label.toLowerCase()])}>
+            <span data-risk-badge className={cn(INFO_BADGE, RISK_TEXT[severity.label.toLowerCase()])}>
               <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
               <LocalizedText text={severity.label} />
+            </span>
+          )}
+          {/* Recommended or required is said here, once — not at the end
+              of the lines below. */}
+          {standard && (
+            <span data-standard-badge={standard.required ? 'required' : 'recommended'} className={cn(INFO_BADGE, standard.required ? 'bg-rose-500/15 text-rose-300' : 'text-slate-200')}>
+              <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} />
+              {standard.required && <><span className="font-normal opacity-70">·</span><LocalizedText text="Can’t merge" /></>}
             </span>
           )}
           {isAiDraft && (
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>
           )}
         </div>
-        {nextStep && <p data-next-step className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={nextStep} /></p>}
+        {todo && <p data-next-step className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={todo} /></p>}
         {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
       </InfoSection>
 
-      {!conflict.rollback && cause_text && (
-        <InfoSection title="Cause"><p data-summary-row="Cause" className={INFO_VALUE}><LocalizedText text={cause_text} /></p></InfoSection>
-      )}
-      {!conflict.rollback && (why || standard) && (
-        <InfoSection title="Impact">
-          <p data-summary-row="Impact" className={INFO_VALUE}>
-            {/* Terse items, " · " between them — then whether it can
-                still merge. */}
-            {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
-            {standard && <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Can’t merge (required standard)' : 'Can merge (recommended standard)'} /></span>}
-          </p>
+      {/* 2 · Problem: why it conflicts, and what goes wrong if it stays. */}
+      {!conflict.rollback && (cause_text || why || standard) && (
+        <InfoSection>
+          <dl data-info-problem className={GRID}>
+            {cause_text && <Row label="Cause" data-summary-row="Cause"><LocalizedText text={cause_text} /></Row>}
+            {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
+          </dl>
         </InfoSection>
       )}
 
-      {/* Evidence: counted in its title, folded until asked for. */}
+      {/* 3 · Evidence: counted in its header, folded until asked for. */}
       {hasEvidence && (
         <InfoSection sectionRef={evidenceRef} title="Evidence" count={evidenceCount} open={showEvidence} onToggle={() => setShowEvidence((value) => !value)} toggleProps={{ 'data-evidence-toggle': '' }}>
           {showEvidence && (
-            <div data-evidence-body className="space-y-2">
+            <div data-evidence-body className="space-y-2.5">
               {standard && (
-                <p className={INFO_VALUE}>
-                  {standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
-                  <span className="text-slate-400"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
-                </p>
-              )}
-              {standard && (
-                <>
-                  <p className={INFO_VALUE}><span className="text-slate-400"><LocalizedText text="Source" /> · </span>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
-                  <p className={INFO_VALUE}><span className="text-slate-400"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
-                </>
+                <dl className={GRID}>
+                  <Row label="Standard">{list(standard.names)}</Row>
+                  <Row label="Source">{list(standard.sources)}</Row>
+                  <Row label="What it’s for">{list(standard.purpose)}</Row>
+                </dl>
               )}
               {rationale?.evidence.length > 0 && (
                 <EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
@@ -536,36 +548,23 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         </InfoSection>
       )}
 
-      {/* Sign-off so far, as a bar. */}
-      {!conflict.rollback && required > 0 && (
-        <InfoSection title="Approvals" count={`${approved}/${required}`}>
-          <div data-approval-bar role="progressbar" aria-valuemin={0} aria-valuemax={required} aria-valuenow={approved} className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-            <div className={cn('h-full rounded-full transition-all', approved === required ? 'bg-emerald-400' : 'bg-sky-400')} style={{ width: `${(approved / required) * 100}%` }} />
-          </div>
-        </InfoSection>
-      )}
-
-      {/* Reviewers — the section renders its own header, with + to add one. */}
+      {/* 4 · Review: one header — reviewers and approvals so far, + to add
+          one — over the progress bar and the list. */}
       {!conflict.rollback && onUpdateReviewers && (
-        <section data-info-section="Reviewers" className={INFO_SECTION}>
+        <section data-info-section="Review" className={INFO_SECTION}>
           <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdateReviewers} onDismiss={onDismissRequest} />
         </section>
       )}
 
-      {/* Details: folded; its rows share one label column. */}
+      {/* Details: folded; its rows share the same label column. */}
       <InfoSection sectionRef={detailsRef} title="Details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
         {showDetails && (
-          <dl data-review-summary className="grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2">
+          <dl data-review-summary className={GRID}>
             {conflict.rollback ? [
               ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all">{conflict.rollback.target}</span>],
               ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
               requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
-            ].filter(Boolean).map(([label, value]) => (
-              <Fragment key={label}>
-                <dt className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
-                <dd className={SUMMARY_BODY}>{value}</dd>
-              </Fragment>
-            )) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
+            ].filter(Boolean).map(([label, value]) => <Row key={label} label={label}>{value}</Row>) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
           </dl>
         )}
       </InfoSection>
@@ -1242,13 +1241,25 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
   ))
   return (
     <div className="min-w-0">
-      {sectioned && (
-        <div className="mb-1 flex items-center gap-1.5">
-          <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
-          <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums">{reviewers.length}</span>
-          {addMenu}
-        </div>
-      )}
+      {sectioned && (() => {
+        const needed = requiredReviewers(conflict)
+        const done = needed.filter((r) => r.status === 'approved').length
+        return (
+          <>
+            <div data-review-header className="mb-2 flex items-center gap-1.5">
+              <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
+              <span className="text-[11px] leading-4 text-slate-400">·</span>
+              <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums"><LocalizedText text="Approvals" /> {done}/{needed.length}</span>
+              {addMenu}
+            </div>
+            {needed.length > 0 && (
+              <div data-approval-bar role="progressbar" aria-valuemin={0} aria-valuemax={needed.length} aria-valuenow={done} className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+                <div className={cn('h-full rounded-full transition-all', done === needed.length ? 'bg-emerald-400' : 'bg-sky-400')} style={{ width: `${(done / needed.length) * 100}%` }} />
+              </div>
+            )}
+          </>
+        )
+      })()}
       {reviewers.length === 0 ? (
         <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
       ) : (
@@ -2283,6 +2294,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         cause={causeVersion}
                         onOpenCause={openProjectHistory}
                         onUpdateReviewers={update}
+                        reasonNeeded={decisionState.reasonNeeded}
+                        needsMyReview={stage === 'in_review' && canReview}
                         onDismissRequest={workspace?.dismissChangeRequest}
                       />
                     </div>

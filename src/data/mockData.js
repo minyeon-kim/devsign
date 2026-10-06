@@ -3487,6 +3487,9 @@ export const projectHistorySeeds = {
       id: 'history-co-2',
       label: 'Changed Place order button background to #7c3aed',
       kind: 'edit',
+      // Why this step was made, as it was at the time — not the design
+      // standard's reasoning, which belongs to the conflict it led to.
+      reason: 'Applied the brand violet · before the design tokens were final',
       actorId: 'james',
       target: 'PlaceOrderButton.jsx · line 8',
       timestamp: 'Yesterday, 5:02 PM',

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Code2, Eye, GitMerge, History, MessageSquare, RotateCcw, Send, TriangleAlert, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Code2, Eye, GitMerge, History, MessageSquare, Play, RotateCcw, Send, TriangleAlert, XCircle } from 'lucide-react'
 import { cn } from 'cn'
-import { activities, allPeople } from '@/data/mockData'
+import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { LocalizedText } from '@/i18n/runtime'
@@ -152,7 +152,11 @@ export function useConflictActivity(conflict, workspace) {
     const cause = foldConflictCheckpoints(withBranches(all, workspace?.conflicts ?? []))
       .find((version) => version.conflictMarks.some((mark) => mark.conflictId === conflict.id))
     const causeEntry = cause && !linked.some((entry) => entry.id === cause.id) ? all.find((entry) => entry.id === cause.id) : null
-    return causeEntry ? [causeEntry, ...linked] : linked
+    // (A saved history keeps the seeds as they were when it was saved; a
+    // step's reason added to the seed since is picked up here.)
+    const seeds = projectHistorySeeds[conflict.projectId] ?? []
+    return (causeEntry ? [causeEntry, ...linked] : linked)
+      .map((entry) => (entry.reason ? entry : { ...entry, reason: seeds.find((seed) => seed.id === entry.id)?.reason }))
   }, [conflict, workspace?.historyEntries, workspace?.conflicts])
   // System events, one group per kind: who did it (each person once) and
   // when it last happened. A step that's on the timeline itself (detected,
@@ -199,76 +203,56 @@ const STEP_ICON = { conflict: TriangleAlert, merge: GitMerge, rollback: RotateCc
 
 // The sidebar's Activity tab. `replayId`: the step whose replay is open in
 // the main area (lit here); `onReplay(id)` opens one.
-export function ConflictActivityList({ conflict, rationale, activity, replayId, onReplay, onOpenProjectHistory }) {
-  const [openGroup, setOpenGroup] = useState(null)
+export function ConflictActivityList({ conflict, activity, replayId, onReplay, onOpenProjectHistory }) {
   const { timeline } = activity
   if (!timeline.length) {
     return <p className="py-3 text-xs text-slate-400"><LocalizedText text="No activity has been recorded for this conflict yet." /></p>
   }
+  // Every item is the same short shape — what happened · who · when. A step
+  // that changed code or values is a button (the whole row: it opens that
+  // step's replay in the main area, a ▶ showing on hover); an event that
+  // changed nothing — a review request, an approval — is just a line.
   return (
     <div data-activity-list className="flex min-h-full flex-col">
       <ol className="relative space-y-0.5 before:absolute before:top-3 before:bottom-3 before:left-[9px] before:w-px before:bg-white/[0.08]">
         {timeline.map((item) => {
           if (item.type === 'group') {
             const { group } = item
-            const open = openGroup === group.kind
             const Icon = group.icon
-            const many = group.items.length > 1
-            const line = (
-              <>
+            return (
+              <li key={item.id} data-activity-item="group" className="flex items-start gap-2 py-1.5">
                 <span className="relative z-10 flex size-[19px] shrink-0 items-center justify-center rounded-full bg-[#1c1c1e] text-slate-400"><Icon className="size-3" /></span>
                 <span className="min-w-0 flex-1 text-xs leading-[18px] text-slate-300">
-                  {group.actors.length > 0 && <><span translate="no" className="text-slate-200">{group.actors.join(', ')}</span>{' '}</>}
                   <LocalizedText text={group.label} />
-                  {group.extra?.map((part) => <span key={part} className="text-slate-400"> · <LocalizedText text={part} /></span>)}
+                  {group.actors.length > 0 && <span className="text-slate-400"> · <span translate="no">{group.actors.join(', ')}</span></span>}
                   {group.timestamp && <span className="text-slate-400"> · <LocalizedText text={group.timestamp} /></span>}
                 </span>
-              </>
-            )
-            return (
-              <li key={item.id} data-activity-item="group">
-                {many ? (
-                  <button type="button" aria-expanded={open} onClick={() => setOpenGroup(open ? null : group.kind)} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg py-1.5 pr-1 text-left transition-colors hover:bg-white/[0.04]">
-                    {line}
-                    <ChevronDown className={cn('mt-0.5 size-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
-                  </button>
-                ) : <div className="flex items-start gap-2 py-1.5">{line}</div>}
-                {many && open && (
-                  <ol className="mb-1 ml-[27px] space-y-0.5">
-                    {group.items.map(({ id, actor, timestamp, detail }) => (
-                      <li key={id} className="text-[11px] leading-4 text-slate-400">
-                        <span translate="no" className="text-slate-200">{actor}</span>
-                        {detail && <span> · {detail}</span>}
-                        <span> · <LocalizedText text={timestamp} /></span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
               </li>
             )
           }
-          // A step that changed code or values: its reason, and its replay.
           const { entry } = item
           const Icon = STEP_ICON[entry.kind] ?? Code2
-          const reason = rationale ? stepRationale(entry, conflict, rationale).text : null
           const watching = replayId === entry.id
           const person = allPeople.find((candidate) => candidate.id === entry.actorId)
           const who = person?.name ?? entry.actorLabel ?? null
           return (
-            <li key={item.id} data-activity-item="step" data-watching={watching ? '' : undefined} className={cn('flex items-start gap-2 rounded-lg py-1.5 pr-1', watching && 'bg-emerald-400/[0.08] ring-1 ring-emerald-300/30 ring-inset')}>
-              <span className={cn('relative z-10 flex size-[19px] shrink-0 items-center justify-center rounded-full text-slate-300', watching ? 'bg-emerald-400/20 text-emerald-200' : 'bg-[#1c1c1e]')}><Icon className="size-3" /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs leading-[18px] font-medium text-slate-100"><LocalizedText text={stepName(entry, conflict)} /></span>
-                {reason && <span className="block text-xs leading-[18px] text-slate-300"><LocalizedText text={reason} /></span>}
-                <span className="block text-[11px] leading-4 text-slate-400">
-                  {who && <>{person ? <span translate="no">{who}</span> : <LocalizedText text={who} />} · </>}
-                  <LocalizedText text={entry.timestamp ?? ''} />
+            <li key={item.id} data-activity-item="step" data-watching={watching ? '' : undefined}>
+              <button
+                type="button"
+                data-replay-open
+                aria-pressed={watching}
+                title="View this step’s replay"
+                onClick={() => onReplay(entry.id)}
+                className={cn('group/step ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg py-1.5 pr-1.5 text-left transition-colors hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300', watching && 'bg-emerald-400/[0.08] ring-1 ring-emerald-300/30 ring-inset')}
+              >
+                <span className={cn('relative z-10 flex size-[19px] shrink-0 items-center justify-center rounded-full', watching ? 'bg-emerald-400/20 text-emerald-200' : 'bg-[#1c1c1e] text-slate-300')}><Icon className="size-3" /></span>
+                <span className="min-w-0 flex-1 text-xs leading-[18px] text-slate-100">
+                  <LocalizedText text={stepName(entry, conflict)} />
+                  {who && <span className="text-slate-400"> · {person ? <span translate="no">{who}</span> : <LocalizedText text={who} />}</span>}
+                  {entry.timestamp && <span className="text-slate-400"> · <LocalizedText text={entry.timestamp} /></span>}
                 </span>
-                <button type="button" data-replay-open onClick={() => onReplay(entry.id)} className="ds-intrinsic mt-0.5 inline-flex h-5 items-center gap-1 text-[11px] text-emerald-300 transition-colors hover:text-emerald-200">
-                  <LocalizedText text={watching ? 'Watching the replay' : 'View replay'} />
-                  {!watching && <ArrowRight className="size-3" />}
-                </button>
-              </span>
+                <Play aria-hidden className={cn('mt-[3px] size-3 shrink-0 fill-current transition-opacity', watching ? 'text-emerald-300 opacity-100' : 'text-slate-300 opacity-0 group-hover/step:opacity-100 group-focus-visible/step:opacity-100')} />
+              </button>
             </li>
           )
         })}
