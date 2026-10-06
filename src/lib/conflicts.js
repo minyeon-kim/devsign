@@ -197,6 +197,58 @@ export function nextActionFor(conflict, userId) {
   return { label: waiting.length ? `Waiting for ${joinNames(waiting, viewerId)}` : 'Waiting on changes', mine: false }
 }
 
+// What the viewer has to do on a conflict, named as the action — the one
+// label every surface puts on its button (the Dashboard's "My tasks", the
+// Conflict list, notifications, the review's header), so a button says
+// what pressing it starts instead of repeating a status:
+//   · decide   — a conflict with no way chosen yet;
+//   · review   — someone asked for your approval;
+//   · continue — work of your own is left (a way is chosen but review
+//                isn't requested, or changes were requested of you);
+//   · merge    — every approval is in; only the merge is left.
+// Null when nothing is yours to do (it's waiting on others, or done).
+export const TASK_LABEL = {
+  decide: 'Review the conflict',
+  review: 'Review the request',
+  continue: 'Continue your work',
+  merge: 'Merge now',
+}
+export function taskFor(conflict, userId) {
+  if (!conflict || !isOpen(conflict)) return null
+  const viewerId = viewerIdFor(conflict, userId)
+  const task = (kind) => ({ kind, label: TASK_LABEL[kind] })
+  if (conflict.reviewStage === 'approved') return task('merge')
+  if (needsReviewFrom(conflict, viewerId)) return task('review')
+  if (conflict.reviewStage === 'in_review') {
+    const changesAsked = requiredReviewers(conflict).some((reviewer) => reviewer.status === 'changes_requested')
+    return changesAsked && [authorOf(conflict), conflict.requestedBy].includes(viewerId) ? task('continue') : null
+  }
+  // Not requested yet. (A design request or a rollback isn't a value to
+  // choose: it's only yours once you've started it.)
+  const started = Boolean(conflict.decidedSide || conflict.customChosen || conflict.deviation || conflict.adjustmentReason)
+  if (started) return task('continue')
+  return isDesignReview(conflict) || conflict.rollback ? null : task('decide')
+}
+
+// Due today, tomorrow, or already past.
+export function isDueSoon(conflict) {
+  return ['overdue', 'today', 'soon'].includes(conflict.dueBucket) || /^(Due today|Due tomorrow|Overdue)/.test(conflict.dueLabel ?? '')
+}
+
+// The viewer's tasks across `conflicts`, most pressing first: due soon,
+// then ones that can't merge as they stand (`isBlocked`), then the rest —
+// each group in its original order.
+export function myTasks(conflicts, { isBlocked = () => false, userId } = {}) {
+  const rank = (entry) => (isDueSoon(entry.conflict) ? 0 : entry.blocked ? 1 : 2)
+  return conflicts
+    .map((conflict) => ({ conflict, task: taskFor(conflict, userId) }))
+    .filter((entry) => entry.task)
+    .map((entry) => ({ ...entry, blocked: Boolean(isBlocked(entry.conflict)) }))
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => rank(a.entry) - rank(b.entry) || a.index - b.index)
+    .map(({ entry }) => entry)
+}
+
 // Normalizes a raw conflict (a conflictChecklist item or a workspace
 // conflict point like paddingConflict) into the shared record.
 export function toConflictRecord(raw) {

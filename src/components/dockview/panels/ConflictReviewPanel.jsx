@@ -59,6 +59,7 @@ import {
   listStatusOf,
   gitFlowOf,
   shortDue,
+  TASK_LABEL,
 } from '@/lib/conflicts'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
@@ -1925,7 +1926,7 @@ function ReviewButton({ onSubmit, authorName, needed = false }) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger data-review-needed={needed ? '' : undefined} className={cn(PRIMARY_BUTTON, 'gap-1')}>
         {needed && <span aria-hidden className="mr-0.5 size-1.5 shrink-0 rounded-full bg-current" />}
-        <LocalizedText text={needed ? 'Review needed' : 'Review'} />
+        <LocalizedText text={needed ? TASK_LABEL.review : 'Review'} />
         <ChevronDown className="size-3.5" />
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-xl p-3">
@@ -2580,7 +2581,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         <>
           <button type="button" onClick={handleMerge} disabled={blocking.length > 0} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
             <GitMerge className="size-3.5" />
-            Merge change
+            <LocalizedText text={TASK_LABEL.merge} />
           </button>
         </>
       )

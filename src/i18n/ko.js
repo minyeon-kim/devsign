@@ -344,6 +344,14 @@ reopened it|다시 열림
 asked to revert|되돌리기 요청
 changed the code|코드 수정
 Go to review|검토하기
+Review the conflict|충돌 검토하기
+Review the request|요청 검토하기
+Continue your work|이어서 하기
+Merge now|병합하기
+My tasks|내 할 일
+Nothing to do right now|지금 처리할 일이 없어요
+Next step|다음 할 일
+Show all|모두 보기
 Open conflicts|미해결 충돌
 Recently viewed|최근 열람
 No conflicts to review.|검토할 충돌이 없어요

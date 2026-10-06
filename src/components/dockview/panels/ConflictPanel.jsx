@@ -1,5 +1,5 @@
 import './ConflictPanel.css'
-import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
+import { NAV_BUTTON, PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { conflictListRecord, isQueuedConflict, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -8,7 +8,7 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, gitFlowOf, isOpen, LIST_STATUSES, listStatusOf, needsReviewFrom, shortDue, sortOpenFirst } from '@/lib/conflicts'
+import { authorOf, gitFlowOf, isOpen, LIST_STATUSES, listStatusOf, needsReviewFrom, shortDue, sortOpenFirst, taskFor } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
@@ -238,12 +238,13 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author · Updated</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Next step</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -264,6 +265,7 @@ function ConflictPanel({ inMergeStudio }) {
                 const flow = gitFlowOf(conflict)
                 const updated = (conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')
                 const mine = isOpen(conflict) && needsReviewFrom(conflict)
+                const task = taskFor(conflict)
                 const readyToRequest = conflict.reviewStage === 'detected' && allDecided(conflict, mergeItems, decisionsFor)
                 return (
                   <Fragment key={conflict.id}>
@@ -405,7 +407,15 @@ function ConflictPanel({ inMergeStudio }) {
                         </span>
                       ) : <span className="text-slate-500">—</span>}
                     </td>
-
+                    {/* What's yours to do here, as the button that starts it
+                        (the same words as everywhere else — taskFor). */}
+                    <td className="py-3.5 pt-[13px]">
+                      {task ? (
+                        <button type="button" data-task-action={task.kind} onClick={(event) => { event.stopPropagation(); openConflictReview(conflict.id) }} className={cn(NAV_BUTTON, 'h-7')}>
+                          <LocalizedText text={task.label} />
+                        </button>
+                      ) : <span className="text-xs leading-5 text-slate-600">—</span>}
+                    </td>
                   </tr>
                   </Fragment>
                 )

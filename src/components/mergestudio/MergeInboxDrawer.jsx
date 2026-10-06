@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { groupInboxNotifications } from '@/lib/inboxNotifications'
-import { RISK_LABEL, needsReviewFrom } from '@/lib/conflicts'
+import { RISK_LABEL, needsReviewFrom, taskFor } from '@/lib/conflicts'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { getLanguage, useLanguage } from '@/i18n/language'
@@ -258,7 +258,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
     if (!/\/workspace\/?$/.test(pathname)) navigate(workspacePath)
   }
   const destination = first.target?.conflictId
-    ? { label: 'Open review', go: () => onJump(first) }
+    ? { label: taskFor(conflicts.find((conflict) => conflict.id === first.target.conflictId))?.label ?? 'Open review', go: () => onJump(first) }
     : onCanvas ? { label: 'Show on canvas', go: showOnCanvas } : null
   // Open, a conversation is its thread: the header's avatar and one-line
   // preview would only repeat the first comment right under them.
@@ -309,7 +309,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>
                 <p translate="no" className="font-mono text-[11.5px] break-all text-slate-400">{card.change.file}</p>
                 <button type="button" onClick={() => openChange(card.change)} className={ACTION_BUTTON}>
-                  <LocalizedText text="Open review" /><ArrowRight className="size-3.5 opacity-70" />
+                  <LocalizedText text={taskFor(card.change)?.label ?? 'Open review'} /><ArrowRight className="size-3.5 opacity-70" />
                 </button>
               </>
             )}

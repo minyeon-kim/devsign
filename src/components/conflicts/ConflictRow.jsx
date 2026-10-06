@@ -1,7 +1,7 @@
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { ArrowRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
-import { RISK_LABEL } from '@/lib/conflicts'
+import { RISK_LABEL, taskFor } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { LocalizedText } from '@/i18n/runtime'
 
@@ -15,8 +15,8 @@ export function RiskBadge({ severity }) {
 // Conflict list's own terms: the change, its risk, its file and project,
 // its status as a dot and a short word. The whole row is the way in — it
 // opens that conflict's review in its project — and says so with one
-// "Review →" at its right (the app's secondary go-somewhere button), not a
-// faint chevron and a second line of text.
+// button at its right, named after what's yours to do there (taskFor:
+// "Review the request", "Merge now", … — "View" when nothing is).
 function ConflictRow({ conflict, showProject = false, note, onOpen }) {
   return (
     <button
@@ -40,7 +40,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
       {/* Part of the row's one click target, so a span — styled as the
           button it reads as. */}
       <span className={cn(NAV_BUTTON, 'group-hover:border-white/25 group-hover:bg-white/[0.09] group-hover:text-white')}>
-        <LocalizedText text="Go to review" />
+        <LocalizedText text={taskFor(conflict)?.label ?? 'View'} />
         <ArrowRight className={NAV_BUTTON_ICON} />
       </span>
     </button>

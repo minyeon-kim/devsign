@@ -3,7 +3,7 @@ import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import { activities, allPeople, currentUserFor } from '@/data/mockData'
-import { needsReviewFrom } from '@/lib/conflicts'
+import { TASK_LABEL, needsReviewFrom } from '@/lib/conflicts'
 import { useConflictStore } from '@/state/ConflictStore'
 
 const EVENT_ACTION = {
@@ -75,7 +75,7 @@ function ActivityList({ projectId, limit = 6, onOpenConflict, inset = false }) {
                 every other list — "Review →" when it's yours to review. */}
             {conflict && onOpenConflict && (
               <button type="button" onClick={() => onOpenConflict(conflict)} className={cn(NAV_BUTTON, 'h-7')}>
-                <LocalizedText text={actionNeeded ? 'Go to review' : 'View'} />
+                <LocalizedText text={actionNeeded ? TASK_LABEL.review : 'View'} />
                 <ArrowRight className={NAV_BUTTON_ICON} />
               </button>
             )}

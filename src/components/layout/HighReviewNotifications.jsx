@@ -125,7 +125,7 @@ export default function HighReviewNotifications() {
             {/* The walkthrough's way in: its conflict starts from before
                 the review every time (opening it from the list shows it as
                 it stands). */}
-            <button type="button" data-scenario-open onClick={() => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className={NOTICE_ACTION}>검토 내용 열기</button>
+            <button type="button" data-scenario-open onClick={() => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className={NOTICE_ACTION}>요청 검토하기</button>
           </div>
         </section>
       )}
