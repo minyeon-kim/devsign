@@ -61,6 +61,13 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Choose the value to use when merging|병합할 때 쓸 값을 선택하세요
+With nothing chosen, the current implementation stays as it is|선택하지 않으면 현재 구현이 그대로 유지돼요
+It changes to the design reference value|디자인 기준 값으로 바뀌어요
+It keeps the current value as it is|현재 값을 그대로 유지해요
+Clear choice|선택 취소
+Changes to this value|이 값으로 변경
+Keeps the value as it is now|지금 값 유지
 Maximize panel|패널 최대화
 Restore panel height|패널 높이 복원
 Drag to resize · double-click to maximize|끌어서 높이 조절 · 두 번 눌러 최대화

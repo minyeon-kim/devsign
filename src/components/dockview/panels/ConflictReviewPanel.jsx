@@ -152,10 +152,13 @@ function comparisonSources(branches) {
   ]
 }
 
-function ComparisonSource({ label, source }) {
+// `outcome`: on a card that can be picked, what picking it does — one line
+// under the title.
+function ComparisonSource({ label, source, outcome }) {
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-medium text-slate-300"><LocalizedText text={label} /></p>
+      {outcome && <p data-card-outcome className="text-[11px] leading-4 text-slate-200"><LocalizedText text={outcome} /></p>}
       <p className="truncate text-[10px] text-slate-500" title={source}><LocalizedText text={source} /></p>
     </div>
   )
@@ -758,10 +761,22 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
       {(state.canPick || studioAction) && (
         <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
           {state.canPick && (
-            <p className="min-w-0 text-xs leading-5 text-slate-300">
-              <LocalizedText text="Pick which side to merge" />
+            // What's being asked, then what the choice so far will do — it
+            // changes with the pick — and, once picked, the way to take it
+            // back.
+            <p data-pick-guide={state.side ?? 'none'} className="min-w-0 text-xs leading-5 text-slate-300">
+              <LocalizedText text="Choose the value to use when merging" />
               <span className="text-slate-500"> · </span>
-              <span className="text-slate-400"><LocalizedText text="left unpicked, it merges with the current implementation" /></span>
+              <span className="text-slate-400">
+                <LocalizedText text={state.side === 'A' ? 'It changes to the design reference value'
+                  : state.side === 'B' ? 'It keeps the current value as it is'
+                    : 'With nothing chosen, the current implementation stays as it is'} />
+              </span>
+              {state.side && (
+                <button type="button" data-pick-undo onClick={() => state.undo()} className="ds-intrinsic ml-2 inline-flex h-5 items-center rounded px-1 text-xs text-slate-400 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <LocalizedText text="Clear choice" />
+                </button>
+              )}
             </p>
           )}
           {studioAction && (
@@ -821,7 +836,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} />}</div>
+                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} outcome={decision === 'A' ? 'Changes to this value' : 'Keeps the value as it is now'} />}</div>
                       {on && state.reasonNeeded && <span className="shrink-0 text-[11px] font-medium text-slate-400"><LocalizedText text="Reason required" /></span>}
                       {/* This side passes what the other one fails. */}
                       {state.meets[decision] && (
