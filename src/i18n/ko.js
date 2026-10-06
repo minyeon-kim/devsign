@@ -61,6 +61,16 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Cause|원인
+Branch, components, files|브랜치 · 컴포넌트 · 파일
+Merged with the design reference value|디자인 기준 값으로 합쳐졌어요
+Merged with the current implementation value|현재 구현 값으로 합쳐졌어요
+Merged code|병합된 코드
+Before it was resolved|해결 전
+Show the conflict before it was resolved|해결 전 충돌 보기
+Show the merged code|병합된 코드 보기
+Two branches changed lines 9–14 of DesignCanvas.jsx differently, so it couldn’t be merged automatically.|두 브랜치가 DesignCanvas.jsx 9~14번째 줄을 서로 다르게 수정해 자동 병합이 안 됐어요
+A frame loses either its selection handler or its key, which can break selecting frames.|프레임의 선택 핸들러나 key 중 하나가 빠져 선택 기능이 깨질 수 있어요
 Show evidence|근거 보기
 Choosing the design reference resolves it|디자인 기준을 선택하면 해결돼요
 Before the review request|검토 요청 전

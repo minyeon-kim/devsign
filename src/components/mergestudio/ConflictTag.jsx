@@ -25,22 +25,25 @@ function ConflictTag({ level, className }) {
 
 // Level and review status share badge geometry; color identifies severity.
 const SEVERITY_PILL_CLASS = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300', none: 'text-slate-400' }
-// In lists color is kept for what needs acting on: only High is tinted.
-const SEVERITY_QUIET_CLASS = { high: 'text-rose-300', medium: 'text-slate-200', low: 'text-slate-300', none: 'text-slate-400' }
+// Risk reads the same everywhere: high red, medium yellow, low blue.
+const SEVERITY_QUIET_CLASS = SEVERITY_PILL_CLASS
 
 // `bare`: just the level ("Medium"), for places whose column or context
 // already says it's a level. `quiet`: color only for High.
 const SEVERITY_DOT_CLASS = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-sky-400', none: 'bg-slate-500' }
 
 // `plain`: no box — a dot in the level's color and the level as text.
-export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, ...props }) {
+// `labeled` (with `plain`): says what the word is — "Risk High" — with the
+// level in its color.
+export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, labeled = false, ...props }) {
   const key = String(level).toLowerCase()
   const tones = quiet ? SEVERITY_QUIET_CLASS : SEVERITY_PILL_CLASS
   if (plain) {
     return (
       <span {...props} className={cn(PLAIN_BADGE, 'text-slate-200', className)}>
-        <span className={cn('size-1.5 shrink-0 rounded-full', SEVERITY_DOT_CLASS[key] ?? SEVERITY_DOT_CLASS.medium)} />
-        <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
+        {!labeled && <span className={cn('size-1.5 shrink-0 rounded-full', SEVERITY_DOT_CLASS[key] ?? SEVERITY_DOT_CLASS.medium)} />}
+        {labeled && <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>}
+        <span data-risk={key} className={labeled ? SEVERITY_PILL_CLASS[key] ?? SEVERITY_PILL_CLASS.medium : undefined}><LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} /></span>
       </span>
     )
   }

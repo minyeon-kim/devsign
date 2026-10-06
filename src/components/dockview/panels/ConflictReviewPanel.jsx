@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   CircleCheck,
+  FileCode2,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -70,7 +71,6 @@ import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCo
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import {
   ACCENT_CTA,
-  GHOST_BUTTON,
   PANEL_LABEL,
 } from '@/components/mergestudio/floatingStyles'
 
@@ -154,11 +154,11 @@ function comparisonSources(branches) {
 
 // `outcome`: on a card that can be picked, what picking it does — one line
 // under the title.
-function ComparisonSource({ label, source, outcome }) {
+function ComparisonSource({ label, source, outcome, strong = false }) {
   return (
     <div className="min-w-0">
       {/* One title line — which side, and what picking it does. */}
-      <p className={cn('truncate font-medium', outcome ? 'text-xs leading-5 text-white' : 'text-[10px] text-slate-300')}>
+      <p className={cn('truncate font-medium', outcome || strong ? 'text-xs leading-5 text-white' : 'text-[10px] text-slate-300')}>
         <LocalizedText text={label} />
         {outcome && <span data-card-outcome className="font-normal text-slate-300"> · <LocalizedText text={outcome} /></span>}
       </p>
@@ -390,16 +390,7 @@ function DueDate({ label, className }) {
 // The summary's two text styles: body, and the small grey label over it.
 // (A step quieter than the comparison beside it, which is what's acted on.)
 const SUMMARY_BODY = 'text-xs leading-[18px] break-words text-slate-300 [overflow-wrap:anywhere]'
-const SUMMARY_LABEL = 'mb-1 text-[11px] leading-4 text-slate-500'
 const SUMMARY_ROW_LABEL = 'text-[11px] leading-[18px] whitespace-nowrap text-slate-500'
-function SummaryPart({ label, children }) {
-  return (
-    <div data-summary-part={label ?? ''} className="min-w-0">
-      {label && <p className={SUMMARY_LABEL}><LocalizedText text={label} /></p>}
-      {children}
-    </div>
-  )
-}
 
 function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause }) {
   // Where it is and who made it: folded until asked for. Opening it brings
@@ -430,9 +421,11 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   const isAiDraft = open && (conflict.source === 'ai' || conflict.changedBy?.type === 'ai')
   // Why this difference matters: the conflict's own words, else what its
   // first failing check says. (How to resolve it is the comparison's line.)
-  const why = conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
+  const why = conflict.effect ?? conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
   const standard = rationale ? standardOf(rationale.rules, checks) : null
   const hasEvidence = !conflict.rollback && Boolean(standard || rationale?.evidence.length || cause)
+  // Why it conflicts: its own account when it has one, else what was found.
+  const cause_text = conflict.cause ?? conflict.message ?? summary
 
   return (
     // (As tall as its content — the panel it's in does the scrolling.)
@@ -443,7 +436,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         {severity && (
           <>
             <span aria-hidden>·</span>
-            <SeverityPill plain level={severity.label} />
+            <SeverityPill plain labeled level={severity.label} />
           </>
         )}
         {conflict.rollback && open && shortDue(conflict.dueLabel) && (
@@ -477,66 +470,66 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           Evidence / Decision. Two sizes (body, label), two weights, two
           colors; monospace only for the difference itself. */}
       {!conflict.rollback && (
-        <section data-review-summary className="min-w-0 space-y-3">
-          {/* What's shown at once is the essentials: the standard (by name),
-              what not keeping it means, and the decision. Where the
-              standard comes from, what it's for, the evidence links and the
-              version the difference came in with are one press away, under
-              "Show evidence". */}
-          <dl data-summary-essentials className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1.5">
-            {[
-              standard && ['Standard', standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
-              standard ? ['If not kept', (
-                <>
-                  <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} />
-                  {(why ? [why] : standard.consequence).map((text) => <Fragment key={text}> <LocalizedText text={text} /></Fragment>)}
-                  <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
-                </>
-              )] : why && ['Reason', <LocalizedText key="why" text={why} />],
-              rationale && ['Decision', (
-                <>
-                  <LocalizedText text={rationale.decision.label ?? 'Not decided yet'} />
-                  {rationale.decision.by && <span translate="no" className="text-slate-500"> · {rationale.decision.by}</span>}
-                </>
-              )],
-            ].filter(Boolean).map(([label, content]) => (
-              <Fragment key={label}>
-                <dt className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
-                <dd data-summary-row={label} className={SUMMARY_BODY}>{content}</dd>
-              </Fragment>
-            ))}
-          </dl>
+        // The same four labels for every conflict, in one column of small
+        // grey labels: Cause (why it conflicts), Impact (what goes wrong if
+        // it isn't resolved), Evidence (the rule, links and version behind
+        // it — the rest folded), Details (folded).
+        <dl data-review-summary className="grid min-w-0 grid-cols-[52px_minmax(0,1fr)] gap-x-3 gap-y-2.5">
+          {cause_text && (
+            <>
+              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Cause" /></dt>
+              <dd data-summary-row="Cause" className={SUMMARY_BODY}><LocalizedText text={cause_text} /></dd>
+            </>
+          )}
+          {(why || standard) && (
+            <>
+              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Impact" /></dt>
+              <dd data-summary-row="Impact" className={SUMMARY_BODY}>
+                {(why ? [why] : standard.consequence).map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}
+                {standard && <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'It can’t be merged.' : 'It can still merge.'} /></span>}
+              </dd>
+            </>
+          )}
           {hasEvidence && (
-            <div ref={evidenceRef} className="scroll-mb-3">
-              <button
-                type="button"
-                data-evidence-toggle
-                aria-expanded={showEvidence}
-                onClick={() => setShowEvidence((value) => !value)}
-                className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-white"
-              >
-                <LocalizedText text="Show evidence" />
-                <ChevronDown className={cn('size-3.5 transition-transform', showEvidence && 'rotate-180')} />
-              </button>
-              {showEvidence && (
-                <div data-evidence-body className="mt-1 space-y-3">
-                  {standard && (
-                    <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1.5">
-                      <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Source" /></dt>
-                      <dd className={SUMMARY_BODY}>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</dd>
-                      <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="What it’s for" /></dt>
-                      <dd className={SUMMARY_BODY}>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}</dd>
-                    </dl>
-                  )}
-                  {rationale?.evidence.length > 0 && (
-                    <SummaryPart label="Evidence"><EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} /></SummaryPart>
-                  )}
-                  {/* Where it began: the saved version the difference first
-                      came in with — a way straight to it in History. */}
-                  {cause && (
-                    <SummaryPart label="Version this difference came in with">
+            <>
+              <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Evidence" /></dt>
+              <dd ref={evidenceRef} data-summary-row="Evidence" className={cn(SUMMARY_BODY, 'scroll-mb-3')}>
+                {/* The standard by name and how binding it is; where it
+                    comes from, what it's for, the links and the version it
+                    began in open under it. */}
+                {standard && (
+                  <p>
+                    {standard.names.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}
+                    <span className="text-slate-500"> · <LocalizedText text={standard.required ? 'Required standard' : 'Recommended standard'} /></span>
+                  </p>
+                )}
+                <button
+                  type="button"
+                  data-evidence-toggle
+                  aria-expanded={showEvidence}
+                  onClick={() => setShowEvidence((value) => !value)}
+                  className="ds-intrinsic inline-flex h-6 w-fit items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+                >
+                  <LocalizedText text="Show evidence" />
+                  <ChevronDown className={cn('size-3.5 transition-transform', showEvidence && 'rotate-180')} />
+                </button>
+                {showEvidence && (
+                  <div data-evidence-body className="mt-1 space-y-2.5">
+                    {standard && (
+                      <>
+                        <p><span className="text-slate-500"><LocalizedText text="Source" /> · </span>{standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)}</p>
+                        <p><span className="text-slate-500"><LocalizedText text="What it’s for" /> · </span>{standard.purpose.map((text, index) => <Fragment key={text}>{index > 0 && ' '}<LocalizedText text={text} /></Fragment>)}</p>
+                      </>
+                    )}
+                    {rationale?.evidence.length > 0 && (
+                      <EvidenceLinks items={['figma', 'token', 'comment'].map((kind) => rationale.evidence.find((item) => item.kind === kind)).filter(Boolean).concat(rationale.evidence).filter((item, index, all) => all.indexOf(item) === index)} onOpen={onOpenEvidence} limit={3} />
+                    )}
+                    {/* Where it began: the saved version the difference first
+                        came in with — a way straight to it in History. */}
+                    {cause && (
                       <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
                         <span className="min-w-0 flex-1">
+                          <span className="block text-[11px] leading-4 text-slate-500"><LocalizedText text="Version this difference came in with" /></span>
                           <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
                           <span className="block text-[11px] leading-4 text-slate-500">
                             <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
@@ -545,17 +538,31 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
                         </span>
                         <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-500" />
                       </button>
-                    </SummaryPart>
-                  )}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                )}
+              </dd>
+            </>
           )}
-        </section>
+          <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Details" /></dt>
+          <dd ref={detailsRef} data-summary-row="Details" className={cn(SUMMARY_BODY, 'scroll-mb-3')}>
+            <button
+              type="button"
+              data-details-toggle
+              aria-expanded={showDetails}
+              onClick={() => setShowDetails((v) => !v)}
+              className="ds-intrinsic inline-flex h-[18px] w-fit items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+            >
+              <LocalizedText text="Branch, components, files" />
+              <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
+            </button>
+            {showDetails && <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
+          </dd>
+        </dl>
       )}
       {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}
 
-      <section ref={detailsRef} className="min-w-0 shrink-0 scroll-mb-3 pb-1">
+      {conflict.rollback && <section ref={detailsRef} className="min-w-0 shrink-0 scroll-mb-3 pb-1">
         <button
           type="button"
           data-details-toggle
@@ -566,7 +573,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           <LocalizedText text="Details" />
           <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
         </button>
-        {showDetails && (conflict.rollback ? (
+        {showDetails && (
           <div className="mt-2 space-y-2">
             {[
               ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all text-slate-300">{conflict.rollback.target}</span>],
@@ -579,8 +586,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               </div>
             ))}
           </div>
-        ) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />)}
-      </section>
+        )}
+      </section>}
     </div>
   )
 }
@@ -726,6 +733,23 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
+  // Finished: the merged code around the change (the file's own lines when
+  // there are any, else the change's result), and the toggle to the
+  // conflict as it was.
+  const [showBefore, setShowBefore] = useState(false)
+  const mergedFile = mergedLines ?? conflict.mergedFileLines ?? code?.generated ?? null
+  const mergedExcerpt = (() => {
+    const after = conflict.diff?.after ?? []
+    if (!mergedFile?.length) return after.map((text, index) => ({ number: (conflict.line ?? 1) + index, text }))
+    // Where the merged lines actually are (the file may have shifted).
+    const found = mergedFile.findIndex((text) => after.length && text.trim() === after[0].trim())
+    const at = found >= 0 ? found : Math.max(0, (conflict.line ?? 1) - 1)
+    const from = Math.max(0, at - 2)
+    return mergedFile.slice(from, at + Math.max(after.length, 1) + 2).map((text, index) => ({ number: from + index + 1, text }))
+  })()
+  // Finished: the card it merged with (the design reference when no side
+  // was recorded — that's what a merge takes by default once approved).
+  const applied = decision => (state.side ?? conflict.decidedSide ?? 'A') === decision
   // The line over the comparison. Before a pick: what resolves it, the
   // standard's level, the review's state. After: what the pick does, then
   // the next step — a reason if keeping the current value needs one, else
@@ -817,9 +841,10 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                   return (
                   <div key={side} className={cn(
                     'min-w-0 self-start overflow-hidden rounded-xl border transition-colors',
-                    on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
+                    readOnly ? (applied(decision) ? 'border-white/40 bg-white/[0.04]' : 'border-white/10 opacity-50')
+                      : on ? 'border-emerald-300 bg-emerald-400/[0.06]' : 'border-white/10',
                     canPick && !on && 'hover:border-white/35'
-                  )}>
+                  )} data-applied={readOnly && applied(decision) ? '' : undefined}>
                   <div
                     role="radio"
                     aria-checked={on}
@@ -840,10 +865,16 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       canPick && on && 'cursor-pointer'
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} outcome={decision === 'A' ? 'Changes to this value' : 'Keeps the value as it is now'} />}</div>
+                      <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : 'Keeps the value as it is now'} />}</div>
                       {on && state.reasonNeeded && <span className="shrink-0 text-[11px] font-medium text-slate-400"><LocalizedText text="Reason required" /></span>}
                       {/* This side passes what the other one fails. */}
-                      {state.meets[decision] && (
+                      {/* Finished: which card it was merged with. */}
+                      {readOnly && applied(decision) && (
+                        <span data-applied-tag className="shrink-0 rounded bg-white/[0.1] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-white">
+                          <LocalizedText text="Applied" />
+                        </span>
+                      )}
+                      {state.meets[decision] && !readOnly && (
                         <span className="shrink-0 rounded bg-white/[0.08] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-slate-200">
                           <LocalizedText text="Meets the design standard" />
                         </span>
@@ -858,7 +889,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       {/* Picked: a check at the end of the header (its slot is
                           always there, so the tags don't shift). */}
                       <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-                        {on && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
+                        {on && !readOnly && <Check className="size-5 text-emerald-300" strokeWidth={2.5} />}
                       </span>
                     </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
@@ -880,7 +911,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                               <span className="text-emerald-300">{adjustment.display(value(field)).to}</span>
                             </dd>
                           ) : (
-                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', field.current === field.expected ? 'text-slate-200' : tone)}>
+                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', readOnly || field.current === field.expected ? 'text-slate-200' : tone)}>
                             {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
                             <span className="min-w-0"><LocalizedText text={value(field)} /></span>
                           </dd>
@@ -977,22 +1008,34 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
             )}
             {checkBlocks}
             {state.exceptionReason && (!pairedPreview || !state.side) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
-            {conflict.diff && (
+            {/* Finished: the code as it was merged. What it looked like
+                before — the conflict itself, markers and all — is there to
+                compare with, behind a toggle. */}
+            {conflict.diff && readOnly && (
+              <div data-merged-code className="min-w-0 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                  <FileCode2 className="size-3 shrink-0" />
+                  <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}</span>
+                  <span className="shrink-0 text-slate-400"><LocalizedText text={showBefore ? 'Before it was resolved' : 'Merged code'} /></span>
+                  <button type="button" data-before-toggle aria-pressed={showBefore} onClick={() => setShowBefore((value) => !value)} className="ds-intrinsic ml-auto inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] text-slate-400 transition-colors hover:text-white">
+                    <LocalizedText text={showBefore ? 'Show the merged code' : 'Show the conflict before it was resolved'} />
+                  </button>
+                </div>
+                <div className="min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed">
+                  {(showBefore ? conflict.diff.before ?? [] : mergedExcerpt).map((row, index) => (
+                    <div key={index} className="flex min-w-0 pr-3 text-slate-300">
+                      <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{showBefore ? '' : row.number}</span>
+                      <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{(showBefore ? row : row.text) || ' '}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {conflict.diff && !readOnly && (
               <div className="min-w-0 [&>div]:space-y-1.5">
                 {code ? <ConflictCodeView {...code} context={2} /> : <CodeDiffColumns rows={rows} />}
               </div>
             )}
-            {readOnly && (mergedLines?.length || conflict.mergedFileLines?.length) && (() => {
-              const lines = mergedLines ?? conflict.mergedFileLines
-              const start = Math.max(0, (conflict.line ?? 1) - 2)
-              const excerpt = lines.slice(start, start + 5)
-              return (
-                <div className="mt-3 min-w-0 rounded-lg bg-emerald-400/[0.06] p-3">
-                  <p className="mb-1.5 text-[10px] font-medium text-emerald-200"><LocalizedText text="Merged value" /></p>
-                  <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-4 text-slate-200">{excerpt.join('\n')}</pre>
-                </div>
-              )
-            })()}
           </div>
         </section>
       )}
@@ -1814,6 +1857,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     onPickSide: onUpdate && conflict ? (side) => update({ pickedSide: side }) : undefined,
     mergedDecisions: stage === 'resolved' && conflict ? mergedDecisionsForConflict(conflict, workspace) : undefined,
   })
+  // What a finished conflict merged with, and who signed off — the banner's.
+  const mergeConflict = Boolean(conflict?.diff?.before?.some((line) => line.startsWith('<<<<<<<')))
+  const mergedSide = decisionState.side ?? conflict?.decidedSide ?? 'A'
+  const mergedWith = !conflict ? null
+    : mergeConflict ? `Merged with the ${mergedSide === 'A' ? 'remote' : 'local'} branch (${mergedSide === 'A' ? conflict.branches?.remote : conflict.branches?.local}) value`
+      : mergedSide === 'A' ? 'Merged with the design reference value' : 'Merged with the current implementation value'
+  const approvers = (conflict?.reviewers ?? []).filter((reviewer) => reviewer.status === 'approved').map((reviewer) => personNameOf(reviewer.id)).filter(Boolean)
   // The reasons linked to this conflict (lib/rationale): the rules it runs
   // into, its purpose and its comments — nothing here is typed in.
   const rationale = conflict ? rationaleOf(conflict, { comments: workspace?.comments ?? [], checks }) : null
@@ -1990,17 +2040,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           </button>
         </>
       )
-    } else if (stage === 'resolved') {
-      primary = (
-        <button
-          type="button"
-          onClick={handleRevert}
-          className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium', GHOST_BUTTON)}
-        >
-          <RotateCcw className="size-3.5" />
-          Revert
-        </button>
-      )
     }
   }
 
@@ -2065,16 +2104,27 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       rolled back), when and by whom — not left to be read
                       off a Revert button and the merged values. */}
                   {stage === 'resolved' && (
-                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 px-3 py-2.5 ring-1 ring-emerald-300/30 ring-inset">
+                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
                       <CircleCheck className="size-4 shrink-0 text-emerald-300" />
                       <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Rolled back' : 'Merged'} /></span>
-                      <span className="text-xs text-emerald-100/80">
-                        <LocalizedText text={conflict.rollback ? 'The rollback has run.' : 'This change is applied to the code. Nothing is left to review.'} />
+                      {/* The decision, here rather than as a row of the
+                          summary: which value it merged with, who approved,
+                          and when. */}
+                      <span className="min-w-0 text-xs text-emerald-100/80">
+                        {[
+                          conflict.rollback ? 'The rollback has run.' : mergedWith,
+                          approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
+                          conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
+                        ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
                       </span>
-                      <span className="ml-auto text-xs text-slate-300 tabular-nums">
-                        {personNameOf(conflict.mergedBy) && <><span translate="no">{personNameOf(conflict.mergedBy)}</span> · </>}
-                        <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? ''} />
-                      </span>
+                      {/* Undoing it is a quiet button here, with the result it
+                          undoes — not the header's main action. */}
+                      {!conflict.rollback && (
+                        <button type="button" data-banner-revert onClick={handleRevert} className={cn(NAV_BUTTON, 'ml-auto h-7')}>
+                          <RotateCcw className="size-3.5 text-slate-400" />
+                          <LocalizedText text="Revert" />
+                        </button>
+                      )}
                     </div>
                   )}
                   {tab === 'overview' ? (

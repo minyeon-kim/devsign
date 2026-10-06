@@ -388,6 +388,10 @@ export const conflictChecklist = [
     changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
     gitFlow: { source: 'feature/canvas-frames', target: 'main' },
     token: 'Merge conflict · DesignCanvas.jsx',
+    // Why it conflicted and what goes wrong if it isn't resolved — the
+    // review's Cause and Impact.
+    cause: 'Two branches changed lines 9–14 of DesignCanvas.jsx differently, so it couldn’t be merged automatically.',
+    effect: 'A frame loses either its selection handler or its key, which can break selecting frames.',
     file: 'src/components/DesignCanvas.jsx',
     projectId: 'design-system-v2',
     projectName: 'Design System v2',
