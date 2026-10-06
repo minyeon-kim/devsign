@@ -244,7 +244,25 @@ function driftItemOf(conflict, workspace) {
 // is design work, so it's Merge Studio's: there each row also offers every
 // draft to switch to, beside the canvas. Elsewhere the list only reports,
 // and its action opens the drafts side by side in Merge Studio.
-const RESULT_WIDTH = 180
+function DraftResultPreview({ result, height }) {
+  const viewportRef = useRef(null)
+  const [width, setWidth] = useState(result.width)
+  useEffect(() => {
+    const element = viewportRef.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  const scale = width / result.width
+  return (
+    <div ref={viewportRef} className="relative w-full overflow-hidden rounded-xl bg-white" style={{ aspectRatio: `${result.width} / ${height}` }}>
+      <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: result.width, height, transform: `scale(${scale})` }}>
+        {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
+      </div>
+    </div>
+  )
+}
 
 function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel, decisionsOverride }) {
   const decisions = decisionsOverride ?? workspace.decisionsFor(item.id)
@@ -256,7 +274,6 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   const base = draftScreens[item.id] && canvasPages.find((page) => page.id === item.designPageId)?.frames[0]
   const result = base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisions), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, decisions)) : null
   const resultHeight = result ? Math.max(120, ...result.layers.map((layer) => (layer.y ?? 0) + (layer.height ?? 0))) + 16 : 0
-  const resultScale = RESULT_WIDTH / 280
   const Letter = ({ option, on }) => (
     <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', on ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-300')}>{option.letter}</span>
   )
@@ -282,20 +299,15 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
           </button>
         )}
       </div>
-      <div className="flex min-h-0 flex-1 gap-4 overflow-auto">
-      {/* Where each part came from, then — at the card's right, like the
-          Activity tab's preview — the mix as the one screen merging makes. */}
+      <div data-draft-review-split className={cn("grid min-h-0 flex-1 gap-4 overflow-hidden", result ? "grid-cols-2" : "grid-cols-1")}>
+      {/* Equal columns keep the composition and its result visible together. */}
       {result && (
-        <figure data-mix-result className="order-last shrink-0 border-l border-white/[0.06] pl-4">
-          <figcaption className="mb-1.5 text-[11px] font-medium text-slate-400"><LocalizedText text="Merged result" /></figcaption>
-          <div className="relative overflow-hidden rounded-xl bg-white" style={{ width: RESULT_WIDTH, height: resultHeight * resultScale }}>
-            <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: 280, height: resultHeight, transform: `scale(${resultScale})` }}>
-              {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
-            </div>
-          </div>
+        <figure data-mix-result className="order-last min-h-0 min-w-0 overflow-auto border-l border-white/[0.06] pl-4">
+          <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text="Merged result" /></figcaption>
+          <DraftResultPreview result={result} height={resultHeight} />
         </figure>
       )}
-      <div className="min-h-0 min-w-0 flex-1 divide-y divide-white/[0.05] overflow-auto">
+      <div data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
         {rows.map((row) => {
           const picked = row.options.find((option) => option.picked)
           return (
@@ -324,7 +336,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                   ))}
                 </div>
               ) : picked ? (
-                <span className="flex min-w-0 items-center gap-2 text-xs text-slate-100">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-100">
                   <Letter option={picked} on />
                   <Value option={picked} />
                   <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={`from ${picked.name}`} /></span>
