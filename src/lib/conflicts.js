@@ -57,6 +57,12 @@ export function isQueuedConflict(conflict) {
   return !isDesignReview(conflict)
 }
 
+// The Conflict Points list is the shared queue for real conflicts and
+// design-composition requests. Batch approval only applies to real conflicts.
+export function conflictListRecord(conflict) {
+  return isQueuedConflict(conflict) || isDesignReview(conflict)
+}
+
 export const RISK_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
 
 export function isOpen(conflict) {

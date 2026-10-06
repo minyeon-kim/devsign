@@ -1,6 +1,6 @@
 import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
-import { isQueuedConflict, isDesignReview } from '@/lib/conflicts'
+import { conflictListRecord, isQueuedConflict, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
@@ -71,7 +71,7 @@ function ConflictPanel({ inMergeStudio }) {
   const { conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
     currentUser, requestMergeFocus, mergeFocus } =
     useWorkspace()
-  const reviewConflict = conflicts.find((c) => c.id === reviewConflictId && !isDesignReview(c)) ?? null
+  const reviewConflict = conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null
   // A conflict links to its merge item either way round — its own
   // `mergeItemId`, or the item's `conflictId` pointing back at it (most of
   // conflictChecklist only has the latter; see mockData). Resolve both so
@@ -92,7 +92,7 @@ function ConflictPanel({ inMergeStudio }) {
   // `mergeStudioItem` meant the very first click from that empty state
   // never called `requestMergeFocus` at all, so the canvas never populated.
   useEffect(() => {
-    if (!inMergeStudio || !reviewConflict || !reviewConflictItemId) return
+    if (!inMergeStudio || !reviewConflict || !reviewConflictItemId || isDesignReview(reviewConflict)) return
     // Opened by the canvas's own drift pager, which already focused this
     // element (without panning) — don't refocus and yank the camera.
     const focused = mergeFocus?.target
@@ -116,30 +116,31 @@ function ConflictPanel({ inMergeStudio }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
   const queued = conflicts.filter(isQueuedConflict)
+  const listRecords = conflicts.filter(conflictListRecord)
   const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
   const picked = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? null
   const filter = picked ?? FILTERS[0]
   const shownFilters = filter === OPEN_FILTER ? [FILTERS[0], OPEN_FILTER, ...FILTERS.slice(1)] : FILTERS
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
-  const filterItems = queued.map((conflict) => ({
+  const filterItems = listRecords.map((conflict) => ({
     ...conflict,
     tag: needsReviewFrom(conflict) && isOpen(conflict) ? 'Needs your review' : listStatusOf(conflict).label,
     conflictLevel: conflict.severity
       ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
       : 'None',
   }))
-  const markedDueDates = queued.map(dueDateOf).filter(Boolean)
+  const markedDueDates = listRecords.map(dueDateOf).filter(Boolean)
   // Open first, and among those the ones waiting on your review on top —
   // the list stays "All", but what you're asked to do leads it.
   const visible = sortOpenFirst(
-    conflicts.filter(isQueuedConflict).filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
+    listRecords.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
   ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
   const { comments, conflictChecks, decisionsFor, mergeDrafts } = useWorkspace()
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
-  const batchable = conflicts.filter(isQueuedConflict).filter((c) => !blockerOf(c))
+  const batchable = queued.filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
   const selection = selected.filter((id) => batchable.some((c) => c.id === id))
   const allSelected = batchable.length > 0 && selection.length === batchable.length
@@ -186,7 +187,7 @@ function ConflictPanel({ inMergeStudio }) {
               )}
             >
               <LocalizedText text={f.label} />
-              <FilterCount mine={f.id === 'mine'} count={queued.filter(f.test).length} />
+              <FilterCount mine={f.id === 'mine'} count={listRecords.filter(f.test).length} />
             </button>
           ))}
           <MergeFilterButton
