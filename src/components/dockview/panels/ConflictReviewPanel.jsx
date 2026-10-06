@@ -1,3 +1,4 @@
+import { CheckExplanation } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { BranchInfo, NAV_BUTTON, NAV_BUTTON_ICON, ReviewStageBadge } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
@@ -191,12 +192,12 @@ function ReviewDetails({ conflict, showProject }) {
   const components = impact?.components ?? []
   const GROUP = 'text-[11px] leading-4 font-medium text-slate-500'
   const ROW = 'grid min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3'
-  const LABEL = 'text-xs leading-[18px] text-slate-400'
+  const LABEL = 'text-[11px] leading-[18px] text-slate-400'
   const VALUE = 'min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]'
 
   return (
     <div className="mt-2 space-y-3.5">
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <p className={GROUP}><LocalizedText text="Location" /></p>
         {showProject && conflict.projectName && (
           <div className={ROW}><span className={LABEL}>Project</span><span className={VALUE}><LocalizedText text={conflict.projectName} /></span></div>
@@ -208,7 +209,7 @@ function ReviewDetails({ conflict, showProject }) {
         {files.length > 0 && (
           <div className={ROW}>
             <span className={LABEL}>Files</span>
-            <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px] text-slate-300')}>{files.join(', ')}</span>
+            <span translate="no" className={cn(VALUE, 'font-mono text-[11.5px] text-slate-200')}>{files.join(', ')}</span>
           </div>
         )}
       </div>
@@ -424,26 +425,26 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
 
       {summary && (
         <>
-          <p className="mt-2 text-[11px] leading-4 font-medium text-slate-500"><LocalizedText text="Summary" /></p>
+          <p className="mt-2 text-[11px] leading-4 font-medium text-slate-400"><LocalizedText text="Summary" /></p>
           <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>
         </>
       )}
 
       {!conflict.rollback && <dl className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3 text-xs leading-[18px]">
-        <dt className="text-slate-500"><LocalizedText text="Author" /></dt>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Author" /></dt>
         <dd translate="no" className="text-slate-200">{allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')}</dd>
-        <dt className="text-slate-500"><LocalizedText text="Updated" /></dt>
-        <dd className="text-slate-300"><LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></dd>
-        <dt className="text-slate-500"><LocalizedText text="Checks" /></dt>
-        <dd className="min-w-0 text-slate-300">{checks ? <>
-          <p><LocalizedText text={checks.failing.length ? 'Design standards needing attention' : 'All design checks passed'} />{checks.failing.length > 0 && ` · ${checks.failing.length}`}</p>
-          {checks.failing.length > 0 && <ul className="mt-1 space-y-1 text-[11px] leading-4 text-slate-400">{checks.failing.map((check) => <li key={check.id}><LocalizedText text={check.title} /></li>)}</ul>}
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Updated" /></dt>
+        <dd className="text-slate-200"><LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></dd>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Checks" /></dt>
+        <dd className="min-w-0 text-slate-200">{checks ? <>
+          <p>{checks.failing.length ? `기준과 다른 항목 ${checks.failing.length}개` : <LocalizedText text="All design checks passed" />}</p>
+          {checks.failing.length > 0 && <ul className="mt-2 divide-y divide-white/[0.07] text-xs leading-[18px] text-slate-200">{checks.failing.map((check) => <CheckExplanation key={check.id} check={check} />)}</ul>}
           {checks.blocking?.length > 0 && <p className="mt-1 text-[11px] leading-4 text-slate-400"><LocalizedText text="Resolve the required standards below before merging." /></p>}
         </> : <LocalizedText text="No check results yet" />}</dd>
-        <dt className="text-slate-500"><LocalizedText text="Reviewers" /></dt>
-        <dd className="text-slate-300">{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
-        <dt className="text-slate-500"><LocalizedText text="Due date" /></dt>
-        <dd className="text-slate-300"><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Reviewers" /></dt>
+        <dd className="text-slate-200">{conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name ?? reviewer.id).join(', ') || '—'}</dd>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Due date" /></dt>
+        <dd className="text-slate-200"><LocalizedText text={conflict.dueLabel ?? '—'} /></dd>
       </dl>}
 
       {!conflict.rollback && rationale && <DecisionSummary embedded rationale={rationale} onOpen={onOpenEvidence} />}
@@ -459,13 +460,13 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
         </button>
         {showDetails && (conflict.rollback ? (
-          <div className="mt-2 space-y-1.5">
+          <div className="mt-2 space-y-2">
             {[
               ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all text-slate-300">{conflict.rollback.target}</span>],
               ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
               requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
             ].filter(Boolean).map(([label, value]) => (
-              <div key={label} className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] gap-x-3">
+              <div key={label} className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-x-3">
                 <span className="text-xs leading-[18px] text-slate-400"><LocalizedText text={label} /></span>
                 <span className="min-w-0 text-xs leading-[18px] break-words text-slate-200">{value}</span>
               </div>

@@ -69,16 +69,16 @@ export function DecisionSummary({ rationale, onOpen, embedded = false }) {
   const core = ['figma', 'token', 'comment'].map((kind) => evidence.find((item) => item.kind === kind)).filter(Boolean)
   const ordered = [...core, ...evidence.filter((item) => !core.includes(item))]
   return (
-    <section data-decision-summary aria-label="Decision summary" className={cn('shrink-0 text-xs leading-5', embedded ? 'border-t border-white/[0.07] pt-3' : 'rounded-xl bg-white/[0.03] px-3 py-3')}>
+    <section data-decision-summary aria-label="Decision summary" className={cn('shrink-0 text-xs leading-[18px]', embedded ? 'border-t border-white/[0.07] pt-3' : 'rounded-xl bg-white/[0.03] px-3 py-3')}>
       <dl className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-        <dt className="text-slate-500"><LocalizedText text="The why" /></dt>
-        <dd className="text-slate-300"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
-        <dt className="text-slate-500"><LocalizedText text="Evidence" /></dt>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="The why" /></dt>
+        <dd className="text-slate-200"><LocalizedText text={why?.text ?? 'No reason linked yet'} /></dd>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Evidence" /></dt>
         <dd className="min-w-0">{ordered.length ? <EvidenceLinks items={ordered} onOpen={onOpen} limit={3} /> : '—'}</dd>
-        <dt className="text-slate-500"><LocalizedText text="Decision" /></dt>
+        <dt className="text-[11px] text-slate-400"><LocalizedText text="Decision" /></dt>
         <dd className="flex flex-wrap items-center gap-x-2">
-          <span className={decision.deviates ? 'text-amber-200' : 'text-white'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
-          {decision.by && <span translate="no" className="text-slate-500">· {decision.by}</span>}
+          <span className={'text-slate-200'}><LocalizedText text={decision.label ?? 'Not decided yet'} /></span>
+          {decision.by && <span translate="no" className="text-[11px] text-slate-400">· {decision.by}</span>}
         </dd>
       </dl>
     </section>

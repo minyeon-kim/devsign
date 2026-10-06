@@ -142,6 +142,7 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     },
     worstAccent && {
       id: 'contrast',
+      currentValue: `${worstAccent.ratio.toFixed(1)}:1`,
       layerId: props.find((p) => /accent/i.test(p.diff.label))?.layerId,
       group: 'Accessibility',
       ok: worstAccent.ratio >= 4.5,
@@ -150,6 +151,7 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     },
     {
       id: 'targets',
+      currentValue: [...smallTargets.map((layer) => `${layer.name} ${touchOf(layer)}px`), ...untouchableIcons.map((icon) => `${icon.name} ${icon.touch ?? parseFloat(icon.value)}px`)].join(' · '),
       layerId: smallTargets[0]?.id ?? untouchableIcons[0]?.layerId,
       group: 'Accessibility',
       ok: targetFailures === 0,
@@ -165,6 +167,8 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     },
     mismatchedIcons.length > 0 && {
       id: 'icon-size',
+      currentValue: mismatchedIcons[0].value,
+      expectedValue: mismatchedIcons[0].diff.optionA,
       layerId: mismatchedIcons[0].layerId,
       // Not Accessibility: the touch area passes. It's the design system's
       // size that isn't matched — a suggestion, never a blocker.
@@ -175,6 +179,7 @@ export function assessMerge(item, resolutions, summary, evaluatedFrame) {
     },
     fontSizes.length > 0 && {
       id: 'text',
+      currentValue: fontSizes.filter((size) => size < 12).map((size) => `${size}px`).join(' · '),
       layerId: props.find((p) => /font size/i.test(p.diff.label) && parseFloat(p.value) < 12)?.layerId,
       group: 'Accessibility',
       ok: fontSizes.every((n) => n >= 12),
