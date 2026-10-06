@@ -747,6 +747,39 @@ export function WorkspaceProvider({ children, projectId }) {
     }))
   }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
 
+  // A walkthrough begins before the review: entering one (its notification)
+  // puts its conflict back there — nothing chosen, no reason, nobody asked —
+  // whatever an earlier run left. Everything that shows the conflict (its
+  // review, the list, the reviewers) reads this one record, so they all
+  // follow. A conflict that was already merged stays merged: that's code
+  // in the file, not review state.
+  const restartConflict = useCallback((conflictId) => {
+    const conflict = conflicts.find((candidate) => candidate.id === conflictId)
+    if (!conflict || conflict.reviewStage === 'resolved') return false
+    // What was picked or set by hand for it (its merge draft) goes first:
+    // changing a draft touches the review's stage, set last below.
+    const draft = conflict.mergeItemId ? mergeDrafts.current[conflict.mergeItemId] : null
+    if (draft) saveMergeDraft(conflict.mergeItemId, { ...draft, resolutions: {}, assemblies: {} })
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c,
+      reviewStage: 'detected',
+      diffInspected: false,
+      requestedBy: null,
+      reviewers: c.reviewers.map((reviewer) => ({ id: reviewer.id, status: 'pending' })),
+      // The choice, and what was said for it.
+      pickedSide: null,
+      decidedSide: null,
+      decidedBy: null,
+      customChosen: false,
+      stashedAssemblies: null,
+      deviation: null,
+      adjustmentReason: null,
+      exceptionChecks: [],
+      acceptedChecks: [],
+    })))
+    return true
+  }, [conflicts, saveMergeDraft, setConflicts])
+
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
   }, [])
@@ -2043,6 +2076,7 @@ export function WorkspaceProvider({ children, projectId }) {
     projectPages,
     memberViewports,
     updateConflict,
+    restartConflict,
     createMergeRequest,
     reviewConflictId,
     bottomPanel,

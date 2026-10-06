@@ -54,7 +54,7 @@ function useBellAnchor(active) {
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { comments, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview } = useWorkspace()
+  const { comments, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, restartConflict } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -122,7 +122,10 @@ export default function HighReviewNotifications() {
           </div>
           <div className={NOTICE_ACTIONS}>
             <button type="button" onClick={() => setRequestDismissed(true)} className={NOTICE_ACTION_QUIET}>나중에</button>
-            <button type="button" onClick={() => { setRequestDismissed(true); exitMergeStudio(); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className={NOTICE_ACTION}>검토 내용 열기</button>
+            {/* The walkthrough's way in: its conflict starts from before
+                the review every time (opening it from the list shows it as
+                it stands). */}
+            <button type="button" data-scenario-open onClick={() => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className={NOTICE_ACTION}>검토 내용 열기</button>
           </div>
         </section>
       )}
