@@ -307,6 +307,14 @@ It breaks a required rule, so this needs the reviewers’ exception approval.|�
 Reason for the exception request|예외 요청 이유
 Required|필수
 Send exception request|예외 요청 보내기
+Send request|요청 보내기
+Sending…|보내는 중…
+Request sent|요청 보냄
+Exception request sent|예외 요청을 보냈어요
+Exception requested · Awaiting review|예외 요청됨 · 검토 대기
+Breaks a required rule|필수 규칙 위반
+Choose or enter at least one reason|이유를 하나 이상 선택하거나 입력해 주세요
+The request couldn’t be sent. Try again.|요청을 보내지 못했어요. 다시 시도해 주세요.
 Apply design reference|디자인 기준 적용
 Decide to keep the current value|현재 값 유지로 결정
 Apply the adjusted value|조정값 적용

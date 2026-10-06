@@ -69,6 +69,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
+import { ExceptionRequestDialog, exceptionDraftOf } from '@/components/conflicts/ExceptionRequestDialog'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -863,7 +864,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             {chosen ? <>
               <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
               {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
-              {flow.reason && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
+              {flow.reason && !flow.reason.modal && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
             </> : <LocalizedText text="Nothing chosen yet" />}
           </p>
           {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
@@ -878,11 +879,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         <div className="mb-3 flex min-w-0 items-center gap-2">
           <p data-pick-guide={choice ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
             <span className="text-[13px] font-semibold text-white">
-              {flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
+              {flow.exceptionSent ? <span data-exception-sent><LocalizedText text="Exception requested · Awaiting review" /></span>
+                : flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
             </span>
+            {flow.exceptionSent && chosen && <><span className="text-slate-500"> · </span><LocalizedText text={chosen.title} /></>}
             {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className="text-slate-400">{flow.ruleStatus.required && <TriangleAlert aria-hidden className="mr-1 inline size-3 -translate-y-px text-amber-300" />}<LocalizedText text={flow.ruleStatus.text} /></span></>}
-            {(flow.decided || !flow.ruleStatus) && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
+            {(flow.decided || !flow.ruleStatus) && !flow.exceptionSent && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
           </p>
+          {flow.exceptionSent && <button type="button" disabled className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request sent" /></button>}
           {flow.canChange && (
             <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
               <LocalizedText text="Change decision" />
@@ -1120,7 +1124,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       </p>
                     </div>
                   )}
-                  <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
+                  {!(flow.reason.modal && editing) && <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />}
                 </div>
               )}
             </>) : conflict.preview && (
@@ -2029,10 +2033,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
   const [reasonRequest, setReasonRequest] = useState(null)
   const [exceptionReasonDraft, setExceptionReasonDraft] = useState('')
+  // The card flow's exception request: asked for in a dialog. What's been
+  // entered is kept per conflict (and way chosen), so closing the dialog
+  // and opening it again finds it as it was left.
+  const [exceptionOpen, setExceptionOpen] = useState(false)
+  const [exceptionDrafts, setExceptionDrafts] = useState({})
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
     setReplayId(null)
+    setExceptionOpen(false)
   }
 
   function update(patch) {
@@ -2061,7 +2071,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 
-  function handleRequestReview() {
+  function handleRequestReview({ quiet = false } = {}) {
     if (decisionState.reasonNeeded || reasonRequest) return
     // A fresh review round: earlier "changes requested" go back to pending.
     // The request goes to the other reviewers — never back to you, and never
@@ -2077,6 +2087,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       .filter(Boolean)
     // Checks don't gate the request (reviewers can see them) — only the merge.
     const failing = checks?.failing.length ?? 0
+    if (quiet) return
     toast(to.length ? `Review requested from ${to.join(', ')}` : 'Review requested', {
       description: failing ? `${failing} check${failing === 1 ? '' : 's'} still need attention — merging waits on them.` : conflict.title,
     })
@@ -2426,6 +2437,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   } : choice === 'B' ? {
     title: broken.length ? 'Reason for the exception request' : 'Why depart from the standard?',
     hint: broken.length ? 'Required · choose all that apply' : 'Required',
+    // (An exception's reason is asked in a dialog, on sending the request.)
+    modal: broken.length > 0,
     reasons: DEVIATION_REASONS,
     value: reasonOf('keep-current'),
     onChange: (text) => update({ deviation: text ? { kind: 'keep-current', text, by: viewerId, at: 'Just now' } : null }),
@@ -2433,11 +2446,33 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     // (Both sides break it: following the reference still needs one.)
     title: 'Reason for the exception request',
     hint: 'Required · choose all that apply',
+    modal: true,
     reasons: DEVIATION_REASONS,
     value: reasonOf('exception'),
     onChange: (text) => update({ deviation: text ? { kind: 'exception', text, by: viewerId, at: 'Just now' } : null }),
   } : null
-  if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.value.trim()
+  if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.modal && !flowReason.value.trim()
+  const exceptionKey = conflict ? `${conflict.id}:${choice}` : null
+  const exceptionDraft = exceptionDrafts[exceptionKey] ?? exceptionDraftOf(flowReason?.modal ? flowReason.value : '', DEVIATION_REASONS)
+  // What the exception is asked for: each compared value against the
+  // standard's, else the checks it breaks.
+  const exceptionViolations = !flowReason?.modal ? []
+    : (conflict.comparisonFields ?? []).some((field) => field.current !== field.expected)
+      ? conflict.comparisonFields.filter((field) => field.current !== field.expected).map((field) => ({ label: field.label, from: field.current, to: field.expected }))
+      : broken.map((check) => ({ label: check.title }))
+  // Sent with its reason: the exception is asked for and review requested,
+  // in one go. (Throws if it can't be sent — the dialog stays, as entered.)
+  async function sendException(reason) {
+    await new Promise((resolve) => window.setTimeout(resolve, 500))
+    if (!onUpdate) throw new Error('This conflict can’t be updated')
+    flowReason.onChange(reason)
+    update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
+    if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${reason}`, { conflictId: conflict.id })
+    handleRequestReview({ quiet: true })
+    setExceptionOpen(false)
+    setExceptionDrafts((drafts) => { const next = { ...drafts }; delete next[exceptionKey]; return next })
+    toast('Exception request sent')
+  }
   // One number of the element's own is set on the third card itself.
   const valueControl = cardFlow && mergeItem && workspace?.setLayerAdjustments ? valueControlFor(conflict, mergeItem) : null
   // Decided once review is asked for; whoever isn't there as a reviewer
@@ -2447,6 +2482,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     choice,
     editing: stage === 'detected' && Boolean(onUpdate),
     decided: stage !== 'detected',
+    // An exception asked for, with the reviewers yet to answer.
+    exceptionSent: stage === 'in_review' && (conflict.exceptionChecks?.length ?? 0) > 0,
     canChange: stage !== 'detected' && stage !== 'resolved' && !reviewerOnly && Boolean(onUpdate),
     choose: chooseWay,
     custom: customResult,
@@ -2477,6 +2514,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       // Breaking a required rule: the exception is asked for with the
       // decision, its reason the one given here.
       run: () => {
+        // An exception's reason is asked for first, in its dialog.
+        if (flowReason?.modal) { setExceptionOpen(true); return }
         // A value set by hand that is the design reference's: decided as
         // the design reference (the same code, with nothing left set).
         if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
@@ -2820,6 +2859,19 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </form>
           </DialogContent>
         </Dialog>
+        {conflict && flowReason?.modal && (
+          <ExceptionRequestDialog
+            open={exceptionOpen}
+            onOpenChange={setExceptionOpen}
+            conflict={conflict}
+            violations={exceptionViolations}
+            reasons={DEVIATION_REASONS}
+            draft={exceptionDraft}
+            onDraftChange={(draft) => setExceptionDrafts((drafts) => ({ ...drafts, [exceptionKey]: draft }))}
+            onSend={sendException}
+            finalFocus={() => document.querySelector('[data-decide]') ?? true}
+          />
+        )}
         <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
 
     </div>
