@@ -199,38 +199,29 @@ function ReviewDetails({ conflict, showProject, open }) {
   const components = impact?.components ?? []
   const flow = gitFlowOf(conflict)
   const author = allPeople.find((person) => person.id === authorOf(conflict))?.name ?? (conflict.changedBy?.type === 'ai' ? 'Devsign AI' : 'Devsign')
-  const ROW = 'grid min-w-0 grid-cols-[64px_minmax(0,1fr)] items-start gap-x-3'
-  const LABEL = 'text-[11px] leading-[18px] text-slate-400'
-  const VALUE = 'min-w-0 break-words text-xs leading-[18px] text-slate-200 [overflow-wrap:anywhere]'
 
-  // One list, no sub-heading: branch, components, files, then who made the
-  // change and when. Only the file paths are monospace.
-  return (
-    <div data-review-details className="mt-2 space-y-2">
-      {showProject && conflict.projectName && (
-        <div className={ROW}><span className={LABEL}>Project</span><span className={VALUE}><LocalizedText text={conflict.projectName} /></span></div>
-      )}
-      <div className={ROW}>
-        <span className={LABEL}>Branch</span>
-        <span translate="no" className={VALUE}>{flow ? `${flow.source} → ${flow.target}` : '—'}</span>
-      </div>
-      {/* Every row is always there — an empty one reads "—", so a missing
-          value is seen as missing rather than as a row that isn't shown. */}
-      <div className={ROW}><span className={LABEL}>Components</span><span translate="no" className={VALUE}>{components.join(', ') || '—'}</span></div>
-      <div className={ROW}>
-        <span className={LABEL}>Files</span>
-        <span translate="no" className={cn(VALUE, files.length > 0 && 'font-mono text-[11.5px]')}>{files.join(', ') || '—'}</span>
-      </div>
-      <div className={ROW}>
-        <span className={LABEL}><LocalizedText text="Author · Updated" /></span>
-        <span className={VALUE}>
-          <span translate="no">{author}</span>
-          <span className="text-slate-400"> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
-        </span>
-      </div>
-      <div className={ROW}><span className={LABEL}><LocalizedText text="Due date" /></span><span className={VALUE}>{open && shortDue(conflict.dueLabel) ? <LocalizedText text={conflict.dueLabel} /> : '—'}</span></div>
-    </div>
-  )
+  // Rows of the summary's own grid — the same label column and value
+  // column as Cause and Impact above them, not a list indented under the
+  // toggle. Every row is always there: an empty one reads "—". Only the
+  // file paths are monospace.
+  return [
+    showProject && conflict.projectName && ['Project', <LocalizedText key="p" text={conflict.projectName} />],
+    ['Branch', <span key="b" translate="no">{flow ? `${flow.source} → ${flow.target}` : '—'}</span>],
+    ['Components', <span key="c" translate="no">{components.join(', ') || '—'}</span>],
+    ['Files', <span key="f" translate="no" className={files.length > 0 ? 'font-mono text-[11.5px]' : undefined}>{files.join(', ') || '—'}</span>],
+    ['Author · Updated', (
+      <>
+        <span translate="no">{author}</span>
+        <span className="text-slate-500"> · <LocalizedText text={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—'} /></span>
+      </>
+    )],
+    ['Due date', open && shortDue(conflict.dueLabel) ? <LocalizedText key="d" text={conflict.dueLabel} /> : '—'],
+  ].filter(Boolean).map(([label, value]) => (
+    <Fragment key={label}>
+      <dt data-detail-label className={SUMMARY_ROW_LABEL}><LocalizedText text={label} /></dt>
+      <dd data-detail-value className={SUMMARY_BODY}>{value}</dd>
+    </Fragment>
+  ))
 }
 
 // A change's checks, as a status: they run on their own (see
@@ -474,7 +465,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
         // grey labels: Cause (why it conflicts), Impact (what goes wrong if
         // it isn't resolved), Evidence (the rule, links and version behind
         // it — the rest folded), Details (folded).
-        <dl data-review-summary className="grid min-w-0 grid-cols-[52px_minmax(0,1fr)] gap-x-3 gap-y-2.5">
+        <dl data-review-summary className="grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2.5">
           {cause_text && (
             <>
               <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Cause" /></dt>
@@ -546,20 +537,25 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               </dd>
             </>
           )}
-          <dt className={SUMMARY_ROW_LABEL}><LocalizedText text="Details" /></dt>
-          <dd ref={detailsRef} data-summary-row="Details" className={cn(SUMMARY_BODY, 'scroll-mb-3')}>
+          {/* The toggle is its row's label; what it opens are more rows of
+              this same grid, so their labels and values line up with the
+              ones above. */}
+          <dt className={SUMMARY_ROW_LABEL}>
             <button
               type="button"
               data-details-toggle
               aria-expanded={showDetails}
               onClick={() => setShowDetails((v) => !v)}
-              className="ds-intrinsic inline-flex h-[18px] w-fit items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+              className="ds-intrinsic inline-flex h-[18px] items-center gap-0.5 text-[11px] whitespace-nowrap text-slate-500 transition-colors hover:text-white"
             >
-              <LocalizedText text="Branch, components, files" />
-              <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
+              <LocalizedText text="Details" />
+              <ChevronDown className={cn('size-3 transition-transform', showDetails && 'rotate-180')} />
             </button>
-            {showDetails && <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
-          </dd>
+          </dt>
+          <dd aria-hidden className={SUMMARY_BODY} />
+          {showDetails && <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
+          {/* (What opening Details scrolls to: the end of its rows.) */}
+          <div ref={detailsRef} aria-hidden className="col-span-2 -mt-2.5 h-0 scroll-mb-3" />
         </dl>
       )}
       {conflict.rollback && summary && <p className={cn(REVIEW_DETAIL_COPY, 'min-w-0 break-words [overflow-wrap:anywhere] text-slate-300')}><LocalizedText text={summary} /></p>}

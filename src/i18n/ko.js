@@ -114,7 +114,6 @@ Keeps the current value|현재 값 유지
 Review request needed|검토 요청 필요
 Reason needed|이유 입력 필요
 Cause|원인
-Branch, components, files|브랜치 · 컴포넌트 · 파일
 Merged with the design reference value|디자인 기준 값으로 병합
 Merged with the current implementation value|현재 구현 값으로 병합
 Merged code|병합된 코드
