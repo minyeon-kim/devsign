@@ -63,7 +63,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import ConflictHistoryReplay from '@/components/dockview/panels/ConflictHistoryReplay'
+import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { EvidenceLinks, InlineDeviationReason, RulesDialog } from '@/components/conflicts/Rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -710,7 +710,7 @@ function CodeDiffColumns({ rows }) {
 // `adjustment` (a size set by hand in Merge Studio): the card that merges
 // shows that value as old → new and is tagged, with a way to undo it;
 // `changeAfter` is the change's code with the adjustment in it.
-function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, standardLevel }) {
+function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, changeAfter, onUndoAdjustment, state, checks, checkActions, checkBlocks, standardLevel, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
   const { canPick } = state
   const picked = decision => state.side === decision
@@ -1013,7 +1013,20 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                 </div>
               </div>
             )}
-            {conflict.diff && !readOnly && (
+            {/* The code follows the card that's picked: its diff when the
+                pick changes the code, a line saying it doesn't otherwise. */}
+            {conflict.diff && !readOnly && codeChange !== 'diff' && (
+              <div data-code-note={codeChange} className="min-w-0 space-y-1.5">
+                <p className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                  <FileCode2 className="size-3 shrink-0" />
+                  <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}</span>
+                </p>
+                <p className="rounded-md bg-black/20 px-3 py-3 text-xs text-slate-300">
+                  <LocalizedText text={codeChange === 'unchanged' ? 'No change — the current code stays as it is.' : 'With nothing chosen, the code doesn’t change.'} />
+                </p>
+              </div>
+            )}
+            {conflict.diff && !readOnly && codeChange === 'diff' && (
               <div className="min-w-0 [&>div]:space-y-1.5">
                 {code ? <ConflictCodeView {...code} context={2} /> : <CodeDiffColumns rows={rows} />}
               </div>
@@ -1644,7 +1657,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   // The review itself ('overview') or the History behind it, reset to the
   // review whenever a different conflict loads.
-  const [tab, setTab] = useState('overview')
+  // The main area is the comparison — or, while one is being watched, a
+  // step's replay (opened from the sidebar's Activity tab).
+  const [replayId, setReplayId] = useState(null)
+  const activity = useConflictActivity(conflict, workspace)
   // Evidence links and the one question a departure asks.
   const [ruleFocus, setRuleFocus] = useState(null)
   const [flashComment, setFlashComment] = useState(null)
@@ -1664,19 +1680,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
-    setTab('overview')
+    setReplayId(null)
   }
 
   function update(patch) {
     onUpdate?.(conflict.id, patch)
   }
 
-  function openTab(value) {
-    setTab(value)
-    if (value === 'history' && !conflict.historyInspected) update({ historyInspected: true })
-    if (value === 'overview' && !conflict.diffInspected && conflict.reviewStage !== 'resolved') {
-      update({ diffInspected: true })
-    }
+  // Opening a step's replay (the Activity tab's "View replay").
+  function openReplay(id) {
+    setReplayId(id)
+    if (!conflict.historyInspected) update({ historyInspected: true })
   }
 
   // The Activity tab is this conflict's own activity, here in the panel
@@ -1759,7 +1773,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // Apply a resolving side directly; otherwise open the relevant editor.
   function startFix(check) {
     if (!workspace) return
-    setTab('overview')
+    setReplayId(null)
     // Use the same decision path as selecting the named comparison card.
     const side = decisionState.resolvingSide(check.id)
     if (side) { decisionState.pick(side); return }
@@ -1975,7 +1989,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // any of its elements) — listed in the review so what was changed there
   // is seen here. Kept on the conflict at merge, so it stays after.
   const studioAdjustments = stage === 'resolved' ? conflict?.mergedAdjustments ?? [] : studioAdjustmentsOf(mergeItem, workspace?.mergeDrafts?.current)
-  const changeAfter = adjustment ? (conflict?.diff?.after ?? []).map(adjustment.applyTo) : conflict?.diff?.after ?? []
+  // The code that merges follows the card that's picked: the design
+  // reference's lines, or the current ones — either with a hand-adjusted
+  // size written in. So the diff's "−" is always the current
+  // implementation's value and its "+" the chosen one. With nothing picked
+  // (and nothing adjusted) the code doesn't change, and there is no diff.
+  const pickedSide = stage === 'resolved' ? 'A' : decisionState.side
+  const sideLines = pickedSide === 'A' ? conflict?.diff?.after ?? [] : conflict?.diff?.before ?? []
+  const changeAfter = adjustment ? sideLines.map(adjustment.applyTo) : sideLines
+  const codeChange = !conflict?.diff ? null
+    : pickedSide === 'A' || adjustment ? 'diff'
+      : pickedSide === 'B' ? 'unchanged' : 'unpicked'
   const generatedFile = fileLines && conflict.diff
     ? placeChange(fileLines, conflict.line, conflict.diff.before ?? [], changeAfter)
     : null
@@ -2076,38 +2100,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
             </div>
 
-            {/* Review and Activity are two views of the one conflict: tabs
-                under its title (said once, above). The only way back is the
-                "<" beside the title, and it always goes to the list. */}
-            {!conflict.rollback && (
-              <div role="tablist" aria-label="Conflict views" className="flex h-7 shrink-0 items-stretch gap-4 px-3 pl-11">
-                {[['overview', 'Review'], ['history', 'Activity']].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === value}
-                    onClick={() => openTab(value)}
-                    className="ds-intrinsic -mb-px inline-flex items-center border-b-2 border-transparent px-0 text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
-                  >
-                    <LocalizedText text={label} />
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
             {/* The header and the tabs above stay put. On a wide panel the
                 three areas — comparison and diff, reasoning, reviewers and
                 comments — each scroll on their own, so none of these
                 wrappers scrolls; narrower, where they stack, the page does. */}
-            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', tab === 'history' && !conflict.rollback && 'pl-11')}>
+            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', 'pt-2')}>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
-                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', tab === 'overview' && 'xl:overflow-hidden')} role="tabpanel">
+                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', !replayId && 'xl:overflow-hidden')}>
                   {/* Done is said outright, above everything: merged (or
                       rolled back), when and by whom — not left to be read
                       off a Revert button and the merged values. */}
@@ -2135,7 +2139,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       )}
                     </div>
                   )}
-                  {tab === 'overview' ? (
+                  {!replayId ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
@@ -2179,6 +2183,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <DiffTab
+                            codeChange={codeChange}
                             standardLevel={rationale?.rules.length ? (standardOf(rationale.rules, checks).required ? 'required' : 'recommended') : null}
                             conflict={conflict}
                             code={codeView}
@@ -2229,7 +2234,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1">
-                      <ConflictHistoryReplay conflict={conflict} workspace={workspace} rationale={rationale} onOpenEvidence={openEvidence} onOpenProjectHistory={openProjectHistory} />
+                      <ConflictReplay conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onBack={() => setReplayId(null)} onOpenEvidence={openEvidence} />
                     </div>
                   )}
                 </div>
@@ -2240,7 +2245,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
                   <div role="tablist" aria-label="Conflict sidebar" className="-mt-1 mb-2 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
-                    {[['info', 'Info'], ['comments', 'Comments']].map(([value, label]) => (
+                    {[['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])].map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
@@ -2251,6 +2256,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         className="ds-intrinsic -mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
                       >
                         <LocalizedText text={label} />
+                        {value === 'activity' && <span data-activity-count className="text-[11px] font-normal text-slate-400 tabular-nums">{activity.timeline.length}</span>}
                         {value === 'comments' && (
                           <>
                             <span data-comment-count className="text-[11px] font-normal text-slate-400 tabular-nums">{commentCount}</span>
@@ -2279,6 +2285,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         onUpdateReviewers={update}
                         onDismissRequest={workspace?.dismissChangeRequest}
                       />
+                    </div>
+                  ) : sideTab === 'activity' ? (
+                    <div data-review-scroll="activity" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                      <ConflictActivityList conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onOpenProjectHistory={openProjectHistory} />
                     </div>
                   ) : (
                     <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">

@@ -20,6 +20,40 @@ const TONES = {
   remove: 'bg-red-500/[0.18] text-red-300',
 }
 const MARKS = { same: ' ', add: '+', edited: '+', remove: '−' }
+// The part of a changed line that actually differs, a step stronger than
+// the line's own tint.
+const EMPHASIS = { remove: 'rounded-[3px] bg-red-500/45 text-red-100', add: 'rounded-[3px] bg-emerald-500/45 text-emerald-50', edited: 'rounded-[3px] bg-amber-400/40 text-amber-50' }
+
+// A line as tokens — class names, attributes, punctuation — so two lines can
+// be compared value by value.
+const tokens = (text) => text.match(/\s+|[^\s"'`{}()<>=]+|./g) ?? []
+
+// Which tokens of `a` and `b` aren't shared (longest common subsequence):
+// only those are emphasized, so an unchanged value on a changed line — a
+// size that's the same on both — stays plain.
+function changedTokens(a, b) {
+  const x = tokens(a)
+  const y = tokens(b)
+  const table = Array.from({ length: x.length + 1 }, () => new Array(y.length + 1).fill(0))
+  for (let i = x.length - 1; i >= 0; i--) for (let j = y.length - 1; j >= 0; j--) table[i][j] = x[i] === y[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1])
+  const left = x.map((text) => ({ text, changed: true }))
+  const right = y.map((text) => ({ text, changed: true }))
+  let i = 0
+  let j = 0
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { left[i++].changed = false; right[j++].changed = false }
+    else if (table[i + 1][j] >= table[i][j + 1]) i++
+    else j++
+  }
+  // Neighbouring changed tokens read as one value (size="lg"), not five.
+  const runs = (parts) => parts.reduce((out, part) => {
+    const last = out.at(-1)
+    if (last && last.changed === part.changed) last.text += part.text
+    else out.push({ ...part })
+    return out
+  }, [])
+  return [runs(left), runs(right)]
+}
 
 // A conflict's code in its file — not just the changed line. The file as
 // it is now, diffed against the file as this change would leave it (the
@@ -53,6 +87,27 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
       return { ...row, kind: edited ? 'edited' : 'add', oldNo: null, newNo }
     })
   }, [base, current, generated, working])
+
+  // Each removed line paired with the added line that replaces it (the nth
+  // "−" of a run with the nth "+"), compared value by value.
+  const emphasis = useMemo(() => {
+    const parts = new Map()
+    let i = 0
+    while (i < rows.length) {
+      if (rows[i].kind !== 'remove') { i++; continue }
+      let end = i
+      while (end < rows.length && rows[end].kind === 'remove') end++
+      let added = end
+      while (added < rows.length && (rows[added].kind === 'add' || rows[added].kind === 'edited')) added++
+      for (let k = 0; k < Math.min(end - i, added - end); k++) {
+        const [before, after] = changedTokens(rows[i + k].text, rows[end + k].text)
+        parts.set(i + k, before)
+        parts.set(end + k, after)
+      }
+      i = added
+    }
+    return parts
+  }, [rows])
 
   const changed = rows.map((row, i) => (row.kind === 'same' ? -1 : i)).filter((i) => i >= 0)
   const first = changed.length ? changed[0] : 0
@@ -148,17 +203,26 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
           </p>
         </div>
       ) : (
+        // Long lines scroll sideways rather than wrap, so a "−" line and its
+        // "+" line keep the same columns and a changed value sits right
+        // under the one it replaces.
         <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed', expanded && 'max-h-[360px]')}>
+          <div className="w-max min-w-full">
           {hiddenAbove > 0 && !compact && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
           {shown.map((row, i) => (
             <div
               key={from + i}
               data-first-change={from + i === first ? '' : undefined}
-              className={cn('flex min-w-0 pr-3', TONES[row.kind])}
+              data-code-row={row.kind}
+              className={cn('flex pr-3', TONES[row.kind])}
             >
               <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{row.newNo ?? row.oldNo}</span>
               <span className="w-3.5 shrink-0 opacity-70 select-none">{MARKS[row.kind]}</span>
-              <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
+              <span data-code-text className="flex-1 whitespace-pre">
+                {emphasis.has(from + i)
+                  ? emphasis.get(from + i).map((part, at) => (part.changed && part.text.trim() ? <mark key={at} data-code-changed className={cn('bg-transparent', EMPHASIS[row.kind])}>{part.text}</mark> : part.text))
+                  : row.text || ' '}
+              </span>
               {!merged && !compact && row.kind === 'add' && from + i === changed.find((c) => rows[c].kind === 'add') && (
                 <span className="ml-2 inline-flex shrink-0 items-center gap-1 self-start pt-0.5 font-sans text-[9.5px] text-emerald-300/80 select-none">
                   <Sparkles className="size-2.5" />
@@ -168,6 +232,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
             </div>
           ))}
           {hiddenBelow > 0 && !compact && <HiddenLines count={hiddenBelow} onExpand={() => setExpanded(true)} />}
+          </div>
         </div>
       )}
     </div>

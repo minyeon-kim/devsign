@@ -61,6 +61,10 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+No change — the current code stays as it is.|변경 없음 · 현재 코드 그대로 유지
+With nothing chosen, the code doesn’t change.|선택하지 않으면 코드는 바뀌지 않아요
+View replay|리플레이 보기
+Watching the replay|리플레이 보는 중
 Everyone on the project is already on this review|프로젝트 구성원이 모두 이미 검토자예요
 Info|정보
 New comments|새 댓글
@@ -404,7 +408,7 @@ Not decided yet — pick a side on the card to the right.|아직 결정 전입�
 Undo decision|되돌리기
 Applying as is|그대로 반영합니다
 Check the reasoning in History|히스토리에서 근거 확인하기
-Back to review|검토 내용으로 돌아가기
+Back to review|검토로 돌아가기
 Approvals received. Resolve the failing checks before merging.|승인을 받았습니다. 병합 전에 필수 검사 문제를 해결하세요.
 Assign a reviewer other than the author to request review.|작성자 외의 검토자를 배정하면 검토를 요청할 수 있습니다.
 Result preview|결과 미리보기
