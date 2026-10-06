@@ -2,7 +2,7 @@ import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompar
 import { moveTab } from '@/lib/tabOrder'
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Layers3, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
+import { Layers3, Maximize2, Minimize2, ScrollText, SquareTerminal, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
@@ -21,26 +21,33 @@ const DEFAULT_TABS = [
 
 const STRIP_HEIGHT = 40
 const MIN_HEIGHT = 120
-// Leave the canvas at least this much room above the panel.
-const MIN_CANVAS = 220
+// Leave the work area above at least this much room (maximizing the panel
+// is the one way past it).
+const MIN_CANVAS = 140
 // What opening rises to: the Conflict Points list takes close to half the
 // window, a review a little more — its cards, code and thread need the
 // height more than the canvas behind them does while it's open.
 const LIST_MIN_HEIGHT = 360
 const REVIEW_MIN_HEIGHT = 440
+// A review opens at about this much of the window: its comparison, code
+// diff and reasoning need the height more than the work area above does.
+const REVIEW_SHARE = 0.6
 
 // The workspace's bottom panel — Terminal, Console and Conflict Points as
 // one docked strip under the canvas (VS Code / Merge Studio style), not a
 // window floating over it. It spans the workspace's full width on the
 // panel surface with a hairline above; its tab row uses the studio's pill
 // category tabs. Conflict Points sits with the Terminal and Console like
-// a Problems tab, its open count badged on the tab. Drag the top edge to
-// resize; switching tabs preserves the user's height, and content scrolls
-// inside each panel rather than resizing this dock to fit it.
+// a Problems tab, its open count badged on the tab. Drag the grip on its top
+// edge to resize — a height set that way is kept (`userHeight`, saved with
+// the panel's state) and is what it opens to from then on — or use the
+// button at the strip's right to maximize it to the full height and back.
+// Content scrolls inside each panel rather than resizing this dock to fit.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
   const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId, checkGuide } = useWorkspace()
-  const { tab, open, height } = bottomPanel
+  const { tab, open, height, userHeight, maximized } = bottomPanel
+  const [fullHeight, setFullHeight] = useState(640)
   const rootRef = useRef(null)
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
   const draggedTab = useRef(null)
@@ -49,7 +56,10 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   useLayoutEffect(() => {
     const parent = rootRef.current?.parentElement
     if (!parent) return
-    const measure = () => setAvailableHeight(Math.max(MIN_HEIGHT, parent.clientHeight - MIN_CANVAS))
+    const measure = () => {
+      setAvailableHeight(Math.max(MIN_HEIGHT, parent.clientHeight - MIN_CANVAS))
+      setFullHeight(Math.max(MIN_HEIGHT, parent.clientHeight - 8))
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(parent)
@@ -61,7 +71,9 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     // Fixing a check on the canvas (see CheckDecisions): the review was
     // folded on purpose so the marked element is in view — leave it folded.
     if (checkGuide?.conflictId === reviewConflictId) return
-    const target = Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * 0.58))
+    // A height the user dragged to is theirs: it's what opens. Otherwise
+    // the default share of the window.
+    const target = userHeight ?? Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * REVIEW_SHARE))
     setBottomPanel({ open: true, height: target })
   }, [reviewConflictId, setBottomPanel])
 
@@ -73,6 +85,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   // just from height changing while the tab stays open.
   useEffect(() => {
     if (!['conflict', 'design-compare'].includes(tab) || !open) return
+    if (userHeight) { if (height !== userHeight) setBottomPanel({ height: userHeight }); return }
     const target = Math.max(LIST_MIN_HEIGHT, Math.round(window.innerHeight * 0.46))
     if (height < target) setBottomPanel({ height: target })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,13 +112,14 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     if (event.button !== 0) return
     event.preventDefault()
     const startY = event.clientY
-    const startHeight = open ? height : STRIP_HEIGHT
+    // Dragging from maximized starts from the full height and leaves it.
+    const startHeight = !open ? STRIP_HEIGHT : maximized ? fullHeight : height
     const limit = maxHeight()
     document.body.style.cursor = 'row-resize'
 
     function onMove(m) {
       const next = Math.min(limit, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
-      setBottomPanel({ height: next, open: true })
+      setBottomPanel({ height: next, userHeight: next, open: true, maximized: false })
     }
     function onUp() {
       document.body.style.cursor = ''
@@ -122,7 +136,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     <section
       ref={rootRef}
       aria-label="Bottom panel"
-      style={{ height: open ? height : STRIP_HEIGHT }}
+      data-maximized={open && maximized ? '' : undefined}
+      style={{ height: !open ? STRIP_HEIGHT : maximized ? fullHeight : height }}
       className={cn(
         // Merge Studio and plain Workspace share the exact same look (same
         // rounding/margins/border when open, same flush strip when closed)
@@ -137,14 +152,19 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
         className
       )}
     >
-      {/* Resize handle along the top edge. */}
+      {/* Resize handle along the top edge: the whole edge drags, and a
+          grip at its middle shows that it does. */}
       <div
         onPointerDown={startResize}
+        onDoubleClick={() => setBottomPanel({ open: true, maximized: !maximized })}
         role="separator"
         aria-orientation="horizontal"
         aria-label="Resize bottom panel"
-        className="absolute inset-x-4 top-0 z-10 h-1.5 cursor-row-resize rounded-full after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
-      />
+        title="Drag to resize · double-click to maximize"
+        className="group/grip absolute inset-x-4 top-0 z-10 flex h-2.5 cursor-row-resize justify-center after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
+      >
+        <span aria-hidden className="mt-1 h-1 w-10 rounded-full bg-white/20 transition-colors group-hover/grip:bg-emerald-300/80" />
+      </div>
 
       <div
         className="flex shrink-0 cursor-pointer items-center gap-1.5 px-3 py-1"
@@ -214,6 +234,20 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
           </Fragment>
         ))}
         </div>
+        {/* The whole height in one press, and back to where it was. */}
+        {open && (
+          <button
+            type="button"
+            data-panel-maximize
+            aria-pressed={Boolean(maximized)}
+            aria-label={maximized ? 'Restore panel height' : 'Maximize panel'}
+            title={maximized ? 'Restore panel height' : 'Maximize panel'}
+            onClick={() => setBottomPanel({ maximized: !maximized })}
+            className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+          >
+            {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </button>
+        )}
       </div>
 
       {open && (

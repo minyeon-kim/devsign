@@ -61,6 +61,9 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Maximize panel|패널 최대화
+Restore panel height|패널 높이 복원
+Drag to resize · double-click to maximize|끌어서 높이 조절 · 두 번 눌러 최대화
 What it’s for|목적
 Buttons use the primary color token.|버튼은 primary 색상 토큰을 써요.
 It makes the color follow the theme automatically when the theme changes.|테마가 바뀌면 색이 자동으로 따라가게 하기 위해서예요.

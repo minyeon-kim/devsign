@@ -2032,12 +2032,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
-            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3', tab === 'history' && !conflict.rollback && 'pl-11')}>
+            {/* The header and the tabs above stay put. On a wide panel the
+                three areas — comparison and diff, reasoning, reviewers and
+                comments — each scroll on their own, so none of these
+                wrappers scrolls; narrower, where they stack, the page does. */}
+            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', tab === 'history' && !conflict.rollback && 'pl-11')}>
               <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-auto',
+                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
-                <div className="flex min-h-0 min-w-0 flex-col overflow-auto" role="tabpanel">
+                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', tab === 'overview' && 'xl:overflow-hidden')} role="tabpanel">
                   {/* Done is said outright, above everything: merged (or
                       rolled back), when and by whom — not left to be read
                       off a Revert button and the merged values. */}
@@ -2055,11 +2059,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   )}
                   {tab === 'overview' ? (
-                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch">
+                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[420px] xl:flex-1')}>
-                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[420px] xl:flex-1')}>
+                        <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {studioAdjustments.length > 0 && !conflict.rollback && (
                             <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
                               <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-100">
@@ -2148,8 +2152,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           standard behind it, why, how, the evidence and the
                           decision. (A rollback with nothing to detail has
                           none — the comparison takes the room.) */}
-                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:w-[32%] xl:min-w-[260px] xl:max-w-[360px] xl:shrink-0')}>
-                        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'min-h-0 xl:w-[32%] xl:min-w-[260px] xl:max-w-[360px] xl:shrink-0')}>
+                        <div data-review-scroll="reasoning" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
                             rationale={rationale}
                             onOpenEvidence={openEvidence}
@@ -2177,7 +2181,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     discussion — not two boxes stacked. (A rollback agreement
                     lists who it affects in the middle, so this is comments
                     only.) */}
-                <div className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
+                <div data-review-scroll="people" className={cn('flex h-full min-h-0 min-w-0 flex-col xl:overflow-y-auto', REVIEW_CONTEXT_CARD)}>
                   {!conflict.rollback && (
                     <section className="mb-3 max-h-48 shrink-0 overflow-auto border-b border-white/[0.07] pb-3">
                       {/* Approval progress lives here, in the title — once. */}
