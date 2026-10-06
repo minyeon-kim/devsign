@@ -11,7 +11,6 @@ import {
   CircleCheck,
   FileCode2,
   Code,
-  Minus,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -39,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -745,12 +745,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const [showBefore, setShowBefore] = useState(false)
   // The card under the pointer: the code block shows its result meanwhile.
   const [hover, setHover] = useState(null)
-  // Choosing the third card goes straight to its value.
-  const valueInput = useRef(null)
-  const way = flow?.choice ?? null
-  useEffect(() => {
-    if (way === 'C' && flow?.editing) valueInput.current?.focus()
-  }, [way]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The third card's dropdown (choosing the card opens it), and the value
+  // in it under the pointer — tried on in the card and the code meanwhile.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [peek, setPeek] = useState(null)
   const mergedFile = mergedLines ?? conflict.mergedFileLines ?? code?.generated ?? null
   const mergedExcerpt = (() => {
     const after = conflict.diff?.after ?? []
@@ -779,7 +777,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // The three ways to resolve it, as cards. Each header is two lines: what
   // choosing it does, then where its values come from.
   const designReference = sources?.[1]?.label === 'Design reference'
-  const custom = flow?.custom ?? null
+  const peeked = peek != null && flow?.control ? flow.control.peek(peek) : null
+  const custom = peeked ?? flow?.custom ?? null
   const cards = [
     { id: 'A', side: 'after', title: designReference ? 'Change to the design reference' : 'Remote branch', source: sources?.[1]?.source, value: (field) => field.expected },
     { id: 'B', side: 'before', title: designReference ? 'Keeps the current value' : 'Local branch', source: sources?.[0]?.source, value: (field) => field.current },
@@ -803,10 +802,15 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const exception = Boolean(choice) && breaks(choice).length > 0
   const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
   // One badge a card: how it stands with the standard.
+  const MEETS = { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard' }
+  const DIFFERS = { tone: 'bg-white/[0.07] text-slate-300', text: 'Differs from the standard' }
   const badgeOf = (id) => (breaks(id).length ? { tone: 'bg-amber-400/15 text-amber-200', icon: TriangleAlert, text: 'Breaks the standard · exception needed' }
-    : id === 'A' && differs ? { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard', recommended: breaks('B').length > 0 }
-      : id === 'B' && differs ? { tone: 'bg-white/[0.07] text-slate-300', text: 'Differs from the standard' }
-        : id === 'C' && custom ? (flow?.customIsReference ? { tone: 'bg-emerald-400/10 text-emerald-200', icon: Check, text: 'Meets the design standard' } : { tone: 'bg-white/[0.07] text-slate-300', text: 'Differs from the standard' }) : null)
+    // (The reference, where keeping the current value breaks a required
+    // rule: recommended — that says it meets the standard, too.)
+    : id === 'A' && differs ? (breaks('B').length ? { ...MEETS, text: 'Recommended' } : MEETS)
+      : id === 'B' && differs ? DIFFERS
+        // (Nothing until a value is chosen; a value being tried on isn't one.)
+        : id === 'C' && flow?.custom && !peeked ? (flow.customIsReference ? MEETS : DIFFERS) : null)
   // What each way does to the code — in full for the block under the
   // cards, and as the one value that changes for the card's last line.
   const codeBefore = conflict.diff?.before ?? []
@@ -817,7 +821,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     const change = id === 'B' ? { from: '', to: '' } : codeChangeOf(codeBefore, linesOf(id))
     return change.from || change.to ? change : { from: between?.from, same: true }
   }
-  const shown = hover && hover !== choice && linesOf(hover) ? hover : choice
+  const shown = peeked ? 'C' : hover && hover !== choice && linesOf(hover) ? hover : choice
   const shownCard = cards.find((card) => card.id === shown) ?? null
   // What it breaks, in a line: each compared value against the standard's.
   const brokenSummary = exception ? [
@@ -865,7 +869,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   const on = choice === card.id
                   const isCustom = card.id === 'C'
                   const empty = isCustom && !custom
-                  const choose = editing && !on ? () => flow.choose(card.id) : undefined
+                  // (The third card, with a value to choose on it: choosing
+                  // the card opens that, picked already or not.)
+                  const picks = isCustom && Boolean(flow?.control)
+                  const choose = !editing ? undefined : picks ? () => { if (!on) flow.choose('C'); setMenuOpen(true) } : !on ? () => flow.choose(card.id) : undefined
                   // A card with nothing to choose (no way into the studio).
                   // Any card can be chosen while choosing — the third one
                   // with no value yet too (it's set on the card).
@@ -885,7 +892,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     aria-checked={on}
                     aria-disabled={!editing}
                     tabIndex={inert ? -1 : 0}
-                    onClick={inert ? undefined : choose}
+                    // (Not a click in the dropdown's list: that's drawn
+                    // elsewhere on the page, but still bubbles up to here.)
+                    onClick={inert ? undefined : (event) => { if (event.currentTarget.contains(event.target)) choose() }}
                     onKeyDown={(event) => {
                       if (inert || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
                       event.preventDefault()
@@ -932,35 +941,40 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                           <LocalizedText text={badge.text} />
                         </span>
                       )}
-                      {badge?.recommended && !readOnly && (
-                        <span className="inline-flex h-5 items-center rounded bg-white/[0.08] px-1.5 text-[10.5px] leading-none font-medium text-slate-200"><LocalizedText text="Recommended" /></span>
-                      )}
                     </div>
-                    {/* 3 · The picture — or, for a value of one's own not
-                        set yet, the way to set it. */}
-                    {!empty && <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom ? custom.preview : undefined} />}
-                    {/* One number: set here, always shown. Anything else
-                        (several values, a color, a shadow): in Merge
-                        Studio. Never left empty. */}
-                    {isCustom && editing && (flow.control ? <ValueControl control={flow.control} inputRef={valueInput} />
-                      : empty && (flow.openStudio ? (
-                        <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'bg-transparent')}>
-                          <Plus className={NAV_BUTTON_ICON} />
-                          <LocalizedText text="Set it in Merge Studio" />
-                        </button>
-                      ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>))}
-                    {/* 4 · The values — once there is one. */}
-                    <dl className={cn('min-w-0 space-y-2', empty && 'hidden')}>
+                    {/* 3 · The picture. (No value of one's own yet: what's
+                        there now, faint — the same place on every card.) */}
+                    <div className={cn('min-w-0', empty && 'opacity-40')}>
+                      <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
+                    </div>
+                    {/* Several values, or one a number can't say (a color,
+                        a shadow): set in Merge Studio. Never left empty. */}
+                    {isCustom && editing && !flow.control && empty && (flow.openStudio ? (
+                      <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'bg-transparent')}>
+                        <Plus className={NAV_BUTTON_ICON} />
+                        <LocalizedText text="Set it in Merge Studio" />
+                      </button>
+                    ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
+                    {/* 4 · The value, one line: its name, then it (and the
+                        token it comes from, short). On the third card the
+                        value is the dropdown that sets it. */}
+                    <dl className={cn('min-w-0 space-y-2', empty && !picks && 'hidden')}>
                       {conflict.comparisonFields.map((field, index) => {
                         // Set by hand: what it was → what it is.
                         const hand = isCustom && custom?.rows[index]?.to ? custom.rows[index] : null
-                        const text = empty ? '—' : isCustom ? custom.rows[index]?.base ?? field.current : card.value(field)
+                        const text = isCustom ? custom?.rows[index]?.base ?? field.current : card.value(field)
                         // A color value gets its swatch beside it.
                         const swatch = hand ? hand.swatch : swatchIn(text)
                         return (
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                          {hand ? (
+                          {picks && editing ? (
+                            <dd className="flex min-w-0 justify-end"><ValueSelect control={flow.control} open={menuOpen} onOpenChange={(next) => { setMenuOpen(next); if (next && !on) flow.choose('C') }} onPeek={setPeek} /></dd>
+                          ) : picks && hand ? (
+                            // (Decided: the value it was set to, as the
+                            // other cards show theirs.)
+                            <dd data-adjusted-value className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums', toneOf(hand.to, field))}><ValueText text={hand.to} /></dd>
+                          ) : hand ? (
                             <dd data-adjusted-value className={HAND_VALUE}>
                               <span className="font-normal text-slate-500 line-through"><LocalizedText text={hand.base} /></span>
                               <span aria-hidden className="font-normal text-slate-500">→</span>
@@ -968,9 +982,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                               <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
                             </dd>
                           ) : (
-                          <dd className={cn('flex min-w-0 items-center justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', empty ? 'text-slate-500' : toneOf(text, field))}>
-                            {swatch && <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
-                            <span className="min-w-0"><LocalizedText text={text} /></span>
+                          <dd className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', toneOf(text, field))}>
+                            {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
+                            <ValueText text={text} />
                           </dd>
                           )}
                         </div>
@@ -1009,7 +1023,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                             : <span className="truncate">
                               {codeResult.from && <><span translate="no" className="font-mono text-slate-500 line-through">{codeResult.from}</span><span className="text-slate-500"> → </span></>}
                               {/* (A class taken off has nothing after the arrow.) */}
-                              {codeResult.to ? <span translate="no" className="font-mono text-emerald-200">{codeResult.to}</span> : <span className="text-emerald-200"><LocalizedText text="Removed" /></span>}
+                              {/* A token: its short name — the whole class is in the diff below. */}
+                              {!codeResult.to ? <span className="text-emerald-200"><LocalizedText text="Removed" /></span>
+                                : /var\((--[\w-]+)\)/.test(codeResult.to) ? <span title={codeResult.to} className="text-emerald-200"><span translate="no" className="font-mono">{shortName(/var\((--[\w-]+)\)/.exec(codeResult.to)[1])}</span> <LocalizedText text="token" /></span>
+                                  : <span translate="no" className="font-mono text-emerald-200">{codeResult.to}</span>}
                             </span>}
                       </p>
                     )}
@@ -1021,7 +1038,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               {/* ③ The code, in full, once: for the way that's chosen — or,
                   while another card is under the pointer, for that one. */}
               {conflict.diff && !readOnly && (
-                <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && shown !== choice} onOpenFile={code?.onOpenFile} />
+                <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />
               )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
@@ -1162,76 +1179,112 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   )
 }
 
-// The third card's value, set right on it: quick choices (what's there
-// now, what the standard says, the design system's tokens — one chip a
-// value) and a number field with steppers. A chip sets the field; a typed
-// value lights the chip it equals. Out of range: said under the field, and
-// nothing is set. `control`: lib/mergeResult's valueControlFor, with the
-// value set so far and `set(px)`.
-function ValueControl({ control, inputRef }) {
-  const [text, setText] = useState(control.value == null ? '' : String(control.value))
-  // (Set from elsewhere — a chip, a restored value: the field follows.)
-  const [seen, setSeen] = useState(control.value)
-  if (seen !== control.value) { setSeen(control.value); setText(control.value == null ? '' : String(control.value)) }
+// A compared value as it's shown on a card: the value, then — when it comes
+// with a token or a class ("40px (--button-height-md)") — that name kept
+// short ("md"), the whole of it on hover. Anything else in brackets is
+// part of the value's own wording and stays with it.
+const shortName = (name) => (name.startsWith('--') ? name.split('-').at(-1) : name.includes('.') ? name.split('.').at(-1) : name)
+function valueParts(text) {
+  const match = /^(.*?)\s*\(([^()]+)\)$/.exec(String(text ?? ''))
+  if (!match || !/^(--[\w-]+|\w+(\.\w+)+|[a-z]\w*-[\w[\].-]+)$/i.test(match[2])) return { value: text, note: null }
+  return { value: match[1], note: match[2], short: shortName(match[2]) }
+}
+function ValueText({ text }) {
+  const { value, note, short } = valueParts(text)
+  return <>
+    <span className="min-w-0"><LocalizedText text={value} /></span>
+    {note && <span translate="no" title={note} className="shrink-0 font-mono text-[11px] font-normal text-slate-500">{short}</span>}
+  </>
+}
+
+// The third card's value, chosen where the other cards show theirs: a
+// dropdown of the design system's tokens for it — without the two values
+// the other cards already are (what's there now, what the standard says) —
+// and, last, typing one. Typing turns the dropdown into a px field (Enter
+// or leaving it sets it, Esc gives up, × goes back to the list). An item
+// under the pointer is tried on (`onPeek`) before it's chosen.
+// `control`: lib/mergeResult's valueControlFor, with the value so far and
+// `set(px)`.
+function ValueSelect({ control, open, onOpenChange, onPeek }) {
+  const [typing, setTyping] = useState(false)
+  const [text, setText] = useState('')
+  const input = useRef(null)
+  // (The dropdown hands focus back as it closes — just after the field
+  // takes it. A blur that soon isn't the person leaving the field.)
+  const typingSince = useRef(0)
+  useEffect(() => {
+    if (!typing) return
+    typingSince.current = Date.now()
+    input.current?.focus()
+    // (A value already typed is there to be replaced.)
+    input.current?.select()
+  }, [typing])
+  const options = control.tokens.filter((token) => token.px !== control.current && token.px !== control.standard)
+  const token = control.tokens.find((entry) => entry.px === control.value)
   const number = text.trim() === '' ? null : Number(text)
   const invalid = number != null && (!Number.isFinite(number) || number < control.min || number > control.max)
-  const apply = (next) => {
-    setText(String(next))
-    if (Number.isFinite(next) && next >= control.min && next <= control.max) control.set(next)
+  const commit = () => {
+    if (number != null && !invalid) control.set(number)
+    setTyping(false)
   }
-  // One chip a value: its px, then everything that value is.
-  const options = []
-  const add = (px, tag, name) => {
-    let option = options.find((entry) => entry.px === px)
-    if (!option) options.push(option = { px, tags: [], names: [] })
-    if (tag) option.tags.push(tag)
-    if (name) option.names.push(name)
-  }
-  add(control.current, 'Current')
-  add(control.standard, 'Standard')
-  control.tokens.forEach((token) => add(token.px, null, token.name))
-  const step = (by) => apply(Math.min(control.max, Math.max(control.min, (number ?? control.value ?? control.current) + by)))
-  return (
-    <div data-value-control onClick={(event) => event.stopPropagation()} className="min-w-0 cursor-default space-y-2">
-      <p className="text-[11.5px] text-slate-400"><LocalizedText text={control.label} /></p>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((option) => (
-          <button key={option.px} type="button" role="radio" aria-checked={number === option.px} data-value-chip={option.px} onClick={() => apply(option.px)} className="ds-intrinsic inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.1] aria-checked:text-white">
-            <span className="font-medium tabular-nums">{option.px}px</span>
-            {option.tags.map((tag) => <span key={tag} className="text-slate-500"><LocalizedText text={tag} /></span>)}
-            {option.names.map((name) => <span key={name} className="text-[10.5px] text-slate-500">{name}</span>)}
+  if (typing) {
+    return (
+      <span data-value-typing onClick={(event) => event.stopPropagation()} className="flex min-w-0 cursor-default flex-col items-end gap-1">
+        <span className="flex items-center gap-1">
+          <label className={cn('flex h-7 w-24 items-center gap-1 rounded-lg border bg-white/[0.02] px-2 transition-colors focus-within:border-emerald-300/60', invalid ? 'border-red-400/60' : 'border-white/15')}>
+            <input
+              ref={input}
+              data-value-input
+              inputMode="decimal"
+              aria-label={control.label}
+              aria-invalid={invalid}
+              value={text}
+              onChange={(event) => setText(event.target.value.replace(/[^\d.]/g, ''))}
+              onBlur={() => {
+                if (Date.now() - typingSince.current < 400) { requestAnimationFrame(() => input.current?.focus()); return }
+                commit()
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') { event.preventDefault(); if (!invalid) commit() }
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setTyping(false) }
+              }}
+              placeholder="0"
+              className="h-full min-w-0 flex-1 bg-transparent text-right text-xs font-semibold text-white tabular-nums outline-none placeholder:text-slate-600"
+            />
+            <span className="shrink-0 text-[11px] font-normal text-slate-500">px</span>
+          </label>
+          {/* (Before the field loses focus, so it doesn't set the value.) */}
+          <button type="button" aria-label="Back to the token list" title="Back to the token list" onMouseDown={(event) => event.preventDefault()} onClick={() => setTyping(false)} className="ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
+            <X className="size-3" />
           </button>
+        </span>
+        {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}px`} /></span>}
+      </span>
+    )
+  }
+  return (
+    <DropdownMenu open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) onPeek(null) }}>
+      <DropdownMenuTrigger data-value-select onClick={(event) => event.stopPropagation()} className="ds-intrinsic -my-1 inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.14] bg-white/[0.03] px-2 text-[13px] font-semibold text-white tabular-nums transition-colors hover:border-white/25">
+        {control.value == null ? <span className="text-xs font-normal text-slate-500"><LocalizedText text="Choose a value" /></span> : <>
+          <span>{control.value}px</span>
+          {token && <span translate="no" title={token.name} className="font-mono text-[11px] font-normal text-slate-500">{shortName(token.name)}</span>}
+        </>}
+        <ChevronDown className="size-3 shrink-0 text-slate-400" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {options.map((option) => (
+          <DropdownMenuItem key={option.px} data-value-option={option.px} title={option.name} onClick={() => control.set(option.px)} onMouseEnter={() => onPeek(option.px)} onMouseLeave={() => onPeek(null)} className="gap-2 text-xs">
+            <span className="font-medium tabular-nums">{option.px}px</span>
+            <span translate="no" className="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400">{shortName(option.name)}</span>
+            {control.value === option.px && <Check className="size-3.5 text-emerald-300" />}
+          </DropdownMenuItem>
         ))}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button type="button" aria-label="Decrease" onClick={() => step(-1)} className="ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.14] text-slate-300 transition-colors hover:border-white/25 hover:text-white"><Minus className="size-3" /></button>
-        <label className={cn('flex h-7 min-w-0 flex-1 items-center gap-1 rounded-lg border bg-white/[0.02] px-2 transition-colors focus-within:border-emerald-300/60', invalid ? 'border-red-400/60' : 'border-white/15')}>
-          <input
-            ref={inputRef}
-            data-value-input
-            inputMode="decimal"
-            aria-label={control.label}
-            aria-invalid={invalid}
-            value={text}
-            onChange={(event) => {
-              const next = event.target.value.replace(/[^\d.]/g, '')
-              setText(next)
-              const value = next.trim() === '' ? null : Number(next)
-              if (value != null && Number.isFinite(value) && value >= control.min && value <= control.max) control.set(value)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowUp') { event.preventDefault(); step(1) }
-              if (event.key === 'ArrowDown') { event.preventDefault(); step(-1) }
-            }}
-            placeholder="0"
-            className="h-full min-w-0 flex-1 bg-transparent text-xs text-white tabular-nums outline-none placeholder:text-slate-600"
-          />
-          <span className="shrink-0 text-[11px] text-slate-500">px</span>
-        </label>
-        <button type="button" aria-label="Increase" onClick={() => step(1)} className="ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/[0.14] text-slate-300 transition-colors hover:border-white/25 hover:text-white"><Plus className="size-3" /></button>
-      </div>
-      {invalid && <p data-value-error className="text-[11px] text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}px`} /></p>}
-    </div>
+        {options.length > 0 && <DropdownMenuSeparator />}
+        <DropdownMenuItem data-value-custom onClick={() => { setText(control.value != null && !token ? String(control.value) : ''); setTyping(true) }} className="text-xs">
+          <LocalizedText text="Type a value…" />
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -2366,6 +2419,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     control: valueControl ? {
       ...valueControl,
       value: valueControl.valueOf(adjustedByHand ? handAssembly : stash?.[conflict.layerId]),
+      // What it would be at `px`, without setting it (an item hovered).
+      peek: (px) => mergeResultOf(conflict, mergeItem, 'B', { assembly: { ...(adjustedByHand ? handAssembly : stash?.[conflict.layerId]), ...valueControl.assemblyFor(px) } }),
       // Setting a value is choosing this way: it's put on the element (as
       // if in Merge Studio), on the current implementation.
       set: (px) => {

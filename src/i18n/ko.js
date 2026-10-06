@@ -283,7 +283,6 @@ Required · choose all that apply|필수 · 여러 개 선택 가능
 Decide on this|이 방법으로 결정
 Breaks the standard · exception needed|기준 위반 · 예외 필요
 Differs from the standard|기준과 다름
-Recommended|권장
 Choose a value|값 선택
 Set it in Merge Studio|병합 스튜디오에서 정하기
 Shown once a value is chosen|값을 고르면 표시돼요
@@ -295,6 +294,9 @@ Standard|기준
 Decrease|줄이기
 Increase|늘리기
 Set a value first|값을 정해 주세요
+Type a value…|직접 입력…
+Back to the token list|토큰 목록으로 돌아가기
+token|토큰
 Set it on the canvas above: select the element and change its values.|위 캔버스에서 요소를 선택해 값을 조정하세요.
 Preview|미리보기
 Design standard|디자인 기준
