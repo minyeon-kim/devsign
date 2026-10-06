@@ -63,10 +63,12 @@ Version actions|버전 메뉴
 Request review again|재검토 요청
 Required rule|필수
 Recommended rule|권장
-It can’t be merged: a required rule isn’t kept.|필수 규칙을 지키지 않아 병합할 수 없어요
+It can’t be merged: a required rule isn’t kept.|필수 규칙 미충족 · 병합 불가
 Began|발생
 Rule|규칙
 Open this version in History|히스토리에서 이 버전 열기
+View origin version in History|히스토리에서 발생 버전 보기
+View origin version|발생 버전 보기
 Reason for keeping the current value needed|현재 값 유지 이유 입력 필요
 Your review needed|내 검토 필요
 Can’t merge|병합 불가
@@ -74,10 +76,10 @@ View this step’s replay|이 단계의 리플레이 보기
 Applied the brand violet|브랜드 보라색 적용
 before the design tokens were final|디자인 토큰 확정 전
 No change — the current code stays as it is.|변경 없음 · 현재 코드 그대로 유지
-With nothing chosen, the code doesn’t change.|선택하지 않으면 코드는 바뀌지 않아요
+With nothing chosen, the code doesn’t change.|미선택 시 현재 코드 유지
 View replay|리플레이 보기
 Watching the replay|리플레이 보는 중
-Everyone on the project is already on this review|프로젝트 구성원이 모두 이미 검토자예요
+Everyone on the project is already on this review|모든 프로젝트 구성원 검토자 등록 완료
 Info|정보
 New comments|새 댓글
 New Merge — Current Work|새 병합 · 현재 작업
@@ -152,7 +154,7 @@ Send the review request|검토 요청을 보내세요
 It can be merged now|이제 병합할 수 있어요
 Enter the reason below|아래에 이유를 입력하세요
 Resolved by the adjustment|직접 조정으로 해결
-It needs adjusting in Merge Studio|병합 스튜디오에서 조정이 필요해요
+It needs adjusting in Merge Studio|병합 스튜디오 조정 필요
 Color token use|색상 토큰 사용
 Main button size|주요 버튼 규격
 Minimum touch area|최소 터치 영역
@@ -161,7 +163,7 @@ Color tokens|색상 토큰
 Choose the value to use when merging|병합할 때 쓸 값을 선택하세요
 With nothing chosen, the current implementation stays as it is|선택하지 않으면 현재 구현이 그대로 유지돼요
 It changes to the design reference value|디자인 기준 값으로 바뀌어요
-It keeps the current value as it is|현재 값을 그대로 유지해요
+It keeps the current value as it is|현재 값 유지
 Clear choice|선택 취소
 Changes to this value|이 값으로 변경
 Keeps the value as it is now|지금 값 유지
@@ -184,8 +186,8 @@ Design system v2|디자인 시스템 v2
 Source|출처
 Purpose|목적
 If not kept|지키지 않으면
-It can’t be merged.|병합할 수 없어요.
-It can still merge.|병합은 가능해요.
+It can’t be merged.|병합 불가
+It can still merge.|병합 가능
 Required standard|필수 기준
 Recommended standard|권장 기준
 Version this difference came in with|이 차이가 생긴 버전
@@ -212,7 +214,7 @@ Can you fix the value yourself? Then don’t request changes — adjust it in Me
 Draft merge|시안 병합
 Draft merges|시안 병합
 Choose all that apply|여러 개 선택 가능
-Use when the change is right as it is — it can merge once everyone has approved.|변경 내용이 그대로 맞을 때 선택합니다. 모든 검토자가 승인하면 병합할 수 있어요.
+Use when the change is right as it is — it can merge once everyone has approved.|변경 내용이 그대로 맞을 때 선택합니다. 모든 검토자가 승인하면 병합 가능
 Use when something is wrong and the author should fix it: say what, and it goes back to them. If you can fix the value yourself, adjust it in Merge Studio first, then request review again instead.|문제가 있어 작성자가 고쳐야 할 때 선택합니다. 무엇을 고칠지 적으면 작성자에게 돌아갑니다. 값을 직접 고칠 수 있다면 변경 요청 대신 병합 스튜디오에서 먼저 조정한 뒤 다시 검토를 요청하세요.
 This change is applied to the code. Nothing is left to review.|이 변경은 코드에 반영되었습니다. 더 검토할 것이 없어요.
 The rollback has run.|롤백이 실행되었습니다.
@@ -223,9 +225,9 @@ Mixed the drafts|시안을 조합했습니다
 found a difference|차이 감지
 Author|작성자
 Design standards needing attention|기준과 달라 확인이 필요한 항목
-All design checks passed|디자인 기준을 모두 충족해요
-Resolve the required standards below before merging.|필수 항목은 아래 비교 영역에서 수정하거나 예외 승인을 받아야 병합할 수 있어요.
-No check results yet|아직 검사 결과가 없어요
+All design checks passed|모든 디자인 기준 충족
+Resolve the required standards below before merging.|필수 항목 수정 또는 예외 승인 후 병합 가능
+No check results yet|검사 결과 없음
 Failing checks|미통과 검사
 Decision|결정
 Show less|접기
@@ -262,9 +264,9 @@ Design rule|디자인 규칙
 Reason entered|입력한 이유
 comment|댓글
 Design system rules|디자인 시스템 규칙
-Registered reasons — linked to a change automatically when it runs into a rule.|미리 등록된 근거입니다. 변경이 규칙에 걸리면 자동으로 연결됩니다.
-Why depart from the standard?|기준에서 벗어나는 이유
-A choice that follows the standard needs no reason — this one is kept with the decision.|기준을 따르는 선택은 이유를 묻지 않습니다. 이 이유는 결정과 함께 기록됩니다.
+Registered reasons — linked to a change automatically when it runs into a rule.|사전 등록된 근거 · 관련 규칙 감지 시 자동 연결
+Why depart from the standard?|현재 값을 유지하는 이유
+A choice that follows the standard needs no reason — this one is kept with the decision.|기준 준수 시 이유 입력 불필요 · 예외 이유는 결정과 함께 기록
 Or write your own reason|직접 입력
 Save reason|이유 저장
 Reason for the rollback|롤백 이유
@@ -316,7 +318,7 @@ Resolved conflicts|해결된 충돌 표시
 Change merged|변경을 병합했습니다
 Set icons to 20px|아이콘 20px 적용
 Tap area to 48px|터치 영역 48px 확대
-Both values miss the standard · it needs adjusting in Merge Studio|두 값 모두 기준 미달 · 병합 스튜디오에서 조정이 필요해요
+Both values miss the standard · it needs adjusting in Merge Studio|두 값 모두 기준 미달 · 병합 스튜디오 조정 필요
 Coupon close button / Touch area|쿠폰 닫기 버튼 / 터치 영역
 The close button is 20 × 20px in both the code and the design — under the 24px touch area.|닫기 버튼이 코드와 디자인 모두 20 × 20px로, 24px 터치 영역 기준보다 작습니다.
 Resize the close button to at least 24 × 24px in Merge Studio.|병합 스튜디오에서 닫기 버튼을 24 × 24px 이상으로 조정하세요.
@@ -349,7 +351,7 @@ Requested by|요청자
 Pick which side to merge. Left unpicked, it merges with the current implementation’s values.|합칠 쪽을 고르세요. 선택하지 않으면 현재 구현 값으로 합쳐져요.
 Choosing this value resolves it.|이 값을 고르면 해결돼요
 Exception requested|예외를 요청했습니다
-It can merge once the reviewers approve the change.|검토자가 변경을 승인하면 병합할 수 있어요.
+It can merge once the reviewers approve the change.|검토자가 변경을 승인하면 병합 가능
 WCAG 2.2 AA (2.5.8) asks for a touch area of at least 24px.|WCAG 2.2 AA (2.5.8)는 24px 이상의 터치 영역을 요구합니다.
 This step|이 단계
 Author · Updated|작성 · 수정
@@ -370,9 +372,9 @@ Class|클래스
 Someone is working on it|작업 중인 사람 있음
 Includes other people’s work|다른 사람 작업 포함
 Not fully reversible|완전 원복 불가
-Someone is working on this, so it needs their agreement.|작업 중인 사람이 있어 합의가 필요해요
-Other people’s work goes with it, so it needs their agreement.|다른 사람의 작업이 함께 빠져 합의가 필요해요
-Part of it can’t be fully undone, so it needs agreement.|완전히 원복되지 않는 내용이 있어 합의가 필요해요
+Someone is working on this, so it needs their agreement.|진행 중인 작업 존재 · 작업자 합의 필요
+Other people’s work goes with it, so it needs their agreement.|다른 작업자의 변경 포함 · 합의 필요
+Part of it can’t be fully undone, so it needs agreement.|일부 내용의 완전 복원 불가 · 합의 필요
 Hide changes|변경 접기
 Files and the preview & canvas always go back.|파일과 미리보기·캔버스는 항상 함께 되돌립니다.
 Deletes|삭제됨
@@ -1271,42 +1273,42 @@ Icon / Stroke width|아이콘 / 선 두께
 Place order button · Height & color|주문 버튼 · 높이 및 색상
 Order summary card · Radius & weight|주문 요약 카드 · 모서리 반경 및 글자 두께
 the shared Button component — a height change reaches every screen that uses it.|공용 Button 컴포넌트의 높이 변경으로, 이를 사용하는 모든 화면에 영향을 줍니다.
-a merge conflict — both branches edited the same lines, so one side’s change could be lost.|병합 충돌입니다. 두 브랜치가 같은 줄을 수정해 한쪽 변경 사항이 사라질 수 있습니다.
-a corner radius on the Card container; no layout or behavior change.|Card 컨테이너의 모서리 반경 변경으로, 레이아웃이나 동작에는 영향이 없습니다.
-the tab bar icons appear on every mobile screen.|탭 바 아이콘이 모든 모바일 화면에 표시됩니다.
-one color token value; components keep reading the same token.|색상 토큰 값 하나의 변경이며, 컴포넌트는 동일한 토큰을 계속 사용합니다.
-2px of horizontal padding inside the Input component.|Input 컴포넌트 안쪽의 가로 여백이 2px 달라집니다.
-form spacing on the checkout — visible, but no behavior change.|결제 화면의 폼 간격 차이로, 눈에 보이지만 동작에는 영향이 없습니다.
-a divider color on the order summary; no layout or behavior change.|주문 요약 구분선의 색상 변경으로, 레이아웃이나 동작에는 영향이 없습니다.
-letter spacing on payment field labels; no layout or behavior change.|결제 입력란 레이블의 자간 차이로, 레이아웃이나 동작에는 영향이 없습니다.
-icon stroke weight on the shipping options; no layout or behavior change.|배송 옵션 아이콘의 선 두께 차이로, 레이아웃이나 동작에는 영향이 없습니다.
-a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.|결제 화면의 주요 버튼 크기와 색상이 달라집니다. 스타일만 변경되며 결제 로직이나 데이터에는 영향이 없습니다.
-a visible style choice on the checkout’s order summary card — no logic or data changes either way.|결제 화면의 주문 요약 카드 스타일 선택으로, 어느 쪽을 선택해도 로직이나 데이터에는 영향이 없습니다.
-Button height in code (36px) drifts from the design system token (40px).|코드의 버튼 높이(36px)가 디자인 시스템 토큰(40px)과 다릅니다.
-Merge conflict between local and remote branch (lines 9-14).|로컬과 원격 브랜치의 9~14번째 줄에서 병합 충돌이 발생했습니다.
-Card corner radius (8px) is smaller than the design system radius (12px).|카드 모서리 반경(8px)이 디자인 시스템 기준(12px)보다 작습니다.
-Nav icons render at 20px in code but 24px in the redesigned nav frame.|코드에서는 내비게이션 아이콘이 20px로 표시되지만, 새 디자인 프레임에서는 24px입니다.
-Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).|코드의 기본 색상(#5B5BD6)이 브랜드 토큰(#5E6AD2)과 다릅니다.
-Input horizontal padding (10px) differs from the design system (12px).|입력 필드의 가로 안쪽 여백(10px)이 디자인 시스템 기준(12px)과 다릅니다.
-Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.|결제 화면 간격에 4/8 단위에 없는 6px 값이 사용되고 있습니다.
-The order summary divider uses slate-200 instead of the border token.|주문 요약 구분선에 border 토큰 대신 slate-200이 사용되고 있습니다.
-Field labels use tracking-wide; the design system label style has normal tracking.|필드 레이블에 tracking-wide가 적용되어 있습니다. 디자인 시스템에서는 기본 자간을 사용합니다.
-Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 옵션 아이콘의 선 두께는 2.5지만, 아이콘 세트 기준은 2입니다.
-The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|주문 버튼은 높이가 40px이고 보라색 배경(#7c3aed)이 고정되어 있습니다. 결제 디자인은 높이 44px의 large 버튼과 기본 색상 토큰을 사용합니다.
-Three drafts of the Order summary card are open side by side — Taylor’s, Alex’s and Jordan’s disagree on corner radius and title weight.|주문 요약 카드 초안 세 개가 나란히 열려 있습니다. Taylor, Alex, Jordan의 초안은 모서리 반경과 제목 글자 두께가 서로 다릅니다.
-Buttons render 4px shorter than the design system’s medium size.|버튼 높이가 디자인 시스템의 medium 크기보다 4px 낮습니다.
-Without the merged version, frames either lose their selection handler or their stable key.|병합하지 않으면 프레임에서 선택 핸들러나 안정적인 key 중 하나가 누락됩니다.
-Cards look slightly sharper than the rest of the design system.|카드 모서리가 디자인 시스템의 다른 요소보다 조금 더 각져 보입니다.
-Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.|탭 아이콘이 새 탭 바보다 작아 보이지만, 44px 터치 영역은 유지됩니다.
-The primary color is a slightly different shade from the brand color.|기본 색상이 브랜드 색상과 미세하게 다릅니다.
-Input text sits 2px closer to the edge than in the design.|입력 텍스트가 디자인보다 가장자리에 2px 더 가깝습니다.
-Form fields sit 2px closer together than the 8px spacing scale.|폼 필드 사이 간격이 8px 단위보다 2px 좁습니다.
-The fixed color will not follow theme changes.|고정 색상은 테마 변경을 반영하지 않습니다.
-Field labels read slightly wider-spaced than the rest of the form.|필드 레이블의 자간이 폼의 다른 텍스트보다 약간 넓습니다.
-Shipping icons look heavier than the rest of the icon set.|배송 아이콘 선이 아이콘 세트의 다른 아이콘보다 굵어 보입니다.
-The button is 4px shorter than the design’s large button, and its fixed violet color won’t follow theme changes.|버튼 높이가 디자인의 large 크기보다 4px 낮고, 고정된 보라색은 테마 변경을 반영하지 않습니다.
-Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.|초안 하나를 선택하면 주문 요약 카드가 결제 화면의 다른 카드와 일관된 스타일을 유지합니다.
-Every other card on this screen already uses a 16px radius and a 700-weight title.|이 화면의 다른 카드는 모두 모서리 반경 16px와 글자 두께 700을 사용합니다.
+a merge conflict — both branches edited the same lines, so one side’s change could be lost.|동일 코드 줄 수정으로 병합 충돌 · 한쪽 변경 유실 가능
+a corner radius on the Card container; no layout or behavior change.|Card 모서리 반경 변경 · 레이아웃·동작 영향 없음
+the tab bar icons appear on every mobile screen.|모든 모바일 화면의 탭 바 아이콘에 영향
+one color token value; components keep reading the same token.|단일 색상 토큰 값 변경 · 컴포넌트의 토큰 참조 유지
+2px of horizontal padding inside the Input component.|Input 내부 가로 여백 2px 차이
+form spacing on the checkout — visible, but no behavior change.|결제 화면 폼 간격 차이 · 동작 영향 없음
+a divider color on the order summary; no layout or behavior change.|주문 요약 구분선 색상 변경 · 레이아웃·동작 영향 없음
+letter spacing on payment field labels; no layout or behavior change.|결제 입력란 레이블 자간 차이 · 레이아웃·동작 영향 없음
+icon stroke weight on the shipping options; no layout or behavior change.|배송 아이콘 선 두께 차이 · 레이아웃·동작 영향 없음
+a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.|주문 버튼 크기·색상 변경 · 결제 로직·데이터 영향 없음
+a visible style choice on the checkout’s order summary card — no logic or data changes either way.|주문 요약 카드 스타일 선택 · 로직·데이터 영향 없음
+Button height in code (36px) drifts from the design system token (40px).|버튼 높이 불일치 · 코드 36px / 디자인 토큰 40px
+Merge conflict between local and remote branch (lines 9-14).|로컬·원격 브랜치 9~14번째 줄 병합 충돌
+Card corner radius (8px) is smaller than the design system radius (12px).|카드 모서리 반경 기준 미달 · 현재 8px / 기준 12px
+Nav icons render at 20px in code but 24px in the redesigned nav frame.|내비게이션 아이콘 크기 불일치 · 코드 20px / 디자인 24px
+Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).|기본 색상 불일치 · 코드 #5B5BD6 / 브랜드 토큰 #5E6AD2
+Input horizontal padding (10px) differs from the design system (12px).|입력 필드 가로 여백 불일치 · 코드 10px / 기준 12px
+Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.|결제 화면 간격 6px 사용 · 4/8 단위 기준 미달
+The order summary divider uses slate-200 instead of the border token.|주문 요약 구분선 slate-200 사용 · border 토큰 미사용
+Field labels use tracking-wide; the design system label style has normal tracking.|필드 레이블 tracking-wide 적용 · 디자인 기준 기본 자간
+Shipping option icons render at stroke 2.5; the icon set is drawn at 2.|배송 아이콘 선 두께 불일치 · 현재 2.5 / 기준 2
+The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.|주문 버튼 40px · 고정 보라색(#7c3aed) 사용 · 디자인 기준 44px large 및 primary 토큰
+Three drafts of the Order summary card are open side by side — Taylor’s, Alex’s and Jordan’s disagree on corner radius and title weight.|주문 요약 카드 시안 3개 · 모서리 반경·제목 두께 불일치
+Buttons render 4px shorter than the design system’s medium size.|버튼 높이 4px 부족 · medium 기준
+Without the merged version, frames either lose their selection handler or their stable key.|미병합 시 프레임 선택 핸들러 또는 고유 key 누락
+Cards look slightly sharper than the rest of the design system.|다른 디자인 요소 대비 각진 카드 모서리
+Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.|새 디자인 대비 작은 탭 아이콘 · 터치 영역 44px 유지
+The primary color is a slightly different shade from the brand color.|기본 색상과 브랜드 색상의 미세한 차이
+Input text sits 2px closer to the edge than in the design.|입력 텍스트 가장자리 여백 2px 부족
+Form fields sit 2px closer together than the 8px spacing scale.|폼 필드 간격 2px 부족 · 8px 기준
+The fixed color will not follow theme changes.|고정 색상의 테마 변경 미반영
+Field labels read slightly wider-spaced than the rest of the form.|폼의 다른 텍스트 대비 넓은 레이블 자간
+Shipping icons look heavier than the rest of the icon set.|아이콘 세트 대비 굵은 배송 아이콘 선
+The button is 4px shorter than the design’s large button, and its fixed violet color won’t follow theme changes.|버튼 높이 4px 부족 · 고정 보라색의 테마 변경 미반영
+Picking one draft keeps the Order summary card consistent with the rest of the checkout’s cards.|단일 시안 선택으로 결제 화면의 카드 스타일 통일
+Every other card on this screen already uses a 16px radius and a 700-weight title.|화면 내 다른 카드의 공통 기준 · 모서리 반경 16px 및 제목 두께 700
 Buttons|버튼
 Checkout · Payment step|결제 · 결제 단계
 Onboarding · Welcome|온보딩 · 환영 화면
@@ -1389,10 +1391,10 @@ Remove the extra letter spacing from payment labels|결제 레이블의 추가 �
 Use the default stroke width on the shipping icons.|배송 아이콘에 기본 선 두께를 사용하세요.
 Reset the shipping icon stroke width|배송 아이콘 선 두께를 기본값으로 되돌리기
 Use the lg button size and remove the fixed background so the button uses the primary color token.|버튼에 lg 크기를 적용하고 고정 배경을 제거해 기본 색상 토큰을 사용하세요.
-The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 디자인은 큰 기본 버튼을 지정하지만, 고정된 HEX 값은 테마를 따르지 않습니다.
-Place order renders 44px tall in the primary color on the payment step.|결제 단계에서 주문 버튼이 기본 색상으로 높이 44px에 표시됩니다.
+The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.|결제 디자인 기준 large·primary 버튼 · 고정 HEX의 테마 변경 미반영
+Place order renders 44px tall in the primary color on the payment step.|결제 단계 주문 버튼에 기본 색상·높이 44px 적용
 Use Alex’s draft — the 16px radius and 700 title weight match the rest of the checkout’s cards.|Alex의 초안을 사용하세요. 모서리 반경 16px와 제목 두께 700이 결제 화면의 다른 카드와 일치합니다.
-One Order summary card style, used consistently across the checkout flow.|결제 흐름 전체에서 일관되게 사용하는 하나의 주문 요약 카드 스타일입니다.
+One Order summary card style, used consistently across the checkout flow.|결제 흐름 전체의 주문 요약 카드 스타일 통일
 Merged Button height to size token|Button 높이를 크기 토큰에 맞춰 병합
 Merged Place order button size and color|주문 버튼의 크기와 색상 병합
 Merged Order summary card style|주문 요약 카드 스타일 병합
@@ -1836,7 +1838,7 @@ Object.assign(ko, {
   'What’s left before merging?': '머지 전에 남은 일은?',
   'Draft a review request': '검토 요청 메시지 써줘',
   'Use as comment': '코멘트로 쓰기',
-  'Values below are from before the merge.': '아래 값은 병합 전 상태예요.',
+  'Values below are from before the merge.': '아래 값은 병합 전 상태',
   // Reviewer removal / dismissing a change request
   'Request dismissed': '요청 무효화됨',
   'Dismiss request': '요청 무효화',
@@ -1844,7 +1846,7 @@ Object.assign(ko, {
   'dismissed a change request': '변경 요청을 무효화했어요',
   // The review decision popover
   'Your review': '내 검토',
-  'You can’t review your own change': '본인 변경은 검토할 수 없어요',
+  'You can’t review your own change': '본인 변경 검토 불가',
   'Author · not required': '작성자 · 승인 불필요',
   // Checks (run on their own; gate merging)
   'Checks': '검사',
@@ -1903,7 +1905,7 @@ Object.assign(ko, {
   'Redo': '다시 실행',
   'Zoom': '확대/축소',
   "Matches the glow treatment already used on this file's primary CTAs.": '이 파일의 주요 CTA에 쓰인 글로우 효과와 맞춰요.',
-  "Applies the same indigo → violet gradient found across the design system's hero buttons.": '디자인 시스템 히어로 버튼의 인디고 → 바이올렛 그라데이션을 적용해요.',
+  "Applies the same indigo → violet gradient found across the design system's hero buttons.": '디자인 시스템 히어로 버튼의 인디고 → 바이올렛 그라데이션 적용',
   'Reduces visual weight to match the calmer surfaces used in lower-priority actions.': '우선순위가 낮은 동작의 차분한 표면에 맞춰 시각적 무게를 줄여요.',
   'Conflict Points are where the design and the code differ — review each one, then merge.': '충돌은 디자인과 코드가 달라진 곳이에요. 하나씩 검토한 뒤 병합하세요.',
   'Review Conflict Points': '충돌 검토하기',
@@ -1917,8 +1919,8 @@ Object.assign(ko, {
   'Mix applied': '조합을 적용했어요',
   'Check the values in Decide, then request review.': '결정 항목에서 값을 확인한 뒤 검토를 요청하세요.',
   'Pick values from the drafts first': '먼저 시안에서 값을 고르세요',
-  'Taylor, Alex and Jordan each redrew part of the payment step — the summary card, the card input and the Place order button differ between their drafts.': 'Taylor, Alex, Jordan이 결제 단계를 각자 다시 그렸어요. 시안마다 요약 카드, 카드 입력란, 주문 버튼이 달라요.',
-  'Low: style-only differences on the payment step — no logic or data changes.': '낮음: 결제 단계의 스타일 차이만 있고 로직이나 데이터 변경은 없어요.',
+  'Taylor, Alex and Jordan each redrew part of the payment step — the summary card, the card input and the Place order button differ between their drafts.': '결제 단계 시안 3개 · 요약 카드·카드 입력란·주문 버튼 불일치',
+  'Low: style-only differences on the payment step — no logic or data changes.': '낮음: 결제 단계 스타일 차이 · 로직·데이터 변경 없음',
   'Opened a third draft of the payment step': '결제 단계의 세 번째 시안을 열었어요',
   'Three open drafts on the same screen': '같은 화면에 열린 시안 3개',
   'Mix them in Design Compare: take each element from the draft that fits the rest of the checkout best.': '디자인 비교에서 섞어 보세요. 요소마다 체크아웃의 나머지 화면과 가장 잘 맞는 시안을 고르면 돼요.',
@@ -1931,7 +1933,7 @@ Object.assign(ko, {
   '48px (Alex’s draft)': '48px (Alex의 시안)',
   'Merged payment step drafts': '결제 단계 시안 병합',
   'Payment step · 4 drafts': '결제 단계 · 시안 4개',
-  'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each restyle the heading, summary card, card input, total and Place order button their own way.': '결제 단계 시안 4개(Taylor, Alex, Jordan, AI)가 제목, 요약 카드, 카드 입력란, 합계, 주문 버튼을 각자 다르게 디자인했어요.',
+  'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each restyle the heading, summary card, card input, total and Place order button their own way.': '결제 단계 시안 4개(Taylor·Alex·Jordan·AI) · 제목·요약 카드·카드 입력란·합계·주문 버튼 디자인 불일치',
   'Four open drafts on the same screen': '같은 화면에 열린 시안 4개',
   'Heading': '제목',
   'Card style': '카드 스타일',
@@ -1997,14 +1999,14 @@ Object.assign(ko, {
   'All picked': '모두 골랐어요',
   'Not picked — keeps the code': '안 고름 — 코드 값 유지',
   'Check the picks in the conflict, then request review.': '충돌에서 고른 내용을 확인한 뒤 검토를 요청하세요.',
-  'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each lay out the header, order summary, payment method and checkout bar differently.': '결제 단계 시안 4개(Taylor, Alex, Jordan, AI)가 헤더, 주문 요약, 결제 수단, 결제 바를 각자 다른 구성으로 배치했어요.',
+  'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each lay out the header, order summary, payment method and checkout bar differently.': '결제 단계 시안 4개(Taylor·Alex·Jordan·AI) · 헤더·주문 요약·결제 수단·결제 바 구성 불일치',
   'Parts you don’t pick keep the current screen’s version.': '고르지 않은 영역은 지금 화면의 구성을 유지해요.',
   'Amounts agree': '금액 일치',
   'Amounts disagree': '금액 불일치',
   'One accent color': '강조 색 하나',
   'No order summary': '주문 요약 없음',
   'Order summary shown': '주문 요약 있음',
-  'The screen never says what’s being paid for.': '무엇을 결제하는지 화면에 나오지 않아요.',
+  'The screen never says what’s being paid for.': '화면 내 결제 대상 정보 누락',
   'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.': '충돌 검토에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
   'Use one draft': '한 시안 통째로 쓰기',
   'Back to drafts': '시안 고르기로 돌아가기',
@@ -2017,8 +2019,8 @@ Object.assign(ko, {
   'Flip each part of the Result with ‹ › — or take a whole draft above.': '결과 아트보드에서 영역마다 ‹ › 로 시안을 넘겨 보세요. 위에서 시안 전체를 쓸 수도 있어요.',
   'Details': '세부 정보',
   'Hide details': '세부 정보 접기',
-  'All approvals received': '필요한 승인을 모두 받았어요',
-  'Ready to merge.': '병합할 수 있어요.',
+  'All approvals received': '필요 승인 완료',
+  'Ready to merge.': '병합 가능',
   'Ready to merge': '병합 가능',
   'Exported CSV': 'CSV로 내보냈어요',
   'Member deleted': '구성원을 삭제했어요',
@@ -2049,8 +2051,8 @@ Object.assign(ko, {
   'Track chip + SMS': '추적 칩 + 문자 알림',
   'Receipt download': '영수증 다운로드',
   'Order confirmation · 3 drafts': '주문 완료 · 시안 3개',
-  'Three drafts of the order confirmation — Taylor’s celebration, Jordan’s receipt and an AI tracking page — lay out the status, order details, delivery and next steps differently.': '주문 완료 화면 시안 3개(Taylor의 축하형, Jordan의 영수증형, AI의 배송 추적형)가 상태, 주문 내역, 배송, 다음 단계를 각자 다르게 구성했어요.',
-  'Low: a new screen, style and layout only — no logic or data changes.': '낮음: 새 화면의 스타일과 레이아웃만 다르고 로직이나 데이터 변경은 없어요.',
+  'Three drafts of the order confirmation — Taylor’s celebration, Jordan’s receipt and an AI tracking page — lay out the status, order details, delivery and next steps differently.': '주문 완료 시안 3개(Taylor·Jordan·AI) · 상태·주문 내역·배송·다음 단계 구성 불일치',
+  'Low: a new screen, style and layout only — no logic or data changes.': '낮음: 새 화면의 스타일·레이아웃 차이 · 로직·데이터 변경 없음',
   'Opened a second draft of the confirmation screen': '주문 완료 화면의 두 번째 시안을 열었어요',
   'Mix them in Design Compare: take each part from the draft that fits best.': '디자인 비교에서 섞어 보세요. 영역마다 가장 잘 맞는 시안을 고르면 돼요.',
   'Merged confirmation drafts': '주문 완료 시안 병합',

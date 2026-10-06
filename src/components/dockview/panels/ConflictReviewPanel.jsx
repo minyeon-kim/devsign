@@ -408,7 +408,7 @@ function Row({ label, children, ...rest }) {
   )
 }
 
-function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, children }) {
+function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, children, className }) {
   const heading = title && (
     <>
       <span className={INFO_TITLE}><LocalizedText text={title} /></span>
@@ -416,7 +416,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
     </>
   )
   return (
-    <section ref={sectionRef} data-info-section={title ?? 'Status'} className={cn(INFO_SECTION, 'scroll-mb-3')}>
+    <section ref={sectionRef} data-info-section={title ?? 'Status'} className={cn(INFO_SECTION, 'scroll-mb-3', className)}>
       {title && (onToggle ? (
         <button type="button" aria-expanded={Boolean(open)} onClick={onToggle} {...toggleProps} className={cn('ds-intrinsic flex w-full cursor-pointer items-center gap-1.5 text-left transition-colors hover:text-white', open && 'mb-2')}>
           {heading}
@@ -458,7 +458,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
   // What the viewer has to do now — and only that: nothing shows when the
   // next move is someone else's.
   const todo = stage === 'resolved' ? null
-    : reasonNeeded ? 'Reason for keeping the current value needed'
+    : reasonNeeded ? null
       : blockedCount > 0 ? `Resolve ${blockedCount} required standard${blockedCount === 1 ? '' : 's'}`
         : stage === 'detected' ? 'Review request needed'
           : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge')
@@ -511,17 +511,21 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
       {!conflict.rollback && (cause_text || why || standard) && (
-        <InfoSection>
+        <InfoSection className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
             {cause_text && (
               <Row label="Cause" data-summary-row="Cause">
                 <LocalizedText text={cause_text} />
                 {cause && (
-                  <button type="button" data-cause-version onClick={onOpenCause} title="Open this version in History" className="ds-intrinsic mt-1 flex w-full cursor-pointer items-center gap-1 text-left text-[11px] leading-4 text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                    <span className="min-w-0 truncate">
-                      <LocalizedText text="Began" /> · <LocalizedText text={cause.label} /> · <span translate="no">{allPeople.find((person) => person.id === cause.actorId)?.name ?? cause.actorLabel ?? 'Devsign'}</span>
-                      {cause.timestamp && <> · <LocalizedText text={cause.timestamp} /></>}
-                    </span>
+                  <button
+                    type="button"
+                    data-cause-version
+                    data-open-cause-history
+                    onClick={onOpenCause}
+                    title="View origin version in History"
+                    className="ds-intrinsic group mt-1 flex w-fit cursor-pointer items-center gap-1 rounded py-0.5 text-left text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  >
+                    <span className="text-[11px] font-medium leading-4"><LocalizedText text="View origin version" /></span>
                     <ArrowRight className="size-3 shrink-0" />
                   </button>
                 )}
@@ -757,7 +761,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
     : conflict.reviewStage === 'approved' ? 'Ready to merge' : reviewState
   const differs = conflict.comparisonFields?.some((field) => field.current !== field.expected)
   const conclusion = state.side === 'A' ? { lead: 'Changes to the design reference value', rest: [nextStep] }
-    : state.side === 'B' ? { lead: 'Keeps the current value', rest: [state.reasonNeeded ? 'Reason needed' : nextStep] }
+    : state.side === 'B' ? { lead: 'Keeps the current value', rest: state.reasonNeeded ? [] : [nextStep] }
       : {
         lead: adjustment ? 'Resolved by the adjustment'
           : state.bothFail ? 'Needs adjusting in Merge Studio'
@@ -795,11 +799,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
             <p data-pick-guide={state.side ?? 'none'} className="min-w-0 text-xs leading-5 text-slate-300">
               <span className="text-[13px] font-semibold text-white"><LocalizedText text={conclusion.lead} /></span>
               {conclusion.rest.map((part) => <span key={part}><span className="text-slate-500"> · </span><LocalizedText text={part} /></span>)}
-              {state.side && (
-                <button type="button" data-pick-undo onClick={() => state.undo()} className="ds-intrinsic ml-2 inline-flex h-5 items-center rounded px-1 text-xs text-slate-400 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                  <LocalizedText text="Clear choice" />
-                </button>
-              )}
+
             </p>
           )}
           {studioAction && (
@@ -861,7 +861,6 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                     )}>
                     <div className="flex min-w-0 items-start gap-2.5">
                       <div className="min-w-0 flex-1">{source && <ComparisonSource {...source} strong outcome={readOnly ? undefined : decision === 'A' ? 'Changes to this value' : 'Keeps the value as it is now'} />}</div>
-                      {on && state.reasonNeeded && <span className="shrink-0 text-[11px] font-medium text-slate-400"><LocalizedText text="Reason required" /></span>}
                       {/* This side passes what the other one fails. */}
                       {/* Finished: which card it was merged with. */}
                       {readOnly && applied(decision) && (
