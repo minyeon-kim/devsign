@@ -498,11 +498,9 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             ) : summary && <p className={SUMMARY_BODY}><LocalizedText text={summary} /></p>}
             {/* The checks' verdict, in a line — each one is worked through
                 beside the comparison, not repeated here. */}
-            {checks && (
+            {checks?.failing.length > 0 && (
               <p className={cn(SUMMARY_BODY, 'mt-1.5 text-slate-400')}>
-                {checks.failing.length
-                  ? <>{checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}</>
-                  : <LocalizedText text="All design checks passed" />}
+                {checks.failing.length > 1 ? `기준과 다른 항목 ${checks.failing.length}개 · ` : ''}{checks.failing.map((check, index) => <Fragment key={check.id}>{index > 0 && ', '}<LocalizedText text={check.title} /></Fragment>)}
               </p>
             )}
           </SummaryPart>
@@ -511,7 +509,10 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               what it's for, and what happens if it isn't kept. */}
           {standard && (
             <SummaryPart label="Standard">
-              <dl data-standard className="space-y-1">
+              {/* A label column as wide as its longest label, so every
+                  line's content starts at the same place and wraps under
+                  itself. */}
+              <dl data-standard className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1">
                 {[
                   ['Standard', standard.what.map((text) => <LocalizedText key={text} text={text} />)],
                   ['Source', standard.sources.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)],
@@ -525,10 +526,10 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
                     </>
                   )],
                 ].map(([label, content]) => (
-                  <div key={label} className={SUMMARY_BODY}>
-                    <dt className="inline text-slate-400"><LocalizedText text={label} /> · </dt>
-                    <dd className="inline">{Array.isArray(content) ? content.flatMap((node, index) => (index && typeof node !== 'string' && label !== 'Source' ? [' ', node] : [node])) : content}</dd>
-                  </div>
+                  <Fragment key={label}>
+                    <dt className="text-[11px] leading-[18px] whitespace-nowrap text-slate-400"><LocalizedText text={label} /></dt>
+                    <dd className={SUMMARY_BODY}>{Array.isArray(content) ? content.flatMap((node, index) => (index && typeof node !== 'string' && label !== 'Source' ? [' ', node] : [node])) : content}</dd>
+                  </Fragment>
                 ))}
               </dl>
             </SummaryPart>
@@ -540,7 +541,7 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
               {/* Where it began: the saved version the difference first
                   came in with — a way straight to it in History. */}
               {cause && (
-                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic mt-2 flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.04] px-2.5 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                <button type="button" data-cause-version onClick={onOpenCause} className="ds-intrinsic mt-2 flex w-full cursor-pointer items-start gap-2 rounded-lg bg-white/[0.05] px-3 py-2 text-left transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300">
                   <span className="min-w-0 flex-1">
                     <span className="block text-[11px] leading-4 text-slate-400"><LocalizedText text="Version this difference came in with" /></span>
                     <span className={cn(SUMMARY_BODY, 'block')}><LocalizedText text={cause.label} /></span>
@@ -830,8 +831,8 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                     data-side={side}
                     data-decision={decision}
                     className={cn(
-                      // Roomy: ~20px inside, 16px between its parts.
-                      'flex min-w-0 flex-col gap-4 rounded-xl p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
+                      // 16px inside, 12px between its parts.
+                      'flex min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
                       canPick && !on && 'cursor-pointer',
                       canPick && on && 'cursor-pointer'
                     )}>
@@ -858,7 +859,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       </span>
                     </div>
                     <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
-                    <dl className="min-w-0 space-y-3">
+                    <dl className="min-w-0 space-y-2">
                       {conflict.comparisonFields.map((field) => {
                         // A color value gets its swatch beside it.
                         const swatch = /#[0-9a-fA-F]{3,8}\b/.exec(value(field) ?? '')?.[0]
@@ -912,7 +913,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
                       </div>
                     )}
                   </div>
-                  {on && ((decision === 'B' && state.reasonApplies) || state.exceptionReason) && <div className="mx-5 border-t border-white/10 pb-4">
+                  {on && ((decision === 'B' && state.reasonApplies) || state.exceptionReason) && <div className="mx-4 border-t border-white/10 pb-3">
                   {decision === 'B' && state.reasonApplies && <InlineDeviationReason
                     key={`${conflict.id}:${decision}`}
                     value={state.savedReason}
@@ -974,7 +975,7 @@ function DiffTab({ conflict, code, studioAction, mergedLines, adjustment, change
             {checkBlocks}
             {state.exceptionReason && (!pairedPreview || !state.side) && <InlineDeviationReason key={state.exceptionReason.subject} onSave={state.saveExceptionReason} />}
             {conflict.diff && (
-              <div className="min-w-0 pt-2">
+              <div className="min-w-0 [&>div]:space-y-1.5">
                 {code ? <ConflictCodeView {...code} /> : <CodeDiffColumns rows={rows} />}
               </div>
             )}
@@ -2077,7 +2078,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[420px] xl:flex-1')}>
+                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:min-w-[380px] xl:flex-[45_1_0%]')}>
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {studioAdjustments.length > 0 && !conflict.rollback && (
                             <section data-studio-adjustments className="mb-3 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
@@ -2167,7 +2168,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           standard behind it, why, how, the evidence and the
                           decision. (A rollback with nothing to detail has
                           none — the comparison takes the room.) */}
-                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'min-h-0 xl:w-[32%] xl:min-w-[260px] xl:max-w-[360px] xl:shrink-0')}>
+                      {!(conflict.rollback && !conflict.rollback.target && !conflict.rollback.label) && <section className={cn('flex min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'min-h-0 xl:min-w-[300px] xl:flex-[35_1_0%]')}>
                         <div data-review-scroll="reasoning" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           <OverviewTab
                             rationale={rationale}

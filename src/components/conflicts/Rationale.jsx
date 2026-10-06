@@ -20,9 +20,14 @@ export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
   const [expanded, setExpanded] = useState(false)
   if (!items?.length) return null
   const visible = expanded ? items : items.slice(0, limit)
+  const more = (
+    <button type="button" data-evidence-more aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="ds-intrinsic h-6 shrink-0 rounded-md px-2 text-[11px] whitespace-nowrap text-slate-400 hover:bg-white/[0.06] hover:text-white">
+      {expanded ? <LocalizedText text="Show less" /> : `+${items.length - limit}`}
+    </button>
+  )
   return (
     <span className={cn('flex min-w-0 flex-wrap items-center gap-1.5', className)}>
-      {visible.map((item) => {
+      {visible.map((item, position) => {
         const Icon = EVIDENCE_ICON[item.kind] ?? BookMarked
         const literal = item.kind === 'token' || item.kind === 'wcag'
         const rule = item.kind === 'rule' ? DESIGN_RULES.find((candidate) => candidate.id === item.id) : null
@@ -44,8 +49,11 @@ export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
             {item.kind === 'wcag' && <ArrowUpRight className="size-3 shrink-0 text-slate-500" />}
           </button>
         )
-        if (!rule && !item.text) return chip
-        return <Tooltip key={key}>
+        // The "+N" stays beside the last chip rather than wrapping alone.
+        const tail = position === visible.length - 1 && items.length > limit ? more : null
+        const withTail = (node) => (tail ? <span key={key} className="inline-flex max-w-full min-w-0 items-center gap-1.5">{node}{tail}</span> : node)
+        if (!rule && !item.text) return withTail(chip)
+        return withTail(<Tooltip key={key}>
           <TooltipTrigger render={chip} />
           <TooltipContent side="top" align="start" className="max-w-xs flex-col items-start gap-1 py-2 leading-5">
             {rule ? <>
@@ -54,11 +62,8 @@ export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
               <span className="text-[11px] text-slate-400">{rule.sources.map((source) => source.label).join(' · ')}</span>
             </> : <LocalizedText text={item.text} />}
           </TooltipContent>
-        </Tooltip>
+        </Tooltip>)
       })}
-      {items.length > limit && <button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="ds-intrinsic h-6 rounded-md px-2 text-[11px] text-slate-400 hover:bg-white/[0.06] hover:text-white">
-        {expanded ? <LocalizedText text="Show less" /> : `+${items.length - limit}`}
-      </button>}
     </span>
   )
 }
