@@ -12,6 +12,8 @@ export function buildSummary(item, resolutions, annotations, preset, assemblies 
   const layerDiffs = designMergeVariants[item.id]?.layerDiffs ?? {}
 
   const design = Object.entries(resolutions).map(([key, side]) => {
+    // (The mix's arrangement — see data/draftScreens' LAYOUT_KEY.)
+    if (key === 'layout:regions') return { key, text: 'Result · Regions', choice: side?.custom?.removed?.length ? 'Rearranged, some removed' : 'Rearranged' }
     const split = key.indexOf(':')
     const layerId = key.slice(0, split)
     const diffId = key.slice(split + 1)

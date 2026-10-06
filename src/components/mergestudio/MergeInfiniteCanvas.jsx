@@ -1,7 +1,7 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Menu, Pencil, Play, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -586,12 +586,82 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
   )
 }
 
+// The Result's regions, arranged in place: the selected one outlined, with a
+// small bar on it — move up, move down, remove, and which draft it's from —
+// and a grip to drag it to another place in the stack (a line shows where
+// it would land). Everything is by order: a region goes where the ones
+// before it end, never to a position.
+// `tools`: { selected, zoom, onMove(id, by), onRemove(id), onReorder(id,
+// index), letterOf(draftKey) }. The pointer is read against the artboard's
+// own box on screen, so it's right at any zoom.
+function RegionTools({ frame, scale, boxH, tools }) {
+  const [drag, setDrag] = useState(null)
+  const regions = frame.regions ?? []
+  const region = regions.find((entry) => entry.id === tools.selected)
+  if (!region) return null
+  const index = regions.indexOf(region)
+  const ko = getLanguage() === 'ko'
+  const letter = tools.letterOf(region.draftKey)
+  // Where the dragged region would go among the others, from the pointer.
+  function landing(event, box) {
+    const rect = box.getBoundingClientRect()
+    const y = ((event.clientY - rect.top) / rect.height) * (boxH / scale)
+    const others = regions.filter((entry) => entry.id !== region.id)
+    const at = others.filter((entry) => entry.y + entry.height / 2 < y).length
+    const last = others.at(-1)
+    return { index: at, y: at < others.length ? others[at].y : last ? last.y + last.height : region.y }
+  }
+  function startDrag(event) {
+    event.stopPropagation()
+    event.preventDefault()
+    const box = event.currentTarget.closest('[data-frame-key]').querySelector('[data-frame-box]')
+    const move = (next) => setDrag(landing(next, box))
+    const up = (next) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      const to = landing(next, box)
+      setDrag(null)
+      if (to.index !== index) tools.onReorder(region.id, to.index)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    setDrag(landing(event, box))
+  }
+  const stop = (event) => event.stopPropagation()
+  const BUTTON = 'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
+  return (
+    // Over the artboard, not inside it: the bar stands beside the screen
+    // (clear of the element's own handles), so nothing here is clipped.
+    <div className="pointer-events-none absolute inset-0 z-10">
+      <div data-region-selected={region.id} className="absolute inset-x-0 rounded-sm ring-2 ring-emerald-400 ring-inset" style={{ top: region.y * scale, height: region.height * scale }} />
+      {/* Which draft it's from, on the region itself. */}
+      <span data-region-source className="absolute left-0 rounded-br-md bg-emerald-400 px-1.5 py-0.5 text-[10px] leading-none font-semibold whitespace-nowrap text-slate-950" style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}>
+        {letter ? (ko ? (region.picked ? `시안 ${letter}에서 가져옴` : `시안 ${letter} · 기본값`) : (region.picked ? `From draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
+      </span>
+      {/* (Kept its own size whatever the canvas zoom.) */}
+      <div
+        data-region-toolbar
+        onPointerDown={stop}
+        onClick={stop}
+        className="pointer-events-auto absolute left-full ml-2 flex cursor-default flex-col items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 shadow-lg ring-1 ring-white/15"
+        style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}
+      >
+        <button type="button" data-region-grip aria-label={ko ? '드래그해서 옮기기' : 'Drag to move'} title={ko ? '드래그해서 옮기기' : 'Drag to move'} onPointerDown={startDrag} className={cn(BUTTON, 'cursor-grab active:cursor-grabbing')}><GripVertical className="size-3.5" /></button>
+        <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={BUTTON}><ArrowUp className="size-3.5" /></button>
+        <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={BUTTON}><ArrowDown className="size-3.5" /></button>
+        <button type="button" data-region-remove aria-label={ko ? '삭제' : 'Remove'} title={ko ? '삭제 (Delete)' : 'Remove (Delete)'} onClick={() => tools.onRemove(region.id)} className={BUTTON}><Trash2 className="size-3.5" /></button>
+      </div>
+      {drag && <div data-region-drop className="absolute inset-x-0 h-0.5 -translate-y-1/2 bg-emerald-400 shadow-[0_0_0_1px_rgb(52_211_153/40%)]" style={{ top: drag.y * scale }} />}
+    </div>
+  )
+}
+
 // An artboard "card" — the frame previews at a fixed width regardless of
 // its real size (scaled via CSS transform; layer positions stay untouched
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame }) {
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
@@ -615,6 +685,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         {frameKey === 'result' ? <><CircleCheck className="size-3" /><LocalizedText text="Result preview" /></> : label}
         {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
+      <div className="relative">
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
         data-frame-box
@@ -659,6 +730,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
           })}
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
+      </div>
+      {regionTools && <RegionTools frame={frame} scale={scale} boxH={boxH} tools={regionTools} />}
       </div>
     </div>
   )
@@ -1068,6 +1141,8 @@ function MergeInfiniteCanvas({
   // Drafts mixed by region: the Result is the studio's own working screen,
   // drawn with its edits (Assemble, added components) like Option B.
   composedResult = false,
+  // Arranging the Result's regions in place (see RegionTools).
+  regionTools = null,
 }) {
   const { getFileLines, requestMergeFocus, mergePreviewOpen, setMergePreviewOpen, notifications, mergeDrawer, setMergeDrawer, otherMembers, conflicts, openConflictReview, bottomPanel, setBottomPanel, decisionsFor } = useWorkspace()
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -1933,6 +2008,7 @@ function MergeInfiniteCanvas({
                     overrides={entry.key === 'result' && composedResult ? overrides : (compareOverrides?.[entry.key] ?? entry.overrides)}
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
+                    regionTools={entry.key === 'result' && regionTools ? { ...regionTools, zoom: scale } : undefined}
                   />
                 ))
               ) : frame && (

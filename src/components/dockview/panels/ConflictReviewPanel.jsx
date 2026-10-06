@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/mockData'
-import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
+import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
 import { codeChangeOf, mergeResultOf, valueControlFor } from '@/lib/mergeResult'
@@ -254,7 +254,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   // Drafts mixed by screen region: the picks composed into the one screen
   // they make (parts not picked fall back to the first draft, as merging does).
   const base = draftScreens[item.id] && canvasPages.find((page) => page.id === item.designPageId)?.frames[0]
-  const result = base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisions), item.authorAId ?? item.variants?.[0]?.key) : null
+  const result = base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisions), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, decisions)) : null
   const resultHeight = result ? Math.max(120, ...result.layers.map((layer) => (layer.y ?? 0) + (layer.height ?? 0))) + 16 : 0
   const resultScale = RESULT_WIDTH / 280
   const Letter = ({ option, on }) => (

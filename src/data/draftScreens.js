@@ -188,7 +188,26 @@ const GAP = 22
 // stacked in order under the status bar, each region's layers tagged with
 // where they came from (so a click on the canvas knows its region/draft).
 // A region with no pick is left out (`fallback` fills it instead, if set).
-export function composeDraftFrame(itemId, base, picks, fallback = null) {
+// The mix's own arrangement of the screen's regions: the order they stack
+// in, and the ones taken out — kept among an item's decisions (one more
+// entry there, so it's saved, undone and merged with the picks).
+// Arranging is by order, never by position: a region lands wherever the
+// ones before it end.
+export const LAYOUT_KEY = 'layout:regions'
+export function regionLayout(itemId, decisions) {
+  const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
+  const saved = decisions?.[LAYOUT_KEY]?.custom ?? {}
+  const order = [...(saved.order ?? []).filter((id) => ids.includes(id)), ...ids.filter((id) => !(saved.order ?? []).includes(id))]
+  return { order, removed: (saved.removed ?? []).filter((id) => ids.includes(id)) }
+}
+// The decision that records an arrangement (null: the screen's own).
+export function layoutDecision(itemId, { order, removed }) {
+  const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
+  return order.join() === ids.join() && !removed.length ? null : { custom: { order, removed } }
+}
+
+// (`layout`: regionLayout's — the screen's own order, all of it, without.)
+export function composeDraftFrame(itemId, base, picks, fallback = null, layout = null) {
   const screen = draftScreens[itemId]
   if (!screen || !base) return base
   const layers = [STATUS_BAR]
@@ -196,7 +215,8 @@ export function composeDraftFrame(itemId, base, picks, fallback = null) {
   // its band on the screen and the draft it came from.
   const regions = []
   let y = TOP
-  for (const region of screen.regions) {
+  const arranged = layout ? layout.order.filter((id) => !layout.removed.includes(id)).map((id) => screen.regions.find((region) => region.id === id)).filter(Boolean) : screen.regions
+  for (const region of arranged) {
     const draftKey = picks[region.id] ?? fallback
     const part = draftKey && screen.drafts[draftKey]?.[region.id]
     if (!part) continue
@@ -207,7 +227,7 @@ export function composeDraftFrame(itemId, base, picks, fallback = null) {
     if (part.height) y += part.height + GAP
     else y += 24 + GAP
   }
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}`, layers, regions }
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => region.id).join('-')}` : ''}`, layers, regions }
 }
 
 // A whole draft as a screen.

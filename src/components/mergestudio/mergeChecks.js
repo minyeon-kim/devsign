@@ -1,7 +1,7 @@
 import { canvasPages, designMergeVariants } from '@/data/mockData'
 import { buildDrifts, buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { isCustomResolution } from '@/components/mergestudio/mergeEffects'
-import { compositionChecks, composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
+import { compositionChecks, composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 
 // ----- Merge impact & health assessment (the Check step) --------------
 // Everything is derived from the item's own data and the current choices,
@@ -223,7 +223,7 @@ export function checksFor(item, draft = {}, linesOf = () => []) {
     files: item.fileIds ?? [],
   }
   const built = buildOverrides(item, draft.resolutions ?? {}, annotations.filter((a) => a.status === 'done'), draft.appliedPreset, draft.assemblies, draft.addedLayers, draft.manualCode, linesOf)
-  const frame = draftScreens[item.id] ? composeDraftFrame(item.id, built.frame, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId) : built.frame
+  const frame = draftScreens[item.id] ? composeDraftFrame(item.id, built.frame, regionPicks(item.id, draft.resolutions ?? {}), item.authorAId, regionLayout(item.id, draft.resolutions ?? {})) : built.frame
   const evaluatedFrame = frame && { ...frame, layers: frame.layers.map((layer) => ({
     ...layer,
     width: draft.assemblies?.[layer.id]?.width ?? layer.width + (built.overrides[layer.id]?.dw ?? 0),

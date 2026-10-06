@@ -1,7 +1,7 @@
 import { scheduleDemoReview, applyDueDemoReviews } from '@/lib/demoReview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
-import { composeDraftFrame, draftScreens, regionPicks } from '@/data/draftScreens'
+import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers } from '@/lib/conflicts'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -1022,7 +1022,7 @@ export function WorkspaceProvider({ children, projectId }) {
       // A revert of that merge puts the page's own frame back.
       // The mix as worked on in Merge Studio: plus any components added to
       // it and the Assemble edits made to its layers.
-      const composed = base && (conflict?.revertOf ? base : frameWithLayers(composeDraftFrame(item.id, base, regionPicks(item.id, mergedResolutions), item.authorAId ?? item.variants?.[0]?.key), draft.addedLayers ?? []))
+      const composed = base && (conflict?.revertOf ? base : frameWithLayers(composeDraftFrame(item.id, base, regionPicks(item.id, mergedResolutions), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, mergedResolutions)), draft.addedLayers ?? []))
       if (composed) {
         const frame = { ...composed, id: base.id }
         const overrides = conflict?.revertOf ? {} : Object.fromEntries(Object.entries(draft.assemblies ?? {})

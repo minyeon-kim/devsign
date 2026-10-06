@@ -31,7 +31,7 @@ import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, designCompareOptions, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
-import { composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, regionKey, regionPicks } from '@/data/draftScreens'
+import { LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -108,7 +108,7 @@ function ValuePreview({ label, value, swatch }) {
 // The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [] }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -242,10 +242,10 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </div>
         <button
           type="button"
-          disabled={decided === 0}
+          disabled={decided === 0 && !decisions[LAYOUT_KEY]}
           title="Reset picks"
           aria-label="Reset picks"
-          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); setStep(0) }}
+          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
           className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" />
@@ -327,6 +327,10 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               )
             })}
           </div>
+          {/* Taken out of the Result: said here, with the way back. */}
+          {current.region && removedRegions.includes(current.region.id) && (
+            <p data-mix-removed className="mt-1 text-center text-[11px] text-amber-200/90">{language === 'ko' ? '결과 화면에서 뺀 영역이에요 · 시안을 사용하면 다시 들어가요' : 'Taken out of the result · using a draft puts it back'}</p>
+          )}
           {/* Which draft is being looked at, of how many. */}
           {choices.length >= 2 && <p data-mix-position className="mt-1 text-center text-[11px] text-slate-400 tabular-nums">{viewIndex + 1} / {viewable.length}</p>}
         </div>
@@ -920,6 +924,63 @@ function MergeStudioWorkspace({ item }) {
       return next
     })
   }
+  // The mix's regions, arranged on the Result: moved up or down, dragged to
+  // a place, or taken out. Kept among the decisions (LAYOUT_KEY), so it's
+  // undone and redone, saved and merged like a pick — and everything that
+  // draws the Result (the code and checks with it) follows at once.
+  const mixLayout = item && draftScreens[item.id] ? regionLayout(item.id, resolutions) : null
+  // The region selected on the Result (through any of its elements).
+  const selectedRegion = designComparison && mixLayout ? (() => {
+    const id = layerSource(syncSelection?.layerId)?.regionId
+    return id && !mixLayout.removed.includes(id) ? id : null
+  })() : null
+  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, next))
+  const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
+  function reorderRegion(id, index) {
+    const rest = shown(mixLayout).filter((entry) => entry !== id)
+    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, id)
+    arrange({ order: [...rest, ...mixLayout.removed], removed: mixLayout.removed })
+  }
+  function moveRegion(id, by) {
+    const at = shown(mixLayout).indexOf(id)
+    if (at >= 0) reorderRegion(id, at + by)
+  }
+  function removeRegion(id) {
+    arrange({ order: mixLayout.order, removed: [...mixLayout.removed, id] })
+    setSyncSelection(null)
+  }
+  // Using a draft for a region that was taken out puts the region back.
+  function decideMix(key, decision) {
+    const id = key.startsWith('region:') ? key.slice('region:'.length) : null
+    if (!decision || !id || !mixLayout?.removed.includes(id)) { decide(key, decision); return }
+    setResolutions((prev) => {
+      const next = { ...prev, [key]: decision }
+      const layout = layoutDecision(item.id, { order: mixLayout.order, removed: mixLayout.removed.filter((entry) => entry !== id) })
+      if (layout) next[LAYOUT_KEY] = layout
+      else delete next[LAYOUT_KEY]
+      return next
+    })
+  }
+  // Alt+↑ / ↓ move the selected region, Delete takes it out — not while
+  // typing somewhere.
+  const regionKeys = useEffectEvent((event) => {
+    if (!selectedRegion || item?.tag === 'Merged') return
+    const target = event.target
+    if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+    if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault()
+      moveRegion(selectedRegion, event.key === 'ArrowUp' ? -1 : 1)
+    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault()
+      event.stopPropagation()
+      removeRegion(selectedRegion)
+    }
+  })
+  useEffect(() => {
+    window.addEventListener('keydown', regionKeys, true)
+    return () => window.removeEventListener('keydown', regionKeys, true)
+  }, [])
+
   function resolveDiff(layerId, diffId, side) {
     setResolutions((prev) => {
       const next = { ...prev }
@@ -953,7 +1014,7 @@ function MergeStudioWorkspace({ item }) {
   // Deck, Assets and text edits all act on its layers — so the mix can be
   // adjusted and added to like any design.
   const frame0 = baseFrame && draftScreens[item?.id]
-    ? frameWithLayers(composeDraftFrame(item.id, baseFrame, regionPicks(item.id, resolutions), item.authorAId), addedLayers)
+    ? frameWithLayers(composeDraftFrame(item.id, baseFrame, regionPicks(item.id, resolutions), item.authorAId, regionLayout(item.id, resolutions)), addedLayers)
     : frameWithLayers(baseFrame, addedLayers)
 
   // Direct manipulation of the selected canvas element (LayerTransformHandles).
@@ -1253,7 +1314,8 @@ function MergeStudioWorkspace({ item }) {
             options={designComparison.options}
             decisions={resolutions}
             selectedLayerId={syncSelection?.layerId}
-            onDecide={decide}
+            onDecide={decideMix}
+            removedRegions={mixLayout?.removed ?? []}
             checks={liveChecks}
             requestedRegion={designCompareRequest?.regionId}
             onFix={(check) => {
@@ -1283,6 +1345,13 @@ function MergeStudioWorkspace({ item }) {
           frameOverrideA={baseFrame && draftScreens[item.id] ? draftFrame(item.id, baseFrame, item.authorAId) : null}
           frameOverrideB={draftScreens[item.id] ? frame0 : null}
           composedResult={Boolean(draftScreens[item.id])}
+          regionTools={designComparison && mixLayout && item.tag !== 'Merged' ? {
+            selected: selectedRegion,
+            onMove: moveRegion,
+            onRemove: removeRegion,
+            onReorder: reorderRegion,
+            letterOf: (key) => { const at = designCompareOptions(item).findIndex((option) => option.key === key); return at < 0 ? null : String.fromCharCode(65 + at) },
+          } : null}
           assemblies={assemblies}
           resolutions={resolutions}
           extraLayers={addedLayers}
