@@ -1103,7 +1103,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && (!readOnly || flow.reason.value) && (
+              {flow?.reason && (!readOnly || flow.reason.value) && (editing ? exception || !flow.reason.modal : true) && (
                 <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
                   {exception && editing && (
                     // The one loud place: what going this way needs. What
@@ -2432,14 +2432,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const flowReason = choice === 'C' ? {
     title: 'Why was it adjusted?',
     hint: 'Required',
+    modal: true,
     reasons: ADJUSTMENT_REASONS,
     value: conflict.adjustmentReason?.text ?? '',
     onChange: (text) => update({ adjustmentReason: text ? { text, by: viewerId, at: 'Just now' } : null }),
   } : choice === 'B' ? {
     title: broken.length ? 'Reason for the exception request' : 'Why depart from the standard?',
     hint: broken.length ? 'Required · choose all that apply' : 'Required',
-    // (An exception's reason is asked in a dialog, on sending the request.)
-    modal: broken.length > 0,
+    // (A reason is asked in a dialog, on pressing the decision's button —
+    // never as a field on the review itself.)
+    modal: true,
     reasons: DEVIATION_REASONS,
     value: reasonOf('keep-current'),
     onChange: (text) => update({ deviation: text ? { kind: 'keep-current', text, by: viewerId, at: 'Just now' } : null }),
@@ -2454,25 +2456,40 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   } : null
   if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.modal && !flowReason.value.trim()
   const exceptionKey = conflict ? `${conflict.id}:${choice}` : null
-  const exceptionDraft = exceptionDrafts[exceptionKey] ?? exceptionDraftOf(flowReason?.modal ? flowReason.value : '', DEVIATION_REASONS)
+  const exceptionDraft = exceptionDrafts[exceptionKey] ?? exceptionDraftOf(flowReason?.modal ? flowReason.value : '', flowReason?.reasons ?? DEVIATION_REASONS)
   // What the exception is asked for: each compared value against the
   // standard's, else the checks it breaks.
-  const exceptionViolations = !flowReason?.modal ? []
-    : (conflict.comparisonFields ?? []).some((field) => field.current !== field.expected)
+  const exceptionViolations = !flowReason?.modal || !broken.length ? []
+    : choice !== 'C' && (conflict.comparisonFields ?? []).some((field) => field.current !== field.expected)
       ? conflict.comparisonFields.filter((field) => field.current !== field.expected).map((field) => ({ label: field.label, from: field.current, to: field.expected }))
       : broken.map((check) => ({ label: check.title }))
-  // Sent with its reason: the exception is asked for and review requested,
-  // in one go. (Throws if it can't be sent — the dialog stays, as entered.)
+  // The decision, settled: review is requested — and, breaking a required
+  // rule, the exception is asked for with it (`reason` is the one given).
+  function finishDecision(reason = '', { quiet = false } = {}) {
+    // A value set by hand that is the design reference's: decided as
+    // the design reference (the same code, with nothing left set).
+    if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
+      workspace.setLayerAdjustments(mergeItem.id, {})
+      update({ stashedAssemblies: null })
+      decisionState.pick('A')
+    }
+    if (broken.length) {
+      update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
+      if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${reason}`, { conflictId: conflict.id })
+    }
+    handleRequestReview({ quiet })
+  }
+  // Sent from the reason dialog: the reason is kept, then the decision is
+  // settled, in one go. (Throws if it can't be sent — the dialog stays, as
+  // entered.)
   async function sendException(reason) {
     await new Promise((resolve) => window.setTimeout(resolve, 500))
     if (!onUpdate) throw new Error('This conflict can’t be updated')
     flowReason.onChange(reason)
-    update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
-    if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${reason}`, { conflictId: conflict.id })
-    handleRequestReview({ quiet: true })
+    finishDecision(reason, { quiet: broken.length > 0 })
     setExceptionOpen(false)
     setExceptionDrafts((drafts) => { const next = { ...drafts }; delete next[exceptionKey]; return next })
-    toast('Exception request sent')
+    if (broken.length) toast('Exception request sent')
   }
   // One number of the element's own is set on the third card itself.
   const valueControl = cardFlow && mergeItem && workspace?.setLayerAdjustments ? valueControlFor(conflict, mergeItem) : null
@@ -2512,23 +2529,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     reason: flowReason,
     changeDecision: () => update({ reviewStage: 'detected', exceptionChecks: [], customChosen: adjustedByHand, reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
     decide: {
-      // Breaking a required rule: the exception is asked for with the
-      // decision, its reason the one given here.
+      // A way that needs a reason asks for it first, in its dialog; the
+      // dialog's own button settles the decision.
       run: () => {
-        // An exception's reason is asked for first, in its dialog.
         if (flowReason?.modal) { setExceptionOpen(true); return }
-        // A value set by hand that is the design reference's: decided as
-        // the design reference (the same code, with nothing left set).
-        if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
-          workspace.setLayerAdjustments(mergeItem.id, {})
-          update({ stashedAssemblies: null })
-          decisionState.pick('A')
-        }
-        if (broken.length) {
-          update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
-          if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${flowReason?.value ?? ''}`, { conflictId: conflict.id })
-        }
-        handleRequestReview()
+        finishDecision()
       },
       blocked: !choice ? null
         : choice === 'C' && !adjustedByHand ? 'Set a value first'
@@ -2866,7 +2871,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             onOpenChange={setExceptionOpen}
             conflict={conflict}
             violations={exceptionViolations}
-            reasons={DEVIATION_REASONS}
+            title={broken.length ? 'Send exception request' : choice === 'C' ? 'Apply the adjusted value' : 'Decide to keep the current value'}
+            reasonTitle={flowReason.title}
+            hint={flowReason.hint}
+            submitLabel={broken.length ? 'Send request' : 'Request review'}
+            reasons={flowReason.reasons}
             draft={exceptionDraft}
             onDraftChange={(draft) => setExceptionDrafts((drafts) => ({ ...drafts, [exceptionKey]: draft }))}
             onSend={sendException}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Check, LoaderCircle, Send, TriangleAlert } from 'lucide-react'
+import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { LocalizedText } from '@/i18n/runtime'
 
@@ -11,11 +12,14 @@ export const exceptionDraftOf = (text, reasons) => {
   return { picked: parts.filter((part) => reasons.includes(part)), typed: parts.filter((part) => !reasons.includes(part)).join(' · ') }
 }
 
-// Asking the reviewers for an exception: what it's for and what it breaks,
-// then why — chosen, typed, or both. The draft is the caller's, so closing
+// The reason a decision needs, asked when its button is pressed — an
+// exception request (what it's for and what it breaks, in the warning
+// tone), keeping the current value, or a value set by hand (`title`,
+// `reasonTitle`, `reasons` and `submitLabel` say which) — then why:
+// chosen, typed, or both. The draft is the caller's, so closing
 // and opening again (on the same conflict) keeps what was entered; a send
 // that fails leaves it open, with everything still there.
-export function ExceptionRequestDialog({ open, onOpenChange, conflict, violations = [], reasons, draft, onDraftChange, onSend, finalFocus }) {
+export function ExceptionRequestDialog({ open, onOpenChange, conflict, violations = [], title = 'Send exception request', reasonTitle = 'Reason for the exception request', hint = 'Required · choose all that apply', submitLabel = 'Send request', reasons, draft, onDraftChange, onSend, finalFocus }) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const firstChip = useRef(null)
@@ -46,15 +50,15 @@ export function ExceptionRequestDialog({ open, onOpenChange, conflict, violation
       >
         <form onSubmit={send} aria-busy={sending}>
           <div className="px-5 pt-5 pb-4">
-            <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Send exception request" /></DialogTitle>
+            <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text={title} /></DialogTitle>
             {/* What it's for and what it breaks — the warning the review
                 shows, in the same tone. */}
-            <DialogDescription render={<div />} data-exception-summary className="mt-3 space-y-1 rounded-lg bg-amber-400/[0.08] px-4 py-3 text-xs leading-[18px]">
+            <DialogDescription render={<div />} data-exception-summary className={cn('mt-3 space-y-1 rounded-lg px-4 py-3 text-xs leading-[18px]', violations.length ? 'bg-amber-400/[0.08]' : 'bg-white/[0.04]')}>
               <p className="font-medium text-white">
                 <LocalizedText text={conflict?.token ?? conflict?.title ?? ''} />
                 {conflict?.id && <span translate="no" className="ml-1.5 font-normal text-slate-400">#{conflict.id}</span>}
               </p>
-              <p className="flex items-start gap-1.5 text-amber-100">
+              {violations.length > 0 && <p className="flex items-start gap-1.5 text-amber-100">
                 <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
                 <span>
                   <LocalizedText text="Breaks a required rule" />
@@ -65,13 +69,13 @@ export function ExceptionRequestDialog({ open, onOpenChange, conflict, violation
                     </span>
                   ))}
                 </span>
-              </p>
-              {location && <p translate="no" className="pl-5 font-mono text-[11px] break-all text-slate-400">{location}</p>}
+              </p>}
+              {location && <p translate="no" className={cn(violations.length > 0 && 'pl-5', 'font-mono text-[11px] break-all text-slate-400')}>{location}</p>}
             </DialogDescription>
           </div>
           <div className="space-y-3 px-5 pb-4">
             <p id="exception-reason-label" className="text-xs font-medium text-slate-200">
-              <LocalizedText text="Reason for the exception request" /> <span className="font-normal text-slate-500">· <LocalizedText text="Required · choose all that apply" /></span>
+              <LocalizedText text={reasonTitle} /> <span className="font-normal text-slate-500">· <LocalizedText text={hint} /></span>
             </p>
             <div role="group" aria-labelledby="exception-reason-label" className="flex flex-wrap gap-1.5">
               {reasons.map((reason, index) => {
@@ -115,7 +119,7 @@ export function ExceptionRequestDialog({ open, onOpenChange, conflict, violation
             </button>
             <button type="submit" data-exception-send disabled={!ready || sending} aria-describedby={ready ? undefined : 'exception-send-hint'} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
               {sending ? <LoaderCircle className="mr-1.5 size-3.5 animate-spin" /> : <Send className="mr-1.5 size-3.5" />}
-              <LocalizedText text={sending ? 'Sending…' : 'Send request'} />
+              <LocalizedText text={sending ? 'Sending…' : submitLabel} />
             </button>
           </div>
         </form>

@@ -270,6 +270,7 @@ Design system rules|디자인 시스템 규칙
 Registered reasons — linked to a change automatically when it runs into a rule.|사전 등록된 근거 · 관련 규칙 감지 시 자동 연결
 Why depart from the standard?|현재 값을 유지하는 이유
 Why was it adjusted?|직접 조정한 이유
+Reason for the adjustment|조정 이유
 Choose how to resolve it|해결 방법 선택
 Decided|결정됨
 Change decision|결정 변경
