@@ -94,6 +94,7 @@ export default function HighReviewNotifications() {
     toast.dismiss()
   }
   if (!show) return null
+  const cardCount = Number(showRequest) + Number(Boolean(entry.prompt)) + banners.length
 
   // Rendered into <body> and fixed to the window (.ds-notification-stack:
   // above the bottom edge, 24px off the right edge, never wider than the
@@ -101,9 +102,12 @@ export default function HighReviewNotifications() {
   // dismiss button. "Dismiss all" sits on the same right edge.
   return createPortal(
     <aside ref={stackRef} data-notice-stack aria-label="High priority notifications" aria-live="polite" className="ds-notification-stack">
-      <div className="flex shrink-0 justify-end">
-        <button type="button" data-dismiss-all onClick={dismissAll} className="ds-intrinsic ds-notification-dismiss-all">알림 모두 닫기</button>
-      </div>
+      {/* (One card closes with its own ×: "Dismiss all" is for a stack.) */}
+      {cardCount > 1 && (
+        <div className="flex shrink-0 justify-end">
+          <button type="button" data-dismiss-all onClick={dismissAll} className="ds-intrinsic ds-notification-dismiss-all">알림 모두 닫기</button>
+        </div>
+      )}
       {showRequest && (
         <Notification
           type="info"

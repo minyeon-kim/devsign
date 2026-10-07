@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, BookMarked, Braces, Check, Frame, MessageSquare, ScanEye, TriangleAlert } from 'lucide-react'
+import { ArrowUpRight, BookMarked, Braces, Check, ChevronDown, Frame, MessageSquare, ScanEye, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -269,6 +269,10 @@ export function InlineDeviationReason({ value, onSave, readOnly = false, editabl
 // (any number), plus one typed in. Nothing to save — every change is
 // handed back (`onChange`, joined with " · ") and the decision settles it.
 // Read-only: the reason as one line.
+// The dropdown and the text field share the value editors' box on the
+// review card: 32px, 8px corners, the same border and fill.
+const TEXT_FIELD = 'ds-intrinsic h-8 w-full min-w-0 rounded-lg border border-white/[0.14] bg-white/[0.03] text-[13px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60'
+const SELECT_FIELD = cn(TEXT_FIELD, 'cursor-pointer appearance-none pr-8 pl-2.5 [&>option]:bg-[#1f1f1f] [&>option]:text-white')
 export function ReasonField({ title, hint = 'Required · choose all that apply', reasons, value, onChange, readOnly = false, tone = 'default', select = false }) {
   const parts = (value ?? '').split(' · ').filter(Boolean)
   const picked = parts.filter((part) => reasons.includes(part))
@@ -288,7 +292,8 @@ export function ReasonField({ title, hint = 'Required · choose all that apply',
     const current = other ? '__other' : picked[0] ?? ''
     return (
       <div data-reason-field data-tone={tone} className="space-y-2">
-        <p className="text-xs font-medium text-slate-200"><LocalizedText text={title} /></p>
+        <p className="text-[11.5px] text-slate-400"><LocalizedText text={title} /></p>
+        <div className="relative min-w-0">
         <select
           aria-label={title}
           value={current}
@@ -296,13 +301,15 @@ export function ReasonField({ title, hint = 'Required · choose all that apply',
             const next = event.target.value
             if (next === '__other') { setOther(true); emit([], typed) } else { setOther(false); emit(next ? [next] : [], '') }
           }}
-          className="h-8 w-full min-w-0 cursor-pointer rounded-full border border-white/15 bg-[#1f1f1f] px-3 text-xs text-white outline-none transition-colors hover:border-white/25 focus:border-emerald-300/60"
+          className={cn(SELECT_FIELD, !current && 'text-slate-400')}
         >
           <option value="" disabled>Choose a reason</option>
           {reasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
           <option value="__other">Or write your own reason</option>
         </select>
-        {other && <input autoFocus aria-label="Your own reason" placeholder="직접 입력" value={typed} onChange={(event) => { setTyped(event.target.value); emit([], event.target.value) }} className="h-8 w-full min-w-0 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />}
+        <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-slate-400" />
+        </div>
+        {other && <input autoFocus aria-label="Your own reason" placeholder="직접 입력" value={typed} onChange={(event) => { setTyped(event.target.value); emit([], event.target.value) }} className={cn(TEXT_FIELD, 'px-2.5')} />}
       </div>
     )
   }

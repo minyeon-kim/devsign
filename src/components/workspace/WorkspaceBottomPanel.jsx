@@ -28,6 +28,10 @@ const MIN_CANVAS = 140
 // window, a review a little more — its cards, code and thread need the
 // height more than the canvas behind them does while it's open.
 const LIST_MIN_HEIGHT = 360
+// Opening the panel by hand (a tab, the strip) rises to half the window —
+// a sliver of a list isn't worth opening. A taller height dragged before
+// is kept.
+const OPEN_SHARE = 0.5
 const REVIEW_MIN_HEIGHT = 440
 // A review opens at about this much of the window: its comparison, code
 // diff and reasoning need the height more than the work area above does.
@@ -52,6 +56,11 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   const [tabOrder, setTabOrder] = useState(() => tabs.map((t) => t.id))
   const draggedTab = useRef(null)
   const [availableHeight, setAvailableHeight] = useState(480)
+  // The height while the top edge is being dragged: drawn straight from the
+  // pointer (no transition, no saved state, nothing else re-rendered), and
+  // kept as the panel's height once it's let go.
+  const [dragHeight, setDragHeight] = useState(null)
+  const openedByDrag = useRef(false)
 
   useLayoutEffect(() => {
     const parent = rootRef.current?.parentElement
@@ -78,19 +87,37 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     setBottomPanel({ open: true, height: target, tab: reviewTabFor(conflicts.find(record => record.id === reviewConflictId) ?? { id: reviewConflictId }) })
   }, [reviewConflictId, setBottomPanel])
 
-  // Opening Conflict Points itself (the list, before any row is picked)
-  // needs more room than the panel's small resting height — a fresh
-  // panel may have been resized smaller while showing another tab.
-  // Only grows, and only on the open transition itself, so it
-  // never fights a height the user later drags down, and never re-fires
-  // just from height changing while the tab stays open.
+  // Opening (any tab): at least half the window, or the taller height the
+  // user dragged to before. Only grows, and only on the open transition
+  // itself — never fights a height dragged afterwards. (Opened by dragging
+  // the edge up: the drag sets the height.)
   useEffect(() => {
-    if (!['conflict', 'design-compare'].includes(tab) || !open) return
-    if (userHeight) { if (height !== userHeight) setBottomPanel({ height: userHeight }); return }
-    const target = Math.max(LIST_MIN_HEIGHT, Math.round(window.innerHeight * 0.46))
+    if (!open || maximized) return
+    if (openedByDrag.current) { openedByDrag.current = false; return }
+    const parentHeight = rootRef.current?.parentElement?.clientHeight ?? window.innerHeight
+    const target = Math.min(maxHeight(), Math.max(LIST_MIN_HEIGHT, Math.round(parentHeight * OPEN_SHARE), userHeight ?? 0))
     if (height < target) setBottomPanel({ height: target })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, open])
+  }, [open])
+
+  // How much of the window's bottom the panel takes (its strip, or all of
+  // it open, with its margin) — published as `--ds-bottom-panel-offset` so
+  // notifications and toasts stack above it instead of over it.
+  useLayoutEffect(() => {
+    const element = rootRef.current
+    if (!element) return
+    const root = document.documentElement
+    const publish = () => root.style.setProperty('--ds-bottom-panel-offset', `${Math.max(0, Math.round(window.innerHeight - element.getBoundingClientRect().top))}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(element)
+    window.addEventListener('resize', publish)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', publish)
+      root.style.removeProperty('--ds-bottom-panel-offset')
+    }
+  }, [])
 
   useLayoutEffect(() => {
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
@@ -117,18 +144,30 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     const startHeight = !open ? STRIP_HEIGHT : maximized ? fullHeight : height
     const limit = maxHeight()
     document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    let latest = null
+    let frame = 0
 
     function onMove(m) {
-      const next = Math.min(limit, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
-      setBottomPanel({ height: next, userHeight: next, open: true, maximized: false })
+      latest = Math.min(limit, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
+      // One update a frame, however fast the pointer reports.
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; setDragHeight(latest) })
     }
     function onUp() {
       document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      setDragHeight(null)
+      if (latest == null) return
+      if (!open) openedByDrag.current = true
+      setBottomPanel({ height: latest, userHeight: latest, open: true, maximized: false })
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   const Panel = active.Panel
@@ -138,16 +177,19 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       ref={rootRef}
       aria-label="Bottom panel"
       data-maximized={open && maximized ? '' : undefined}
-      style={{ height: !open ? STRIP_HEIGHT : maximized ? fullHeight : height }}
+      style={{ height: dragHeight ?? (!open ? STRIP_HEIGHT : maximized ? fullHeight : height) }}
+      data-resizing={dragHeight != null ? '' : undefined}
       className={cn(
         // Merge Studio and plain Workspace share the exact same look (same
         // rounding/margins/border when open, same flush strip when closed)
         // — only *positioning* differs: Merge Studio floats the panel over
         // a full-size canvas instead of shrinking it, so the infinite
         // canvas never resizes under the user while panel height changes.
-        'flex shrink-0 flex-col overflow-hidden transition-all duration-300',
+        // (No transition while dragging: the edge stays under the pointer.)
+        'flex shrink-0 flex-col overflow-hidden',
+        dragHeight == null && 'transition-[height] duration-200 ease-out',
         portal ? 'absolute inset-x-0 bottom-0' : 'relative',
-        open
+        open || dragHeight != null
           ? 'z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
           : 'rounded-none border-transparent bg-background shadow-none',
         className
@@ -162,9 +204,11 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
         aria-orientation="horizontal"
         aria-label="Resize bottom panel"
         title="Drag to resize · double-click to maximize"
-        className="group/grip absolute inset-x-4 top-0 z-10 flex h-2.5 cursor-row-resize justify-center after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
+        // (A 12px band along the whole edge — easy to catch with the mouse;
+        // the panel clips anything outside it, so it sits just inside.)
+        className="group/grip absolute inset-x-0 top-0 z-10 flex h-3 cursor-row-resize touch-none justify-center after:absolute after:inset-x-4 after:top-0 after:h-px after:bg-emerald-400/0 after:transition-colors hover:after:bg-emerald-400/60"
       >
-        <span aria-hidden className="mt-1 h-1 w-10 rounded-full bg-white/20 transition-colors group-hover/grip:bg-emerald-300/80" />
+        <span aria-hidden className={cn('mt-1 h-1 w-10 rounded-full transition-colors group-hover/grip:bg-emerald-300/80', dragHeight != null ? 'bg-emerald-300/80' : 'bg-white/20')} />
       </div>
 
       <div

@@ -102,6 +102,10 @@ export function WorkspaceProvider({ children, projectId }) {
   // cursors and Follow Me timelines actually render as *other* people.
   const currentUser = currentUserFor(projectId)
   const otherMembers = useMemo(() => teamMembers.filter((m) => m.id !== currentUser.id), [currentUser.id])
+  // The viewer's own role ('Designer' / 'Developer' — `currentUser` reads
+  // "You"): a developer fixes a conflict in its code, so Merge Studio opens
+  // on the code and its guide says which line to change.
+  const viewerRole = teamMembers.find((m) => m.id === currentUser.id)?.role ?? null
   // Every project's file set shares the same file *ids* as the default
   // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
   // so this only needs to swap which file objects those ids resolve to,
@@ -213,7 +217,13 @@ export function WorkspaceProvider({ children, projectId }) {
   // tab is showing, whether it's expanded or collapsed to its tab strip,
   // and its expanded height (dragged from its top edge).
   // Start on Conflict Points; keep each project's last panel selection.
-  const [bottomPanel, setBottomPanelState] = useDemoState(`project:${projectId}:bottomPanel`, { tab: 'conflict', open: true, height: 320 })
+  // Entering a project starts with it folded to its strip (the tab and the
+  // height dragged to are kept; only whether it's open isn't) — the work
+  // area comes first. Anything that opens it on arrival (a review asked for
+  // by a link or a notification) does so after this.
+  const bottomPanelKey = `project:${projectId}:bottomPanel`
+  const [bottomPanel, setBottomPanelState] = useState(() => ({ ...readDemo(bottomPanelKey, { tab: 'conflict', height: 320 }), open: false, maximized: false }))
+  useEffect(() => { writeDemo(bottomPanelKey, bottomPanel) }, [bottomPanelKey, bottomPanel])
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
   const openConflictReview = useCallback((id, { view = 'panel' } = {}) => {
     setReviewConflictId(id)
@@ -589,6 +599,13 @@ export function WorkspaceProvider({ children, projectId }) {
   const exitMergeStudio = useCallback(() => {
     setActiveView('workspace')
   }, [])
+  // Arriving in Merge Studio — from anywhere — starts with the canvas
+  // clear: the bottom panel folds to its strip (opening it from there
+  // brings it back at half the window). Runs after whatever opened the
+  // studio, so a review left open behind it folds too.
+  useEffect(() => {
+    if (activeView === 'mergeStudio') setBottomPanel({ open: false, maximized: false })
+  }, [activeView, setBottomPanel])
 
   const updateMergeItem = useCallback((id, patch) => {
     setMergeItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
@@ -2096,6 +2113,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const value = {
     projectId,
     currentUser,
+    viewerRole,
     otherMembers,
     workspaceFiles: files,
     prototypeEdits,

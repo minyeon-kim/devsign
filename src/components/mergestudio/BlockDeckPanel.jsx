@@ -20,6 +20,7 @@ import {
   Search,
   PanelRightClose,
   Pencil,
+  GitMerge,
   Type,
   X,
 } from 'lucide-react'
@@ -1206,7 +1207,7 @@ function CodeLineField({ fileId, row, readOnly, onEditCode, onLiveEditCode }) {
   )
 }
 
-function LayerCodeView({ code, onEditCode, onLiveEditCode }) {
+function LayerCodeView({ code, onEditCode, onLiveEditCode, onOpenCodeMerge }) {
   if (!code) {
     return <p className="px-5 py-2 text-[11px] leading-relaxed text-slate-500">This element has no code linked to it.</p>
   }
@@ -1229,6 +1230,12 @@ function LayerCodeView({ code, onEditCode, onLiveEditCode }) {
           ))}
         </div>
         <p className="text-[10.5px] leading-relaxed text-slate-500">Edit a line and press Enter — the canvas, the checks and the review follow the code.</p>
+        {onOpenCodeMerge && (
+          <button type="button" data-open-code-merge onClick={onOpenCodeMerge} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.14] text-xs font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.04] hover:text-white">
+            <GitMerge className="size-3.5" />
+            Compare A · B and merge
+          </button>
+        )}
       </InspectorSection>
       {!code.readOnly && offers.length > 0 && (
         <InspectorSection title="Incoming change">
@@ -1506,12 +1513,20 @@ function BlockDeckPanel({
   collapsed = false,
   onCollapse,
   tabRequest,
+  viewRequest,
+  onOpenCodeMerge,
   changeCounts = {},
 }) {
   const [tab, setTab] = useState('assemble')
   // The selection is set through its properties or its code — two views of
   // the one element (the canvas follows either).
   const [view, setView] = useState('properties')
+  // A view asked for from outside (a developer's fix guide: the Code view).
+  const [seenViewRequest, setSeenViewRequest] = useState(null)
+  if (viewRequest?.view && viewRequest.nonce !== seenViewRequest) {
+    setSeenViewRequest(viewRequest.nonce)
+    setView(viewRequest.view)
+  }
   function switchTab(next) {
     setTab(next)
   }
@@ -1647,7 +1662,7 @@ function BlockDeckPanel({
         <AssetsLibrary layer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
       ) : view === 'code' && layerCode !== undefined ? (
         <DeckScroll>
-          <LayerCodeView code={layerCode} onEditCode={onEditCode} onLiveEditCode={onLiveEditCode} />
+          <LayerCodeView code={layerCode} onEditCode={onEditCode} onLiveEditCode={onLiveEditCode} onOpenCodeMerge={onOpenCodeMerge} />
         </DeckScroll>
       ) : (
         <BlockAssembleTab

@@ -1115,7 +1115,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {picks && editing && flow.controls[index] ? (
-                            <dd data-value-editor={flow.controls[index].mode} className="flex min-w-0 flex-1 flex-col items-end gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
+                            <dd data-value-editor={flow.controls[index].mode} className="flex w-[60%] max-w-[160px] min-w-0 shrink-0 flex-col items-end gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
                           ) : picks && hand ? (
                             // (Decided: the value it was set to, as the
                             // other cards show theirs.)
@@ -1176,7 +1176,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {isCustom && on && required.length === 0 && flow?.custom && flow?.reason && (editing || flow.reason.value) && (
                       <div
                         data-decision-reason="C"
-                        className="min-w-0 rounded-lg bg-white/[0.04] p-3"
+                        className="min-w-0 border-t border-white/[0.07] pt-3"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
@@ -1428,6 +1428,9 @@ function ValueText({ text }) {
 // Every valid change is put on the element at once — the picture and the
 // code follow as it's set. `control`: lib/mergeResult's valueControlsFor,
 // with the value so far and `set(px)`.
+// Every editor on the third card is the same box — one width, one height,
+// one border — whatever it edits (a number, a color, a value picked).
+const VALUE_BOX = 'flex h-8 w-full max-w-[160px] min-w-0 items-center rounded-lg border bg-white/[0.03] transition-colors focus-within:border-emerald-300/60'
 function ValueStepper({ control }) {
   const value = control.value ?? control.current
   const step = control.step ?? 1
@@ -1447,8 +1450,8 @@ function ValueStepper({ control }) {
   const stop = (event) => event.stopPropagation()
   const button = 'ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-30'
   return (
-    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex min-w-0 cursor-default flex-col items-end gap-1.5">
-      <span className={cn('flex h-7 items-center gap-0.5 rounded-lg border bg-white/[0.03] px-0.5 transition-colors focus-within:border-emerald-300/60', invalid ? 'border-red-400/60' : 'border-white/[0.14]')}>
+    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col items-end gap-1.5">
+      <span className={cn(VALUE_BOX, 'gap-0.5 px-1', invalid ? 'border-red-400/60' : 'border-white/[0.14]')}>
         <button type="button" aria-label={`${control.label} −${step}`} disabled={value <= control.min} onClick={() => apply(value - step)} className={button}><Minus className="size-3" /></button>
         <input
           data-value-select
@@ -1471,9 +1474,9 @@ function ValueStepper({ control }) {
               apply(value + (event.key === 'ArrowUp' ? 1 : -1) * step * (event.shiftKey ? 4 : 1))
             }
           }}
-          className="h-full w-9 min-w-0 bg-transparent text-center text-[13px] font-semibold text-white tabular-nums outline-none"
+          className="h-full min-w-0 flex-1 bg-transparent text-right text-[13px] font-semibold text-white tabular-nums outline-none"
         />
-        {unit && <span className="shrink-0 pr-1 text-[11px] font-normal text-slate-500">{unit}</span>}
+        <span className="w-5 shrink-0 text-[11px] font-normal text-slate-500">{unit}</span>
         <button type="button" aria-label={`${control.label} +${step}`} disabled={value >= control.max} onClick={() => apply(value + step)} className={button}><Plus className="size-3" /></button>
       </span>
       {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}${unit}`} /></span>}
@@ -1485,7 +1488,6 @@ function ValueStepper({ control }) {
 // ones (letter spacings) — or typed. Typing is applied on Enter or leaving
 // the field; Escape takes it back. `swatches`: a color value, with its
 // swatch and a color picker beside the text.
-const VALUE_INPUT = 'flex h-7 min-w-0 items-center gap-1 rounded-lg border bg-white/[0.03] px-2 transition-colors focus-within:border-emerald-300/60'
 const hexIn = (text) => /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3})\b/i.exec(text ?? '')?.[0] ?? null
 function ValueChoice({ control, swatches = false }) {
   const value = String(control.value ?? control.current ?? '')
@@ -1499,7 +1501,7 @@ function ValueChoice({ control, swatches = false }) {
   const pickerValue = /^#[0-9a-f]{6}$/i.test(swatch ?? '') ? swatch : /^#[0-9a-f]{3}$/i.test(swatch ?? '') ? `#${swatch.slice(1).split('').map((c) => c + c).join('')}` : '#000000'
   return (
     <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col items-end gap-1.5">
-      <span className={cn(VALUE_INPUT, 'w-full max-w-[200px] border-white/[0.14]')}>
+      <span className={cn(VALUE_BOX, 'gap-1.5 border-white/[0.14] px-2.5')}>
         {swatches && (
           <label className="relative size-4 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/30" style={{ background: swatch ?? 'transparent' }} title="Pick a color">
             <input type="color" aria-label={`${control.label} color`} value={pickerValue} onChange={(event) => { setText(event.target.value); control.set(event.target.value) }} className="absolute inset-0 cursor-pointer opacity-0" />
@@ -1519,11 +1521,11 @@ function ValueChoice({ control, swatches = false }) {
             if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur() }
             else if (event.key === 'Escape') { setText(value); event.currentTarget.blur() }
           }}
-          className="h-full min-w-0 flex-1 bg-transparent text-right text-[12px] font-semibold text-white outline-none"
+          className="h-full min-w-0 flex-1 bg-transparent text-right text-[13px] font-semibold text-white outline-none"
         />
       </span>
       {control.options?.length > 1 && (
-        <span className="flex max-w-full min-w-0 flex-wrap justify-end gap-1">
+        <span className="flex w-full min-w-0 flex-wrap justify-end gap-1">
           {control.options.map((option) => {
             const on = option === value
             const optionSwatch = swatches ? hexIn(option) : null
@@ -1535,7 +1537,7 @@ function ValueChoice({ control, swatches = false }) {
                 aria-pressed={on}
                 title={option}
                 onClick={() => !on && control.set(option)}
-                className={cn('ds-intrinsic inline-flex h-6 max-w-[180px] min-w-0 items-center gap-1 rounded-md px-1.5 text-[11px] transition-colors',
+                className={cn('ds-intrinsic inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-md px-1.5 text-[11px] transition-colors',
                   on ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white')}
               >
                 {optionSwatch && <span aria-hidden className="size-2.5 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: optionSwatch }} />}
@@ -3095,14 +3097,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             of title as the sections below it. */}
                         {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
                           <section data-difference-section className="mb-10 min-w-0 shrink-0">
-                            <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="What’s different" /></h3></div>
+                            <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Conflict summary" /></h3></div>
                             <DifferenceSummary conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
                           </section>
                         )}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {(conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => line.startsWith('<<<<<<<'))) && (
                             <section data-difference-section className="mb-10 min-w-0">
-                              <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="What’s different" /></h3></div>
+                              <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Conflict summary" /></h3></div>
                               <CodeDifferenceSummary conflict={conflict} />
                             </section>
                           )}

@@ -427,6 +427,7 @@ Takes a merged change back.|병합된 변경을 되돌려요.
 Design Drift|디자인 불일치
 Deployed|배포 중
 What’s different|무엇이 다른가
+Conflict summary|충돌 요약
 How to resolve it|해결 방법
 Not chosen yet|선택 전
 Code that changes|바뀌는 코드
@@ -763,6 +764,7 @@ Use|사용
 This element has no code linked to it.|이 요소에 연결된 코드가 없어요.
 Edit a line and press Enter — the canvas, the checks and the review follow the code.|줄을 수정하고 Enter를 누르세요. 캔버스, 검사, 리뷰가 코드를 따라 바뀌어요.
 Edit with|편집 방식
+Compare A · B and merge|A · B 비교하며 병합
 Adjust in Merge Studio|병합 스튜디오에서 조정
 Compare in Merge Studio|병합 스튜디오에서 비교
 Merge Studio help|병합 스튜디오 도움말

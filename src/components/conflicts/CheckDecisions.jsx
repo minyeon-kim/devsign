@@ -1,8 +1,9 @@
-import { ArrowUpRight, Check, CircleCheck, Clock3, RotateCcw, TriangleAlert, Wrench, X } from 'lucide-react'
+import { ArrowUpRight, Check, CircleCheck, Clock3, Code2, RotateCcw, TriangleAlert, Wrench, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { codeChangeOf, handLinesOf } from '@/lib/mergeResult'
 
 // Each check offers a concrete resolution, or navigation to its editor.
 
@@ -178,18 +179,110 @@ export function CheckGuideHighlight({ layerId }) {
   )
 }
 
+// The developer's guide in Merge Studio: which line of which file to
+// change, and to what — read off the conflict's own code (its line as it
+// is, and as the standard writes it). It turns to Fixed as soon as the line
+// typed in the Code view is the standard's; a line changed some other way
+// still counts as an adjustment, to be explained in the review.
+function CodeFixGuide({ conflict, manualCode, low, ko, onShowCode, onClose, onFinish }) {
+  const before = conflict.diff.before ?? []
+  const after = conflict.diff.after ?? []
+  const change = codeChangeOf(before, after)
+  const hand = handLinesOf(conflict, manualCode)
+  const changed = Boolean(hand) && hand.some((line, index) => line.trim() !== (before[index] ?? '').trim())
+  const fixed = Boolean(hand) && hand.length === after.length && hand.every((line, index) => line.trim() === after[index].trim())
+  const where = `${conflict.file ?? conflict.fileId}:${conflict.line ?? 1}`
+  const code = (text, tone) => <code translate="no" className={cn('rounded bg-black/30 px-1 py-0.5 font-mono text-[11.5px]', tone)}>{text}</code>
+  const steps = [
+    ko ? <>아래 <b className="font-semibold text-white">코드 병합</b> 창에서 {code(where, 'text-slate-200')}의 A(디자인 기준)와 B(현재 구현)를 화면과 함께 비교합니다.</>
+      : <>In the <b className="font-semibold text-white">Merge code</b> window below, compare A (design reference) and B (current implementation) of {code(where, 'text-slate-200')} beside the screen.</>,
+    change.from || change.to
+      ? (ko ? <>결과 줄에서 {code(change.from || '—', 'text-red-300')}을(를) {code(change.to || '—', 'text-emerald-200')}(으)로 고치고 Enter를 누르거나, A/B 적용으로 한쪽을 가져옵니다. 캔버스와 검사가 코드를 따라 바로 바뀝니다.</>
+        : <>In the result line, change {code(change.from || '—', 'text-red-300')} to {code(change.to || '—', 'text-emerald-200')} and press Enter — or take a whole side. The canvas and checks follow the code.</>)
+      : (ko ? '결과 줄을 고치고 Enter를 누릅니다.' : 'Edit the result line and press Enter.'),
+    ko ? '"수정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done" to go back to the conflict and request review.',
+  ]
+  return (
+    <div className={cn('pointer-events-none fixed inset-x-0 z-[540] flex justify-center px-4', low ? 'bottom-24' : 'top-[104px]')}>
+      <div data-merge-check-guide="code" className="pointer-events-auto w-[460px] max-w-full rounded-xl bg-[#1D1D1D] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
+        <div role="status" className={cn('flex min-w-0 items-start gap-2.5 rounded-xl p-3', fixed ? 'bg-emerald-400/10' : 'bg-amber-400/10')}>
+          {fixed ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-300" /> : <Code2 className="mt-0.5 size-4 shrink-0 text-amber-300" />}
+          <div className="min-w-0 flex-1">
+            <p className={cn('text-[11px] leading-4 font-medium', fixed ? 'text-emerald-200' : 'text-amber-200')}>{fixed ? (ko ? '코드 수정됨' : 'Fixed in code') : (ko ? '코드에서 수정할 항목' : 'What to fix in code')}</p>
+            <p className="mt-0.5 text-[13px] leading-5 font-medium break-words text-white"><LocalizedText text={conflict.title} /></p>
+          </div>
+          <button type="button" onClick={onClose} aria-label={ko ? '가이드 닫기' : 'Close guide'} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+            <X className="size-3.5" />
+          </button>
+        </div>
+        {/* The line as it is, and as the standard has it. */}
+        <div data-guide-code className="mx-3 mt-2.5 overflow-hidden rounded-lg bg-black/25 font-mono text-[11px] leading-5">
+          <p translate="no" className="truncate border-b border-white/[0.06] px-2.5 py-1 font-sans text-[10.5px] text-slate-400">{where}</p>
+          {(hand && !fixed ? hand : before).map((line, index) => <p key={`b${index}`} translate="no" className="truncate bg-red-500/[0.12] px-2.5 text-red-200"><span className="mr-2 select-none opacity-60">−</span>{line.trim()}</p>)}
+          {after.map((line, index) => <p key={`a${index}`} translate="no" className="truncate bg-emerald-500/[0.12] px-2.5 text-emerald-200"><span className="mr-2 select-none opacity-60">+</span>{line.trim()}</p>)}
+        </div>
+        <div className="px-3 pt-2.5 pb-3">
+          {!fixed && (
+            <ol data-guide-steps className="space-y-1 text-xs leading-[18px] text-slate-300">
+              {steps.map((step, index) => (
+                <li key={index} className="flex gap-2">
+                  <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[10.5px] font-semibold text-slate-200 tabular-nums">{index + 1}</span>
+                  <span className="min-w-0">{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className={cn('flex items-center gap-2', !fixed && 'mt-2.5')}>
+            {fixed && <span className="text-xs text-emerald-200">{ko ? '코드가 기준과 같아졌어요.' : 'The code now matches the standard.'}</span>}
+            {!fixed && onShowCode && (
+              <button type="button" data-guide-show-code onClick={onShowCode} className={cn(ACTION, ACTION_QUIET)}>
+                <Code2 className="size-3.5" />{ko ? '코드 병합 창 열기' : 'Open merge code'}
+              </button>
+            )}
+            <button
+              type="button"
+              data-guide-done
+              onClick={onFinish}
+              className={cn(ACTION, 'ml-auto h-8 px-3', fixed || changed ? 'bg-emerald-400 font-semibold text-emerald-950 hover:bg-emerald-300' : ACTION_QUIET)}
+            >
+              <Check className="size-3.5" />
+              {fixed || changed ? (ko ? '수정 완료' : 'Done') : (ko ? '충돌 내역으로 돌아가기' : 'Back to the conflict')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Merge Studio's side of the guide: the same note, floating over the
 // canvas, with the element marked — so arriving from the review's "Fix it"
 // says what to change here and when it's done. `checks` are the studio's
 // live ones, so the note turns to Fixed as soon as the check passes.
-export function MergeCheckGuide({ item, checks, low = false }) {
-  const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel, exitMergeStudio } = useWorkspace()
+// A developer fixes a conflict in its code: Merge Studio opens on the code
+// view and the guide names the line and the change — when the conflict has
+// code to change (not a merge conflict's markers).
+export const fixesInCode = (role, conflict) => role === 'Developer'
+  && Boolean(conflict?.fileId && conflict.diff?.after?.length) && !conflict.diff.before?.some((line) => /^<{7}/.test(line))
+
+// `manualCode`: the studio's code as written by hand, so the guide sees the
+// line change as it's typed. `onShowCode`: brings the Code view back up.
+export function MergeCheckGuide({ item, checks, low = false, manualCode = {}, onShowCode }) {
+  const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel, exitMergeStudio, viewerRole } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
   // For a conflict's item — or, with no conflict yet (drafts still being
   // mixed), for the item itself (`itemId`).
   const conflict = conflicts.find((c) => c.id === checkGuide.conflictId) ?? null
   if (conflict ? !(conflict.mergeItemId === item.id || item.conflictId === conflict.id) : checkGuide.itemId !== item.id) return null
+  if (fixesInCode(viewerRole, conflict)) {
+    return <CodeFixGuide conflict={conflict} manualCode={manualCode} low={low} ko={ko} onShowCode={onShowCode} onClose={() => setCheckGuide(null)} onFinish={() => {
+      setCheckGuide(null)
+      exitMergeStudio?.()
+      setBottomPanel({ open: true, tab: 'conflict' })
+      openConflictReview(conflict.id)
+    }} />
+  }
   // No check to fix: a precise adjustment by hand — the guide says how it
   // works and how to finish.
   const manual = !checkGuide.check
