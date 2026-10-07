@@ -751,6 +751,23 @@ button.editor-line-comment {
   color: #a7f3d0;
 }
 
+/* A softer, light-tinted toast for quiet confirmations (Review requested). */
+[data-sonner-toast].cn-toast.cn-toast-soft {
+  border-color: rgb(167 243 208 / 60%) !important;
+  background: rgb(236 253 245 / 96%) !important;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 28%) !important;
+}
+[data-sonner-toast].cn-toast.cn-toast-soft [data-title] { color: #065f46; }
+[data-sonner-toast].cn-toast.cn-toast-soft [data-description] { color: #4b6b5f; }
+[data-sonner-toast].cn-toast.cn-toast-soft [data-close-button] {
+  background: rgb(6 95 70 / 8%);
+  color: #065f46;
+}
+[data-sonner-toast].cn-toast.cn-toast-soft [data-close-button]:hover {
+  background: rgb(6 95 70 / 16%);
+  color: #064e3b;
+}
+
 /* Inline decision reasons enter without an extra card surface. */
 @keyframes ds-reason-enter {
   from { opacity: 0; transform: translateY(-4px); }

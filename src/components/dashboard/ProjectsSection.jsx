@@ -22,7 +22,7 @@ import { useConflictStore } from '@/state/ConflictStore'
 const typeOptions = ['All types', 'Has conflicts', 'No conflicts']
 const sortOptions = ['Last modified', 'Recently viewed', 'Name', 'Most conflicts']
 
-function ProjectsSection() {
+function ProjectsSection({ taskProject = null, onFilterTasks }) {
   const [view, setView] = useState('grid')
   const [projectList, setProjectList] = useState(() => [...seedProjects])
   const [createOpen, setCreateOpen] = useState(false)
@@ -202,6 +202,8 @@ function ProjectsSection() {
             selectable={selectMode}
             selected={selected.has(project.id)}
             onToggleSelect={toggleSelectOne}
+            taskFiltered={taskProject === project.id}
+            onFilterTasks={onFilterTasks}
           />
         ))}
       </div>

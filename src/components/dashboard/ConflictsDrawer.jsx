@@ -52,7 +52,7 @@ function ConflictsDrawer({ project }) {
       {visible.length === 0 ? (
         <p className="px-2.5 py-6 text-center text-xs text-slate-500"><LocalizedText text="No conflicts in this view." /></p>
       ) : (
-        <ul className="flex flex-col gap-0.5">
+        <ul className="flex flex-col gap-2">
           {visible.map((conflict) => {
             const task = taskFor(conflict)
             const due = shortDue(conflict.dueLabel)
@@ -64,20 +64,20 @@ function ConflictsDrawer({ project }) {
                   aria-current={selectedId === conflict.id ? 'true' : undefined}
                   onClick={() => openRow(conflict)}
                   className={cn(
-                    'flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-emerald-300 aria-[current=true]:bg-white/[0.08]',
+                    'group flex w-full min-w-0 cursor-pointer flex-col gap-1.5 rounded-xl px-3.5 py-3.5 text-left transition-colors hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-emerald-300 aria-[current=true]:bg-white/[0.08]',
                     !isOpen(conflict) && 'opacity-50'
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
-                    {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
+                    {!conflict.rollback && <ConflictTypeTag conflict={conflict} quiet />}
                   </span>
-                  <MismatchLabel conflict={conflict} className="truncate text-[11px] text-slate-400" />
-                  <span className="flex min-w-0 items-center gap-x-2 text-[11px] text-slate-500">
-                    <ListStatusLabel conflict={conflict} className="text-[11px] font-normal text-slate-300" />
+                  <MismatchLabel conflict={conflict} className="truncate text-[10.5px] text-slate-500" />
+                  <span className="flex min-w-0 items-center gap-x-2 text-[10.5px] text-slate-500">
+                    <ListStatusLabel conflict={conflict} className="text-[10.5px] font-normal text-slate-400" />
                     {due && <span className={cn('shrink-0', /overdue|today/i.test(conflict.dueLabel) && 'font-medium text-amber-300')}><LocalizedText text={due} /></span>}
                     {/* What's yours to do there, in the same words as everywhere. */}
-                    {task && <span data-task-action={task.kind} className="ml-auto shrink-0 font-medium text-emerald-300"><LocalizedText text={task.label} /></span>}
+                    {task && <span data-task-action={task.kind} className="ml-auto shrink-0 font-medium text-slate-400 transition-colors group-hover:text-emerald-300"><LocalizedText text={task.label} /></span>}
                   </span>
                 </button>
               </li>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import ProjectsSection from '@/components/dashboard/ProjectsSection'
 import MyTasks from '@/components/dashboard/MyTasks'
@@ -8,10 +9,12 @@ import MyTasks from '@/components/dashboard/MyTasks'
 // Opening a project lands on its overview. It replaces the separate All
 // projects page, which now redirects here.
 function DashboardPage() {
+  // A project card's "Review requests" chip filters My tasks to that project.
+  const [taskProject, setTaskProject] = useState(null)
   return (
     <DashboardLayout projectProportions>
-      <MyTasks />
-      <ProjectsSection />
+      <MyTasks projectId={taskProject} onClearProject={() => setTaskProject(null)} />
+      <ProjectsSection taskProject={taskProject} onFilterTasks={(id) => setTaskProject((current) => (current === id ? null : id))} />
     </DashboardLayout>
   )
 }

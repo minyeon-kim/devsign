@@ -276,6 +276,36 @@ export function taskGroups(conflicts, { isBlocked = () => false, userId } = {}) 
   return groups
 }
 
+// How a due date reads and how urgent it is: today, tomorrow and overdue
+// are "danger", up to 3 days out is "warn", the rest "muted" — each with its
+// own words ("Due today" / "Due tomorrow" / "D-3" / "D-7"), so the level is
+// never carried by color alone. Null when there's no due date.
+export function dueUrgency(conflict) {
+  const rank = dueRank(conflict)
+  if (!Number.isFinite(rank)) return null
+  if (rank < 0) return { level: 'danger', text: conflict.dueLabel }
+  if (rank === 0) return { level: 'danger', text: 'Due today' }
+  if (rank === 1) return { level: 'danger', text: 'Due tomorrow' }
+  return { level: rank <= 3 ? 'warn' : 'muted', text: `D-${rank}` }
+}
+
+// Which task leads the Dashboard, in this order:
+//   1. due within 24 hours (today, tomorrow, or already overdue);
+//   2. work already in progress (a `continue` or `merge` task);
+//   3. anything else — the one due soonest.
+// Within a tier: the soonest due first, then the original order.
+export const HERO_DUE_WINDOW = 1 // dueRank: 0 = today, 1 = tomorrow
+export function heroTier(entry) {
+  if (dueRank(entry.conflict) <= HERO_DUE_WINDOW) return 1
+  return entry.task.kind === 'continue' || entry.task.kind === 'merge' ? 2 : 3
+}
+export function byDue(a, b) {
+  return dueRank(a.conflict) - dueRank(b.conflict) || a.index - b.index
+}
+export function pickHero(entries) {
+  return [...entries].sort((a, b) => heroTier(a) - heroTier(b) || byDue(a, b))[0] ?? null
+}
+
 // Normalizes a raw conflict (a conflictChecklist item or a workspace
 // conflict point like paddingConflict) into the shared record.
 export function toConflictRecord(raw) {

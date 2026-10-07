@@ -26,11 +26,19 @@ const HEADER_TYPE_TONE = {
 }
 
 // What kind of conflict it is — the one tag of its kind on a row or header.
-export function ConflictTypeTag({ conflict, className, header = false }) {
+const QUIET_TYPE_TONE = {
+  rose: 'bg-rose-400/[0.08] text-rose-200/80',
+  violet: 'bg-violet-400/[0.08] text-violet-200/80',
+  amber: 'bg-amber-400/[0.08] text-amber-200/80',
+  sky: 'bg-sky-400/[0.08] text-sky-200/80',
+  slate: 'bg-white/[0.05] text-slate-300',
+}
+
+export function ConflictTypeTag({ conflict, className, header = false, quiet = false }) {
   const type = conflictTypeOf(conflict)
   if (!type) return null
   return (
-    <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', (header ? HEADER_TYPE_TONE : TYPE_TONE)[type.tone], className)}>
+    <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', (header ? HEADER_TYPE_TONE : quiet ? QUIET_TYPE_TONE : TYPE_TONE)[type.tone], className)}>
       <LocalizedText text={type.label} />
     </span>
   )

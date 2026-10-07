@@ -361,6 +361,14 @@ Nothing to do right now|지금 처리할 일이 없어요
 Needs a decision|결정 필요
 Approval requests|승인 요청
 A value has to be chosen|값을 골라야 해요
+A value has to be chosen before merging|값을 골라야 병합할 수 있어요
+Review requests|검토 요청
+Start review|검토하기
+Decide|결정
+Revert in progress|되돌리기 진행 중
+Resolution in progress|충돌 해결 진행 중
+No tasks in this project|이 프로젝트에 할 일이 없어요
+Clear filter|필터 해제
 Waiting for your approval|내 승인을 기다려요
 A reason is still needed|이유 입력이 남았어요
 The review request is still left|검토 요청이 남았어요

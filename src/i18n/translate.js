@@ -47,6 +47,7 @@ const rules = [
     const particle = last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)'
     return `${subject}${particle} ${size}로 ${resolved ? '조정해 해결됐어요' : '조정했어요'}`
   }],
+  [/^Request: (.+)$/, (_, name) => `요청: ${core(name)}`],
   [/^Requested by (.+)$/, (_, name) => `${core(name)} 님이 요청`],
   // ----- Sentences built around a name or a title -------------------------
   // Inbox events ("Alex approved the design changes on Hero CTA"), and the
