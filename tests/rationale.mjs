@@ -23,12 +23,6 @@ try {
   const newSource = { kind: 'token', label: 'new.token', source: 'tokens.json' }
   const stepWithSource = stepRationale({ kind: 'ai-edit', evidence: [newSource] }, current, rationale)
   assert.deepEqual(mergeEvidence(rationale.evidence, stepWithSource.evidence).slice(rationale.evidence.length), [newSource])
-  const { exceptionDraftOf, exceptionReasonText } = await server.ssrLoadModule('/src/components/conflicts/ExceptionRequestDialog.jsx')
-  const reasons = ['First', 'Second']
-  const exceptionDraft = exceptionDraftOf('Second · typed by hand', reasons)
-  assert.deepEqual(exceptionDraft, { picked: ['Second'], typed: 'typed by hand' })
-  assert.equal(exceptionReasonText({ picked: ['Second', 'First'], typed: '  own  ' }, reasons), 'First · Second · own')
-  assert.equal(exceptionReasonText({ picked: [], typed: '   ' }, reasons), '', 'nothing chosen or typed is no reason')
   const { createElement } = await import('react')
   const { renderToStaticMarkup } = await import('react-dom/server')
   const { DecisionSummary } = await server.ssrLoadModule('/src/components/conflicts/Rationale.jsx')

@@ -71,7 +71,6 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
-import { ExceptionRequestDialog, exceptionDraftOf } from '@/components/conflicts/ExceptionRequestDialog'
 import { BaselineBadge, ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
@@ -818,7 +817,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     : text === field.expected || String(field.expected).toLowerCase().includes(String(text).toLowerCase()) ? 'text-emerald-200'
       : text === field.current ? 'text-red-300' : 'text-slate-100')
   const swatchIn = (text) => /#[0-9a-fA-F]{3,8}\b/.exec(text ?? '')?.[0]
-  const reasonCount = (flow?.reason?.value ?? '').split(' · ').filter(Boolean).length
   // The required rules each way would break — never "can't merge": going
   // that way needs the reviewers' exception approval, asked for with a
   // reason. (Said once, under the cards, for the way that's chosen.)
@@ -858,21 +856,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
 
   return (
     <div className="flex h-full flex-col">
-      {pairedPreview && editing && flow.decide && (
-        <div data-decide-bar className="mb-3 flex min-w-0 flex-wrap items-center gap-2 border-b border-white/[0.07] pb-3">
-          <p data-decide-summary className="min-w-0 flex-1 basis-40 text-xs text-slate-300">
-            {chosen ? <>
-              <span className="font-medium text-white"><LocalizedText text={chosen.title} /></span>
-              {exception && <><span className="text-slate-500"> · </span><LocalizedText text="Exception request" /></>}
-              {flow.reason && !flow.reason.modal && reasonCount > 0 && <><span className="text-slate-500"> · </span><LocalizedText text={`${reasonCount} reason${reasonCount === 1 ? '' : 's'}`} /></>}
-            </> : <LocalizedText text="Nothing chosen yet" />}
-          </p>
-          {flow.decide.blocked && <p data-decide-hint className="text-[11px] text-slate-400"><LocalizedText text={flow.decide.blocked} /></p>}
-          <button type="button" data-decide disabled={!choice || Boolean(flow.decide.blocked)} onClick={flow.decide.run} className={REQUEST_REVIEW_BUTTON}>
-            <LocalizedText text={!choice ? 'Decide on this' : exception ? 'Send exception request' : choice === 'A' ? 'Apply design reference' : choice === 'B' ? 'Decide to keep the current value' : 'Apply the adjusted value'} />
-          </button>
-        </div>
-      )}
       {/* ① The section's title: what to do here — fixed while choosing,
           the outcome once decided — then how it stands with the rules. */}
       {pairedPreview && flow && !readOnly && (
@@ -886,7 +869,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className="text-slate-400">{flow.ruleStatus.required && <TriangleAlert aria-hidden className="mr-1 inline size-3 -translate-y-px text-amber-300" />}<LocalizedText text={flow.ruleStatus.text} /></span></>}
             {(flow.decided || !flow.ruleStatus) && !flow.exceptionSent && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
           </p>
-          {flow.exceptionSent && <button type="button" disabled className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request sent" /></button>}
           {flow.canChange && (
             <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
               <LocalizedText text="Change decision" />
@@ -1106,7 +1088,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && editing && (exception || !flow.reason.modal) && (
+              {flow?.reason && editing && (
                 <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
                   {exception && editing && (
                     // The one loud place: what going this way needs. What
@@ -1128,7 +1110,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       </p>
                     </div>
                   )}
-                  {!(flow.reason.modal && editing) && <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />}
+                  <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
                 </div>
               )}
               {/* ③ The code, in full, once: for the way that's chosen — or,
@@ -1990,7 +1972,9 @@ const REVIEW_MARK = {
 // off (their avatars, each marked with where they stand — hover for the
 // name, role, status and when), the line that says where it stands, and
 // the one action that state calls for:
-//   · not requested — send the review request;
+//   · not requested — send the review request: the review's one filled
+//                     button, which settles the choice and asks for review
+//                     in one go, named after the way that's chosen;
 //   · waiting       — remind whoever hasn't answered;
 //   · yours         — request changes, or approve (each asks for a comment
 //                     in a popover under its button; a change request
@@ -2094,7 +2078,13 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
       </p>
       <div data-approval-actions className="flex shrink-0 items-center gap-2">
         {mode === 'idle' && request && (
-          <button type="button" data-approval-request disabled={request.disabled} title={request.hint ? tr(request.hint) : undefined} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Send review request" /></button>
+          // (Disabled, it still says why on hover: the wrapper takes the pointer.)
+          <Tooltip>
+            <TooltipTrigger render={<span data-approval-request-wrap className="inline-flex" />}>
+              <button type="button" data-approval-request data-choice-label={request.label ?? 'Send review request'} disabled={request.disabled} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text={request.label ?? 'Send review request'} /></button>
+            </TooltipTrigger>
+            {request.hint && <TooltipContent side="bottom" align="end"><LocalizedText text={request.hint} /></TooltipContent>}
+          </Tooltip>
         )}
         {mode === 'waiting' && waiting.length > 0 && onUpdate && (
           <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
@@ -2155,16 +2145,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
   const [reasonRequest, setReasonRequest] = useState(null)
   const [exceptionReasonDraft, setExceptionReasonDraft] = useState('')
-  // The card flow's exception request: asked for in a dialog. What's been
-  // entered is kept per conflict (and way chosen), so closing the dialog
-  // and opening it again finds it as it was left.
-  const [exceptionOpen, setExceptionOpen] = useState(false)
-  const [exceptionDrafts, setExceptionDrafts] = useState({})
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
     setReplayId(null)
-    setExceptionOpen(false)
   }
 
   function update(patch) {
@@ -2552,16 +2536,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const flowReason = choice === 'C' ? {
     title: 'Why was it adjusted?',
     hint: 'Required',
-    modal: true,
     reasons: ADJUSTMENT_REASONS,
     value: conflict.adjustmentReason?.text ?? '',
     onChange: (text) => update({ adjustmentReason: text ? { text, by: viewerId, at: 'Just now' } : null }),
   } : choice === 'B' ? {
     title: broken.length ? 'Reason for the exception request' : 'Why depart from the standard?',
     hint: broken.length ? 'Required · choose all that apply' : 'Required',
-    // (A reason is asked in a dialog, on pressing the decision's button —
-    // never as a field on the review itself.)
-    modal: true,
     reasons: DEVIATION_REASONS,
     value: reasonOf('keep-current'),
     onChange: (text) => update({ deviation: text ? { kind: 'keep-current', text, by: viewerId, at: 'Just now' } : null }),
@@ -2569,20 +2549,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     // (Both sides break it: following the reference still needs one.)
     title: 'Reason for the exception request',
     hint: 'Required · choose all that apply',
-    modal: true,
     reasons: DEVIATION_REASONS,
     value: reasonOf('exception'),
     onChange: (text) => update({ deviation: text ? { kind: 'exception', text, by: viewerId, at: 'Just now' } : null }),
   } : null
-  if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.modal && !flowReason.value.trim()
-  const exceptionKey = conflict ? `${conflict.id}:${choice}` : null
-  const exceptionDraft = exceptionDrafts[exceptionKey] ?? exceptionDraftOf(flowReason?.modal ? flowReason.value : '', flowReason?.reasons ?? DEVIATION_REASONS)
-  // What the exception is asked for: each compared value against the
-  // standard's, else the checks it breaks.
-  const exceptionViolations = !flowReason?.modal || !broken.length ? []
-    : choice !== 'C' && (conflict.comparisonFields ?? []).some((field) => field.current !== field.expected)
-      ? conflict.comparisonFields.filter((field) => field.current !== field.expected).map((field) => ({ label: field.label, from: field.current, to: field.expected }))
-      : broken.map((check) => ({ label: check.title }))
+  if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.value.trim()
   // The decision, settled: review is requested — and, breaking a required
   // rule, the exception is asked for with it (`reason` is the one given).
   function finishDecision(reason = '', { quiet = false } = {}) {
@@ -2598,18 +2569,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${reason}`, { conflictId: conflict.id })
     }
     handleRequestReview({ quiet })
-  }
-  // Sent from the reason dialog: the reason is kept, then the decision is
-  // settled, in one go. (Throws if it can't be sent — the dialog stays, as
-  // entered.)
-  async function sendException(reason) {
-    await new Promise((resolve) => window.setTimeout(resolve, 500))
-    if (!onUpdate) throw new Error('This conflict can’t be updated')
-    flowReason.onChange(reason)
-    finishDecision(reason, { quiet: broken.length > 0 })
-    setExceptionOpen(false)
-    setExceptionDrafts((drafts) => { const next = { ...drafts }; delete next[exceptionKey]; return next })
-    if (broken.length) toast('Exception request sent')
   }
   // One number of the element's own is set on the third card itself.
   const valueControl = cardFlow && mergeItem && workspace?.setLayerAdjustments ? valueControlFor(conflict, mergeItem) : null
@@ -2649,15 +2608,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     reason: flowReason,
     changeDecision: () => update({ reviewStage: 'detected', exceptionChecks: [], customChosen: adjustedByHand, reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
     decide: {
-      // A way that needs a reason asks for it first, in its dialog; the
-      // dialog's own button settles the decision.
-      run: () => {
-        if (flowReason?.modal) { setExceptionOpen(true); return }
-        finishDecision()
-      },
+      // The chosen way and its reason (entered under the cards) are on
+      // the conflict already: this sends them for review, in one go.
+      run: () => finishDecision(flowReason?.value ?? ''),
       blocked: !choice ? null
         : choice === 'C' && !adjustedByHand ? 'Set a value first'
-          : decisionState.reasonNeeded ? 'Choose at least one reason'
+          : decisionState.reasonNeeded ? (choice === 'B' ? 'Enter why you’re keeping it' : choice === 'C' ? 'Enter why it was adjusted' : 'Enter the reason for the exception')
           : !requiredReviewers(conflict).length ? 'Assign a reviewer other than the author to request review.' : null,
     },
   } : conflict ? { editing: stage !== 'resolved', openStudio } : null
@@ -2754,7 +2710,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       onUpdate={onUpdate ? update : undefined}
       onDismiss={workspace?.dismissChangeRequest}
       request={!onUpdate ? null : cardFlow
-        ? { run: flow.decide.run, disabled: !choice || Boolean(flow.decide.blocked), hint: !choice ? 'Choose how to resolve it first' : flow.decide.blocked }
+        ? {
+          run: flow.decide.run,
+          disabled: !choice || Boolean(flow.decide.blocked),
+          hint: !choice ? 'Choose how to resolve it first' : flow.decide.blocked,
+          label: choice === 'A' ? 'Request review with the design reference' : choice === 'B' ? 'Request review keeping the current value' : choice === 'C' ? 'Request review with the adjusted value' : 'Send review request',
+        }
         : { run: handleRequestReview, disabled: !requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest) }}
       revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
       onReview={handleReview}
@@ -3002,23 +2963,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </form>
           </DialogContent>
         </Dialog>
-        {conflict && flowReason?.modal && (
-          <ExceptionRequestDialog
-            open={exceptionOpen}
-            onOpenChange={setExceptionOpen}
-            conflict={conflict}
-            violations={exceptionViolations}
-            title={broken.length ? 'Send exception request' : choice === 'C' ? 'Apply the adjusted value' : 'Decide to keep the current value'}
-            reasonTitle={flowReason.title}
-            hint={flowReason.hint}
-            submitLabel={broken.length ? 'Send request' : 'Request review'}
-            reasons={flowReason.reasons}
-            draft={exceptionDraft}
-            onDraftChange={(draft) => setExceptionDrafts((drafts) => ({ ...drafts, [exceptionKey]: draft }))}
-            onSend={sendException}
-            finalFocus={() => document.querySelector('[data-decide]') ?? true}
-          />
-        )}
         <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
 
     </div>

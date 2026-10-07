@@ -387,7 +387,13 @@ Send review request|검토 요청 보내기
 Remind again|다시 알리기
 Approve it|승인하기
 Fix and request again|수정하고 다시 요청
-Choose how to resolve it first|먼저 해결 방법을 선택하세요
+Choose how to resolve it first|해결 방법을 먼저 선택하세요
+Request review with the design reference|디자인 기준으로 검토 요청
+Request review keeping the current value|현재 값 유지로 검토 요청
+Request review with the adjusted value|조정한 값으로 검토 요청
+Enter why you’re keeping it|유지하는 이유를 입력하세요
+Enter why it was adjusted|조정한 이유를 입력하세요
+Enter the reason for the exception|예외 요청 이유를 입력하세요
 Resolve the failing checks before merging.|실패한 검사를 해결해야 병합할 수 있어요.
 Merge Conflict|병합 충돌
 Type|유형
