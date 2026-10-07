@@ -755,6 +755,13 @@ No matching checkpoints.|일치하는 체크포인트가 없습니다.
 — every other checkpoint is filtered out of this playback.|— 나머지 체크포인트는 이 재생에서 제외됩니다.
 Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. 히스토리에서 종류나 파일로 걸러 볼 수 있습니다.
 Compare latest|최신 버전과 비교
+Adjust more in Merge Studio|병합 스튜디오에서 더 조정
+Adjust in Merge Studio|병합 스튜디오에서 조정
+Compare in Merge Studio|병합 스튜디오에서 비교
+Merge Studio help|병합 스튜디오 도움말
+Drafts are compared and mixed in Merge Studio — this shows what’s picked.|시안 비교와 조합은 병합 스튜디오에서 하며, 여기에는 선택한 내용이 표시됩니다.
+Adjust the design in Merge Studio. This doesn't approve or merge the change.|병합 스튜디오에서 디자인을 조정합니다. 변경을 승인하거나 병합하지는 않습니다.
+Merge Studio couldn't open this.|병합 스튜디오에서 열 수 없습니다.
 Merge Studio|병합 스튜디오
 Notifications|알림
 Original Design|원본 디자인

@@ -1328,7 +1328,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, lines: sides.local },
                       { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, lines: sides.remote },
                     ] : []),
-                    { id: 'both', title: 'Apply both', note: 'Suggested', lines: conflict.diff.after ?? [] },
+                    { id: 'both', title: 'Apply both', note: 'Suggested', plain: true, lines: conflict.diff.after ?? [] },
                   ]
                   const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
                   return <>
@@ -1341,7 +1341,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                               <span aria-hidden className={cn('flex size-3.5 shrink-0 items-center justify-center rounded-full border', on ? 'border-[#5EEAB5] bg-[#5EEAB5] text-[#06281D]' : 'border-white/25')}>{on && <Check className="size-2.5" strokeWidth={3} />}</span>
                               <span className="min-w-0 truncate"><LocalizedText text={option.title} /></span>
                             </span>
-                            {option.note && <span translate="no" className="min-w-0 truncate pl-5 font-mono text-[11px] text-slate-400">{option.note}</span>}
+                            {option.note && (option.plain
+                              ? <span className="min-w-0 truncate pl-5 text-[11px] text-slate-400"><LocalizedText text={option.note} /></span>
+                              : <span translate="no" className="min-w-0 truncate pl-5 font-mono text-[11px] text-slate-400">{option.note}</span>)}
                           </button>
                         )
                       })}
