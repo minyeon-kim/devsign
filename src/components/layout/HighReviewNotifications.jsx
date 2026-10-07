@@ -21,7 +21,7 @@ const NAV_REQUEST_BODY = 'Nav Icon / Size · 아이콘을 24px로 키운 디자�
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, restartConflict } = useWorkspace()
+  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, openConflictFromNotification, restartConflict } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -116,7 +116,7 @@ export default function HighReviewNotifications() {
             // The walkthrough's way in: its conflict starts from before the
             // review every time (opening it from the list shows it as it
             // stands).
-            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { const id = isNav ? 'cc-4' : 'cc-11'; setRequestDismissed(true); exitMergeStudio(); restartConflict(id); openConflictReview(id); setBottomPanel({ tab: 'conflict', open: true }) } },
+            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { const id = isNav ? 'cc-4' : 'cc-11'; setRequestDismissed(true); exitMergeStudio(); restartConflict(id); openConflictFromNotification(id) } },
           ]}
         />
       )}

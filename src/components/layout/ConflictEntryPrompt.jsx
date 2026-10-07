@@ -62,7 +62,7 @@ function decide(conflicts, viewerId, seen) {
 }
 
 export function useConflictEntryPrompt() {
-  const { conflicts, projectId, mergeDrawer, setBottomPanel, openConflictReview } = useWorkspace()
+  const { conflicts, projectId, mergeDrawer, openConflictFromNotification } = useWorkspace()
   const { pathname } = useLocation()
   const onWorkspace = /\/workspace\/?$/.test(pathname)
   const viewerId = currentUserFor(projectId).id
@@ -101,8 +101,7 @@ export function useConflictEntryPrompt() {
 
   function open(conflictId) {
     close()
-    setBottomPanel({ tab: 'conflict', open: true })
-    openConflictReview(conflictId)
+    openConflictFromNotification(conflictId)
   }
 
   // The Inbox open over the same spot already lists what's waiting.

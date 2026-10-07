@@ -75,6 +75,19 @@ function AppShell({ topBar, project, children }) {
       workspace.setBottomPanel({ open: false })
     }
   }
+  // A notification about a conflict opens this drawer (WorkspaceProvider's
+  // `openConflictFromNotification`) — the bottom panel's list folds, as when
+  // the drawer is opened by hand.
+  const { conflictDrawerRequest } = workspace ?? {}
+  const [handledConflictRequest, setHandledConflictRequest] = useState(null)
+  if (conflictDrawerRequest && conflictDrawerRequest !== handledConflictRequest) {
+    setHandledConflictRequest(conflictDrawerRequest)
+    setDrawer('conflicts')
+    if (panelListOpen) {
+      setWasPanelListOpen(false)
+      workspace.setBottomPanel({ open: false })
+    }
+  }
   const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
 
   return (

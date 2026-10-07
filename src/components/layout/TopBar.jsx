@@ -54,7 +54,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
-  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictReview, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictReview, openConflictFromNotification, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
   if (activeView === 'mergeStudio') return null
 
@@ -109,8 +109,7 @@ function TopBar({ project }) {
             setMergeDrawer(null)
             if (destination.conflictId) {
               exitMergeStudio()
-              setBottomPanel({ tab: 'conflict', open: true })
-              openConflictReview(destination.conflictId)
+              openConflictFromNotification(destination.conflictId)
               return
             }
             requestMergeFocus(destination.mergeTarget)

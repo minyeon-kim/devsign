@@ -360,6 +360,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // deep in the tree (Merge Studio's "Version history" link) — observed by
   // AppShell, which owns the drawer itself. See `requestHistoryDrawer`.
   const [historyDrawerRequest, setHistoryDrawerRequest] = useState(null)
+  // The same for the Activity Bar's Conflicts drawer: a notification about a
+  // conflict (a review request, an Inbox item) opens it there — the list in
+  // the left sidebar with the review over the work area — never the bottom
+  // panel's list. See `openConflictFromNotification`.
+  const [conflictDrawerRequest, setConflictDrawerRequest] = useState(null)
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
@@ -484,6 +489,14 @@ export function WorkspaceProvider({ children, projectId }) {
     const draft = mergeDrafts.current[itemId] ?? {}
     saveMergeDraft(itemId, { ...draft, assemblies })
   }, [studioDecisions, saveMergeDraft])
+  // The same for code written by hand (`fileId:line` → text) — what Merge
+  // Studio's code view edits, and what the review's direct adjustment
+  // writes a value into.
+  const setManualCode = useCallback((itemId, manualCode) => {
+    if (studioDecisions?.itemId === itemId && studioDecisions.setManualCode) return studioDecisions.setManualCode(manualCode)
+    const draft = mergeDrafts.current[itemId] ?? {}
+    saveMergeDraft(itemId, { ...draft, manualCode })
+  }, [studioDecisions, saveMergeDraft])
   // Baseline moves only in the shared final merge operation, never on AI edits.
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
@@ -596,6 +609,15 @@ export function WorkspaceProvider({ children, projectId }) {
   const requestHistoryDrawer = useCallback(() => {
     setHistoryDrawerRequest({ nonce: nextId('history-drawer') })
   }, [])
+  // Every notification's way into a conflict: the sidebar's Conflicts
+  // drawer (AppShell opens it, folding the bottom panel's list) and the
+  // conflict's review in the full-screen viewer, as a row of that drawer
+  // opens it.
+  const openConflictFromNotification = useCallback((id) => {
+    if (!id) return
+    setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
+    openConflictReview(id, { view: 'overlay' })
+  }, [openConflictReview])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     setNotifications((prev) => {
@@ -771,7 +793,7 @@ export function WorkspaceProvider({ children, projectId }) {
     // What was picked or set by hand for it (its merge draft) goes first:
     // changing a draft touches the review's stage, set last below.
     const draft = conflict.mergeItemId ? mergeDrafts.current[conflict.mergeItemId] : null
-    if (draft) saveMergeDraft(conflict.mergeItemId, { ...draft, resolutions: {}, assemblies: {} })
+    if (draft) saveMergeDraft(conflict.mergeItemId, { ...draft, resolutions: {}, assemblies: {}, manualCode: {} })
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c,
       reviewStage: 'detected',
@@ -784,6 +806,8 @@ export function WorkspaceProvider({ children, projectId }) {
       decidedBy: null,
       customChosen: false,
       stashedAssemblies: null,
+      stashedCode: null,
+      handValues: null,
       deviation: null,
       adjustmentReason: null,
       exceptionChecks: [],
@@ -2174,6 +2198,7 @@ export function WorkspaceProvider({ children, projectId }) {
     decideDrift,
     setStudioDecisions,
     setLayerAdjustments,
+    setManualCode,
     draftVersion,
     conflictChecks,
     linesOfFile,
@@ -2205,6 +2230,8 @@ export function WorkspaceProvider({ children, projectId }) {
     canvasFocus,
     historyDrawerRequest,
     requestHistoryDrawer,
+    conflictDrawerRequest,
+    openConflictFromNotification,
     mergePreviewOpen,
     setMergePreviewOpen,
     followingMe,

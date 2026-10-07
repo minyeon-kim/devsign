@@ -116,6 +116,161 @@ export function valueControlsFor(conflict, item) {
   })
 }
 
+// ─── Every other compared value, set in the code ───────────────────────
+// A value that isn't one of the element's own numbers (an icon's size in a
+// tab bar, a gap, a stroke, letter spacing, a color) is set by writing it
+// into the conflict's code lines — the code is what merges, and Merge
+// Studio's code view edits the same lines (its `manualCode`). Each kind
+// knows the one token in the line that says it: how to write a value as
+// that token and how to read the token back. A value that is exactly one
+// side's is written the way that side writes it (its token, or none).
+const scaleToken = (prefix) => (value) => {
+  const px = numbersIn(value)[0]
+  if (px == null) return null
+  return px % 2 === 0 ? `${prefix}-${px / 4}` : `${prefix}-[${px}px]`
+}
+const scaleValue = (prefix) => (token) => {
+  const match = new RegExp(`^${prefix}-(?:\\[([\\d.]+)px\\]|([\\d.]+))$`).exec(token)
+  return match ? `${match[1] ?? Number(match[2]) * 4}px` : null
+}
+const HEX = /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3})\b/i
+const TRACKING = [['tighter', '-0.05em'], ['tight', '-0.025em'], ['normal', '0em'], ['wide', '0.025em'], ['wider', '0.05em'], ['widest', '0.1em']]
+const em = (value) => /(-?[\d.]+)em/.exec(String(value))?.[1]
+export const FIELD_KINDS = [
+  { id: 'radius', test: /radius|corner/i, type: 'number', unit: 'px', min: 0, max: 64, step: 1, preview: 'radius', pattern: CLASS.radius,
+    toCode: (value) => { const px = numbersIn(value)[0]; return px == null ? null : RADII.find((token) => token.px === px)?.name ?? `rounded-[${px}px]` },
+    fromCode: (token) => (/\[([\d.]+)px\]/.exec(token)?.[1] ?? RADII.find((entry) => entry.name === token)?.px) != null ? `${/\[([\d.]+)px\]/.exec(token)?.[1] ?? RADII.find((entry) => entry.name === token)?.px}px` : null },
+  { id: 'iconSize', test: /icon size|^size$/i, type: 'number', unit: 'px', min: 8, max: 96, step: 1, preview: 'size', pattern: CLASS.size, toCode: scaleToken('size'), fromCode: scaleValue('size') },
+  { id: 'gap', test: /gap|spacing/i, type: 'number', unit: 'px', min: 0, max: 64, step: 1, preview: 'gap', pattern: /(?<![\w-])gap-(?:\[[^\]]+\]|[\d.]+)(?=[\s"'`])/, toCode: scaleToken('gap'), fromCode: scaleValue('gap') },
+  { id: 'height', test: /height/i, type: 'number', unit: 'px', min: 16, max: 96, step: 1, preview: 'height', pattern: CLASS.height, toCode: (value) => (numbersIn(value)[0] == null ? null : `h-[${numbersIn(value)[0]}px]`), fromCode: scaleValue('h') },
+  { id: 'width', test: /width/i, type: 'number', unit: 'px', min: 16, max: 640, step: 1, preview: 'width', pattern: CLASS.width, toCode: (value) => (numbersIn(value)[0] == null ? null : `w-[${numbersIn(value)[0]}px]`), fromCode: scaleValue('w') },
+  // (An attribute, not a class: written before the tag's end. Lucide's
+  // default is 2 — no attribute reads as that.)
+  { id: 'stroke', test: /stroke/i, type: 'number', unit: '', min: 0.5, max: 4, step: 0.25, preview: 'stroke', attribute: true, empty: '2', pattern: /\s+strokeWidth=\{[\d.]+\}/,
+    toCode: (value) => { const n = numbersIn(value)[0]; return n == null ? null : n === 2 ? '' : `strokeWidth={${n}}` },
+    fromCode: (token) => /\{([\d.]+)\}/.exec(token)?.[1] ?? null },
+  { id: 'tracking', test: /tracking|letter/i, type: 'choice', preview: 'letterSpacing', empty: 'normal', pattern: /(?<![\w-])tracking-(?:\[[^\]]+\]|tighter|tight|normal|wide|wider|widest)(?=[\s"'`])/,
+    options: TRACKING.map(([name, value]) => (name === 'normal' ? 'normal' : `${value} (tracking-${name})`)),
+    toCode: (value) => {
+      if (/^normal$/i.test(String(value).trim())) return ''
+      const named = /tracking-(\w+)/.exec(value)?.[1] ?? TRACKING.find(([, amount]) => amount === `${em(value)}em`)?.[0]
+      return named ? (named === 'normal' ? '' : `tracking-${named}`) : em(value) != null ? `tracking-[${em(value)}em]` : null
+    },
+    fromCode: (token) => { const name = token.slice('tracking-'.length); const amount = TRACKING.find(([n]) => n === name)?.[1] ?? /\[([^\]]+)\]/.exec(token)?.[1]; return name === 'normal' ? 'normal' : amount ? `${amount} (${token})` : null },
+    previewValue: (value) => (/^normal$/i.test(String(value).trim()) ? 'normal' : `${em(value) ?? 0}em`) },
+  { id: 'border', test: /divider|border/i, type: 'color', preview: 'divider', pattern: /(?<![\w-])border-(?:\[#[^\]]+\]|[a-z]+-\d{2,3}|border)(?=[\s"'`])/,
+    toCode: (value) => (HEX.exec(value) ? `border-[${HEX.exec(value)[0]}]` : /^[a-z]+-\d{2,3}$/.test(String(value).trim()) ? `border-${String(value).trim()}` : null),
+    fromCode: (token) => /\[(#[^\]]+)\]/.exec(token)?.[1] ?? (token === 'border-border' ? 'border (token)' : token.slice('border-'.length)) },
+  { id: 'fill', test: /background|fill|colou?r/i, type: 'color', preview: 'background', pattern: CLASS.fill,
+    toCode: (value) => (HEX.exec(value) ? `bg-[${HEX.exec(value)[0]}]` : null),
+    fromCode: (token) => /\[(#[^\]]+)\]/.exec(token)?.[1] ?? token.slice('bg-'.length) },
+]
+// Anything else (a hit area the line doesn't spell, a prop's wording) is
+// still set — as text, kept on the conflict — but has no token to write.
+const TEXT_KIND = { id: 'text', type: 'text' }
+export const fieldKindOf = (field) => FIELD_KINDS.find((kind) => kind.test.test(field?.label ?? '')) ?? TEXT_KIND
+
+const tokenIn = (lines, kind) => ((lines ?? []).join('\n').match(kind.pattern)?.[0] ?? '').trim()
+
+// What a compared value reads as in `lines` (the side's own wording when
+// the token is that side's), or null when the kind can't tell.
+export function readFieldValue(conflict, lines, field) {
+  const kind = fieldKindOf(field)
+  if (!kind.pattern || !lines) return null
+  const token = tokenIn(lines, kind)
+  if (token === tokenIn(conflict.diff?.before, kind)) return field.current
+  if (token === tokenIn(conflict.diff?.after, kind)) return field.expected
+  return token ? kind.fromCode(token) ?? token : kind.empty ?? null
+}
+
+// `lines` with a compared value written in (unchanged when the kind can't
+// write it).
+export function writeFieldValue(conflict, lines, field, value) {
+  const kind = fieldKindOf(field)
+  if (!kind.pattern) return lines
+  const sideLines = value === field.expected ? conflict.diff?.after : value === field.current ? conflict.diff?.before : null
+  const token = sideLines ? tokenIn(sideLines, kind) : kind.toCode(value)
+  if (token == null) return lines
+  const tidy = (line) => line.replace(/className="([^"]*)"/, (_, classes) => `className="${classes.replace(/\s+/g, ' ').trim()}"`)
+  const at = lines.findIndex((line) => kind.pattern.test(line))
+  if (at >= 0) return lines.map((line, index) => (index === at ? tidy(line.replace(kind.pattern, kind.attribute ? (token ? ` ${token}` : '') : token)) : line))
+  if (!token) return lines
+  if (kind.attribute) {
+    const host = lines.findIndex((line) => /\s*\/?>\s*$/.test(line))
+    return host < 0 ? lines : lines.map((line, index) => (index === host ? line.replace(/\s*(\/?>)\s*$/, ` ${token} $1`) : line))
+  }
+  return putClass(lines, kind.pattern, token)
+}
+
+// The written-in value as the preview draws it (null: leave the side's).
+function previewValueOf(conflict, field, value) {
+  const kind = fieldKindOf(field)
+  if (!kind.preview || value == null) return null
+  if (kind.preview === 'divider') return value === field.expected ? { themeSide: 'after' } : HEX.exec(value) ? { color: HEX.exec(value)[0] } : null
+  const side = value === field.expected ? conflict.preview?.after : value === field.current ? conflict.preview?.before : null
+  if (side && kind.preview in side) return side[kind.preview]
+  if (kind.previewValue) return kind.previewValue(value)
+  if (kind.type === 'color') return HEX.exec(value)?.[0] ?? null
+  return numbersIn(value)[0] ?? null
+}
+
+// Every compared value's editor on the third card: the element's own
+// numbers as before (`valueControlsFor`, set on the element), and every
+// other value by its kind (set in the code).
+//   { index, mode: 'layer' | 'code' | 'text', type, unit, min, max, step,
+//     options, label, current, standard }
+export function fieldControlsFor(conflict, item) {
+  const own = item ? valueControlsFor(conflict, item) : []
+  return (conflict?.comparisonFields ?? []).map((field, index) => {
+    if (own[index]) return { ...own[index], mode: 'layer', type: 'number', unit: 'px', step: 1 }
+    const kind = fieldKindOf(field)
+    const writable = Boolean(kind.pattern && conflict.diff)
+    return {
+      index,
+      mode: writable ? 'code' : 'text',
+      kind: kind.id,
+      type: writable ? kind.type : 'text',
+      unit: kind.unit ?? '',
+      min: kind.min ?? 0,
+      max: kind.max ?? 9999,
+      step: kind.step ?? 1,
+      label: field.label,
+      current: field.current,
+      standard: field.expected,
+      options: [...new Set([field.current, field.expected, ...(kind.options ?? [])])],
+    }
+  })
+}
+
+// The conflict's lines as written by hand (Merge Studio's code view, or the
+// third card writing a value), keyed `fileId:line` — null when none is.
+// Indented as the conflict's own lines are, so only what was changed differs.
+export function handLinesOf(conflict, manualCode) {
+  const before = conflict?.diff?.before
+  if (!before?.length || !conflict.fileId || !manualCode) return null
+  const keys = before.map((_, index) => `${conflict.fileId}:${(conflict.line ?? 1) + index}`)
+  if (!keys.some((key) => manualCode[key] != null)) return null
+  return before.map((line, index) => {
+    const text = manualCode[keys[index]]
+    return text == null ? line : `${/^\s*/.exec(line)[0]}${text.trimStart()}`
+  })
+}
+
+// `manualCode` with the conflict's lines set to `lines` (a line that's back
+// to the conflict's own is dropped). `fileLines`: the file, for its indent.
+export function withHandLines(conflict, manualCode = {}, lines, fileLines = []) {
+  const before = conflict.diff?.before ?? []
+  const next = { ...manualCode }
+  before.forEach((line, index) => {
+    const number = (conflict.line ?? 1) + index
+    const key = `${conflict.fileId}:${number}`
+    const text = lines?.[index]
+    if (text == null || text.trim() === line.trim()) delete next[key]
+    else next[key] = `${/^\s*/.exec(fileLines[number - 1] ?? line)[0]}${text.trimStart()}`
+  })
+  return next
+}
+
 // What two versions of the code differ by, as the values themselves
 // ("h-9" → "h-10") — a card's one-line code result.
 export function codeChangeOf(before = [], after = []) {
@@ -128,7 +283,10 @@ export function codeChangeOf(before = [], after = []) {
 // implementation). `assembly`: what was set by hand on the conflict's own
 // element. `adjustments`: everything set by hand on the item (lib/
 // sizeAdjustment's studioAdjustmentsOf), for the values this can't place.
-export function mergeResultOf(conflict, item, side, { assembly = null, adjustments = [] } = {}) {
+// `handLines`: the conflict's lines as written by hand (see handLinesOf) —
+// they stand in for the side's. `handValues`: values set as text for what
+// the code doesn't spell ({ [label]: text }).
+export function mergeResultOf(conflict, item, side, { assembly = null, adjustments = [], handLines = null, handValues = null } = {}) {
   if (!conflict) return null
   const which = side === 'A' ? 'after' : 'before'
   const layer = layerOf(item, conflict.layerId)
@@ -149,6 +307,7 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
     const property = propertyOf(field.label)
     const numbers = numbersIn(base)
     let to = null
+    let written = false
     if (property === 'height' && height != null && (set.heightToken || isLayers(field, 'height'))) {
       placed.add('height')
       // (Set to a token: the value, then the token it comes from.)
@@ -170,9 +329,15 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
     } else if (property === 'fill' && fill) {
       placed.add('fill')
       if (!String(base).toLowerCase().includes(fill.text.toLowerCase())) to = fill.text
+    } else {
+      // Not set on the element: what the hand-written code says, else the
+      // text it was set to.
+      const hand = handLines && fieldKindOf(field).pattern ? readFieldValue(conflict, handLines, field) : handValues?.[field.label] ?? null
+      if (hand != null && hand !== base) { to = hand; written = true }
     }
-    if (to && property !== 'size') changed[property] = true
-    return { label: field.label, base, to, swatch: to && property === 'fill' ? fill.swatch : null, same: field.current === field.expected }
+    if (to && property !== 'size' && !written) changed[property] = true
+    const swatch = !to ? null : property === 'fill' && !written ? fill.swatch : HEX.exec(to)?.[0] ?? null
+    return { label: field.label, base, to, swatch, written, same: field.current === field.expected }
   })
 
   // Set by hand, but not one of the compared values: a row of its own.
@@ -213,9 +378,20 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
     ...(fill && 'background' in spec ? { background: fill.css } : {}),
     ...(fill && 'color' in spec ? { color: fill.css } : {}),
   } : spec
+  // …and the values written in the code (or set as text) drawn too.
+  let drawn = preview
+  rows.forEach((row, index) => {
+    if (!row.written) return
+    const value = previewValueOf(conflict, fields[index], row.to)
+    const key = fieldKindOf(fields[index]).preview
+    if (value == null) return
+    if (key === 'divider') drawn = { ...drawn, ...value }
+    else if (drawn && key in drawn) drawn = { ...drawn, [key]: value }
+  })
 
-  // The code: the side's lines with each changed value's class.
-  let lines = [...((side === 'A' ? conflict.diff?.after : conflict.diff?.before) ?? [])]
+  // The code: the side's lines (or the ones written by hand) with each
+  // changed value's class.
+  let lines = [...(handLines ?? (side === 'A' ? conflict.diff?.after : conflict.diff?.before) ?? [])]
   const differ = changedTokens((conflict.diff?.before ?? []).join('\n'), (conflict.diff?.after ?? []).join('\n'))[side === 'A' ? 1 : 0]
   const focus = differ.filter((run) => run.changed).flatMap((run) => run.text.split(/[\s"'`]+/)).filter(Boolean)
   const w = width ?? layer?.width
@@ -237,12 +413,21 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
 
   // Set to exactly what the standard says, and nothing else: it's the
   // design reference's code, written the way the reference writes it.
-  const isReference = side !== 'A' && extras.length === 0 && rows.some((row) => row.to) && Boolean(conflict.diff?.after)
+  const isReference = side !== 'A' && !handLines && extras.length === 0 && rows.some((row) => row.to) && Boolean(conflict.diff?.after)
     // (A value left as it is doesn't count against it; one set by hand has
     // to be the standard's — also where both sides share a value, which
     // setting it differently is exactly what changes.)
     && rows.every((row, index) => !row.to || (numbersIn(row.to).join() === numbersIn(fields[index].expected).join() && numbersIn(row.to).length > 0))
   if (isReference) lines = [...conflict.diff.after]
 
-  return { side, rows, extras, preview, lines, isReference, adjusted: rows.some((row) => row.to) || extras.length > 0 }
+  // (Code written by hand that changes nothing the comparison lists is
+  // still a change: it's what merges.)
+  const handWritten = Boolean(handLines) && handLines.join('\n') !== (conflict.diff?.before ?? []).join('\n')
+  // (Written by hand beyond what the compared values read: the code it
+  // changed, as a row of its own.)
+  if (handWritten && !rows.some((row) => row.written)) {
+    const change = codeChangeOf(conflict.diff?.before ?? [], handLines)
+    if (change.from || change.to) extras.push({ label: 'Code', from: change.from || null, to: change.to || '—' })
+  }
+  return { side, rows, extras, preview: drawn, lines, isReference, handWritten, adjusted: rows.some((row) => row.to) || extras.length > 0 || handWritten }
 }

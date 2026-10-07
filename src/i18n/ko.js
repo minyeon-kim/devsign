@@ -756,6 +756,13 @@ No matching checkpoints.|일치하는 체크포인트가 없습니다.
 Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.|이 프로젝트의 모든 파일에 걸친 체크포인트를 오래된 순서로 보여줍니다. 히스토리에서 종류나 파일로 걸러 볼 수 있습니다.
 Compare latest|최신 버전과 비교
 Adjust more in Merge Studio|병합 스튜디오에서 더 조정
+Edit in Merge Studio|병합 스튜디오에서 수정
+Properties|속성
+Incoming change|들어오는 변경
+Use|사용
+This element has no code linked to it.|이 요소에 연결된 코드가 없어요.
+Edit a line and press Enter — the canvas, the checks and the review follow the code.|줄을 수정하고 Enter를 누르세요. 캔버스, 검사, 리뷰가 코드를 따라 바뀌어요.
+Edit with|편집 방식
 Adjust in Merge Studio|병합 스튜디오에서 조정
 Compare in Merge Studio|병합 스튜디오에서 비교
 Merge Studio help|병합 스튜디오 도움말

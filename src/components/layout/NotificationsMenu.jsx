@@ -31,7 +31,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
   function openItem(activity) {
     setOpen(false)
     if (activity.conflictId && activity.projectId) {
-      navigate(`/projects/${activity.projectId}/workspace`, { state: { openConflictId: activity.conflictId } })
+      navigate(`/projects/${activity.projectId}/workspace`, { state: { openConflictId: activity.conflictId, fromNotification: true } })
       return
     }
     navigate('/activity')

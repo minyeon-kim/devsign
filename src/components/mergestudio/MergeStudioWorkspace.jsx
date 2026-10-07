@@ -408,6 +408,7 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio,
     setSelectedMergeItemId,
     openConflictReview,
+    openConflictFromNotification,
     setBottomPanel,
     mergeDrafts,
     saveMergeDraft,
@@ -884,6 +885,8 @@ function MergeStudioWorkspace({ item }) {
       // The review's "Undo adjustment" (and its undo): every hand-set
       // value at once.
       setAssemblies: (next) => setAssemblies(next),
+      // A value set on the review's direct adjustment, written in the code.
+      setManualCode: (next) => setManualCode(next),
     })
   }, [item?.id, resolutions, setStudioDecisions])
   useEffect(() => () => setStudioDecisions(null), [setStudioDecisions])
@@ -1198,6 +1201,34 @@ function MergeStudioWorkspace({ item }) {
     .filter((e) => e.layerId === deckLayerId)
     .map((e) => ({ ...e, current: layerCopy?.[e.slot] ?? e.value }))
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
+  // The selected element's code for the Inspect panel's Code view: its
+  // block in the file (else, for an element with no code link, the item's
+  // conflict lines) with two lines around it. Each line reads as written by
+  // hand, else as the file has it — the same lines the review's direct
+  // adjustment writes a value into, so either place edits the one change.
+  // Where the incoming change has a line of its own, it's offered too.
+  const layerCode = (() => {
+    if (!item || designComparison) return null
+    const conflict = conflicts.find((c) => (c.mergeItemId === item.id || c.id === item.conflictId) && c.fileId)
+    const target = (deckLayerId ? codeTargetFor(deckLayerId) : null)
+      ?? (conflict ? { fileId: conflict.fileId, line: conflict.line ?? 1, span: conflict.diff?.before?.length ?? 1 } : null)
+    const file = target && files.find((f) => f.id === target.fileId)
+    const lines = file?.lines ?? []
+    if (!lines.length) return null
+    const end = Math.min(lines.length, target.line + (target.span ?? 1) - 1)
+    const incoming = new Map((codeMergeVariants[item.id]?.[target.fileId] ?? []).map((diff) => [diff.line, diff.incoming]))
+    const numbers = []
+    for (let n = Math.max(1, target.line - 2); n <= Math.min(lines.length, end + 2); n++) numbers.push(n)
+    return {
+      fileId: target.fileId,
+      fileName: file.name,
+      readOnly: item.tag === 'Merged',
+      lines: numbers.map((n) => {
+        const key = `${target.fileId}:${n}`
+        return { line: n, original: lines[n - 1], text: syncedCode[key] ?? lines[n - 1], edited: manualCode[key] != null, incoming: incoming.get(n) ?? null, inBlock: n >= target.line && n <= end }
+      }),
+    }
+  })()
 
   return (
     <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
@@ -1407,6 +1438,8 @@ function MergeStudioWorkspace({ item }) {
           appliedPresetId={appliedPreset?.id}
           manualCode={manualCode}
           onEditCode={editCodeLine}
+          onLiveEditCode={liveEditCodeLine}
+          layerCode={layerCode}
           selectedLayer={selectedLayer}
           frameWidth={frame0?.width ?? 300}
           assembly={deckLayerId ? assemblies[deckLayerId] : undefined}
@@ -1475,8 +1508,7 @@ function MergeStudioWorkspace({ item }) {
             setMergeDrawer(null)
             if (destination.conflictId) {
               exitMergeStudio()
-              setBottomPanel({ tab: 'conflict', open: true })
-              openConflictReview(destination.conflictId)
+              openConflictFromNotification(destination.conflictId)
               return
             }
             requestMergeFocus(destination.mergeTarget)

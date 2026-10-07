@@ -426,7 +426,7 @@ function ProjectOverviewPage() {
             if (!destination) return
             setMergeDrawer(null)
             navigate(workspacePath, { state: destination.conflictId
-              ? { openConflictId: destination.conflictId }
+              ? { openConflictId: destination.conflictId, fromNotification: true }
               : { ...destination.mergeTarget, openMergeStudio: true, mergeItemId: destination.mergeTarget.itemId } })
           }}
           onClose={() => setMergeDrawer(null)}

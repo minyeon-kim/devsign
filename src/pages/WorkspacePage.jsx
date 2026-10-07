@@ -30,6 +30,7 @@ function WorkspacePage() {
     setBottomPanel,
     focusChange,
     openConflictReview,
+    openConflictFromNotification,
   } = useWorkspace()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [workspaceRoot, setWorkspaceRoot] = useState(null)
@@ -85,6 +86,13 @@ function WorkspacePage() {
       const conflict = conflicts.find((c) => c.id === state.openConflictId)
       if (!conflict) return
       exitMergeStudio()
+      // (From a notification on another page: the sidebar's Conflicts
+      // drawer, as the Workspace's own notifications open it.)
+      if (state.fromNotification) {
+        focusChange(conflict)
+        openConflictFromNotification(conflict.id)
+        return
+      }
       // (From the sidebar's list on another page: straight into the
       // full-screen viewer, the bottom panel left as it was.)
       const view = state.reviewView === 'overlay' ? 'overlay' : 'panel'

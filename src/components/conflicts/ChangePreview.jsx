@@ -89,7 +89,7 @@ function ChangePreview({ preview, side, showLabels = true, override }) {
         {preview.themes.map((t) => (
           <div key={t.label} className={side ? 'grid grid-cols-[72px_minmax(0,1fr)] items-center gap-4' : 'grid grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4'}>
             <span className="text-[11.5px] text-slate-400"><LocalizedText text={t.label} /></span>
-            {(side ? [side === 'before' ? t.before : t.after] : [t.before, t.after]).map((color, i) => <div key={i} className="min-w-0">{sample(t, color)}</div>)}
+            {(side ? [override?.color ?? ((override?.themeSide ?? side) === 'before' ? t.before : t.after)] : [t.before, t.after]).map((color, i) => <div key={i} className="min-w-0">{sample(t, color)}</div>)}
           </div>
         ))}
       </div>

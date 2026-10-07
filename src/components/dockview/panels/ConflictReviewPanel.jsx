@@ -47,7 +47,7 @@ import { allPeople, canvasPages, currentUserFor, projectFileSets, projects } fro
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
-import { codeChangeOf, mergeResultOf, valueControlsFor } from '@/lib/mergeResult'
+import { codeChangeOf, fieldControlsFor, handLinesOf, mergeResultOf, withHandLines, writeFieldValue } from '@/lib/mergeResult'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -1115,7 +1115,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {picks && editing && flow.controls[index] ? (
-                            <dd className="flex min-w-0 flex-col items-end gap-1.5"><ValueStepper control={flow.controls[index]} /></dd>
+                            <dd data-value-editor={flow.controls[index].mode} className="flex min-w-0 flex-1 flex-col items-end gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
                           ) : picks && hand ? (
                             // (Decided: the value it was set to, as the
                             // other cards show theirs.)
@@ -1185,11 +1185,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       </div>
                     )}
                     {/* More than the compared values — another property, another
-                        element — is set in Merge Studio. */}
+                        element, the code itself — is set in Merge Studio,
+                        whose property panel and code view edit the same
+                        adjustment. */}
                     {picks && editing && flow.openStudio && (
-                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className="ds-intrinsic inline-flex w-fit cursor-pointer items-center gap-1 text-[11.5px] text-slate-400 underline-offset-2 transition-colors hover:text-white hover:underline">
-                        <LocalizedText text="Adjust more in Merge Studio" />
-                        <ArrowRight className="size-3" />
+                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} onKeyDown={(event) => event.stopPropagation()} className={cn(NAV_BUTTON, 'w-full justify-center bg-transparent')}>
+                        <Pencil className={NAV_BUTTON_ICON} />
+                        <LocalizedText text="Edit in Merge Studio" />
+                        <ArrowRight className={NAV_BUTTON_ICON} />
                       </button>
                     )}
                     {/* 5 · What it does to the code, as the one value that
@@ -1427,13 +1430,17 @@ function ValueText({ text }) {
 // with the value so far and `set(px)`.
 function ValueStepper({ control }) {
   const value = control.value ?? control.current
+  const step = control.step ?? 1
+  const unit = control.unit ?? 'px'
   const [text, setText] = useState(String(value))
   const [focused, setFocused] = useState(false)
   useEffect(() => { if (!focused) setText(String(value)) }, [value, focused])
   const number = text.trim() === '' ? null : Number(text)
   const invalid = number == null || !Number.isFinite(number) || number < control.min || number > control.max
+  // (Kept to the step — whole pixels, or a quarter for a stroke.)
+  const snap = (next) => Math.round(Math.round(next / step) * step * 100) / 100
   const apply = (next) => {
-    const px = Math.min(control.max, Math.max(control.min, Math.round(next)))
+    const px = Math.min(control.max, Math.max(control.min, snap(next)))
     setText(String(px))
     if (px !== control.value) control.set(px)
   }
@@ -1442,36 +1449,120 @@ function ValueStepper({ control }) {
   return (
     <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex min-w-0 cursor-default flex-col items-end gap-1.5">
       <span className={cn('flex h-7 items-center gap-0.5 rounded-lg border bg-white/[0.03] px-0.5 transition-colors focus-within:border-emerald-300/60', invalid ? 'border-red-400/60' : 'border-white/[0.14]')}>
-        <button type="button" aria-label={`${control.label} −1`} disabled={value <= control.min} onClick={() => apply(value - 1)} className={button}><Minus className="size-3" /></button>
+        <button type="button" aria-label={`${control.label} −${step}`} disabled={value <= control.min} onClick={() => apply(value - step)} className={button}><Minus className="size-3" /></button>
         <input
           data-value-select
-          inputMode="numeric"
+          inputMode={step < 1 ? 'decimal' : 'numeric'}
           aria-label={control.label}
           aria-invalid={invalid}
           value={text}
           onFocus={(event) => { setFocused(true); event.target.select() }}
           onBlur={() => { setFocused(false); setText(String(value)) }}
           onChange={(event) => {
-            const next = event.target.value.replace(/[^\d]/g, '')
+            const next = event.target.value.replace(step < 1 ? /[^\d.]/g : /[^\d]/g, '')
             setText(next)
-            const typed = next === '' ? NaN : Number(next)
+            const typed = next === '' || next.endsWith('.') ? NaN : Number(next)
             if (typed >= control.min && typed <= control.max && typed !== control.value) control.set(typed)
           }}
           onKeyDown={(event) => {
             event.stopPropagation()
             if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
               event.preventDefault()
-              apply(value + (event.key === 'ArrowUp' ? 1 : -1) * (event.shiftKey ? 4 : 1))
+              apply(value + (event.key === 'ArrowUp' ? 1 : -1) * step * (event.shiftKey ? 4 : 1))
             }
           }}
           className="h-full w-9 min-w-0 bg-transparent text-center text-[13px] font-semibold text-white tabular-nums outline-none"
         />
-        <span className="shrink-0 pr-1 text-[11px] font-normal text-slate-500">px</span>
-        <button type="button" aria-label={`${control.label} +1`} disabled={value >= control.max} onClick={() => apply(value + 1)} className={button}><Plus className="size-3" /></button>
+        {unit && <span className="shrink-0 pr-1 text-[11px] font-normal text-slate-500">{unit}</span>}
+        <button type="button" aria-label={`${control.label} +${step}`} disabled={value >= control.max} onClick={() => apply(value + step)} className={button}><Plus className="size-3" /></button>
       </span>
-      {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}px`} /></span>}
+      {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}${unit}`} /></span>}
     </span>
   )
+}
+
+// A value picked from what's on offer — each side's, and the kind's usual
+// ones (letter spacings) — or typed. Typing is applied on Enter or leaving
+// the field; Escape takes it back. `swatches`: a color value, with its
+// swatch and a color picker beside the text.
+const VALUE_INPUT = 'flex h-7 min-w-0 items-center gap-1 rounded-lg border bg-white/[0.03] px-2 transition-colors focus-within:border-emerald-300/60'
+const hexIn = (text) => /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3})\b/i.exec(text ?? '')?.[0] ?? null
+function ValueChoice({ control, swatches = false }) {
+  const value = String(control.value ?? control.current ?? '')
+  const [text, setText] = useState(value)
+  const [focused, setFocused] = useState(false)
+  useEffect(() => { if (!focused) setText(value) }, [value, focused])
+  const commit = () => { if (text.trim() && text.trim() !== value) control.set(text.trim()) }
+  const stop = (event) => event.stopPropagation()
+  const swatch = swatches ? hexIn(text) ?? hexIn(value) : null
+  // (A picker needs a full #rrggbb to start from.)
+  const pickerValue = /^#[0-9a-f]{6}$/i.test(swatch ?? '') ? swatch : /^#[0-9a-f]{3}$/i.test(swatch ?? '') ? `#${swatch.slice(1).split('').map((c) => c + c).join('')}` : '#000000'
+  return (
+    <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col items-end gap-1.5">
+      <span className={cn(VALUE_INPUT, 'w-full max-w-[200px] border-white/[0.14]')}>
+        {swatches && (
+          <label className="relative size-4 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/30" style={{ background: swatch ?? 'transparent' }} title="Pick a color">
+            <input type="color" aria-label={`${control.label} color`} value={pickerValue} onChange={(event) => { setText(event.target.value); control.set(event.target.value) }} className="absolute inset-0 cursor-pointer opacity-0" />
+          </label>
+        )}
+        <input
+          data-value-select
+          aria-label={control.label}
+          value={text}
+          spellCheck={false}
+          translate="no"
+          onFocus={(event) => { setFocused(true); event.target.select() }}
+          onBlur={() => { setFocused(false); commit() }}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            event.stopPropagation()
+            if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur() }
+            else if (event.key === 'Escape') { setText(value); event.currentTarget.blur() }
+          }}
+          className="h-full min-w-0 flex-1 bg-transparent text-right text-[12px] font-semibold text-white outline-none"
+        />
+      </span>
+      {control.options?.length > 1 && (
+        <span className="flex max-w-full min-w-0 flex-wrap justify-end gap-1">
+          {control.options.map((option) => {
+            const on = option === value
+            const optionSwatch = swatches ? hexIn(option) : null
+            return (
+              <button
+                key={option}
+                type="button"
+                data-value-option
+                aria-pressed={on}
+                title={option}
+                onClick={() => !on && control.set(option)}
+                className={cn('ds-intrinsic inline-flex h-6 max-w-[180px] min-w-0 items-center gap-1 rounded-md px-1.5 text-[11px] transition-colors',
+                  on ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white')}
+              >
+                {optionSwatch && <span aria-hidden className="size-2.5 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: optionSwatch }} />}
+                <span className="truncate"><LocalizedText text={option} /></span>
+                {option === control.standard && <span className="shrink-0 text-[10px] text-emerald-300/80"><LocalizedText text="Standard" /></span>}
+              </button>
+            )
+          })}
+        </span>
+      )}
+    </span>
+  )
+}
+
+// The third card's editor for one compared value, by its kind: a number
+// stepped or typed, a color, or a value picked or typed.
+const firstNumber = (text) => Number(/-?\d+(?:\.\d+)?/.exec(String(text ?? '').split('(')[0])?.[0] ?? NaN)
+function ValueEditor({ control }) {
+  if (control.mode === 'layer') return <ValueStepper control={control} />
+  if (control.type === 'number') {
+    // Written as a side writes it when it's that side's number.
+    const wording = (n) => (firstNumber(control.standard) === n ? control.standard : firstNumber(control.current) === n ? control.current : `${n}${control.unit ?? ''}`)
+    const number = firstNumber(control.value)
+    const start = Number.isFinite(number) ? number : firstNumber(control.current)
+    return <ValueStepper control={{ ...control, value: start, current: start, set: (n) => control.set(wording(n)) }} />
+  }
+  return <ValueChoice control={control} swatches={control.type === 'color'} />
 }
 
 // The code for one way of resolving it, in full — the one block under the
@@ -2417,7 +2508,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const kept = adjustment ? { layerId: adjustment.layerId, layerName: adjustment.layerName, from: adjustment.from, to: adjustment.to, size: adjustment.size } : null
     const merged = onResolve ? onResolve(conflict.id) : (update({ reviewStage: 'resolved' }), true)
     if (merged) {
-      if (kept || studioAdjustments.length) update({ ...(kept ? { mergedAdjustment: kept } : {}), mergedAdjustments: studioAdjustments, mergedAssembly: handAssembly ?? null })
+      if (kept || studioAdjustments.length || handWritten) update({ ...(kept ? { mergedAdjustment: kept } : {}), mergedAdjustments: studioAdjustments, mergedAssembly: handAssembly ?? null, mergedHandLines: handLines, mergedHandValues: handValues })
       toast('Change merged', { description: kept ? `${conflict.title} · ${kept.layerName} ${kept.to}` : conflict.title })
     }
   }
@@ -2563,13 +2654,20 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // the current implementation with none — with those values laid over it.
   // The card's rows, its picture and the code below all read this.
   const handAssembly = stage === 'resolved' ? conflict?.mergedAssembly : workspace?.mergeDrafts?.current?.[mergeItem?.id]?.assemblies?.[conflict?.layerId]
+  // The conflict's code as written by hand — in Merge Studio's code view, or
+  // by a value set on the third card — and values set as text for what the
+  // code doesn't spell. Both are the adjustment as much as a size is.
+  const manualCode = workspace?.mergeDrafts?.current?.[mergeItem?.id]?.manualCode ?? {}
+  const handLines = stage === 'resolved' ? conflict?.mergedHandLines ?? null : handLinesOf(conflict, manualCode)
+  const handValues = stage === 'resolved' ? conflict?.mergedHandValues ?? null : conflict?.handValues ?? null
+  const handWritten = Boolean(handLines) || Object.values(handValues ?? {}).some((value) => value != null && value !== '')
   // (A height set to a token counts even when it's the layer's own px.)
-  const adjustedByHand = Boolean(adjustment) || studioAdjustments.length > 0 || Boolean(handAssembly?.heightToken)
+  const adjustedByHand = Boolean(adjustment) || studioAdjustments.length > 0 || Boolean(handAssembly?.heightToken) || handWritten
   // (Decided with no side recorded: the design reference, which is what a
   // merge takes by default — unless it was adjusted by hand, which sits on
   // the current implementation.)
   const mergeSide = stage === 'resolved' ? mergedSide : decisionState.side ?? (stage !== 'detected' && !adjustedByHand ? mergedSide : 'B')
-  const result = mergeResultOf(conflict, mergeItem, mergeSide, { assembly: handAssembly, adjustments: studioAdjustments })
+  const result = mergeResultOf(conflict, mergeItem, mergeSide, { assembly: handAssembly, adjustments: studioAdjustments, handLines, handValues })
   // Adjusted by hand: the reason to give is why it was adjusted (kept on the
   // conflict as `adjustmentReason`) — asked in place of the kept-value one,
   // and needed before a review request the same way.
@@ -2579,6 +2677,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // (`stashedAssemblies`, on the conflict) rather than dropping it, so
   // choosing C again brings it back as it was.
   const stash = stage !== 'resolved' && conflict?.stashedAssemblies && Object.keys(conflict.stashedAssemblies).length ? conflict.stashedAssemblies : null
+  // (…and the code and text values, set aside with it.)
+  const stashedCode = stage !== 'resolved' ? conflict?.stashedCode ?? null : null
+  const stashedValues = stage !== 'resolved' ? conflict?.stashedValues ?? null : null
+  const hasStash = Boolean(stash || stashedCode || stashedValues)
+  const writeHandLines = (lines) => mergeItem && workspace?.setManualCode
+    && workspace.setManualCode(mergeItem.id, withHandLines(conflict, workspace.mergeDrafts?.current?.[mergeItem.id]?.manualCode ?? {}, lines, fileLines ?? []))
   // (The third way can be chosen before its value is set: `customChosen`.)
   const choice = !conflict ? null : adjustedByHand || (stage === 'detected' && conflict.customChosen) ? 'C' : stage === 'detected' ? decisionState.side : mergedSide
   const hasReviewers = conflict ? requiredReviewers(conflict).length > 0 : false
@@ -2619,16 +2723,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       // Chosen with or without a value; one set aside before comes back,
       // on the current implementation, where it was set.
       if (stash) workspace.setLayerAdjustments(mergeItem.id, stash)
+      if (stashedCode) writeHandLines(stashedCode)
       if (decisionState.side) undoSide()
-      update({ customChosen: true, stashedAssemblies: null, decidedSide: null, decidedBy: null })
+      update({ customChosen: true, stashedAssemblies: null, stashedCode: null, stashedValues: null, ...(stashedValues ? { handValues: stashedValues } : null), decidedSide: null, decidedBy: null })
       focusNext()
       return
     }
     if (adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
       const set = workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {}
       workspace.setLayerAdjustments(mergeItem.id, {})
+      if (handLines) writeHandLines(null)
       // (A seeded "settled by hand" record reopens with it.)
-      update({ stashedAssemblies: set, ...(conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null) })
+      update({ stashedAssemblies: set, stashedCode: handLines, stashedValues: handValues, handValues: null, ...(conflict.resolution === 'manual' ? { resolution: null, adjustment: null } : null) })
     }
     if (conflict.customChosen) update({ customChosen: false })
     decisionState.pick(next)
@@ -2636,7 +2742,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
   // The third card's values: what's set now, or what was set aside.
   const customResult = adjustedByHand ? result
-    : stash && mergeItem ? mergeResultOf(conflict, mergeItem, 'B', { assembly: stash[conflict.layerId], adjustments: studioAdjustmentsOf(mergeItem, { [mergeItem.id]: { assemblies: stash } }) })
+    : hasStash && mergeItem ? mergeResultOf(conflict, mergeItem, 'B', { assembly: stash?.[conflict.layerId], adjustments: studioAdjustmentsOf(mergeItem, { [mergeItem.id]: { assemblies: stash ?? {} } }), handLines: stashedCode, handValues: stashedValues })
       : null
   if (adjustedByHand) {
     decisionState.adjustmentReason = true
@@ -2655,7 +2761,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // (The two sides as they are — without what's set by hand, which is the
   // third way's: a value that fixes the rule doesn't fix it for them.)
   const plainRequired = adjustedByHand && mergeItem && workspace?.linesOfFile
-    ? checksFor(mergeItem, { ...workspace.mergeDrafts?.current?.[mergeItem.id], assemblies: {} }, workspace.linesOfFile).blocking.filter((check) => !(conflict.acceptedChecks ?? []).includes(check.id))
+    ? checksFor(mergeItem, { ...workspace.mergeDrafts?.current?.[mergeItem.id], assemblies: {}, manualCode: withHandLines(conflict, manualCode, null) }, workspace.linesOfFile).blocking.filter((check) => !(conflict.acceptedChecks ?? []).includes(check.id))
     : requiredNow
   const violations = {
     A: decisionState.blockingWith.A ?? plainRequired,
@@ -2693,7 +2799,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     // the design reference (the same code, with nothing left set).
     if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
       workspace.setLayerAdjustments(mergeItem.id, {})
-      update({ stashedAssemblies: null })
+      if (handLines) writeHandLines(null)
+      update({ stashedAssemblies: null, stashedCode: null, stashedValues: null, handValues: null })
       decisionState.pick('A')
     }
     if (broken.length) {
@@ -2702,8 +2809,58 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
     handleRequestReview({ quiet, exceptionSubmitted })
   }
-  // The numbers of the element's own are set on the third card itself.
-  const valueControls = cardFlow && mergeItem && workspace?.setLayerAdjustments ? valueControlsFor(conflict, mergeItem) : []
+  // Every compared value is set on the third card itself: the element's
+  // own numbers on the element (as in Merge Studio), every other value in
+  // the code (Merge Studio's code view shows it), and what the code
+  // doesn't spell as text.
+  const valueControls = cardFlow && stage !== 'resolved' && onUpdate ? fieldControlsFor(conflict, mergeItem) : []
+  // Setting a value is choosing this way — on the current implementation;
+  // anything set aside before comes back with it.
+  function adjustWith({ assemblies = null, lines = null, values = null }) {
+    if (assemblies) workspace.setLayerAdjustments(mergeItem.id, assemblies)
+    else if (!adjustedByHand && stash) workspace.setLayerAdjustments(mergeItem.id, stash)
+    if (lines) writeHandLines(lines)
+    else if (!adjustedByHand && stashedCode) writeHandLines(stashedCode)
+    if (decisionState.side) undoSide()
+    update({ customChosen: true, stashedAssemblies: null, stashedCode: null, stashedValues: null, decidedSide: null, decidedBy: null,
+      handValues: values ?? (adjustedByHand ? handValues : stashedValues) ?? null })
+  }
+  const controlOf = (control) => {
+    const field = conflict.comparisonFields[control.index]
+    const shown = customResult?.rows[control.index]
+    if (control.mode === 'layer') {
+      return {
+        ...control,
+        value: control.valueOf(adjustedByHand ? handAssembly : stash?.[conflict.layerId]),
+        set: (px) => {
+          const set = workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {}
+          const base = adjustedByHand ? set : stash ?? {}
+          adjustWith({ assemblies: { ...base, [conflict.layerId]: { ...base[conflict.layerId], ...control.assemblyFor(px) } } })
+        },
+      }
+    }
+    // (In the code: only where there's a merge draft to write it to.)
+    const inCode = control.mode === 'code' && Boolean(mergeItem && workspace?.setManualCode)
+    return {
+      ...control,
+      mode: inCode ? 'code' : 'text',
+      value: shown?.to ?? shown?.base ?? field.current,
+      set: (value) => {
+        const text = String(value ?? '').trim()
+        if (!text) return
+        const values = { ...((adjustedByHand ? handValues : stashedValues) ?? {}) }
+        if (inCode) {
+          const from = (adjustedByHand ? handLines : stashedCode) ?? conflict.diff.before
+          delete values[field.label]
+          adjustWith({ lines: writeFieldValue(conflict, from, field, text), values })
+        } else {
+          if (text === field.current) delete values[field.label]
+          else values[field.label] = text
+          adjustWith({ values })
+        }
+      },
+    }
+  }
   // Decided once review is asked for; whoever isn't there as a reviewer
   // (the author) can take it back to choose again.
   const reviewerOnly = Boolean(myReviewer && !ownChange)
@@ -2727,20 +2884,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       B: decisionState.suggestedWith.B ?? decisionState.suggested.filter((check) => check.id !== 'decided'),
       C: [],
     },
-    controls: valueControls.some(Boolean) ? valueControls.map((control) => control && {
-      ...control,
-      value: control.valueOf(adjustedByHand ? handAssembly : stash?.[conflict.layerId]),
-      // Setting a value is choosing this way: it's put on the element (as
-      // if in Merge Studio), on the current implementation — and the
-      // picture and the code follow at once.
-      set: (px) => {
-        const set = workspace.mergeDrafts?.current?.[mergeItem.id]?.assemblies ?? {}
-        const base = adjustedByHand ? set : stash ?? {}
-        workspace.setLayerAdjustments(mergeItem.id, { ...base, [conflict.layerId]: { ...base[conflict.layerId], ...control.assemblyFor(px) } })
-        if (decisionState.side) undoSide()
-        update({ customChosen: true, stashedAssemblies: null, decidedSide: null, decidedBy: null })
-      },
-    }) : null,
+    // (The picture and the code follow each value at once.)
+    controls: valueControls.length ? valueControls.map(controlOf) : null,
     requestException: (side) => {
       if (side !== choice) chooseWay(side)
       setExceptionReasonDraft('')
