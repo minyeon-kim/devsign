@@ -10,6 +10,11 @@ import { Notification } from '@/components/layout/Notification'
 // Where the banners stack when the page has no Inbox bell (Merge Studio,
 // Docs, …): the top-right corner, under the header row.
 const FALLBACK_ANCHOR = { top: 56, right: 16 }
+// The least room kept between the cards and the window's right edge.
+const EDGE_GAP = 16
+// Room inside the stack for the cards' shadows: it scrolls, so anything
+// past its own box would be clipped.
+const STACK_PAD = 12
 
 // The on-screen Inbox bell (InboxButton tags itself), if any.
 function findBell() {
@@ -26,14 +31,22 @@ function useBellAnchor(active) {
     if (!active) return
     function measure() {
       const rect = findBell()?.getBoundingClientRect()
-      setAnchor(rect ? { top: rect.bottom + 8, right: window.innerWidth - rect.right } : FALLBACK_ANCHOR)
+      // (A bell that's hidden measures as nothing: the fallback corner then.)
+      // Never closer to the window's edge than EDGE_GAP, wherever the bell
+      // is — a card flush with the edge reads as cut off.
+      setAnchor(rect?.width ? { top: rect.bottom + 8, right: Math.max(EDGE_GAP, window.innerWidth - rect.right) } : FALLBACK_ANCHOR)
     }
     measure()
     window.addEventListener('resize', measure)
     window.addEventListener('scroll', measure, true)
+    // The bell moves when the layout around it does (a drawer opening, a
+    // panel resizing) without the window changing size.
+    const observer = new ResizeObserver(measure)
+    observer.observe(document.body)
     return () => {
       window.removeEventListener('resize', measure)
       window.removeEventListener('scroll', measure, true)
+      observer.disconnect()
     }
   }, [active])
   return anchor
@@ -108,7 +121,24 @@ export default function HighReviewNotifications() {
   if (!show) return null
 
   return (
-    <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={{ ...anchor, maxHeight: `calc(100dvh - ${anchor.top + 16}px)` }} className="pointer-events-none fixed z-[1100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain">
+    // The stack is at most 360px of cards and never wider than the window
+    // less EDGE_GAP on each side. Its own padding (STACK_PAD, taken back out
+    // of its offsets) keeps the cards' shadows — and so their edges — from
+    // being clipped by its scroll box.
+    <aside
+      ref={stackRef}
+      data-notice-stack
+      aria-label="High priority notifications"
+      aria-live="polite"
+      style={{
+        top: anchor.top - STACK_PAD,
+        right: anchor.right - STACK_PAD,
+        padding: STACK_PAD,
+        width: `min(${360 + STACK_PAD * 2}px, calc(100vw - ${(EDGE_GAP - STACK_PAD) * 2}px))`,
+        maxHeight: `calc(100dvh - ${anchor.top - STACK_PAD + 16}px)`,
+      }}
+      className="pointer-events-none fixed z-[1100] box-border flex flex-col gap-2 overflow-y-auto overscroll-contain"
+    >
       <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-end">
         <button type="button" onClick={dismissAll} className="ds-intrinsic ds-notification-action shadow-md">알림 모두 닫기</button>
       </div>

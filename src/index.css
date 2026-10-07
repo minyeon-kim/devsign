@@ -708,16 +708,16 @@ button.editor-line-comment {
    tests/notification-tokens.mjs). They color the icon and the left line
    only — never the whole box. */
 :root {
-  --notification-bg: #D6D6DB;
-  --notification-bg-hover: #CBCBD1;
+  --notification-bg: #C4C4CA;
+  --notification-bg-hover: #B8B8BF;
   --notification-border: rgb(0 0 0 / 8%);
   --notification-shadow: 0 8px 24px rgb(0 0 0 / 28%);
   --notification-text: #1A1A1C;
-  --notification-text-secondary: #55555C;
-  --notification-success: #065F46;
-  --notification-warning: #92400E;
-  --notification-error: #991B1B;
-  --notification-info: #1E40AF;
+  --notification-text-secondary: #45454B;
+  --notification-success: #064E3B;
+  --notification-warning: #78350F;
+  --notification-error: #7F1D1D;
+  --notification-info: #1E3A8A;
   /* The one filled action on a notification, and its label. */
   --notification-action-bg: #1A1A1C;
   --notification-action-text: #F4F4F6;
@@ -799,17 +799,20 @@ button.editor-line-comment {
 .ds-notification-action:hover { background: #000; }
 .ds-notification-action-quiet { background: transparent; color: var(--notification-text-secondary); }
 .ds-notification-action-quiet:hover { background: var(--notification-bg-hover); color: var(--notification-text); }
-/* Dismiss: the same quiet round button everywhere. */
+/* Dismiss: the same quiet round button everywhere — at the card's top
+   right, inside its padding (8px in from both edges, so it can't be cut
+   off by whatever the card sits in), and 32px across to hit. Content beside
+   it keeps clear with a right inset (the component's `pr-8`). */
 .ds-notification-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 9999px;
   background: transparent;
@@ -872,16 +875,17 @@ button.editor-line-comment {
   padding-right: 48px;
 }
 [data-sonner-toast].cn-toast [data-close-button] {
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   left: auto;
   transform: none;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   background: transparent;
   border: 0;
   color: var(--notification-text-secondary);
 }
+[data-sonner-toast].cn-toast [data-close-button] svg { width: 14px; height: 14px; }
 [data-sonner-toast].cn-toast [data-close-button]:hover {
   background: var(--notification-bg-hover);
   color: var(--notification-text);

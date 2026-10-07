@@ -39,6 +39,10 @@ assert.ok(action >= 4.5, 'the filled action’s label reads on its fill')
 // The hover step is darker than the surface, and the surface is still a light box on the dark app.
 assert.ok(luminance(hover) < luminance(bg))
 assert.ok(contrast(bg, '#111111') >= 7, 'still reads as a light box on the app background')
+// …but not a near-white one: clearly greyer than an off-white.
+assert.ok(luminance(bg) < 0.6, 'the surface is a grey, not a near-white')
+// The dismiss button is a 32px target inside the card.
+assert.match(css, /\.ds-notification-close \{[^}]*top: 8px;[^}]*right: 8px;[^}]*width: 32px;[^}]*height: 32px;/s)
 // Nothing in the notification styles sets a color of its own.
 const section = css.slice(css.indexOf('/* ── Notifications'), css.indexOf('/* Inline decision reasons'))
 const rules = section.slice(section.indexOf('.ds-notification {'))
