@@ -13,15 +13,28 @@ function findBell() {
   return document.querySelector('[data-inbox-button]')
 }
 
+// Walkthrough review requests that appear a few seconds after entering a
+// project's Workspace. `restart` puts the conflict back before its review.
+const NAV_REQUEST_DELAY_MS = 4000
+const NAV_REQUEST_BODY = 'Nav Icon / Size · 아이콘을 24px로 키운 디자인과 코드(20px)가 달라요. 확인 부탁드려요.'
+
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { comments, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, restartConflict } = useWorkspace()
+  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, restartConflict } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
   const onWorkspace = /\/workspace\/?$/.test(pathname)
-  const showRequest = onWorkspace && projectId === 'checkout-redesign' && !requestDismissed
+  const [navDue, setNavDue] = useState(false)
+  const isNav = projectId === 'mobile-nav-revamp'
+  useEffect(() => {
+    if (!isNav || !onWorkspace) { setNavDue(false); return }
+    const timer = window.setTimeout(() => setNavDue(true), NAV_REQUEST_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [isNav, onWorkspace])
+  const navResolved = conflicts.find((c) => c.id === 'cc-4')?.reviewStage === 'resolved'
+  const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (isNav && navDue && !navResolved))
   const seen = useRef(new Set())
   const [visibleIds, setVisibleIds] = useState([])
 
@@ -95,15 +108,15 @@ export default function HighReviewNotifications() {
         <Notification
           type="info"
           icon={Bell}
-          title="검토 요청 · Jordan"
-          body={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''}
+          title={isNav ? '검토 요청 · Taylor' : '검토 요청 · Jordan'}
+          body={isNav ? NAV_REQUEST_BODY : (comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''}
           onDismiss={() => setRequestDismissed(true)}
           actions={[
             { label: '나중에', quiet: true, onClick: () => setRequestDismissed(true) },
             // The walkthrough's way in: its conflict starts from before the
             // review every time (opening it from the list shows it as it
             // stands).
-            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) } },
+            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { const id = isNav ? 'cc-4' : 'cc-11'; setRequestDismissed(true); exitMergeStudio(); restartConflict(id); openConflictReview(id); setBottomPanel({ tab: 'conflict', open: true }) } },
           ]}
         />
       )}
