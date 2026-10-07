@@ -2685,7 +2685,7 @@ export const comments = [
     projectId: 'checkout-redesign',
     authorId: 'james',
     timeLabel: '8m ago',
-    text: '결제 버튼에 기존 보라색(#7c3aed)과 40px 높이가 남아 있어요. 새 결제 시안의 primary 토큰과 44px 버튼으로 맞추려는데, 이 기준이 맞는지 확인 부탁드려요.',
+    text: '결제 버튼의 보라색·40px 높이를 primary 토큰·44px로 맞추려는데, 기준이 맞는지 확인 부탁드려요.',
     status: 'open',
     likes: 0,
     replies: 0,

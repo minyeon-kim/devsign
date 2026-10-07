@@ -71,6 +71,12 @@ Proposed resolution|해결 제안
 Reason for adjustment and exception|직접 조정 및 예외 요청 사유
 This reason is also sent with the exception request.|입력한 조정 사유가 예외 요청에도 함께 전달됩니다.
 Apply exception|예외 적용
+Exception needed to merge|병합하려면 예외 필요
+Apply both|둘 다 적용
+Suggested|제안
+Keep local|로컬 유지
+Take remote|원격 사용
+How to resolve the conflict|충돌 해결 방법
 Required rule|필수
 Recommended rule|권장
 It can’t be merged: a required rule isn’t kept.|필수 규칙 미충족 · 병합 불가
@@ -349,6 +355,7 @@ Agreed with the design owner|디자인 담당자와 합의
 Merges with the adjusted value|조정한 값으로 병합
 A choice that follows the standard needs no reason — this one is kept with the decision.|기준 준수 시 이유 입력 불필요 · 예외 이유는 결정과 함께 기록
 Or write your own reason|직접 입력
+Choose a reason|사유 선택
 Save reason|이유 저장
 Reason for the rollback|롤백 이유
 Choose or write a reason first|이유를 먼저 선택하거나 입력하세요

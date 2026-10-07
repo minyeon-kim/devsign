@@ -269,11 +269,12 @@ export function InlineDeviationReason({ value, onSave, readOnly = false, editabl
 // (any number), plus one typed in. Nothing to save — every change is
 // handed back (`onChange`, joined with " · ") and the decision settles it.
 // Read-only: the reason as one line.
-export function ReasonField({ title, hint = 'Required · choose all that apply', reasons, value, onChange, readOnly = false, tone = 'default' }) {
+export function ReasonField({ title, hint = 'Required · choose all that apply', reasons, value, onChange, readOnly = false, tone = 'default', select = false }) {
   const parts = (value ?? '').split(' · ').filter(Boolean)
   const picked = parts.filter((part) => reasons.includes(part))
   // The typed one is kept as typed (spaces and all) until it's handed back.
   const [typed, setTyped] = useState(() => parts.filter((part) => !reasons.includes(part)).join(' · '))
+  const [other, setOther] = useState(() => typed !== '')
   const emit = (nextPicked, nextTyped) => onChange([...reasons.filter((reason) => nextPicked.includes(reason)), nextTyped.trim()].filter(Boolean).join(' · '))
   if (readOnly) {
     if (!parts.length) return null
@@ -281,6 +282,29 @@ export function ReasonField({ title, hint = 'Required · choose all that apply',
       <span className="text-slate-500"><LocalizedText text="Reason" /></span>
       {parts.map((part) => <span key={part}><span className="text-slate-500">· </span><LocalizedText text={part} /></span>)}
     </p>
+  }
+  // One answer from a dropdown; "write your own" opens the field.
+  if (select) {
+    const current = other ? '__other' : picked[0] ?? ''
+    return (
+      <div data-reason-field data-tone={tone} className="space-y-2">
+        <p className="text-xs font-medium text-slate-200"><LocalizedText text={title} /></p>
+        <select
+          aria-label={title}
+          value={current}
+          onChange={(event) => {
+            const next = event.target.value
+            if (next === '__other') { setOther(true); emit([], typed) } else { setOther(false); emit(next ? [next] : [], '') }
+          }}
+          className="h-8 w-full min-w-0 cursor-pointer rounded-full border border-white/15 bg-[#1f1f1f] px-3 text-xs text-white outline-none transition-colors hover:border-white/25 focus:border-emerald-300/60"
+        >
+          <option value="" disabled>Choose a reason</option>
+          {reasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+          <option value="__other">Or write your own reason</option>
+        </select>
+        {other && <input autoFocus aria-label="Your own reason" placeholder="직접 입력" value={typed} onChange={(event) => { setTyped(event.target.value); emit([], event.target.value) }} className="h-8 w-full min-w-0 rounded-full border border-white/15 bg-white/[0.02] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60" />}
+      </div>
+    )
   }
   return (
     <div data-reason-field data-tone={tone} className="space-y-3">

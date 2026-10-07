@@ -728,13 +728,13 @@ button.editor-line-comment {
   --notification-control: var(--color-slate-500);
   --notification-control-hover-bg: rgb(255 255 255 / 6%);
   --notification-success: var(--ds-primary);
-  --notification-success-bg: color-mix(in srgb, var(--ds-primary) 12%, transparent);
+  --notification-success-bg: color-mix(in srgb, var(--ds-primary) 32%, transparent);
   --notification-info: var(--ds-primary);
-  --notification-info-bg: color-mix(in srgb, var(--ds-primary) 12%, transparent);
+  --notification-info-bg: color-mix(in srgb, var(--ds-primary) 32%, transparent);
   --notification-warning: var(--color-amber-300);
-  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 12%, transparent);
+  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 32%, transparent);
   --notification-error: var(--destructive);
-  --notification-error-bg: color-mix(in srgb, var(--destructive) 12%, transparent);
+  --notification-error-bg: color-mix(in srgb, var(--destructive) 32%, transparent);
   /* The filled action is the app's own main CTA (the mint of "Continue"). */
   --notification-action-bg: var(--ds-review-action-bg);
   --notification-action-text: var(--ds-review-action-fg);
@@ -800,6 +800,10 @@ button.editor-line-comment {
   font-weight: 400;
   line-height: 20px;
   color: var(--notification-text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .ds-notification-meta { font-size: 12px; line-height: 16px; color: var(--notification-text-meta); }
 /* Actions: at the bottom right, one filled, the rest quiet. */

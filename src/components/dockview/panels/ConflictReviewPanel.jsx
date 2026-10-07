@@ -772,11 +772,25 @@ const STATE_CHIP = 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text
 // saying how much it matters — required (it can't merge without the
 // reviewers' exception) or recommended (it can) — opening to which rule it
 // is and why it's there. Nothing shows for a way that breaks no rule.
-function RuleNote({ check, required, children }) {
+function RuleNote({ check, required, action }) {
   const [open, setOpen] = useState(false)
   const why = checkGuidance(check)?.impact ?? check.hint ?? null
+  // A required rule: one quiet line with the action at its end — what and
+  // why on hover or focus, not in the card.
+  if (required) {
+    const tip = [check.title, why].filter(Boolean).join(' — ')
+    return (
+      <div data-rule-note="required" className="flex min-w-0 items-center gap-2 border-t border-white/[0.07] pt-2.5 text-[11px] leading-4 text-slate-300">
+        <span tabIndex={0} title={tip} className="flex min-w-0 flex-1 cursor-help items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <TriangleAlert aria-hidden className="size-3 shrink-0 text-amber-300" />
+          <span className="min-w-0 truncate"><LocalizedText text="Exception needed to merge" /></span>
+        </span>
+        {action}
+      </div>
+    )
+  }
   return (
-    <div data-rule-note={required ? 'required' : 'recommended'} className={cn('min-w-0 rounded-lg text-[11px] leading-4', required ? 'bg-amber-400/[0.08] text-amber-100' : 'bg-white/[0.04] text-slate-300')}>
+    <div data-rule-note="recommended" className="min-w-0 rounded-lg bg-white/[0.04] text-[11px] leading-4 text-slate-300">
       <button
         type="button"
         aria-expanded={open}
@@ -785,18 +799,15 @@ function RuleNote({ check, required, children }) {
         onKeyDown={(event) => event.stopPropagation()}
         className="ds-intrinsic flex w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300"
       >
-        {required && <TriangleAlert aria-hidden className="size-3 shrink-0 text-amber-300" />}
-        <span className="min-w-0 flex-1 truncate font-medium"><LocalizedText text={required ? 'Required rule · can’t merge without an exception' : 'Recommended · can merge'} /></span>
+        <span className="min-w-0 flex-1 truncate font-medium"><LocalizedText text="Recommended · can merge" /></span>
         <ChevronDown aria-hidden className={cn('size-3 shrink-0 opacity-70 transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
         <dl className="space-y-1 px-2 pb-2 text-[11px] leading-4">
           <div><dt className="inline opacity-70"><LocalizedText text="Rule" /> · </dt><dd className="inline"><LocalizedText text={check.title} /></dd></div>
           {why && <div><dt className="inline opacity-70"><LocalizedText text="Why it matters" /> · </dt><dd className="inline"><LocalizedText text={why} /></dd></div>}
-          <div><dt className="inline opacity-70"><LocalizedText text="Kind" /> · </dt><dd className="inline"><LocalizedText text={required ? 'Required — merging waits on the reviewers’ exception approval' : 'Recommended — it doesn’t block the merge'} /></dd></div>
         </dl>
       )}
-      {children && <div className="flex justify-end px-2 pb-2">{children}</div>}
     </div>
   )
 }
@@ -811,6 +822,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') !== '0' } catch { return true } })
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
+  // A merge conflict: which side's code to take — the suggested mix by default.
+  const [codeChoice, setCodeChoice] = useState('both')
   // The card under the pointer: the code block shows its result meanwhile.
   const [hover, setHover] = useState(null)
   // The third card's dropdown (choosing the card opens it), and the value
@@ -1124,35 +1137,16 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         </div>
                       ))}
                     </dl>
-                    {/* More than the compared values — another property, another
-                        element — is set in Merge Studio. */}
-                    {picks && editing && flow.openStudio && (
-                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'w-fit justify-center bg-transparent')}>
-                        <LocalizedText text="Adjust more in Merge Studio" />
-                        <ArrowRight className={NAV_BUTTON_ICON} />
-                      </button>
-                    )}
                     {!readOnly && (required.length > 0 || advisories.length > 0) && (
                       <div data-card-rules className="min-w-0 space-y-2">
-                        {required.map((check, index) => <RuleNote key={check.id} check={check} required>
-                        {index === required.length - 1 && editing && (
-                          exceptionEditor === `${conflict.id}:${card.id}` && on && flow.reason ? (
-                            <div data-decision-reason={card.id} className="w-full min-w-0 space-y-3 border-t border-amber-200/10 pt-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-                              <ReasonField key={`${conflict.id}:${card.id}`} {...flow.reason} tone="warning" />
-                              <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => setExceptionEditor(null)} className="text-xs text-slate-400 hover:text-white"><LocalizedText text="Cancel" /></button>
-                                <button type="button" disabled={!flow.reason.value.trim() || reviewerNeeded} onClick={flow.submitException} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40">
-                                  <Send className="size-3" /><LocalizedText text="Send exception request" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button type="button" data-request-card-exception={card.id} disabled={isCustom && !flow.custom} onClick={(event) => { event.stopPropagation(); if (!on) flow.choose(card.id); setExceptionEditor(`${conflict.id}:${card.id}`) }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40">
+                        {required.map((check, index) => (
+                          <RuleNote key={check.id} check={check} required action={index === required.length - 1 && editing ? (
+                            <button type="button" data-request-card-exception={card.id} disabled={isCustom && !flow.custom} onClick={(event) => { event.stopPropagation(); if (!on) flow.choose(card.id); setExceptionEditor(`${conflict.id}:${card.id}`) }} onKeyDown={(event) => event.stopPropagation()} className={cn('ds-intrinsic inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-amber-200 transition-colors hover:bg-white/[0.06] hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40', on && 'border border-amber-300/40')}>
                               <LocalizedText text="Apply exception" />
+                              <ArrowRight aria-hidden className="size-3" />
                             </button>
-                          )
-                        )}
-                        </RuleNote>)}
+                          ) : null} />
+                        ))}
                         {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
                       </div>
                     )}
@@ -1163,9 +1157,17 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
-                        <ReasonField key={`${conflict.id}:C`} {...flow.reason} readOnly={!editing} />
+                        <ReasonField key={`${conflict.id}:C`} {...flow.reason} select readOnly={!editing} />
 
                       </div>
+                    )}
+                    {/* More than the compared values — another property, another
+                        element — is set in Merge Studio. */}
+                    {picks && editing && flow.openStudio && (
+                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className="ds-intrinsic inline-flex w-fit cursor-pointer items-center gap-1 text-[11.5px] text-slate-400 underline-offset-2 transition-colors hover:text-white hover:underline">
+                        <LocalizedText text="Adjust more in Merge Studio" />
+                        <ArrowRight className="size-3" />
+                      </button>
                     )}
                     {/* 5 · What it does to the code, as the one value that
                         changes — at the foot of every card, so the three
@@ -1192,6 +1194,21 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   )
                 })}
               </div>
+              {pairedPreview && !readOnly && editing && flow?.reason && choice && exception && exceptionEditor === `${conflict.id}:${choice}` && (
+                <section data-decision-reason={choice} data-exception-editor className="mt-3 min-w-0 space-y-3 rounded-xl border border-amber-300/25 px-4 py-3">
+                  <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-amber-100">
+                    <TriangleAlert aria-hidden className="size-3.5 shrink-0 text-amber-300" />
+                    <span className="min-w-0"><LocalizedText text="Exception request" /> · {breaks(choice).map((check) => check.title).join(', ')}</span>
+                  </p>
+                  <ReasonField key={`${conflict.id}:${choice}:exception`} {...flow.reason} tone="warning" select={choice === 'C'} />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setExceptionEditor(null)} className="text-xs text-slate-400 hover:text-white"><LocalizedText text="Cancel" /></button>
+                    <button type="button" disabled={!flow.reason.value.trim() || reviewerNeeded} onClick={flow.submitException} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40">
+                      <Send className="size-3" /><LocalizedText text="Send exception request" />
+                    </button>
+                  </div>
+                </section>
+              )}
               {pairedPreview && !readOnly && choice && reviewerNeeded && (
                 <section data-next-step="reviewer" className="mt-3 min-w-0 rounded-xl border border-emerald-300/35 bg-emerald-400/[0.045] px-4 py-3">
                   <h3 className="text-xs font-semibold text-emerald-100"><LocalizedText text="Next step · Assign a reviewer" /></h3>
@@ -1301,7 +1318,37 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Merge conflict code" /></h3></div>
                 <p data-conflict-code-location className="break-all font-mono text-xs text-slate-400">{conflict.file}:{conflict.line ?? 1}</p>
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.resolution ?? conflict.suggestion} /></p>
-                <CodeDiffColumns rows={diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])} codeConflict />
+                {(() => {
+                  const before = conflict.diff.before ?? []
+                  const mid = before.findIndex((line) => /^={7}$/.test(line))
+                  const end = before.findIndex((line) => /^>{7}/.test(line))
+                  const sides = mid > 0 && end > mid ? { local: before.slice(1, mid), remote: before.slice(mid + 1, end) } : null
+                  const options = [
+                    ...(sides ? [
+                      { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, lines: sides.local },
+                      { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, lines: sides.remote },
+                    ] : []),
+                    { id: 'both', title: 'Apply both', note: 'Suggested', lines: conflict.diff.after ?? [] },
+                  ]
+                  const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
+                  return <>
+                    <div role="radiogroup" aria-label="How to resolve the conflict" className="grid min-w-0 gap-2 sm:grid-cols-3">
+                      {options.map((option) => {
+                        const on = option.id === picked.id
+                        return (
+                          <button key={option.id} type="button" role="radio" aria-checked={on} data-code-choice={option.id} onClick={() => setCodeChoice(option.id)} className={cn('ds-intrinsic flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'border-emerald-300/50 bg-emerald-400/[0.08]' : 'border-white/10 hover:border-white/25 hover:bg-white/[0.04]')}>
+                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-white">
+                              <span aria-hidden className={cn('flex size-3.5 shrink-0 items-center justify-center rounded-full border', on ? 'border-[#5EEAB5] bg-[#5EEAB5] text-[#06281D]' : 'border-white/25')}>{on && <Check className="size-2.5" strokeWidth={3} />}</span>
+                              <span className="min-w-0 truncate"><LocalizedText text={option.title} /></span>
+                            </span>
+                            {option.note && <span translate="no" className="min-w-0 truncate pl-5 font-mono text-[11px] text-slate-400">{option.note}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict />
+                  </>
+                })()}
               </section>
             )}
             {/* The code follows the card that's picked: its diff when the
@@ -1358,7 +1405,7 @@ function ValueText({ text }) {
 }
 
 // A number of the element's own, set where the card shows it: typed, or
-// stepped with − / + (↑ / ↓ too), and the design tokens for it as chips.
+// stepped with − / + (↑ / ↓ too).
 // Every valid change is put on the element at once — the picture and the
 // code follow as it's set. `control`: lib/mergeResult's valueControlsFor,
 // with the value so far and `set(px)`.
@@ -1406,15 +1453,6 @@ function ValueStepper({ control }) {
         <span className="shrink-0 pr-1 text-[11px] font-normal text-slate-500">px</span>
         <button type="button" aria-label={`${control.label} +1`} disabled={value >= control.max} onClick={() => apply(value + 1)} className={button}><Plus className="size-3" /></button>
       </span>
-      {control.tokens.length > 0 && (
-        <span className="flex min-w-0 flex-wrap justify-end gap-1">
-          {control.tokens.map((token) => (
-            <button key={token.px} type="button" data-value-option={token.px} title={token.name} aria-pressed={value === token.px} onClick={() => apply(token.px)} className={cn('ds-intrinsic h-5 cursor-pointer rounded px-1.5 text-[10.5px] leading-none tabular-nums transition-colors', value === token.px ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.06] text-slate-400 hover:bg-white/[0.12] hover:text-white')}>
-              {token.px}
-            </button>
-          ))}
-        </span>
-      )}
       {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}px`} /></span>}
     </span>
   )
