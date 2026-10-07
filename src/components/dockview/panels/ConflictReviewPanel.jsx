@@ -812,7 +812,23 @@ function RuleNote({ check, required, action }) {
   )
 }
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer }) {
+// A merge conflict's ways out: each side's lines from between the markers,
+// and the suggested mix (the diff's "after").
+function codeConflictOptions(conflict) {
+  const before = conflict.diff?.before ?? []
+  const mid = before.findIndex((line) => /^={7}$/.test(line))
+  const end = before.findIndex((line) => /^>{7}/.test(line))
+  const sides = mid > 0 && end > mid ? { local: before.slice(1, mid), remote: before.slice(mid + 1, end) } : null
+  return [
+    ...(sides ? [
+      { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, lines: sides.local },
+      { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, lines: sides.remote },
+    ] : []),
+    { id: 'both', title: 'Apply both', note: 'Suggested', plain: true, lines: conflict.diff?.after ?? [] },
+  ]
+}
+
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onCodeChoice }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
@@ -823,14 +839,22 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
   // A merge conflict: which side's code to take — the suggested mix by default.
-  const [codeChoice, setCodeChoice] = useState('both')
+  const codeChoice = conflict.codeChoice ?? 'both'
+  const setCodeChoice = (id) => onCodeChoice?.(id)
   // The card under the pointer: the code block shows its result meanwhile.
   const [hover, setHover] = useState(null)
   // The third card's dropdown (choosing the card opens it), and the value
   // in it under the pointer — tried on in the card and the code meanwhile.
   const [exceptionEditor, setExceptionEditor] = useState(null)
   const mergedFile = mergedLines ?? conflict.mergedFileLines ?? code?.generated ?? null
+  const codeConflict = conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line))
   const mergedExcerpt = (() => {
+    // A merge conflict merges with the way picked for it.
+    if (codeConflict) {
+      const options = codeConflictOptions(conflict)
+      const lines = (options.find((option) => option.id === codeChoice) ?? options.at(-1)).lines
+      return lines.map((text, index) => ({ number: (conflict.line ?? 1) + index, text }))
+    }
     const after = conflict.diff?.after ?? []
     if (!mergedFile?.length) return after.map((text, index) => ({ number: (conflict.line ?? 1) + index, text }))
     // Where the merged lines actually are (the file may have shifted).
@@ -847,7 +871,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     )
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], changeAfter ?? conflict.diff.after ?? []) : []
-  const codeConflict = conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line))
   const pairedPreview = !codeConflict && Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
   // The three ways to resolve it, as cards. Each header is two lines: what
@@ -1320,16 +1343,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.resolution ?? conflict.suggestion} /></p>
                 {(() => {
                   const before = conflict.diff.before ?? []
-                  const mid = before.findIndex((line) => /^={7}$/.test(line))
-                  const end = before.findIndex((line) => /^>{7}/.test(line))
-                  const sides = mid > 0 && end > mid ? { local: before.slice(1, mid), remote: before.slice(mid + 1, end) } : null
-                  const options = [
-                    ...(sides ? [
-                      { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, lines: sides.local },
-                      { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, lines: sides.remote },
-                    ] : []),
-                    { id: 'both', title: 'Apply both', note: 'Suggested', plain: true, lines: conflict.diff.after ?? [] },
-                  ]
+                  const options = codeConflictOptions(conflict)
                   const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
                   return <>
                     <div role="radiogroup" aria-label="How to resolve the conflict" className="grid min-w-0 gap-2 sm:grid-cols-3">
@@ -2434,7 +2448,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const mergeConflict = Boolean(conflict?.diff?.before?.some((line) => line.startsWith('<<<<<<<')))
   const mergedSide = decisionState.side ?? conflict?.decidedSide ?? 'A'
   const mergedWith = !conflict ? null
-    : mergeConflict ? `Resolved with the ${mergedSide === 'A' ? 'remote' : 'local'} branch (${mergedSide === 'A' ? conflict.branches?.remote : conflict.branches?.local}) value`
+    : mergeConflict ? (conflict.codeChoice === 'both' || !conflict.codeChoice ? 'Resolved by applying both changes'
+        : `Resolved with the ${conflict.codeChoice === 'remote' ? 'remote' : 'local'} branch (${conflict.codeChoice === 'remote' ? conflict.branches?.remote : conflict.branches?.local}) value`)
       : mergedSide === 'A' ? 'Resolved with the design reference' : 'Resolved by keeping the current implementation'
   const approvers = (conflict?.reviewers ?? []).filter((reviewer) => reviewer.status === 'approved').map((reviewer) => personNameOf(reviewer.id)).filter(Boolean)
   // The reasons linked to this conflict (lib/rationale): the rules it runs
@@ -2918,11 +2933,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       <span className="min-w-0 text-xs text-emerald-100/80">
                         {[
                               conflict.rollback ? null : mergedWith,
-                              approvers.length ? `Sign-off from ${approvers.join(', ')}` : conflict.mergedBy ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
+                              approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
+                          conflict.mergedBy && !conflict.rollback ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
                           conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
                         ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
                       </span>
-                      {!conflict.rollback && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
+                      {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>
                   )}
                   {!replayId ? (
@@ -2996,6 +3012,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             reviewerNeeded={needsReviewer}
                             reviewerCandidates={reviewerCandidates}
                             onAssignReviewer={assignReviewer}
+                            onCodeChoice={(id) => update({ codeChoice: id })}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —

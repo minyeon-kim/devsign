@@ -715,9 +715,9 @@ button.editor-line-comment {
        accents  the mint of the main CTA for success and info, the amber of
                 the "Deployed" badge for warnings, the destructive red for
                 errors. No blue, indigo or violet. */
-  --notification-bg: #272727;
-  --notification-bg-hover: #323232;
-  --notification-border: rgb(255 255 255 / 12%);
+  --notification-bg: #3a3a3d;
+  --notification-bg-hover: #46464a;
+  --notification-border: rgb(255 255 255 / 18%);
   --notification-shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
   --notification-text: var(--foreground);
   --notification-text-secondary: var(--color-slate-400);
