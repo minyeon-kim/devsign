@@ -114,6 +114,7 @@ function WorkspacePage() {
     setBottomPanel,
     focusChange,
     openConflictReview,
+    openConflictFromNotification,
   ])
 
   const inMergeStudio = activeView === 'mergeStudio'

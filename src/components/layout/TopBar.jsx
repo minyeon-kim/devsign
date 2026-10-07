@@ -54,7 +54,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
-  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictReview, openConflictFromNotification, bottomPanel, setBottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, bottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
   if (activeView === 'mergeStudio') return null
 

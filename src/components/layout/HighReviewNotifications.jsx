@@ -21,7 +21,7 @@ const NAV_REQUEST_BODY = 'Nav Icon / Size · 아이콘을 24px로 키운 디자�
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, setBottomPanel, openConflictReview, openConflictFromNotification, restartConflict } = useWorkspace()
+  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
