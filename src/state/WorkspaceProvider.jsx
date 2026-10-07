@@ -102,10 +102,6 @@ export function WorkspaceProvider({ children, projectId }) {
   // cursors and Follow Me timelines actually render as *other* people.
   const currentUser = currentUserFor(projectId)
   const otherMembers = useMemo(() => teamMembers.filter((m) => m.id !== currentUser.id), [currentUser.id])
-  // The viewer's own role ('Designer' / 'Developer' — `currentUser` reads
-  // "You"): a developer fixes a conflict in its code, so Merge Studio opens
-  // on the code and its guide says which line to change.
-  const viewerRole = teamMembers.find((m) => m.id === currentUser.id)?.role ?? null
   // Every project's file set shares the same file *ids* as the default
   // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
   // so this only needs to swap which file objects those ids resolve to,
@@ -804,12 +800,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // review, the list, the reviewers) reads this one record, so they all
   // follow. A conflict that was already merged stays merged: that's code
   // in the file, not review state.
-  // `reopen`: a merged one too — Merge Studio's "Edit again" on a conflict
-  // finished before (its item goes back to needing review).
-  const restartConflict = useCallback((conflictId, { reopen = false } = {}) => {
+  const restartConflict = useCallback((conflictId) => {
     const conflict = conflicts.find((candidate) => candidate.id === conflictId)
-    if (!conflict || (conflict.reviewStage === 'resolved' && !reopen)) return false
-    if (conflict.reviewStage === 'resolved' && conflict.mergeItemId) setMergeItems((prev) => prev.map((m) => (m.id === conflict.mergeItemId ? { ...m, tag: 'Needs Review' } : m)))
+    if (!conflict || conflict.reviewStage === 'resolved') return false
     // What was picked or set by hand for it (its merge draft) goes first:
     // changing a draft touches the review's stage, set last below.
     const draft = conflict.mergeItemId ? mergeDrafts.current[conflict.mergeItemId] : null
@@ -832,10 +825,9 @@ export function WorkspaceProvider({ children, projectId }) {
       adjustmentReason: null,
       exceptionChecks: [],
       acceptedChecks: [],
-      ...(reopen ? { mergedHandLines: null, mergedHandValues: null, mergedAssembly: null, mergedAdjustments: null, mergedAdjustment: null } : null),
     })))
     return true
-  }, [conflicts, saveMergeDraft, setConflicts, setMergeItems])
+  }, [conflicts, saveMergeDraft, setConflicts])
 
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
@@ -2117,7 +2109,6 @@ export function WorkspaceProvider({ children, projectId }) {
   const value = {
     projectId,
     currentUser,
-    viewerRole,
     otherMembers,
     workspaceFiles: files,
     prototypeEdits,

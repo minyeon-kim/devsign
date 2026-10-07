@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from 'cn'
 import { diffLines } from '@/lib/lineDiff'
 
@@ -14,6 +14,10 @@ import { diffLines } from '@/lib/lineDiff'
 // with two columns of line numbers — the old file's and the new file's — so
 // a removed line carries only its old number and an added one only its new.
 // Changes play one after another, top to bottom.
+// Side by side (`layout="split"`, the app's diff layout — components/diff/
+// DiffView): the old file on the left, the new on the right, line for line —
+// a removed line turns red on the left, its replacement types in on the
+// right — so a replay reads in the same layout as the diff it plays.
 //
 // Typing is frame-driven (requestAnimationFrame, a fixed number of
 // characters per frame) and written straight into the line being typed, so
@@ -59,13 +63,20 @@ function planOf(from, to) {
   }))
 }
 
+// The line numbers: old and new (stacked), or the one for its side.
+function Gutter({ oldNo, newNo, side }) {
+  return <>
+    {side !== 'right' && <span className={NUMBER}>{oldNo ?? ''}</span>}
+    {side !== 'left' && <span className={NUMBER}>{newNo ?? ''}</span>}
+  </>
+}
+
 // A line that isn't moving: unchanged, or a change that has played (`kind`
 // then colors it). Memoized, so a line finishing elsewhere doesn't touch it.
-const StillLine = memo(function StillLine({ kind, text, oldNo, newNo }) {
+const StillLine = memo(function StillLine({ kind, text, oldNo, newNo, side }) {
   return (
     <div data-diff-kind={kind} className={cn(ROW, TONE[kind])}>
-      <span className={NUMBER}>{oldNo ?? ''}</span>
-      <span className={NUMBER}>{newNo ?? ''}</span>
+      <Gutter oldNo={oldNo} newNo={newNo} side={side} />
       <span className={MARK}>{SIGN[kind]}</span>
       <span className={CODE}>{text || ' '}</span>
     </div>
@@ -73,7 +84,7 @@ const StillLine = memo(function StillLine({ kind, text, oldNo, newNo }) {
 })
 
 // The line being removed: it turns red, holds a beat, and stays.
-function RemovingLine({ item, onDone }) {
+function RemovingLine({ item, onDone, side }) {
   const done = useRef(onDone)
   useEffect(() => { done.current = onDone }, [onDone])
   useEffect(() => {
@@ -88,8 +99,7 @@ function RemovingLine({ item, onDone }) {
   }, [])
   return (
     <div data-playback-active data-diff-kind="remove" className={cn(ROW, TONE.remove, 'history-row-flash-remove')}>
-      <span className={NUMBER}>{item.oldNo}</span>
-      <span className={NUMBER} />
+      <Gutter oldNo={item.oldNo} side={side} />
       <span className={MARK}>{SIGN.remove}</span>
       <span className={CODE}>{item.text || ' '}</span>
     </div>
@@ -98,7 +108,7 @@ function RemovingLine({ item, onDone }) {
 
 // The line being typed. Its characters go into the DOM directly, a few per
 // frame; nothing above it re-renders until it calls `onDone`.
-function TypingLine({ item, perFrame, onDone }) {
+function TypingLine({ item, perFrame, onDone, side }) {
   const typedRef = useRef(null)
   const done = useRef(onDone)
   useEffect(() => { done.current = onDone }, [onDone])
@@ -116,8 +126,7 @@ function TypingLine({ item, perFrame, onDone }) {
   }, [item, perFrame])
   return (
     <div data-playback-active data-diff-kind="add" className={cn(ROW, TONE.add)}>
-      <span className={NUMBER} />
-      <span className={NUMBER}>{item.newNo}</span>
+      <Gutter newNo={item.newNo} side={side} />
       <span className={MARK}>{SIGN.add}</span>
       <span className={CODE}>
         <span ref={typedRef} />
@@ -127,7 +136,7 @@ function TypingLine({ item, perFrame, onDone }) {
   )
 }
 
-function PlaybackCode({ from, to, onTyped, onDone }) {
+function PlaybackCode({ from, to, onTyped, onDone, layout = 'unified' }) {
   const plan = useMemo(() => planOf(from, to), [from, to])
   const total = plan.filter((item) => item.order >= 0).length
   // How many changes have played.
@@ -156,22 +165,53 @@ function PlaybackCode({ from, to, onTyped, onDone }) {
   }, [finished])
 
   const next = () => setFinished((n) => n + 1)
+  // One row of the diff, as it stands now (`side`: its column, side by side).
+  const line = (item, side) => {
+    if (!item) return <div aria-hidden className="h-full min-h-[22px] bg-[repeating-linear-gradient(135deg,transparent_0_4px,rgba(255,255,255,0.03)_4px_8px)]" />
+    if (item.order < 0 || item.order < finished) return <StillLine kind={item.kind} text={item.text} oldNo={item.oldNo} newNo={item.newNo} side={side} />
+    if (item.order === finished) {
+      return item.kind === 'remove'
+        ? <RemovingLine item={item} onDone={next} side={side} />
+        : <TypingLine item={item} perFrame={perFrame} onDone={next} side={side} />
+    }
+    // Not played yet: a line to be removed is still ordinary code; a line
+    // to be added is the blank row it will be typed into.
+    if (item.kind === 'remove') return <StillLine kind="same" text={item.text} oldNo={item.oldNo} newNo={null} side={side} />
+    return <div aria-hidden className={ROW}><Gutter side={side} /><span className={MARK} /><span className={CODE}>{' '}</span></div>
+  }
+
+  if (layout === 'split') {
+    // Line for line: unchanged on both sides, a removed run beside the
+    // added run that replaces it, the other side left empty.
+    const pairs = []
+    for (let i = 0; i < plan.length;) {
+      if (plan[i].kind === 'same') { pairs.push([plan[i], plan[i]]); i += 1; continue }
+      let r = i
+      while (r < plan.length && plan[r].kind === 'remove') r += 1
+      let e = r
+      while (e < plan.length && plan[e].kind === 'add') e += 1
+      for (let k = 0; k < Math.max(r - i, e - r); k += 1) pairs.push([plan[i + k] && i + k < r ? plan[i + k] : null, r + k < e ? plan[r + k] : null])
+      i = e
+    }
+    return (
+      <div ref={containerRef} data-playback-layout="split" style={{ minHeight: pairs.length * (LINE_HEIGHT + 2) }}>
+        {pairs.map(([left, right], index) => (
+          <div key={index} className="grid grid-cols-2 divide-x divide-white/[0.07]">
+            {/* (An unchanged line is one item on both sides: only the left
+                copy can be the one in motion — it never is.) */}
+            <div className="min-w-0">{line(left, 'left')}</div>
+            <div className="min-w-0">{left === right ? <StillLine kind="same" text={right.text} oldNo={right.oldNo} newNo={right.newNo} side="right" /> : line(right, 'right')}</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     // Every row of the diff has its place from the start — a line still to
     // be typed holds a blank one — so nothing below jumps as lines come in.
-    <div ref={containerRef} style={{ minHeight: plan.length * (LINE_HEIGHT + 2) }}>
-      {plan.map((item) => {
-        if (item.order < 0 || item.order < finished) return <StillLine key={item.index} kind={item.kind} text={item.text} oldNo={item.oldNo} newNo={item.newNo} />
-        if (item.order === finished) {
-          return item.kind === 'remove'
-            ? <RemovingLine key={item.index} item={item} onDone={next} />
-            : <TypingLine key={item.index} item={item} perFrame={perFrame} onDone={next} />
-        }
-        // Not played yet: a line to be removed is still ordinary code; a
-        // line to be added is the blank row it will be typed into.
-        if (item.kind === 'remove') return <StillLine key={item.index} kind="same" text={item.text} oldNo={item.oldNo} newNo={null} />
-        return <div key={item.index} aria-hidden className={ROW}><span className={NUMBER} /><span className={NUMBER} /><span className={MARK} /><span className={CODE}>{' '}</span></div>
-      })}
+    <div ref={containerRef} data-playback-layout="unified" style={{ minHeight: plan.length * (LINE_HEIGHT + 2) }}>
+      {plan.map((item) => <Fragment key={item.index}>{line(item)}</Fragment>)}
     </div>
   )
 }

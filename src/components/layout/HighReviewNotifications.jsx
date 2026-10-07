@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { comments as seedComments } from '@/data/mockData'
 import { Bell } from 'lucide-react'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/layout/ConflictEntryPrompt'
 import { Notification } from '@/components/layout/Notification'
+import { LocalizedText } from '@/i18n/runtime'
+import { allPeople } from '@/data/mockData'
+import { shortDue } from '@/lib/conflicts'
 
 // The on-screen Inbox bell (InboxButton tags itself), if any.
 function findBell() {
@@ -16,12 +18,38 @@ function findBell() {
 // Walkthrough review requests that appear a few seconds after entering a
 // project's Workspace. `restart` puts the conflict back before its review.
 const NAV_REQUEST_DELAY_MS = 4000
-const NAV_REQUEST_BODY = 'Nav Icon / Size · 아이콘을 24px로 키운 디자인과 코드(20px)가 달라요. 확인 부탁드려요.'
+// Each scenario's request: the conflict it's about.
+const REQUESTS = {
+  'mobile-nav-revamp': { conflictId: 'cc-4' },
+  'checkout-redesign': { conflictId: 'cc-11' },
+}
+
+// A notification about one conflict, kept to what's needed: who and what in
+// the title, the conflict and when it's due in one line, and the way in.
+// (Why, and what to do there, are the review's to say.)
+function ConflictNotice({ conflict, title, type = 'info', onDismiss, actions }) {
+  // ("Due tomorrow", in full: a bare "Tomorrow" doesn't say it's a deadline.)
+  const due = shortDue(conflict.dueLabel) ? conflict.dueLabel : null
+  return (
+    <Notification
+      type={type}
+      icon={Bell}
+      title={title}
+      body={<>
+        <LocalizedText text={conflict.title} />
+        {due && <span className="ds-notification-meta"> · <LocalizedText text={due} /></span>}
+      </>}
+      bodyClassName="line-clamp-1"
+      onDismiss={onDismiss}
+      actions={actions}
+    />
+  )
+}
 
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { comments, conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict } = useWorkspace()
+  const { conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -34,6 +62,9 @@ export default function HighReviewNotifications() {
     return () => window.clearTimeout(timer)
   }, [isNav, onWorkspace])
   const navResolved = conflicts.find((c) => c.id === 'cc-4')?.reviewStage === 'resolved'
+  const request = REQUESTS[projectId] ?? null
+  const requestConflict = request ? conflicts.find((c) => c.id === request.conflictId) : null
+  const requester = allPeople.find((person) => person.id === (requestConflict?.requestedBy ?? requestConflict?.changedBy?.id))?.name ?? 'A teammate'
   const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (isNav && navDue && !navResolved))
   const seen = useRef(new Set())
   const [visibleIds, setVisibleIds] = useState([])
@@ -108,47 +139,60 @@ export default function HighReviewNotifications() {
           <button type="button" data-dismiss-all onClick={dismissAll} className="ds-intrinsic ds-notification-dismiss-all">알림 모두 닫기</button>
         </div>
       )}
-      {showRequest && (
-        <Notification
-          type="info"
-          icon={Bell}
-          title={isNav ? '검토 요청 · Taylor' : '검토 요청 · Jordan'}
-          body={isNav ? NAV_REQUEST_BODY : (comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''}
+      {showRequest && request && requestConflict && (
+        <ConflictNotice
+          conflict={requestConflict}
+          title={`${requester} requested your review`}
           onDismiss={() => setRequestDismissed(true)}
           actions={[
-            { label: '나중에', quiet: true, onClick: () => setRequestDismissed(true) },
+            { label: 'Later', quiet: true, onClick: () => setRequestDismissed(true) },
             // The walkthrough's way in: its conflict starts from before the
             // review every time (opening it from the list shows it as it
             // stands).
-            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { const id = isNav ? 'cc-4' : 'cc-11'; setRequestDismissed(true); exitMergeStudio(); restartConflict(id); openConflictFromNotification(id) } },
+            { label: 'Open the conflict', 'data-scenario-open': true, onClick: () => { const id = request.conflictId; setRequestDismissed(true); exitMergeStudio(); restartConflict(id); openConflictFromNotification(id) } },
           ]}
         />
       )}
       {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={dismissEntry} />}
-      {banners.map(n => (
-        <Notification
-          key={n.id}
-          type="error"
-          icon={Bell}
-          title="위험도가 높아요. 바로 검토해 주세요."
-          body={n.target.label}
-          bodyClassName="line-clamp-2"
-          onDismiss={() => dismiss(n.id)}
-          actions={[
-            { label: '나중에', quiet: true, onClick: () => dismiss(n.id) },
-            {
-              label: '읽지 않은 알림 보기',
-              onClick: () => {
-                dismiss(n.id)
-                setMergeDrawer('inbox')
-                // Open it right here when this page has a bell; otherwise go to
-                // the Workspace, where the Inbox lives.
-                if (!findBell()) navigate(`/projects/${projectId}/workspace`)
+      {banners.map(n => {
+        const conflict = conflicts.find((c) => c.id === n.target?.conflictId)
+        const dismissThis = { label: 'Later', quiet: true, onClick: () => dismiss(n.id) }
+        // (With its conflict at hand: that conflict, said plainly, and the
+        // way straight to it. Otherwise the Inbox, where it's listed.)
+        return conflict ? (
+          <ConflictNotice
+            key={n.id}
+            type="error"
+            conflict={conflict}
+            title="A high-risk change needs your review"
+            onDismiss={() => dismiss(n.id)}
+            actions={[dismissThis, { label: 'Open the conflict', onClick: () => { dismiss(n.id); exitMergeStudio(); openConflictFromNotification(conflict.id) } }]}
+          />
+        ) : (
+          <Notification
+            key={n.id}
+            type="error"
+            icon={Bell}
+            title="A high-risk change needs your review"
+            body={n.target.label}
+            bodyClassName="line-clamp-2"
+            onDismiss={() => dismiss(n.id)}
+            actions={[
+              dismissThis,
+              {
+                label: 'See it in the Inbox',
+                onClick: () => {
+                  dismiss(n.id)
+                  setMergeDrawer('inbox')
+                  // Open it right here when this page has a bell; otherwise go to
+                  // the Workspace, where the Inbox lives.
+                  if (!findBell()) navigate(`/projects/${projectId}/workspace`)
+                },
               },
-            },
-          ]}
-        />
-      ))}
+            ]}
+          />
+        )
+      })}
     </aside>,
     document.body
   )

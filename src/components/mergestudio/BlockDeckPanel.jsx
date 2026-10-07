@@ -20,7 +20,6 @@ import {
   Search,
   PanelRightClose,
   Pencil,
-  GitMerge,
   Type,
   X,
 } from 'lucide-react'
@@ -1165,94 +1164,6 @@ export function BlockAssembleTab({ fieldGuide, selectedLayer, frameWidth, assemb
   )
 }
 
-// The selected element's code, edited line by line — the other way to set
-// what the property panel sets. Typing streams to the canvas (it redraws
-// from the code as you type); Enter or leaving the line keeps it, Escape
-// takes it back, and a line typed back to the file's own drops the edit.
-// The element's own lines are lit; the two around them are there to read
-// and can be edited too. A line the incoming change rewrites offers it.
-// `code`: MergeStudioWorkspace's `layerCode`.
-function CodeLineField({ fileId, row, readOnly, onEditCode, onLiveEditCode }) {
-  const [draft, setDraft] = useState(null)
-  const shown = draft ?? row.text
-  function commit() {
-    if (draft == null) return
-    onLiveEditCode?.(fileId, row.line, null)
-    if (draft !== row.text) onEditCode?.(fileId, row.line, draft === row.original ? null : draft)
-    setDraft(null)
-  }
-  return (
-    <div data-code-line-field={`${fileId}:${row.line}`} className={cn('group/code flex min-w-0 items-center gap-2 px-2', row.inBlock ? 'bg-white/[0.04]' : 'opacity-60 focus-within:opacity-100 hover:opacity-100')}>
-      <span className="w-6 shrink-0 text-right text-[10px] text-slate-600 tabular-nums select-none">{row.line}</span>
-      <input
-        value={shown}
-        readOnly={readOnly}
-        spellCheck={false}
-        translate="no"
-        aria-label={`Line ${row.line}`}
-        onChange={(event) => {
-          setDraft(event.target.value)
-          onLiveEditCode?.(fileId, row.line, event.target.value)
-        }}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          event.stopPropagation()
-          if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur() }
-          else if (event.key === 'Escape') { onLiveEditCode?.(fileId, row.line, null); setDraft(null); event.currentTarget.blur() }
-        }}
-        className={cn('h-6 min-w-0 flex-1 rounded-sm bg-transparent px-1 font-mono text-[11px] whitespace-pre text-slate-200 outline-none focus:bg-slate-950 focus:ring-1 focus:ring-emerald-400/70', row.edited && 'text-emerald-200')}
-      />
-      {row.edited && <span title="Edited by hand" className="size-1.5 shrink-0 rounded-full bg-emerald-300" />}
-    </div>
-  )
-}
-
-function LayerCodeView({ code, onEditCode, onLiveEditCode, onOpenCodeMerge }) {
-  if (!code) {
-    return <p className="px-5 py-2 text-[11px] leading-relaxed text-slate-500">This element has no code linked to it.</p>
-  }
-  const edited = code.lines.filter((row) => row.edited)
-  const offers = code.lines.filter((row) => row.incoming && row.incoming !== row.text)
-  return (
-    <div data-layer-code className="space-y-3 pb-4">
-      <InspectorSection
-        title="Code"
-        action={!code.readOnly && edited.length > 0 && (
-          <button type="button" data-code-reset onClick={() => edited.forEach((row) => onEditCode?.(code.fileId, row.line, null))} className="text-[11px] text-slate-400 transition-colors hover:text-white">
-            Reset
-          </button>
-        )}
-      >
-        <p translate="no" className="truncate font-mono text-[10.5px] text-slate-500">{code.fileName}</p>
-        <div className="-mx-2 overflow-hidden rounded-lg bg-black/25 py-1">
-          {code.lines.map((row) => (
-            <CodeLineField key={row.line} fileId={code.fileId} row={row} readOnly={code.readOnly} onEditCode={onEditCode} onLiveEditCode={onLiveEditCode} />
-          ))}
-        </div>
-        <p className="text-[10.5px] leading-relaxed text-slate-500">Edit a line and press Enter — the canvas, the checks and the review follow the code.</p>
-        {onOpenCodeMerge && (
-          <button type="button" data-open-code-merge onClick={onOpenCodeMerge} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.14] text-xs font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.04] hover:text-white">
-            <GitMerge className="size-3.5" />
-            Compare A · B and merge
-          </button>
-        )}
-      </InspectorSection>
-      {!code.readOnly && offers.length > 0 && (
-        <InspectorSection title="Incoming change">
-          {offers.map((row) => (
-            <div key={row.line} className="flex min-w-0 items-center gap-2">
-              <span translate="no" className="min-w-0 flex-1 truncate font-mono text-[11px] text-emerald-200/90" title={row.incoming}>{row.incoming.trim()}</span>
-              <button type="button" data-code-use-incoming onClick={() => onEditCode?.(code.fileId, row.line, row.incoming === row.original ? null : row.incoming)} className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
-                Use
-              </button>
-            </div>
-          ))}
-        </InspectorSection>
-      )}
-    </div>
-  )
-}
-
 // Design System library: browse the integrated component library, then
 // either restyle the selected element with a component ("Replace" /
 // "Insert") or pull a fresh instance onto both artboards ("Add").
@@ -1507,26 +1418,12 @@ function BlockDeckPanel({
   onAddComponent,
   onDragComponent,
   onInsertComponent,
-  layerCode,
-  onEditCode,
-  onLiveEditCode,
   collapsed = false,
   onCollapse,
   tabRequest,
-  viewRequest,
-  onOpenCodeMerge,
   changeCounts = {},
 }) {
   const [tab, setTab] = useState('assemble')
-  // The selection is set through its properties or its code — two views of
-  // the one element (the canvas follows either).
-  const [view, setView] = useState('properties')
-  // A view asked for from outside (a developer's fix guide: the Code view).
-  const [seenViewRequest, setSeenViewRequest] = useState(null)
-  if (viewRequest?.view && viewRequest.nonce !== seenViewRequest) {
-    setSeenViewRequest(viewRequest.nonce)
-    setView(viewRequest.view)
-  }
   function switchTab(next) {
     setTab(next)
   }
@@ -1637,33 +1534,8 @@ function BlockDeckPanel({
       </div>}
       {/* No per-tab description line — each tab's content starts right
           under the tab bar. */}
-      {(activeTab ?? tab) !== 'library' && layerCode !== undefined && (
-        <div role="tablist" aria-label="Edit with" className="flex shrink-0 items-center gap-x-4 px-5 pt-1 pb-2">
-          {[
-            ['properties', 'Properties'],
-            ['code', 'Code'],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              data-inspect-view={id}
-              aria-selected={view === id}
-              onClick={() => setView(id)}
-              className={cn('ds-intrinsic inline-flex h-5 items-center gap-1 text-[10.5px] whitespace-nowrap transition-colors', view === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300')}
-            >
-              {label}
-              {id === 'code' && layerCode?.lines.some((row) => row.edited) && <span aria-hidden className="size-1.5 rounded-full bg-emerald-300" />}
-            </button>
-          ))}
-        </div>
-      )}
       {(activeTab ?? tab) === 'library' ? (
         <AssetsLibrary layer={selectedLayer} onApply={onApplyComponent} onAdd={onAddComponent} onDrag={onDragComponent} onInsert={onInsertComponent} />
-      ) : view === 'code' && layerCode !== undefined ? (
-        <DeckScroll>
-          <LayerCodeView code={layerCode} onEditCode={onEditCode} onLiveEditCode={onLiveEditCode} onOpenCodeMerge={onOpenCodeMerge} />
-        </DeckScroll>
       ) : (
         <BlockAssembleTab
           fieldGuide={fieldGuide}

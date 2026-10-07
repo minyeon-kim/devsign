@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown, Crosshair, Maximize2, Smartphone } from 'lucide-react'
 import { cn } from 'cn'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { LocalizedText } from '@/i18n/runtime'
+import { DEVICES, focusBox, frameOnDevice, isPhoneFrame } from '@/lib/devicePreview'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
@@ -29,7 +33,16 @@ function parsePadding(value) {
 // larger), so nothing has to be scrolled to — the zoom control goes closer.
 // `embedded` drops the panel's own surface and top inset, for a preview
 // placed inside another card (the conflict review's change replay).
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '' } = {}) {
+// `viewControls` (History): what to look at — the element that changed
+// (`focusLayerIds`, zoomed in and ringed; the first view when there is one)
+// or the full screen — and on which phone (lib/devicePreview), as tabs and
+// a dropdown over the preview.
+const DEVICE_KEY = 'devsign.previewDevice'
+const VIEW_KEY = 'devsign.previewView'
+const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
+const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
+const VIEW_TAB = 'ds-intrinsic inline-flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors'
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [] } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -40,6 +53,15 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const boxRef = useRef(null)
   const [box, setBox] = useState({ width: 320, height: 240 })
   const [zoom, setZoom] = useState(100)
+  // The view and the phone picked — kept between visits (like the diff
+  // layout) and through playback, which moves from step to step under them.
+  const [viewPick, setViewPickState] = useState(() => stored(VIEW_KEY, 'changed'))
+  const setViewPick = (view) => { setViewPickState(view); store(VIEW_KEY, view) }
+  const [deviceId, setDeviceIdState] = useState(() => stored(DEVICE_KEY, 'design'))
+  const setDeviceId = (id) => { setDeviceIdState(id); store(DEVICE_KEY, id) }
+  // The last element that changed: a step that changes nothing on the
+  // screen stays on it (rather than jumping to the full screen).
+  const [lastFocus, setLastFocus] = useState([])
 
   useEffect(() => {
     const el = boxRef.current
@@ -54,11 +76,30 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
     setZoom((current) => Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, current + step)))
   }
 
+  // A layer as this version draws it: its edits, the button's padding and —
+  // for a tab bar — the preview props a History checkpoint recorded.
+  function layerOverride(layer) {
+    const override = overrideFromEdit(renderedEdits[layer.id])
+    const withPadding = layer.id === 'primary-button' && buttonPadding ? { ...override, padding: buttonPadding } : override
+    return layer.type === 'tabs' && previewProps?.iconSize ? { ...withPadding, nav: previewProps } : withPadding
+  }
+  // On the phone picked (frames that aren't a phone's stay as drawn).
+  const phone = viewControls && frames.some(isPhoneFrame)
+  const device = phone ? DEVICES.find((entry) => entry.id === deviceId) ?? DEVICES[0] : DEVICES[0]
+  const shownFrames = phone ? frames.map((frame) => frameOnDevice(frame, device.id)) : frames
+  // The changed element, when there's one to show — this version's, else
+  // the last one shown.
+  const boxFor = (ids) => (ids.length ? shownFrames.map((frame) => ({ frame, box: focusBox(frame, ids) })).find((entry) => entry.box) ?? null : null)
+  const ownFocus = viewControls ? boxFor(focusLayerIds) : null
+  if (ownFocus && focusLayerIds.join() !== lastFocus.join()) setLastFocus(focusLayerIds)
+  const focus = ownFocus ?? (viewControls ? boxFor(lastFocus) : null)
+  const view = focus && viewPick === 'changed' ? 'changed' : 'full'
+
   // One scale for every frame, from whichever arrangement — a row
   // or a column — shows them larger in the space there is.
-  const gaps = FRAME_GAP * (frames.length - 1)
-  const sum = (key) => frames.reduce((total, frame) => total + frame[key], 0)
-  const max = (key) => Math.max(...frames.map((frame) => frame[key]))
+  const gaps = FRAME_GAP * (shownFrames.length - 1)
+  const sum = (key) => shownFrames.reduce((total, frame) => total + frame[key], 0)
+  const max = (key) => Math.max(...shownFrames.map((frame) => frame[key]))
   // 2px short of the box, so rounding never tips it into a scrollbar.
   const room = { width: box.width - 2, height: box.height - 2 }
   const rowScale = Math.min((room.width - gaps) / sum('width'), room.height / max('height'))
@@ -75,6 +116,40 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
         </div>
       </div>
+      {viewControls && (
+        <div data-preview-controls className="flex shrink-0 items-center gap-2 px-4 pb-2">
+          {/* Always both tabs (a version with nothing changed on the screen
+              can't show "Changed element": that tab waits, disabled). */}
+          <div role="tablist" aria-label="Preview view" className="inline-flex h-7 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+              {[['changed', 'Changed element', Crosshair], ['full', 'Full screen', Maximize2]].map(([id, label, Icon]) => (
+                <button key={id} type="button" role="tab" data-preview-view={id} aria-selected={view === id} disabled={id === 'changed' && !focus} onClick={() => setViewPick(id)}
+                  className={cn(VIEW_TAB, 'disabled:cursor-not-allowed disabled:opacity-40', view === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                  <Icon className="size-3 shrink-0" />
+                  <LocalizedText text={label} />
+                </button>
+              ))}
+          </div>
+          {phone && (
+            <DropdownMenu>
+              <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                <Smartphone className="size-3.5 shrink-0 text-slate-400" />
+                <LocalizedText text={device.label} />
+                {device.width && <span className="text-slate-500 tabular-nums">{device.width}×{device.height}</span>}
+                <ChevronDown className="size-3 shrink-0 text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                {DEVICES.map((entry) => (
+                  <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
+                    <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
+                    <LocalizedText text={entry.label} />
+                    {entry.width && <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}×{entry.height}</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
 
       {/* `m-auto` on the frame wrapper centers it in the space below the
           header instead of it sitting flush against it — the frame is
@@ -103,7 +178,28 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
             </div>
-          ) : frames.map((frame) => {
+          ) : view === 'changed' ? (() => {
+            // The changed element, close up: its box (with room around
+            // it) scaled to the space — up to 3×, then the zoom — and
+            // ringed; the rest of the screen is cut off at the box.
+            const { frame, box } = focus
+            const scale = Math.max(0.05, Math.min(3, room.width / box.width, (room.height - 24) / box.height)) * (zoom / 100)
+            return (
+              <figure data-preview-focus className="m-0 flex flex-col items-center gap-2">
+                <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: box.width * scale, height: box.height * scale }}>
+                  <div className="absolute" style={{ left: -box.x * scale, top: -box.y * scale, width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                    {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
+                    {box.layers.map((layer) => (
+                      <span key={`ring-${layer.id}`} aria-hidden className="pointer-events-none absolute rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153)` }} />
+                    ))}
+                  </div>
+                </div>
+                <figcaption className="text-[11px] text-slate-400">
+                  <LocalizedText text="Changed" /> · <span translate="no">{box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
+                </figcaption>
+              </figure>
+            )
+          })() : shownFrames.map((frame) => {
             const scale = fitScale * (zoom / 100)
             return (
               <div
@@ -115,15 +211,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   className="relative"
                   style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                 >
-                  {frame.layers.map((layer) => {
-                    const override = overrideFromEdit(renderedEdits[layer.id])
-                    const withPadding =
-                      layer.id === 'primary-button' && buttonPadding ? { ...override, padding: buttonPadding } : override
-                    // A tab bar is drawn from the preview props a History
-                    // checkpoint recorded (icon size, tap area, badge).
-                    const withProps = layer.type === 'tabs' && previewProps?.iconSize ? { ...withPadding, nav: previewProps } : withPadding
-                    return <StaticLayer key={layer.id} layer={layer} override={withProps} onSelect={() => {}} />
-                  })}
+                  {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
                 </div>
               </div>
             )

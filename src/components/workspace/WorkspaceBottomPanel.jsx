@@ -75,7 +75,13 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     return () => observer.disconnect()
   }, [])
 
+  // Opening a review opens the panel — when one is opened, not whenever the
+  // panel mounts: coming back from Merge Studio mounts it afresh with the
+  // last review still selected, and that mustn't pop the panel up.
+  const shownReviewId = useRef(reviewConflictId)
   useEffect(() => {
+    if (shownReviewId.current === reviewConflictId) return
+    shownReviewId.current = reviewConflictId
     // (A review in the full-screen viewer doesn't open or resize this panel.)
     if (!reviewConflictId || reviewView === 'overlay') return
     // Fixing a check on the canvas (see CheckDecisions): the review was
@@ -100,23 +106,13 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // How much of the window's bottom the panel takes (its strip, or all of
-  // it open, with its margin) — published as `--ds-bottom-panel-offset` so
-  // notifications and toasts stack above it instead of over it.
+  // The bottom bar's height, published as `--ds-bottom-panel-offset`:
+  // notifications and toasts sit just above it — always there, open or
+  // not (above the open panel they'd float up the middle of the screen).
   useLayoutEffect(() => {
-    const element = rootRef.current
-    if (!element) return
     const root = document.documentElement
-    const publish = () => root.style.setProperty('--ds-bottom-panel-offset', `${Math.max(0, Math.round(window.innerHeight - element.getBoundingClientRect().top))}px`)
-    publish()
-    const observer = new ResizeObserver(publish)
-    observer.observe(element)
-    window.addEventListener('resize', publish)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', publish)
-      root.style.removeProperty('--ds-bottom-panel-offset')
-    }
+    root.style.setProperty('--ds-bottom-panel-offset', `${STRIP_HEIGHT}px`)
+    return () => root.style.removeProperty('--ds-bottom-panel-offset')
   }, [])
 
   useLayoutEffect(() => {

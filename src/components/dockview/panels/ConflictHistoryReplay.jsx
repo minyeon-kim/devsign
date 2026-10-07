@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, Code2, Eye, GitMerge, History, MessageSqu
 import { cn } from 'cn'
 import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
+import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { LocalizedText } from '@/i18n/runtime'
 import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
@@ -340,14 +341,10 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
           // checkpoint's code and what it renders are read as a pair.
           <div className="grid h-full min-h-0 grid-cols-2">
             <div role="group" aria-label="Code" className="flex min-h-0 min-w-0 flex-col">
-              <p className={REPLAY_PANE_LABEL}><Code2 className="size-3" /><LocalizedText text="Code" /></p>
-              <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[10px] leading-relaxed">
-                {rows.length ? rows.map((row, index) => (
-                  <div key={`${row.kind}-${index}`} className={cn('flex min-w-0 px-3 whitespace-pre-wrap [word-break:break-all]', row.kind === 'add' ? 'bg-emerald-500/[0.18] text-emerald-300' : row.kind === 'remove' ? 'bg-red-500/[0.18] text-red-300' : 'text-slate-500')}>
-                    <span className="w-4 shrink-0 select-none opacity-70">{row.kind === 'add' ? '+' : row.kind === 'remove' ? '−' : ' '}</span>
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-                  </div>
-                )) : <p className="px-3 py-4 text-xs font-sans text-slate-500">This replay checkpoint has no code snapshot.</p>}
+              <p className={REPLAY_PANE_LABEL}><Code2 className="size-3" /><LocalizedText text="Code" />{rows.some((row) => row.kind !== 'same') && <DiffLayoutTabs className="ml-auto" />}</p>
+              <div className="min-h-0 flex-1 overflow-auto pb-2">
+                {rows.length ? <DiffView rows={rows} className="text-[10px]" labels={['Latest', 'This step']} />
+                  : <p className="px-3 py-4 text-xs font-sans text-slate-500">This replay checkpoint has no code snapshot.</p>}
               </div>
             </div>
             <div role="group" aria-label="Preview" className="flex min-h-0 min-w-0 flex-col border-l border-white/[0.06]">

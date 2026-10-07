@@ -1,6 +1,6 @@
 import { reviewTabFor } from '@/lib/conflicts'
 import CheckStatus from '@/components/mergestudio/CheckStatus'
-import { MergeCheckGuide, fixesInCode } from '@/components/conflicts/CheckDecisions'
+import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { toast } from '@/i18n/toast'
@@ -19,7 +19,6 @@ import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } fr
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
-import CodeMergeWindow from '@/components/mergestudio/CodeMergeWindow'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
 import MergePreviewOverlay from '@/components/mergestudio/MergePreviewOverlay'
@@ -421,9 +420,6 @@ function MergeStudioWorkspace({ item }) {
     createMergeRequest,
     currentUser,
     mergeItems,
-    viewerRole,
-    restartConflict,
-    bottomPanel,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -1205,68 +1201,6 @@ function MergeStudioWorkspace({ item }) {
     .filter((e) => e.layerId === deckLayerId)
     .map((e) => ({ ...e, current: layerCopy?.[e.slot] ?? e.value }))
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
-  // A developer arriving to fix a conflict (the guide is up for it): the
-  // Inspect panel opens on the Code view — the fix is made in the code.
-  const guideConflict = checkGuide && conflicts.find((c) => c.id === checkGuide.conflictId && (c.mergeItemId === item?.id || item?.conflictId === c.id))
-  const codeGuide = fixesInCode(viewerRole, guideConflict) ? guideConflict : null
-  const [inspectViewRequest, setInspectViewRequest] = useState(null)
-  // The code merge window (A · B · Result over the canvas): the item's
-  // conflict with code to merge — the one being fixed, else its own.
-  const mergeConflict = codeGuide ?? conflicts.find((c) => (c.mergeItemId === item?.id || c.id === item?.conflictId)
-    && c.fileId && c.diff?.after?.length && !c.diff.before?.some((line) => /^<{7}/.test(line))) ?? null
-  const [codeMergeOpen, setCodeMergeOpen] = useState(false)
-  function showCode() {
-    setFilesWindow({ open: true, tab: 'inspect' })
-    setInspectViewRequest({ view: 'code', nonce: Date.now() })
-    setCodeMergeOpen(true)
-  }
-  const showCodeOnArrival = useEffectEvent(showCode)
-  useEffect(() => {
-    if (codeGuide) showCodeOnArrival()
-  }, [codeGuide?.id, checkGuide]) // eslint-disable-line react-hooks/exhaustive-deps
-  // However a developer comes in (the header's Merge Studio, a list, a
-  // link — not only the review's "Edit in Merge Studio"), an item with an
-  // open conflict to fix in code opens on the code: the guide naming the
-  // line, the merge window and the Code view.
-  // (Finished already — merged, or its item is: the code shows as merged,
-  // read-only, with a way to edit it again.)
-  const codeFinished = Boolean(mergeConflict) && (mergeConflict.reviewStage === 'resolved' || item?.tag === 'Merged')
-  const devConflict = fixesInCode(viewerRole, mergeConflict) ? mergeConflict : null
-  const startCodeFix = useEffectEvent(() => {
-    if (!devConflict) return
-    if (!codeFinished && checkGuide?.conflictId !== devConflict.id) setCheckGuide({ conflictId: devConflict.id, check: null })
-    showCode()
-  })
-  useEffect(() => { startCodeFix() }, [item?.id, devConflict?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  // The selected element's code for the Inspect panel's Code view: its
-  // block in the file (else, for an element with no code link, the item's
-  // conflict lines) with two lines around it. Each line reads as written by
-  // hand, else as the file has it — the same lines the review's direct
-  // adjustment writes a value into, so either place edits the one change.
-  // Where the incoming change has a line of its own, it's offered too.
-  const layerCode = (() => {
-    if (!item || designComparison) return null
-    const conflict = conflicts.find((c) => (c.mergeItemId === item.id || c.id === item.conflictId) && c.fileId)
-    const conflictTarget = conflict ? { fileId: conflict.fileId, line: conflict.line ?? 1, span: conflict.diff?.before?.length ?? 1 } : null
-    // (A developer fixing the conflict sees its lines, whatever's selected.)
-    const target = (codeGuide ? conflictTarget : null) ?? (deckLayerId ? codeTargetFor(deckLayerId) : null) ?? conflictTarget
-    const file = target && files.find((f) => f.id === target.fileId)
-    const lines = file?.lines ?? []
-    if (!lines.length) return null
-    const end = Math.min(lines.length, target.line + (target.span ?? 1) - 1)
-    const incoming = new Map((codeMergeVariants[item.id]?.[target.fileId] ?? []).map((diff) => [diff.line, diff.incoming]))
-    const numbers = []
-    for (let n = Math.max(1, target.line - 2); n <= Math.min(lines.length, end + 2); n++) numbers.push(n)
-    return {
-      fileId: target.fileId,
-      fileName: file.name,
-      readOnly: item.tag === 'Merged',
-      lines: numbers.map((n) => {
-        const key = `${target.fileId}:${n}`
-        return { line: n, original: lines[n - 1], text: syncedCode[key] ?? lines[n - 1], edited: manualCode[key] != null, incoming: incoming.get(n) ?? null, inBlock: n >= target.line && n <= end }
-      }),
-    }
-  })()
 
   return (
     <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
@@ -1388,25 +1322,7 @@ function MergeStudioWorkspace({ item }) {
           />
           </div>
         )}
-        <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} manualCode={syncedCode} onShowCode={showCode} compact={codeMergeOpen && !bottomPanel.open} />
-        {/* (While the bottom panel is up — a review there — the window steps
-            aside; it's back when the panel folds.) */}
-        {codeMergeOpen && mergeConflict && !designComparison && !bottomPanel.open && (
-          <CodeMergeWindow
-            conflict={mergeConflict}
-            manualCode={manualCode}
-            fileLines={getFileLines(mergeConflict.fileId) ?? []}
-            readOnly={codeFinished}
-            onEditAgain={codeFinished && mergeConflict.reviewStage === 'resolved' ? () => {
-              restartConflict(mergeConflict.id, { reopen: true })
-              setManualCode({})
-              setCheckGuide({ conflictId: mergeConflict.id, check: null })
-            } : undefined}
-            onChange={setManualCode}
-            onLive={(fileId, line, text) => liveEditCodeLine(fileId, line, text)}
-            onClose={() => setCodeMergeOpen(false)}
-          />
-        )}
+        <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
@@ -1494,8 +1410,6 @@ function MergeStudioWorkspace({ item }) {
           appliedPresetId={appliedPreset?.id}
           manualCode={manualCode}
           onEditCode={editCodeLine}
-          onLiveEditCode={liveEditCodeLine}
-          layerCode={layerCode}
           selectedLayer={selectedLayer}
           frameWidth={frame0?.width ?? 300}
           assembly={deckLayerId ? assemblies[deckLayerId] : undefined}
@@ -1507,8 +1421,6 @@ function MergeStudioWorkspace({ item }) {
           onInsertComponent={insertComponent}
           onApplyPreset={(preset) => setAppliedPreset(preset ? { ...preset, layerId: deckLayerId } : null)}
           tabRequest={deckTabRequest}
-          viewRequest={inspectViewRequest}
-          onOpenCodeMerge={mergeConflict ? () => setCodeMergeOpen(true) : undefined}
           changeCounts={{
             assemble: Object.keys(assemblies).length,
             library: addedLayers.length,

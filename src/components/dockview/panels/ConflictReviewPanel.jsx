@@ -1,7 +1,7 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
-import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { Fragment, useEffect, useEffectEvent, useId, useRef, useState } from 'react'
 import {
   ArrowRight,
   Ban,
@@ -64,7 +64,7 @@ import {
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { CheckDecisions } from '@/components/conflicts/CheckDecisions'
-import { changedTokens, diffLines } from '@/lib/lineDiff'
+import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
@@ -76,6 +76,7 @@ import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
+import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import {
   ACCENT_CTA,
 } from '@/components/mergestudio/floatingStyles'
@@ -684,44 +685,16 @@ function CheckBlocks({ checks, state, actions }) {
   )
 }
 
-const DIFF_TONES = {
-  same: 'text-slate-400',
-  add: 'bg-emerald-500/[0.18] text-emerald-300',
-  remove: 'bg-red-500/[0.18] text-red-300',
-}
-const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
 function CodeDiffColumns({ rows, codeConflict = false }) {
-  const columns = [
-    { id: 'before', label: codeConflict ? 'Conflicting code' : 'Before', kinds: new Set(['same', 'remove']) },
-    { id: 'after', label: codeConflict ? 'Proposed resolution' : 'After', kinds: new Set(['same', 'add']) },
-  ]
-
   return (
     <div className="min-w-0 space-y-2">
-      {/* Its own row, not a leading column beside the diff — a column
-          there pushed the whole grid-cols-2 diff right of where the
-          comparison cards above it start, so the two never lined up. */}
-      {!codeConflict && <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-        <Sparkles className="size-3 shrink-0 text-emerald-300" />
-        <LocalizedText text="AI suggestion" />
-      </div>}
-      <div className="grid min-w-0 grid-cols-2 gap-3">
-        {columns.map((column) => (
-          <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto font-mono text-[11px] leading-relaxed">
-            <span className={codeConflict ? "mb-2 block font-sans text-xs font-medium text-slate-200" : "sr-only"}><LocalizedText text={column.label} /></span>
-            {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
-              <div key={`${row.kind}-${index}`} className="flex min-w-0 whitespace-pre-wrap [word-break:break-all]">
-                <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
-                <span className={cn(
-                  'min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]',
-                  DIFF_TONES[row.kind],
-                  row.kind !== 'same' && 'box-decoration-clone px-1'
-                )}>{row.text || ' '}</span>
-              </div>
-            ))}
-          </div>
-        ))}
+      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
+        {!codeConflict && <><Sparkles className="size-3 shrink-0 text-emerald-300" /><LocalizedText text="AI suggestion" /></>}
+        <DiffLayoutTabs className="ml-auto" />
+      </div>
+      <div className="scroll-fade-bottom min-w-0 overflow-auto rounded-md bg-black/20 py-1">
+        <DiffView rows={rows} lit={!codeConflict} labels={codeConflict ? ['Conflicting code', 'Proposed resolution'] : ['Before', 'After']} />
       </div>
     </div>
   )
@@ -956,7 +929,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         </div>
       )}
       {/* Decided: why, right under what was decided. */}
-      {pairedPreview && choice !== 'C' && flow?.reason?.value && !editing && (
+      {pairedPreview && flow?.reason?.value && !editing && (
         <div data-decision-reason={choice} className="-mt-2 mb-4 min-w-0"><ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly /></div>
       )}
       {/* The decision's button and the title above stay put; only what's
@@ -1083,7 +1056,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {/* 3 · The picture. (No value of one's own yet: what's
                         there now, faint — the same place on every card.) */}
                     {conflict.preview && (
-                      <div className={cn('min-w-0', empty && 'opacity-40')}>
+                      <div className={cn('min-w-0', empty && !picks && 'opacity-40')}>
                         <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
                       </div>
                     )}
@@ -1104,21 +1077,21 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {/* 4 · The value, one line: its name, then it (and the
                         token it comes from, short). On the third card the
                         value is the dropdown that sets it. */}
-                    <dl className={cn('min-w-0 space-y-2', empty && !picks && 'hidden')}>
+                    <dl className={cn('@container min-w-0 space-y-2', empty && !picks && 'hidden')}>
                       {conflict.comparisonFields.map((field, index) => {
                         // Set by hand: what it was → what it is.
                         const hand = isCustom && custom?.rows[index]?.to ? custom.rows[index] : null
                         const text = isCustom ? custom?.rows[index]?.base ?? field.current : card.value(field)
                         // A color value gets its swatch beside it.
                         const swatch = hand ? hand.swatch : swatchIn(text)
-                        // (Being set: the editor under its name, the card's
-                        // whole width — a narrow card never hides either.)
+                        // (Every card's rows are one height — 28px, the
+                        // editor's — so the cards line up row for row.)
                         const editorHere = picks && editing && Boolean(flow.controls[index])
                         return (
-                        <div key={field.label} className={editorHere ? 'min-w-0 space-y-1.5' : 'flex min-w-0 items-baseline justify-between gap-3'}>
+                        <div key={field.label} className="flex min-h-7 min-w-0 items-center justify-between gap-2">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {editorHere ? (
-                            <dd data-value-editor={flow.controls[index].mode} className="flex w-full min-w-0 flex-col gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
+                            <dd data-value-editor={flow.controls[index].mode} className="-mr-[7px] flex shrink-0"><ValueEditor control={flow.controls[index]} /></dd>
                           ) : picks && hand ? (
                             // (Decided: the value it was set to, as the
                             // other cards show theirs.)
@@ -1147,7 +1120,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                           list (another property, another element) — the
                           same "old → new" form. */}
                       {isCustom && custom?.extras.map((change) => (
-                        <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-w-0 items-baseline justify-between gap-3">
+                        <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-h-7 min-w-0 items-center justify-between gap-2">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
                             {change.layerName && <><LocalizedText text={change.layerName} /> · </>}
                             <LocalizedText text={change.label} />
@@ -1176,26 +1149,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
                       </div>
                     )}
-                    {isCustom && on && required.length === 0 && flow?.custom && flow?.reason && (editing || flow.reason.value) && (
-                      <div
-                        data-decision-reason="C"
-                        className="min-w-0 border-t border-white/[0.07] pt-3"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <ReasonField key={`${conflict.id}:C`} {...flow.reason} select readOnly={!editing} />
-
-                      </div>
-                    )}
                     {/* More than the compared values — another property, another
                         element, the code itself — is set in Merge Studio,
                         whose property panel and code view edit the same
                         adjustment. */}
                     {picks && editing && flow.openStudio && (
-                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} onKeyDown={(event) => event.stopPropagation()} className={cn(NAV_BUTTON, 'w-full justify-center bg-transparent')}>
-                        <Pencil className={NAV_BUTTON_ICON} />
+                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-6 w-fit cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium text-slate-300 ring-1 ring-white/[0.14] transition-colors ring-inset hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                        <Pencil className="size-3 shrink-0" />
                         <LocalizedText text="Edit in Merge Studio" />
-                        <ArrowRight className={NAV_BUTTON_ICON} />
                       </button>
                     )}
                     {/* 5 · What it does to the code, as the one value that
@@ -1261,9 +1222,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && choice !== 'C' && editing && !exception && (
-                <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
-                  <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
+              {/* (One place for every way: under the cards, once the way
+                  chosen needs a reason — keeping the code's value, or a
+                  value actually set by hand; never before.) */}
+              {flow?.reason && editing && !exception && (choice !== 'C' || flow.custom) && (
+                // (A field's width, not the column's: a dropdown or a line
+                // of text this short doesn't need the whole row.)
+                <div data-decision-reason={choice} className="mt-3 w-full max-w-[360px] min-w-0 space-y-5">
+                  <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} select={choice === 'C'} readOnly={!editing} />
                 </div>
               )}
               {/* ③ The code that changes: the file, a way into the editor
@@ -1433,7 +1399,9 @@ function ValueText({ text }) {
 // with the value so far and `set(px)`.
 // Every editor on the third card is the same box — one width, one height,
 // one border — whatever it edits (a number, a color, a value picked).
-const VALUE_BOX = 'flex h-8 w-full min-w-0 items-center rounded-lg border bg-white/[0.03] transition-colors focus-within:border-emerald-300/60'
+// (Sized to its card: a narrow card's box drops the −/+ — typing and
+// ↑/↓ still step it — so the label beside it keeps its room.)
+const VALUE_BOX = 'group/value flex h-7 w-[60px] @[180px]:w-[92px] shrink-0 items-center rounded-md border border-transparent transition-colors hover:border-white/[0.14] hover:bg-white/[0.03] focus-within:border-emerald-300/60 focus-within:bg-white/[0.03]'
 function ValueStepper({ control }) {
   const value = control.value ?? control.current
   const step = control.step ?? 1
@@ -1451,11 +1419,12 @@ function ValueStepper({ control }) {
     if (px !== control.value) control.set(px)
   }
   const stop = (event) => event.stopPropagation()
-  const button = 'ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-30'
+  const button = 'ds-intrinsic hidden @[180px]:flex size-5 shrink-0 cursor-pointer opacity-0 group-hover/value:opacity-100 group-focus-within/value:opacity-100 items-center justify-center rounded text-slate-400 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-30'
   return (
-    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col gap-1.5">
-      <span className={cn(VALUE_BOX, 'gap-0.5 px-1', invalid ? 'border-red-400/60' : 'border-white/[0.14]')}>
-        <button type="button" aria-label={`${control.label} −${step}`} disabled={value <= control.min} onClick={() => apply(value - step)} className={button}><Minus className="size-3" /></button>
+    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex cursor-default">
+      <span title={invalid ? translateText(`Enter a value from ${control.min} to ${control.max}${unit}`, getLanguage()) : undefined} className={cn(VALUE_BOX, 'pr-1.5 pl-0.5', invalid && 'border-red-400/60')}>
+        <button type="button" aria-label={`${control.label} −${step}`} disabled={value <= control.min} onClick={() => apply(value - step)} className={button}><Minus className="size-2.5" /></button>
+        <button type="button" aria-label={`${control.label} +${step}`} disabled={value >= control.max} onClick={() => apply(value + step)} className={button}><Plus className="size-2.5" /></button>
         <input
           data-value-select
           inputMode={step < 1 ? 'decimal' : 'numeric'}
@@ -1477,12 +1446,10 @@ function ValueStepper({ control }) {
               apply(value + (event.key === 'ArrowUp' ? 1 : -1) * step * (event.shiftKey ? 4 : 1))
             }
           }}
-          className="h-full min-w-0 flex-1 bg-transparent text-right text-[13px] font-semibold text-white tabular-nums outline-none"
+          className="h-full min-w-0 flex-1 cursor-text bg-transparent text-right text-[13px] font-semibold text-white tabular-nums underline decoration-white/25 decoration-dotted underline-offset-4 outline-none focus:no-underline"
         />
-        <span className="w-5 shrink-0 text-[11px] font-normal text-slate-500">{unit}</span>
-        <button type="button" aria-label={`${control.label} +${step}`} disabled={value >= control.max} onClick={() => apply(value + step)} className={button}><Plus className="size-3" /></button>
+        {unit && <span className="shrink-0 text-[13px] font-semibold text-white">{unit}</span>}
       </span>
-      {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}${unit}`} /></span>}
     </span>
   )
 }
@@ -1496,61 +1463,45 @@ function ValueChoice({ control, swatches = false }) {
   const value = String(control.value ?? control.current ?? '')
   const [text, setText] = useState(value)
   const [focused, setFocused] = useState(false)
+  const listId = useId()
   useEffect(() => { if (!focused) setText(value) }, [value, focused])
-  const commit = () => { if (text.trim() && text.trim() !== value) control.set(text.trim()) }
+  const commit = (next = text) => { if (next.trim() && next.trim() !== value) control.set(next.trim()) }
   const stop = (event) => event.stopPropagation()
   const swatch = swatches ? hexIn(text) ?? hexIn(value) : null
   // (A picker needs a full #rrggbb to start from.)
   const pickerValue = /^#[0-9a-f]{6}$/i.test(swatch ?? '') ? swatch : /^#[0-9a-f]{3}$/i.test(swatch ?? '') ? `#${swatch.slice(1).split('').map((c) => c + c).join('')}` : '#000000'
+  const options = control.options?.length > 1 ? control.options : null
   return (
-    <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col gap-1.5">
-      <span className={cn(VALUE_BOX, 'gap-1.5 border-white/[0.14] px-2.5')}>
+    <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex cursor-default">
+      <span title={value} className={cn(VALUE_BOX, 'gap-1 pr-1.5 pl-1')}>
         {swatches && (
-          <label className="relative size-4 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/30" style={{ background: swatch ?? 'transparent' }} title="Pick a color">
+          <label className="relative size-3.5 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/30" style={{ background: swatch ?? 'transparent' }} title="Pick a color">
             <input type="color" aria-label={`${control.label} color`} value={pickerValue} onChange={(event) => { setText(event.target.value); control.set(event.target.value) }} className="absolute inset-0 cursor-pointer opacity-0" />
           </label>
         )}
         <input
           data-value-select
           aria-label={control.label}
+          list={options ? listId : undefined}
           value={text}
           spellCheck={false}
           translate="no"
           onFocus={(event) => { setFocused(true); event.target.select() }}
           onBlur={() => { setFocused(false); commit() }}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => {
+            setText(event.target.value)
+            // (Picked from the suggestions: applied at once.)
+            if (options?.includes(event.target.value)) commit(event.target.value)
+          }}
           onKeyDown={(event) => {
             event.stopPropagation()
             if (event.key === 'Enter') { event.preventDefault(); commit(); event.currentTarget.blur() }
             else if (event.key === 'Escape') { setText(value); event.currentTarget.blur() }
           }}
-          className="h-full min-w-0 flex-1 bg-transparent text-right text-[13px] font-semibold text-white outline-none"
+          className="h-full min-w-0 flex-1 cursor-text bg-transparent text-right text-[13px] font-semibold text-white underline decoration-white/25 decoration-dotted underline-offset-4 outline-none focus:no-underline"
         />
+        {options && <datalist id={listId}>{options.map((option) => <option key={option} value={option}>{option === control.standard ? translateText('Standard', getLanguage()) : undefined}</option>)}</datalist>}
       </span>
-      {control.options?.length > 1 && (
-        <span className="flex w-full min-w-0 flex-wrap gap-1">
-          {control.options.map((option) => {
-            const on = option === value
-            const optionSwatch = swatches ? hexIn(option) : null
-            return (
-              <button
-                key={option}
-                type="button"
-                data-value-option
-                aria-pressed={on}
-                title={option}
-                onClick={() => !on && control.set(option)}
-                className={cn('ds-intrinsic inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-md px-1.5 text-[11px] transition-colors',
-                  on ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white')}
-              >
-                {optionSwatch && <span aria-hidden className="size-2.5 shrink-0 rounded-full ring-1 ring-white/30" style={{ background: optionSwatch }} />}
-                <span className="truncate"><LocalizedText text={option} /></span>
-                {option === control.standard && <span className="shrink-0 text-[10px] text-emerald-300/80"><LocalizedText text="Standard" /></span>}
-              </button>
-            )
-          })}
-        </span>
-      )}
     </span>
   )
 }
@@ -1578,20 +1529,6 @@ function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
   const before = conflict.diff.before ?? []
   const rows = diffLines(before, lines ?? before)
   const changed = rows.some((row) => row.kind !== 'same')
-  let number = (conflict.line ?? 1) - 1
-  const numbered = rows.map((row) => {
-    if (row.kind !== 'add') number += 1
-    return { ...row, number: Math.max(number, conflict.line ?? 1) }
-  })
-  // A removed line and the one added in its place: only what differs is lit.
-  const lit = new Map()
-  numbered.forEach((row, index) => {
-    const next = numbered[index + 1]
-    if (row.kind !== 'remove' || next?.kind !== 'add') return
-    const [left, right] = changedTokens(row.text, next.text)
-    lit.set(index, left)
-    lit.set(index + 1, right)
-  })
   return (
     <div data-choice-code={preview ? 'preview' : title ? 'chosen' : 'none'} className="min-w-0 space-y-2">
       <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
@@ -1599,25 +1536,18 @@ function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
         <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}{conflict.line ? `:${conflict.line}` : ''}</span>
         {title && <span data-choice-code-title className="shrink-0"><span className="text-slate-500">· </span><LocalizedText text={title} /> <LocalizedText text={preview ? 'Preview' : 'Selected'} /></span>}
         {!changed && <span data-code-unchanged className="shrink-0 text-slate-500">· <LocalizedText text={title ? 'No change' : 'With nothing chosen, the code doesn’t change.'} /></span>}
-        {onOpenFile && (
-          <button type="button" onClick={onOpenFile} className="ds-intrinsic ml-auto inline-flex h-5 shrink-0 items-center text-[10.5px] text-slate-400 transition-colors hover:text-white">
-            <LocalizedText text="Open in editor" />
-          </button>
-        )}
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          {changed && <DiffLayoutTabs />}
+          {onOpenFile && (
+            <button type="button" onClick={onOpenFile} className="ds-intrinsic inline-flex h-5 shrink-0 items-center text-[10.5px] text-slate-400 transition-colors hover:text-white">
+              <LocalizedText text="Open in editor" />
+            </button>
+          )}
+        </span>
       </p>
       {/* (Re-keyed per way, so switching fades in.) */}
-      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 px-4 py-3 font-mono text-[11px] leading-relaxed duration-150 fade-in">
-        {numbered.map((row, index) => (
-          <div key={index} className={cn('-mx-4 flex min-w-0 px-4', changed ? DIFF_TONES[row.kind] : 'text-slate-400')}>
-            <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{row.number}</span>
-            {changed && <span aria-hidden className="w-4 shrink-0 select-none">{DIFF_MARKS[row.kind]}</span>}
-            <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">
-              {lit.has(index)
-                ? lit.get(index).map((run, at) => <span key={at} className={run.changed ? (row.kind === 'add' ? 'rounded-sm bg-emerald-400/30' : 'rounded-sm bg-red-400/30') : undefined}>{run.text}</span>)
-                : row.text || ' '}
-            </span>
-          </div>
-        ))}
+      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 py-2 duration-150 fade-in">
+        <DiffView rows={rows} startLine={conflict.line ?? 1} layout={changed ? undefined : 'unified'} labels={['Current code', title ?? 'Chosen']} />
       </div>
     </div>
   )

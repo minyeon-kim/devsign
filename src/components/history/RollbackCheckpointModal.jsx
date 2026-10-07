@@ -6,18 +6,13 @@ import { cn } from 'cn'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { diffLines } from '@/lib/lineDiff'
+import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
 import { ROLLBACK_REASON, ROLLBACK_REASON_ORDER } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 
-const ROW_TONES = {
-  same: 'text-slate-500',
-  add: 'bg-emerald-500/[0.18] text-emerald-300',
-  remove: 'bg-red-500/[0.18] text-red-300',
-}
-const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 
 // One optional part of the rollback, with its toggle. `danger`: turning it
 // on deletes something (it can't be brought back), so it reads as a warning.
@@ -158,16 +153,14 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
                   <ChevronDown className={cn('ml-auto size-3.5 shrink-0 text-slate-400 transition-transform', showCode && 'rotate-180')} />
                 </button>
                 {showCode && (
-                  <div className="mt-1.5 max-h-44 overflow-auto rounded-xl bg-black/25 py-2 font-mono text-[11.5px] leading-5">
+                  <div className="mt-1.5 max-h-44 overflow-auto rounded-xl bg-black/25 py-2">
                     {changedRows.length === 0 ? (
                       <p className="px-4 py-2 font-sans text-xs text-slate-500">The code is the same as the current version.</p>
                     ) : (
-                      changedRows.slice(0, 24).map((row, i) => (
-                        <div key={i} className={cn('flex min-w-0 px-4 whitespace-pre-wrap [word-break:break-all]', ROW_TONES[row.kind])}>
-                          <span className="w-4 shrink-0 select-none opacity-70">{ROW_MARKS[row.kind]}</span>
-                          <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
-                        </div>
-                      ))
+                      <>
+                        <div className="flex justify-end px-2 pb-1"><DiffLayoutTabs /></div>
+                        <DiffView rows={changedRows.slice(0, 24)} numbers={false} className="text-[11.5px]" labels={['Current version', 'After restoring']} />
+                      </>
                     )}
                   </div>
                 )}

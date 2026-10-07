@@ -758,13 +758,28 @@ Every checkpoint across every file in this project, oldest to newest. Filter by 
 Compare latest|최신 버전과 비교
 Adjust more in Merge Studio|병합 스튜디오에서 더 조정
 Edit in Merge Studio|병합 스튜디오에서 수정
-Properties|속성
-Incoming change|들어오는 변경
-Use|사용
-This element has no code linked to it.|이 요소에 연결된 코드가 없어요.
-Edit a line and press Enter — the canvas, the checks and the review follow the code.|줄을 수정하고 Enter를 누르세요. 캔버스, 검사, 리뷰가 코드를 따라 바뀌어요.
-Edit with|편집 방식
-Compare A · B and merge|A · B 비교하며 병합
+Both branches changed the tab icon lines: feature/nav-badges added badges, main (the redesign) resized the icon and showed the label.|두 브랜치가 탭 아이콘 줄을 각각 바꿨어요. feature/nav-badges는 배지를, main(리디자인)은 아이콘 크기와 보이는 라벨을 바꿨어요.
+Keep both: the redesign’s 24px icon, 1.75 stroke and visible label, with the badge and aria-hidden from feature/nav-badges.|양쪽 모두 반영: 리디자인의 24px 아이콘·1.75 선 두께·보이는 라벨에 feature/nav-badges의 배지와 aria-hidden을 함께 유지해요.
+main · Nav tab bar (Figma sync)|main · 내비 탭 바 (Figma 동기화)
+Open the conflict|충돌 열기
+A high-risk change needs your review|위험도 높은 변경이 검토를 기다려요
+See it in the Inbox|받은 알림에서 보기
+Review the first one|첫 번째부터 검토
+Start reviewing|검토 시작
+Open the first one|첫 번째 열기
+Stacked|세로
+Side by side|가로
+Compare top to bottom|위아래로 비교
+Compare side by side|나란히 비교
+Diff layout|비교 방식
+Current code|현재 코드
+Chosen|선택한 방식
+After restoring|복원 후
+Changed element|바뀐 요소
+Full screen|전체 화면
+Preview view|미리보기 보기 방식
+Design frame|디자인 프레임
+Changed|바뀐 곳
 Adjust in Merge Studio|병합 스튜디오에서 조정
 Compare in Merge Studio|병합 스튜디오에서 비교
 Merge Studio help|병합 스튜디오 도움말
@@ -2323,6 +2338,7 @@ Object.assign(ko, {
   'Choose which value to apply': '적용할 값을 정해 주세요',
   'The resolution is waiting for reviewer approval.': '검토자 승인을 기다리고 있어요',
   'All approvals are complete. Merge the change.': '모든 검토자가 승인했어요. 병합을 진행해 주세요.',
+  'All approved — ready to merge.': '모두 승인했어요 · 병합할 수 있어요',
   'The change has been merged.': '병합이 완료됐어요.',
   '5 steps complete': '5단계 모두 완료',
   "You can't assign yourself as a reviewer.": '본인은 검토자로 지정할 수 없어요',

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-// The notification tokens (src/index.css): a dark floating surface whose
-// text reads at WCAG AA (4.5:1) — on the surface and on its hover step —
-// and whose accents and controls are visible on it.
+// The notification tokens (src/index.css): a light grey card (#DFDFDF)
+// floating over the dark app whose text reads at
+// WCAG AA (4.5:1) — on the surface and on its hover step — and whose
+// accents and controls are visible on it.
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 // The tokens point at the project's own (the surfaces, the foreground, the
 // neutral grey scale, the mint, Tailwind's amber and red), so a value is
@@ -57,11 +58,12 @@ for (const name of ['text', 'text-secondary', 'text-meta', 'success', 'info', 'w
 }
 // The dismiss icon is a control, not text: 3:1.
 assert.ok(contrast(token('notification-control'), bg) >= 3, 'the dismiss icon is visible on the surface')
-// The filled action is the app's main CTA; its label reads on it.
-const action = contrast(token('ds-review-action-fg'), token('ds-review-action-bg'))
+// The filled action is a solid green; its label reads on it, and on its hover.
+const action = contrast(token('notification-action-text'), token('notification-action-bg'))
 report.push(`action ${action.toFixed(2)}`)
-assert.ok(action >= 4.5)
-assert.match(css, /--notification-action-bg:\s*var\(--ds-review-action-bg\)/)
+assert.ok(action >= 4.5, `the action label is ${action.toFixed(2)}:1 (needs 4.5)`)
+assert.ok(contrast(token('notification-action-text'), token('notification-action-bg-hover')) >= 4.5, 'the label reads on the hover too')
+assert.match(css, /--notification-action-bg:\s*var\(--color-emerald-\d+\)/)
 // Greys are neutral — no blue cast — for the surface, its hover, the text and the dismiss icon.
 for (const name of ['notification-bg', 'notification-bg-hover', 'notification-text', 'notification-text-secondary', 'notification-text-meta', 'notification-control']) {
   assert.ok(neutral(token(name)), `--${name} (${token(name)}) is a neutral grey`)
@@ -70,12 +72,15 @@ for (const name of ['notification-bg', 'notification-bg-hover', 'notification-te
 const block = css.slice(css.indexOf('--notification-bg:'), css.indexOf('--notification-radius:'))
 assert.deepEqual(block.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [], [], 'notification color tokens reuse project tokens, not new hex values')
 assert.ok(!/indigo|blue|violet|purple|sky/.test(block), 'no blue, indigo or violet in notifications')
-// Success and info are the main CTA's mint.
-assert.equal(token('notification-info'), token('ds-primary'))
-assert.equal(token('notification-success'), token('ds-primary'))
-// A dark surface, one step above the panels; the hover one step above that.
-assert.ok(luminance(bg) > luminance(token('ds-surface-card')) && luminance(bg) < 0.05, 'a dark surface, lighter than a panel')
-assert.ok(luminance(hover) > luminance(bg))
+// Success and info are the mint's family, a shade deep enough for the grey.
+assert.match(css, /--notification-success:\s*var\(--color-emerald-\d+\)/)
+assert.equal(token('notification-info'), token('notification-success'))
+// A light grey surface (#DFDFDF, the project's --ds-notice-surface) and the
+// hover a step darker.
+assert.match(css, /--notification-bg:\s*var\(--ds-notice-surface\)/)
+assert.equal(bg.toUpperCase(), '#DFDFDF', 'the surface is #DFDFDF')
+assert.ok(luminance(bg) > 0.7, 'a light surface')
+assert.ok(luminance(hover) < luminance(bg), 'the hover is a step darker')
 
 const section = css.slice(css.indexOf('/* ── Notifications'), css.indexOf('/* Inline decision reasons'))
 const rules = section.slice(section.indexOf('.ds-notification {'))
@@ -93,4 +98,4 @@ assert.ok(!rules.includes('.ds-notification::before'), 'no left accent line')
 const toastClose = /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-close-button\] \{([^}]*)\}/.exec(rules)[1]
 for (const pinned of ['top: 10px !important', 'right: 10px !important', 'left: auto !important', 'transform: none !important']) assert.ok(toastClose.includes(pinned), `toast close button: ${pinned}`)
 assert.match(rules, /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-description\] \{[^}]*color: var\(--notification-text-secondary\) !important/)
-console.log(`Passed: notification tokens meet AA on the dark surface (${report.join(' · ')}).`)
+console.log(`Passed: notification tokens meet AA on the light surface (${report.join(' · ')}).`)

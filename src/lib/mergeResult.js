@@ -127,7 +127,7 @@ export function valueControlsFor(conflict, item) {
 const scaleToken = (prefix) => (value) => {
   const px = numbersIn(value)[0]
   if (px == null) return null
-  return px % 2 === 0 ? `${prefix}-${px / 4}` : `${prefix}-[${px}px]`
+  return px % 4 === 0 ? `${prefix}-${px / 4}` : `${prefix}-[${px}px]`
 }
 const scaleValue = (prefix) => (token) => {
   const match = new RegExp(`^${prefix}-(?:\\[([\\d.]+)px\\]|([\\d.]+))$`).exec(token)

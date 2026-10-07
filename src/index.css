@@ -87,6 +87,10 @@
     --ds-control-height: 32px;
     --ds-chat-submit-radius: 50%;
     --ds-primary: #5EEAB5;
+    /* The bottom notifications' card (toasts too): one light grey, and its
+       hover a step darker. */
+    --ds-notice-surface: #DFDFDF;
+    --ds-notice-surface-hover: #D2D2D2;
     --ds-primary-foreground: #0A0A0A;
     --ds-primary-violet: #8B5CF6;
     --ds-chat-action-bg: #0E201C;
@@ -715,34 +719,37 @@ button.editor-line-comment {
        accents  the mint of the main CTA for success and info, the amber of
                 the "Deployed" badge for warnings, the destructive red for
                 errors. No blue, indigo or violet. */
-  --notification-bg: #3a3a3d;
-  --notification-bg-hover: #46464a;
-  --notification-border: rgb(255 255 255 / 18%);
-  --notification-shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
-  --notification-text: var(--foreground);
-  --notification-text-secondary: var(--color-slate-400);
-  /* (Meta text — times, counts — stays on the secondary grey: the next grey
-     down, the dismiss icon's, is 3.5:1 here — fine for an icon, short of AA
-     for text.) */
-  --notification-text-meta: var(--color-slate-400);
+  /* A light card on the dark app (#DFDFDF — --ds-notice-surface), so it
+     reads at a glance over any panel — with dark text, and each accent a
+     shade deep enough to hold AA on that grey. */
+  --notification-bg: var(--ds-notice-surface);
+  --notification-bg-hover: var(--ds-notice-surface-hover);
+  --notification-border: rgb(0 0 0 / 8%);
+  --notification-shadow: 0 16px 40px rgb(0 0 0 / 55%), 0 2px 8px rgb(0 0 0 / 35%);
+  --notification-text: var(--ds-bg-base);
+  --notification-text-secondary: var(--color-slate-600);
+  --notification-text-meta: var(--color-slate-600);
   --notification-control: var(--color-slate-500);
-  --notification-control-hover-bg: rgb(255 255 255 / 6%);
-  --notification-success: var(--ds-primary);
-  --notification-success-bg: color-mix(in srgb, var(--ds-primary) 32%, transparent);
-  --notification-info: var(--ds-primary);
-  --notification-info-bg: color-mix(in srgb, var(--ds-primary) 32%, transparent);
-  --notification-warning: var(--color-amber-300);
-  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 32%, transparent);
-  --notification-error: var(--destructive);
-  --notification-error-bg: color-mix(in srgb, var(--destructive) 32%, transparent);
-  /* The filled action is the app's own main CTA (the mint of "Continue"). */
-  --notification-action-bg: var(--ds-review-action-bg);
-  --notification-action-text: var(--ds-review-action-fg);
+  --notification-control-hover-bg: rgb(0 0 0 / 6%);
+  --notification-success: var(--color-emerald-800);
+  --notification-success-bg: color-mix(in srgb, var(--color-emerald-500) 16%, transparent);
+  --notification-info: var(--color-emerald-800);
+  --notification-info-bg: color-mix(in srgb, var(--color-emerald-500) 16%, transparent);
+  --notification-warning: var(--color-amber-800);
+  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 24%, transparent);
+  --notification-error: var(--color-red-800);
+  --notification-error-bg: color-mix(in srgb, var(--color-red-500) 14%, transparent);
+  /* The filled action: a solid green (deep enough for its white label to
+     hold AA) and a step darker on hover. */
+  --notification-action-bg: var(--color-emerald-700);
+  --notification-action-bg-hover: var(--color-emerald-800);
+  --notification-action-text: var(--foreground);
   --notification-radius: 12px;
   --notification-padding: 14px 16px;
   /* Where the floating ones sit: under the header, off the right edge. */
-  /* Above the Workspace's bottom panel (its strip, or the panel when open):
-     WorkspaceBottomPanel publishes the room it takes. */
+  /* Always at the bottom: just above the Workspace's bottom bar (its strip
+     — WorkspaceBottomPanel publishes its height), whether or not the panel
+     is open, so a notice never floats up the middle of the screen. */
   --notification-bottom: calc(max(24px, env(safe-area-inset-bottom)) + var(--ds-bottom-panel-offset, 0px));
   --notification-right: 24px;
   --notification-width: 360px;
@@ -826,7 +833,7 @@ button.editor-line-comment {
   transition: background-color 140ms, color 140ms, filter 140ms;
 }
 .ds-notification-action { background: var(--notification-action-bg); color: var(--notification-action-text); }
-.ds-notification-action:hover { filter: brightness(1.08); }
+.ds-notification-action:hover { background: var(--notification-action-bg-hover); }
 .ds-notification-action-quiet { background: transparent; color: var(--notification-text-secondary); }
 .ds-notification-action-quiet:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
 /* Dismiss: at the card's top right, inside its padding — never a negative

@@ -6,6 +6,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { changedTokens } from '@/lib/lineDiff'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
+import { DiffLayoutTabs, DiffView, useDiffLayout } from '@/components/diff/DiffView'
 
 export { placeChange } from '@/lib/placeChange'
 
@@ -40,6 +41,8 @@ const EMPHASIS = { remove: 'rounded-[3px] bg-red-500/45 text-red-100', add: 'rou
 export default function ConflictCodeView({ fileName, base, generated, working, onSave, onOpenFile, merged = false, compact = false, context = CONTEXT }) {
   const current = working ?? generated
   const [expanded, setExpanded] = useState(false)
+  // Stacked (this view's own rows) or side by side (the shared diff).
+  const [layout] = useDiffLayout()
   const [draft, setDraft] = useState(null)
   const editing = draft !== null
   const scrollRef = useRef(null)
@@ -121,6 +124,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
         <span className="ml-auto flex shrink-0 items-center gap-3">
           {!editing && (
             <>
+              <DiffLayoutTabs />
               {onOpenFile && (
                 <button type="button" onClick={onOpenFile} className={ACTION}>
                   <LocalizedText text="Open in editor" />
@@ -171,6 +175,12 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
           <p className="text-[10px] text-slate-500">
             <LocalizedText text="⌘↵ to save · Esc to cancel. Saving resets any approvals — the change goes back to review." />
           </p>
+        </div>
+      ) : layout === 'split' && !compact ? (
+        <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-md bg-black/20 py-1', expanded && 'max-h-[360px]')}>
+          {hiddenAbove > 0 && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
+          <DiffView layout="split" rows={shown.map((row) => ({ kind: row.kind === 'edited' ? 'add' : row.kind, text: row.text, from: row.oldNo, to: row.newNo }))} />
+          {hiddenBelow > 0 && <HiddenLines count={hiddenBelow} onExpand={() => setExpanded(true)} />}
         </div>
       ) : (
         // Long lines scroll sideways rather than wrap, so a "−" line and its

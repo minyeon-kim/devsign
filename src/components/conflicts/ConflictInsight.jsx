@@ -138,6 +138,11 @@ const STEP_DESCRIPTION = {
 const STEP_GAP = 22
 const STEP_TEXT_GAP = 4
 const STEP_ROW = 20
+// The step's circle: 16px, centered on its title's 20px line; the line
+// joining it to the next stops 4px short of both circles.
+const STEP_DOT = 16
+const STEP_DOT_TOP = (STEP_ROW - STEP_DOT) / 2
+const STEP_LINE_INSET = 4
 
 export function FlowSteps({ conflict, className }) {
   const flow = flowOf(conflict)
@@ -147,35 +152,36 @@ export function FlowSteps({ conflict, className }) {
   const isExpanded = doneStepsExpanded ?? flow.current !== 'done'
   return (
     <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
-      <div className="flex items-start justify-between gap-3 px-3 py-3">
-        <div className="min-w-0 flex-1">
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-xs font-semibold text-white"><LocalizedText text={flow.current === 'done' ? 'Merged' : 'Progress'} /></h3>
-          <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400"><LocalizedText text={flow.next} /></p>
-        </div>
         {flow.current === 'done' ? (
           <button type="button" data-flow-toggle aria-expanded={isExpanded} onClick={() => setDoneStepsExpanded(!isExpanded)} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-200 hover:text-white">
             <LocalizedText text={`${flow.steps.length} steps complete`} />
             <ChevronDown className={cn('size-3.5 transition-transform', isExpanded && 'rotate-180')} />
           </button>
-        ) : <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length} <LocalizedText text="complete" /></span>}
+        ) : <span className="shrink-0 text-[11px] font-medium text-slate-400 tabular-nums"><span className="text-slate-100">{completed}</span>/{flow.steps.length} <LocalizedText text="complete" /></span>}
+        </div>
+        <p data-flow-next className="mt-1 truncate text-[11px] leading-4 text-slate-400"><LocalizedText text={flow.next} /></p>
       </div>
-      {isExpanded && <ol className="px-3 py-2">
+      {isExpanded && <ol className="px-3 pt-3 pb-3">
         {flow.steps.map((step, index) => {
           const last = index === flow.steps.length - 1
           return (
-            <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="relative flex items-start gap-3" style={{ paddingBottom: last ? 0 : STEP_GAP }}>
+            <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="relative flex items-start gap-4" style={{ paddingBottom: last ? 0 : STEP_GAP }}>
               {!last && (
                 <span
                   aria-hidden="true"
                   data-step-line
-                  className={cn('absolute left-[9.5px] w-px', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
-                  style={{ top: STEP_ROW, bottom: 0 }}
+                  className={cn('absolute w-px', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
+                  style={{ left: STEP_DOT / 2 - 0.5, top: STEP_DOT_TOP + STEP_DOT + STEP_LINE_INSET, bottom: STEP_LINE_INSET - STEP_DOT_TOP }}
                 />
               )}
               <span
                 aria-hidden="true"
+                style={{ marginTop: STEP_DOT_TOP }}
                 className={cn(
-                  'relative z-10 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none font-semibold',
+                  'relative z-10 flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] leading-none font-semibold',
                   step.state === 'done'
                     ? 'bg-[#5EEAB5] text-[#06281D]'
                     : step.state === 'current'
@@ -184,14 +190,14 @@ export function FlowSteps({ conflict, className }) {
                 )}
               >
                 {step.state !== 'done' && (
-                  <svg viewBox="0 0 20 20" className="absolute inset-0 size-5 -rotate-90" aria-hidden="true">
-                    <circle cx="10" cy="10" r="9" fill="none" strokeWidth="1.5" className={step.state === 'current' ? 'stroke-white/25' : 'stroke-white/30'} />
+                  <svg viewBox="0 0 16 16" className="absolute inset-0 size-4 -rotate-90" aria-hidden="true">
+                    <circle cx="8" cy="8" r="7.25" fill="none" strokeWidth="1.5" className={step.state === 'current' ? 'stroke-white/25' : 'stroke-white/30'} />
                     {step.state === 'current' && (
-                      <circle cx="10" cy="10" r="9" fill="none" stroke="#5EEAB5" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray="100 100" />
+                      <circle cx="8" cy="8" r="7.25" fill="none" stroke="#5EEAB5" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray="100 100" />
                     )}
                   </svg>
                 )}
-                {step.state === 'done' ? <Check className="size-3" strokeWidth={3} /> : <span className="relative">{index + 1}</span>}
+                {step.state === 'done' ? <Check className="size-2.5" strokeWidth={3} /> : <span className="relative">{index + 1}</span>}
               </span>
               <div className="min-w-0 flex-1">
                 <p data-step-title className={cn('flex items-center text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')} style={{ height: STEP_ROW }}>

@@ -227,6 +227,7 @@ const rules = [
   // Must sit above the generic action-rename rule just below — "Remove X
   // for design review" would otherwise match THAT rule first (action
   // "Remove", name "X for design review") and never reach this one.
+  [/^(.+) requested your review$/, (_, name) => `${core(name)}님이 검토를 요청했어요`],
   [/^(\d+) high-risk conflicts? needs? a look$/, (_, n) => `확인이 필요한 위험도 높음 충돌 ${n}개`],
   [/^(\d+) changes? waiting on your review$/, (_, n) => `내 검토를 기다리는 변경 ${n}개`],
   [/^(\d+) open Conflict Points?$/, (_, n) => `해결할 충돌 ${n}개`],

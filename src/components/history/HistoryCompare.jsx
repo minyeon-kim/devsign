@@ -8,6 +8,7 @@ import SplitHandle from '@/components/layout/SplitHandle'
 import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
+import { DiffLayoutTabs, DiffView, useDiffLayout } from '@/components/diff/DiffView'
 import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
@@ -16,12 +17,6 @@ import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
 
-const ROW_TONES = {
-  same: 'text-slate-500',
-  add: 'bg-emerald-500/[0.18] text-emerald-300',
-  remove: 'bg-red-500/[0.18] text-red-300',
-}
-const ROW_MARKS = { same: ' ', add: '+', remove: '−' }
 const MIN_CODE = 280
 const MIN_CANVAS = 260
 
@@ -56,7 +51,7 @@ function snapshotLines(snapshot) {
 // second later `onStepDone` moves on to the next checkpoint.
 // `position` ({ index, total }) feeds the temporary debug readout.
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
-  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments } = useWorkspace()
+  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
   const navigate = useNavigate()
   const [ruleFocus, setRuleFocus] = useState(null)
   // The code pane's width in px (null = its default share); the canvas
@@ -101,15 +96,38 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   // A checkpoint about another file doesn't say what the screen looked
   // like, so its design is the last one before it that does — otherwise
   // the preview would snap back to the default between steps.
-  const shownEdits = useMemo(() => {
-    const upTo = historyEntries.findIndex((h) => h.id === shownSnapshot?.id)
+  // Stacked or side by side — the diff and its replay alike.
+  const [diffLayout] = useDiffLayout()
+  const editsAt = useCallback((id) => {
+    const upTo = historyEntries.findIndex((h) => h.id === id)
     for (let i = upTo; i >= 0; i--) {
       const { snapshot } = historyEntries[i]
       const edits = snapshot.prototypeEdits ?? deriveComponentOverride(projectId, snapshot.fileId, snapshotLines(snapshot))
       if (edits) return edits
     }
     return {}
-  }, [historyEntries, shownSnapshot?.id, projectId])
+  }, [historyEntries, projectId])
+  const shownEdits = useMemo(() => editsAt(shownSnapshot?.id), [editsAt, shownSnapshot?.id])
+  // What this version changed on the screen — the preview's "Changed
+  // element" view: the element it was made on, else every element whose
+  // edits differ from the version just before it, and a tab bar when the
+  // nav values it records differ.
+  const changedLayerIds = useMemo(() => {
+    if (!entry) return []
+    if (entry.snapshot.selectedLayerId) return [entry.snapshot.selectedLayerId]
+    const at = historyEntries.findIndex((h) => h.id === entry.id)
+    const other = baseEntry ?? historyEntries[at - 1] ?? null
+    const mine = editsAt(entry.id)
+    const theirs = other ? editsAt(other.id) : {}
+    const ids = [...new Set([...Object.keys(mine), ...Object.keys(theirs)])].filter((id) => JSON.stringify(mine[id]) !== JSON.stringify(theirs[id]))
+    const props = entry.snapshot.previewProps ?? {}
+    const otherProps = other?.snapshot.previewProps ?? {}
+    const differs = (keys) => keys.some((key) => props[key] !== otherProps[key])
+    const frame = projectPages.find((page) => page.id === (entry.snapshot.activePageId ?? projectPages[0]?.id))?.frames[0]
+    if (differs(['iconSize', 'hitArea', 'badgeCount', 'badgeCap'])) ids.push(...(frame?.layers ?? []).filter((layer) => layer.type === 'tabs').map((layer) => layer.id))
+    if (differs(['buttonPadding'])) ids.push('primary-button')
+    return [...new Set(ids)]
+  }, [entry, historyEntries, baseEntry, editsAt, projectPages])
 
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
@@ -254,32 +272,25 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
           style={{ width: codeWidth ?? '58%', maxWidth: `calc(100% - ${MIN_CANVAS}px)` }}
           className="flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl bg-black/20"
         >
-          <p className="flex shrink-0 items-center gap-1.5 px-3 pt-2 pb-1 font-mono text-[11px] text-slate-500">
+          <div className="flex shrink-0 items-center gap-1.5 px-3 pt-2 pb-1 text-[11px] text-slate-500">
             <Code2 className="size-3" />
-            {getFileName(entry.snapshot.fileId)}
-          </p>
-          <div className="min-h-0 flex-1 overflow-auto pb-2 font-mono text-[12px] leading-5">
+            <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
+            {/* (Always there: it sets the replay's layout too.) */}
+            <DiffLayoutTabs className="ml-auto" />
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto pb-2 text-[12px] leading-5">
             {showDiff && rows.every((r) => r.kind === 'same') && (
               <p className="px-3 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
             )}
             {playing ? (
               // Keyed to the checkpoint: each step starts from the one
               // before it, exactly, and ends on this one, exactly.
-              <PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} />
+              <div className="font-mono"><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>
+            ) : showDiff ? (
+              <DiffView rows={codeRows} className="text-[12px]" labels={['Current version', 'This version']} />
             ) : codeRows.map((row, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'flex min-w-0 py-px pr-3 whitespace-pre-wrap [word-break:break-all]',
-                  showDiff ? ROW_TONES[row.kind] : 'text-slate-300'
-                )}
-              >
-                {/* Numbers in about 32px, 12px before the code. Comparing
-                    with the latest adds the other side's number and the
-                    +/− mark. */}
-                {showDiff && <span className="w-7 shrink-0 text-right text-[11px] text-slate-600 tabular-nums select-none">{row.from ?? ''}</span>}
-                <span className={cn(GUTTER, showDiff && 'mr-1.5 w-7')}>{row.to ?? ''}</span>
-                {showDiff && <span className="mr-3 w-2.5 shrink-0 text-center opacity-70 select-none">{ROW_MARKS[row.kind]}</span>}
+              <div key={index} className="flex min-w-0 py-px pr-3 font-mono whitespace-pre-wrap text-slate-300 [word-break:break-all]">
+                <span className={GUTTER}>{row.to ?? ''}</span>
                 <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
               </div>
             ))}
@@ -302,7 +313,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
           {/* TEMP (debug): which checkpoint is showing and the values its
               preview is drawn from — to check that code, preview and this
               readout change together during playback. Remove when done. */}
-          <p data-history-debug translate="no" className="pointer-events-none absolute top-11 left-2 z-10 max-w-[45%] rounded-md bg-black/70 px-2 py-1 font-mono text-[10.5px] leading-4 text-emerald-200">
+          <p data-history-debug translate="no" className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[45%] rounded-md bg-black/70 px-2 py-1 font-mono text-[10.5px] leading-4 text-emerald-200">
             #{position ? `${position.index + 1}/${position.total}` : '–'}
             {playing && <span className="text-slate-400"> {typed || !baseEntry ? 'shown' : 'typing…'}</span>}
             {['iconSize', 'hitArea', 'badgeCount', 'badgeCap'].filter((key) => shownProps[key] !== undefined).map((key) => (
@@ -323,6 +334,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             activePageId={shownSnapshot.snapshot.activePageId ?? null}
             frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
             historical
+            viewControls
+            focusLayerIds={changedLayerIds}
             caption={
               <span className="shrink-0 text-emerald-300">
                 {playing ? 'This step' : showDiff ? 'Latest' : isCurrent ? 'Current' : `At ${entry.timestamp}`}

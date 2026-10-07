@@ -110,6 +110,8 @@ export function useConflictEntryPrompt() {
   return { prompt: visible, conflictIds, close, open }
 }
 
+const PROMPT_ACTION = { high: 'Review the first one', review: 'Start reviewing', intro: 'Open the first one' }
+
 export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
   const rows = prompt.items.slice(0, MAX_ROWS)
   const more = prompt.items.length - rows.length
@@ -124,11 +126,10 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
       type={prompt.kind === 'high' ? 'error' : 'warning'}
       icon={TriangleAlert}
       title={prompt.title}
-      body="Conflict Points are where the design and code differ. Review each one, then merge."
       onDismiss={onClose}
       actions={[
         { label: 'Later', quiet: true, onClick: onClose },
-        { label: 'Review Conflict Points', onClick: () => onOpen(rows[0].id) },
+        { label: PROMPT_ACTION[prompt.kind] ?? PROMPT_ACTION.intro, onClick: () => onOpen(rows[0].id) },
       ]}
     >
       <ul className="mt-3 space-y-0.5">

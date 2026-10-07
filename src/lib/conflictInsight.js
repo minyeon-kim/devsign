@@ -116,10 +116,11 @@ export const FLOW_STEPS = [
   { id: 'approve', label: 'Approve' },
   { id: 'merge', label: 'Merge' },
 ]
+// (One short line each: the progress card's subtitle never wraps.)
 const NEXT = {
   select: 'Choose a resolution to continue.',
   approve: 'The resolution is waiting for reviewer approval.',
-  merge: 'All approvals are complete. Merge the change.',
+  merge: 'All approved — ready to merge.',
   done: 'The change has been merged.',
 }
 export function flowOf(conflict) {
