@@ -7,8 +7,9 @@ try {
   const { compositionChecks, draftScreens } = await server.ssrLoadModule('/src/data/draftScreens.js')
   canvasPages.push({ id: 'checks-test', frames: [{ id: 'checks-frame', width: 390, height: 800, layers: [{ id: 'tiny-button', type: 'button', name: 'Pay', x: 0, y: 0, width: 16, height: 16 }] }] })
   const item = { id: 'checks-test-item', hasDesign: true, designPageId: 'checks-test', fileIds: ['test-file'] }
-  const tokenItem = mergeListItems.find((candidate) => candidate.conflictId === 'cc-1')
+  const tokenItem = { id: 'checks-token-item' }
   const { designMergeVariants } = await server.ssrLoadModule('/src/data/mockData.js')
+  designMergeVariants[tokenItem.id] = { layerDiffs: { button: [{ id: 'height', label: 'Height', optionA: 'var(--button-height-md)', optionB: '36px' }] } }
   const tokenDecisions = Object.fromEntries(Object.entries(designMergeVariants[tokenItem.id].layerDiffs).flatMap(([layerId, diffs]) => diffs.map((diff) => [`${layerId}:${diff.id}`, 'A'])))
   assert.ok(!checksFor(tokenItem, { resolutions: tokenDecisions }).blocking.some((check) => check.id === 'tokens'), 'named CSS tokens in the design must pass')
   const shippingItem = mergeListItems.find((candidate) => candidate.conflictId === 'cc-10')

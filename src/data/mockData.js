@@ -104,20 +104,6 @@ export const projectViewportSequences = {
       { fileId: 'app', layerId: 'frame-checkout', status: 'Viewing', label: 'Viewing the Checkout payment screen' },
     ],
   },
-  'design-system-v2': {
-    james: [
-      { fileId: 'app', layerId: 'button-md', status: 'Editing', label: 'Editing md size in Button.jsx' },
-      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Checking --button-height-md in tokens.css' },
-    ],
-    min: [
-      { fileId: 'tokens', layerId: null, status: 'Reviewing', label: 'Reviewing size tokens in tokens.css' },
-      { fileId: 'app', layerId: 'button-sm', status: 'Viewing', label: 'Viewing compact Button' },
-    ],
-    jane: [
-      { fileId: 'app', layerId: 'button-md', status: 'Reviewing', label: 'Reviewing the Button height conflict' },
-      { fileId: 'tokens', layerId: null, status: 'Commenting', label: 'Commenting on --button-height-md in tokens.css' },
-    ],
-  },
 }
 
 // Which teammate is "you" on each project — Taylor on the designer track,
@@ -186,17 +172,6 @@ export const projects = [
     activityCount: 12,
   },
   {
-    id: 'design-system-v2',
-    name: 'Design System v2',
-    description: 'Shared components and design tokens used across every product surface, kept consistent between Figma and code.',
-    ownerId: 'james',
-    memberIds: ['james', currentUser.id],
-    updatedAtLabel: 'Yesterday',
-    filesCount: 12,
-    thumbnailType: 'design-system',
-    activityCount: 9,
-  },
-  {
     id: 'mobile-nav-revamp',
     name: 'Mobile Nav Revamp',
     description: 'Bottom navigation redesign — icon sizing and gesture affordances kept in sync between the Figma prototype and the app.',
@@ -206,17 +181,6 @@ export const projects = [
     filesCount: 4,
     thumbnailType: 'mobile-nav',
     activityCount: 4,
-  },
-  {
-    id: 'onboarding-flow',
-    name: 'Onboarding Flow',
-    description: 'First-run welcome screens and progress steps, kept in sync between the onboarding design and the app.',
-    ownerId: 'min',
-    memberIds: ['min', currentUser.id],
-    updatedAtLabel: '2 days ago',
-    filesCount: 4,
-    thumbnailType: 'onboarding',
-    activityCount: 3,
   },
 ]
 
@@ -338,146 +302,6 @@ export const conflictChecklist = [
     },
   },
   {
-    id: 'cc-1',
-    cause: 'Button height 36px in code · design token 40px',
-    effect: 'Buttons 4px short of the medium size',
-    gitFlow: { source: 'feature/button-sizing', target: 'develop' },
-    token: 'Button / Height',
-    ruleIds: ['button-height-md'],
-    file: 'src/components/ui/Button.jsx',
-    projectId: 'design-system-v2',
-    projectName: 'Design System v2',
-    timestamp: '2h ago',
-    resolved: false,
-    severity: 'medium',
-    riskReason: 'Medium: the shared Button component — a height change reaches every screen that uses it.',
-    impact: {
-      components: ['Button'],
-      files: ['src/components/ui/Button.jsx'],
-      screens: ['Checkout · Payment step', 'Onboarding · Welcome', 'Settings · Profile'],
-    },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Buttons render 4px shorter than the design system’s medium size.',
-    preview: { kind: 'button', label: 'Continue', before: { height: 36, background: '#6366f1' }, after: { height: 40, background: '#6366f1' } },
-    message: 'Button height in code (36px) drifts from the design system token (40px).',
-    // Who made the change under review (the code as it is now) and what
-    // flagged it.
-    changedBy: { type: 'person', id: 'jane', what: 'Pushed new changes to Button.jsx' },
-    branches: { local: 'Button.jsx', remote: 'Button · Size/MD (Figma)' },
-    suggestion: 'Swap the hard-coded h-9 for the size token so the button follows the design system height.',
-    suggestionReason:
-      'The design system defines size/md as --button-height-md (40px); h-9 hard-codes 36px and bypasses the token.',
-    // Only references that exist in this project (its tokens.css / components.json).
-    references: [
-      { kind: 'token', label: '--button-height-md = 40px', source: 'src/styles/tokens.css' },
-      { kind: 'component', label: 'Button · Size/MD (Figma)', source: 'src/design/components.json' },
-    ],
-    expectedResult: 'Every Button renders 40px tall from --button-height-md.',
-    previewPrompt: 'Match the button height to the design system token',
-    reviewStage: 'detected',
-    reviewers: [
-      { id: 'james', status: 'pending' },
-      { id: 'jane', status: 'pending' },
-    ],
-    comparisonFields: [
-      // The value, then its code form in brackets — one row says both.
-      { label: 'Button height', expected: '40px (--button-height-md)', current: '36px (h-9)' },
-    ],
-    diff: {
-      before: ["    size: { sm: 'h-7 px-3', md: 'h-9 px-4' },"],
-      after: ["    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' },"],
-    },
-    // Where it lives in the project's Workspace and Merge Studio.
-    fileId: 'app',
-    line: 6,
-    layerId: 'button-md',
-    mergeItemId: 'merge-ds-button-height',
-    mergeTitle: 'Merged Button height to size token',
-    linkedCommentId: 'comment-cc1',
-  },
-  {
-    id: 'cc-2',
-    cause: 'Two branches changed lines 9–14 of DesignCanvas.jsx differently · no automatic merge',
-    effect: 'Frame loses its selection handler or its key · selecting frames can break',
-    changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
-    gitFlow: { source: 'feature/canvas-frames', target: 'main' },
-    token: 'Merge conflict · DesignCanvas.jsx',
-    file: 'src/components/DesignCanvas.jsx',
-    projectId: 'design-system-v2',
-    projectName: 'Design System v2',
-    timestamp: '4h ago',
-    resolved: true,
-    severity: 'high',
-    riskReason: 'High: a merge conflict — both branches edited the same lines, so one side’s change could be lost.',
-    impact: { components: ['DesignCanvas'], files: ['src/components/DesignCanvas.jsx'] },
-    uxNote: 'Without the merged version, frames either lose their selection handler or their stable key.',
-    mergeItemId: 'merge-ds-canvas-conflict',
-    fileId: 'canvas',
-    line: 10,
-    message: 'Merge conflict between local and remote branch (lines 9-14).',
-    branches: { local: 'feature/canvas-frames', remote: 'main' },
-    linkedCommentId: 'comment-1',
-    suggestion:
-      "Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.",
-    previewPrompt: 'Resolve the merge conflict in DesignCanvas.jsx',
-    reviewers: [
-      { id: 'james', status: 'approved' },
-      { id: 'min', status: 'approved' },
-    ],
-    comparisonFields: [
-      { label: 'key prop', expected: 'frame.id (preserved)', current: 'missing — merge conflict' },
-      { label: 'onSelect handler', expected: 'kept from local branch', current: 'duplicated across branches' },
-    ],
-    diff: {
-      before: [
-        '<<<<<<< HEAD (local)',
-        '  <Frame data={frame} onSelect={() => setSelected(frame.id)} />',
-        '=======',
-        '  <Frame key={frame.id} data={frame} />',
-        '>>>>>>> origin/main',
-      ],
-      after: ['  <Frame key={frame.id} data={frame} onSelect={() => setSelected(frame.id)} />'],
-    },
-  },
-  {
-    id: 'cc-3',
-    cause: 'Card radius 8px in code · design system 12px',
-    effect: 'Cards sharper than the rest of the design system',
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'feature/card-radius', target: 'develop' },
-    token: 'Card / Radius',
-    file: 'src/components/ui/Card.jsx',
-    projectId: 'design-system-v2',
-    projectName: 'Design System v2',
-    timestamp: 'Yesterday',
-    resolved: false,
-    severity: 'low',
-    riskReason: 'Low: a corner radius on the Card container; no layout or behavior change.',
-    impact: { components: ['Card'], files: ['src/components/ui/Card.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Cards look slightly sharper than the rest of the design system.',
-    preview: {
-      kind: 'card',
-      content: { title: 'Card.jsx', detail: 'bg-card · p-4' },
-      before: { radius: 8 },
-      after: { radius: 12 },
-    },
-    mergeItemId: 'merge-ds-card-radius',
-    layerId: 'ds-card',
-    fileId: 'card',
-    line: 2,
-    message: 'Card corner radius (8px) is smaller than the design system radius (12px).',
-    branches: { local: 'Card.jsx', remote: 'Card · Default (Figma)' },
-    suggestion: 'Use the radius-lg token on the card container instead of rounded-lg.',
-    previewPrompt: 'Match the card radius to the design system',
-    reviewers: [{ id: 'min', status: 'pending' }],
-    comparisonFields: [{ label: 'Radius', expected: '12px (custom)', current: '8px (rounded-lg)' }],
-    diff: {
-      before: ['<div className="rounded-lg border bg-card p-4">'],
-      after: ['<div className="rounded-[12px] border bg-card p-4">'],
-    },
-  },
-  {
     id: 'cc-4',
     cause: 'Nav icons 20px in code · 24px in the redesigned nav',
     effect: 'Tab icons smaller than the redesigned tab bar · 44px tap area unchanged',
@@ -519,75 +343,7 @@ export const conflictChecklist = [
       after: ['<Icon className="size-6" />'],
     },
   },
-  {
-    id: 'cc-5',
-    cause: 'Primary color #5B5BD6 in code · brand token #5E6AD2',
-    effect: 'Primary color a different shade from the brand color',
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'feature/onboarding-colors', target: 'develop' },
-    token: 'Color token drift',
-    file: 'src/styles/tokens.css',
-    projectId: 'onboarding-flow',
-    projectName: 'Onboarding Flow',
-    timestamp: '2 days ago',
-    resolved: true,
-    severity: 'low',
-    riskReason: 'Low: one color token value; components keep reading the same token.',
-    impact: { components: ['Color tokens'], files: ['src/styles/tokens.css'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'The primary color is a slightly different shade from the brand color.',
-    preview: { kind: 'swatch', before: { color: '#5B5BD6' }, after: { color: '#5E6AD2' } },
-    mergeItemId: 'merge-onboarding-color',
-    layerId: 'primary-button',
-    fileId: 'color-tokens',
-    line: 2,
-    message: 'Primary color in code (#5B5BD6) drifted from the brand token (#5E6AD2).',
-    branches: { local: 'tokens.css', remote: 'Color · Primary (Figma)' },
-    suggestion: 'Point --primary at the brand token instead of the hard-coded hex.',
-    previewPrompt: 'Sync the primary color with the brand token',
-    reviewers: [{ id: 'min', status: 'approved' }],
-    comparisonFields: [
-      { label: 'Primary', expected: '#5E6AD2', current: '#5B5BD6' },
-    ],
-    diff: {
-      before: ['--primary: #5B5BD6;'],
-      after: ['--primary: var(--brand-500); /* #5E6AD2 */'],
-    },
-  },
-  {
-    id: 'cc-6',
-    cause: 'Input horizontal padding 10px in code · design system 12px',
-    effect: 'Input text 2px closer to the edge than the design',
-    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
-    gitFlow: { source: 'feature/input-padding', target: 'develop' },
-    token: 'Input / Padding',
-    file: 'src/components/ui/Input.jsx',
-    projectId: 'mobile-nav-revamp',
-    projectName: 'Design System v2',
-    timestamp: '3 days ago',
-    resolved: true,
-    severity: 'low',
-    riskReason: 'Low: 2px of horizontal padding inside the Input component.',
-    impact: { components: ['Input'], files: ['src/components/ui/Input.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Input text sits 2px closer to the edge than in the design.',
-    mergeItemId: 'merge-ds-input-padding',
-    fileId: 'input',
-    line: 2,
-    message: 'Input horizontal padding (10px) differs from the design system (12px).',
-    branches: { local: 'Input.jsx', remote: 'Input · Default (Figma)' },
-    linkedCommentId: 'comment-2',
-    suggestion: 'Use px-3 on the input so it matches the 12px design padding.',
-    previewPrompt: 'Fix the input padding to match the design system',
-    reviewers: [{ id: 'jane', status: 'approved' }],
-    comparisonFields: [
-      { label: 'Padding X', expected: '12px', current: '10px' },
-    ],
-    diff: {
-      before: ['<input className="h-9 px-2.5 rounded-lg" />'],
-      after: ['<input className="h-9 px-3 rounded-lg" />'],
-    },
-  },
+
   {
     id: 'cc-7',
     cause: 'Checkout spacing uses 6px · not on the 4/8 scale',
@@ -842,8 +598,6 @@ function isoDateOffset(days) {
 
 export const mergeSchedule = [
   { id: 'ms-1', projectId: 'checkout-redesign', projectName: 'Checkout Redesign', dateISO: isoDateOffset(1), title: 'Merge payment method updates', time: '10:00 AM' },
-  { id: 'ms-2', projectId: 'design-system-v2', projectName: 'Design System v2', dateISO: isoDateOffset(4), title: 'Merge new button variants', time: '2:00 PM' },
-  { id: 'ms-3', projectId: 'onboarding-flow', projectName: 'Onboarding Flow', dateISO: isoDateOffset(4), title: 'Merge welcome screen copy', time: '4:30 PM' },
   { id: 'ms-4', projectId: 'mobile-nav-revamp', projectName: 'Mobile Nav Revamp', dateISO: isoDateOffset(9), title: 'Merge gesture nav prototype', time: '11:00 AM' },
   { id: 'ms-5', projectId: 'marketing-site-refresh', projectName: 'Marketing Site Refresh', dateISO: isoDateOffset(-2), title: 'Merge landing page hero', time: '9:00 AM' },
 ]
@@ -959,48 +713,6 @@ export const activities = [
     thumbnailTypes: ['mobile-nav'],
   },
   {
-    id: 'activity-3',
-    type: 'merge',
-    actorName: 'Devsign',
-    actorInitials: 'DV',
-    actorColorClass: 'bg-violet-500',
-    action: 'merged',
-    target: 'Input / Padding',
-    conflictId: 'cc-6',
-    projectId: 'design-system-v2',
-    timestamp: '8h ago',
-    dateGroup: 'today',
-    thumbnailTypes: ['design-system'],
-  },
-  {
-    id: 'activity-7',
-    type: 'changes',
-    actorId: currentUser.id,
-    actorName: 'Taylor',
-    actorInitials: 'TA',
-    actorColorClass: 'bg-indigo-500',
-    action: 'pushed new changes to',
-    target: 'Button.jsx',
-    projectId: 'design-system-v2',
-    timestamp: 'Yesterday, 11:02 AM',
-    dateGroup: 'yesterday',
-    thumbnailTypes: ['design-system'],
-  },
-  {
-    id: 'activity-5',
-    type: 'file',
-    actorId: 'min',
-    actorName: 'Alex',
-    actorInitials: 'AL',
-    actorColorClass: 'bg-emerald-500',
-    action: 'added a new file to',
-    target: 'Onboarding Flow',
-    projectId: 'onboarding-flow',
-    timestamp: '2 days ago',
-    dateGroup: 'older',
-    thumbnailTypes: ['onboarding'],
-  },
-  {
     id: 'activity-8',
     type: 'mention',
     actorId: 'james',
@@ -1013,20 +725,6 @@ export const activities = [
     timestamp: '3 days ago',
     dateGroup: 'older',
     thumbnailTypes: ['marketing'],
-  },
-  {
-    id: 'activity-9',
-    type: 'conflict',
-    actorName: 'Devsign',
-    actorInitials: 'DV',
-    actorColorClass: 'bg-violet-500',
-    action: 'flagged a design ↔ code difference on',
-    target: 'Card / Radius',
-    conflictId: 'cc-3',
-    projectId: 'design-system-v2',
-    timestamp: '3 days ago',
-    dateGroup: 'older',
-    thumbnailTypes: ['design-system'],
   },
 ]
 
@@ -1223,82 +921,6 @@ export const mergeListItems = [
       { key: 'ai', label: 'Delivery tracking' },
     ],
   },
-  // Design System v2's item for Conflict Point cc-1 (Open in Merge Studio
-  // lands here). Original Design = the design system's Size/MD spec (40px,
-  // --button-height-md); Current Implementation = Button.jsx (36px, h-9).
-  {
-    id: 'merge-ds-button-height',
-    projectId: 'design-system-v2',
-    conflictId: 'cc-1',
-    title: 'Button / Height',
-    subtitle: '2 files · Code + tokens',
-    tag: 'Needs Review',
-    updatedLabel: 'Yesterday',
-    fileIds: ['app', 'tokens'],
-    hasDesign: true,
-    designPageId: 'page-ds-button',
-    category: 'Design System',
-    conflictLevel: 'Medium',
-    dueLabel: 'Due tomorrow',
-    dueBucket: 'soon',
-    assigneeId: 'james',
-  },
-  // A lower-priority distractor alongside Button / Height, so the queue
-  // isn't a single obvious item — Conflict Point cc-3, code-only (no
-  // canvas page of its own).
-  {
-    id: 'merge-ds-card-radius',
-    projectId: 'design-system-v2',
-    conflictId: 'cc-3',
-    title: 'Card / Radius',
-    subtitle: '1 file · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: 'Yesterday',
-    fileIds: ['card'],
-    // cc-3 compares the Figma card with Card.jsx, so the item opens on that
-    // card's design page (two artboards), not on the code alone.
-    designPageId: 'page-ds-card',
-    hasDesign: true,
-    category: 'Design System',
-    conflictLevel: 'Low',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
-    assigneeId: 'min',
-  },
-  // Already resolved (cc-2 is a plain git merge conflict with no design
-  // counterpart) — tag/conflictLevel read as settled, not a pending ask.
-  {
-    id: 'merge-ds-canvas-conflict',
-    projectId: 'design-system-v2',
-    conflictId: 'cc-2',
-    title: 'Merge conflict · DesignCanvas.jsx',
-    subtitle: '1 file · Code',
-    tag: 'Merged',
-    updatedLabel: '4h ago',
-    fileIds: ['canvas'],
-    hasDesign: false,
-    category: 'Design System',
-    conflictLevel: 'None',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
-    assigneeId: 'james',
-  },
-  {
-    id: 'merge-ds-input-padding',
-    projectId: 'design-system-v2',
-    conflictId: 'cc-6',
-    title: 'Input / Padding',
-    subtitle: '1 file · Code',
-    tag: 'Merged',
-    updatedLabel: '3 days ago',
-    fileIds: ['input'],
-    hasDesign: false,
-    category: 'Design System',
-    conflictLevel: 'None',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
-    assigneeId: 'jane',
-  },
   // Checkout Redesign's remaining Conflict Points, same project as
   // merge-checkout-cta/merge-checkout-designer-pair above — cc-7 is
   // already resolved; cc-8/cc-9/cc-10 are still open.
@@ -1389,26 +1011,6 @@ export const mergeListItems = [
     dueLabel: 'Due tomorrow',
     dueBucket: 'soon',
     assigneeId: 'james',
-  },
-  // Onboarding Flow's own item for Conflict Point cc-5 — also resolved,
-  // also reuses page-1 directly (no canvasPages entry of its own);
-  // `primary-button` stands in for anything reading the --primary token.
-  {
-    id: 'merge-onboarding-color',
-    projectId: 'onboarding-flow',
-    conflictId: 'cc-5',
-    title: 'Color token drift',
-    subtitle: '1 file · Design + Code',
-    tag: 'Merged',
-    updatedLabel: '2 days ago',
-    fileIds: ['color-tokens'],
-    hasDesign: true,
-    designPageId: 'page-1',
-    category: 'Onboarding',
-    conflictLevel: 'None',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
-    assigneeId: 'min',
   },
   {
     id: 'merge-flowbank',
@@ -1528,52 +1130,6 @@ export const designMergeVariants = {
       ],
     },
   },
-  // merge-checkout-payment-drafts: its drafts differ in layout, not just
-  // style — see draftScreens.js (mixed by region, not by property).
-  'merge-ds-button-height': {
-    layerDiffs: {
-      // Two diffs, not one: driftSeverity (mergeSummary.js) reads 2 diffs as
-      // Medium — matching cc-1's declared severity. One would compute Low.
-      'button-md': [
-        {
-          id: 'btn-height',
-          label: 'Height',
-          optionA: '40px',
-          optionB: '36px',
-          recommended: 'A',
-          reason: 'Design system size/md = 40px',
-        },
-        {
-          id: 'btn-token',
-          label: 'Height token',
-          optionA: '--button-height-md',
-          optionB: 'hard-coded h-9',
-          recommended: 'A',
-          reason: 'Use the shared token',
-        },
-      ],
-    },
-    layerCodeMap: {
-      'button-md': { fileId: 'app', line: 6, span: 1 },
-    },
-  },
-  'merge-ds-card-radius': {
-    layerDiffs: {
-      'ds-card': [
-        {
-          id: 'card-radius',
-          label: 'Radius',
-          optionA: '12px',
-          optionB: '8px',
-          recommended: 'A',
-          reason: 'Design system card radius = 12px',
-        },
-      ],
-    },
-    layerCodeMap: {
-      'ds-card': { fileId: 'card', line: 2, span: 1 },
-    },
-  },
   'merge-checkout-divider': {
     layerDiffs: {
       'order-summary': [
@@ -1632,8 +1188,7 @@ export const designMergeVariants = {
   'merge-mobile-nav-icon': {
     layerDiffs: {
       // Two diffs, not one — driftSeverity (mergeSummary.js) reads 2 diffs
-      // as Medium, matching cc-4's declared severity (same reasoning as
-      // merge-ds-button-height above; one diff alone would compute Low).
+      // as Medium, matching cc-4's declared severity.
       'tab-bar': [
         {
           id: 'nav-icon-size',
@@ -1655,25 +1210,6 @@ export const designMergeVariants = {
     },
     layerCodeMap: {
       'tab-bar': { fileId: 'app', line: 10, span: 1 },
-    },
-  },
-  'merge-onboarding-color': {
-    layerDiffs: {
-      'primary-button': [
-        {
-          id: 'primary-color',
-          label: 'Primary color',
-          optionA: 'Brand 500 (#5E6AD2)',
-          optionB: '#5B5BD6 (hard-coded)',
-          optionAClass: 'bg-[#5E6AD2]',
-          optionBClass: 'bg-[#5B5BD6]',
-          recommended: 'A',
-          reason: 'Use the brand token so theme updates propagate',
-        },
-      ],
-    },
-    layerCodeMap: {
-      'primary-button': { fileId: 'color-tokens', line: 2, span: 1 },
     },
   },
   'merge-flowbank': {
@@ -1809,15 +1345,6 @@ export const codeMergeVariants = {
   // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
   'merge-checkout-cta': {
     app: [{ id: 'place-order-button', line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
-  },
-  // The design system's version of Button.jsx line 6 and tokens.css line 6
-  // (cc-1's fix) — merging writes these lines as the final code.
-  'merge-ds-button-height': {
-    app: [{ id: 'button-md-height', line: 6, incoming: "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' }," }],
-    tokens: [{ id: 'button-height-token', line: 6, incoming: '  --button-height-md: 40px;' }],
-  },
-  'merge-ds-card-radius': {
-    card: [{ id: 'card-radius', line: 2, incoming: '  return <div className="rounded-[12px] border bg-card p-4">{children}</div>' }],
   },
   'merge-checkout-divider': {
     divider: [{ id: 'order-summary-divider', line: 4, incoming: '      <hr className="border-border" />' }],
@@ -2152,220 +1679,6 @@ export const projectFileSets = {
       lines: ['export function CheckoutTabs() {', '  return (', '    <TabIcon className="size-5" />', '  )', '}'],
     },
   ],
-  'design-system-v2': [
-    {
-      ...openFiles[0],
-      name: 'Button.jsx',
-      path: 'src/components/ui/Button.jsx',
-      // Line 6 (md size) is Conflict Point cc-1's fix target — the
-      // implementation is h-9 (36px), the design system wants
-      // --button-height-md (40px). Keep this and cc-1's diff in sync.
-      lines: [
-        "import { cva } from 'class-variance-authority'",
-        '',
-        "export const buttonVariants = cva('inline-flex items-center rounded-full', {",
-        '  variants: {',
-        "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent hover:bg-muted' },",
-        "    size: { sm: 'h-7 px-3', md: 'h-9 px-4' },",
-        '  },',
-        "  defaultVariants: { variant: 'primary', size: 'md' },",
-        '})',
-      ],
-    },
-    {
-      // Uses the 'tokens' file id (not 'theme') so it lines up with every
-      // other project's convention of 'tokens' = the token file.
-      ...openFiles[2],
-      name: 'tokens.css',
-      path: 'src/styles/tokens.css',
-      // Line 6 is left blank — that's where merging cc-1 inserts
-      // --button-height-md (see codeMergeVariants['merge-ds-button-height']).
-      lines: [
-        '/* Design System v2 — pill radius + indigo/violet accent migration */',
-        ':root {',
-        '  --radius-full: 9999px;',
-        '  --accent-indigo: oklch(0.55 0.22 270);',
-        '  --accent-violet: oklch(0.6 0.24 300);',
-        '',
-        '}',
-        '',
-        '.pill {',
-        '  border-radius: var(--radius-full);',
-        '  padding: 6px 14px;',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[1],
-      name: 'components.json',
-      path: 'src/design/components.json',
-      lines: [
-        '{',
-        '  "components": [',
-        '    { "name": "Button", "status": "migrated", "usageCount": 42 },',
-        '    { "name": "Badge", "status": "migrated", "usageCount": 18 },',
-        '    { "name": "Card", "status": "in_progress", "usageCount": 9 }',
-        '  ],',
-        '  "version": "2.0.0-beta"',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[3],
-      name: 'audit_tokens.py',
-      path: 'scripts/audit_tokens.py',
-      lines: [
-        '# Scans component source for hardcoded colors/radii that should',
-        '# reference the v2 design tokens instead.',
-        'import re',
-        '',
-        'HARDCODED_COLOR = re.compile(r"#[0-9a-fA-F]{3,6}")',
-        '',
-        'def audit(source: str) -> list[str]:',
-        '    return HARDCODED_COLOR.findall(source)',
-        '',
-        'if __name__ == "__main__":',
-        "    print(audit('background: #6d70ad;'))",
-      ],
-    },
-    // Extra files beyond the 4 standard ids, added so Conflict Points cc-2,
-    // cc-3 and cc-6 — which name files this project's 4 standard slots
-    // don't cover — each have a real file to open and jump to in Merge
-    // Studio, without repurposing app/theme/tokens/sync-script (see the
-    // comment on `projectFileSets` above: those 4 ids are load-bearing for
-    // other features and keep their own project's content).
-    {
-      id: 'canvas',
-      name: 'DesignCanvas.jsx',
-      path: 'src/components/DesignCanvas.jsx',
-      language: 'jsx',
-      iconName: 'FileCode',
-      // cc-2's merge conflict, already resolved — both branches' changes
-      // (the key prop and the onSelect handler) kept together.
-      lines: [
-        "import { useState } from 'react'",
-        "import { Button } from '@/components/ui/button'",
-        '',
-        'export function DesignCanvas({ frames }) {',
-        '  const [selected, setSelected] = useState(null)',
-        '',
-        '  return (',
-        '    <section className="canvas-root">',
-        '      {frames.map((frame) => (',
-        '        <Frame key={frame.id} data={frame} onSelect={() => setSelected(frame.id)} />',
-        '      ))}',
-        '      <Button onClick={() => setSelected(null)}>Deselect</Button>',
-        '    </section>',
-        '  )',
-        '}',
-      ],
-    },
-    {
-      id: 'input',
-      name: 'Input.jsx',
-      path: 'src/components/ui/Input.jsx',
-      language: 'jsx',
-      iconName: 'FileCode',
-      // cc-6's fix, already resolved — px-3 matches the 12px design padding.
-      lines: [
-        'export function Input(props) {',
-        '  return <input {...props} className="h-9 px-3 rounded-lg" />',
-        '}',
-      ],
-    },
-    {
-      id: 'card',
-      name: 'Card.jsx',
-      path: 'src/components/ui/Card.jsx',
-      language: 'jsx',
-      iconName: 'FileCode',
-      // cc-3's current state — rounded-lg (8px), not yet the 12px radius.
-      lines: ['export function Card({ children }) {', '  return <div className="rounded-lg border bg-card p-4">{children}</div>', '}'],
-    },
-  ],
-  'onboarding-flow': [
-    {
-      ...openFiles[0],
-      name: 'OnboardingScreen.jsx',
-      path: 'src/screens/OnboardingScreen.jsx',
-      lines: [
-        "import { useState } from 'react'",
-        '',
-        'const STEPS = ["Welcome", "Invite your team", "Connect a project"]',
-        '',
-        'export function OnboardingScreen() {',
-        '  const [step, setStep] = useState(0)',
-        '',
-        '  return (',
-        '    <div className="onboarding-card">',
-        '      <h2>{STEPS[step]}</h2>',
-        '      <button onClick={() => setStep((s) => Math.min(s + 1, STEPS.length - 1))}>',
-        '        Next',
-        '      </button>',
-        '    </div>',
-        '  )',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[1],
-      name: 'onboarding.css',
-      path: 'src/styles/onboarding.css',
-      lines: [
-        '.onboarding-card {',
-        '  max-width: 320px;',
-        '  border-radius: 16px;',
-        '  padding: 24px;',
-        '  background: var(--card);',
-        '}',
-        '',
-        '.onboarding-card h2 {',
-        '  font-size: 18px;',
-        '  margin-bottom: 12px;',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[2],
-      name: 'steps.json',
-      path: 'src/data/steps.json',
-      lines: [
-        '{',
-        '  "steps": [',
-        '    { "id": "welcome", "title": "Welcome", "completed": true },',
-        '    { "id": "invite", "title": "Invite your team", "completed": false },',
-        '    { "id": "connect", "title": "Connect a project", "completed": false }',
-        '  ]',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[3],
-      name: 'track_progress.py',
-      path: 'scripts/track_progress.py',
-      lines: [
-        '# Emits an analytics event each time a workspace member finishes',
-        '# a step in the first-run onboarding flow.',
-        '',
-        'def track(step_id: str, user_id: str) -> dict:',
-        '    return {"event": "onboarding_step_completed", "step": step_id, "user": user_id}',
-        '',
-        'if __name__ == "__main__":',
-        '    print(track("welcome", "jane"))',
-      ],
-    },
-    // Extra file beyond the 4 standard ids — cc-5 names a styles file none
-    // of onboarding-flow's own slots cover (its 'tokens' slot is
-    // steps.json, not CSS), so it gets its own, already resolved.
-    {
-      id: 'color-tokens',
-      name: 'tokens.css',
-      path: 'src/styles/tokens.css',
-      language: 'css',
-      iconName: 'Braces',
-      lines: [':root {', '  --primary: var(--brand-500); /* #5E6AD2 */', '  --background: #ffffff;', '}'],
-    },
-  ],
   'mobile-nav-revamp': [
     {
       ...openFiles[0],
@@ -2625,7 +1938,6 @@ export const paddingConflict = {
 
 export const projectChatGreetings = {
   'checkout-redesign': 'Let’s review the Place order button together. Compare its height and color with the checkout design, adjust the style, then request a review.',
-  'design-system-v2': 'Let’s check the shared Button height. Compare the code with the design token, review the affected screens, then check the saved version after merging.',
 }
 
 export const initialChatMessages = [
@@ -2717,38 +2029,6 @@ export const aiEditScenarios = [
       '! 3 other button files not in this workspace — skipped',
     ],
     resolvesConflictId: 'cc-11',
-  },
-  // Design System v2 (project-scoped, see forProject). This is Conflict
-  // Point cc-1's proposed change: applying it sends cc-1 back to review —
-  // it's only merged once its reviewers approve.
-  {
-    id: 'button-height-token',
-    projectId: 'design-system-v2',
-    keywords: ['button height', 'height token', 'h-9', '버튼 높이', 'shared token'],
-    title: 'Updated Button height to use the size token',
-    reply: 'Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.',
-    target: { fileId: 'app', layerId: 'button-md' },
-    changes: [{ fileId: 'app', line: 6, summary: 'md size uses --button-height-md instead of h-9' }],
-    elements: ['button-md'],
-    fileId: 'app',
-    lines: [
-      "import { cva } from 'class-variance-authority'",
-      '',
-      "export const buttonVariants = cva('inline-flex items-center rounded-full', {",
-      '  variants: {',
-      "    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent hover:bg-muted' },",
-      "    size: { sm: 'h-7 px-3', md: 'h-[var(--button-height-md)] px-4' },",
-      '  },',
-      "  defaultVariants: { variant: 'primary', size: 'md' },",
-      '})',
-    ],
-    terminalLines: [
-      '$ ai apply-patch Button.jsx',
-      "  - md: 'h-9 px-4'",
-      "  + md: 'h-[var(--button-height-md)] px-4'",
-      '[HMR] Button.jsx updated',
-    ],
-    resolvesConflictId: 'cc-1',
   },
   {
     id: 'padding-fix',
@@ -2980,69 +2260,6 @@ export const canvasPages = [
       })(),
     ],
   },
-  // Design System v2's own design page (see pagesForProject): the Button
-  // component's size variants (Conflict Point cc-1). button-md is the
-  // Size/MD spec Button.jsx should match (currently renders 36px, h-9).
-  {
-    id: 'page-ds-button',
-    name: 'Button',
-    projectId: 'design-system-v2',
-    frames: [
-      {
-        id: 'frame-ds-button',
-        name: 'Button · Size',
-        kind: 'frame',
-        x: 80,
-        y: 40,
-        width: 280,
-        height: 160,
-        layers: [
-          {
-            id: 'button-md',
-            name: 'Continue',
-            kind: 'component',
-            type: 'button',
-            x: 20,
-            y: 24,
-            width: 240,
-            height: 36,
-            label: 'Continue',
-          },
-          {
-            id: 'button-sm',
-            name: 'Small',
-            kind: 'component',
-            type: 'button',
-            x: 20,
-            y: 92,
-            width: 160,
-            height: 28,
-            label: 'Small',
-          },
-        ],
-      },
-    ],
-  },
-  // cc-3's card, as the design system draws it (12px corners).
-  {
-    id: 'page-ds-card',
-    name: 'Card',
-    projectId: 'design-system-v2',
-    frames: [
-      {
-        id: 'frame-ds-card',
-        name: 'Card · Default',
-        kind: 'frame',
-        x: 80,
-        y: 40,
-        width: 280,
-        height: 180,
-        layers: [
-          { id: 'ds-card', name: 'Card', kind: 'component', type: 'card', x: 20, y: 24, width: 240, height: 132 },
-        ],
-      },
-    ],
-  },
   {
     id: 'page-checkout-tabs', projectId: 'checkout-redesign', name: 'Checkout tabs',
     frames: [{
@@ -3253,16 +2470,6 @@ export const comments = [
     likes: 0,
     replies: 0,
   },
-  {
-    id: 'comment-cc1',
-    projectId: 'design-system-v2',
-    authorId: 'jane',
-    timeLabel: '2h ago',
-    text: 'The design system says md is 40px. Can we use the token instead of h-9?',
-    status: 'open',
-    likes: 0,
-    replies: 0,
-  },
 ]
 
 // Suggested prompt chips shown above the "Ask Devsign" chat input.
@@ -3379,17 +2586,6 @@ const checkoutButtonLines = (className) => [
   '}',
 ]
 
-const designSystemButtonLines = ({ radius = 'rounded-full', md = 'h-8', ghost = 'bg-transparent' } = {}) => [
-  "import { cva } from 'class-variance-authority'",
-  '',
-  `export const buttonVariants = cva('inline-flex items-center ${radius}', {`,
-  '  variants: {',
-  `    variant: { primary: 'bg-primary text-white', ghost: '${ghost}' },`,
-  `    size: { sm: 'h-7 px-3', md: '${md} px-4' },`,
-  '  },',
-  "  defaultVariants: { variant: 'primary', size: 'md' },",
-  '})',
-]
 
 // BottomNav.jsx as it stood at a checkpoint, whole — written from the same
 // values its preview is drawn with, so the code and the preview can't
@@ -3532,102 +2728,6 @@ export const projectHistorySeeds = {
       },
     },
   ],
-  'design-system-v2': [
-    {
-      id: 'history-ds-1',
-      label: 'Added Button size variants',
-      kind: 'edit',
-      actorId: 'james',
-      target: 'Button.jsx',
-      timestamp: 'Mon, 11:20 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: designSystemButtonLines({ radius: 'rounded-lg', md: 'h-8' }),
-        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-    {
-      id: 'history-ds-2',
-      label: 'Migrated Button to pill radius',
-      kind: 'edit',
-      actorId: 'jane',
-      target: 'Button.jsx',
-      timestamp: 'Mon, 3:05 PM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-8' }),
-        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-    {
-      id: 'history-ds-3',
-      label: 'Set md size to h-9',
-      kind: 'edit',
-      actorId: 'james',
-      target: 'Button.jsx · line 6',
-      timestamp: 'Yesterday, 10:40 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9' }),
-        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-    {
-      id: 'history-ds-4',
-      label: 'Pushed new changes to Button.jsx',
-      kind: 'edit',
-      actorId: 'jane',
-      target: 'Button.jsx',
-      timestamp: 'Yesterday, 11:02 AM',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9', ghost: 'bg-transparent hover:bg-muted' }),
-        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-    // Not a code change — the sync engine flagging cc-1 (most recent, "2h
-    // ago"), so the timeline shows when design and code actually drifted
-    // apart, not only the edits around it. Same snapshot as history-ds-4:
-    // nothing changed here, something was caught.
-    {
-      id: 'history-conflict-cc-1',
-      label: 'Button height in code (36px) drifts from the design system token (40px).',
-      kind: 'conflict',
-      conflictId: 'cc-1',
-      actorLabel: 'Devsign design ↔ code sync',
-      // The file, not the conflict's own "Button / Height" token — so the
-      // History drawer's target filter/grouping (which reads the text
-      // before " · ") puts this under the same Button.jsx group as the
-      // edits around it.
-      target: 'Button.jsx · Height',
-      timestamp: '2h ago',
-      archived: false,
-      snapshot: {
-        activeFileId: 'app',
-        fileId: 'app',
-        lines: designSystemButtonLines({ radius: 'rounded-full', md: 'h-9', ghost: 'bg-transparent hover:bg-muted' }),
-        previewProps: { buttonPadding: '8px 16px', buttonColor: 'primary' },
-        conflicts: [],
-        selectedLayerId: null,
-      },
-    },
-  ],
 }
 
 export const initialHistoryEntries = [
@@ -3726,7 +2826,6 @@ const OLDER_HISTORY = [
   ['Search input with icon slot', null, 'Mar 18, 2:14 PM'],
   ['Email input and validation states', 'Add validation states to the email input', 'Mar 19, 10:39 AM'],
   ['Follow chip and meta text on cards', null, 'Mar 20, 4:28 PM'],
-  ['Merged design-system-v2 into release/1.4', null, 'Mar 21, 6:02 PM'],
   ['Hero card layout for the landing page with gradient background and chart', 'Lay out the hero card with a gradient and a chart', 'Mar 23, 9:47 AM'],
   ['Cleanup: removed unused tokens and dead styles', null, 'Mar 24, 1:11 PM'],
   ['Accessibility pass: labels and contrast', 'Fix missing labels and contrast issues', 'Mar 25, 10:58 AM'],
@@ -3757,42 +2856,6 @@ initialHistoryEntries.unshift(
 // through `stage`: 'update' (changed, not yet written up) → 'documented'
 // (has a generated Reference Doc) → 'archived' (recorded in History).
 export const designSystemUpdates = [
-  {
-    id: 'dsu-input-padding',
-    projectId: 'design-system-v2',
-    conflictId: 'cc-6',
-    title: 'Input horizontal padding',
-    summary: 'Inputs move from 10px to the 12px design system padding.',
-    authorId: 'jane',
-    createdAtLabel: '3 days ago',
-    stage: 'archived',
-    archivedAtLabel: '2 days ago',
-    changes: [{ label: 'Padding X', from: '10px', to: '12px' }],
-  },
-  {
-    id: 'dsu-radius-scale',
-    projectId: 'design-system-v2',
-    title: 'Radius scale: lg step',
-    summary: 'The lg radius step becomes 12px so cards and sheets share one curve.',
-    authorId: 'james',
-    createdAtLabel: 'Yesterday',
-    stage: 'documented',
-    changes: [
-      { label: '--radius-lg', from: '8px', to: '12px' },
-      { label: 'Card radius', from: 'rounded-lg', to: 'var(--radius-lg)' },
-    ],
-  },
-  {
-    id: 'dsu-primary-color',
-    projectId: 'onboarding-flow',
-    conflictId: 'cc-5',
-    title: 'Primary color token',
-    summary: '--primary points at the brand token instead of a hard-coded hex.',
-    authorId: 'min',
-    createdAtLabel: '2 days ago',
-    stage: 'documented',
-    changes: [{ label: '--primary', from: '#5B5BD6', to: 'var(--brand-500)' }],
-  },
   {
     id: 'dsu-spacing-scale',
     projectId: 'checkout-redesign',
@@ -4069,7 +3132,7 @@ export const referenceDocs = [
       {
         type: 'code',
         language: 'json',
-        text: `{\n  "projectId": "design-system-v2",\n  "changes": [\n    { "layerId": "btn-primary", "prop": "padding", "value": "8px 16px" }\n  ],\n  "baseVersion": "history-seed-2"\n}`,
+        text: `{\n  "projectId": "checkout-redesign",\n  "changes": [\n    { "layerId": "btn-primary", "prop": "padding", "value": "8px 16px" }\n  ],\n  "baseVersion": "history-seed-2"\n}`,
       },
       {
         type: 'callout',
@@ -4325,7 +3388,7 @@ const MORE_REFERENCE_DOCS = [
       {
         type: 'callout',
         tone: 'warning',
-        text: 'A hard-coded height (`h-9`, `h-10`) instead of the size token is the single most common Button drift Devsign catches — see Conflict Point cc-1.',
+        text: 'A hard-coded height (`h-9`, `h-10`) instead of the size token is the single most common Button drift Devsign catches — use the shared size token.',
       },
     ],
   },
@@ -4742,16 +3805,6 @@ export const conflictNotifications = [
     unread: false,
     target: { conflictId: 'cc-8', label: 'Divider / Color' },
   },
-  {
-    id: 'n-cc-1',
-    projectId: 'design-system-v2',
-    kind: 'approval',
-    authorId: 'jane',
-    text: 'requested your review on Button / Height',
-    timeLabel: '2h ago',
-    unread: true,
-    target: { conflictId: 'cc-1', label: 'Button / Height' },
-  },
 ]
 
 // Arrives a few seconds after entering Merge Studio to demo live feedback.
@@ -4779,16 +3832,6 @@ export const liveMergeNotificationsByProject = {
     timeLabel: 'Just now',
     unread: true,
     target: { itemId: 'merge-checkout-cta', card: 'b', label: 'Option B' },
-  },
-  'design-system-v2': {
-    id: 'n-live',
-    projectId: 'design-system-v2',
-    kind: 'feedback',
-    authorId: 'james',
-    text: 'CI: checks passed on merge/button-height-token',
-    timeLabel: 'Just now',
-    unread: true,
-    target: { itemId: 'merge-ds-button-height', card: 'b', label: 'Option B' },
   },
 }
 

@@ -12,6 +12,7 @@ const Toaster = ({
   return (
     <Sonner
       theme="dark"
+      closeButton
       containerAriaLabel={translateText("Notifications", language)}
       className="toaster group"
       icons={{
@@ -40,6 +41,7 @@ const Toaster = ({
         }
       }
       toastOptions={{
+        closeButtonAriaLabel: translateText("Close", language),
         classNames: {
           toast: "cn-toast",
         },

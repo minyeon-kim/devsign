@@ -448,7 +448,7 @@
   border-radius: 9999px !important;
 }
 .ds-review-context {
-  padding: var(--ds-padding-row-compact);
+  padding: 20px;
 }
 /* Shorter than a control row: the Reviewers / Comments labels sit tight
    on their cards so the bottom panel's limited height goes to content. */
@@ -707,6 +707,28 @@ button.editor-line-comment {
   background: rgb(37 37 37 / 95%) !important;
   box-shadow: 0 12px 40px rgb(0 0 0 / 45%) !important;
   backdrop-filter: blur(24px);
+}
+[data-sonner-toast].cn-toast:has([data-close-button]) {
+  padding-right: 48px;
+}
+[data-sonner-toast].cn-toast [data-close-button] {
+  top: 12px;
+  right: 12px;
+  left: auto;
+  transform: none;
+  width: 24px;
+  height: 24px;
+  background: rgb(255 255 255 / 6%);
+  border: 0;
+  color: #cbd5e1;
+}
+[data-sonner-toast].cn-toast [data-close-button]:hover {
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+[data-sonner-toast].cn-toast [data-close-button]:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 2px;
 }
 [data-sonner-toast].cn-toast [data-title] {
   font-size: 13px;

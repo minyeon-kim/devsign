@@ -111,7 +111,7 @@ const REVIEWER_STATUS = {
   changes_requested: { label: 'Changes requested', className: 'text-amber-400' },
 }
 
-const REVIEW_GUTTER = 'gap-3'
+const REVIEW_GUTTER = 'gap-4 xl:gap-5'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
@@ -447,7 +447,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false }) {
+function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -492,8 +492,8 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
     // Problem, Evidence, Review — then Details. Labels are one small grey
     // column; values the default color.
     <div data-review-info className="flex min-h-full flex-col">
-      {/* 1 · Status: where it stands, how risky, how binding — as badges —
-          and, under them, the one thing to do (when there is one). */}
+      {/* Required rules and rollback status, followed by the next action.
+          The title row carries the review status and risk. */}
       <InfoSection>
         <div data-status-badges className="flex flex-wrap items-center gap-1.5">
           {/* (A conflict's status is the badge beside its title; only a
@@ -502,12 +502,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             <span data-status-badge className={cn(INFO_BADGE, STATUS_TEXT[status.id])}>
               <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
               <LocalizedText text={ROLLBACK_STAGE_LABEL[stage]} />
-            </span>
-          )}
-          {severity && (
-            <span data-risk-badge className={cn(INFO_BADGE, RISK_TEXT[severity.label.toLowerCase()])}>
-              <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
-              <LocalizedText text={severity.label} />
             </span>
           )}
           {/* Required rules it breaks: one badge, here only. (What they
@@ -2728,8 +2722,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex h-10 shrink-0 items-center gap-3 bg-card px-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 bg-card px-4 py-3 sm:px-6">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
@@ -2744,8 +2738,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </h2>
                 {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
-                {/* Where it stands, said once: beside the title. */}
+                {/* Status and risk stay visible beside the title. */}
                 {!conflict.rollback && <StageBadge stage={stage} />}
+                {severity && (
+                  <span data-risk-badge className={cn(INFO_BADGE, RISK_TEXT[severity.label.toLowerCase()])}>
+                    <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
+                    <LocalizedText text={severity.label} />
+                  </span>
+                )}
               </div>
               {/* Approval — who, where it stands, and its one action — on
                   the title's line. (A rollback keeps its own action.) */}
@@ -2755,15 +2755,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
             {/* Where it is on the way to merged — fixed under the title, like
                 it — with the same line the approval area says. */}
-            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
+            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 pr-4 pb-4 pl-12 sm:pr-6 sm:pl-14" />}
 
-            {/* Title, tabs and activity share the 44px content rail.
-                The back button occupies the separate 32px gutter. */}
+            {/* Shared outer padding aligns the header and content cards. */}
             {/* The header and the tabs above stay put. On a wide panel the
                 three areas — comparison and diff, reasoning, reviewers and
                 comments — each scroll on their own, so none of these
                 wrappers scrolls; narrower, where they stack, the page does. */}
-            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-3 pt-1 pb-3 xl:overflow-hidden', 'pt-2')}>
+            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-4 pt-2 pb-4 sm:px-6 sm:pb-6 xl:overflow-hidden')}>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
@@ -2799,8 +2798,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
-                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} className="mb-3 shrink-0" />}
+                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5', REVIEW_CARD, 'xl:flex-1')}>
+                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} className="mb-5 shrink-0" />}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {/* (Listed here only where there's no comparison
                               card to carry them — the card shows its own.) */}
@@ -2870,7 +2869,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     Comments (the thread and its composer), as two tabs. The
                     comparison beside it takes all the rest. */}
                 <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
-                  <div role="tablist" aria-label="Conflict sidebar" className="-mt-1 mb-2 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
+                  <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
                     {[['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])].map(([value, label]) => (
                       <button
                         key={value}
@@ -2901,7 +2900,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         onOpenEvidence={openEvidence}
                         checks={checks}
                         conflict={conflict}
-                        severity={severity}
                         stage={stage}
                         showProject={!workspace}
                         blockedCount={decisionState.required.length}

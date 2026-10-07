@@ -177,16 +177,7 @@ export function overrideFromEdit(edit) {
   return Object.keys(override).length ? override : undefined
 }
 
-// A couple of the UT script's own *real* component files — not the
-// generated src/prototype/*.jsx ones parsePrototype handles — are also
-// wired to a canvas layer, by a handful of known text patterns rather
-// than a general JSX parser: PlaceOrderButton.jsx's `size="lg"` / hard-
-// coded violet (cc-11), Button.jsx's `--button-height-md` vs `h-9` (cc-1).
-// Both layers' own canvas defaults already sit at one of the two real
-// values (place-order's at the fixed 44px, button-md's at the buggy
-// 36px/h-9) — `dh` is the delta from there, not an absolute height.
-// Without this, editing or AI-fixing either file changes the code pane
-// and nothing else: "code changed, preview didn't".
+// Sync the UT checkout component edits with its canvas layer.
 const COMPONENT_SYNC = {
   'checkout-redesign:app': {
     layerId: 'place-order',
@@ -195,24 +186,11 @@ const COMPONENT_SYNC = {
       fill: /bg-\[(#[0-9a-f]{6})\]/i.exec(text)?.[1],
     }),
   },
-  'design-system-v2:app': {
-    layerId: 'button-md',
-    // The md size's actual value, not just "is it fixed yet" — h-8 (ds-1/
-    // ds-2, 32px), h-9 (ds-3/ds-4/the conflict itself, 36px — the layer's
-    // own canvas default) and the token (40px, the fix) are three real,
-    // different heights; collapsing them to one "not fixed" bucket is why
-    // replaying the whole history up to the fix looked like nothing ever
-    // changed on the canvas even though the code pane did.
-    derive: (text) => {
-      const md = /\bmd:\s*'([^']+)'/.exec(text)?.[1] ?? ''
-      const px = /--button-height-md/.test(md) ? 40 : (Number(/\bh-(\d+)\b/.exec(md)?.[1]) || 9) * 4
-      return { dh: px - 36 }
-    },
-  },
+
 }
 
 // `{ [layerId]: patch }`, ready to merge into `prototypeEdits` — or null
-// if this project/file isn't one of the two wired above.
+// if this project/file isn't wired above.
 export function deriveComponentOverride(projectId, fileId, lines) {
   const sync = COMPONENT_SYNC[`${projectId}:${fileId}`]
   if (!sync || !Array.isArray(lines)) return null
