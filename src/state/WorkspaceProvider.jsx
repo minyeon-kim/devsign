@@ -804,9 +804,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // review, the list, the reviewers) reads this one record, so they all
   // follow. A conflict that was already merged stays merged: that's code
   // in the file, not review state.
-  const restartConflict = useCallback((conflictId) => {
+  // `reopen`: a merged one too — Merge Studio's "Edit again" on a conflict
+  // finished before (its item goes back to needing review).
+  const restartConflict = useCallback((conflictId, { reopen = false } = {}) => {
     const conflict = conflicts.find((candidate) => candidate.id === conflictId)
-    if (!conflict || conflict.reviewStage === 'resolved') return false
+    if (!conflict || (conflict.reviewStage === 'resolved' && !reopen)) return false
+    if (conflict.reviewStage === 'resolved' && conflict.mergeItemId) setMergeItems((prev) => prev.map((m) => (m.id === conflict.mergeItemId ? { ...m, tag: 'Needs Review' } : m)))
     // What was picked or set by hand for it (its merge draft) goes first:
     // changing a draft touches the review's stage, set last below.
     const draft = conflict.mergeItemId ? mergeDrafts.current[conflict.mergeItemId] : null
@@ -829,9 +832,10 @@ export function WorkspaceProvider({ children, projectId }) {
       adjustmentReason: null,
       exceptionChecks: [],
       acceptedChecks: [],
+      ...(reopen ? { mergedHandLines: null, mergedHandValues: null, mergedAssembly: null, mergedAdjustments: null, mergedAdjustment: null } : null),
     })))
     return true
-  }, [conflicts, saveMergeDraft, setConflicts])
+  }, [conflicts, saveMergeDraft, setConflicts, setMergeItems])
 
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)

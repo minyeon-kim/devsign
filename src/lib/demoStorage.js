@@ -11,7 +11,7 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // 6: Card / Radius (cc-3) gained its design page — stored merge items and
 // conflicts from before would keep it code-only.
 // 7: a three-draft sample item for mixing drafts per element.
-export const DEMO_VERSION = 14
+export const DEMO_VERSION = 15
 
 export function readDemo(key, fallback) {
   try {

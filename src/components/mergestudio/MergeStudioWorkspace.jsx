@@ -422,6 +422,7 @@ function MergeStudioWorkspace({ item }) {
     currentUser,
     mergeItems,
     viewerRole,
+    restartConflict,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -1226,11 +1227,14 @@ function MergeStudioWorkspace({ item }) {
   // link — not only the review's "Edit in Merge Studio"), an item with an
   // open conflict to fix in code opens on the code: the guide naming the
   // line, the merge window and the Code view.
-  const devConflict = fixesInCode(viewerRole, mergeConflict) && mergeConflict.reviewStage !== 'resolved' && item?.tag !== 'Merged' ? mergeConflict : null
+  // (Finished already — merged, or its item is: the code shows as merged,
+  // read-only, with a way to edit it again.)
+  const codeFinished = Boolean(mergeConflict) && (mergeConflict.reviewStage === 'resolved' || item?.tag === 'Merged')
+  const devConflict = fixesInCode(viewerRole, mergeConflict) ? mergeConflict : null
   const startCodeFix = useEffectEvent(() => {
     if (!devConflict) return
-    if (checkGuide?.conflictId !== devConflict.id) setCheckGuide({ conflictId: devConflict.id, check: null })
-    else showCode()
+    if (!codeFinished && checkGuide?.conflictId !== devConflict.id) setCheckGuide({ conflictId: devConflict.id, check: null })
+    showCode()
   })
   useEffect(() => { startCodeFix() }, [item?.id, devConflict?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // The selected element's code for the Inspect panel's Code view: its
@@ -1389,7 +1393,12 @@ function MergeStudioWorkspace({ item }) {
             conflict={mergeConflict}
             manualCode={manualCode}
             fileLines={getFileLines(mergeConflict.fileId) ?? []}
-            readOnly={item.tag === 'Merged' || mergeConflict.reviewStage === 'resolved'}
+            readOnly={codeFinished}
+            onEditAgain={codeFinished && mergeConflict.reviewStage === 'resolved' ? () => {
+              restartConflict(mergeConflict.id, { reopen: true })
+              setManualCode({})
+              setCheckGuide({ conflictId: mergeConflict.id, check: null })
+            } : undefined}
             onChange={setManualCode}
             onLive={(fileId, line, text) => liveEditCodeLine(fileId, line, text)}
             onClose={() => setCodeMergeOpen(false)}

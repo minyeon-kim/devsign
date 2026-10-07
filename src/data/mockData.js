@@ -524,7 +524,7 @@ export const conflictChecklist = [
     id: 'cc-4',
     cause: 'Nav icons 20px in code · 24px in the redesigned nav',
     effect: 'The tab icons look smaller than the new tab bar. The 44px touch area stays the same.',
-    gitFlow: { source: 'hotfix/mobile-nav-icon', target: 'main' },
+    gitFlow: { source: 'feature/nav-badges', target: 'main' },
     token: 'Nav Icon / Size',
     file: 'src/components/nav/BottomNav.jsx',
     projectId: 'mobile-nav-revamp',
@@ -539,14 +539,14 @@ export const conflictChecklist = [
     detectedBy: 'Devsign design ↔ code sync',
     changedBy: { type: 'person', id: 'min', what: 'Implemented icon sizing in BottomNav.jsx' },
     uxNote: 'Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.',
-    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
+    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 1.75 } },
     mergeItemId: 'merge-mobile-nav-icon',
     layerId: 'tab-bar',
     fileId: 'app',
     line: 10,
-    message: 'Nav icons render at 20px in code but 24px in the redesigned nav frame.',
-    branches: { local: 'BottomNav.jsx', remote: 'Nav · Tab bar (Figma)' },
-    suggestion: 'Bump the nav icon size to 24px and keep the 44px hit area.',
+    message: 'Both branches changed the tab icon lines: feature/nav-badges added badges, main (the redesign) resized the icon and showed the label.',
+    branches: { local: 'feature/nav-badges · BottomNav.jsx', remote: 'main · Nav tab bar (Figma sync)' },
+    suggestion: 'Keep both: the redesign’s 24px icon, 1.75 stroke and visible label, with the badge and aria-hidden from feature/nav-badges.',
     previewPrompt: 'Resize the bottom nav icons to 24px',
     reviewers: [
       { id: 'jane', status: 'pending' },
@@ -555,11 +555,19 @@ export const conflictChecklist = [
     requestedBy: 'jane',
     comparisonFields: [
       { label: 'Icon size', expected: '24px', current: '20px' },
+      { label: 'Stroke', expected: '1.75', current: '2' },
       { label: 'Hit area', expected: '44px', current: '44px' },
     ],
+    // A real conflict: both branches changed lines 10–11 from the same base.
+    //   base   — what both started from
+    //   before — B, feature/nav-badges (what's in the file now)
+    //   after  — A, main (the redesign, synced from Figma)
+    //   merged — the suggested merge: both changes kept
     diff: {
-      before: ['<Icon className="size-5" />'],
-      after: ['<Icon className="size-6" />'],
+      base: ['<Icon className="size-5" />', '<span className="sr-only">{label}</span>'],
+      before: ['<Icon className="size-5" aria-hidden />', '<span className="sr-only">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}'],
+      after: ['<Icon className="size-6" strokeWidth={1.75} />', '<span className="text-[11px] font-medium">{label}</span>'],
+      merged: ['<Icon className="size-6" strokeWidth={1.75} aria-hidden />', '<span className="text-[11px] font-medium">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}'],
     },
   },
 
@@ -1414,7 +1422,7 @@ export const designMergeVariants = {
       ],
     },
     layerCodeMap: {
-      'tab-bar': { fileId: 'app', line: 10, span: 1 },
+      'tab-bar': { fileId: 'app', line: 10, span: 2 },
     },
   },
   'merge-flowbank': {
@@ -1561,7 +1569,10 @@ export const codeMergeVariants = {
     shipping: [{ id: 'shipping-icon-stroke', line: 4, incoming: '      <Truck className="size-4" />' }],
   },
   'merge-mobile-nav-icon': {
-    app: [{ id: 'nav-icon-size', line: 10, incoming: '          <Icon className="size-6" />' }],
+    app: [
+      { id: 'nav-icon-size', line: 10, incoming: '          <Icon className="size-6" strokeWidth={1.75} />' },
+      { id: 'nav-tab-label', line: 11, incoming: '          <span className="text-[11px] font-medium">{label}</span>' },
+    ],
   },
   'merge-flowbank': {
     app: [
@@ -1891,15 +1902,16 @@ export const projectFileSets = {
       path: 'src/components/BottomNav.jsx',
       lines: [
         "import { Home, Search, Bell, User } from 'lucide-react'",
+        "import { Badge } from './Badge'",
         '',
-        'const TABS = [Home, Search, Bell, User]',
-        '',
-        'export function BottomNav({ active, onChange }) {',
+        "const TABS = [{ Icon: Home, label: 'Home' }, { Icon: Search, label: 'Search' }, { Icon: Bell, label: 'Alerts' }, { Icon: User, label: 'Profile' }]",
+        'export function BottomNav({ active, onChange, badges = {} }) {',
         '  return (',
         '    <nav className="bottom-nav">',
-        '      {TABS.map((Icon, i) => (',
-        '        <button key={i} onClick={() => onChange(i)} data-active={active === i}>',
-        '          <Icon className="size-5" />',
+        '      {TABS.map(({ Icon, label }, i) => (',
+        '        <button key={label} onClick={() => onChange(i)} data-active={active === i}>',
+        '          <Icon className="size-5" aria-hidden />',
+        '          <span className="sr-only">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}',
         '        </button>',
         '      ))}',
         '    </nav>',
