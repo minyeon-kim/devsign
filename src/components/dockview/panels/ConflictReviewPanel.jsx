@@ -1993,7 +1993,8 @@ const REVIEW_MARK = {
 //   · not requested — send the review request;
 //   · waiting       — remind whoever hasn't answered;
 //   · yours         — request changes, or approve (each asks for a comment
-//                     in a dialog; a change request needs one);
+//                     in a popover under its button; a change request
+//                     needs one);
 //   · changes asked — fix it and request again;
 //   · all approved  — merge;
 //   · merged        — revert.
@@ -2009,7 +2010,7 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
   const needsNote = deciding === 'changes'
   function submit(event) {
     event.preventDefault()
-    if (needsNote && !note.trim()) return
+    if (!deciding || (needsNote && !note.trim())) return
     onReview(deciding, note.trim())
     setDeciding(null)
     setNote('')
@@ -2022,6 +2023,43 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
   }
   const CTA = cn(PRIMARY_BUTTON, 'gap-1.5')
   const QUIET = cn(NAV_BUTTON, 'h-8')
+  // The sign-off's form, in a popover hung from the button that opens it:
+  // 8px under the button, right edges aligned. It flips above only when
+  // there's no room below, shifts to stay on screen, and scrolls inside
+  // itself rather than run past the window. Open, its button reads as
+  // pressed; a click outside or Escape closes it.
+  const reviewPopover = (kind, trigger) => (
+    <Popover open={deciding === kind} onOpenChange={(open) => setDeciding(open ? kind : null)}>
+      {trigger}
+      <PopoverContent data-review-popover={kind} side="bottom" align="end" sideOffset={8} className="max-h-(--available-height) w-[340px] max-w-(--available-width) gap-0 overflow-y-auto rounded-xl p-0">
+        <form onSubmit={submit}>
+          <div className="space-y-2.5 px-4 pt-4 pb-3">
+            <p className="text-sm font-semibold text-white"><LocalizedText text={needsNote ? 'Request changes' : 'Approve it'} /></p>
+            <p className="text-xs leading-[18px] text-slate-400">
+              <LocalizedText text={needsNote ? 'It goes back to the author and the merge stops' : 'It merges once everyone approves'} />
+              {author && author !== viewerId && <> · <LocalizedText text={`${nameOf(author)} (author) will be notified.`} /></>}
+            </p>
+            <textarea
+              autoFocus
+              rows={3}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event) }}
+              aria-label={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
+              placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
+              className="block w-full resize-none rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2 text-xs leading-[18px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-4 py-3">
+            <button type="button" onClick={() => setDeciding(null)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Cancel" /></button>
+            <button type="submit" disabled={needsNote && !note.trim()} className={cn('ds-intrinsic inline-flex h-8 items-center rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', needsNote ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300')}>
+              <LocalizedText text={needsNote ? 'Request changes' : 'Submit approval'} />
+            </button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
+  )
   const people = conflict.reviewers.map((reviewer) => ({ reviewer, person: allPeople.find((entry) => entry.id === reviewer.id) })).filter((entry) => entry.person)
   return (
     <div data-approval-bar={mode} className="flex min-w-0 shrink-0 items-center gap-2.5">
@@ -2062,8 +2100,12 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
           <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
         )}
         {(mode === 'mine' || (mode === 'changes' && canReview)) && <>
-          {mode === 'mine' && <button type="button" data-approval-changes onClick={() => setDeciding('changes')} className={QUIET}><LocalizedText text="Request changes" /></button>}
-          <button type="button" data-approval-approve onClick={() => setDeciding('approve')} className={CTA}><Check className="size-3.5" /><LocalizedText text="Approve it" /></button>
+          {mode === 'mine' && reviewPopover('changes', (
+            <PopoverTrigger data-approval-changes aria-pressed={deciding === 'changes'} className={cn(QUIET, 'aria-pressed:border-white/30 aria-pressed:bg-white/[0.12] aria-pressed:text-white')}><LocalizedText text="Request changes" /></PopoverTrigger>
+          ))}
+          {reviewPopover('approve', (
+            <PopoverTrigger data-approval-approve aria-pressed={deciding === 'approve'} className={cn(CTA, 'aria-pressed:brightness-90 aria-pressed:ring-2 aria-pressed:ring-emerald-200/60')}><Check className="size-3.5" /><LocalizedText text="Approve it" /></PopoverTrigger>
+          ))}
         </>}
         {mode === 'changes' && revise && (
           <button type="button" data-approval-revise onClick={revise.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Fix and request again" /></button>
@@ -2075,33 +2117,6 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
           <button type="button" data-approval-revert onClick={onRevert} className={QUIET}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Revert" /></button>
         )}
       </div>
-      <Dialog open={Boolean(deciding)} onOpenChange={(open) => { if (!open) setDeciding(null) }}>
-        <DialogContent className="gap-0 bg-card p-0 sm:max-w-[480px]">
-          <form onSubmit={submit}>
-            <div className="space-y-3 px-5 pt-5 pb-4">
-              <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text={needsNote ? 'Request changes' : 'Approve it'} /></DialogTitle>
-              <DialogDescription className="text-xs leading-[18px] text-slate-400">
-                <LocalizedText text={needsNote ? 'It goes back to the author and the merge stops' : 'It merges once everyone approves'} />
-                {author && author !== viewerId && <> · <LocalizedText text={`${nameOf(author)} (author) will be notified.`} /></>}
-              </DialogDescription>
-              <textarea
-                autoFocus
-                rows={3}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
-                className="block w-full resize-none rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2 text-xs leading-[18px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-5 py-4">
-              <button type="button" onClick={() => setDeciding(null)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Cancel" /></button>
-              <button type="submit" disabled={needsNote && !note.trim()} className={cn('ds-intrinsic inline-flex h-8 items-center rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', needsNote ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300')}>
-                <LocalizedText text={needsNote ? 'Request changes' : 'Submit approval'} />
-              </button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
