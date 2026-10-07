@@ -1,6 +1,6 @@
 import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { REVIEW_HEADER_BADGE } from './ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
@@ -159,53 +159,55 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
       </div>
       <ol className="px-3 py-2 relative">
         {flow.steps.map((step, index) => (
-          <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-3 py-0.5">
-            <div className="relative mt-1 flex shrink-0 flex-col items-center">
-              <button
-                type="button"
-                onClick={() => step.id === 'approve' && setExpandedStep(expandedStep === 'approve' ? null : 'approve')}
-                disabled={step.id !== 'approve'}
-                className={cn(
-                  'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
-                  step.state === 'done' 
-                    ? 'bg-[#5EEAB5] text-[#06281D]' 
-                    : step.state === 'current' 
-                    ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
-                    : 'border border-white/30 bg-transparent text-white/50',
-                  step.id === 'approve' && 'cursor-pointer hover:opacity-80'
-                )}
-              >
-                {step.state === 'done' ? (
-                  <Check className="h-3 w-3" strokeWidth={3} />
-                ) : (
-                  <span>{index + 1}</span>
-                )}
-              </button>
-              {index < flow.steps.length - 1 && (
-                <div
+          <Fragment key={step.id}>
+            <li data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-3 py-0.5">
+              <div className="relative mt-1 flex shrink-0 flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => step.id === 'approve' && setExpandedStep(expandedStep === 'approve' ? null : 'approve')}
+                  disabled={step.id !== 'approve'}
                   className={cn(
-                    'w-0.5 transition-colors',
-                    step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20'
+                    'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
+                    step.state === 'done' 
+                      ? 'bg-[#5EEAB5] text-[#06281D]' 
+                      : step.state === 'current' 
+                      ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
+                      : 'border border-white/30 bg-transparent text-white/50',
+                    step.id === 'approve' && 'cursor-pointer hover:opacity-80'
                   )}
-                  style={{ height: '2rem', marginTop: '2px' }}
-                />
-              )}
-            </div>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <p className={cn('text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
-                <LocalizedText text={step.label} />
-                {step.id === 'approve' && approvals?.total > 0 && <span data-step-approvals className="ml-2 font-normal tabular-nums">{approvals.done}/{approvals.total}</span>}
-              </p>
-              <p className="mt-0.5 text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
-            </div>
-          </li>
+                >
+                  {step.state === 'done' ? (
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
+                </button>
+                {index < flow.steps.length - 1 && (
+                  <div
+                    className={cn(
+                      'w-0.5 transition-colors',
+                      step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20'
+                    )}
+                    style={{ height: '2rem', marginTop: '2px' }}
+                  />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className={cn('text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
+                  <LocalizedText text={step.label} />
+                  {step.id === 'approve' && approvals?.total > 0 && <span data-step-approvals className="ml-2 font-normal tabular-nums">{approvals.done}/{approvals.total}</span>}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
+              </div>
+            </li>
+            {step.id === 'approve' && expandedStep === 'approve' && reviewers && (
+              <li className="border-t border-white/[0.05] px-3 py-3 col-span-full">
+                {reviewers}
+              </li>
+            )}
+          </Fragment>
         ))}
       </ol>
-      {expandedStep === 'approve' && reviewers && (
-        <div className="border-t border-white/[0.05] px-3 py-3">
-          {reviewers}
-        </div>
-      )}
     </section>
   )
 }
