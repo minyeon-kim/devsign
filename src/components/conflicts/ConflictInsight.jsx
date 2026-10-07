@@ -200,7 +200,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
               </div>
             </li>
             {step.id === 'approve' && expandedStep === 'approve' && reviewers && (
-              <li className="border-t border-white/[0.05] px-3 py-3 col-span-full">
+              <li className="border-t border-white/[0.05] px-3 py-3">
                 {reviewers}
               </li>
             )}
