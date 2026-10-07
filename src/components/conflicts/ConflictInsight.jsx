@@ -143,16 +143,11 @@ const STEP_DESCRIPTION = {
   merge: '승인된 변경 내용을 반영해요',
 }
 
-export function FlowSteps({ conflict, chosen, approvals, next, reviewers, className }) {
+export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, className }) {
   const flow = flowOf(conflict, { chosen })
   const [expandedStep, setExpandedStep] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
-  
-  // Debug: Log state changes
-  if (typeof window !== 'undefined') {
-    console.log('FlowSteps expandedStep:', expandedStep, 'has reviewers:', !!reviewers)
-  }
   return (
     <section data-flow-steps={flow.current} aria-label="검토 진행 상태" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="flex items-start justify-between gap-3 px-3 py-3">
@@ -189,7 +184,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
                 {index < flow.steps.length - 1 && (
                   <div
                     className={cn(
-                      'w-0.5 transition-colors',
+                      'w-px transition-colors',
                       step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20'
                     )}
                     style={{ height: '2rem', marginTop: '2px' }}
@@ -204,9 +199,9 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
                 <p className="mt-0.5 text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
               </div>
             </li>
-            {step.id === 'approve' && expandedStep === 'approve' && reviewers && (
+            {step.id === 'approve' && expandedStep === 'approve' && reviewersJSX && (
               <li className="border-t border-white/[0.05] px-3 py-3">
-                {reviewers}
+                {reviewersJSX(expandedStep === 'approve')}
               </li>
             )}
           </Fragment>

@@ -8,6 +8,7 @@ import {
   Bell,
   Check,
   ChevronDown,
+  Circle,
   CircleCheck,
   FileCode2,
   Code,
@@ -1510,7 +1511,7 @@ function agoLabel(at) {
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) {
+function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, expanded = false, onExpandedChange }) {
   // On a rollback agreement the reviewers are the people it affects, and
   // their sign-off is a confirmation.
   const statusLabels = conflict.rollback ? { pending: 'Not confirmed yet', approved: 'Confirmed' } : {}
@@ -1518,8 +1519,13 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
   // The change request being dismissed (its reviewer id) and the reason.
   const [dismissing, setDismissing] = useState(null)
   const [reason, setReason] = useState('')
-  const [expanded, setExpanded] = useState(false)
   const { reviewers, reviewStage } = conflict
+  
+  const handleExpandedChange = (value) => {
+    if (onExpandedChange) {
+      onExpandedChange(value)
+    }
+  }
   // The author can't review their own change, so they're never offered.
   const author = authorOf(conflict)
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id) && p.id !== author)
@@ -1598,12 +1604,12 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
           <>
             <button
               type="button"
-              onClick={() => setExpanded(!expanded)}
+              onClick={() => handleExpandedChange(!expanded)}
               data-review-header
               className="mb-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/[0.04]"
             >
-              <ChevronDown
-                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded && 'rotate-180')}
+              <Circle
+                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded ? 'fill-slate-400' : '')}
               />
               <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
               <span className="text-[11px] leading-4 text-slate-400">·</span>
@@ -2872,7 +2878,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         approvals={approvals}
                         next={approvalState?.line}
                         className="mb-5"
-                        reviewers={<ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                        reviewersJSX={(expanded) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
                       />}
                       <OverviewTab
                         key={conflict.id}
