@@ -33,16 +33,17 @@ export const NOTICE_ACTIONS = 'mt-3 flex items-center justify-end gap-1'
 export const NOTICE_ACTION = 'h-7 rounded-full bg-emerald-400/15 px-3 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25'
 export const NOTICE_ACTION_QUIET = 'h-7 rounded-full px-3 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white'
 
-export function NoticeDismiss({ label = 'Dismiss', onClick }) {
+export function NoticeDismiss({ label = '알림 닫기', onClick }) {
   return (
     <button
       type="button"
+      data-notice-dismiss
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
+      className="ds-intrinsic pointer-events-auto absolute top-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-white/[0.06] text-slate-200 hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
     >
-      <X className="size-3" />
+      <X className="pointer-events-none size-4" />
     </button>
   )
 }
@@ -145,7 +146,7 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
     <div role="dialog" aria-label="Conflict Points" className={NOTICE_CARD}>
       <NoticeDismiss onClick={onClose} />
 
-      <div className="flex items-start gap-3 pr-5">
+      <div className="flex items-start gap-3 pr-8">
         <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE[prompt.kind === 'high' ? 'urgent' : 'neutral'])}>
           <TriangleAlert className="size-4" />
         </span>

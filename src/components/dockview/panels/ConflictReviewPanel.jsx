@@ -2722,21 +2722,21 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 bg-card px-4 py-3 sm:px-6">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <div className="flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card px-4 py-4 sm:px-6">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
                   title="Back to list"
                   aria-label="Back to list"
-                  className="ds-intrinsic flex size-6 shrink-0 items-center justify-center text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                  className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                 >
                   <ChevronLeft className="size-5" />
                 </button>
-                <h2 className="min-w-0 truncate text-sm font-semibold text-white">
+                <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
                   <LocalizedText text={conflict.title} />
                 </h2>
-                {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
                 {/* Status and risk stay visible beside the title. */}
                 {!conflict.rollback && <StageBadge stage={stage} />}
@@ -2755,7 +2755,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
             {/* Where it is on the way to merged — fixed under the title, like
                 it — with the same line the approval area says. */}
-            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 pr-4 pb-4 pl-12 sm:pr-6 sm:pl-14" />}
+            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 pr-4 pb-5 pl-[58px] sm:pr-6 sm:pl-[66px]" />}
 
             {/* Shared outer padding aligns the header and content cards. */}
             {/* The header and the tabs above stay put. On a wide panel the

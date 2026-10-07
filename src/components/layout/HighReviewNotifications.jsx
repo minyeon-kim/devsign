@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { toast } from '@/i18n/toast'
 import { comments as seedComments } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
 import { Bell } from 'lucide-react'
@@ -59,7 +60,6 @@ export default function HighReviewNotifications() {
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
   const onWorkspace = /\/workspace\/?$/.test(pathname)
-  useEffect(() => { if (!onWorkspace) setRequestDismissed(false) }, [onWorkspace])
   const showRequest = onWorkspace && projectId === 'checkout-redesign' && !requestDismissed
   const seen = useRef(new Set())
   const [visibleIds, setVisibleIds] = useState([])
@@ -106,14 +106,29 @@ export default function HighReviewNotifications() {
       root.style.removeProperty('--ds-toast-top')
     }
   }, [show, anchor.top, banners.length, showRequest, entry.prompt])
+  function dismissEntry() {
+    // Suppressed duplicates must not surface after their summary is closed.
+    setVisibleIds(ids => ids.filter(id => !entry.conflictIds.has(notifications.find(n => n.id === id)?.target?.conflictId)))
+    entry.close()
+  }
+
+  function dismissAll() {
+    setRequestDismissed(true)
+    setVisibleIds([])
+    entry.close()
+    toast.dismiss()
+  }
   if (!show) return null
 
   return (
-    <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={anchor} className="pointer-events-none fixed z-[120] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={{ ...anchor, maxHeight: `calc(100dvh - ${anchor.top + 16}px)` }} className="pointer-events-none fixed z-[1100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain">
+      <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-end">
+        <button type="button" onClick={dismissAll} className="rounded-full border border-white/15 bg-[#252525] px-3 py-1.5 text-xs text-slate-200 shadow-md hover:bg-[#333] focus-visible:outline-2 focus-visible:outline-emerald-300">알림 모두 닫기</button>
+      </div>
       {showRequest && (
         <section className={NOTICE_CARD}>
           <NoticeDismiss label="알림 닫기" onClick={() => setRequestDismissed(true)} />
-          <div className="flex items-start gap-3 pr-5">
+          <div className="flex items-start gap-3 pr-8">
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.neutral)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
@@ -129,11 +144,11 @@ export default function HighReviewNotifications() {
           </div>
         </section>
       )}
-      {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={entry.close} />}
+      {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={dismissEntry} />}
       {banners.map(n => (
         <section key={n.id} className={NOTICE_CARD}>
           <NoticeDismiss label="알림 닫기" onClick={() => dismiss(n.id)} />
-          <div className="flex items-start gap-3 pr-5">
+          <div className="flex items-start gap-3 pr-8">
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.urgent)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>High · 즉시 검토가 필요합니다</p>
