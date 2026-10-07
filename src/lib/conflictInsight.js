@@ -86,30 +86,26 @@ export function mismatchesOf(conflict) {
   return differences.length ? ['Below the standard on both sides'] : []
 }
 
-// Conflict → Compare → Select → Approve → Merge: the steps, which one a
-// conflict is on, and what to do there. A step before it is done; `chosen`
-// says whether a way to resolve it has been picked (the review knows — a
-// saved record carries it once decided).
+// Conflict → Compare → Select → Approve → Merge: progress follows the
+// persisted review stage so it cannot disagree with the status badge.
 export const FLOW_STEPS = [
   { id: 'conflict', label: 'Check the difference' },
   { id: 'compare', label: 'Compare values' },
-  { id: 'select', label: 'Choose a method' },
+  { id: 'select', label: 'Choose a resolution' },
   { id: 'approve', label: 'Approve' },
   { id: 'merge', label: 'Merge' },
 ]
 const NEXT = {
-  compare: 'Compare the two values and choose how to resolve it.',
-  select: 'A way is chosen. Send it for review to move on.',
-  approve: 'Waiting for the reviewers’ approval.',
-  merge: 'Every approval is in. Merge it to finish.',
-  done: 'Merged. Nothing is left to do.',
+  select: 'Choose a resolution to continue.',
+  approve: 'The resolution is waiting for reviewer approval.',
+  merge: 'All approvals are complete. Merge the change.',
+  done: 'The change has been merged.',
 }
-export function flowOf(conflict, { chosen } = {}) {
+export function flowOf(conflict) {
   if (!conflict) return null
-  const picked = chosen ?? Boolean(conflict.decidedSide || conflict.customChosen)
   const current = conflict.reviewStage === 'resolved' ? 'done'
     : conflict.reviewStage === 'approved' ? 'merge'
-      : conflict.reviewStage === 'in_review' || picked ? 'approve' : 'compare'
+      : conflict.reviewStage === 'in_review' ? 'approve' : 'select'
   const at = current === 'done' ? FLOW_STEPS.length : FLOW_STEPS.findIndex((step) => step.id === current)
   return {
     current,

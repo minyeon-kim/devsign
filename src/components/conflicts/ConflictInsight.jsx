@@ -1,7 +1,6 @@
 import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { useState } from 'react'
-import { requiredReviewers } from '@/lib/conflicts'
 import { REVIEW_HEADER_BADGE } from './ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
@@ -145,44 +144,35 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
 // `next`: the line to say after the steps, when the caller already has
 // one (the review's approval area) — so the two never differ.
 const STEP_DESCRIPTION = {
-  conflict: 'Check the difference',
   compare: 'Compare code and design values',
-  select: 'Choose a resolution',
+  select: 'Choose which value to apply',
   approve: 'Get approval from the reviewer',
   merge: 'Apply the approved changes',
 }
 
-export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, className }) {
-  const flow = flowOf(conflict, { chosen })
-  const [expandedStep, setExpandedStep] = useState(null)
-  const [approveOpenOverride, setApproveOpenOverride] = useState(null)
+export function FlowSteps({ conflict, className }) {
+  const flow = flowOf(conflict)
   const [doneStepsExpanded, setDoneStepsExpanded] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
-  const needsReviewer = conflict.reviewStage === 'detected' && requiredReviewers(conflict).length === 0
   const isExpanded = doneStepsExpanded ?? flow.current !== 'done'
   return (
     <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="flex items-start justify-between gap-3 px-3 py-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-xs font-semibold text-white"><LocalizedText text={flow.current === 'done' ? 'Merged' : 'Progress'} /></h3>
-          <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
+          <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400"><LocalizedText text={flow.next} /></p>
         </div>
         {flow.current === 'done' ? (
           <button type="button" data-flow-toggle aria-expanded={isExpanded} onClick={() => setDoneStepsExpanded(!isExpanded)} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-200 hover:text-white">
             <LocalizedText text={`${flow.steps.length} steps complete`} />
             <ChevronDown className={cn('size-3.5 transition-transform', isExpanded && 'rotate-180')} />
           </button>
-        ) : <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length}</span>}
+        ) : <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length} <LocalizedText text="complete" /></span>}
       </div>
       {isExpanded && <ol className="px-3 py-2">
         {flow.steps.map((step, index) => {
           const last = index === flow.steps.length - 1
-          const isApprove = step.id === 'approve'
-          const ring = isApprove && approvals?.total > 0 && step.state !== 'done' ? approvals.done / approvals.total : null
-          const toggle = () => setExpandedStep(expandedStep === step.id ? null : step.id)
-          const approveOpen = isApprove && (approveOpenOverride ?? (expandedStep === 'approve' || needsReviewer)) && reviewersJSX
-          const toggleApprove = () => setApproveOpenOverride(!approveOpen)
           return (
             <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className={cn('relative flex items-start gap-3', last ? 'pb-0' : 'pb-4')}>
               {!last && (
@@ -191,46 +181,34 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
                   className={cn('absolute top-6 bottom-0 left-[9.75px] w-[0.5px]', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
                 />
               )}
-              <button
-                type="button"
-                onClick={isApprove ? toggleApprove : toggle}
+              <span
+                aria-hidden="true"
                 className={cn(
-                  'ds-intrinsic relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full p-0 text-[10px] leading-none font-semibold transition-opacity hover:opacity-80',
+                  'relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none font-semibold',
                   step.state === 'done'
                     ? 'bg-[#5EEAB5] text-[#06281D]'
                     : step.state === 'current'
                     ? 'bg-[#1f1f1f] text-[#5EEAB5]'
                     : 'bg-[#1f1f1f] text-white/50'
                 )}
-                style={{ width: 20, height: 20, minWidth: 20, minHeight: 20 }}
               >
                 {step.state !== 'done' && (
                   <svg viewBox="0 0 20 20" className="absolute inset-0 size-5 -rotate-90" aria-hidden="true">
-                    <circle cx="10" cy="10" r="9" fill="none" strokeWidth="1.5" className={step.state === 'current' || ring ? 'stroke-white/25' : 'stroke-white/30'} />
-                    {(ring != null || step.state === 'current') && (
-                      <circle cx="10" cy="10" r="9" fill="none" stroke="#5EEAB5" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray={`${ring != null ? ring * 100 : 100} 100`} />
+                    <circle cx="10" cy="10" r="9" fill="none" strokeWidth="1.5" className={step.state === 'current' ? 'stroke-white/25' : 'stroke-white/30'} />
+                    {step.state === 'current' && (
+                      <circle cx="10" cy="10" r="9" fill="none" stroke="#5EEAB5" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray="100 100" />
                     )}
                   </svg>
                 )}
                 {step.state === 'done' ? <Check className="size-3" strokeWidth={3} /> : <span className="relative">{index + 1}</span>}
-              </button>
+              </span>
               <div className="min-w-0 flex-1">
-                <div
-                  role={isApprove ? 'button' : undefined}
-                  tabIndex={isApprove ? 0 : undefined}
-                  aria-expanded={isApprove ? Boolean(approveOpen) : undefined}
-                  onClick={isApprove ? toggleApprove : undefined}
-                  onKeyDown={isApprove ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleApprove() } } : undefined}
-                  className={cn(isApprove && 'cursor-pointer rounded-md hover:bg-white/[0.03]')}
-                >
-                  <p className={cn('flex items-center gap-1 text-xs leading-5 font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
-                    <LocalizedText text={step.label} />
-                    {needsReviewer && isApprove && <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] leading-none font-medium text-amber-200"><LocalizedText text="Required" /></span>}
-                    {isApprove && reviewersJSX && <ChevronDown className={cn('size-3.5 text-slate-400 transition-transform', approveOpen && 'rotate-180')} />}
-                  </p>
-                  <p className="text-[11px] leading-4 text-slate-400"><LocalizedText text={needsReviewer && isApprove ? 'Add a reviewer other than the author' : STEP_DESCRIPTION[step.id]} /></p>
-                </div>
-                {approveOpen && <div className="mt-2 pl-1">{reviewersJSX(true, () => setExpandedStep(null))}</div>}
+                <p className={cn('text-xs leading-5 font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
+                  <LocalizedText text={step.label} />
+                </p>
+                {step.state === 'current' && STEP_DESCRIPTION[step.id] && (
+                  <p className="text-[11px] leading-4 text-slate-400"><LocalizedText text={STEP_DESCRIPTION[step.id]} /></p>
+                )}
               </div>
             </li>
           )

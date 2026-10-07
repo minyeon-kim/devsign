@@ -224,6 +224,11 @@
     color: var(--ds-review-action-fg) !important;
     background-image: none !important;
   }
+  .ds-review-cta:disabled {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(148, 163, 184, 0.7) !important;
+    cursor: not-allowed !important;
+  }
 }
 
 @layer base {
@@ -702,10 +707,10 @@ button.editor-line-comment {
 [data-sonner-toast].cn-toast {
   gap: 12px;
   padding: 16px;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #475569 !important;
   border-radius: 20px !important;
-  background: #f8fafc !important;
-  box-shadow: 0 12px 40px rgb(0 0 0 / 20%) !important;
+  background: #1e293b !important;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 40%) !important;
 }
 [data-sonner-toast].cn-toast:has([data-close-button]) {
   padding-right: 48px;
@@ -717,13 +722,13 @@ button.editor-line-comment {
   transform: none;
   width: 24px;
   height: 24px;
-  background: #f1f5f9;
+  background: #334155;
   border: 0;
-  color: #475569;
+  color: #cbd5e1;
 }
 [data-sonner-toast].cn-toast [data-close-button]:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #475569;
+  color: #f8fafc;
 }
 [data-sonner-toast].cn-toast [data-close-button]:focus-visible {
   outline: 2px solid #6ee7b7;
@@ -733,12 +738,12 @@ button.editor-line-comment {
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
-  color: #020617;
+  color: #f1f5f9;
 }
 [data-sonner-toast].cn-toast [data-description] {
   font-size: 12px;
   line-height: 20px;
-  color: #334155;
+  color: #cbd5e1;
 }
 [data-sonner-toast].cn-toast [data-button] {
   height: 28px;
@@ -750,12 +755,14 @@ button.editor-line-comment {
   color: #fff;
 }
 
-/* A softer, light-tinted toast for quiet confirmations (Review requested). */
+/* A quieter slate toast for confirmations that should not take focus. */
 [data-sonner-toast].cn-toast.cn-toast-soft {
-  border-color: #cbd5e1 !important;
-  background: #f8fafc !important;
+  border-color: #334155 !important;
+  background: #172033 !important;
   box-shadow: 0 8px 28px rgb(0 0 0 / 20%) !important;
 }
+[data-sonner-toast].cn-toast.cn-toast-soft [data-title] { color: #e2e8f0; }
+[data-sonner-toast].cn-toast.cn-toast-soft [data-description] { color: #aebccc; }
 
 /* Inline decision reasons enter without an extra card surface. */
 @keyframes ds-reason-enter {

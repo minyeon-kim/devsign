@@ -123,7 +123,7 @@ export default function HighReviewNotifications() {
   return (
     <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={{ ...anchor, maxHeight: `calc(100dvh - ${anchor.top + 16}px)` }} className="pointer-events-none fixed z-[1100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain">
       <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-end">
-        <button type="button" onClick={dismissAll} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-md hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600">알림 모두 닫기</button>
+        <button type="button" onClick={dismissAll} className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 shadow-md hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-emerald-300">알림 모두 닫기</button>
       </div>
       {showRequest && (
         <section className={NOTICE_CARD}>

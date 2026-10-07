@@ -1542,7 +1542,7 @@ const PRIMARY_BUTTON = cn(
   ACCENT_CTA,
   'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none'
 )
-const REQUEST_REVIEW_BUTTON = 'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-medium whitespace-nowrap ds-review-cta disabled:opacity-45'
+const REQUEST_REVIEW_BUTTON = 'inline-flex h-8 shrink-0 items-center rounded-full px-4 text-xs font-medium whitespace-nowrap ds-review-cta disabled:cursor-not-allowed disabled:opacity-100'
 
 const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-7 items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white data-[popup-open]:text-white'
 
@@ -2742,7 +2742,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // Approval: where it stands (the same line after the steps) and the one
   // action that calls for, at the header's right (ApprovalBar) — approving
   // and merging happen only there.
-  const approvals = conflict && !conflict.rollback ? { done: requiredReviewers(conflict).filter((reviewer) => reviewer.status === 'approved').length, total: requiredReviewers(conflict).length } : null
   const approvalState = conflict && !conflict.rollback ? approvalStateOf(conflict, canReview) : null
   const approvalBar = approvalState ? (
     <ApprovalBar
@@ -2757,7 +2756,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           run: flow.decide.run,
           onAssign: assignReviewer,
           assignable: reviewerCandidates,
-          assignReviewer: needsReviewer,
+          assignReviewer: needsReviewer && Boolean(choice),
           disabled: !choice || Boolean(decisionState.reasonNeeded) || (hasReviewers && Boolean(flow.decide.blocked)) || (needsReviewer && reviewerCandidates.length === 0),
           buttonRef: requestActionRef,
           helper: !choice ? 'Choose a resolution first' : needsReviewer && reviewerCandidates.length === 0 ? 'No other project members available' : null,
@@ -2946,16 +2945,23 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
                       {!conflict.rollback && <FlowSteps
-                        key={conflict.id}
+                        key={`flow:${conflict.id}`}
                         conflict={conflict}
-                        chosen={cardFlow ? Boolean(choice) : undefined}
-                        approvals={approvals}
-                        next={approvalState?.line}
                         className="mb-5"
-                        reviewersJSX={(expanded) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} onReviewerAssigned={focusNextAction} />}
                       />}
+                      {!conflict.rollback && (
+                        <InfoSection title="Reviewers" className="mb-5">
+                          <ReviewersSection
+                            conflict={conflict}
+                            onUpdate={onUpdate ? update : undefined}
+                            onDismiss={workspace?.dismissChangeRequest}
+                            onReviewerAssigned={focusNextAction}
+                          />
+                          <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
+                        </InfoSection>
+                      )}
                       <OverviewTab
-                        key={conflict.id}
+                        key={`overview:${conflict.id}`}
                         rationale={rationale}
                         onOpenEvidence={openEvidence}
                         checks={checks}
