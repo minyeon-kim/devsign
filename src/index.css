@@ -707,25 +707,34 @@ button.editor-line-comment {
    Text meets WCAG AA (4.5:1) on the surface; tests/notification-tokens.mjs
    checks it. */
 :root {
-  --notification-bg: #1F1F23;
-  --notification-bg-hover: #26262B;
-  --notification-border: rgb(255 255 255 / 8%);
+  /* Every color here is one the project already has — no new ones:
+       surface  the overlay level (one step above a card), its hover step,
+                and the subtle border — the same neutral greys as the panels;
+       text     the foreground, then the neutral grey scale (slate-* is
+                remapped to chroma-0 greys in @theme above);
+       accents  the mint of the main CTA for success and info, the amber of
+                the "Deployed" badge for warnings, the destructive red for
+                errors. No blue, indigo or violet. */
+  --notification-bg: var(--ds-surface-overlay);
+  --notification-bg-hover: var(--ds-surface-overlay-hover);
+  --notification-border: var(--ds-border-subtle);
   --notification-shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
-  --notification-text: #F4F4F5;
-  --notification-text-secondary: #A1A1AA;
-  /* (Meta text — times, counts. #71717A, the dismiss icon's grey, is 3.4:1
-     here: fine for an icon, short of AA for text, so text is a step up.) */
-  --notification-text-meta: #91919A;
-  --notification-control: #71717A;
+  --notification-text: var(--foreground);
+  --notification-text-secondary: var(--color-slate-400);
+  /* (Meta text — times, counts — stays on the secondary grey: the next grey
+     down, the dismiss icon's, is 3.5:1 here — fine for an icon, short of AA
+     for text.) */
+  --notification-text-meta: var(--color-slate-400);
+  --notification-control: var(--color-slate-500);
   --notification-control-hover-bg: rgb(255 255 255 / 6%);
-  --notification-success: #34D399;
-  --notification-success-bg: rgb(52 211 153 / 12%);
-  --notification-info: #818CF8;
-  --notification-info-bg: rgb(129 140 248 / 12%);
-  --notification-warning: #FBBF24;
-  --notification-warning-bg: rgb(251 191 36 / 12%);
-  --notification-error: #F87171;
-  --notification-error-bg: rgb(248 113 113 / 12%);
+  --notification-success: var(--ds-primary);
+  --notification-success-bg: color-mix(in srgb, var(--ds-primary) 12%, transparent);
+  --notification-info: var(--ds-primary);
+  --notification-info-bg: color-mix(in srgb, var(--ds-primary) 12%, transparent);
+  --notification-warning: var(--color-amber-300);
+  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 12%, transparent);
+  --notification-error: var(--destructive);
+  --notification-error-bg: color-mix(in srgb, var(--destructive) 12%, transparent);
   /* The filled action is the app's own main CTA (the mint of "Continue"). */
   --notification-action-bg: var(--ds-review-action-bg);
   --notification-action-text: var(--ds-review-action-fg);
