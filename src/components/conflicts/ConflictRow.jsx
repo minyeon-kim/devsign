@@ -1,28 +1,23 @@
-import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
-import { ArrowRight, FileCode2 } from 'lucide-react'
+import { ChevronRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
-import { RISK_LABEL, taskFor } from '@/lib/conflicts'
+import { RISK_LABEL } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { LocalizedText } from '@/i18n/runtime'
 
-// Risk as the Conflict list shows it: the word alone (Low / Medium / High).
+// Low severity is the default and doesn't need to occupy space in the queue.
 export function RiskBadge({ severity }) {
-  if (!severity) return null
+  if (!severity || severity === 'low') return null
   return <SeverityPill bare quiet level={RISK_LABEL[severity]} />
 }
 
-// One conflict as a list row (Dashboard queue, project home), in the
-// Conflict list's own terms: the change, its risk, its file and project,
-// its status as a dot and a short word. The whole row is the way in — it
-// opens that conflict's review in its project — and says so with one
-// button at its right, named after what's yours to do there (taskFor:
-// "Review the request", "Merge now", … — "View" when nothing is).
+// The whole row opens the conflict; the full path stays available on hover.
 function ConflictRow({ conflict, showProject = false, note, onOpen }) {
+  const fileName = conflict.file?.split('/').at(-1) ?? conflict.file
   return (
     <button
       type="button"
       onClick={() => onOpen(conflict)}
-      className="group flex w-full cursor-pointer items-center gap-4 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/[0.05] focus-visible:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-emerald-300"
+      className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300"
     >
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-2">
@@ -30,19 +25,15 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
           <RiskBadge severity={conflict.severity} />
           {note && <span className="shrink-0 text-[10.5px] text-slate-500"><LocalizedText text={note} /></span>}
         </span>
-        <span className="mt-1 flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
+        <span className="mt-1 block min-w-0 truncate text-[11px] text-slate-500">
           {showProject && conflict.projectName && <span className="shrink-0 text-slate-400"><LocalizedText text={conflict.projectName} /> ·</span>}
-          <FileCode2 className="size-3 shrink-0" />
-          <span translate="no" className="truncate font-mono">{conflict.file}</span>
+          <span title={conflict.file} className="inline-flex min-w-0 items-center gap-1 font-mono">
+            <FileCode2 className="size-3 shrink-0" />
+            <span translate="no" className="truncate">{fileName}</span>
+          </span>
         </span>
       </span>
-      <ListStatusLabel conflict={conflict} />
-      {/* Part of the row's one click target, so a span — styled as the
-          button it reads as. */}
-      <span className={cn(NAV_BUTTON, 'group-hover:border-white/25 group-hover:bg-white/[0.09] group-hover:text-white')}>
-        <LocalizedText text={taskFor(conflict)?.label ?? 'View'} />
-        <ArrowRight className={NAV_BUTTON_ICON} />
-      </span>
+      <ChevronRight aria-hidden className={cn('size-4 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100')} />
     </button>
   )
 }

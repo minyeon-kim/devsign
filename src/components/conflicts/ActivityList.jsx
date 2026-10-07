@@ -11,6 +11,20 @@ const EVENT_ACTION = {
   changes: 'requested changes on',
   merge: 'merged',
   revert: 'opened a revert of',
+  review_requested: 'requested a review for',
+  code_change: 'updated',
+  comment: 'commented on',
+  dismiss: 'closed the review for',
+  reopened: 'reopened',
+}
+
+function relativeTime(createdAt) {
+  const minutes = Math.max(0, Math.floor((Date.now() - createdAt) / 60000))
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
 // Review / merge actions taken this session (ConflictStore events), shaped
@@ -27,7 +41,7 @@ function eventToActivity(event) {
     target: event.title,
     conflictId: event.conflictId,
     projectId: event.projectId,
-    timestamp: event.timeLabel,
+    timestamp: Number.isFinite(event.createdAt) ? relativeTime(event.createdAt) : event.timeLabel,
   }
 }
 

@@ -48,7 +48,6 @@ export function ConflictStoreProvider({ children }) {
     setEvents((prev) => [{
       id: nextEventId(),
       createdAt: Date.now(),
-      timeLabel: 'Just now',
       ...event,
     }, ...prev])
   }, [setEvents])

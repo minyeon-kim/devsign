@@ -527,6 +527,8 @@ Choosing the design reference clears it.|디자인 기준을 선택하면 해결
 Choosing the current implementation clears it.|현재 구현을 선택하면 해결됩니다.
 Choosing this side clears the block.|이 쪽을 선택하면 병합 불가가 풀립니다.
 Now|현재
+What to do now|지금 할 일
+Decision needed|결정 필요
 After rollback|변경 후
 Class|클래스
 Someone is working on it|작업 중인 사람 있음
