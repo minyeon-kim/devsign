@@ -795,7 +795,7 @@ function RuleNote({ check, required, children }) {
           <div><dt className="inline opacity-70"><LocalizedText text="Kind" /> · </dt><dd className="inline"><LocalizedText text={required ? 'Required — merging waits on the reviewers’ exception approval' : 'Recommended — it doesn’t block the merge'} /></dd></div>
         </dl>
       )}
-      {children && <div className="px-2 pb-2">{children}</div>}
+      {children && <div className="flex justify-end px-2 pb-2">{children}</div>}
     </div>
   )
 }
@@ -2830,7 +2830,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
               </div>
               {/* Align the review action with the lower metadata row. */}
-              <div className="flex min-w-0 shrink-0 self-end items-center gap-2">
+              <div className="relative top-2 flex min-w-0 shrink-0 self-end items-center gap-2">
                 {conflict.rollback ? primary : approvalBar}
               </div>
             </div>
