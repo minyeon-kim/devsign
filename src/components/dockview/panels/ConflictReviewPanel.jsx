@@ -1,6 +1,6 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
-import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
+import { NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
   ArrowRight,
@@ -1921,7 +1921,7 @@ const STAGE_BADGE = {
 function StageBadge({ stage }) {
   const badge = STAGE_BADGE[stage] ?? STAGE_BADGE.detected
   return (
-    <span data-stage-badge={stage} className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-1.5 text-[11px] font-medium whitespace-nowrap text-slate-200">
+    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, 'bg-white/[0.06] text-slate-200')}>
       <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />
       <LocalizedText text={badge.label} />
     </span>
@@ -2737,11 +2737,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <LocalizedText text={conflict.title} />
                 </h2>
                 {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
-                {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
+                {!conflict.rollback && <ConflictTypeTag conflict={conflict} header />}
                 {/* Status and risk stay visible beside the title. */}
                 {!conflict.rollback && <StageBadge stage={stage} />}
                 {severity && (
-                  <span data-risk-badge className={cn(INFO_BADGE, RISK_TEXT[severity.label.toLowerCase()])}>
+                  <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, 'bg-white/[0.06]', RISK_TEXT[severity.label.toLowerCase()])}>
                     <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
                     <LocalizedText text={severity.label} />
                   </span>

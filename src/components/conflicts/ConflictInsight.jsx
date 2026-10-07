@@ -1,5 +1,6 @@
 import { Check, ChevronRight, Server } from 'lucide-react'
 import { cn } from 'cn'
+import { REVIEW_HEADER_BADGE } from './ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
 
@@ -16,11 +17,11 @@ const TYPE_TONE = {
 }
 
 // What kind of conflict it is — the one tag of its kind on a row or header.
-export function ConflictTypeTag({ conflict, className }) {
+export function ConflictTypeTag({ conflict, className, header = false }) {
   const type = conflictTypeOf(conflict)
   if (!type) return null
   return (
-    <span data-conflict-type={type.id} title={type.hint} className={cn('inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', TYPE_TONE[type.tone], className)}>
+    <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', TYPE_TONE[type.tone], className)}>
       <LocalizedText text={type.label} />
     </span>
   )
