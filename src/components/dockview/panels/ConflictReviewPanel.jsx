@@ -1590,33 +1590,12 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
   ))
   return (
     <div className="min-w-0">
-      {sectioned && (() => {
-        const needed = requiredReviewers(conflict)
-        const done = needed.filter((r) => r.status === 'approved').length
-        return (
-          <>
-            <button
-              type="button"
-              onClick={() => onExpandedChange && onExpandedChange(!expanded)}
-              data-review-header
-              className="mb-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/[0.04]"
-            >
-              <ChevronDown
-                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded && 'rotate-180')}
-              />
-              <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
-              <span className="text-[11px] leading-4 text-slate-400">·</span>
-              <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums"><LocalizedText text="Approvals" /> {done}/{needed.length}</span>
-              {addMenu}
-            </button>
-            {needed.length > 0 && (
-              <div data-approval-bar role="progressbar" aria-valuemin={0} aria-valuemax={needed.length} aria-valuenow={done} className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-                <div className={cn('h-full rounded-full transition-all', done === needed.length ? 'bg-emerald-400' : 'bg-sky-400')} style={{ width: `${(done / needed.length) * 100}%` }} />
-              </div>
-            )}
-          </>
-        )
-      })()}
+      {sectioned && (
+        <div data-review-header className="mb-2 flex w-full items-center gap-1.5 py-0.5">
+          <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
+          {addMenu}
+        </div>
+      )}
       {!sectioned || expanded ? (
         <>
           {reviewers.length === 0 ? (
@@ -1962,7 +1941,7 @@ function approvalStateOf(conflict, canReview) {
         : mode === 'changes' ? <>{asked.map((reviewer) => nameOf(reviewer.id)).join(', ')} · <LocalizedText text="Changes requested" /></>
           : mode === 'approved' ? <><LocalizedText text="Approvals" /> <span className="tabular-nums">{approved.length}/{required.length}</span> <LocalizedText text="complete" /></>
             : approved.length
-              ? <>{approved.map((reviewer) => nameOf(reviewer.id)).join(', ')} <LocalizedText text="approved it" />{when && <> · <LocalizedText text={when} /></>}</>
+              ? <><LocalizedText text={`${approved.map((reviewer) => nameOf(reviewer.id)).join(', ')} approved it`} />{when && <> · <LocalizedText text={when} /></>}</>
               : <><LocalizedText text="Merged" />{when && <> · <LocalizedText text={when} /></>}</>
   return { mode, line, waiting, asked, required, nameOf, viewerId }
 }
@@ -2871,7 +2850,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         approvals={approvals}
                         next={approvalState?.line}
                         className="mb-5"
-                        reviewersJSX={(expanded) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                        reviewersJSX={(expanded, onToggle) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onExpandedChange={onToggle} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
                       />}
                       <OverviewTab
                         key={conflict.id}

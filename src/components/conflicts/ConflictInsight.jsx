@@ -157,55 +157,64 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
         </div>
         <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length}</span>
       </div>
-      <ol className="px-3 py-2 relative">
-        {flow.steps.map((step, index) => (
-          <Fragment key={step.id}>
-            <li data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-3 py-0.5">
-              <div className="relative mt-1 flex shrink-0 flex-col items-center">
-                <button
-                  type="button"
-                  onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-                  className={cn(
-                    'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
-                    step.state === 'done' 
-                      ? 'bg-[#5EEAB5] text-[#06281D]' 
-                      : step.state === 'current' 
-                      ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
-                      : 'border border-white/30 bg-transparent text-white/50',
-                    'cursor-pointer hover:opacity-80'
-                  )}
-                >
-                  {step.state === 'done' ? (
-                    <Check className="h-3 w-3" strokeWidth={3} />
-                  ) : (
-                    <span>{index + 1}</span>
-                  )}
-                </button>
-                {index < flow.steps.length - 1 && (
-                  <div
-                    className={cn(
-                      'w-px transition-colors',
-                      step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20'
-                    )}
-                    style={{ height: '2rem', marginTop: '2px' }}
-                  />
+      <ol className="px-3 py-2">
+        {flow.steps.map((step, index) => {
+          const last = index === flow.steps.length - 1
+          const isApprove = step.id === 'approve'
+          const ring = isApprove && approvals?.total > 0 && step.state !== 'done' ? approvals.done / approvals.total : null
+          const toggle = () => setExpandedStep(expandedStep === step.id ? null : step.id)
+          const open = isApprove && expandedStep === 'approve' && reviewersJSX
+          return (
+            <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className={cn('relative flex items-start gap-3', last ? 'pb-0' : 'pb-4')}>
+              {!last && (
+                <span
+                  aria-hidden="true"
+                  className={cn('absolute top-6 bottom-0 left-[9.5px] w-px', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
+                />
+              )}
+              <button
+                type="button"
+                onClick={toggle}
+                className={cn(
+                  'ds-intrinsic relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full p-0 text-[10px] leading-none font-semibold transition-opacity hover:opacity-80',
+                  step.state === 'done'
+                    ? 'bg-[#5EEAB5] text-[#06281D]'
+                    : step.state === 'current'
+                    ? 'bg-[#1f1f1f] text-[#5EEAB5]'
+                    : 'bg-[#1f1f1f] text-white/50'
                 )}
-              </div>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className={cn('text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
-                  <LocalizedText text={step.label} />
-                  {step.id === 'approve' && approvals?.total > 0 && <span data-step-approvals className="ml-2 font-normal tabular-nums">{approvals.done}/{approvals.total}</span>}
-                </p>
-                <p className="mt-0.5 text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
+                style={{ width: 20, height: 20, minWidth: 20, minHeight: 20 }}
+              >
+                {step.state !== 'done' && (
+                  <svg viewBox="0 0 20 20" className="absolute inset-0 size-5 -rotate-90" aria-hidden="true">
+                    <circle cx="10" cy="10" r="9" fill="none" strokeWidth="1.5" className={step.state === 'current' || ring ? 'stroke-white/25' : 'stroke-white/30'} />
+                    {(ring != null || step.state === 'current') && (
+                      <circle cx="10" cy="10" r="9" fill="none" stroke="#5EEAB5" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray={`${ring != null ? ring * 100 : 100} 100`} />
+                    )}
+                  </svg>
+                )}
+                {step.state === 'done' ? <Check className="size-3" strokeWidth={3} /> : <span className="relative">{index + 1}</span>}
+              </button>
+              <div className="min-w-0 flex-1">
+                <div
+                  role={isApprove ? 'button' : undefined}
+                  tabIndex={isApprove ? 0 : undefined}
+                  aria-expanded={isApprove ? Boolean(open) : undefined}
+                  onClick={isApprove ? toggle : undefined}
+                  onKeyDown={isApprove ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } } : undefined}
+                  className={cn(isApprove && 'cursor-pointer rounded-md hover:bg-white/[0.03]')}
+                >
+                  <p className={cn('flex items-center gap-1 text-xs leading-5 font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
+                    <LocalizedText text={step.label} />
+                    {isApprove && reviewersJSX && <ChevronDown className={cn('size-3.5 text-slate-400 transition-transform', open && 'rotate-180')} />}
+                  </p>
+                  <p className="text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
+                </div>
+                {open && <div className="mt-2 pl-1">{reviewersJSX(true, () => setExpandedStep(null))}</div>}
               </div>
             </li>
-            {step.id === 'approve' && expandedStep === 'approve' && reviewersJSX && (
-              <li className="border-t border-white/[0.05] px-3 py-3">
-                {reviewersJSX(expandedStep === 'approve')}
-              </li>
-            )}
-          </Fragment>
-        ))}
+          )
+        })}
       </ol>
     </section>
   )

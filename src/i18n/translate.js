@@ -96,6 +96,7 @@ const rules = [
   [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '병합 충돌'}`],
   [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^Waiting for (.+)$/, (_, name) => `${core(name)} 대기 중`],
+  [/^(.+) approved it$/, (_, names) => `${names}${/[가-힣]$/.test(names) ? (((names.charCodeAt(names.length - 1) - 0xac00) % 28) ? '이' : '가') : /[aeiouyhw]$/i.test(names) ? '가' : '이'} 승인함`],
   [/^Approved by (.+)$/, (_, name) => `${name === 'you' ? '내가' : core(name)} 승인함`],
   [/^Changes requested by (.+)$/, (_, name) => `${core(name)} 변경 요청`],
   [/^Projects \(current: (.+)\)$/, (_, name) => `프로젝트 (현재: ${core(name)})`],
