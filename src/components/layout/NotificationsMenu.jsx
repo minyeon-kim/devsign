@@ -65,8 +65,8 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
           </button>
         }
       />
-      <DropdownMenuContent align="end" sideOffset={10} positionerClassName="z-[700]" className="w-[380px] gap-0 p-0">
-        <p className="px-4 py-3 text-xs font-medium text-muted-foreground">Notifications</p>
+      <DropdownMenuContent align="end" sideOffset={10} positionerClassName="z-[700]" className="ds-notification ds-notification-list w-[380px] gap-0 p-0">
+        <p className="ds-notification-title px-4 py-3">Notifications</p>
         <div className="max-h-96 space-y-1 overflow-y-auto px-2 pb-2">
           {recentNotifications.map((activity) => {
             const project = projects.find((p) => p.id === activity.projectId)
@@ -75,22 +75,22 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
                 key={activity.id}
                 type="button"
                 onClick={() => openItem(activity)}
-                className="flex w-full items-start gap-2.5 rounded-xl bg-white/[0.025] px-3 py-2.5 text-left ring-1 ring-white/[0.05] transition-colors hover:bg-white/[0.05]"
+                className="ds-intrinsic ds-notification-row items-start gap-2.5 px-3 py-2.5"
               >
-                <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
-                  {activity.type === 'comment' ? <MessageSquare className="size-3.5" /> : <Bell className="size-3.5" />}
+                <span className="ds-notification-icon mt-0.5" style={{ color: 'var(--notification-info)' }}>
+                  {activity.type === 'comment' ? <MessageSquare aria-hidden /> : <Bell aria-hidden />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-baseline gap-1.5">
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-white">
+                    <span className="ds-notification-title min-w-0 flex-1 truncate">
                       <LocalizedText text={activity.actorName} /> <LocalizedText text={activity.action} />
                     </span>
-                    <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={activity.timestamp} /></span>
+                    <span className="ds-notification-meta shrink-0"><LocalizedText text={activity.timestamp} /></span>
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-400"><LocalizedText text={activity.target} /></span>
-                  {project && <span className="mt-0.5 block truncate text-[10.5px] text-slate-500"><LocalizedText text={project.name} /></span>}
+                  <span className="ds-notification-body mt-0.5 block truncate"><LocalizedText text={activity.target} /></span>
+                  {project && <span className="ds-notification-meta mt-0.5 block truncate"><LocalizedText text={project.name} /></span>}
                 </span>
-                <ChevronRight className="mt-1 size-3.5 shrink-0 text-slate-600" />
+                <ChevronRight className="mt-1 size-3.5 shrink-0" style={{ color: 'var(--notification-text-secondary)' }} />
               </button>
             )
           })}

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { TriangleAlert, X } from 'lucide-react'
-import { cn } from 'cn'
+import { TriangleAlert } from 'lucide-react'
+import { Notification, NotificationRow } from '@/components/layout/Notification'
 import { currentUserFor } from '@/data/mockData'
 import { needsReviewFrom, isQueuedConflict } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { LocalizedText } from '@/i18n/runtime'
 
 // A nudge under the Inbox bell a moment after entering a project's
 // Workspace (or Merge Studio, which lives on the same route), pointing at
@@ -17,37 +16,10 @@ import { LocalizedText } from '@/i18n/runtime'
 
 const DELAY_MS = 1500
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 }
-const SEVERITY_DOT = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-slate-400' }
+// (On the notification's light surface: its own, darker accents.)
+const SEVERITY_DOT = { high: 'var(--notification-error)', medium: 'var(--notification-warning)', low: 'var(--notification-text-secondary)' }
 const SEVERITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' }
 const MAX_ROWS = 3
-
-// Every card that drops under the Inbox bell — this prompt, review requests
-// and high-priority review banners (see HighReviewNotifications) — is built
-// from these, so they read as one kind of notification: the same surface,
-// icon chip, title / body type, dismiss button and right-aligned actions.
-export const NOTICE_CARD = 'pointer-events-auto relative overflow-hidden rounded-[20px] border border-slate-700/80 bg-slate-800 p-4 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.4)] animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none'
-export const NOTICE_ICON = 'flex size-8 shrink-0 items-center justify-center rounded-xl'
-export const NOTICE_ICON_TONE = { neutral: 'bg-emerald-400/15 text-emerald-300', urgent: 'bg-rose-400/15 text-rose-300' }
-export const NOTICE_TITLE = 'text-[13px] font-semibold text-slate-100'
-export const NOTICE_BODY = 'mt-0.5 text-xs leading-5 text-slate-300'
-export const NOTICE_ACTIONS = 'mt-3 flex items-center justify-end gap-1'
-export const NOTICE_ACTION = 'h-7 rounded-full bg-emerald-500 px-3 text-xs font-medium text-emerald-950 transition-colors hover:bg-emerald-400'
-export const NOTICE_ACTION_QUIET = 'h-7 rounded-full px-3 text-xs text-slate-300 transition-colors hover:bg-slate-700 hover:text-white'
-
-export function NoticeDismiss({ label = '알림 닫기', onClick }) {
-  return (
-    <button
-      type="button"
-      data-notice-dismiss
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className="ds-intrinsic pointer-events-auto absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-slate-600 bg-slate-700 text-slate-300 transition-colors hover:bg-slate-600 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-    >
-      <X className="pointer-events-none size-4" />
-    </button>
-  )
-}
 
 const today = () => new Date().toISOString().slice(0, 10)
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -143,45 +115,35 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
   const rows = prompt.items.slice(0, MAX_ROWS)
   const more = prompt.items.length - rows.length
 
+  // (Every card under the Inbox bell — this prompt, review requests, the
+  // high-priority banners — is the one Notification, differing by type.)
   return (
-    <div role="dialog" aria-label="Conflict Points" className={NOTICE_CARD}>
-      <NoticeDismiss onClick={onClose} />
-
-      <div className="flex items-start gap-3 pr-8">
-        <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE[prompt.kind === 'high' ? 'urgent' : 'neutral'])}>
-          <TriangleAlert className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className={NOTICE_TITLE}><LocalizedText text={prompt.title} /></p>
-          <p className={NOTICE_BODY}><LocalizedText text="Conflict Points are where the design and code differ. Review each one, then merge." /></p>
-        </div>
-      </div>
-
+    <Notification
+      as="div"
+      role="dialog"
+      aria-label="Conflict Points"
+      type={prompt.kind === 'high' ? 'error' : 'warning'}
+      icon={TriangleAlert}
+      title={prompt.title}
+      body="Conflict Points are where the design and code differ. Review each one, then merge."
+      onDismiss={onClose}
+      actions={[
+        { label: 'Later', quiet: true, onClick: onClose },
+        { label: 'Review Conflict Points', onClick: () => onOpen(rows[0].id) },
+      ]}
+    >
       <ul className="mt-3 space-y-0.5">
         {rows.map((conflict) => (
           <li key={conflict.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(conflict.id)}
-              className="-mx-1.5 flex h-7 w-[calc(100%+12px)] min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-xs text-slate-200 transition-colors hover:bg-slate-700 hover:text-white"
-            >
-              <span className={cn('size-1.5 shrink-0 rounded-full', SEVERITY_DOT[conflict.severity] ?? SEVERITY_DOT.low)} />
+            <NotificationRow onClick={() => onOpen(conflict.id)} className="-mx-1.5 h-7 w-[calc(100%+12px)] items-center gap-2 px-1.5 text-xs">
+              <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: SEVERITY_DOT[conflict.severity] ?? SEVERITY_DOT.low }} />
               <span className="min-w-0 flex-1 truncate font-medium">{conflict.title}</span>
-              <span className="shrink-0 text-[10.5px] text-slate-400">{SEVERITY_LABEL[conflict.severity] ?? conflict.severity}</span>
-            </button>
+              <span className="ds-notification-meta shrink-0">{SEVERITY_LABEL[conflict.severity] ?? conflict.severity}</span>
+            </NotificationRow>
           </li>
         ))}
-        {more > 0 && <li className="px-1.5 pt-0.5 text-[11px] text-slate-400">{`+ ${more} more`}</li>}
+        {more > 0 && <li className="ds-notification-meta px-1.5 pt-0.5">{`+ ${more} more`}</li>}
       </ul>
-
-      <div className={NOTICE_ACTIONS}>
-        <button type="button" onClick={onClose} className={NOTICE_ACTION_QUIET}>
-          Later
-        </button>
-        <button type="button" onClick={() => onOpen(rows[0].id)} className={NOTICE_ACTION}>
-          Review Conflict Points
-        </button>
-      </div>
-    </div>
+    </Notification>
   )
 }

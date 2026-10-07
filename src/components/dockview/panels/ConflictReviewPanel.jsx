@@ -2201,7 +2201,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const failing = checks?.failing.length ?? 0
     if (quiet) return
     toast(to.length ? `Review requested from ${to.join(', ')}` : 'Review requested', {
-      className: 'cn-toast-soft',
       description: failing ? `${failing} check${failing === 1 ? '' : 's'} still need attention — merging waits on them.` : conflict.title,
     })
   }

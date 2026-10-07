@@ -2,23 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
 import { comments as seedComments } from '@/data/mockData'
-import { LocalizedText } from '@/i18n/runtime'
 import { Bell } from 'lucide-react'
-import { cn } from 'cn'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import {
-  ConflictEntryPromptCard,
-  NOTICE_ACTION,
-  NOTICE_ACTION_QUIET,
-  NOTICE_ACTIONS,
-  NOTICE_BODY,
-  NOTICE_CARD,
-  NOTICE_ICON,
-  NOTICE_ICON_TONE,
-  NOTICE_TITLE,
-  NoticeDismiss,
-  useConflictEntryPrompt,
-} from '@/components/layout/ConflictEntryPrompt'
+import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/layout/ConflictEntryPrompt'
+import { Notification } from '@/components/layout/Notification'
 
 // Where the banners stack when the page has no Inbox bell (Merge Studio,
 // Docs, …): the top-right corner, under the header row.
@@ -123,49 +110,48 @@ export default function HighReviewNotifications() {
   return (
     <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={{ ...anchor, maxHeight: `calc(100dvh - ${anchor.top + 16}px)` }} className="pointer-events-none fixed z-[1100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain">
       <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-end">
-        <button type="button" onClick={dismissAll} className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 shadow-md hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-emerald-300">알림 모두 닫기</button>
+        <button type="button" onClick={dismissAll} className="ds-intrinsic ds-notification-action shadow-md">알림 모두 닫기</button>
       </div>
       {showRequest && (
-        <section className={NOTICE_CARD}>
-          <NoticeDismiss label="알림 닫기" onClick={() => setRequestDismissed(true)} />
-          <div className="flex items-start gap-3 pr-8">
-            <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.neutral)}><Bell className="size-4" /></span>
-            <div className="min-w-0 flex-1">
-              <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
-              <p className={NOTICE_BODY}><LocalizedText text={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''} /></p>
-            </div>
-          </div>
-          <div className={NOTICE_ACTIONS}>
-            <button type="button" onClick={() => setRequestDismissed(true)} className={NOTICE_ACTION_QUIET}>나중에</button>
-            {/* The walkthrough's way in: its conflict starts from before
-                the review every time (opening it from the list shows it as
-                it stands). */}
-            <button type="button" data-scenario-open onClick={() => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) }} className={NOTICE_ACTION}>요청 검토하기</button>
-          </div>
-        </section>
+        <Notification
+          type="info"
+          icon={Bell}
+          title="검토 요청 · Jordan"
+          body={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''}
+          onDismiss={() => setRequestDismissed(true)}
+          actions={[
+            { label: '나중에', quiet: true, onClick: () => setRequestDismissed(true) },
+            // The walkthrough's way in: its conflict starts from before the
+            // review every time (opening it from the list shows it as it
+            // stands).
+            { label: '요청 검토하기', 'data-scenario-open': true, onClick: () => { setRequestDismissed(true); exitMergeStudio(); restartConflict('cc-11'); openConflictReview('cc-11'); setBottomPanel({ tab: 'conflict', open: true }) } },
+          ]}
+        />
       )}
       {entry.prompt && <ConflictEntryPromptCard prompt={entry.prompt} onOpen={entry.open} onClose={dismissEntry} />}
       {banners.map(n => (
-        <section key={n.id} className={NOTICE_CARD}>
-          <NoticeDismiss label="알림 닫기" onClick={() => dismiss(n.id)} />
-          <div className="flex items-start gap-3 pr-8">
-            <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.urgent)}><Bell className="size-4" /></span>
-            <div className="min-w-0 flex-1">
-              <p className={NOTICE_TITLE}>위험도가 높아요. 바로 검토해 주세요.</p>
-              <p className={cn(NOTICE_BODY, 'line-clamp-2')}>{n.target.label}</p>
-            </div>
-          </div>
-          <div className={NOTICE_ACTIONS}>
-            <button type="button" onClick={() => dismiss(n.id)} className={NOTICE_ACTION_QUIET}>나중에</button>
-            <button type="button" onClick={() => {
-              dismiss(n.id)
-              setMergeDrawer('inbox')
-              // Open it right here when this page has a bell; otherwise go to
-              // the Workspace, where the Inbox lives.
-              if (!findBell()) navigate(`/projects/${projectId}/workspace`)
-            }} className={NOTICE_ACTION}>읽지 않은 알림 보기</button>
-          </div>
-        </section>
+        <Notification
+          key={n.id}
+          type="error"
+          icon={Bell}
+          title="위험도가 높아요. 바로 검토해 주세요."
+          body={n.target.label}
+          bodyClassName="line-clamp-2"
+          onDismiss={() => dismiss(n.id)}
+          actions={[
+            { label: '나중에', quiet: true, onClick: () => dismiss(n.id) },
+            {
+              label: '읽지 않은 알림 보기',
+              onClick: () => {
+                dismiss(n.id)
+                setMergeDrawer('inbox')
+                // Open it right here when this page has a bell; otherwise go to
+                // the Workspace, where the Inbox lives.
+                if (!findBell()) navigate(`/projects/${projectId}/workspace`)
+              },
+            },
+          ]}
+        />
       ))}
     </aside>
   )
