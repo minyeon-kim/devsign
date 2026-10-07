@@ -30,7 +30,9 @@ try {
   assert.deepEqual(mismatchesOf(byId['cc-6']), ['Spacing mismatch'])
   assert.deepEqual(mismatchesOf(byId['cc-9']), ['Typography mismatch'])
   assert.deepEqual(mismatchesOf(byId['cc-11']), ['Size mismatch', 'Color mismatch'])
-  assert.deepEqual(mismatchesOf(byId['cc-2']), ['Merge conflict'])
+  assert.deepEqual(mismatchesOf(byId['cc-2']), [], 'a merge conflict is said by its type')
+  assert.equal(conflictTypeOf({ id: 'rollback-1', rollback: { target: 'v2' } }).id, 'revert')
+  assert.equal(conflictTypeOf({ id: 'revert-1', title: 'Revert: Card / Radius' }).id, 'revert')
   assert.deepEqual(mismatchesOf(byId['cc-touch-adjusted']), ['Below the standard on both sides'], 'the same value on both sides isn’t a mismatch between them')
   assert.deepEqual(differencesOf(byId['cc-tab-icon-size']), [{ label: 'Icon size', current: '20px', expected: '24px', kind: 'size', shared: false }])
 

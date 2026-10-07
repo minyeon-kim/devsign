@@ -12,6 +12,7 @@ const TYPE_TONE = {
   violet: 'bg-violet-400/15 text-violet-200',
   amber: 'bg-amber-400/15 text-amber-200',
   sky: 'bg-sky-400/15 text-sky-200',
+  slate: 'bg-white/[0.08] text-slate-200',
 }
 
 // What kind of conflict it is — the one tag of its kind on a row or header.
@@ -127,7 +128,9 @@ export function DifferenceSummary({ conflict, className }) {
 
 // Conflict → Compare → Select → Approve → Merge, with where this one is and
 // what to do there — so the next move never has to be guessed.
-export function FlowSteps({ conflict, chosen, approvals, onApprove, className }) {
+// `next`: the line to say after the steps, when the caller already has
+// one (the review's approval area) — so the two never differ.
+export function FlowSteps({ conflict, chosen, approvals, onApprove, next, className }) {
   const flow = flowOf(conflict, { chosen })
   if (!flow) return null
   return (
@@ -156,7 +159,7 @@ export function FlowSteps({ conflict, chosen, approvals, onApprove, className })
           </li>
         ))}
       </ol>
-      <p data-flow-next className="min-w-0 truncate text-[11px] text-slate-400"><LocalizedText text={flow.next} /></p>
+      <p data-flow-next className="min-w-0 truncate text-[11px] text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
     </div>
   )
 }

@@ -2,8 +2,9 @@ import { isDesignReview } from '@/lib/conflicts'
 
 // What a "conflict" actually is, said in the terms of the difference rather
 // than the one word the list uses for all of them:
-//   · its type — a real code conflict, a design drift, a drift against code
-//     that's already in production, or a design decision to make;
+//   · its type — a real merge conflict, a design drift, a drift against
+//     code that's already in production, a design decision to make, or a
+//     revert of something merged;
 //   · its cause — which kind of value differs (spacing, radius, type, …);
 //   · its baseline — the branch the current code is on, and whether that's
 //     production;
@@ -14,10 +15,11 @@ import { isDesignReview } from '@/lib/conflicts'
 // The type names are provisional — the final terms are decided after the
 // developer interviews; only CONFLICT_TYPES' labels change then.
 export const CONFLICT_TYPES = {
-  'code-conflict': { label: 'Code Conflict', hint: 'Two branches changed the same lines; the code can’t merge on its own.', tone: 'rose' },
+  'code-conflict': { label: 'Merge Conflict', hint: 'Two branches changed the same lines; the code can’t merge on its own.', tone: 'rose' },
   'design-drift': { label: 'Design Drift', hint: 'The code differs from the design standard.', tone: 'violet' },
   'production-priority': { label: 'Production Code Priority', hint: 'The code differs from the design, and it’s already on the production branch.', tone: 'amber' },
   'design-decision': { label: 'Design Decision', hint: 'Design drafts to choose between; no code is in conflict.', tone: 'sky' },
+  revert: { label: 'Revert', hint: 'Takes a merged change back.', tone: 'slate' },
 }
 
 const PRODUCTION_BRANCHES = /^(main|master|production|prod)$/i
@@ -33,7 +35,8 @@ export function baselineOf(conflict) {
 export function conflictTypeOf(conflict) {
   if (!conflict) return null
   const text = `${conflict.title ?? ''} ${conflict.cause ?? ''}`
-  const id = isDesignReview(conflict) ? 'design-decision'
+  const id = conflict.rollback || /^Revert: /.test(conflict.title ?? '') ? 'revert'
+    : isDesignReview(conflict) ? 'design-decision'
     : /merge conflict|branches changed/i.test(text) ? 'code-conflict'
       : baselineOf(conflict)?.production ? 'production-priority'
         : 'design-drift'
@@ -70,7 +73,8 @@ export function differencesOf(conflict) {
 // "Size mismatch", "Size mismatch · Color mismatch", "Merge conflict".
 export function mismatchesOf(conflict) {
   const type = conflictTypeOf(conflict)
-  if (type?.id === 'code-conflict') return ['Merge conflict']
+  // (A merge conflict or a revert is said by its type; nothing finer.)
+  if (type?.id === 'code-conflict' || type?.id === 'revert') return []
   if (type?.id === 'design-decision') return ['Drafts to choose between']
   const differences = differencesOf(conflict)
   const differing = differences.filter((entry) => !entry.shared)

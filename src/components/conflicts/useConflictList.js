@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { conflictListRecord, isOpen, isQueuedConflict, LIST_STATUSES, listStatusOf, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
+import { CONFLICT_TYPES, conflictTypeOf } from '@/lib/conflictInsight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // The Conflict Points list as data — what's listed, how it's filtered and
@@ -50,6 +51,12 @@ export function useConflictList({ view = 'overlay' } = {}) {
   const filter = picked ?? CONFLICT_FILTERS[0]
   const shownFilters = filter === OPEN_FILTER ? [CONFLICT_FILTERS[0], OPEN_FILTER, ...CONFLICT_FILTERS.slice(1)] : CONFLICT_FILTERS
   const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
+  // By what kind of thing it is (lib/conflictInsight) — only the kinds the
+  // list actually has are offered. Null: every type.
+  const [typeFilter, setTypeFilter] = useState(null)
+  const typeOptions = Object.entries(CONFLICT_TYPES)
+    .map(([id, type]) => ({ id, label: type.label, count: listRecords.filter((conflict) => conflictTypeOf(conflict).id === id).length }))
+    .filter((option) => option.count > 0)
   const filterItems = listRecords.map((conflict) => ({
     ...conflict,
     tag: needsReviewFrom(conflict) && isOpen(conflict) ? 'Needs your review' : listStatusOf(conflict).label,
@@ -61,7 +68,7 @@ export function useConflictList({ view = 'overlay' } = {}) {
   // Open first, and among those the ones waiting on your review on top —
   // the list stays "All", but what you're asked to do leads it.
   const visible = sortOpenFirst(
-    listRecords.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
+    listRecords.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters)).filter((conflict) => !typeFilter || conflictTypeOf(conflict).id === typeFilter)
   ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
   return {
     conflicts,
@@ -76,6 +83,9 @@ export function useConflictList({ view = 'overlay' } = {}) {
     setAdvancedFilters,
     filterItems,
     markedDueDates,
+    typeFilter,
+    setTypeFilter,
+    typeOptions,
     // The row whose detail is open, wherever it's showing.
     selectedId: reviewConflictId,
     open: (id) => openConflictReview(id, { view }),

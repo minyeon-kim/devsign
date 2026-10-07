@@ -369,6 +369,14 @@ No conflicts to decide|결정할 충돌이 없어요
 No approval requests|승인 요청이 없어요
 Show more|더 보기
 Next step|다음 할 일
+Before review|검토 전
+Review pending|검토 대기
+Merge pending|병합 대기
+Merge complete|병합 완료
+Review request not sent|검토 요청 전
+review pending|검토 대기
+complete|완료
+approved it|승인
 Conflict detail|충돌 상세
 Approval|승인
 The review hasn’t been requested yet|아직 검토 요청 전
@@ -381,7 +389,10 @@ Approve it|승인하기
 Fix and request again|수정하고 다시 요청
 Choose how to resolve it first|먼저 해결 방법을 선택하세요
 Resolve the failing checks before merging.|실패한 검사를 해결해야 병합할 수 있어요.
-Code Conflict|코드 충돌
+Merge Conflict|병합 충돌
+Type|유형
+Adjusted manually|직접 조정
+Takes a merged change back.|병합된 변경을 되돌려요.
 Design Drift|디자인 불일치
 Production Code Priority|운영 코드 우선
 Design Decision|디자인 결정

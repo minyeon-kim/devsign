@@ -1,20 +1,21 @@
 import './ConflictPanel.css'
-import { NAV_BUTTON, PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
+import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { Check, CheckCheck, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, gitFlowOf, isOpen, listStatusOf, needsReviewFrom, shortDue, taskFor } from '@/lib/conflicts'
+import { authorOf, gitFlowOf, isOpen, listStatusOf, needsReviewFrom, shortDue } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
 import { CONFLICT_STATUS_FILTERS, useConflictList } from '@/components/conflicts/useConflictList'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -95,7 +96,7 @@ function ConflictPanel({ inMergeStudio }) {
   // bar's sidebar draws (useConflictList). Here a row opens its detail in
   // the full-screen viewer; in Merge Studio it stays in this panel, beside
   // the canvas it points at.
-  const { queued, visible, filter, shownFilters, setFilter, countOf, advancedFilters, setAdvancedFilters, filterItems, markedDueDates, open: openRow } = useConflictList({ view: inMergeStudio ? 'panel' : 'overlay' })
+  const { queued, visible, filter, shownFilters, setFilter, countOf, advancedFilters, setAdvancedFilters, filterItems, markedDueDates, typeFilter, setTypeFilter, typeOptions, open: openRow } = useConflictList({ view: inMergeStudio ? 'panel' : 'overlay' })
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
@@ -152,6 +153,26 @@ function ConflictPanel({ inMergeStudio }) {
               <FilterCount mine={f.id === 'mine'} count={countOf(f)} />
             </button>
           ))}
+          {typeOptions.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger data-type-filter className={cn('ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 text-xs whitespace-nowrap transition-colors', typeFilter ? 'font-medium text-white' : 'text-slate-400 hover:text-slate-200')}>
+                <LocalizedText text="Type" />
+                {typeFilter && <><span className="text-slate-500">·</span><LocalizedText text={typeOptions.find((option) => option.id === typeFilter)?.label ?? ''} /></>}
+                <ChevronDown className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                <DropdownMenuRadioGroup value={typeFilter ?? 'all'} onValueChange={(value) => setTypeFilter(value === 'all' ? null : value)}>
+                  <DropdownMenuRadioItem value="all" className="text-xs"><LocalizedText text="All types" /></DropdownMenuRadioItem>
+                  {typeOptions.map((option) => (
+                    <DropdownMenuRadioItem key={option.id} value={option.id} className="text-xs">
+                      <LocalizedText text={option.label} />
+                      <span className="ml-auto pl-3 text-slate-500 tabular-nums">{option.count}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <MergeFilterButton
             compact
             simple
@@ -184,13 +205,13 @@ function ConflictPanel({ inMergeStudio }) {
                 </th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Severity</th>
+                <th className="py-1.5 text-left font-medium whitespace-nowrap">Type</th>
                 <th className="py-1.5 text-left font-medium">Issue</th>
                 <th className="py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Reviewers</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Author · Updated</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Due date</th>
-                <th className="py-1.5 text-left font-medium whitespace-nowrap">Next step</th>
               </tr>
             </thead>
             <tbody>
@@ -217,7 +238,9 @@ function ConflictPanel({ inMergeStudio }) {
                 const flow = gitFlowOf(conflict)
                 const updated = (conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt ?? '—').replace(/, \d{1,2}:\d{2} (AM|PM)$/, '')
                 const mine = isOpen(conflict) && needsReviewFrom(conflict)
-                const task = taskFor(conflict)
+                // Settled by resizing the element in Merge Studio: how it's
+                // being handled, said under its status.
+                const adjusted = isOpen(conflict) && Boolean(sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current))
                 const readyToRequest = conflict.reviewStage === 'detected' && allDecided(conflict, mergeItems, decisionsFor)
                 return (
                   <Fragment key={conflict.id}>
@@ -253,10 +276,16 @@ function ConflictPanel({ inMergeStudio }) {
                     {/* One short status — a dot and a word, the filter's own;
                         how far along it is shows on hover. */}
                     <td className="py-3.5 pt-4">
-                      <ListStatus conflict={conflict} ready={readyToRequest} />
+                      <ListStatus conflict={conflict} ready={readyToRequest} note={adjusted ? 'Adjusted manually' : null} />
                     </td>
                     <td className="py-3.5">
                       <SeverityPill bare quiet level={severity.label} />
+                    </td>
+                    {/* What kind of thing it is — one broad tag — and, under
+                        it, the kind of difference. */}
+                    <td className="min-w-0 py-3.5 pt-4">
+                      <ConflictTypeTag conflict={conflict} />
+                      <MismatchLabel conflict={conflict} className="mt-1 block truncate text-[11px] leading-4 text-slate-500" />
                     </td>
                     {/* The branch isn't a column — it's on hover here, and in
                         the review's Details. */}
@@ -264,21 +293,12 @@ function ConflictPanel({ inMergeStudio }) {
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
-                          {/* What kind of thing it is: a real code conflict,
-                              a drift from the design, … */}
-                          {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
                           {/* A mix of design drafts sent from Design Compare —
                               told apart from design ↔ code conflicts. */}
                           {isDraftMerge(conflict, mergeItems) && (
                             <span data-draft-merge className="inline-flex h-5 shrink-0 items-center gap-1 rounded-md bg-sky-400/15 px-1.5 text-[11px] font-medium whitespace-nowrap text-sky-200">
                               <Layers3 className="size-3" />
                               <LocalizedText text="Draft merge" />
-                            </span>
-                          )}
-                          {/* Settled by resizing the element in Merge Studio. */}
-                          {isOpen(conflict) && sizeAdjustmentOf(conflict, mergeItems.find((m) => m.id === conflict.mergeItemId || m.conflictId === conflict.id), mergeDrafts?.current) && (
-                            <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-emerald-400/15 px-1.5 text-[11px] font-medium whitespace-nowrap text-emerald-200">
-                              <LocalizedText text="Adjusted by hand" />
                             </span>
                           )}
                           {/* Discussion at a glance (also what keeps a change out of batch approval). */}
@@ -308,10 +328,7 @@ function ConflictPanel({ inMergeStudio }) {
                             <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
                           </p>
                         ) : conflict.message ? (
-                          // The cause first, as the kind of difference
-                          // ("Size mismatch"), then the sentence.
                           <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
-                            <MismatchLabel conflict={conflict} className="font-medium text-slate-100 after:mx-1.5 after:font-normal after:text-slate-600 after:content-['·']" />
                             <LocalizedText text={conflict.message} />
                           </p>
                         ) : <span className="text-slate-500">—</span>}
@@ -357,22 +374,18 @@ function ConflictPanel({ inMergeStudio }) {
                         <span title={conflict.resolvedAtLabel ?? conflict.timestamp ?? conflict.detectedAt}><LocalizedText text={updated} /></span>
                       </span>
                     </td>
+                    {/* (…and the row's own → at its far end, on hover: the
+                        whole row is the way into its detail.) */}
                     <td className="py-3.5 pt-4 text-xs leading-5 whitespace-nowrap tabular-nums">
+                      <span className="flex items-center justify-between gap-3">
                       {shortDue(conflict.dueLabel) ? (
                         // Just the when — the column already says "Due date".
                         <span className={cn('inline-flex items-center gap-1', /overdue|today/i.test(conflict.dueLabel) ? 'font-medium text-amber-300' : 'text-slate-300')}>
                           <LocalizedText text={shortDue(conflict.dueLabel)} />
                         </span>
                       ) : <span className="text-slate-500">—</span>}
-                    </td>
-                    {/* What's yours to do here, as the button that starts it
-                        (the same words as everywhere else — taskFor). */}
-                    <td className="py-3.5 pt-[13px]">
-                      {task ? (
-                        <button type="button" data-task-action={task.kind} onClick={(event) => { event.stopPropagation(); openRow(conflict.id) }} className={cn(NAV_BUTTON, 'h-7')}>
-                          <LocalizedText text={task.label} />
-                        </button>
-                      ) : <span className="text-xs leading-5 text-slate-600">—</span>}
+                      <ArrowRight aria-hidden data-row-arrow className="size-3.5 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+                      </span>
                     </td>
                   </tr>
                   </Fragment>
@@ -560,7 +573,7 @@ function FilterCount({ mine, count }) {
 // A row's status: the dot and the short word. The detail the label used to
 // carry — decided or not, how many have signed off, merged or rolled back —
 // is its tooltip.
-function ListStatus({ conflict, ready }) {
+function ListStatus({ conflict, ready, note }) {
   const status = listStatusOf(conflict)
   const rollback = Boolean(conflict.rollback)
   const signed = `${conflict.reviewers.filter((r) => r.status === 'approved').length}/${conflict.reviewers.length}`
@@ -573,6 +586,7 @@ function ListStatus({ conflict, ready }) {
     done: <LocalizedText text={rollback ? 'Rolled back' : 'Merged'} />,
   }[status.id]
   return (
+    <>
     <Tooltip>
       <TooltipTrigger render={<span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5 text-slate-200')} />}>
         <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
@@ -580,6 +594,9 @@ function ListStatus({ conflict, ready }) {
       </TooltipTrigger>
       <TooltipContent side="bottom" align="start" className="block px-2.5 py-1.5 text-left text-xs leading-5 whitespace-nowrap">{detail}</TooltipContent>
     </Tooltip>
+    {/* How it's being handled — not a type, so it sits with the status. */}
+    {note && <span data-status-note className="mt-1 block text-[11px] leading-4 whitespace-nowrap text-slate-500"><LocalizedText text={status.label} /> · <LocalizedText text={note} /></span>}
+    </>
   )
 }
 

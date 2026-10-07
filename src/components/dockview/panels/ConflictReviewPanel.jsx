@@ -34,6 +34,8 @@ import { getLanguage } from '@/i18n/language'
 const tr = (text) => translateText(text, getLanguage())
 const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -495,10 +497,14 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
           and, under them, the one thing to do (when there is one). */}
       <InfoSection>
         <div data-status-badges className="flex flex-wrap items-center gap-1.5">
-          <span data-status-badge className={cn(INFO_BADGE, STATUS_TEXT[status.id])}>
-            <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
-            <LocalizedText text={conflict.rollback ? ROLLBACK_STAGE_LABEL[stage] : status.label} />
-          </span>
+          {/* (A conflict's status is the badge beside its title; only a
+              rollback agreement, which has none, says it here.) */}
+          {conflict.rollback && (
+            <span data-status-badge className={cn(INFO_BADGE, STATUS_TEXT[status.id])}>
+              <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
+              <LocalizedText text={ROLLBACK_STAGE_LABEL[stage]} />
+            </span>
+          )}
           {severity && (
             <span data-risk-badge className={cn(INFO_BADGE, RISK_TEXT[severity.label.toLowerCase()])}>
               <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
@@ -745,7 +751,7 @@ function CodeDiffColumns({ rows }) {
 const HAND_VALUE = 'flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums'
 const TEXT_ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, approvalBlock }) {
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
@@ -1125,9 +1131,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   {!(flow.reason.modal && editing) && <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />}
                 </div>
               )}
-              {/* Approval, between the choice and the code: choose → approve
-                  → merge, top to bottom. */}
-              {approvalBlock && <div className="mt-3 min-w-0">{approvalBlock}</div>}
               {/* ③ The code, in full, once: for the way that's chosen — or,
                   while another card is under the pointer, for that one. */}
               {conflict.diff && !readOnly && (
@@ -1931,35 +1934,75 @@ function CommentThread({ conflict, workspace, flashId }) {
   )
 }
 
-// Approval, in the review's main column — under the choice, over the code —
-// so choosing, approving and merging read top to bottom. One block says
-// where the approvals stand (how many, by whom, when, and what was said)
-// and carries the one action that state calls for:
-//   · not requested — send the review request;
-//   · waiting       — remind whoever hasn't answered;
-//   · yours         — approve, or request changes (each asks for a comment
-//                     in a dialog; a change request needs one);
-//   · changes asked — fix it and request again;
-//   · all approved  — merge.
-// Approving and merging happen here and nowhere else.
-const APPROVAL_TONE = {
-  idle: 'border-white/10',
-  waiting: 'border-white/20',
-  mine: 'border-sky-300/60 bg-sky-400/[0.07]',
-  changes: 'border-amber-400/60',
-  approved: 'border-emerald-400/60 bg-emerald-400/[0.07]',
-  merged: 'border-white/10',
+// Where a conflict stands on the way to merged, as the badge beside its
+// title — the one place the review says it.
+const STAGE_BADGE = {
+  detected: { label: 'Before review', dot: 'bg-slate-400' },
+  in_review: { label: 'Review pending', dot: 'bg-sky-400' },
+  approved: { label: 'Merge pending', dot: 'bg-emerald-400' },
+  resolved: { label: 'Merge complete', dot: 'bg-violet-400' },
 }
-function ApprovalBlock({ conflict, canReview, blockingCount = 0, onUpdate, onDismiss, request, revise, onReview, onMerge }) {
+function StageBadge({ stage }) {
+  const badge = STAGE_BADGE[stage] ?? STAGE_BADGE.detected
+  return (
+    <span data-stage-badge={stage} className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-1.5 text-[11px] font-medium whitespace-nowrap text-slate-200">
+      <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />
+      <LocalizedText text={badge.label} />
+    </span>
+  )
+}
+
+// Where the approvals stand, worked out once: which of the states it's in,
+// who it's waiting on, and the line that says so — the same line beside
+// the header's approval area and after the steps under the title.
+function approvalStateOf(conflict, canReview) {
   const viewerId = currentUserFor(conflict.projectId).id
-  const author = authorOf(conflict)
   const stage = conflict.reviewStage
   const required = requiredReviewers(conflict)
   const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
   const asked = required.filter((reviewer) => reviewer.status === 'changes_requested')
   const waiting = required.filter((reviewer) => reviewer.status === 'pending' && reviewer.id !== viewerId)
+  const approved = required.filter((reviewer) => reviewer.status === 'approved')
   const mine = required.some((reviewer) => reviewer.id === viewerId && reviewer.status === 'pending') && canReview
   const mode = stage === 'resolved' ? 'merged' : stage === 'approved' ? 'approved' : stage === 'detected' ? 'idle' : asked.length ? 'changes' : mine ? 'mine' : 'waiting'
+  const when = conflict.resolvedAtLabel ?? conflict.timestamp ?? null
+  const line = mode === 'idle' ? <LocalizedText text={required.length ? 'Review request not sent' : 'Assign a reviewer other than the author to request review.'} />
+    : mode === 'waiting' ? (waiting.length
+      ? <>{waiting.map((reviewer) => nameOf(reviewer.id)).join(', ')} <LocalizedText text="review pending" /> · <LocalizedText text={`${waiting.length} left`} /></>
+      : <LocalizedText text="In review" />)
+      : mode === 'mine' ? <LocalizedText text="It needs your approval" />
+        : mode === 'changes' ? <>{asked.map((reviewer) => nameOf(reviewer.id)).join(', ')} · <LocalizedText text="Changes requested" /></>
+          : mode === 'approved' ? <><LocalizedText text="Approvals" /> <span className="tabular-nums">{approved.length}/{required.length}</span> <LocalizedText text="complete" /></>
+            : approved.length
+              ? <>{approved.map((reviewer) => nameOf(reviewer.id)).join(', ')} <LocalizedText text="approved it" />{when && <> · <LocalizedText text={when} /></>}</>
+              : <><LocalizedText text="Merged" />{when && <> · <LocalizedText text={when} /></>}</>
+  return { mode, line, waiting, asked, required, nameOf, viewerId }
+}
+
+// A reviewer's mark on their avatar: approved ✓, waiting ·, changes asked !.
+const REVIEW_MARK = {
+  approved: { mark: '✓', className: 'bg-emerald-400 text-emerald-950' },
+  pending: { mark: '·', className: 'bg-slate-500 text-white' },
+  changes_requested: { mark: '!', className: 'bg-amber-400 text-slate-950' },
+}
+
+// Approval, at the header's right, on the title's line: who has to sign
+// off (their avatars, each marked with where they stand — hover for the
+// name, role, status and when), the line that says where it stands, and
+// the one action that state calls for:
+//   · not requested — send the review request;
+//   · waiting       — remind whoever hasn't answered;
+//   · yours         — request changes, or approve (each asks for a comment
+//                     in a dialog; a change request needs one);
+//   · changes asked — fix it and request again;
+//   · all approved  — merge;
+//   · merged        — revert.
+// Approving and merging happen here and nowhere else. The avatars open the
+// reviewers themselves: adding or removing one, reminding, dismissing a
+// change request.
+function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, onDismiss, request, revise, onReview, onMerge, onRevert }) {
+  const { mode, line, waiting, nameOf, viewerId } = state
+  const author = authorOf(conflict)
   // The sign-off being given: which way, and what's said with it.
   const [deciding, setDeciding] = useState(null)
   const [note, setNote] = useState('')
@@ -1979,45 +2022,58 @@ function ApprovalBlock({ conflict, canReview, blockingCount = 0, onUpdate, onDis
   }
   const CTA = cn(PRIMARY_BUTTON, 'gap-1.5')
   const QUIET = cn(NAV_BUTTON, 'h-8')
+  const people = conflict.reviewers.map((reviewer) => ({ reviewer, person: allPeople.find((entry) => entry.id === reviewer.id) })).filter((entry) => entry.person)
   return (
-    <section data-approval-block={mode} aria-label="Approval" className={cn('min-w-0 scroll-mt-3 rounded-xl border px-4 py-3', APPROVAL_TONE[mode])}>
-      <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate} onDismiss={onDismiss} />
-      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3">
-        <p data-approval-state className="min-w-0 flex-1 basis-48 text-xs leading-[18px] text-slate-200">
-          {mode === 'idle' && <LocalizedText text={required.length ? 'The review hasn’t been requested yet' : 'Assign a reviewer other than the author to request review.'} />}
-          {mode === 'waiting' && (waiting.length
-            ? <>{waiting.map((reviewer) => nameOf(reviewer.id)).join(', ')} <LocalizedText text="approval pending" /><span className="text-slate-400"> · <LocalizedText text={`${waiting.length} left`} /></span></>
-            : <LocalizedText text="In review" />)}
-          {mode === 'mine' && <span className="font-medium text-sky-100"><LocalizedText text="It needs your approval" /></span>}
-          {mode === 'changes' && asked.map((reviewer) => (
-            <span key={reviewer.id} className="block truncate">
-              <span className="font-medium text-amber-200">{nameOf(reviewer.id)} · <LocalizedText text="Changes requested" /></span>
-              {reviewer.note && <span className="text-slate-300"> — <LocalizedText text={reviewer.note} /></span>}
-            </span>
-          ))}
-          {mode === 'approved' && <span className="font-medium text-emerald-100"><LocalizedText text="Every approval is in" /></span>}
-          {mode === 'approved' && blockingCount > 0 && <span className="block text-amber-200"><LocalizedText text="Resolve the failing checks before merging." /></span>}
-          {mode === 'merged' && <LocalizedText text="Merged" />}
-          {mode === 'idle' && request?.hint && <span className="block text-slate-400"><LocalizedText text={request.hint} /></span>}
-        </p>
-        <div data-approval-actions className="flex shrink-0 flex-wrap items-center gap-2">
-          {mode === 'idle' && request && (
-            <button type="button" data-approval-request disabled={request.disabled} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Send review request" /></button>
-          )}
-          {mode === 'waiting' && waiting.length > 0 && onUpdate && (
-            <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
-          )}
-          {(mode === 'mine' || (mode === 'changes' && canReview)) && <>
-            {mode === 'mine' && <button type="button" data-approval-changes onClick={() => setDeciding('changes')} className={QUIET}><LocalizedText text="Request changes" /></button>}
-            <button type="button" data-approval-approve onClick={() => setDeciding('approve')} className={CTA}><Check className="size-3.5" /><LocalizedText text="Approve it" /></button>
-          </>}
-          {mode === 'changes' && revise && (
-            <button type="button" data-approval-revise onClick={revise.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Fix and request again" /></button>
-          )}
-          {mode === 'approved' && onMerge && (
-            <button type="button" data-approval-merge onClick={onMerge} disabled={blockingCount > 0} className={CTA}><GitMerge className="size-3.5" /><LocalizedText text={TASK_LABEL.merge} /></button>
-          )}
-        </div>
+    <div data-approval-bar={mode} className="flex min-w-0 shrink-0 items-center gap-2.5">
+      <Popover>
+        <PopoverTrigger data-approval-people aria-label="Reviewers" className="ds-intrinsic flex shrink-0 cursor-pointer items-center rounded-full py-0.5 pr-1 pl-0.5 transition-colors hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300">
+          {people.length === 0 && <span aria-hidden className="block size-5 rounded-full border border-dashed border-white/25" />}
+          {people.map(({ reviewer, person }, index) => {
+            const isAuthor = reviewer.id === author
+            const mark = REVIEW_MARK[reviewer.status] ?? REVIEW_MARK.pending
+            const status = isAuthor ? 'Author' : (REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending).label
+            return (
+              <Tooltip key={reviewer.id}>
+                <TooltipTrigger render={<span data-reviewer={reviewer.status} className={cn('relative rounded-full ring-2 ring-card', index > 0 && '-ml-1.5')} />}>
+                  <PersonAvatar person={person} />
+                  {!isAuthor && <span aria-hidden className={cn('absolute -right-1 -bottom-1 flex size-3 items-center justify-center rounded-full text-[8px] leading-none font-bold ring-1 ring-card', mark.className)}>{mark.mark}</span>}
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="block px-2.5 py-1.5 text-left text-xs leading-[18px]">
+                  <span className="block font-medium">{person.name}{person.id === viewerId && <> (<LocalizedText text="You" />)</>}</span>
+                  {person.role && <span className="block opacity-70"><LocalizedText text={person.role} /></span>}
+                  <span className="block"><LocalizedText text={status} />{reviewer.reviewedAt && reviewer.status !== 'pending' && <> · <LocalizedText text={agoLabel(reviewer.reviewedAt)} /></>}</span>
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </PopoverTrigger>
+        <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-xl p-3">
+          <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate} onDismiss={onDismiss} />
+        </PopoverContent>
+      </Popover>
+      <p data-approval-state className={cn('max-w-64 min-w-0 truncate text-xs', mode === 'mine' ? 'font-medium text-sky-200' : mode === 'changes' ? 'text-amber-200' : mode === 'approved' ? 'text-emerald-200' : 'text-slate-300')} title={mode === 'approved' && blockingCount > 0 ? tr('Resolve the failing checks before merging.') : mode === 'idle' && request?.hint ? tr(request.hint) : undefined}>
+        {line}
+      </p>
+      <div data-approval-actions className="flex shrink-0 items-center gap-2">
+        {mode === 'idle' && request && (
+          <button type="button" data-approval-request disabled={request.disabled} title={request.hint ? tr(request.hint) : undefined} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Send review request" /></button>
+        )}
+        {mode === 'waiting' && waiting.length > 0 && onUpdate && (
+          <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
+        )}
+        {(mode === 'mine' || (mode === 'changes' && canReview)) && <>
+          {mode === 'mine' && <button type="button" data-approval-changes onClick={() => setDeciding('changes')} className={QUIET}><LocalizedText text="Request changes" /></button>}
+          <button type="button" data-approval-approve onClick={() => setDeciding('approve')} className={CTA}><Check className="size-3.5" /><LocalizedText text="Approve it" /></button>
+        </>}
+        {mode === 'changes' && revise && (
+          <button type="button" data-approval-revise onClick={revise.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Fix and request again" /></button>
+        )}
+        {mode === 'approved' && onMerge && (
+          <button type="button" data-approval-merge onClick={onMerge} disabled={blockingCount > 0} title={blockingCount > 0 ? tr('Resolve the failing checks before merging.') : undefined} className={CTA}><GitMerge className="size-3.5" /><LocalizedText text={TASK_LABEL.merge} /></button>
+        )}
+        {mode === 'merged' && onRevert && (
+          <button type="button" data-approval-revert onClick={onRevert} className={QUIET}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Revert" /></button>
+        )}
       </div>
       <Dialog open={Boolean(deciding)} onOpenChange={(open) => { if (!open) setDeciding(null) }}>
         <DialogContent className="gap-0 bg-card p-0 sm:max-w-[480px]">
@@ -2046,7 +2102,7 @@ function ApprovalBlock({ conflict, canReview, blockingCount = 0, onUpdate, onDis
           </form>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   )
 }
 
@@ -2669,12 +2725,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
-  // Approval: where it stands and the one action that calls for, in the
-  // main column (ApprovalBlock) — approving and merging happen only there.
+  // Approval: where it stands (the same line after the steps) and the one
+  // action that calls for, at the header's right (ApprovalBar) — approving
+  // and merging happen only there.
   const approvals = conflict && !conflict.rollback ? { done: requiredReviewers(conflict).filter((reviewer) => reviewer.status === 'approved').length, total: requiredReviewers(conflict).length } : null
-  const approvalBlock = conflict && !conflict.rollback ? (
-    <ApprovalBlock
+  const approvalState = conflict && !conflict.rollback ? approvalStateOf(conflict, canReview) : null
+  const approvalBar = approvalState ? (
+    <ApprovalBar
       conflict={conflict}
+      state={approvalState}
       canReview={canReview}
       blockingCount={checks?.blocking.length ?? 0}
       onUpdate={onUpdate ? update : undefined}
@@ -2685,6 +2744,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
       onReview={handleReview}
       onMerge={handleMerge}
+      onRevert={handleRevert}
     />
   ) : null
 
@@ -2708,14 +2768,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </h2>
                 {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
+                {/* Where it stands, said once: beside the title. */}
+                {!conflict.rollback && <StageBadge stage={stage} />}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {primary}
+              {/* Approval — who, where it stands, and its one action — on
+                  the title's line. (A rollback keeps its own action.) */}
+              <div className="flex min-w-0 shrink-0 items-center gap-2">
+                {conflict.rollback ? primary : approvalBar}
               </div>
             </div>
-            {/* Where it is on the way to merged, and what to do now — fixed
-                under the title, like it. */}
-            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} onApprove={() => document.querySelector('[data-approval-block]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
+            {/* Where it is on the way to merged — fixed under the title, like
+                it — with the same line the approval area says. */}
+            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
 
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
@@ -2729,10 +2793,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 REVIEW_GUTTER
               )}>
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', !replayId && 'xl:overflow-hidden')}>
-                  {/* Done is said outright, above everything: merged (or
-                      rolled back), when and by whom — not left to be read
-                      off a Revert button and the merged values. */}
-                  {stage === 'resolved' && (
+                  {/* (A merge is said by the title's badge and the approval
+                      area; a rollback, which has neither, says it here.) */}
+                  {stage === 'resolved' && conflict.rollback && (
                     <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
                       <CircleCheck className="size-4 shrink-0 text-emerald-300" />
                       <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Rolled back' : 'Merged'} /></span>
@@ -2811,12 +2874,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             state={decisionState}
                             checkBlocks={checkBlocks}
                             flow={flow}
-                            approvalBlock={cardFlow ? approvalBlock : null}
                           />
                           )}
-                          {/* (With choice cards it sits right under them —
-                              see DiffTab; otherwise under what's compared.) */}
-                          {!cardFlow && approvalBlock && <div className="mt-3">{approvalBlock}</div>}
                           {/* Drafts mixed by part have no comparison card —
                               their checks sit under the table instead. */}
                           {!conflict.rollback && driftItem && draftColumns(driftItem) && <div className="mt-3">{checkBlocks}</div>}
