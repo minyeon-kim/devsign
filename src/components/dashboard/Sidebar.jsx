@@ -1,13 +1,14 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutDashboard, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutDashboard, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
+import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { projectTone } from '@/lib/projectTone'
@@ -67,10 +68,11 @@ function ProjectsMark({ project }) {
 //     Docs and Import (each in the drawer beside the current view: the
 //     docs category tree, the import sources) and History (the full
 //     History view, which brings its checkpoint list up in the drawer). Activity
-//     and Team step aside so the focused workspace isn't cluttered, and
-//     Conflict Points live only in the Workspace's bottom panel.
+//     and Team step aside so the focused workspace isn't cluttered.
+//     Conflict Points opens the conflict list in the drawer — the same
+//     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
-function ActivityBar({ project, drawer, onToggleDrawer }) {
+function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
   const { pathname } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
@@ -141,6 +143,21 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
+            {/* The conflict list, in the drawer: a second way into what the
+                Workspace's bottom panel lists. Its open count rides on it. */}
+            <div className="relative">
+              <RailButton
+                label="Conflict Points"
+                icon={TriangleAlert}
+                data-conflicts-entry
+                onClick={() => onToggleDrawer('conflicts')}
+                aria-expanded={drawer === 'conflicts'}
+                className={cn(drawer === 'conflicts' && activeClass)}
+              />
+              {openConflicts > 0 && (
+                <span aria-hidden className="pointer-events-none absolute top-0.5 right-1.5 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-300 px-1 text-[9px] leading-[14px] font-bold text-[#050505] tabular-nums">{openConflicts}</span>
+              )}
+            </div>
             {/* A drawer beside the current view, like Docs. */}
             <RailButton
               label="Import"
@@ -222,7 +239,7 @@ function HistoryNavButtons() {
   )
 }
 
-const DRAWER_TITLES = { docs: 'Docs', history: 'History', import: 'Import' }
+const DRAWER_TITLES = { docs: 'Docs', history: 'History', import: 'Import', conflicts: 'Conflict Points' }
 const DRAWER_WIDTH = 272
 const DRAWER_MIN = 220
 const DRAWER_MAX = 480
@@ -233,7 +250,7 @@ const DRAWER_MAX = 480
 // keeps a fixed w-68 so nothing re-wraps mid-animation) and closes from its
 // own button or the same icon again. Every other destination is a plain
 // full page.
-function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
+function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
   if (drawer && drawer !== shown) setShown(drawer)
@@ -247,7 +264,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} />
+      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} />
 
       <div
         inert={!drawer}
@@ -285,6 +302,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer }) {
             {panel === 'docs' && project && <DocsDrawer project={project} />}
             {panel === 'history' && project && <HistoryDrawer project={project} />}
             {panel === 'import' && project && <ImportDrawer project={project} />}
+            {panel === 'conflicts' && project && <ConflictsDrawer project={project} />}
           </div>
         </aside>
       </div>

@@ -45,7 +45,7 @@ const REVIEW_SHARE = 0.6
 // Content scrolls inside each panel rather than resizing this dock to fit.
 function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
-  const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId, checkGuide } = useWorkspace()
+  const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId, reviewView, checkGuide } = useWorkspace()
   const { tab, open, height, userHeight, maximized } = bottomPanel
   const [fullHeight, setFullHeight] = useState(640)
   const rootRef = useRef(null)
@@ -67,7 +67,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   }, [])
 
   useEffect(() => {
-    if (!reviewConflictId) return
+    // (A review in the full-screen viewer doesn't open or resize this panel.)
+    if (!reviewConflictId || reviewView === 'overlay') return
     // Fixing a check on the canvas (see CheckDecisions): the review was
     // folded on purpose so the marked element is in view — leave it folded.
     if (checkGuide?.conflictId === reviewConflictId) return

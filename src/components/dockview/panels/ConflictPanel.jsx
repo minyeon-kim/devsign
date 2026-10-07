@@ -1,7 +1,7 @@
 import './ConflictPanel.css'
 import { NAV_BUTTON, PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
-import { conflictListRecord, isQueuedConflict, isDesignReview } from '@/lib/conflicts'
+import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Check, CheckCheck, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
@@ -9,10 +9,10 @@ import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
-import { authorOf, gitFlowOf, isOpen, LIST_STATUSES, listStatusOf, needsReviewFrom, shortDue, sortOpenFirst, taskFor } from '@/lib/conflicts'
+import { authorOf, gitFlowOf, isOpen, listStatusOf, needsReviewFrom, shortDue, taskFor } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
-import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
+import { CONFLICT_STATUS_FILTERS, useConflictList } from '@/components/conflicts/useConflictList'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { LocalizedText } from '@/i18n/runtime'
@@ -33,19 +33,6 @@ const severityConfig = {
 // A row opens its inline review; merging remains the last review step.
 // Low-risk items waiting on review can be checked and approved together
 // from the floating batch bar (merging each stays its own step).
-//
-// Filters narrow the list with the same rules the counts use (lib/
-// conflicts), so a chip's number is always the rows it shows. The filter
-// lives in the bottom panel's state, so the tab's "Needs your review"
-// shortcut can open the list already filtered.
-// The status filters are the list's own five statuses (lib/conflicts), so a
-// filter and the status it shows in a row are always the same word.
-const FILTERS = [
-  { id: 'all', label: 'All', test: () => true },
-  { id: 'mine', label: 'Needs your review', test: (c) => needsReviewFrom(c) },
-  ...LIST_STATUSES.map((status) => ({ id: status.id, label: status.label, test: (c) => listStatusOf(c).id === status.id })),
-]
-
 // A merge request for a mix of design drafts has several drafts rather
 // than one design ↔ code difference. Keep this predicate local to the
 // panel because it is only used to label rows in the shared queue.
@@ -55,33 +42,11 @@ function isDraftMerge(conflict, mergeItems = []) {
   return (item?.variants?.length ?? 0) > 1
 }
 
-// Filter ids from before the statuses were unified.
-const FILTER_ALIAS = { merged: 'done' }
-// "Everything not done yet" — where a count of open conflicts links to (a
-// project card's badge, a project home's stat). Not one of the standing
-// tabs: it shows as one only while it's the filter in use.
-const OPEN_FILTER = { id: 'open', label: 'Open', test: isOpen }
-const CONFLICT_STATUS_FILTERS = FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
-
-function matchesConflictFilters(conflict, filters) {
-  const stageMatches = { 'Needs your review': needsReviewFrom(conflict), [listStatusOf(conflict).label]: true }
-
-  if (filters.status.length && !filters.status.some((status) => stageMatches[status])) return false
-  if (filters.assignee.length && !filters.assignee.includes(conflict.assigneeId)) return false
-  const severity = conflict.severity
-    ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
-    : 'None'
-  if (filters.conflict.length && !filters.conflict.includes(severity)) return false
-  return matchesDue(conflict, filters.due)
-}
-
 // `inMergeStudio`: this is Merge Studio's own Conflict Points tab — the
 // list is the project-wide one either way, but picking a conflict there
 // also puts its item on the canvas (see the effect below).
 function ConflictPanel({ inMergeStudio }) {
-  const { conflicts, mergeItems, reviewConflictId, openConflictReview, batchApproveConflicts, bottomPanel, setBottomPanel,
-    currentUser, requestMergeFocus, mergeFocus } =
-    useWorkspace()
+  const { conflicts, mergeItems, reviewConflictId, reviewView, batchApproveConflicts, currentUser, requestMergeFocus, mergeFocus } = useWorkspace()
   const reviewConflict = conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null
   // A conflict links to its merge item either way round — its own
   // `mergeItemId`, or the item's `conflictId` pointing back at it (most of
@@ -126,26 +91,11 @@ function ConflictPanel({ inMergeStudio }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inMergeStudio, reviewConflict?.id, reviewConflictItemId])
-  const queued = conflicts.filter(isQueuedConflict)
-  const listRecords = conflicts.filter(conflictListRecord)
-  const filterId = FILTER_ALIAS[bottomPanel.conflictFilter] ?? bottomPanel.conflictFilter
-  const picked = filterId === OPEN_FILTER.id ? OPEN_FILTER : FILTERS.find((f) => f.id === filterId) ?? null
-  const filter = picked ?? FILTERS[0]
-  const shownFilters = filter === OPEN_FILTER ? [FILTERS[0], OPEN_FILTER, ...FILTERS.slice(1)] : FILTERS
-  const [advancedFilters, setAdvancedFilters] = useState(EMPTY_FILTERS)
-  const filterItems = listRecords.map((conflict) => ({
-    ...conflict,
-    tag: needsReviewFrom(conflict) && isOpen(conflict) ? 'Needs your review' : listStatusOf(conflict).label,
-    conflictLevel: conflict.severity
-      ? conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)
-      : 'None',
-  }))
-  const markedDueDates = listRecords.map(dueDateOf).filter(Boolean)
-  // Open first, and among those the ones waiting on your review on top —
-  // the list stays "All", but what you're asked to do leads it.
-  const visible = sortOpenFirst(
-    listRecords.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters))
-  ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
+  // What's listed, filtered and ordered — the same list the activity
+  // bar's sidebar draws (useConflictList). Here a row opens its detail in
+  // the full-screen viewer; in Merge Studio it stays in this panel, beside
+  // the canvas it points at.
+  const { queued, visible, filter, shownFilters, setFilter, countOf, advancedFilters, setAdvancedFilters, filterItems, markedDueDates, open: openRow } = useConflictList({ view: inMergeStudio ? 'panel' : 'overlay' })
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
@@ -175,7 +125,8 @@ function ConflictPanel({ inMergeStudio }) {
     })
   }
 
-  if (reviewConflict) return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
+  // (In the full-screen viewer, the list stays here behind it.)
+  if (reviewConflict && reviewView === 'panel') return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-card">
@@ -191,14 +142,14 @@ function ConflictPanel({ inMergeStudio }) {
               key={f.id}
               type="button"
               aria-pressed={f.id === filter.id}
-              onClick={() => setBottomPanel({ conflictFilter: f.id })}
+              onClick={() => setFilter(f.id)}
               className={cn(
                 'ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 text-xs whitespace-nowrap transition-colors',
                 f.id === filter.id ? 'font-medium text-white' : 'text-slate-400 hover:text-slate-200'
               )}
             >
               <LocalizedText text={f.label} />
-              <FilterCount mine={f.id === 'mine'} count={listRecords.filter(f.test).length} />
+              <FilterCount mine={f.id === 'mine'} count={countOf(f)} />
             </button>
           ))}
           <MergeFilterButton
@@ -271,14 +222,14 @@ function ConflictPanel({ inMergeStudio }) {
                 return (
                   <Fragment key={conflict.id}>
                   <tr
-                    onClick={() => { openConflictReview(conflict.id) }}
+                    onClick={() => { openRow(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) return
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                    openConflictReview(conflict.id)
+                    openRow(conflict.id)
                       }
                     }}
                     aria-selected={reviewConflictId === conflict.id}
@@ -418,7 +369,7 @@ function ConflictPanel({ inMergeStudio }) {
                         (the same words as everywhere else — taskFor). */}
                     <td className="py-3.5 pt-[13px]">
                       {task ? (
-                        <button type="button" data-task-action={task.kind} onClick={(event) => { event.stopPropagation(); openConflictReview(conflict.id) }} className={cn(NAV_BUTTON, 'h-7')}>
+                        <button type="button" data-task-action={task.kind} onClick={(event) => { event.stopPropagation(); openRow(conflict.id) }} className={cn(NAV_BUTTON, 'h-7')}>
                           <LocalizedText text={task.label} />
                         </button>
                       ) : <span className="text-xs leading-5 text-slate-600">—</span>}

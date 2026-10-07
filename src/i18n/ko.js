@@ -369,6 +369,7 @@ No conflicts to decide|결정할 충돌이 없어요
 No approval requests|승인 요청이 없어요
 Show more|더 보기
 Next step|다음 할 일
+Conflict detail|충돌 상세
 Approval|승인
 The review hasn’t been requested yet|아직 검토 요청 전
 approval pending|승인 대기 중

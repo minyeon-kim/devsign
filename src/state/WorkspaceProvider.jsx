@@ -195,6 +195,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // workspace, so opening a conflict from the drawer or the terminal
   // always reuses the same window instead of stacking a second one.
   const [reviewConflictId, setReviewConflictId] = useState(null)
+  // …and where its detail shows: 'panel' (in the bottom panel, beside the
+  // canvas) or 'overlay' (the full-screen viewer over the work area — what
+  // a row of either list, the bottom panel's or the sidebar's, opens).
+  // Kept here, with the id, so every way in drives the one viewer.
+  const [reviewView, setReviewView] = useState('panel')
   // Design System Update → Documentation → History (see
   // lib/designSystemUpdates): the updates, and the Reference Docs the
   // documented ones generated (shown in the Archive beside the static docs).
@@ -210,9 +215,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // Start on Conflict Points; keep each project's last panel selection.
   const [bottomPanel, setBottomPanelState] = useDemoState(`project:${projectId}:bottomPanel`, { tab: 'conflict', open: true, height: 320 })
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
-  const openConflictReview = useCallback((id) => {
+  const openConflictReview = useCallback((id, { view = 'panel' } = {}) => {
     setReviewConflictId(id)
     if (!id) return
+    setReviewView(view)
+    // (Full-screen, the bottom panel is left as it is — the viewer covers it.)
+    if (view === 'overlay') return
     const record = conflicts.find(candidate => candidate.id === id) ?? { id }
     setBottomPanel({ tab: reviewTabFor(record), open: true, ...(reviewTabFor(record) === 'design-compare' && record.mergeItemId ? { designCompareItemId: record.mergeItemId } : {}) })
   }, [conflicts, setBottomPanel])
@@ -2084,6 +2092,7 @@ export function WorkspaceProvider({ children, projectId }) {
     restartConflict,
     createMergeRequest,
     reviewConflictId,
+    reviewView,
     bottomPanel,
     dsUpdates,
     documentDsUpdate,

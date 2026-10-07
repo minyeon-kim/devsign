@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
+import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // The common application shell, shared by the dashboard-level pages and
@@ -20,7 +21,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 // page closes it again. Toggling History off (its icon, or closing its
 // drawer) leaves the whole view — list and viewer — for the Workspace.
 function AppShell({ topBar, project, children }) {
-  // null | 'docs' | 'history' | 'import'
+  // null | 'docs' | 'history' | 'import' | 'conflicts'
   const [drawer, setDrawer] = useState(null)
   const navigate = useNavigate()
   const { pathname, state } = useLocation()
@@ -40,19 +41,49 @@ function AppShell({ topBar, project, children }) {
   // `requestHistoryDrawer`/`historyDrawerRequest`. Same render-phase sync
   // as `wasOnHistory` above, not an effect: `historyDrawerRequest` is a
   // fresh object each time, so a reference check is enough to catch it.
-  const { historyDrawerRequest } = useWorkspaceOptional() ?? {}
+  const workspace = useWorkspaceOptional()
+  const { historyDrawerRequest } = workspace ?? {}
   const [handledHistoryRequest, setHandledHistoryRequest] = useState(null)
   if (historyDrawerRequest && historyDrawerRequest !== handledHistoryRequest) {
     setHandledHistoryRequest(historyDrawerRequest)
     setDrawer('history')
   }
 
+  // The conflict list has two ways in — this drawer and the Workspace's
+  // bottom panel — and only one shows it at a time, so the work area is
+  // never squeezed from the left and from below by the same list:
+  //   · opening the drawer folds the bottom panel's list (toggleDrawer);
+  //   · opening the bottom panel's list closes the drawer (below — the
+  //     same render-phase sync as above, on the moment it opens).
+  // The full-screen viewer either one opens is the workspace's own state,
+  // so it's the same viewer whichever list it came from.
+  const panelList = workspace?.bottomPanel
+  const panelListOpen = Boolean(panelList?.open && panelList.tab === 'conflict') && pathname.replace(/\/$/, '').endsWith('/workspace')
+  const [wasPanelListOpen, setWasPanelListOpen] = useState(panelListOpen)
+  if (panelListOpen !== wasPanelListOpen) {
+    setWasPanelListOpen(panelListOpen)
+    if (panelListOpen && drawer === 'conflicts') setDrawer(null)
+  }
+  function toggleDrawer(panel) {
+    if (leavingHistory(panel)) { exitHistory(); return }
+    const opening = drawer !== panel
+    setDrawer(opening ? panel : null)
+    if (opening && panel === 'conflicts' && panelListOpen) {
+      // (Counted as already folded, so folding it doesn't read as the
+      // panel's list having just been opened.)
+      setWasPanelListOpen(false)
+      workspace.setBottomPanel({ open: false })
+    }
+  }
+  const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         project={project}
         drawer={drawer}
-        onToggleDrawer={(panel) => (leavingHistory(panel) ? exitHistory() : setDrawer((open) => (open === panel ? null : panel)))}
+        onToggleDrawer={toggleDrawer}
+        openConflicts={openConflicts}
         onCloseDrawer={() => (leavingHistory(drawer) ? exitHistory() : setDrawer(null))}
       />
 

@@ -1,3 +1,4 @@
+import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
@@ -84,9 +85,12 @@ function WorkspacePage() {
       const conflict = conflicts.find((c) => c.id === state.openConflictId)
       if (!conflict) return
       exitMergeStudio()
-      setBottomPanel({ open: true, tab: 'conflict', evidence: state.evidence ? { ...state.evidence, conflictId: conflict.id } : null })
+      // (From the sidebar's list on another page: straight into the
+      // full-screen viewer, the bottom panel left as it was.)
+      const view = state.reviewView === 'overlay' ? 'overlay' : 'panel'
+      setBottomPanel({ ...(view === 'panel' ? { open: true, tab: 'conflict' } : {}), evidence: state.evidence ? { ...state.evidence, conflictId: conflict.id } : null })
       focusChange(conflict)
-      openConflictReview(conflict.id)
+      openConflictReview(conflict.id, { view })
     }
   }, [
     location.key,
@@ -152,6 +156,8 @@ function WorkspacePage() {
           cover, and can never flatten its rounded corner. */}
       {inMergeStudio && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[549] h-4 bg-background" />}
       {!inMergeStudio && <WorkspaceBottomPanel />}
+      {/* A conflict's detail, full-screen over all of the above. */}
+      <ConflictReviewOverlay inMergeStudio={inMergeStudio} />
     </div>
     </WorkspaceBottomPanelPortalContext.Provider>
   )
