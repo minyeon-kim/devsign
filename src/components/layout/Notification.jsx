@@ -4,9 +4,10 @@ import { LocalizedText } from '@/i18n/runtime'
 
 // The one notification: every card that announces something is this, with
 // only its `type` changed — success, warning, error or info (none: no
-// accent). Its look is the notification tokens' (index.css): the surface,
-// the type's accent on the icon and the left line, the title and body
-// type, the dismiss button and the actions. Toasts (Sonner) and the bell's
+// accent). Its look is the notification tokens' (index.css): the dark
+// floating surface, the type's accent on the icon and its round chip, the
+// title and body type, the dismiss button at the top right and the actions
+// at the bottom right. Toasts (Sonner) and the bell's
 // dropdown read the same tokens, so they match without sharing markup.
 const TYPE_ICON = { success: CircleCheck, warning: TriangleAlert, error: OctagonX, info: Info }
 const text = (value) => (typeof value === 'string' ? <LocalizedText text={value} /> : value)
@@ -17,7 +18,7 @@ const text = (value) => (typeof value === 'string' ? <LocalizedText text={value}
 export function Notification({ type, icon, title, body, bodyClassName, children, actions = [], onDismiss, dismissLabel = '알림 닫기', as: Tag = 'section', className, ...rest }) {
   const Icon = icon ?? TYPE_ICON[type] ?? Info
   return (
-    <Tag data-notification data-type={type} className={cn('ds-notification pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none', className)} {...rest}>
+    <Tag data-notification data-type={type} className={cn('ds-notification ds-notification-enter', className)} {...rest}>
       {onDismiss && (
         <button type="button" data-notice-dismiss aria-label={dismissLabel} title={dismissLabel} onClick={onDismiss} className="ds-intrinsic ds-notification-close">
           <X aria-hidden />

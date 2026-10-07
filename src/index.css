@@ -699,41 +699,51 @@ button.editor-line-comment {
 
 /* ── Notifications ────────────────────────────────────────────────────
    One look for everything that announces something: toasts, the notice
-   cards under the Inbox bell, the bell's dropdown. A light box on the dark
-   app — light enough to read as "a notification", grey enough not to glare
-   — and every part of it comes from the tokens below (nothing sets its own
-   color, radius, padding or type).
-   The accents are the light-surface versions of the app's mint / red /
-   yellow / blue: each is at least 4.5:1 on --notification-bg (see
-   tests/notification-tokens.mjs). They color the icon and the left line
-   only — never the whole box. */
+   cards at the top right, the bell's dropdown. A dark surface floating one
+   step above the panels — and every part of it comes from the tokens below
+   (nothing sets its own color, radius, padding or type).
+   A type (success / info / warning / error) colors the icon and the round
+   chip behind it — never a side line, never the whole card.
+   Text meets WCAG AA (4.5:1) on the surface; tests/notification-tokens.mjs
+   checks it. */
 :root {
-  --notification-bg: #C4C4CA;
-  --notification-bg-hover: #B8B8BF;
-  --notification-border: rgb(0 0 0 / 8%);
-  --notification-shadow: 0 8px 24px rgb(0 0 0 / 28%);
-  --notification-text: #1A1A1C;
-  --notification-text-secondary: #45454B;
-  --notification-success: #064E3B;
-  --notification-warning: #78350F;
-  --notification-error: #7F1D1D;
-  --notification-info: #1E3A8A;
-  /* The one filled action on a notification, and its label. */
-  --notification-action-bg: #1A1A1C;
-  --notification-action-text: #F4F4F6;
-  --notification-radius: 16px;
-  --notification-padding: 16px;
-  --notification-icon: 16px;
-  --notification-title: 600 13px/20px inherit;
-  --notification-body: 400 12px/20px inherit;
+  --notification-bg: #1F1F23;
+  --notification-bg-hover: #26262B;
+  --notification-border: rgb(255 255 255 / 8%);
+  --notification-shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
+  --notification-text: #F4F4F5;
+  --notification-text-secondary: #A1A1AA;
+  /* (Meta text — times, counts. #71717A, the dismiss icon's grey, is 3.4:1
+     here: fine for an icon, short of AA for text, so text is a step up.) */
+  --notification-text-meta: #91919A;
+  --notification-control: #71717A;
+  --notification-control-hover-bg: rgb(255 255 255 / 6%);
+  --notification-success: #34D399;
+  --notification-success-bg: rgb(52 211 153 / 12%);
+  --notification-info: #818CF8;
+  --notification-info-bg: rgb(129 140 248 / 12%);
+  --notification-warning: #FBBF24;
+  --notification-warning-bg: rgb(251 191 36 / 12%);
+  --notification-error: #F87171;
+  --notification-error-bg: rgb(248 113 113 / 12%);
+  /* The filled action is the app's own main CTA (the mint of "Continue"). */
+  --notification-action-bg: var(--ds-review-action-bg);
+  --notification-action-text: var(--ds-review-action-fg);
+  --notification-radius: 12px;
+  --notification-padding: 14px 16px;
+  /* Where the floating ones sit: under the header, off the right edge. */
+  --notification-top: calc(var(--ds-chrome-size) + 16px);
+  --notification-right: 24px;
+  --notification-width: 360px;
+  --notification-gap: 8px;
 }
 
-/* The surface. `data-type` (success / warning / error / info) picks the
-   accent; without one there's no accent at all. */
+/* The surface. `data-type` picks the accent; without one the icon is quiet. */
 .ds-notification {
-  --notification-accent: transparent;
+  --notification-accent: var(--notification-text-secondary);
+  --notification-accent-bg: var(--notification-control-hover-bg);
   position: relative;
-  overflow: hidden;
+  box-sizing: border-box;
   padding: var(--notification-padding);
   border: 1px solid var(--notification-border);
   border-radius: var(--notification-radius);
@@ -741,88 +751,92 @@ button.editor-line-comment {
   box-shadow: var(--notification-shadow);
   color: var(--notification-text);
 }
-.ds-notification[data-type='success'] { --notification-accent: var(--notification-success); }
-.ds-notification[data-type='warning'] { --notification-accent: var(--notification-warning); }
-.ds-notification[data-type='error'] { --notification-accent: var(--notification-error); }
-.ds-notification[data-type='info'] { --notification-accent: var(--notification-info); }
-/* The left line: the type, once. */
-.ds-notification::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--notification-accent);
+.ds-notification[data-type='success'] { --notification-accent: var(--notification-success); --notification-accent-bg: var(--notification-success-bg); }
+.ds-notification[data-type='info'] { --notification-accent: var(--notification-info); --notification-accent-bg: var(--notification-info-bg); }
+.ds-notification[data-type='warning'] { --notification-accent: var(--notification-warning); --notification-accent-bg: var(--notification-warning-bg); }
+.ds-notification[data-type='error'] { --notification-accent: var(--notification-error); --notification-accent-bg: var(--notification-error-bg); }
+/* In: 8px from the right with a fade. (Out is a fade, where the thing that
+   shows it animates removal — the toasts do.) Reduced motion: the fade only. */
+@keyframes ds-notification-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
+@keyframes ds-notification-fade { from { opacity: 0; } to { opacity: 1; } }
+.ds-notification-enter { animation: ds-notification-in 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ds-notification-enter { animation: ds-notification-fade 180ms ease-out; }
+}
+/* The type, as a 28px round chip with a 16px icon. */
 .ds-notification-icon {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: var(--notification-accent, var(--notification-text-secondary));
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--notification-accent-bg);
+  color: var(--notification-accent);
 }
-.ds-notification:not([data-type]) .ds-notification-icon { color: var(--notification-text-secondary); }
-.ds-notification-icon svg { width: var(--notification-icon); height: var(--notification-icon); }
+.ds-notification-icon svg { width: 16px; height: 16px; }
 .ds-notification-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 20px;
   color: var(--notification-text);
 }
 .ds-notification-body {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 20px;
   color: var(--notification-text-secondary);
 }
-.ds-notification-meta { font-size: 11px; line-height: 16px; color: var(--notification-text-secondary); }
-.ds-notification-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 12px; }
-/* Actions: one filled, the rest quiet. */
+.ds-notification-meta { font-size: 12px; line-height: 16px; color: var(--notification-text-meta); }
+/* Actions: at the bottom right, one filled, the rest quiet. */
+.ds-notification-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .ds-notification-action,
 .ds-notification-action-quiet {
   display: inline-flex;
   flex: none;
   align-items: center;
-  height: 28px;
+  height: 32px;
   padding-inline: 12px;
   border: 0;
-  border-radius: 9999px;
-  font-size: 12px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
-  transition: background-color 140ms, color 140ms;
+  transition: background-color 140ms, color 140ms, filter 140ms;
 }
 .ds-notification-action { background: var(--notification-action-bg); color: var(--notification-action-text); }
-.ds-notification-action:hover { background: #000; }
+.ds-notification-action:hover { filter: brightness(1.08); }
 .ds-notification-action-quiet { background: transparent; color: var(--notification-text-secondary); }
-.ds-notification-action-quiet:hover { background: var(--notification-bg-hover); color: var(--notification-text); }
-/* Dismiss: the same quiet round button everywhere — at the card's top
-   right, inside its padding (8px in from both edges, so it can't be cut
-   off by whatever the card sits in), and 32px across to hit. Content beside
-   it keeps clear with a right inset (the component's `pr-8`). */
+.ds-notification-action-quiet:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
+/* Dismiss: at the card's top right, inside its padding — never a negative
+   offset, never past the card's edge. A 16px icon in a 28px target. Content
+   beside it keeps clear with a right inset (the component's `pr-8`). */
 .ds-notification-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  right: 10px;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 9999px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--notification-text-secondary);
+  color: var(--notification-control);
   transition: background-color 140ms, color 140ms;
 }
-.ds-notification-close:hover { background: var(--notification-bg-hover); color: var(--notification-text); }
-.ds-notification-close svg { width: 14px; height: 14px; }
+.ds-notification-close:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
+.ds-notification-close svg { width: 16px; height: 16px; }
 /* A row inside a notification (a conflict to open, an item of the bell's
-   list): the hover is one step darker than the box. */
+   list): the hover is one step lighter than the card. */
 .ds-notification-row {
   display: flex;
   width: 100%;
@@ -834,87 +848,133 @@ button.editor-line-comment {
 }
 .ds-notification-row:hover, .ds-notification-row[aria-current='true'] { background: var(--notification-bg-hover); }
 .ds-notification :is(button, a):focus-visible, .ds-notification-row:focus-visible {
-  outline: 2px solid var(--notification-text);
+  outline: 2px solid var(--notification-success);
   outline-offset: 2px;
 }
 /* A list of notifications in a popup (the bell's dropdown): the same
    surface, without the padding — its rows bring their own. */
 .ds-notification.ds-notification-list { padding: 0; }
 
-/* Toasts (Sonner) are that same notification: the surface, type, close
-   button and action all read the tokens above. */
-[data-sonner-toaster] { --width: 360px; }
+/* "Dismiss all", over the stack: a small pill of the same surface. */
+.ds-notification-dismiss-all {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding-inline: 12px;
+  border: 1px solid var(--notification-border);
+  border-radius: 9999px;
+  background: var(--notification-bg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--notification-text-secondary);
+  transition: background-color 140ms, color 140ms;
+}
+.ds-notification-dismiss-all:hover { background: var(--notification-bg-hover); color: var(--notification-text); }
+
+/* The floating stack (the notice cards): fixed to the window — it's
+   rendered into <body>, so no panel's overflow or transform can clip it —
+   under the header and off the right edge, never wider than the window. */
+.ds-notification-stack {
+  position: fixed;
+  top: var(--notification-top);
+  right: var(--notification-right);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--notification-gap);
+  box-sizing: border-box;
+  width: var(--notification-width);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - var(--notification-top) - 16px);
+  pointer-events: none;
+}
+.ds-notification-stack > * { pointer-events: auto; }
+
+/* Toasts (Sonner) are that same notification. Sonner ships its own
+   stylesheet, injected after this one, with selectors as specific as a
+   plain override — its close button (top left, pushed 35% outside the
+   toast) and its dark-theme description color won over ours. So every
+   rule here is one step more specific ([data-sonner-toaster] in front) and
+   pins what Sonner positions. */
+[data-sonner-toaster] { --width: var(--notification-width); }
 /* …and start below the notice cards while any are up (HighReviewNotifications
    publishes their bottom edge), so the two never sit on top of each other. */
-[data-sonner-toaster][data-y-position='top'] { top: var(--ds-toast-top, 52px) !important; }
-[data-sonner-toast].cn-toast {
-  --notification-accent: transparent;
+[data-sonner-toaster][data-y-position='top'] { top: var(--ds-toast-top, var(--notification-top)) !important; }
+[data-sonner-toaster][data-x-position='right'] { right: var(--notification-right) !important; }
+[data-sonner-toaster] { max-width: calc(100vw - 32px); }
+[data-sonner-toaster] [data-sonner-toast].cn-toast {
+  --notification-accent: var(--notification-text-secondary);
+  --notification-accent-bg: var(--notification-control-hover-bg);
   gap: 12px;
-  padding: var(--notification-padding);
-  overflow: hidden;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--notification-padding) !important;
   border: 1px solid var(--notification-border) !important;
   border-radius: var(--notification-radius) !important;
   background: var(--notification-bg) !important;
   box-shadow: var(--notification-shadow) !important;
   color: var(--notification-text) !important;
 }
-[data-sonner-toast].cn-toast[data-type='success'] { --notification-accent: var(--notification-success); }
-[data-sonner-toast].cn-toast[data-type='warning'] { --notification-accent: var(--notification-warning); }
-[data-sonner-toast].cn-toast[data-type='error'] { --notification-accent: var(--notification-error); }
-[data-sonner-toast].cn-toast[data-type='info'] { --notification-accent: var(--notification-info); }
-[data-sonner-toast].cn-toast::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--notification-accent);
+[data-sonner-toaster] [data-sonner-toast].cn-toast[data-type='success'] { --notification-accent: var(--notification-success); --notification-accent-bg: var(--notification-success-bg); }
+[data-sonner-toaster] [data-sonner-toast].cn-toast[data-type='info'] { --notification-accent: var(--notification-info); --notification-accent-bg: var(--notification-info-bg); }
+[data-sonner-toaster] [data-sonner-toast].cn-toast[data-type='warning'] { --notification-accent: var(--notification-warning); --notification-accent-bg: var(--notification-warning-bg); }
+[data-sonner-toaster] [data-sonner-toast].cn-toast[data-type='error'] { --notification-accent: var(--notification-error); --notification-accent-bg: var(--notification-error-bg); }
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] {
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 !important;
+  border-radius: 9999px;
+  background: var(--notification-accent-bg);
+  color: var(--notification-accent);
 }
-[data-sonner-toast].cn-toast [data-icon] { color: var(--notification-accent); }
-[data-sonner-toast].cn-toast [data-icon] svg { width: var(--notification-icon); height: var(--notification-icon); }
-[data-sonner-toast].cn-toast:has([data-close-button]) {
-  padding-right: 48px;
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] svg { width: 16px; height: 16px; margin: 0; }
+/* (Room for the dismiss button, so a long title never runs under it.) */
+[data-sonner-toaster] [data-sonner-toast].cn-toast:has([data-close-button]) { padding-right: 44px !important; }
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] {
+  top: 10px !important;
+  right: 10px !important;
+  left: auto !important;
+  transform: none !important;
+  width: 28px !important;
+  height: 28px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--notification-control) !important;
 }
-[data-sonner-toast].cn-toast [data-close-button] {
-  top: 8px;
-  right: 8px;
-  left: auto;
-  transform: none;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: 0;
-  color: var(--notification-text-secondary);
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] svg { width: 16px; height: 16px; }
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button]:hover {
+  background: var(--notification-control-hover-bg) !important;
+  color: var(--notification-text) !important;
 }
-[data-sonner-toast].cn-toast [data-close-button] svg { width: 14px; height: 14px; }
-[data-sonner-toast].cn-toast [data-close-button]:hover {
-  background: var(--notification-bg-hover);
-  color: var(--notification-text);
-}
-[data-sonner-toast].cn-toast [data-close-button]:focus-visible {
-  outline: 2px solid var(--notification-text);
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button]:focus-visible {
+  outline: 2px solid var(--notification-success);
   outline-offset: 2px;
 }
-[data-sonner-toast].cn-toast [data-title] {
-  font-size: 13px;
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-content] { gap: 2px; min-width: 0; }
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-title] {
+  font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  color: var(--notification-text);
+  color: var(--notification-text) !important;
 }
-[data-sonner-toast].cn-toast [data-description] {
-  font-size: 12px;
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-description] {
+  font-size: 13px;
   line-height: 20px;
-  color: var(--notification-text-secondary);
+  color: var(--notification-text-secondary) !important;
 }
-[data-sonner-toast].cn-toast [data-button] {
-  height: 28px;
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-button] {
+  height: 32px;
   padding-inline: 12px;
-  border-radius: 9999px;
-  background: var(--notification-action-bg);
-  font-size: 12px;
+  border-radius: 8px;
+  background: var(--notification-action-bg) !important;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--notification-action-text);
+  color: var(--notification-action-text) !important;
 }
-/* (The "soft" confirmation is the same notification: one look, not two.) */
 
 /* Inline decision reasons enter without an extra card surface. */
 @keyframes ds-reason-enter {

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-// The notification tokens (src/index.css): every text and accent color has
-// to read on the notification's own light surface — WCAG AA, 4.5:1 — and on
-// its hover step where text sits on it.
+// The notification tokens (src/index.css): a dark floating surface whose
+// text reads at WCAG AA (4.5:1) — on the surface and on its hover step —
+// and whose accents and controls are visible on it.
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const token = (name) => {
-  const match = new RegExp(`--notification-${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css)
-  assert.ok(match, `--notification-${name} is a hex color`)
+  const match = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css)
+  assert.ok(match, `--${name} is a hex color`)
   return match[1]
 }
 const luminance = (hex) => {
@@ -19,33 +19,42 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-const bg = token('bg')
-const hover = token('bg-hover')
+const bg = token('notification-bg')
+const hover = token('notification-bg-hover')
 const report = []
-for (const name of ['text', 'text-secondary', 'success', 'warning', 'error', 'info']) {
-  const ratio = contrast(token(name), bg)
-  report.push(`${name} ${ratio.toFixed(2)}`)
-  assert.ok(ratio >= 4.5, `--notification-${name} on the surface is ${ratio.toFixed(2)}:1 (needs 4.5)`)
+// Text, and the accents (an icon's color, but held to the text bar too).
+for (const name of ['text', 'text-secondary', 'text-meta', 'success', 'info', 'warning', 'error']) {
+  for (const [surface, label] of [[bg, ''], [hover, '/hover']]) {
+    const ratio = contrast(token(`notification-${name}`), surface)
+    if (!label) report.push(`${name} ${ratio.toFixed(2)}`)
+    assert.ok(ratio >= 4.5, `--notification-${name}${label} is ${ratio.toFixed(2)}:1 (needs 4.5)`)
+  }
 }
-// Text sits on the hover step too (a row under the pointer).
-for (const name of ['text', 'text-secondary']) {
-  const ratio = contrast(token(name), hover)
-  report.push(`${name}/hover ${ratio.toFixed(2)}`)
-  assert.ok(ratio >= 4.5, `--notification-${name} on the hover surface is ${ratio.toFixed(2)}:1 (needs 4.5)`)
-}
-const action = contrast(token('action-text'), token('action-bg'))
+// The dismiss icon is a control, not text: 3:1.
+assert.ok(contrast(token('notification-control'), bg) >= 3, 'the dismiss icon is visible on the surface')
+// The filled action is the app's main CTA; its label reads on it.
+const action = contrast(token('ds-review-action-fg'), token('ds-review-action-bg'))
 report.push(`action ${action.toFixed(2)}`)
-assert.ok(action >= 4.5, 'the filled action’s label reads on its fill')
-// The hover step is darker than the surface, and the surface is still a light box on the dark app.
-assert.ok(luminance(hover) < luminance(bg))
-assert.ok(contrast(bg, '#111111') >= 7, 'still reads as a light box on the app background')
-// …but not a near-white one: clearly greyer than an off-white.
-assert.ok(luminance(bg) < 0.6, 'the surface is a grey, not a near-white')
-// The dismiss button is a 32px target inside the card.
-assert.match(css, /\.ds-notification-close \{[^}]*top: 8px;[^}]*right: 8px;[^}]*width: 32px;[^}]*height: 32px;/s)
-// Nothing in the notification styles sets a color of its own.
+assert.ok(action >= 4.5)
+assert.match(css, /--notification-action-bg:\s*var\(--ds-review-action-bg\)/)
+// A dark surface, one step above the panels; the hover one step above that.
+assert.ok(luminance(bg) > luminance(token('ds-surface-card')) && luminance(bg) < 0.05, 'a dark surface, lighter than a panel')
+assert.ok(luminance(hover) > luminance(bg))
+
 const section = css.slice(css.indexOf('/* ── Notifications'), css.indexOf('/* Inline decision reasons'))
 const rules = section.slice(section.indexOf('.ds-notification {'))
-const stray = rules.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []
-assert.deepEqual(stray.filter((hex) => hex !== '#000'), [], 'notification rules use the tokens, not their own colors')
-console.log(`Passed: notification tokens meet AA on their surface (${report.join(' · ')}).`)
+// Nothing in the notification rules sets a color of its own…
+assert.deepEqual(rules.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [], [], 'notification rules use the tokens, not their own colors')
+// …the dismiss button sits inside the card (no negative offset), 28px to hit…
+const close = /\.ds-notification-close \{([^}]*)\}/.exec(rules)[1]
+assert.match(close, /top: 10px;[\s\S]*right: 10px;[\s\S]*width: 28px;[\s\S]*height: 28px;/)
+assert.ok(!/:\s*-\d/.test(close), 'no negative offsets on the dismiss button')
+// …the card doesn't clip its own contents, and there's no side line…
+const surface = /\.ds-notification \{([^}]*)\}/.exec(rules)[1]
+assert.ok(!/overflow:\s*hidden/.test(surface), 'the card doesn’t clip what’s in it')
+assert.ok(!rules.includes('.ds-notification::before'), 'no left accent line')
+// …and the toast overrides outrank Sonner's own stylesheet, pinning its close button inside the toast.
+const toastClose = /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-close-button\] \{([^}]*)\}/.exec(rules)[1]
+for (const pinned of ['top: 10px !important', 'right: 10px !important', 'left: auto !important', 'transform: none !important']) assert.ok(toastClose.includes(pinned), `toast close button: ${pinned}`)
+assert.match(rules, /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-description\] \{[^}]*color: var\(--notification-text-secondary\) !important/)
+console.log(`Passed: notification tokens meet AA on the dark surface (${report.join(' · ')}).`)

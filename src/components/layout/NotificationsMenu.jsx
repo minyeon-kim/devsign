@@ -77,7 +77,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
                 onClick={() => openItem(activity)}
                 className="ds-intrinsic ds-notification-row items-start gap-2.5 px-3 py-2.5"
               >
-                <span className="ds-notification-icon mt-0.5" style={{ color: 'var(--notification-info)' }}>
+                <span className="ds-notification-icon" style={{ color: 'var(--notification-info)', background: 'var(--notification-info-bg)' }}>
                   {activity.type === 'comment' ? <MessageSquare aria-hidden /> : <Bell aria-hidden />}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -90,7 +90,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
                   <span className="ds-notification-body mt-0.5 block truncate"><LocalizedText text={activity.target} /></span>
                   {project && <span className="ds-notification-meta mt-0.5 block truncate"><LocalizedText text={project.name} /></span>}
                 </span>
-                <ChevronRight className="mt-1 size-3.5 shrink-0" style={{ color: 'var(--notification-text-secondary)' }} />
+                <ChevronRight className="mt-1 size-3.5 shrink-0" style={{ color: 'var(--notification-control)' }} />
               </button>
             )
           })}
