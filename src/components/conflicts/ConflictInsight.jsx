@@ -164,8 +164,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
               <div className="relative mt-1 flex shrink-0 flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => step.id === 'approve' && setExpandedStep(expandedStep === 'approve' ? null : 'approve')}
-                  disabled={step.id !== 'approve'}
+                  onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
                   className={cn(
                     'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
                     step.state === 'done' 
@@ -173,7 +172,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
                       : step.state === 'current' 
                       ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
                       : 'border border-white/30 bg-transparent text-white/50',
-                    step.id === 'approve' && 'cursor-pointer hover:opacity-80'
+                    'cursor-pointer hover:opacity-80'
                   )}
                 >
                   {step.state === 'done' ? (

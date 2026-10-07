@@ -2872,7 +2872,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         approvals={approvals}
                         next={approvalState?.line}
                         className="mb-5"
-                        reviewers={<ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                        reviewers={<ReviewersSection conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
                       />}
                       <OverviewTab
                         key={conflict.id}
