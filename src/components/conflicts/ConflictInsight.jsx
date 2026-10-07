@@ -148,6 +148,11 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
   const [expandedStep, setExpandedStep] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
+  
+  // Debug: Log state changes
+  if (typeof window !== 'undefined') {
+    console.log('FlowSteps expandedStep:', expandedStep, 'has reviewers:', !!reviewers)
+  }
   return (
     <section data-flow-steps={flow.current} aria-label="검토 진행 상태" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="flex items-start justify-between gap-3 px-3 py-3">

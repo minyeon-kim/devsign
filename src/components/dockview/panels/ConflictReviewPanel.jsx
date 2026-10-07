@@ -1518,7 +1518,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
   // The change request being dismissed (its reviewer id) and the reason.
   const [dismissing, setDismissing] = useState(null)
   const [reason, setReason] = useState('')
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const { reviewers, reviewStage } = conflict
   // The author can't review their own change, so they're never offered.
   const author = authorOf(conflict)
@@ -2872,7 +2872,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         approvals={approvals}
                         next={approvalState?.line}
                         className="mb-5"
-                        reviewers={<ReviewersSection conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                        reviewers={<ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
                       />}
                       <OverviewTab
                         key={conflict.id}
