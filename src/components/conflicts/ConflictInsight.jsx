@@ -1,5 +1,6 @@
-import { Check, Server } from 'lucide-react'
+import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
+import { useState } from 'react'
 import { REVIEW_HEADER_BADGE } from './ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
@@ -144,6 +145,7 @@ const STEP_DESCRIPTION = {
 
 export function FlowSteps({ conflict, chosen, approvals, next, reviewers, className }) {
   const flow = flowOf(conflict, { chosen })
+  const [expandedStep, setExpandedStep] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
   return (
@@ -159,14 +161,18 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
         {flow.steps.map((step, index) => (
           <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-3 py-0.5">
             <div className="relative mt-1 flex shrink-0 flex-col items-center">
-              <div
+              <button
+                type="button"
+                onClick={() => step.id === 'approve' && setExpandedStep(expandedStep === 'approve' ? null : 'approve')}
+                disabled={step.id !== 'approve'}
                 className={cn(
                   'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
                   step.state === 'done' 
                     ? 'bg-[#5EEAB5] text-[#06281D]' 
                     : step.state === 'current' 
                     ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
-                    : 'border border-white/30 bg-transparent text-white/50'
+                    : 'border border-white/30 bg-transparent text-white/50',
+                  step.id === 'approve' && 'cursor-pointer hover:opacity-80'
                 )}
               >
                 {step.state === 'done' ? (
@@ -174,7 +180,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
                 ) : (
                   <span>{index + 1}</span>
                 )}
-              </div>
+              </button>
               {index < flow.steps.length - 1 && (
                 <div
                   className={cn(
@@ -195,7 +201,11 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
           </li>
         ))}
       </ol>
-      {flow.current === 'approve' && reviewers && <div className="border-t border-white/[0.05] px-3 py-3">{reviewers}</div>}
+      {expandedStep === 'approve' && reviewers && (
+        <div className="border-t border-white/[0.05] px-3 py-3">
+          {reviewers}
+        </div>
+      )}
     </section>
   )
 }
