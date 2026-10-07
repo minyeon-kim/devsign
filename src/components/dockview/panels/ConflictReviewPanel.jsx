@@ -771,7 +771,7 @@ const STATE_CHIP = 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text
 // saying how much it matters — required (it can't merge without the
 // reviewers' exception) or recommended (it can) — opening to which rule it
 // is and why it's there. Nothing shows for a way that breaks no rule.
-function RuleNote({ check, required }) {
+function RuleNote({ check, required, children }) {
   const [open, setOpen] = useState(false)
   const why = checkGuidance(check)?.impact ?? check.hint ?? null
   return (
@@ -795,6 +795,7 @@ function RuleNote({ check, required }) {
           <div><dt className="inline opacity-70"><LocalizedText text="Kind" /> · </dt><dd className="inline"><LocalizedText text={required ? 'Required — merging waits on the reviewers’ exception approval' : 'Recommended — it doesn’t block the merge'} /></dd></div>
         </dl>
       )}
+      {children && <div className="px-2 pb-2">{children}</div>}
     </div>
   )
 }
@@ -1044,12 +1045,13 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     )}
                     {!readOnly && (required.length > 0 || advisories.length > 0) && (
                       <div data-card-rules className="min-w-0 space-y-2">
-                        {required.map((check) => <RuleNote key={check.id} check={check} required />)}
-                        {required.length > 0 && editing && (
+                        {required.map((check, index) => <RuleNote key={check.id} check={check} required>
+                        {index === required.length - 1 && editing && (
                           <button type="button" data-request-card-exception={card.id} onClick={(event) => { event.stopPropagation(); flow.requestException(card.id) }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 focus-visible:outline-2 focus-visible:outline-amber-300">
                             <LocalizedText text="Apply exception" />
                           </button>
                         )}
+                        </RuleNote>)}
                         {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
                       </div>
                     )}
@@ -2827,9 +2829,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
-              {/* Approval — who, where it stands, and its one action — on
-                  the title's line. (A rollback keeps its own action.) */}
-              <div className="flex min-w-0 shrink-0 items-center gap-2">
+              {/* Align the review action with the lower metadata row. */}
+              <div className="flex min-w-0 shrink-0 self-end items-center gap-2">
                 {conflict.rollback ? primary : approvalBar}
               </div>
             </div>
