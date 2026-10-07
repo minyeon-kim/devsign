@@ -205,6 +205,7 @@ const rules = [
   [/^(.+) · Double-click to rename$/, (_, path) => `${path} · 두 번 클릭하여 이름 변경`],
   [/^Step (\d+) of (\d+)(.*)$/, (_, n, total, suffix) => `${total}단계 중 ${n}단계${core(suffix)}`],
   [/^(\d+)m ago$/, (_, n) => `${n}분 전`],
+  [/^(\d+) left$/, (_, n) => `${n}명 남음`],
   [/^(\d+)h ago$/, (_, n) => `${n}시간 전`],
   [/^(\d+) hours? ago$/, (_, n) => `${n}시간 전`],
   [/^(\d+)d ago$/, (_, n) => `${n}일 전`],

@@ -127,7 +127,7 @@ export function DifferenceSummary({ conflict, className }) {
 
 // Conflict → Compare → Select → Approve → Merge, with where this one is and
 // what to do there — so the next move never has to be guessed.
-export function FlowSteps({ conflict, chosen, className }) {
+export function FlowSteps({ conflict, chosen, approvals, onApprove, className }) {
   const flow = flowOf(conflict, { chosen })
   if (!flow) return null
   return (
@@ -136,14 +136,23 @@ export function FlowSteps({ conflict, chosen, className }) {
         {flow.steps.map((step, index) => (
           <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-center gap-1">
             {index > 0 && <span aria-hidden className={cn('h-px w-3', step.state === 'todo' ? 'bg-white/15' : 'bg-emerald-300/50')} />}
-            <span className={cn(
-              'inline-flex h-5 items-center gap-1 rounded-full px-2 whitespace-nowrap',
-              step.state === 'current' ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40'
-                : step.state === 'done' ? 'text-slate-300' : 'text-slate-500'
-            )}>
-              {step.state === 'done' && <Check className="size-3 text-emerald-300" />}
-              <LocalizedText text={step.label} />
-            </span>
+            {(() => {
+              // The Approve step counts the approvals, and goes to them.
+              const counted = step.id === 'approve' && approvals?.total > 0
+              const tone = cn(
+                'inline-flex h-5 items-center gap-1 rounded-full px-2 whitespace-nowrap',
+                step.state === 'current' ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40'
+                  : step.state === 'done' ? 'text-slate-300' : 'text-slate-500'
+              )
+              const body = <>
+                {step.state === 'done' && <Check className="size-3 text-emerald-300" />}
+                <LocalizedText text={step.label} />
+                {counted && <span data-step-approvals className="tabular-nums">{approvals.done}/{approvals.total}</span>}
+              </>
+              return step.id === 'approve' && onApprove
+                ? <button type="button" data-step-jump onClick={onApprove} className={cn(tone, 'ds-intrinsic cursor-pointer transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300')}>{body}</button>
+                : <span className={tone}>{body}</span>
+            })()}
           </li>
         ))}
       </ol>

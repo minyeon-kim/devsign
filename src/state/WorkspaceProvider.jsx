@@ -1119,11 +1119,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // code). You approve as yourself only; it moves to Approved when every
   // required reviewer has approved — the same rule batch approval uses.
   const approveConflict = useCallback(
-    (conflictId) => {
+    (conflictId, note) => {
       const conflict = conflicts.find((c) => c.id === conflictId)
       if (!conflict || conflict.reviewStage !== 'in_review') return null
       if (!conflict.reviewers.some((r) => r.id === currentUser.id)) return null
-      const reviewers = conflict.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'approved' } : r))
+      // (When it was given and what was said with it stay on the sign-off.)
+      const reviewers = conflict.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'approved', reviewedAt: Date.now(), note: note?.trim() || undefined } : r))
       const updated = { ...conflict, reviewers, diffInspected: true }
       const next = scheduleDemoReview({ ...updated, reviewStage: allReviewersApproved(updated) ? 'approved' : 'in_review' }, currentUser.id)
       setConflicts((prev) => prev.map((c) => (c.id === conflictId ? next : c)))
@@ -1136,13 +1137,13 @@ export function WorkspaceProvider({ children, projectId }) {
   )
 
   const requestChanges = useCallback(
-    (conflictId) => {
+    (conflictId, note) => {
       const conflict = conflicts.find((c) => c.id === conflictId)
       if (!conflict || conflict.reviewStage !== 'in_review') return
       setConflicts((prev) =>
         prev.map((c) =>
           c.id === conflictId
-            ? { ...c, reviewers: c.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'changes_requested' } : r)) }
+            ? { ...c, reviewers: c.reviewers.map((r) => (r.id === currentUser.id ? { ...r, status: 'changes_requested', reviewedAt: Date.now(), note: note?.trim() || undefined } : r)) }
             : c
         )
       )

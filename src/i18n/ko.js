@@ -369,6 +369,17 @@ No conflicts to decide|결정할 충돌이 없어요
 No approval requests|승인 요청이 없어요
 Show more|더 보기
 Next step|다음 할 일
+Approval|승인
+The review hasn’t been requested yet|아직 검토 요청 전
+approval pending|승인 대기 중
+It needs your approval|내 승인이 필요해요
+Every approval is in|모든 승인이 끝났어요
+Send review request|검토 요청 보내기
+Remind again|다시 알리기
+Approve it|승인하기
+Fix and request again|수정하고 다시 요청
+Choose how to resolve it first|먼저 해결 방법을 선택하세요
+Resolve the failing checks before merging.|실패한 검사를 해결해야 병합할 수 있어요.
 Code Conflict|코드 충돌
 Design Drift|디자인 불일치
 Production Code Priority|운영 코드 우선

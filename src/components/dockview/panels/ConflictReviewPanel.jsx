@@ -33,7 +33,6 @@ import { getLanguage } from '@/i18n/language'
 // so their placeholders are translated here.
 const tr = (text) => translateText(text, getLanguage())
 const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -447,7 +446,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, onUpdateReviewers, onDismissRequest, reasonNeeded = false }) {
+function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -579,14 +578,6 @@ function OverviewTab({ conflict, severity, stage, showProject, blockedCount, adj
             <Row label="What it’s for">{list(standard.purpose)}</Row>
           </dl>
         </InfoSection>
-      )}
-
-      {/* 4 · Review: one header — reviewers and approvals so far, + to add
-          one — over the progress bar and the list. */}
-      {!conflict.rollback && onUpdateReviewers && (
-        <section data-info-section="Review" className={INFO_SECTION}>
-          <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdateReviewers} onDismiss={onDismissRequest} />
-        </section>
       )}
 
       {/* Details: folded; its rows share the same label column. */}
@@ -754,7 +745,7 @@ function CodeDiffColumns({ rows }) {
 const HAND_VALUE = 'flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums'
 const TEXT_ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange }) {
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, approvalBlock }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
@@ -896,6 +887,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             </button>
           )}
         </div>
+      )}
+      {/* Decided: why, right under what was decided. */}
+      {pairedPreview && flow?.reason?.value && !editing && (
+        <div data-decision-reason={choice} className="-mt-1.5 mb-3 min-w-0"><ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly /></div>
       )}
       {/* The decision's button and the title above stay put; only what's
           compared scrolls, so neither is ever pushed out of view. */}
@@ -1101,23 +1096,11 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   )
                 })}
               </div>
-              {/* ③ The code, in full, once: for the way that's chosen — or,
-                  while another card is under the pointer, for that one. */}
-              {conflict.diff && !readOnly && (
-                // (24px from the cards, and to what follows.)
-                <div className="mt-3 min-w-0">
-                  <button type="button" data-code-toggle aria-expanded={showCode} onClick={toggleCode} className={cn(TEXT_ACTION, '-ml-2 mb-1')}>
-                    <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
-                    <LocalizedText text={showCode ? 'Hide code' : 'Show code'} />
-                  </button>
-                  {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />}
-                </div>
-              )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && (!readOnly || flow.reason.value) && (editing ? exception || !flow.reason.modal : true) && (
+              {flow?.reason && editing && (exception || !flow.reason.modal) && (
                 <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
                   {exception && editing && (
                     // The one loud place: what going this way needs. What
@@ -1140,6 +1123,21 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     </div>
                   )}
                   {!(flow.reason.modal && editing) && <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />}
+                </div>
+              )}
+              {/* Approval, between the choice and the code: choose → approve
+                  → merge, top to bottom. */}
+              {approvalBlock && <div className="mt-3 min-w-0">{approvalBlock}</div>}
+              {/* ③ The code, in full, once: for the way that's chosen — or,
+                  while another card is under the pointer, for that one. */}
+              {conflict.diff && !readOnly && (
+                // (24px from the cards, and to what follows.)
+                <div className="mt-3 min-w-0">
+                  <button type="button" data-code-toggle aria-expanded={showCode} onClick={toggleCode} className={cn(TEXT_ACTION, '-ml-2 mb-1')}>
+                    <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
+                    <LocalizedText text={showCode ? 'Hide code' : 'Show code'} />
+                  </button>
+                  {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />}
                 </div>
               )}
             </>) : conflict.preview && (
@@ -1517,6 +1515,15 @@ const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-7 items-center gap-1 te
 const iconActionClass =
   'ds-intrinsic flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
+// When a sign-off was given, said the way the rest of the app says times.
+function agoLabel(at) {
+  const minutes = Math.floor((Date.now() - at) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`
+  return `${Math.floor(minutes / 1440)}d ago`
+}
+
 // Reviewers sign off here. Assigning is open until the conflict is
 // resolved — a new reviewer on an Approved conflict sends it back to In
 // Review, since everyone has to sign off; removing is open before review
@@ -1659,7 +1666,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
                       // Nobody's been asked yet: not "waiting" — that starts
                       // once the review is requested.
                       : reviewer.status === 'pending' && reviewStage === 'detected' && !conflict.rollback ? 'Not requested yet'
-                        : statusLabels[reviewer.status] ?? status.label}
+                        : <><LocalizedText text={statusLabels[reviewer.status] ?? status.label} />{reviewer.reviewedAt && reviewer.status !== 'pending' && <span className="font-normal text-slate-400"> · <LocalizedText text={agoLabel(reviewer.reviewedAt)} /></span>}</>}
                 </span>
                 {/* Row actions, on hover, before the status (which stays at
                     the right edge either way). */}
@@ -1701,6 +1708,10 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
                   )}
                 </div>
               </div>
+              {/* What they said with it, in a line. */}
+              {reviewer.note && reviewer.status !== 'pending' && (
+                <p data-review-note className="-mt-1 mb-1.5 truncate pl-[34px] text-xs leading-[18px] text-slate-400" title={reviewer.note}>“<LocalizedText text={reviewer.note} />”</p>
+              )}
               {dismissing === reviewer.id && (
                 // Dismissing a change request needs a reason: it's posted to
                 // Comments and logged in History, and the reviewer stays on
@@ -1920,100 +1931,125 @@ function CommentThread({ conflict, workspace, flashId }) {
   )
 }
 
-// Your sign-off, as one button (GitHub's "Review changes"): pick Approve or
-// Request changes and leave a note. Requesting changes needs one — the
-// author has to know what to fix — and the note goes to the conflict's
-// Comments either way. `needed`: it's your turn — the button says so, with
-// a dot (that's the one place the to-do shows).
-function ReviewButton({ onSubmit, authorName, needed = false }) {
-  const [open, setOpen] = useState(false)
-  const [decision, setDecision] = useState('approve')
+// Approval, in the review's main column — under the choice, over the code —
+// so choosing, approving and merging read top to bottom. One block says
+// where the approvals stand (how many, by whom, when, and what was said)
+// and carries the one action that state calls for:
+//   · not requested — send the review request;
+//   · waiting       — remind whoever hasn't answered;
+//   · yours         — approve, or request changes (each asks for a comment
+//                     in a dialog; a change request needs one);
+//   · changes asked — fix it and request again;
+//   · all approved  — merge.
+// Approving and merging happen here and nowhere else.
+const APPROVAL_TONE = {
+  idle: 'border-white/10',
+  waiting: 'border-white/20',
+  mine: 'border-sky-300/60 bg-sky-400/[0.07]',
+  changes: 'border-amber-400/60',
+  approved: 'border-emerald-400/60 bg-emerald-400/[0.07]',
+  merged: 'border-white/10',
+}
+function ApprovalBlock({ conflict, canReview, blockingCount = 0, onUpdate, onDismiss, request, revise, onReview, onMerge }) {
+  const viewerId = currentUserFor(conflict.projectId).id
+  const author = authorOf(conflict)
+  const stage = conflict.reviewStage
+  const required = requiredReviewers(conflict)
+  const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
+  const asked = required.filter((reviewer) => reviewer.status === 'changes_requested')
+  const waiting = required.filter((reviewer) => reviewer.status === 'pending' && reviewer.id !== viewerId)
+  const mine = required.some((reviewer) => reviewer.id === viewerId && reviewer.status === 'pending') && canReview
+  const mode = stage === 'resolved' ? 'merged' : stage === 'approved' ? 'approved' : stage === 'detected' ? 'idle' : asked.length ? 'changes' : mine ? 'mine' : 'waiting'
+  // The sign-off being given: which way, and what's said with it.
+  const [deciding, setDeciding] = useState(null)
   const [note, setNote] = useState('')
-  const needsNote = decision === 'changes'
-  const ready = !needsNote || note.trim()
-
-  function submit() {
-    if (!ready) return
-    onSubmit(decision, note.trim())
-    setOpen(false)
+  const needsNote = deciding === 'changes'
+  function submit(event) {
+    event.preventDefault()
+    if (needsNote && !note.trim()) return
+    onReview(deciding, note.trim())
+    setDeciding(null)
     setNote('')
-    setDecision('approve')
   }
-
+  function remind() {
+    const ids = waiting.map((reviewer) => reviewer.id)
+    const stamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    onUpdate({ reviewers: conflict.reviewers.map((reviewer) => (ids.includes(reviewer.id) ? { ...reviewer, remindedAt: stamp, reminderRequestedAt: Date.now() } : reviewer)) })
+    toast(`Reminder sent to ${ids.map(nameOf).join(', ')}`, { description: conflict.title })
+  }
+  const CTA = cn(PRIMARY_BUTTON, 'gap-1.5')
+  const QUIET = cn(NAV_BUTTON, 'h-8')
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger data-review-needed={needed ? '' : undefined} className={cn(PRIMARY_BUTTON, 'gap-1')}>
-        {needed && <span aria-hidden className="mr-0.5 size-1.5 shrink-0 rounded-full bg-current" />}
-        <LocalizedText text={needed ? TASK_LABEL.review : 'Review'} />
-        <ChevronDown className="size-3.5" />
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-xl p-3">
-        <p className="mb-1 text-xs font-medium text-white"><LocalizedText text="Your review" /></p>
-        {/* One line each: the choice, and what it means. What happens next
-            is said once, for the picked one, over the submit button. */}
-        <div role="radiogroup" aria-label="Your review" className="mb-2">
-          {[
-            ['approve', 'Approve', 'The change is right'],
-            ['changes', 'Request changes', 'The author needs to fix it'],
-          ].map(([id, label, meaning]) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={decision === id}
-              onClick={() => setDecision(id)}
-              className="ds-intrinsic flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 text-left text-xs transition-colors hover:bg-white/[0.05]"
-            >
-              <span aria-hidden className={cn('flex size-3.5 shrink-0 items-center justify-center rounded-full border', decision === id ? 'border-emerald-300' : 'border-white/30')}>
-                {decision === id && <span className="size-1.5 rounded-full bg-emerald-300" />}
-              </span>
-              <span className="min-w-0 truncate">
-                <span className={cn('font-medium', decision === id ? 'text-white' : 'text-slate-200')}><LocalizedText text={label} /></span>
-                <span className="text-slate-400"> · <LocalizedText text={meaning} /></span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <textarea
-          rows={3}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); submit() } }}
-          placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
-          className="block w-full resize-none rounded-lg bg-white/[0.04] px-2.5 py-2 text-xs leading-5 text-white outline-none placeholder:text-slate-500 focus:bg-white/[0.06]"
-        />
-        <p data-review-outcome className="mt-2 text-[11px] leading-4 text-slate-300">
-          <LocalizedText text={decision === 'approve' ? 'It merges once everyone approves' : 'It goes back to the author and the merge stops'} />
-        </p>
-        <div className="mt-2 flex items-center gap-2">
-          {authorName && (
-            <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-slate-500">
-              <Bell className="size-3 shrink-0" />
-              <span className="truncate"><LocalizedText text={`${authorName} (author) will be notified.`} /></span>
+    <section data-approval-block={mode} aria-label="Approval" className={cn('min-w-0 scroll-mt-3 rounded-xl border px-4 py-3', APPROVAL_TONE[mode])}>
+      <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate} onDismiss={onDismiss} />
+      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/[0.07] pt-3">
+        <p data-approval-state className="min-w-0 flex-1 basis-48 text-xs leading-[18px] text-slate-200">
+          {mode === 'idle' && <LocalizedText text={required.length ? 'The review hasn’t been requested yet' : 'Assign a reviewer other than the author to request review.'} />}
+          {mode === 'waiting' && (waiting.length
+            ? <>{waiting.map((reviewer) => nameOf(reviewer.id)).join(', ')} <LocalizedText text="approval pending" /><span className="text-slate-400"> · <LocalizedText text={`${waiting.length} left`} /></span></>
+            : <LocalizedText text="In review" />)}
+          {mode === 'mine' && <span className="font-medium text-sky-100"><LocalizedText text="It needs your approval" /></span>}
+          {mode === 'changes' && asked.map((reviewer) => (
+            <span key={reviewer.id} className="block truncate">
+              <span className="font-medium text-amber-200">{nameOf(reviewer.id)} · <LocalizedText text="Changes requested" /></span>
+              {reviewer.note && <span className="text-slate-300"> — <LocalizedText text={reviewer.note} /></span>}
             </span>
+          ))}
+          {mode === 'approved' && <span className="font-medium text-emerald-100"><LocalizedText text="Every approval is in" /></span>}
+          {mode === 'approved' && blockingCount > 0 && <span className="block text-amber-200"><LocalizedText text="Resolve the failing checks before merging." /></span>}
+          {mode === 'merged' && <LocalizedText text="Merged" />}
+          {mode === 'idle' && request?.hint && <span className="block text-slate-400"><LocalizedText text={request.hint} /></span>}
+        </p>
+        <div data-approval-actions className="flex shrink-0 flex-wrap items-center gap-2">
+          {mode === 'idle' && request && (
+            <button type="button" data-approval-request disabled={request.disabled} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Send review request" /></button>
           )}
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={submit}
-            className={cn('ml-auto inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-xs font-semibold', decision === 'approve' ? ACCENT_CTA : 'bg-amber-400 text-slate-950 hover:bg-amber-300', 'disabled:bg-white/[0.06] disabled:text-slate-500 disabled:shadow-none')}
-          >
-            <LocalizedText text={decision === 'approve' ? 'Submit approval' : 'Request changes'} />
-          </button>
+          {mode === 'waiting' && waiting.length > 0 && onUpdate && (
+            <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
+          )}
+          {(mode === 'mine' || (mode === 'changes' && canReview)) && <>
+            {mode === 'mine' && <button type="button" data-approval-changes onClick={() => setDeciding('changes')} className={QUIET}><LocalizedText text="Request changes" /></button>}
+            <button type="button" data-approval-approve onClick={() => setDeciding('approve')} className={CTA}><Check className="size-3.5" /><LocalizedText text="Approve it" /></button>
+          </>}
+          {mode === 'changes' && revise && (
+            <button type="button" data-approval-revise onClick={revise.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Fix and request again" /></button>
+          )}
+          {mode === 'approved' && onMerge && (
+            <button type="button" data-approval-merge onClick={onMerge} disabled={blockingCount > 0} className={CTA}><GitMerge className="size-3.5" /><LocalizedText text={TASK_LABEL.merge} /></button>
+          )}
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+      <Dialog open={Boolean(deciding)} onOpenChange={(open) => { if (!open) setDeciding(null) }}>
+        <DialogContent className="gap-0 bg-card p-0 sm:max-w-[480px]">
+          <form onSubmit={submit}>
+            <div className="space-y-3 px-5 pt-5 pb-4">
+              <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text={needsNote ? 'Request changes' : 'Approve it'} /></DialogTitle>
+              <DialogDescription className="text-xs leading-[18px] text-slate-400">
+                <LocalizedText text={needsNote ? 'It goes back to the author and the merge stops' : 'It merges once everyone approves'} />
+                {author && author !== viewerId && <> · <LocalizedText text={`${nameOf(author)} (author) will be notified.`} /></>}
+              </DialogDescription>
+              <textarea
+                autoFocus
+                rows={3}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
+                className="block w-full resize-none rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2 text-xs leading-[18px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-5 py-4">
+              <button type="button" onClick={() => setDeciding(null)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Cancel" /></button>
+              <button type="submit" disabled={needsNote && !note.trim()} className={cn('ds-intrinsic inline-flex h-8 items-center rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', needsNote ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300')}>
+                <LocalizedText text={needsNote ? 'Request changes' : 'Submit approval'} />
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </section>
   )
 }
 
-// ─── Inline review view ────────────────────────────────────────────────
-//
-// `onUpdate(id, patch)` applies review edits (stage, reviewers) to
-// wherever the conflict lives; `onApprove(id)` / `onRequestChanges(id)` are
-// your own sign-off (approving never changes code); `onResolve(id)` merges
-// an Approved conflict — the only step that applies the change.
-// Not your move: who it's waiting on, as a quiet pill the size of the
-// buttons it stands in for.
 const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs text-slate-200'
 // Waiting on someone else is the state people look for first, so it's a
 // step up from the plain note: larger type and the in-review sky tint.
@@ -2108,8 +2144,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     })
   }
 
-  function handleApprove() {
-    const next = onApprove?.(conflict.id)
+  function handleApprove(note) {
+    const next = onApprove?.(conflict.id, note)
     if (!next) return
     const waiting = requiredReviewers(next).filter((r) => r.status !== 'approved').length
     toast(next.reviewStage === 'approved' ? 'All approvals received' : 'Approved by you', {
@@ -2144,8 +2180,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
 
   function handleReview(decision, note) {
     if (note && workspace) workspace.addComment(note, { conflictId: conflict.id })
-    if (decision === 'approve') handleApprove()
-    else onRequestChanges?.(conflict.id)
+    if (decision === 'approve') handleApprove(note)
+    else onRequestChanges?.(conflict.id, note)
   }
 
   // Apply a resolving side directly; otherwise open the relevant editor.
@@ -2346,7 +2382,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
   const ownChange = Boolean(authorId && authorId === viewerId)
-  const authorName = authorId && !ownChange ? allPeople.find((p) => p.id === authorId)?.name : null
   // Never your own change (the GitHub rule) — someone else signs off.
   const canReview = Boolean(myReviewer && myReviewer.status !== 'approved' && !ownChange)
 
@@ -2607,10 +2642,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       )
     } else if (stage === 'in_review' && (ownChange || conflict.requestedBy === viewerId) && requiredReviewers(conflict).some((reviewer) => reviewer.status === 'changes_requested')) {
       primary = <button type="button" disabled={decisionState.reasonNeeded || Boolean(reasonRequest)} onClick={handleRequestReview} className={REQUEST_REVIEW_BUTTON}><LocalizedText text="Request review again" /></button>
-    } else if (stage === 'in_review' && canReview) {
-      // Yours to decide — also after requesting changes, so you can approve
-      // once they're fixed (or change your mind).
-      primary = <ReviewButton onSubmit={handleReview} authorName={authorName} needed={myReviewer.status === 'pending'} />
     } else if (stage === 'in_review' && myReviewer && ownChange) {
       primary = <span className={STATUS_NOTE}><LocalizedText text="You can’t review your own change" /></span>
     } else if (stage === 'in_review') {
@@ -2633,18 +2664,29 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     } else if (stage === 'resolved' && conflict.rollback) {
       primary = null
     } else if (stage === 'approved') {
-      // Approved but a check blocks it: say so before the click, not after.
-      const blocking = checks?.blocking ?? []
-      primary = (
-        <>
-          <button type="button" onClick={handleMerge} disabled={blocking.length > 0} className={cn(PRIMARY_BUTTON, 'gap-1.5')}>
-            <GitMerge className="size-3.5" />
-            <LocalizedText text={TASK_LABEL.merge} />
-          </button>
-        </>
-      )
+      // (Merging is the approval block's, under the choice.)
+      primary = null
     }
   }
+
+  // Approval: where it stands and the one action that calls for, in the
+  // main column (ApprovalBlock) — approving and merging happen only there.
+  const approvals = conflict && !conflict.rollback ? { done: requiredReviewers(conflict).filter((reviewer) => reviewer.status === 'approved').length, total: requiredReviewers(conflict).length } : null
+  const approvalBlock = conflict && !conflict.rollback ? (
+    <ApprovalBlock
+      conflict={conflict}
+      canReview={canReview}
+      blockingCount={checks?.blocking.length ?? 0}
+      onUpdate={onUpdate ? update : undefined}
+      onDismiss={workspace?.dismissChangeRequest}
+      request={!onUpdate ? null : cardFlow
+        ? { run: flow.decide.run, disabled: !choice || Boolean(flow.decide.blocked), hint: !choice ? 'Choose how to resolve it first' : flow.decide.blocked }
+        : { run: handleRequestReview, disabled: !requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest) }}
+      revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
+      onReview={handleReview}
+      onMerge={handleMerge}
+    />
+  ) : null
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
@@ -2673,7 +2715,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
             {/* Where it is on the way to merged, and what to do now — fixed
                 under the title, like it. */}
-            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
+            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} onApprove={() => document.querySelector('[data-approval-block]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
 
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
@@ -2769,8 +2811,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             state={decisionState}
                             checkBlocks={checkBlocks}
                             flow={flow}
+                            approvalBlock={cardFlow ? approvalBlock : null}
                           />
                           )}
+                          {/* (With choice cards it sits right under them —
+                              see DiffTab; otherwise under what's compared.) */}
+                          {!cardFlow && approvalBlock && <div className="mt-3">{approvalBlock}</div>}
                           {/* Drafts mixed by part have no comparison card —
                               their checks sit under the table instead. */}
                           {!conflict.rollback && driftItem && draftColumns(driftItem) && <div className="mt-3">{checkBlocks}</div>}
@@ -2827,9 +2873,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         adjustment={adjustment}
                         cause={causeVersion}
                         onOpenCause={openProjectHistory}
-                        onUpdateReviewers={update}
                         reasonNeeded={decisionState.reasonNeeded}
-                        onDismissRequest={workspace?.dismissChangeRequest}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (
