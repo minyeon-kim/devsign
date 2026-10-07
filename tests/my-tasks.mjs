@@ -66,6 +66,5 @@ try {
   assert.deepEqual(Object.values(TASK_LABEL).map((label) => translateText(label, 'ko')), ['충돌 검토하기', '요청 검토하기', '이어서 하기', '병합하기'])
   assert.equal(translateText('Nothing to do right now', 'ko'), '지금 처리할 일이 없어요')
   assert.equal(translateText('A reason is still needed', 'ko'), '이유 입력이 남았어요')
-  await server.ssrLoadModule('/src/components/dashboard/MyTasks.jsx')
   console.log('Passed: task labels by state, the three groups and their order (can’t merge → due soonest), what’s left on unfinished work, and Korean labels.')
 } finally { await server.close() }

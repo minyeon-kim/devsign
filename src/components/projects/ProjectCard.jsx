@@ -55,7 +55,7 @@ function CountBadge({ label, count, accent = false, pressed, onClick }) {
 // the project's pages ahead of the click, so it opens at once.
 // `selectable` (toggled from "Projects" in ProjectsSection) switches a
 // click from opening the project to toggling its selection instead.
-function ProjectCard({ project, view = 'grid', counts, selectable = false, selected = false, onToggleSelect, taskFiltered = false, onFilterTasks }) {
+function ProjectCard({ project, view = 'grid', counts, selectable = false, selected = false, onToggleSelect }) {
   const navigate = useNavigate()
   const tone = projectTone(project.id)
   const members = project.memberIds
@@ -71,7 +71,7 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
   const openList = (conflictFilter) => navigate(`/projects/${project.id}/workspace`, { state: { conflictFilter } })
   const badges = !selectable && (
     <>
-      <CountBadge accent label="Review requests" count={counts?.needsMyReview} pressed={onFilterTasks ? taskFiltered : undefined} onClick={() => (onFilterTasks ? onFilterTasks(project.id) : openList('mine'))} />
+      <CountBadge accent label="Review requests" count={counts?.needsMyReview} onClick={() => openList('mine')} />
       <CountBadge label="Conflicts" count={counts?.open} onClick={() => openList('open')} />
     </>
   )

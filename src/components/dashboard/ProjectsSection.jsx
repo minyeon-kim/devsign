@@ -22,7 +22,7 @@ import { useConflictStore } from '@/state/ConflictStore'
 const typeOptions = ['All types', 'Has conflicts', 'No conflicts']
 const sortOptions = ['Last modified', 'Recently viewed', 'Name', 'Most conflicts']
 
-function ProjectsSection({ taskProject = null, onFilterTasks }) {
+function ProjectsSection() {
   const [view, setView] = useState('grid')
   const [projectList, setProjectList] = useState(() => [...seedProjects])
   const [createOpen, setCreateOpen] = useState(false)
@@ -178,8 +178,7 @@ function ProjectsSection({ taskProject = null, onFilterTasks }) {
             </button>
           </div>
 
-          {/* Outlined: the page's one filled button is My tasks' first task. */}
-          <Button variant="outline" size="sm" className="gap-1" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" className="gap-1" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
             <Plus className="size-3.5" />
             New project
           </Button>
@@ -202,8 +201,6 @@ function ProjectsSection({ taskProject = null, onFilterTasks }) {
             selectable={selectMode}
             selected={selected.has(project.id)}
             onToggleSelect={toggleSelectOne}
-            taskFiltered={taskProject === project.id}
-            onFilterTasks={onFilterTasks}
           />
         ))}
       </div>
