@@ -8,7 +8,6 @@ import {
   Bell,
   Check,
   ChevronDown,
-  Circle,
   CircleCheck,
   FileCode2,
   Code,
@@ -1520,12 +1519,6 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
   const [dismissing, setDismissing] = useState(null)
   const [reason, setReason] = useState('')
   const { reviewers, reviewStage } = conflict
-  
-  const handleExpandedChange = (value) => {
-    if (onExpandedChange) {
-      onExpandedChange(value)
-    }
-  }
   // The author can't review their own change, so they're never offered.
   const author = authorOf(conflict)
   const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id) && p.id !== author)
@@ -1604,12 +1597,12 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
           <>
             <button
               type="button"
-              onClick={() => handleExpandedChange(!expanded)}
+              onClick={() => onExpandedChange && onExpandedChange(!expanded)}
               data-review-header
               className="mb-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/[0.04]"
             >
-              <Circle
-                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded ? 'fill-slate-400' : '')}
+              <ChevronDown
+                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded && 'rotate-180')}
               />
               <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
               <span className="text-[11px] leading-4 text-slate-400">·</span>
