@@ -317,6 +317,20 @@ export function byDue(a, b) {
 export function pickHero(entries) {
   return [...entries].sort((a, b) => heroTier(a) - heroTier(b) || byDue(a, b))[0] ?? null
 }
+// My tasks, laid out: the hero, then everything else by due date — the hero
+// is never among them — with only the first `limit` showing until it's
+// expanded. `hidden` is how many are behind "+N" (0: nothing to expand).
+export function taskListOf(entries, { limit, expanded = false } = {}) {
+  const hero = pickHero(entries)
+  const rest = entries.filter((entry) => entry !== hero).sort(byDue)
+  const collapsible = Number.isFinite(limit) && rest.length > limit
+  return {
+    hero,
+    rest,
+    visible: collapsible && !expanded ? rest.slice(0, limit) : rest,
+    hidden: collapsible ? rest.length - limit : 0,
+  }
+}
 
 // Normalizes a raw conflict (a conflictChecklist item or a workspace
 // conflict point like paddingConflict) into the shared record.

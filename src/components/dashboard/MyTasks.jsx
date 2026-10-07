@@ -6,7 +6,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
 import { allPeople, currentUserFor, mergeListItems } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
-import { TASK_LABEL, authorOf, byDue, dueUrgency, pickHero, remainingWorkOf, taskGroups } from '@/lib/conflicts'
+import { TASK_LABEL, authorOf, dueUrgency, remainingWorkOf, taskGroups, taskListOf } from '@/lib/conflicts'
 import { differencesOf, flowOf } from '@/lib/conflictInsight'
 import { useConflictStore } from '@/state/ConflictStore'
 
@@ -18,8 +18,9 @@ import { useConflictStore } from '@/state/ConflictStore'
 //     In progress), the title, "project · who asked", the two values a
 //     decision is between, and the due date at the right. The whole row is
 //     the way in; its action shows on hover or focus.
-// Five rows by default, the rest behind "+N".
-const SHOWN = 5
+// A few rows by default (TASKS_SHOWN), the rest behind "+N" — which opens
+// them in place and turns into "Show less".
+const TASKS_SHOWN = 3
 
 // A conflict that can't merge as it stands: a required check fails.
 function isBlocked(conflict) {
@@ -222,9 +223,7 @@ function MyTasks({ projectId = null, onClearProject }) {
     )
   }
 
-  const hero = pickHero(entries)
-  const rest = entries.filter((entry) => entry !== hero).sort(byDue)
-  const shown = all ? rest : rest.slice(0, SHOWN)
+  const { hero, rest, visible: shown, hidden } = taskListOf(entries, { limit: TASKS_SHOWN, expanded: all })
   // When every decision blocks the merge, that's said once under the title;
   // otherwise the blocked rows say so themselves.
   const decisions = entries.filter((entry) => entry.task.kind === 'decide')
@@ -257,9 +256,9 @@ function MyTasks({ projectId = null, onClearProject }) {
               {shown.map((entry) => <TaskRow key={entry.conflict.id} entry={entry} hideBlocked={allDecisionsBlock && entry.task.kind === 'decide'} onOpen={open} />)}
             </ul>
           )}
-          {rest.length > SHOWN && (
-            <button type="button" aria-expanded={all} onClick={() => setAll((value) => !value)} className="ds-intrinsic mt-1.5 rounded px-3 text-xs font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-              {all ? <LocalizedText text="Show less" /> : <><span className="tabular-nums">+{rest.length - SHOWN}</span> <LocalizedText text="Show more" /></>}
+          {hidden > 0 && (
+            <button type="button" data-task-more aria-expanded={all} onClick={() => setAll((value) => !value)} className="ds-intrinsic mt-1.5 rounded px-3 text-xs font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+              {all ? <LocalizedText text="Show less" /> : <><span className="tabular-nums">+{hidden}</span> <LocalizedText text="Show more" /></>}
             </button>
           )}
         </>
