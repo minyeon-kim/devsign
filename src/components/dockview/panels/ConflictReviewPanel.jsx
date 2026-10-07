@@ -71,6 +71,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ExceptionRequestDialog, exceptionDraftOf } from '@/components/conflicts/ExceptionRequestDialog'
+import { BaselineBadge, ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -759,6 +760,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
   const [showBefore, setShowBefore] = useState(false)
+  // The code under the cards: the difference is drawn above them, so the
+  // code is there for whoever reads it — shown or hidden, remembered.
+  const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') === '1' } catch { return false } })
+  const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   // The card under the pointer: the code block shows its result meanwhile.
   const [hover, setHover] = useState(null)
   // The third card's dropdown (choosing the card opens it), and the value
@@ -856,9 +861,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
 
   return (
     <div className="flex h-full flex-col">
-      {/* The decision action stays above the choices; the comparison scrolls
-          beneath it when the panel is short. */}
-      <div data-choice-scroll className={cn('min-w-0', pairedPreview && 'min-h-0 flex-1 overflow-auto')}>
       {pairedPreview && editing && flow.decide && (
         <div data-decide-bar className="mb-3 flex min-w-0 flex-wrap items-center gap-2 border-b border-white/[0.07] pb-3">
           <p data-decide-summary className="min-w-0 flex-1 basis-40 text-xs text-slate-300">
@@ -895,6 +897,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
           )}
         </div>
       )}
+      {/* The decision's button and the title above stay put; only what's
+          compared scrolls, so neither is ever pushed out of view. */}
+      <div data-choice-scroll className={cn('min-w-0', pairedPreview && 'min-h-0 flex-1 overflow-auto')}>
       {pairedPreview && flow && !readOnly && hideReference && breaks('B').length > 0 && (
         <p data-no-reference className="-mt-1.5 mb-3 text-xs leading-[18px] text-slate-400"><LocalizedText text="The design reference doesn’t keep the rule either. Adjusting it by hand can." /></p>
       )}
@@ -962,6 +967,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs leading-5 font-semibold text-white"><LocalizedText text={card.title} /></p>
                         <p className="truncate text-[10px] text-slate-500" title={card.source}><LocalizedText text={card.source} /></p>
+                        {/* The current value is the baseline: the branch its
+                            code is on — marked when that's production. */}
+                        {card.id === 'B' && <BaselineBadge conflict={conflict} className="mt-1.5" />}
                       </div>
                       {/* Finished: which card it was merged with. */}
                       {readOnly && on && (
@@ -1097,7 +1105,13 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   while another card is under the pointer, for that one. */}
               {conflict.diff && !readOnly && (
                 // (24px from the cards, and to what follows.)
-                <div className="mt-3 min-w-0"><ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} /></div>
+                <div className="mt-3 min-w-0">
+                  <button type="button" data-code-toggle aria-expanded={showCode} onClick={toggleCode} className={cn(TEXT_ACTION, '-ml-2 mb-1')}>
+                    <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
+                    <LocalizedText text={showCode ? 'Hide code' : 'Show code'} />
+                  </button>
+                  {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />}
+                </div>
               )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
@@ -2651,11 +2665,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <LocalizedText text={conflict.title} />
                 </h2>
                 {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-[10px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {primary}
               </div>
             </div>
+            {/* Where it is on the way to merged, and what to do now — fixed
+                under the title, like it. */}
+            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} className="shrink-0 px-3 pt-1 pb-2 pl-11" />}
 
             {/* Title, tabs and activity share the 44px content rail.
                 The back button occupies the separate 32px gutter. */}
@@ -2701,6 +2719,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
                       <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-3', REVIEW_CARD, 'xl:flex-1')}>
+                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} className="mb-3 shrink-0" />}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {/* (Listed here only where there's no comparison
                               card to carry them — the card shows its own.) */}

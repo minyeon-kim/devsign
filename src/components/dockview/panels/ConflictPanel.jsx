@@ -1,5 +1,6 @@
 import './ConflictPanel.css'
 import { NAV_BUTTON, PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
+import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
 import { conflictListRecord, isQueuedConflict, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -312,6 +313,9 @@ function ConflictPanel({ inMergeStudio }) {
                       <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
+                          {/* What kind of thing it is: a real code conflict,
+                              a drift from the design, … */}
+                          {!conflict.rollback && <ConflictTypeTag conflict={conflict} />}
                           {/* A mix of design drafts sent from Design Compare —
                               told apart from design ↔ code conflicts. */}
                           {isDraftMerge(conflict, mergeItems) && (
@@ -353,7 +357,10 @@ function ConflictPanel({ inMergeStudio }) {
                             <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
                           </p>
                         ) : conflict.message ? (
+                          // The cause first, as the kind of difference
+                          // ("Size mismatch"), then the sentence.
                           <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
+                            <MismatchLabel conflict={conflict} className="font-medium text-slate-100 after:mx-1.5 after:font-normal after:text-slate-600 after:content-['·']" />
                             <LocalizedText text={conflict.message} />
                           </p>
                         ) : <span className="text-slate-500">—</span>}

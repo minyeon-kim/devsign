@@ -269,7 +269,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
       <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-white/[0.03]">
         {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
           {card.authorId ? <Person id={card.authorId} /> : (
-            <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-slate-400')} />
+            <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-sky-400')} />
           )}
         </span>}
         <span className="min-w-0 flex-1">

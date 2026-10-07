@@ -369,6 +369,38 @@ No conflicts to decide|결정할 충돌이 없어요
 No approval requests|승인 요청이 없어요
 Show more|더 보기
 Next step|다음 할 일
+Code Conflict|코드 충돌
+Design Drift|디자인 불일치
+Production Code Priority|운영 코드 우선
+Design Decision|디자인 결정
+Two branches changed the same lines; the code can’t merge on its own.|두 브랜치가 같은 줄을 바꿔서 코드가 자동으로 병합되지 않아요.
+The code differs from the design standard.|코드가 디자인 기준과 달라요.
+The code differs from the design, and it’s already on the production branch.|코드가 디자인과 다르고, 이미 운영 브랜치에 올라가 있어요.
+Design drafts to choose between; no code is in conflict.|고를 디자인 시안이 있어요. 코드 충돌은 아니에요.
+Spacing mismatch|간격 불일치
+Border radius mismatch|모서리 반경 불일치
+Typography mismatch|타이포그래피 불일치
+Color mismatch|색상 불일치
+Stroke mismatch|선 두께 불일치
+Size mismatch|크기 불일치
+Value mismatch|값 불일치
+Merge conflict|병합 충돌
+Drafts to choose between|시안 선택 필요
+Below the standard on both sides|양쪽 모두 기준 미달
+Production baseline|운영 기준
+Base branch|기준 브랜치
+This is the code running in production now.|지금 운영 중인 코드예요.
+This branch isn’t in production yet.|아직 운영에 반영되지 않은 브랜치예요.
+Code now|현재 코드
+Same in the design — neither side fixes it|디자인도 같은 값 — 어느 쪽도 기준을 못 맞춰요
+What differs|무엇이 다른가요
+Show code|코드 보기
+Hide code|코드 숨기기
+Compare the two values and choose how to resolve it.|두 값을 비교하고 해결 방법을 선택하세요.
+A way is chosen. Send it for review to move on.|해결 방법을 골랐어요. 검토를 요청하면 다음 단계로 넘어가요.
+Waiting for the reviewers’ approval.|검토자의 승인을 기다리고 있어요.
+Every approval is in. Merge it to finish.|모든 승인이 끝났어요. 병합하면 완료돼요.
+Merged. Nothing is left to do.|병합됐어요. 남은 일이 없어요.
 Show all|모두 보기
 Open conflicts|미해결 충돌
 Recently viewed|최근 열람
