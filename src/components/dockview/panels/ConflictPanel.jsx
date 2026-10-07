@@ -585,12 +585,14 @@ function ListStatus({ conflict, ready, note }) {
     pending_rollback: <>{tally}, <LocalizedText text="Ready to roll back" /></>,
     done: <LocalizedText text={rollback ? 'Rolled back' : 'Merged'} />,
   }[status.id]
+  const label = status.id === 'done' ? rollback ? 'Rolled back' : 'Merged' : status.label
+  const merged = status.id === 'done' && !rollback
   return (
     <>
     <Tooltip>
-      <TooltipTrigger render={<span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5 text-slate-200')} />}>
-        <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
-        <LocalizedText text={status.label} />
+      <TooltipTrigger render={<span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5', merged ? 'text-emerald-200' : 'text-slate-200')} />}>
+        {merged ? <CircleCheck aria-hidden className="size-3.5 shrink-0 text-emerald-300" /> : <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />}
+        <LocalizedText text={label} />
       </TooltipTrigger>
       <TooltipContent side="bottom" align="start" className="block px-2.5 py-1.5 text-left text-xs leading-5 whitespace-nowrap">{detail}</TooltipContent>
     </Tooltip>

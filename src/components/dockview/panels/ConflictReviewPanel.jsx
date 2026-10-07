@@ -754,6 +754,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // code is there for whoever reads it — shown or hidden, remembered.
   const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') === '1' } catch { return false } })
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
+  const [showAlternatives, setShowAlternatives] = useState(false)
   // The card under the pointer: the code block shows its result meanwhile.
   const [hover, setHover] = useState(null)
   // The third card's dropdown (choosing the card opens it), and the value
@@ -893,11 +894,17 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         <section className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {pairedPreview ? (<>
+              {readOnly && offered.length > 1 && (
+                <button type="button" data-alternatives-toggle aria-expanded={showAlternatives} onClick={() => setShowAlternatives((value) => !value)} className="inline-flex w-fit items-center gap-1 text-xs text-slate-400 hover:text-white">
+                  <LocalizedText text={showAlternatives ? 'Hide other choices' : 'View other choices'} />
+                  <ChevronDown className={cn('size-3.5 transition-transform', showAlternatives && 'rotate-180')} />
+                </button>
+              )}
               {/* ② One of three, like radio options, all the same height:
                   the picked one in green with a check, the others with an
                   empty ring. Decided: the chosen one stands, the rest fade. */}
-              <div role="radiogroup" aria-label="해결 방법 선택" className={cn('grid gap-2', offered.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
-                {offered.map((card) => {
+              <div role={readOnly ? undefined : 'radiogroup'} aria-label="해결 방법 선택" className={cn('grid gap-2', (readOnly && !showAlternatives ? 1 : offered.length) === 2 ? 'grid-cols-2' : (readOnly && !showAlternatives ? 1 : offered.length) === 3 ? 'grid-cols-3' : '')}>
+                {offered.filter((card) => !readOnly || showAlternatives || card.id === choice).map((card) => {
                   const on = choice === card.id
                   const isCustom = card.id === 'C'
                   const empty = isCustom && !custom
@@ -920,8 +927,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     !inert && 'hover:border-white/35'
                   )} data-applied={readOnly && on ? '' : undefined} onMouseEnter={editing ? () => setHover(card.id) : undefined} onMouseLeave={editing ? () => setHover(null) : undefined}>
                   <div
-                    role="radio"
-                    aria-checked={on}
+                    role={readOnly ? undefined : 'radio'}
+                    aria-checked={readOnly ? undefined : on}
                     aria-disabled={!editing}
                     tabIndex={inert ? -1 : 0}
                     // (Not a click in the dropdown's list: that's drawn
@@ -1912,8 +1919,8 @@ const STAGE_BADGE = {
 function StageBadge({ stage }) {
   const badge = STAGE_BADGE[stage] ?? STAGE_BADGE.detected
   return (
-    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, badge.tone)}>
-      <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />
+    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, stage === 'resolved' ? 'bg-emerald-400 text-emerald-950' : badge.tone)}>
+      {stage === 'resolved' ? <CircleCheck className="size-4 shrink-0" /> : <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />}
       <LocalizedText text={badge.label} />
     </span>
   )
@@ -1941,7 +1948,7 @@ function approvalStateOf(conflict, canReview) {
         : mode === 'changes' ? <>{asked.map((reviewer) => nameOf(reviewer.id)).join(', ')} · <LocalizedText text="Changes requested" /></>
           : mode === 'approved' ? <><LocalizedText text="Approvals" /> <span className="tabular-nums">{approved.length}/{required.length}</span> <LocalizedText text="complete" /></>
             : approved.length
-              ? <><LocalizedText text={`${approved.map((reviewer) => nameOf(reviewer.id)).join(', ')} approved it`} />{when && <> · <LocalizedText text={when} /></>}</>
+              ? <><LocalizedText text={`${approved.map((reviewer) => nameOf(reviewer.id)).join(', ')} approved`} />{when && <> · <LocalizedText text={when} /></>}</>
               : <><LocalizedText text="Merged" />{when && <> · <LocalizedText text={when} /></>}</>
   return { mode, line, waiting, asked, required, nameOf, viewerId }
 }
@@ -2052,7 +2059,7 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
           <button type="button" data-approval-merge onClick={onMerge} disabled={blockingCount > 0} title={blockingCount > 0 ? tr('Resolve the failing checks before merging.') : undefined} className={CTA}><GitMerge className="size-3.5" /><LocalizedText text={TASK_LABEL.merge} /></button>
         )}
         {mode === 'merged' && onRevert && (
-          <button type="button" data-approval-revert onClick={onRevert} className={QUIET}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Revert" /></button>
+          <button type="button" data-approval-revert onClick={onRevert} className={TEXT_ACTION}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Revert" /></button>
         )}
       </div>
     </div>
@@ -2092,6 +2099,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     setSideTab(value)
   }
   const [reasonRequest, setReasonRequest] = useState(null)
+  const [confirmRevert, setConfirmRevert] = useState(false)
   const [exceptionReasonDraft, setExceptionReasonDraft] = useState('')
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
@@ -2296,8 +2304,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const mergeConflict = Boolean(conflict?.diff?.before?.some((line) => line.startsWith('<<<<<<<')))
   const mergedSide = decisionState.side ?? conflict?.decidedSide ?? 'A'
   const mergedWith = !conflict ? null
-    : mergeConflict ? `Merged with the ${mergedSide === 'A' ? 'remote' : 'local'} branch (${mergedSide === 'A' ? conflict.branches?.remote : conflict.branches?.local}) value`
-      : mergedSide === 'A' ? 'Merged with the design reference value' : 'Merged with the current implementation value'
+    : mergeConflict ? `Resolved with the ${mergedSide === 'A' ? 'remote' : 'local'} branch (${mergedSide === 'A' ? conflict.branches?.remote : conflict.branches?.local}) value`
+      : mergedSide === 'A' ? 'Resolved with the design reference' : 'Resolved by keeping the current implementation'
   const approvers = (conflict?.reviewers ?? []).filter((reviewer) => reviewer.status === 'approved').map((reviewer) => personNameOf(reviewer.id)).filter(Boolean)
   // The reasons linked to this conflict (lib/rationale): the rules it runs
   // into, its purpose and its comments — nothing here is typed in.
@@ -2669,7 +2677,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
       onReview={handleReview}
       onMerge={handleMerge}
-      onRevert={handleRevert}
+      onRevert={() => setConfirmRevert(true)}
     />
   ) : null
 
@@ -2688,18 +2696,20 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 >
                   <ChevronLeft className="size-5" />
                 </button>
+                {!conflict.rollback && <StageBadge stage={stage} />}
                 <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
                   <LocalizedText text={conflict.title} />
                 </h2>
-                {!conflict.rollback && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 {!conflict.rollback && <ConflictTypeTag conflict={conflict} header />}
-                {/* Status and risk stay visible beside the title. */}
-                {!conflict.rollback && <StageBadge stage={stage} />}
+                {conflict.rollback && <span className="shrink-0 text-xs text-slate-500">· <LocalizedText text="Revert" /></span>}
                 {severity && (
-                  <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
-                    <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
-                    <LocalizedText text={severity.label} />
-                  </span>
+                  severity.label === 'Low'
+                    ? <span data-risk-meta className="text-xs text-slate-500"><LocalizedText text="Low risk" /></span>
+                    : <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                      <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
+                      <LocalizedText text={severity.label} />
+                    </span>
                 )}
               </div>
               {/* Approval — who, where it stands, and its one action — on
@@ -2721,7 +2731,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', !replayId && 'xl:overflow-hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
-                  {stage === 'resolved' && conflict.rollback && (
+                  {stage === 'resolved' && (
                     <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
                       <CircleCheck className="size-4 shrink-0 text-emerald-300" />
                       <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Rolled back' : 'Merged'} /></span>
@@ -2730,19 +2740,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           and when. */}
                       <span className="min-w-0 text-xs text-emerald-100/80">
                         {[
-                          conflict.rollback ? 'The rollback has run.' : mergedWith,
-                          approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
+                              conflict.rollback ? null : mergedWith,
+                              approvers.length ? `Sign-off from ${approvers.join(', ')}` : conflict.mergedBy ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
                           conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
                         ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
                       </span>
-                      {/* Undoing it is a quiet button here, with the result it
-                          undoes — not the header's main action. */}
-                      {!conflict.rollback && (
-                        <button type="button" data-banner-revert onClick={handleRevert} className={cn(NAV_BUTTON, 'ml-auto h-7')}>
-                          <RotateCcw className="size-3.5 text-slate-400" />
-                          <LocalizedText text="Revert" />
-                        </button>
-                      )}
+                      {!conflict.rollback && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>
                   )}
                   {!replayId ? (
@@ -2750,7 +2753,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
                       <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5', REVIEW_CARD, 'xl:flex-1')}>
-                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} className="mb-5 shrink-0" />}
+                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} className="mb-5 shrink-0" />}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {/* (Listed here only where there's no comparison
                               card to carry them — the card shows its own.) */}
@@ -2882,6 +2885,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             </div>
           </>
         )}
+        <Dialog open={confirmRevert} onOpenChange={setConfirmRevert}>
+          <DialogContent className="gap-0 bg-card p-0 sm:max-w-[420px]">
+            <div className="px-5 pt-5 pb-3">
+              <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Create a revert request?" /></DialogTitle>
+              <DialogDescription className="mt-1 text-xs leading-[18px] text-slate-400">
+                <LocalizedText text="The merged change will stay in place until the inverse change is reviewed and merged." />
+              </DialogDescription>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-5 py-4">
+              <button type="button" onClick={() => setConfirmRevert(false)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">
+                <LocalizedText text="Cancel" />
+              </button>
+              <button type="button" onClick={() => { setConfirmRevert(false); handleRevert() }} className="ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300">
+                <RotateCcw className="size-3.5" />
+                <LocalizedText text="Create revert request" />
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={Boolean(reasonRequest)} onOpenChange={(open) => { if (!open) setReasonRequest(null) }}>
           <DialogContent className="gap-0 bg-card p-0 sm:max-w-[480px]">
             <form onSubmit={(event) => {

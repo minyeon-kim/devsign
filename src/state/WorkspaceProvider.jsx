@@ -980,7 +980,26 @@ export function WorkspaceProvider({ children, projectId }) {
       })
     } else if (item) {
       for (const fileId of item.fileIds ?? []) {
-        const incoming = new Map((codeMergeVariants[item.id]?.[fileId] ?? []).map((d) => [d.line, d.incoming]))
+        const codeChanges = codeMergeVariants[item.id]?.[fileId] ?? []
+        const layerCodeMap = designMergeVariants[item.id]?.layerCodeMap ?? {}
+        const resolutionFor = (change) => {
+          // Code hunk IDs are linked to a decision by the layer's file/line span.
+          const layer = Object.entries(layerCodeMap).find(([, span]) => span.fileId === fileId
+            && change.line >= span.line && change.line < span.line + (span.span ?? 1))
+          if (!layer) return null
+          const [layerId] = layer
+          const row = related.flatMap((candidate) => driftRowsFor(candidate, item))
+            .find((entry) => entry.key.startsWith(`${layerId}:`)
+              && entry.diff && ([entry.diff.id, `${layerId}-${entry.diff.id}`, `${layerId}:${entry.diff.id}`].includes(change.id)
+                || change.id.endsWith(`-${entry.diff.id}`)))
+          return row ? mergedResolutions[row.key] : null
+        }
+        const incoming = new Map(codeChanges
+          .filter((change) => {
+            const resolution = resolutionFor(change)
+            return resolution == null || resolution === 'A'
+          })
+          .map((change) => [change.line, change.incoming]))
         const ai = new Map((draft.annotations ?? []).filter((a) => a.status === 'done' && a.fileId === fileId).map((a) => [a.line, a.summary]))
         const base = fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? []
         finalFiles[fileId] = base.map((line, i) => draft.manualCode?.[`${fileId}:${i + 1}`] ?? (incoming.get(i + 1) ?? line) + (ai.has(i + 1) ? `  // AI: ${ai.get(i + 1)}` : ''))

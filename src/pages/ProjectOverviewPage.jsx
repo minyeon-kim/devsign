@@ -363,6 +363,13 @@ function ProjectOverviewPage() {
               )}
               {openConflicts.length === 0 && <p className="py-3 text-xs text-slate-500"><LocalizedText text="No conflicts to review." /></p>}
             </Section>
+            {merged.length > 0 && (
+              <Section title="Recently merged" action={<SectionLink onClick={() => openList('done')}>View all</SectionLink>}>
+                <ul className="divide-y divide-white/[0.06]">
+                  {merged.slice(-4).reverse().map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} onOpen={openConflict} /></li>)}
+                </ul>
+              </Section>
+            )}
           </div>
 
           <div className="flex min-w-0 flex-col gap-7">

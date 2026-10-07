@@ -2,6 +2,7 @@ import { ChevronRight, FileCode2 } from 'lucide-react'
 import { cn } from 'cn'
 import { RISK_LABEL } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
+import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 
 // Low severity is the default and doesn't need to occupy space in the queue.
@@ -22,6 +23,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[13px] font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
+          {conflict.reviewStage === 'resolved' && <ListStatusLabel conflict={conflict} className="text-[10.5px]" />}
           <RiskBadge severity={conflict.severity} />
           {note && <span className="shrink-0 text-[10.5px] text-slate-500"><LocalizedText text={note} /></span>}
         </span>

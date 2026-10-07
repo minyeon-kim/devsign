@@ -106,7 +106,7 @@ function ValueFigure({ kind, value, other, tone }) {
 // What differs, for someone who doesn't read the code: each property of the
 // element with the code's value and the design's side by side, drawn where
 // it can be. Stays put above the comparison, so it's there while choosing.
-export function DifferenceSummary({ conflict, className }) {
+export function DifferenceSummary({ conflict, className, resolved = false, mergedSide = 'A' }) {
   const differences = differencesOf(conflict)
   if (!differences.length) return null
   return (
@@ -117,20 +117,20 @@ export function DifferenceSummary({ conflict, className }) {
       </div>
       <div className="grid grid-cols-[minmax(72px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 text-[10px] leading-4 text-slate-400">
         <span />
-        <span><LocalizedText text="Code now" /></span>
-        <span><LocalizedText text="Design standard" /></span>
+        <span><LocalizedText text={resolved && mergedSide === 'B' ? 'Final applied value' : resolved ? 'Before merge' : 'Code now'} /></span>
+        <span><LocalizedText text={resolved && mergedSide === 'A' ? 'Final applied value' : 'Design standard'} /></span>
       </div>
       <ul className="mt-1 space-y-1.5">
         {differences.map((entry) => (
           <li key={entry.label} data-difference={entry.kind} className="grid min-w-0 grid-cols-[minmax(72px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-3 text-xs">
             <span className="leading-4 text-slate-400"><LocalizedText text={entry.label} /></span>
             <div className="flex min-w-0 items-center gap-2">
-              <ValueFigure kind={entry.kind} value={entry.current} other={entry.expected} tone="current" />
-              <span translate="no" className={cn('min-w-0 leading-5 font-medium break-words tabular-nums', entry.shared ? 'text-slate-200' : 'text-rose-200')}>{entry.current}</span>
+              <ValueFigure kind={entry.kind} value={entry.current} other={entry.expected} tone={resolved && mergedSide === 'B' ? 'expected' : 'current'} />
+              <span translate="no" className={cn('min-w-0 leading-5 font-medium break-words tabular-nums', resolved && mergedSide === 'B' ? 'text-emerald-100' : resolved || entry.shared ? 'text-slate-200' : 'text-rose-200')}>{entry.current}</span>
             </div>
             <div className="flex min-w-0 items-center gap-2">
-              <ValueFigure kind={entry.kind} value={entry.expected} other={entry.current} tone={entry.shared ? 'current' : 'expected'} />
-              <span translate="no" className={cn('min-w-0 leading-5 font-medium break-words tabular-nums', entry.shared ? 'text-slate-200' : 'text-emerald-200')}>{entry.expected}</span>
+              <ValueFigure kind={entry.kind} value={entry.expected} other={entry.current} tone={resolved && mergedSide !== 'A' ? 'current' : entry.shared ? 'current' : 'expected'} />
+              <span translate="no" className={cn('min-w-0 leading-5 font-medium break-words tabular-nums', resolved && mergedSide === 'A' ? 'text-emerald-100' : resolved || entry.shared ? 'text-slate-200' : 'text-emerald-200')}>{entry.expected}</span>
             </div>
           </li>
         ))}
@@ -156,6 +156,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
   const [expandedStep, setExpandedStep] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
+  const isExpanded = expandedStep ?? flow.current !== 'done'
   return (
     <section data-flow-steps={flow.current} aria-label="검토 진행 상태" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="flex items-start justify-between gap-3 px-3 py-3">
@@ -163,9 +164,14 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
           <h3 className="text-xs font-semibold text-white">{flow.current === 'done' ? '병합 완료' : '검토 진행 상태'}</h3>
           <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
         </div>
-        <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length}</span>
+        {flow.current === 'done' ? (
+          <button type="button" data-flow-toggle aria-expanded={isExpanded} onClick={() => setExpandedStep(!isExpanded)} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-200 hover:text-white">
+            <LocalizedText text={`${flow.steps.length} steps complete`} />
+            <ChevronDown className={cn('size-3.5 transition-transform', isExpanded && 'rotate-180')} />
+          </button>
+        ) : <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length}</span>}
       </div>
-      <ol className="px-3 py-2">
+      {isExpanded && <ol className="px-3 py-2">
         {flow.steps.map((step, index) => {
           const last = index === flow.steps.length - 1
           const isApprove = step.id === 'approve'
@@ -223,7 +229,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
             </li>
           )
         })}
-      </ol>
+      </ol>}
     </section>
   )
 }

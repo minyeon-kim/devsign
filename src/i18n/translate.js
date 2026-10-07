@@ -81,7 +81,8 @@ const rules = [
   [/^You detected a difference$/, () => '내가 차이를 발견했어요'],
   [/^You closed the review$/, () => '내가 검토를 닫았어요'],
   [/^You reopened$/, () => '내가 검토를 다시 열었어요'],
-  [/^(.+?) approved$/, (_, name) => `${name}님이 승인했어요`],
+  [/^Recently merged$/, () => '최근 병합'],
+  [/^(.+?) approved$/, (_, names) => `${approvalSubject(names)} 승인했어요`],
   [/^(.+?) requested a review$/, (_, name) => `${name}님이 검토를 요청했어요`],
   [/^(.+?) requested changes$/, (_, name) => `${name}님이 수정을 요청했어요`],
   [/^(.+?) merged$/, (_, name) => `${name}님이 병합했어요`],
@@ -91,6 +92,7 @@ const rules = [
   [/^(.+?) detected a difference$/, (_, name) => `${name}님이 차이를 발견했어요`],
   [/^(.+?) closed the review$/, (_, name) => `${name}님이 검토를 닫았어요`],
   [/^(.+?) reopened$/, (_, name) => `${name}님이 검토를 다시 열었어요`],
+  [/^(.+) approved it$/, (_, names) => `${approvalSubject(names)} 승인했어요`],
   [/^(\S+) approved (.+)$/, (_, name, title) => `${name}님이 ${withObjectParticle(core(title))} 승인했어요`],
   [/^requested your review on (.+)$/, (_, title) => `${core(title)} 검토를 요청했어요`],
   [/^approved the (design|code) changes(?: on (.+))?$/, (_, kind, target) => `${target ? `${core(target)} ` : ''}${kind === 'design' ? '디자인' : '코드'} 변경을 승인했어요`],
@@ -131,7 +133,20 @@ const rules = [
   [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '병합 충돌'}`],
   [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^Waiting for (.+)$/, (_, name) => `${core(name)} 대기 중`],
-  [/^(.+) approved it$/, (_, names) => `${names}${/[가-힣]$/.test(names) ? (((names.charCodeAt(names.length - 1) - 0xac00) % 28) ? '이' : '가') : /[aeiouyhw]$/i.test(names) ? '가' : '이'} 승인함`],
+  [/^Create a revert request\?$/, () => '되돌리기 검토를 요청할까요?'],
+  [/^The merged change will stay in place until the inverse change is reviewed and merged\.$/, () => '되돌릴 변경을 검토하고 병합할 때까지 현재 병합 내용은 유지돼요.'],
+  [/^Create revert request$/, () => '되돌리기 요청'],
+  [/^Resolved with the design reference$/, () => '디자인 기준으로 해결됐어요'],
+  [/^Resolved by keeping the current implementation$/, () => '현재 구현을 유지해 해결됐어요'],
+  [/^Resolved with the (remote|local) branch \((.+)\) value$/, (_, side, branch) => `${side === 'remote' ? '원격' : '로컬'} 브랜치(${branch}) 값을 적용해 해결됐어요`],
+  [/^Merged by (.+)$/, (_, name) => `${approvalSubject(name)} 병합했어요`],
+  [/^View merged code$/, () => '병합된 코드 보기'],
+  [/^View other choices$/, () => '다른 선택지 보기'],
+  [/^Hide other choices$/, () => '다른 선택지 접기'],
+  [/^Final applied value$/, () => '최종 적용 값'],
+  [/^Before merge$/, () => '병합 전'],
+  [/^Low risk$/, () => '위험도 낮음'],
+  [/^(\d+) steps complete$/, (_, n) => `${n}단계 모두 완료`],
   [/^Approved by (.+)$/, (_, name) => `${name === 'you' ? '내가' : core(name)} 승인함`],
   [/^Changes requested by (.+)$/, (_, name) => `${core(name)} 변경 요청`],
   [/^Projects \(current: (.+)\)$/, (_, name) => `프로젝트 (현재: ${core(name)})`],
@@ -274,6 +289,12 @@ const rules = [
 function withObjectParticle(word) {
   const last = word.charCodeAt(word.length - 1)
   return `${word}${last >= 0xac00 && last <= 0xd7a3 ? ((last - 0xac00) % 28 ? '을' : '를') : '을(를)'}`
+}
+
+function approvalSubject(names) {
+  const people = names.split(', ')
+  if (people.length === 1) return `${people[0]}님이`
+  return `${people.slice(0, -1).map((name) => `${name}님`).join(', ')}과 ${people.at(-1)}님이`
 }
 
 function core(text) {

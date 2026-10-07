@@ -1,3 +1,4 @@
+import { CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { STAGE_LABEL, gitFlowOf, listStatusOf } from '@/lib/conflicts'
@@ -44,10 +45,15 @@ export function ReviewStageBadge({ stage, ready = false, label, quiet = false, p
 // the list's five statuses (lib/conflicts), never a boxed chip.
 export function ListStatusLabel({ conflict, className }) {
   const status = listStatusOf(conflict)
+  const resolvedLabel = conflict.reviewStage === 'resolved'
+    ? conflict.rollback ? 'Rolled back' : 'Merged'
+    : status.label
   return (
-    <span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5 text-slate-200', className)}>
-      <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
-      <LocalizedText text={status.label} />
+    <span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5', conflict.reviewStage === 'resolved' && !conflict.rollback ? 'text-emerald-200' : 'text-slate-200', className)}>
+      {conflict.reviewStage === 'resolved' && !conflict.rollback
+        ? <CircleCheck aria-hidden className="size-3.5 shrink-0 text-emerald-300" />
+        : <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />}
+      <LocalizedText text={resolvedLabel} />
     </span>
   )
 }
