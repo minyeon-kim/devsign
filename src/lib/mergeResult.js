@@ -66,13 +66,13 @@ function putClass(lines, pattern, className, focus = []) {
   return lines.map((line, index) => (index === host ? line.replace(/className="([^"]*)"/, (_, classes) => `className="${`${classes} ${className}`.trim()}"`) : line))
 }
 
-// The one value a conflict is about, when it's a number that can be set
-// without leaving the review (the third card's chips and field): a single
-// compared height, width, size or corner radius of the conflict's own
-// element. Null: several values, or one a number can't say (a color, a
-// shadow, a gradient) — that's set in Merge Studio.
-//   { property, label, current, standard, tokens: [{ name, px }], min, max,
-//     assemblyFor(px), valueOf(assembly) }
+// The numbers of a conflict that can be set without leaving the review (the
+// third card's steppers): each compared height, width, size (touch area) or
+// corner radius of the conflict's own element, one control a value. A value
+// a number can't say (a color, a shadow, a gradient) has none — that, and
+// anything beyond the compared values, is set in Merge Studio.
+//   { index, property, label, current, standard, tokens: [{ name, px }],
+//     min, max, assemblyFor(px), valueOf(assembly) }
 const BUTTON_HEIGHTS = [
   { name: '--button-height-sm', px: 32 },
   { name: '--button-height-md', px: 40 },
@@ -81,11 +81,7 @@ const BUTTON_HEIGHTS = [
 const RADII = [{ name: 'rounded-md', px: 6 }, { name: 'rounded-lg', px: 8 }, { name: 'rounded-xl', px: 12 }, { name: 'rounded-2xl', px: 16 }]
 const SIZES = [{ name: 'size-4', px: 16 }, { name: 'size-5', px: 20 }, { name: 'size-6', px: 24 }]
 const RANGES = { radius: [0, 64], height: [16, 96], width: [16, 640], size: [8, 96] }
-export function valueControlFor(conflict, item) {
-  const fields = conflict?.comparisonFields ?? []
-  const layer = layerOf(item, conflict?.layerId)
-  if (!layer || fields.length !== 1) return null
-  const [field] = fields
+function controlFor(conflict, layer, field) {
   const property = propertyOf(field.label)
   if (!RANGES[property]) return null
   const current = numbersIn(field.current)
@@ -108,6 +104,16 @@ export function valueControlFor(conflict, item) {
           : { height: px, heightToken: buttonHeight ? BUTTON_HEIGHTS.find((token) => token.px === px)?.name : undefined }),
     valueOf: (assembly) => (!assembly ? null : property === 'radius' ? assembly.radius ?? null : property === 'height' ? assembly.height ?? null : assembly.width ?? null),
   }
+}
+
+// One entry a compared value (null where it has no control).
+export function valueControlsFor(conflict, item) {
+  const layer = layerOf(item, conflict?.layerId)
+  if (!layer) return []
+  return (conflict?.comparisonFields ?? []).map((field, index) => {
+    const control = controlFor(conflict, layer, field)
+    return control ? { ...control, index } : null
+  })
 }
 
 // What two versions of the code differ by, as the values themselves
