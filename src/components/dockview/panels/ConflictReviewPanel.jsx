@@ -921,7 +921,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         </div>
       )}
       {/* Decided: why, right under what was decided. */}
-      {pairedPreview && flow?.reason?.value && !editing && (
+      {pairedPreview && choice !== 'C' && flow?.reason?.value && !editing && (
         <div data-decision-reason={choice} className="-mt-2 mb-4 min-w-0"><ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly /></div>
       )}
       {/* The decision's button and the title above stay put; only what's
@@ -1129,6 +1129,16 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         </div>
                       ))}
                     </dl>
+                    {isCustom && on && flow?.custom && flow?.reason && (editing || flow.reason.value) && (
+                      <div
+                        data-decision-reason="C"
+                        className="min-w-0 rounded-lg bg-white/[0.04] p-3"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <ReasonField key={`${conflict.id}:C`} {...flow.reason} readOnly={!editing} />
+                      </div>
+                    )}
                     {/* 5 · What it does to the code, as the one value that
                         changes — at the foot of every card, so the three
                         read across. (The whole line is under the cards.) */}
@@ -1177,7 +1187,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && editing && !exception && (
+              {flow?.reason && choice !== 'C' && editing && !exception && (
                 <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
                   <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
                 </div>
@@ -1330,14 +1340,9 @@ function ValueSelect({ control, open, onOpenChange, onPeek }) {
   const [typing, setTyping] = useState(false)
   const [text, setText] = useState('')
   const input = useRef(null)
-  // (The dropdown hands focus back as it closes — just after the field
-  // takes it. A blur that soon isn't the person leaving the field.)
-  const typingSince = useRef(0)
   useEffect(() => {
     if (!typing) return
-    typingSince.current = Date.now()
     input.current?.focus()
-    // (A value already typed is there to be replaced.)
     input.current?.select()
   }, [typing])
   const options = control.tokens.filter((token) => token.px !== control.current && token.px !== control.standard)
@@ -1345,12 +1350,13 @@ function ValueSelect({ control, open, onOpenChange, onPeek }) {
   const number = text.trim() === '' ? null : Number(text)
   const invalid = number != null && (!Number.isFinite(number) || number < control.min || number > control.max)
   const commit = () => {
-    if (number != null && !invalid) control.set(number)
+    if (invalid) return
+    if (number != null) control.set(number)
     setTyping(false)
   }
-  if (typing) {
-    return (
-      <span data-value-typing onClick={(event) => event.stopPropagation()} className="flex min-w-0 cursor-default flex-col items-end gap-1">
+  return (
+    <>
+      {typing && <span data-value-typing onClick={(event) => event.stopPropagation()} className="flex min-w-0 cursor-default flex-col items-end gap-1">
         <span className="flex items-center gap-1">
           <label className={cn('flex h-7 w-24 items-center gap-1 rounded-lg border bg-white/[0.02] px-2 transition-colors focus-within:border-emerald-300/60', invalid ? 'border-red-400/60' : 'border-white/15')}>
             <input
@@ -1361,11 +1367,10 @@ function ValueSelect({ control, open, onOpenChange, onPeek }) {
               aria-invalid={invalid}
               value={text}
               onChange={(event) => setText(event.target.value.replace(/[^\d.]/g, ''))}
-              onBlur={() => {
-                if (Date.now() - typingSince.current < 400) { requestAnimationFrame(() => input.current?.focus()); return }
-                commit()
-              }}
+              onBlur={commit}
               onKeyDown={(event) => {
+                event.stopPropagation()
+                if (event.nativeEvent.isComposing) return
                 if (event.key === 'Enter') { event.preventDefault(); if (!invalid) commit() }
                 if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setTyping(false) }
               }}
@@ -1380,19 +1385,16 @@ function ValueSelect({ control, open, onOpenChange, onPeek }) {
           </button>
         </span>
         {invalid && <span data-value-error className="text-[11px] font-normal text-red-300"><LocalizedText text={`Enter a value from ${control.min} to ${control.max}px`} /></span>}
-      </span>
-    )
-  }
-  return (
-    <DropdownMenu open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) onPeek(null) }}>
-      <DropdownMenuTrigger data-value-select onClick={(event) => event.stopPropagation()} className="ds-intrinsic -my-1 inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.14] bg-white/[0.03] px-2 text-[13px] font-semibold text-white tabular-nums transition-colors hover:border-white/25">
+      </span>}
+    <DropdownMenu open={!typing && open} onOpenChange={(next) => { onOpenChange(next); if (!next) onPeek(null) }}>
+      <DropdownMenuTrigger style={typing ? { display: 'none' } : undefined} data-value-select onClick={(event) => event.stopPropagation()} className="ds-intrinsic -my-1 inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.14] bg-white/[0.03] px-2 text-[13px] font-semibold text-white tabular-nums transition-colors hover:border-white/25">
         {control.value == null ? <span className="text-xs font-normal text-slate-500"><LocalizedText text="Choose a value" /></span> : <>
           <span>{control.value}px</span>
           {token && <span translate="no" title={token.name} className="font-mono text-[11px] font-normal text-slate-500">{shortName(token.name)}</span>}
         </>}
         <ChevronDown className="size-3 shrink-0 text-slate-400" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" finalFocus={() => input.current ?? true} className="w-48">
         {options.map((option) => (
           <DropdownMenuItem key={option.px} data-value-option={option.px} title={option.name} onClick={() => control.set(option.px)} onMouseEnter={() => onPeek(option.px)} onMouseLeave={() => onPeek(null)} className="gap-2 text-xs">
             <span className="font-medium tabular-nums">{option.px}px</span>
@@ -1401,11 +1403,12 @@ function ValueSelect({ control, open, onOpenChange, onPeek }) {
           </DropdownMenuItem>
         ))}
         {options.length > 0 && <DropdownMenuSeparator />}
-        <DropdownMenuItem data-value-custom onClick={() => { setText(control.value != null && !token ? String(control.value) : ''); setTyping(true) }} className="text-xs">
+        <DropdownMenuItem data-value-custom onClick={() => { onPeek(null); onOpenChange(false); setText(control.value != null && !token ? String(control.value) : ''); setTyping(true) }} className="text-xs">
           <LocalizedText text="Type a value…" />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </>
   )
 }
 
