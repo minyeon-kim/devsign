@@ -815,6 +815,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // The third card's dropdown (choosing the card opens it), and the value
   // in it under the pointer — tried on in the card and the code meanwhile.
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmedAdjustment, setConfirmedAdjustment] = useState(null)
+  const [exceptionEditor, setExceptionEditor] = useState(null)
+  const openValueMenu = (open) => {
+    setMenuOpen(open)
+    if (open) { setConfirmedAdjustment(null); setExceptionEditor(null) }
+  }
   const [peek, setPeek] = useState(null)
   const mergedFile = mergedLines ?? conflict.mergedFileLines ?? code?.generated ?? null
   const mergedExcerpt = (() => {
@@ -960,7 +966,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   // (The third card, with a value to choose on it: choosing
                   // the card opens that, picked already or not.)
                   const picks = isCustom && Boolean(flow?.control)
-                  const choose = !editing ? undefined : picks ? () => { if (!on) flow.choose('C'); setMenuOpen(true) } : !on ? () => flow.choose(card.id) : undefined
+                  const choose = !editing ? undefined : picks ? () => { if (!on) flow.choose('C'); openValueMenu(true) } : !on ? () => flow.choose(card.id) : undefined
                   // A card with nothing to choose (no way into the studio).
                   // Any card can be chosen while choosing — the third one
                   // with no value yet too (it's set on the card).
@@ -1003,7 +1009,15 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {/* 1 · What choosing it does, where its values are from. */}
                     <div className="flex min-w-0 items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs leading-5 font-semibold text-white"><LocalizedText text={card.title} /></p>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p className="truncate text-xs leading-5 font-semibold text-white"><LocalizedText text={card.title} /></p>
+                      {badge?.text === 'Recommended' && !readOnly && (
+                        <span data-card-recommendation className={cn('inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10.5px] leading-none font-medium', badge.tone)}>
+                          {badge.icon && <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} />}
+                          <LocalizedText text={badge.text} />
+                        </span>
+                      )}
+                        </div>
                         <p className="truncate text-[10px] text-slate-500" title={card.source}><LocalizedText text={card.source} /></p>
                         {/* The current value is the baseline: the branch its
                             code is on — marked when that's production. */}
@@ -1030,7 +1044,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {/* 2 · One badge: how it stands with the standard. (Its
                         row is always there, so the cards line up.) */}
                     <div data-card-badge className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
-                      {badge && !readOnly && (
+                      {badge && badge.text !== 'Recommended' && !readOnly && (
                         <span className={cn('inline-flex h-5 items-center gap-1 rounded px-1.5 text-[10.5px] leading-none font-medium', badge.tone)}>
                           {badge.icon && <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} />}
                           <LocalizedText text={badge.text} />
@@ -1042,18 +1056,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {conflict.preview && (
                       <div className={cn('min-w-0', empty && 'opacity-40')}>
                         <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
-                      </div>
-                    )}
-                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
-                      <div data-card-rules className="min-w-0 space-y-2">
-                        {required.map((check, index) => <RuleNote key={check.id} check={check} required>
-                        {index === required.length - 1 && editing && (
-                          <button type="button" data-request-card-exception={card.id} onClick={(event) => { event.stopPropagation(); flow.requestException(card.id) }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 focus-visible:outline-2 focus-visible:outline-amber-300">
-                            <LocalizedText text="Apply exception" />
-                          </button>
-                        )}
-                        </RuleNote>)}
-                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
                       </div>
                     )}
                     {/* Several values, or one a number can't say (a color,
@@ -1084,7 +1086,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
                           {picks && editing ? (
-                            <dd className="flex min-w-0 justify-end"><ValueSelect control={flow.control} open={menuOpen} onOpenChange={(next) => { setMenuOpen(next); if (next && !on) flow.choose('C') }} onPeek={setPeek} /></dd>
+                            <dd className="flex min-w-0 justify-end"><ValueSelect control={{ ...flow.control, set: (value) => { flow.control.set(value); setConfirmedAdjustment({ conflictId: conflict.id, value }) } }} open={menuOpen} onOpenChange={(next) => { openValueMenu(next); if (next && !on) flow.choose('C') }} onPeek={setPeek} /></dd>
                           ) : picks && hand ? (
                             // (Decided: the value it was set to, as the
                             // other cards show theirs.)
@@ -1129,7 +1131,31 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         </div>
                       ))}
                     </dl>
-                    {isCustom && on && flow?.custom && flow?.reason && (editing || flow.reason.value) && (
+                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
+                      <div data-card-rules className="min-w-0 space-y-2">
+                        {required.map((check, index) => <RuleNote key={check.id} check={check} required>
+                        {index === required.length - 1 && editing && (
+                          exceptionEditor === `${conflict.id}:${card.id}` && on && flow.reason ? (
+                            <div data-decision-reason={card.id} className="w-full min-w-0 space-y-3 border-t border-amber-200/10 pt-3" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                              <ReasonField key={`${conflict.id}:${card.id}`} {...flow.reason} tone="warning" />
+                              <div className="flex justify-end gap-2">
+                                <button type="button" onClick={() => setExceptionEditor(null)} className="text-xs text-slate-400 hover:text-white"><LocalizedText text="Cancel" /></button>
+                                <button type="button" disabled={!flow.reason.value.trim() || reviewerNeeded} onClick={flow.submitException} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40">
+                                  <Send className="size-3" /><LocalizedText text="Send exception request" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" data-request-card-exception={card.id} disabled={isCustom && (!flow.custom || menuOpen || (flow.control && (confirmedAdjustment?.conflictId !== conflict.id || confirmedAdjustment.value !== flow.control.value)))} onClick={(event) => { event.stopPropagation(); if (!on) flow.choose(card.id); setExceptionEditor(`${conflict.id}:${card.id}`) }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40">
+                              <LocalizedText text="Apply exception" />
+                            </button>
+                          )
+                        )}
+                        </RuleNote>)}
+                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
+                      </div>
+                    )}
+                    {isCustom && on && required.length === 0 && flow?.custom && flow?.reason && (!editing || !flow.control || (confirmedAdjustment?.conflictId === conflict.id && confirmedAdjustment.value === flow.control.value && !menuOpen)) && (editing || flow.reason.value) && (
                       <div
                         data-decision-reason="C"
                         className="min-w-0 rounded-lg bg-white/[0.04] p-3"
@@ -1137,6 +1163,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         onKeyDown={(event) => event.stopPropagation()}
                       >
                         <ReasonField key={`${conflict.id}:C`} {...flow.reason} readOnly={!editing} />
+
                       </div>
                     )}
                     {/* 5 · What it does to the code, as the one value that
@@ -2603,7 +2630,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const broken = choice ? violations[choice] : []
   const reasonOf = (kind) => (conflict?.deviation?.kind === kind ? conflict.deviation.text ?? '' : '')
   const flowReason = choice === 'C' ? {
-    title: 'Why was it adjusted?',
+    title: broken.length ? 'Reason for adjustment and exception' : 'Why was it adjusted?',
     hint: 'Required',
     reasons: ADJUSTMENT_REASONS,
     value: conflict.adjustmentReason?.text ?? '',
@@ -2683,6 +2710,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       if (side !== choice) chooseWay(side)
       setExceptionReasonDraft('')
       setReasonRequest({ kind: 'card-exception', subject: violations[side].map((check) => check.title).join(', ') })
+    },
+    submitException: () => {
+      const reason = flowReason?.value.trim()
+      if (!choice || (choice === 'C' && !adjustedByHand) || !broken.length || !reason || !hasReviewers || stage !== 'detected') return
+      finishDecision(reason, { exceptionSubmitted: true })
     },
     reason: flowReason,
     changeDecision: () => update({ reviewStage: 'detected', exceptionChecks: [], customChosen: adjustedByHand, reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
@@ -2830,9 +2862,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div data-conflict-meta className="flex flex-wrap items-center gap-1.5 pl-10">
                   <ConflictTypeTag conflict={conflict} header />
                   {severity && (
-                    severity.label === 'Low'
-                      ? <span data-risk-meta className="text-xs text-slate-500"><LocalizedText text="Low risk" /></span>
-                      : <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                    <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
                         <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                         <LocalizedText text={severity.label} />
                       </span>

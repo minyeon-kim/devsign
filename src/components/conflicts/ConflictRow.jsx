@@ -6,9 +6,9 @@ import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { LocalizedText } from '@/i18n/runtime'
 
-// Low severity is the default and doesn't need to occupy space in the queue.
+// Every known risk level uses the same badge, including Low.
 export function RiskBadge({ severity }) {
-  if (!severity || severity === 'low') return null
+  if (!severity) return null
   return <SeverityPill bare quiet level={RISK_LABEL[severity]} />
 }
 

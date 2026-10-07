@@ -64,6 +64,8 @@ Version actions|버전 메뉴
 Request review again|재검토 요청
 Conflicting code|충돌 코드
 Proposed resolution|해결 제안
+Reason for adjustment and exception|직접 조정 및 예외 요청 사유
+This reason is also sent with the exception request.|입력한 조정 사유가 예외 요청에도 함께 전달됩니다.
 Apply exception|예외 적용
 Required rule|필수
 Recommended rule|권장

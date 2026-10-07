@@ -1020,3 +1020,29 @@ button.editor-line-comment {
   .ds-reason-chip:not(:disabled):hover,
   .ds-reason-chip:not(:disabled):active { transform: none; }
 }
+
+/* Reuse the required-rule card's muted surface and text tones. */
+[data-reason-field][data-tone='warning'] {
+  color: var(--color-amber-100);
+}
+[data-reason-field][data-tone='warning'] .ds-reason-chip {
+  border-color: color-mix(in srgb, var(--color-amber-100) 15%, transparent);
+  color: color-mix(in srgb, var(--color-amber-100) 70%, transparent);
+}
+[data-reason-field][data-tone='warning'] .ds-reason-chip:hover,
+[data-reason-field][data-tone='warning'] .ds-reason-chip[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--color-amber-100) 30%, transparent);
+  background-color: color-mix(in srgb, var(--color-amber-400) 8%, transparent);
+  color: var(--color-amber-100);
+}
+[data-reason-field][data-tone='warning'] .ds-reason-chip svg { color: inherit; }
+[data-reason-field][data-tone='warning'] .ds-reason-chip:focus-visible {
+  outline-color: color-mix(in srgb, var(--color-amber-100) 50%, transparent);
+}
+[data-reason-field][data-tone='warning'] input {
+  border-color: color-mix(in srgb, var(--color-amber-100) 15%, transparent);
+  color: var(--color-amber-100);
+}
+[data-reason-field][data-tone='warning'] input:focus {
+  border-color: color-mix(in srgb, var(--color-amber-100) 40%, transparent);
+}
