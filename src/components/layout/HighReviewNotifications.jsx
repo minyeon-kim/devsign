@@ -123,7 +123,7 @@ export default function HighReviewNotifications() {
   return (
     <aside ref={stackRef} aria-label="High priority notifications" aria-live="polite" style={{ ...anchor, maxHeight: `calc(100dvh - ${anchor.top + 16}px)` }} className="pointer-events-none fixed z-[1100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto overscroll-contain">
       <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-end">
-        <button type="button" onClick={dismissAll} className="rounded-full border border-white/15 bg-[#252525] px-3 py-1.5 text-xs text-slate-200 shadow-md hover:bg-[#333] focus-visible:outline-2 focus-visible:outline-emerald-300">알림 모두 닫기</button>
+        <button type="button" onClick={dismissAll} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-md hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600">알림 모두 닫기</button>
       </div>
       {showRequest && (
         <section className={NOTICE_CARD}>
@@ -132,7 +132,7 @@ export default function HighReviewNotifications() {
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.neutral)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>검토 요청 · Jordan</p>
-              <p className={cn(NOTICE_BODY, 'text-slate-300')}><LocalizedText text={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''} /></p>
+              <p className={NOTICE_BODY}><LocalizedText text={(comments.find((comment) => comment.id === 'comment-cc11') ?? seedComments.find((comment) => comment.id === 'comment-cc11'))?.text ?? ''} /></p>
             </div>
           </div>
           <div className={NOTICE_ACTIONS}>
@@ -152,7 +152,7 @@ export default function HighReviewNotifications() {
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.urgent)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
               <p className={NOTICE_TITLE}>위험도가 높아요. 바로 검토해 주세요.</p>
-              <p className={cn(NOTICE_BODY, 'line-clamp-2 text-slate-300')}>{n.target.label}</p>
+              <p className={cn(NOTICE_BODY, 'line-clamp-2')}>{n.target.label}</p>
             </div>
           </div>
           <div className={NOTICE_ACTIONS}>

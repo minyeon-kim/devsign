@@ -25,14 +25,14 @@ const MAX_ROWS = 3
 // and high-priority review banners (see HighReviewNotifications) — is built
 // from these, so they read as one kind of notification: the same surface,
 // icon chip, title / body type, dismiss button and right-aligned actions.
-export const NOTICE_CARD = 'pointer-events-auto relative overflow-hidden rounded-[20px] border border-white/[0.12] bg-[#252525]/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none'
+export const NOTICE_CARD = 'pointer-events-auto relative overflow-hidden rounded-[20px] border border-slate-200/80 bg-slate-50 p-4 text-slate-900 shadow-[0_12px_40px_rgba(0,0,0,0.2)] animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none'
 export const NOTICE_ICON = 'flex size-8 shrink-0 items-center justify-center rounded-xl'
-export const NOTICE_ICON_TONE = { neutral: 'bg-white/[0.07] text-emerald-300', urgent: 'bg-rose-400/15 text-rose-300' }
-export const NOTICE_TITLE = 'text-[13px] font-medium text-white'
-export const NOTICE_BODY = 'mt-0.5 text-xs leading-5 text-slate-400'
+export const NOTICE_ICON_TONE = { neutral: 'bg-emerald-50 text-emerald-700', urgent: 'bg-rose-50 text-rose-700' }
+export const NOTICE_TITLE = 'text-[13px] font-semibold text-slate-950'
+export const NOTICE_BODY = 'mt-0.5 text-xs leading-5 text-slate-700'
 export const NOTICE_ACTIONS = 'mt-3 flex items-center justify-end gap-1'
-export const NOTICE_ACTION = 'h-7 rounded-full bg-emerald-400/15 px-3 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/25'
-export const NOTICE_ACTION_QUIET = 'h-7 rounded-full px-3 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white'
+export const NOTICE_ACTION = 'h-7 rounded-full bg-emerald-700 px-3 text-xs font-medium text-white transition-colors hover:bg-emerald-800'
+export const NOTICE_ACTION_QUIET = 'h-7 rounded-full px-3 text-xs text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900'
 
 export function NoticeDismiss({ label = '알림 닫기', onClick }) {
   return (
@@ -42,7 +42,7 @@ export function NoticeDismiss({ label = '알림 닫기', onClick }) {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="ds-intrinsic pointer-events-auto absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.06] text-slate-200 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+      className="ds-intrinsic pointer-events-auto absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-emerald-600"
     >
       <X className="pointer-events-none size-4" />
     </button>
@@ -163,15 +163,15 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
             <button
               type="button"
               onClick={() => onOpen(conflict.id)}
-              className="-mx-1.5 flex h-7 w-[calc(100%+12px)] min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-xs text-slate-200 transition-colors hover:bg-white/[0.06] hover:text-white"
+              className="-mx-1.5 flex h-7 w-[calc(100%+12px)] min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-xs text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
             >
               <span className={cn('size-1.5 shrink-0 rounded-full', SEVERITY_DOT[conflict.severity] ?? SEVERITY_DOT.low)} />
-              <span className="min-w-0 flex-1 truncate">{conflict.title}</span>
-              <span className="shrink-0 text-[10.5px] text-slate-500">{SEVERITY_LABEL[conflict.severity] ?? conflict.severity}</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{conflict.title}</span>
+              <span className="shrink-0 text-[10.5px] text-slate-600">{SEVERITY_LABEL[conflict.severity] ?? conflict.severity}</span>
             </button>
           </li>
         ))}
-        {more > 0 && <li className="px-1.5 pt-0.5 text-[11px] text-slate-500">{`+ ${more} more`}</li>}
+        {more > 0 && <li className="px-1.5 pt-0.5 text-[11px] text-slate-600">{`+ ${more} more`}</li>}
       </ul>
 
       <div className={NOTICE_ACTIONS}>

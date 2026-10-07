@@ -702,11 +702,10 @@ button.editor-line-comment {
 [data-sonner-toast].cn-toast {
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgb(255 255 255 / 12%) !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 20px !important;
-  background: rgb(37 37 37 / 95%) !important;
-  box-shadow: 0 12px 40px rgb(0 0 0 / 45%) !important;
-  backdrop-filter: blur(24px);
+  background: #f8fafc !important;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 20%) !important;
 }
 [data-sonner-toast].cn-toast:has([data-close-button]) {
   padding-right: 48px;
@@ -718,13 +717,13 @@ button.editor-line-comment {
   transform: none;
   width: 24px;
   height: 24px;
-  background: rgb(255 255 255 / 6%);
+  background: #f1f5f9;
   border: 0;
-  color: #cbd5e1;
+  color: #475569;
 }
 [data-sonner-toast].cn-toast [data-close-button]:hover {
-  background: rgb(255 255 255 / 12%);
-  color: #fff;
+  background: #e2e8f0;
+  color: #0f172a;
 }
 [data-sonner-toast].cn-toast [data-close-button]:focus-visible {
   outline: 2px solid #6ee7b7;
@@ -732,40 +731,30 @@ button.editor-line-comment {
 }
 [data-sonner-toast].cn-toast [data-title] {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 20px;
-  color: #fff;
+  color: #020617;
 }
 [data-sonner-toast].cn-toast [data-description] {
   font-size: 12px;
   line-height: 20px;
-  color: #94a3b8;
+  color: #334155;
 }
 [data-sonner-toast].cn-toast [data-button] {
   height: 28px;
   padding-inline: 12px;
   border-radius: 9999px;
-  background: rgb(52 211 153 / 15%);
+  background: #047857;
   font-size: 12px;
   font-weight: 500;
-  color: #a7f3d0;
+  color: #fff;
 }
 
 /* A softer, light-tinted toast for quiet confirmations (Review requested). */
 [data-sonner-toast].cn-toast.cn-toast-soft {
-  border-color: rgb(167 243 208 / 60%) !important;
-  background: rgb(236 253 245 / 96%) !important;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 28%) !important;
-}
-[data-sonner-toast].cn-toast.cn-toast-soft [data-title] { color: #065f46; }
-[data-sonner-toast].cn-toast.cn-toast-soft [data-description] { color: #4b6b5f; }
-[data-sonner-toast].cn-toast.cn-toast-soft [data-close-button] {
-  background: rgb(6 95 70 / 8%);
-  color: #065f46;
-}
-[data-sonner-toast].cn-toast.cn-toast-soft [data-close-button]:hover {
-  background: rgb(6 95 70 / 16%);
-  color: #064e3b;
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 20%) !important;
 }
 
 /* Inline decision reasons enter without an extra card surface. */

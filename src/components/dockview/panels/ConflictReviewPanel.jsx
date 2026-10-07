@@ -1957,24 +1957,6 @@ function CommentThread({ conflict, workspace, flashId }) {
   )
 }
 
-// Where a conflict stands on the way to merged, as the badge beside its
-// title — the one place the review says it.
-const STAGE_BADGE = {
-  detected: { label: 'Before review', dot: 'bg-slate-300', tone: 'bg-slate-400/20 text-slate-100' },
-  in_review: { label: 'Review pending', dot: 'bg-sky-300', tone: 'bg-sky-400/20 text-sky-100' },
-  approved: { label: 'Merge pending', dot: 'bg-emerald-300', tone: 'bg-emerald-400/20 text-emerald-100' },
-  resolved: { label: 'Merge complete', dot: 'bg-violet-300', tone: 'bg-violet-400/25 text-violet-100' },
-}
-function StageBadge({ stage }) {
-  const badge = STAGE_BADGE[stage] ?? STAGE_BADGE.detected
-  return (
-    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, stage === 'resolved' ? 'bg-emerald-400 text-emerald-950' : badge.tone)}>
-      {stage === 'resolved' ? <CircleCheck className="size-4 shrink-0" /> : <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />}
-      <LocalizedText text={badge.label} />
-    </span>
-  )
-}
-
 // Where the approvals stand, worked out once: which of the states it's in,
 // who it's waiting on, and the line that says so — the same line beside
 // the header's approval area and after the steps under the title.
@@ -2794,7 +2776,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         {conflict && (
           <>
             <div className="flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card px-4 py-4 sm:px-6">
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-2.5">
                   <button
                     type="button"
@@ -2811,7 +2793,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
                 <div data-conflict-meta className="flex flex-wrap items-center gap-1.5 pl-10">
-                  {!conflict.rollback && <StageBadge stage={stage} />}
                   <ConflictTypeTag conflict={conflict} header />
                   {severity && (
                     severity.label === 'Low'

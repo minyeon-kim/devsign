@@ -188,7 +188,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
               {!last && (
                 <span
                   aria-hidden="true"
-                  className={cn('absolute top-6 bottom-0 left-[9.5px] w-px', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
+                  className={cn('absolute top-6 bottom-0 left-[9.75px] w-[0.5px]', step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20')}
                 />
               )}
               <button

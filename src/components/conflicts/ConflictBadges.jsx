@@ -13,7 +13,7 @@ import { STAGE_LABEL, gitFlowOf, listStatusOf } from '@/lib/conflicts'
 export const NAV_BUTTON = 'ds-intrinsic inline-flex h-8 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] px-3 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 export const NAV_BUTTON_ICON = 'size-3.5 shrink-0 text-slate-400'
 
-export const REVIEW_HEADER_BADGE = 'inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs leading-4 font-medium whitespace-nowrap'
+export const REVIEW_HEADER_BADGE = 'inline-flex h-6 shrink-0 items-center justify-center gap-1 rounded-md px-2 text-[11px] leading-4 font-medium whitespace-nowrap'
 
 export const CONFLICT_BADGE = 'inline-flex h-6 max-w-full shrink-0 items-center justify-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium whitespace-nowrap'
 const tones = {
