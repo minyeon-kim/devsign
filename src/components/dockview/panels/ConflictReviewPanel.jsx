@@ -506,14 +506,6 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               <LocalizedText text={ROLLBACK_STAGE_LABEL[stage]} />
             </span>
           )}
-          {/* Required rules it breaks: one badge, here only. (What they
-              are, and what going on needs, is beside the choice.) */}
-          {blockedCount > 0 && (
-            <span data-blocked-badge className={cn(INFO_BADGE, 'gap-1 bg-white/[0.07] text-slate-200')}>
-              <TriangleAlert aria-hidden className="size-3 shrink-0 text-amber-300" />
-              <LocalizedText text={`${blockedCount} required rule${blockedCount === 1 ? '' : 's'} broken`} />
-            </span>
-          )}
           {isAiDraft && (
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>
           )}
@@ -903,9 +895,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const shown = peeked ? 'C' : hover && hover !== choice && linesOf(hover) ? hover : choice
   const shownCard = cards.find((card) => card.id === shown) ?? null
   // What it breaks, in a line: each compared value against the standard's.
-  const brokenSummary = exception ? [
-    ...(conflict.comparisonFields ?? []).filter((field) => field.current !== field.expected).map((field) => ({ label: field.label, from: choice === 'C' ? custom?.rows.find((row) => row.label === field.label)?.to ?? field.current : field.current, to: field.expected })),
-  ] : []
+
 
   return (
     <div className="flex h-full flex-col">
@@ -1045,17 +1035,22 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         </span>
                       )}
                     </div>
-                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
-                      <div data-card-rules className="-mt-1 min-w-0 space-y-1">
-                        {required.map((check) => <RuleNote key={check.id} check={check} required />)}
-                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
-                      </div>
-                    )}
                     {/* 3 · The picture. (No value of one's own yet: what's
                         there now, faint — the same place on every card.) */}
                     {conflict.preview && (
                       <div className={cn('min-w-0', empty && 'opacity-40')}>
                         <ChangePreview preview={conflict.preview} side={card.side} showLabels={false} override={isCustom && custom ? custom.preview : undefined} />
+                      </div>
+                    )}
+                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
+                      <div data-card-rules className="min-w-0 space-y-2">
+                        {required.map((check) => <RuleNote key={check.id} check={check} required />)}
+                        {required.length > 0 && editing && (
+                          <button type="button" data-request-card-exception={card.id} onClick={(event) => { event.stopPropagation(); flow.requestException(card.id) }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full bg-amber-400/10 px-2.5 text-xs font-medium text-amber-100 hover:bg-amber-400/20 focus-visible:outline-2 focus-visible:outline-amber-300">
+                            <LocalizedText text="Apply exception" />
+                          </button>
+                        )}
+                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
                       </div>
                     )}
                     {/* Several values, or one a number can't say (a color,
@@ -1179,28 +1174,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
                   Otherwise why. Kept as it's entered; ⑤ settles it. */}
-              {flow?.reason && editing && (
+              {flow?.reason && editing && !exception && (
                 <div data-decision-reason={choice} className="mt-3 min-w-0 space-y-5">
-                  {exception && editing && (
-                    // The one loud place: what going this way needs. What
-                    // it breaks, in the rule's own numbers, under it.
-                    <div data-exception-notice className="space-y-1 rounded-lg bg-amber-400/[0.08] px-4 py-3">
-                      <p className="flex items-start gap-1.5 text-xs leading-[18px] text-amber-100">
-                        <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
-                        <LocalizedText text={choice === 'B' ? 'It breaks a required rule, so keeping the current value needs the reviewers’ exception approval.' : 'It breaks a required rule, so this needs the reviewers’ exception approval.'} />
-                      </p>
-                      <p className="pl-5 text-xs leading-[18px] text-slate-400">
-                        {brokenSummary.length ? brokenSummary.map((entry) => (
-                          <span key={entry.label} className="mr-3 inline-block"><LocalizedText text={entry.label} /> · <span translate="no" className="text-slate-300">{entry.from}</span> → <LocalizedText text="Design standard" /> <span translate="no" className="text-slate-300">{entry.to}</span></span>
-                        )) : breaks(choice).map((check) => {
-                          // A touch area: its size, and the least it has to be.
-                          const area = check.id === 'targets' ? conflict.comparisonFields.find((field) => /touch area|size/i.test(field.label)) : null
-                          return area ? <span key={check.id} className="mr-3 inline-block"><LocalizedText text={area.label} /> <span translate="no" className="text-slate-300">{choice === 'C' ? custom?.rows.find((row) => row.label === area.label)?.to ?? area.current : area.current}</span> · <LocalizedText text="At least 24 × 24px needed (WCAG 2.5.8)" /></span>
-                            : <span key={check.id} className="mr-3 inline-block"><LocalizedText text={check.title} />{check.hint && <> · <LocalizedText text={check.hint} /></>}</span>
-                        })}
-                      </p>
-                    </div>
-                  )}
                   <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
                 </div>
               )}
@@ -2228,8 +2203,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 
-  function handleRequestReview({ quiet = false } = {}) {
-    if (decisionState.reasonNeeded || reasonRequest) return
+  function handleRequestReview({ quiet = false, exceptionSubmitted = false } = {}) {
+    if (!exceptionSubmitted && (decisionState.reasonNeeded || reasonRequest)) return
     // A fresh review round: earlier "changes requested" go back to pending.
     // The request goes to the other reviewers — never back to you, and never
     // to the author — so you're recorded as the requester (no alert for you).
@@ -2637,7 +2612,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   if (cardFlow) decisionState.reasonNeeded = stage !== 'resolved' && Boolean(flowReason) && !flowReason.value.trim()
   // The decision, settled: review is requested — and, breaking a required
   // rule, the exception is asked for with it (`reason` is the one given).
-  function finishDecision(reason = '', { quiet = false } = {}) {
+  function finishDecision(reason = '', { quiet = false, exceptionSubmitted = false } = {}) {
     // A value set by hand that is the design reference's: decided as
     // the design reference (the same code, with nothing left set).
     if (choice === 'C' && customIsReference && adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
@@ -2649,7 +2624,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       update({ exceptionChecks: [...new Set([...(conflict.exceptionChecks ?? []), ...broken.map((check) => check.id)])], decidedBy: viewerId })
       if (workspace) workspace.addComment(`Exception requested: ${broken.map((check) => check.title).join(', ')} — ${reason}`, { conflictId: conflict.id })
     }
-    handleRequestReview({ quiet })
+    handleRequestReview({ quiet, exceptionSubmitted })
   }
   // One number of the element's own is set on the third card itself.
   const valueControl = cardFlow && mergeItem && workspace?.setLayerAdjustments ? valueControlFor(conflict, mergeItem) : null
@@ -2691,6 +2666,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         update({ customChosen: true, stashedAssemblies: null, decidedSide: null, decidedBy: null })
       },
     } : null,
+    requestException: (side) => {
+      if (side !== choice) chooseWay(side)
+      setExceptionReasonDraft('')
+      setReasonRequest({ kind: 'card-exception', subject: violations[side].map((check) => check.title).join(', ') })
+    },
     reason: flowReason,
     changeDecision: () => update({ reviewStage: 'detected', exceptionChecks: [], customChosen: adjustedByHand, reviewers: conflict.reviewers.map((r) => ({ ...r, status: 'pending' })) }),
     decide: {
@@ -3063,7 +3043,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               event.preventDefault()
               const reason = exceptionReasonDraft.trim()
               if (!reason || !reasonRequest) return
-              reasonRequest.run(reason)
+              if (reasonRequest.kind === 'card-exception') {
+                if (!requiredReviewers(conflict).length || !broken.length) return
+                flowReason?.onChange(reason)
+                finishDecision(reason, { exceptionSubmitted: true })
+              } else reasonRequest.run(reason)
               setReasonRequest(null)
               setExceptionReasonDraft('')
             }}>
@@ -3074,6 +3058,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </DialogDescription>
               </div>
               <div className="space-y-3 px-5 pb-4">
+                {reasonRequest?.kind === 'card-exception' && !requiredReviewers(conflict).length && <p role="status" className="text-xs text-amber-200"><LocalizedText text="Assign a reviewer other than the author to request review." /></p>}
                 <ReasonField
                   key={`${conflict.id}:${reasonRequest?.subject ?? ''}`}
                   title="Reason for the exception request"
@@ -3087,7 +3072,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <button type="button" onClick={() => { setReasonRequest(null); setExceptionReasonDraft('') }} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">
                   <LocalizedText text="Cancel" />
                 </button>
-                <button type="submit" disabled={!exceptionReasonDraft.trim()} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
+                <button type="submit" disabled={!exceptionReasonDraft.trim() || (reasonRequest?.kind === 'card-exception' && !requiredReviewers(conflict).length)} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
                   <Send className="mr-1.5 size-3.5" />
                   <LocalizedText text="Send exception request" />
                 </button>
