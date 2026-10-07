@@ -1,6 +1,6 @@
 import { useDemoState } from '@/state/useDemoState'
 import { createContext, useCallback, useContext, useMemo } from 'react'
-import { allConflictRecords, toConflictRecord } from '@/lib/conflicts'
+import { allConflictRecords, restoreCodeConflicts, toConflictRecord } from '@/lib/conflicts'
 import { projects } from '@/data/mockData'
 
 // App-level store for every project's Conflict Points — the single source
@@ -24,7 +24,7 @@ export function ConflictStoreProvider({ children }) {
   const [storedEvents, setEvents] = useDemoState('events', [])
   // Normalize persisted records too: browser storage can outlive a code
   // update and otherwise keep new fields such as due dates blank forever.
-  const conflicts = useMemo(() => storedConflicts
+  const conflicts = useMemo(() => restoreCodeConflicts(storedConflicts)
     .filter((c) => projects.some((p) => p.id === c.projectId))
     .map(toConflictRecord), [storedConflicts])
   const events = useMemo(() => storedEvents.filter((e) => projects.some((p) => p.id === e.projectId)), [storedEvents])
@@ -33,6 +33,7 @@ export function ConflictStoreProvider({ children }) {
   // list), keeping every other project's — and the overall order — intact.
   const setProjectConflicts = useCallback((projectId, updater) => {
     setConflicts((prev) => {
+      prev = restoreCodeConflicts(prev)
       const mine = prev.filter((c) => c.projectId === projectId)
       const next = typeof updater === 'function' ? updater(mine) : updater
       const byId = new Map(next.map((c) => [c.id, c]))

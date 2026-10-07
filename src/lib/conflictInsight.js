@@ -37,11 +37,11 @@ export function baselineOf(conflict) {
 
 export function conflictTypeOf(conflict) {
   if (!conflict) return null
-  const text = `${conflict.title ?? ''} ${conflict.cause ?? ''}`
+  const text = `${conflict.title ?? ''} ${conflict.cause ?? ''} ${conflict.message ?? ''}`
   const id = conflict.rollback ? 'restore'
     : conflict.revertOf || /^Revert: /.test(conflict.title ?? '') ? 'revert'
     : isDesignReview(conflict) ? 'design-decision'
-    : /merge conflict|branches changed/i.test(text) ? 'code-conflict'
+    : conflict.kind === 'code-conflict' || /merge conflict|branches changed/i.test(text) || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line)) ? 'code-conflict'
       : baselineOf(conflict)?.production ? 'production-priority'
         : 'design-drift'
   return { id, ...CONFLICT_TYPES[id] }

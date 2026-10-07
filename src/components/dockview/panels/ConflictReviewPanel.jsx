@@ -690,10 +690,10 @@ const DIFF_TONES = {
 }
 const DIFF_MARKS = { same: ' ', add: '+', remove: '−' }
 
-function CodeDiffColumns({ rows }) {
+function CodeDiffColumns({ rows, codeConflict = false }) {
   const columns = [
-    { id: 'before', label: 'Before', kinds: new Set(['same', 'remove']) },
-    { id: 'after', label: 'After', kinds: new Set(['same', 'add']) },
+    { id: 'before', label: codeConflict ? 'Conflicting code' : 'Before', kinds: new Set(['same', 'remove']) },
+    { id: 'after', label: codeConflict ? 'Proposed resolution' : 'After', kinds: new Set(['same', 'add']) },
   ]
 
   return (
@@ -703,12 +703,12 @@ function CodeDiffColumns({ rows }) {
           comparison cards above it start, so the two never lined up. */}
       <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
         <Sparkles className="size-3 shrink-0 text-emerald-300" />
-        <LocalizedText text="AI suggestion" />
+        <LocalizedText text={codeConflict ? 'Merge Conflict' : 'AI suggestion'} />
       </div>
       <div className="grid min-w-0 grid-cols-2 gap-3">
         {columns.map((column) => (
           <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto font-mono text-[11px] leading-relaxed">
-            <span className="sr-only">{column.label}</span>
+            <span className={codeConflict ? "mb-2 block font-sans text-xs font-medium text-slate-200" : "sr-only"}><LocalizedText text={column.label} /></span>
             {rows.filter((row) => column.kinds.has(row.kind)).map((row, index) => (
               <div key={`${row.kind}-${index}`} className="flex min-w-0 whitespace-pre-wrap [word-break:break-all]">
                 <span className="w-3.5 shrink-0 opacity-70 select-none">{DIFF_MARKS[row.kind]}</span>
@@ -834,7 +834,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     )
   }
   const rows = conflict.diff ? diffLines(conflict.diff.before ?? [], changeAfter ?? conflict.diff.after ?? []) : []
-  const pairedPreview = Boolean(conflict.comparisonFields?.length)
+  const codeConflict = conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line))
+  const pairedPreview = !codeConflict && Boolean(conflict.comparisonFields?.length)
   const sources = comparisonSources(conflict.branches)
   // The three ways to resolve it, as cards. Each header is two lines: what
   // choosing it does, then where its values come from.
@@ -1257,9 +1258,16 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 </div>
               </div>
             )}
+            {codeConflict && conflict.diff && !readOnly && (
+              <section data-code-conflict className="min-w-0 space-y-3">
+                <p className="font-mono text-xs text-slate-300">{conflict.file}:{conflict.line ?? 1}</p>
+                <p className="text-xs text-slate-400">{conflict.branches?.local} ↔ {conflict.branches?.remote}</p>
+                <CodeDiffColumns rows={diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])} codeConflict />
+              </section>
+            )}
             {/* The code follows the card that's picked: its diff when the
                 pick changes the code, a line saying it doesn't otherwise. */}
-            {conflict.diff && !readOnly && !pairedPreview && codeChange !== 'diff' && (
+            {conflict.diff && !readOnly && !pairedPreview && !codeConflict && codeChange !== 'diff' && (
               <div data-code-note={codeChange} className="min-w-0 space-y-1.5">
                 <p className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
                   <FileCode2 className="size-3 shrink-0" />
@@ -1279,7 +1287,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 </p>
               </div>
             )}
-            {conflict.diff && !readOnly && !pairedPreview && codeChange === 'diff' && (
+            {conflict.diff && !readOnly && !pairedPreview && !codeConflict && codeChange === 'diff' && (
               <div className="min-w-0 [&>div]:space-y-1.5">
                 {code ? <ConflictCodeView {...code} context={2} /> : <CodeDiffColumns rows={rows} />}
               </div>

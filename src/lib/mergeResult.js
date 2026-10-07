@@ -200,6 +200,7 @@ export function mergeResultOf(conflict, item, side, { assembly = null, adjustmen
   }
   const preview = spec && layer ? {
     ...spec,
+    ...('width' in spec ? { width: sized('width', 'width') } : {}),
     ...('height' in spec ? { height: sized('height', 'height') } : {}),
     ...('size' in spec ? { size: width != null ? sized('size', 'width') : sized('size', 'height') } : {}),
     ...(radius != null && ['button', 'card'].includes(conflict.preview.kind) ? { radius } : {}),

@@ -741,7 +741,7 @@ button.editor-line-comment {
   --notification-radius: 12px;
   --notification-padding: 14px 16px;
   /* Where the floating ones sit: under the header, off the right edge. */
-  --notification-top: calc(var(--ds-chrome-size) + 16px);
+  --notification-bottom: max(24px, env(safe-area-inset-bottom));
   --notification-right: 24px;
   --notification-width: 360px;
   --notification-gap: 8px;
@@ -883,10 +883,10 @@ button.editor-line-comment {
 
 /* The floating stack (the notice cards): fixed to the window — it's
    rendered into <body>, so no panel's overflow or transform can clip it —
-   under the header and off the right edge, never wider than the window. */
+   above the bottom edge and off the right edge, never wider than the window. */
 .ds-notification-stack {
   position: fixed;
-  top: var(--notification-top);
+  bottom: var(--notification-bottom);
   right: var(--notification-right);
   z-index: 1100;
   display: flex;
@@ -895,7 +895,9 @@ button.editor-line-comment {
   box-sizing: border-box;
   width: var(--notification-width);
   max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - var(--notification-top) - 16px);
+  max-height: min(55dvh, calc(100dvh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   pointer-events: none;
 }
 .ds-notification-stack > * { pointer-events: auto; }
@@ -907,9 +909,9 @@ button.editor-line-comment {
    rule here is one step more specific ([data-sonner-toaster] in front) and
    pins what Sonner positions. */
 [data-sonner-toaster] { --width: var(--notification-width); }
-/* …and start below the notice cards while any are up (HighReviewNotifications
-   publishes their bottom edge), so the two never sit on top of each other. */
-[data-sonner-toaster][data-y-position='top'] { top: var(--ds-toast-top, var(--notification-top)) !important; }
+/* …and stack above the notice cards while any are up (HighReviewNotifications
+   publishes their occupied height), so the two never sit on top of each other. */
+[data-sonner-toaster][data-y-position='bottom'] { bottom: var(--ds-toast-bottom, var(--notification-bottom)) !important; }
 [data-sonner-toaster][data-x-position='right'] { right: var(--notification-right) !important; }
 [data-sonner-toaster] { max-width: calc(100vw - 32px); }
 [data-sonner-toaster] [data-sonner-toast].cn-toast {

@@ -202,6 +202,219 @@ export const projects = [
 // `cause` / `effect`: the review summary's Cause and Impact — terse, noun-
 // phrase items separated by " · ", not sentences.
 export const conflictChecklist = [
+  // Code-versus-code examples belong to the same queue as design drifts.
+  {
+    "id": "cc-code-payment-submit",
+    "kind": "code-conflict",
+    "title": "PlaceOrderButton / 중복 결제 방지 로직 충돌",
+    "token": "PlaceOrderButton / 중복 결제 방지 로직 충돌",
+    "projectId": "checkout-redesign",
+    "projectName": "Checkout Redesign",
+    "file": "src/components/checkout/PlaceOrderButton.jsx",
+    "line": 18,
+    "severity": "high",
+    "reviewStage": "in_review",
+    "resolved": false,
+    "timestamp": "Just now",
+    "detectedBy": "Git merge check",
+    "changedBy": {
+      "type": "person",
+      "id": "min",
+      "what": "Updated overlapping code in two branches"
+    },
+    "cause": "두 브랜치가 결제 요청 함수를 각각 재시도 처리와 중복 제출 방지 로직으로 수정했습니다.",
+    "message": "두 브랜치가 결제 요청 함수를 각각 재시도 처리와 중복 제출 방지 로직으로 수정했습니다.",
+    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
+    "branches": {
+      "local": "feature/payment-retry",
+      "remote": "fix/prevent-double-submit"
+    },
+    "gitFlow": {
+      "source": "feature/payment-retry",
+      "target": "fix/prevent-double-submit"
+    },
+    "comparisonFields": [],
+    "reviewers": [
+      {
+        "id": "james",
+        "status": "pending"
+      },
+      {
+        "id": "jane",
+        "status": "pending"
+      }
+    ],
+    "assigneeId": "james",
+    "impact": {
+      "components": [
+        "PlaceOrderButton"
+      ],
+      "files": [
+        "src/components/checkout/PlaceOrderButton.jsx"
+      ]
+    },
+    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
+    "diff": {
+      "before": [
+        "async function placeOrder() {",
+        "<<<<<<< feature/payment-retry",
+        "  await retry(() => submitPayment(cart));",
+        "=======",
+        "  if (isSubmitting) return;",
+        "  setIsSubmitting(true);",
+        "  await submitPayment(cart);",
+        ">>>>>>> fix/prevent-double-submit",
+        "}"
+      ],
+      "after": [
+        "async function placeOrder() {",
+        "  if (isSubmitting) return;",
+        "  setIsSubmitting(true);",
+        "  try {",
+        "    await retry(() => submitPayment(cart));",
+        "  } finally {",
+        "    setIsSubmitting(false);",
+        "  }",
+        "}"
+      ]
+    }
+  },
+  {
+    "id": "cc-code-coupon-total",
+    "kind": "code-conflict",
+    "title": "OrderSummary / 할인 금액 계산 충돌",
+    "token": "OrderSummary / 할인 금액 계산 충돌",
+    "projectId": "checkout-redesign",
+    "projectName": "Checkout Redesign",
+    "file": "src/components/checkout/OrderSummary.jsx",
+    "line": 26,
+    "severity": "medium",
+    "reviewStage": "in_review",
+    "resolved": false,
+    "timestamp": "Just now",
+    "detectedBy": "Git merge check",
+    "changedBy": {
+      "type": "person",
+      "id": "min",
+      "what": "Updated overlapping code in two branches"
+    },
+    "cause": "두 브랜치가 같은 주문 합계 계산식에 쿠폰 할인과 소수점 반올림을 각각 추가했습니다.",
+    "message": "두 브랜치가 같은 주문 합계 계산식에 쿠폰 할인과 소수점 반올림을 각각 추가했습니다.",
+    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
+    "branches": {
+      "local": "feature/coupon-discount",
+      "remote": "fix/round-order-total"
+    },
+    "gitFlow": {
+      "source": "feature/coupon-discount",
+      "target": "fix/round-order-total"
+    },
+    "comparisonFields": [],
+    "reviewers": [
+      {
+        "id": "james",
+        "status": "pending"
+      },
+      {
+        "id": "jane",
+        "status": "pending"
+      }
+    ],
+    "assigneeId": "james",
+    "impact": {
+      "components": [
+        "OrderSummary"
+      ],
+      "files": [
+        "src/components/checkout/OrderSummary.jsx"
+      ]
+    },
+    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
+    "diff": {
+      "before": [
+        "<<<<<<< feature/coupon-discount",
+        "const total = subtotal - coupon.discount + shipping;",
+        "=======",
+        "const total = Math.round((subtotal + shipping) * 100) / 100;",
+        ">>>>>>> fix/round-order-total"
+      ],
+      "after": [
+        "const discounted = subtotal - coupon.discount + shipping;",
+        "const total = Math.round(discounted * 100) / 100;"
+      ]
+    }
+  },
+  {
+    "id": "cc-code-nav-handler",
+    "kind": "code-conflict",
+    "title": "BottomNav / 탭 클릭 핸들러 충돌",
+    "token": "BottomNav / 탭 클릭 핸들러 충돌",
+    "projectId": "mobile-nav-revamp",
+    "projectName": "Mobile Nav Revamp",
+    "file": "src/components/nav/BottomNav.jsx",
+    "line": 32,
+    "severity": "medium",
+    "reviewStage": "in_review",
+    "resolved": false,
+    "timestamp": "Just now",
+    "detectedBy": "Git merge check",
+    "changedBy": {
+      "type": "person",
+      "id": "min",
+      "what": "Updated overlapping code in two branches"
+    },
+    "cause": "두 브랜치가 탭 클릭 핸들러를 수정하면서 이벤트 수집 코드와 라우트 동기화 코드가 충돌했습니다.",
+    "message": "두 브랜치가 탭 클릭 핸들러를 수정하면서 이벤트 수집 코드와 라우트 동기화 코드가 충돌했습니다.",
+    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
+    "branches": {
+      "local": "feature/nav-analytics",
+      "remote": "fix/nav-route-sync"
+    },
+    "gitFlow": {
+      "source": "feature/nav-analytics",
+      "target": "fix/nav-route-sync"
+    },
+    "comparisonFields": [],
+    "reviewers": [
+      {
+        "id": "james",
+        "status": "pending"
+      },
+      {
+        "id": "jane",
+        "status": "pending"
+      }
+    ],
+    "assigneeId": "james",
+    "impact": {
+      "components": [
+        "BottomNav"
+      ],
+      "files": [
+        "src/components/nav/BottomNav.jsx"
+      ]
+    },
+    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
+    "diff": {
+      "before": [
+        "function onTabClick(tab) {",
+        "<<<<<<< feature/nav-analytics",
+        "  trackEvent(\"nav_click\", { tab: tab.id });",
+        "  setActiveTab(tab.id);",
+        "=======",
+        "  navigate(tab.path);",
+        ">>>>>>> fix/nav-route-sync",
+        "}"
+      ],
+      "after": [
+        "function onTabClick(tab) {",
+        "  trackEvent(\"nav_click\", { tab: tab.id });",
+        "  setActiveTab(tab.id);",
+        "  navigate(tab.path);",
+        "}"
+      ]
+    }
+  },
   // Two samples for checking a precise (by-hand) adjustment end to end.
   //
   // 1 — already adjusted. The close button is 20 × 20px in the code *and*
@@ -213,6 +426,7 @@ export const conflictChecklist = [
   // read — so undoing it there really undoes it.
   {
     id: 'cc-touch-adjusted',
+    preview: { kind: 'button', label: '×', before: { width: 20, height: 20, radius: 4, background: '#475569' }, after: { width: 20, height: 20, radius: 4, background: '#475569' } },
     cause: 'Coupon close button 20 × 20px in code and design · under the 24px touch area',
     effect: 'Hard to tap on a touch screen',
     impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
@@ -246,6 +460,7 @@ export const conflictChecklist = [
   // the design), come back, and the card, code and summary follow.
   {
     id: 'cc-tab-icon-size',
+    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
     cause: 'Tab icon 20px in code · 24px in the design',
     effect: 'Tab icons smaller than the design',
     impact: { components: ['CheckoutTabs'], files: ['src/components/checkout/CheckoutTabs.jsx'] },
@@ -273,6 +488,7 @@ export const conflictChecklist = [
   },
   {
     id: 'cc-manual-target',
+    preview: { kind: 'button', label: '×', before: { width: 20, height: 20, radius: 4, background: '#475569' }, after: { width: 20, height: 20, radius: 8, background: '#475569' } },
     cause: 'Coupon close button 20 × 20px in both versions · neither side fixes it',
     effect: 'Hard to tap on a touch screen',
     impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
@@ -346,6 +562,7 @@ export const conflictChecklist = [
 
   {
     id: 'cc-7',
+    preview: { kind: 'spacing', before: { gap: 6 }, after: { gap: 8 } },
     cause: 'Checkout spacing uses 6px · not on the 4/8 scale',
     effect: 'Form fields 2px closer than the 8px scale',
     changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },

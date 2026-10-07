@@ -1,4 +1,4 @@
-import { allPeople, conflictChecklist, currentUserFor } from '@/data/mockData'
+import { allPeople, conflictChecklist, conflictPoints, currentUserFor } from '@/data/mockData'
 
 // The one conflict model every conflict surface shares — the Dashboard
 // queue, the workspace bottom panel's Conflict Points tab, the project
@@ -343,6 +343,7 @@ export function toConflictRecord(raw) {
       : { dueBucket: 'soon', dueLabel: 'Due tomorrow' }
   return {
     ...raw,
+    preview: raw.preview ?? conflictChecklist.find((seed) => seed.id === raw.id)?.preview,
     // (A title saved with the prefix stacked reads as one.)
     title: raw.rollback
       ? raw.rollback.component ?? String(raw.rollback.target ?? raw.title ?? raw.file ?? '').replace(/\.[a-z]+$/i, '').replace(/^Rollback · /, '')
@@ -381,7 +382,18 @@ export function shortDue(label) {
 
 // Every project's conflicts, as records (the ConflictStore's seed).
 export function allConflictRecords() {
-  return conflictChecklist.map(toConflictRecord)
+  return [...conflictChecklist, ...conflictPoints.map((point) => ({
+    ...point,
+    id: point.id === 'conflict-1' ? 'cc-2' : point.id,
+    kind: 'code-conflict',
+    title: 'DesignCanvas / Merge conflict',
+    projectId: 'checkout-redesign',
+    projectName: 'Checkout Redesign',
+    cause: point.message,
+    line: 9,
+    gitFlow: { source: point.branches.local, target: point.branches.remote },
+    comparisonFields: [],
+  }))].map(toConflictRecord)
 }
 
 // Open items first, then merged ones, each group in its original order.
@@ -417,4 +429,10 @@ export function authorOf(conflict) {
     return allPeople.find((person) => changedBy.what?.includes(`(requested by ${person.name} in AI chat)`))?.id ?? null
   }
   return null
+}
+
+// Preserve saved review progress while introducing missing code-conflict records.
+export function restoreCodeConflicts(records) {
+  const known = new Set(records.map((record) => record.id))
+  return [...records, ...allConflictRecords().filter((record) => record.kind === 'code-conflict' && !known.has(record.id))]
 }

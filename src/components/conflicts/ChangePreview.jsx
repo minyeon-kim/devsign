@@ -16,12 +16,12 @@ function Frame({ label, children, showLabel = true, contentClassName = 'h-14' })
   )
 }
 
-function ButtonSample({ height, background, radius, label }) {
+function ButtonSample({ width, height, background, radius, label }) {
   return (
     <div className="flex w-full items-center justify-center">
       <span
         className="flex w-full max-w-[220px] items-center justify-center rounded-lg text-[13px] font-semibold text-white"
-        style={{ height, background, borderRadius: radius }}
+        style={{ width, height, background, borderRadius: radius }}
       >
         <LocalizedText text={label} />
       </span>
@@ -99,6 +99,15 @@ function ChangePreview({ preview, side, showLabels = true, override }) {
   // Text and icons are drawn the way the product shows them — dark on a
   // light surface — not as dark-on-dark, where a letter-spacing or stroke
   // difference couldn't be seen at all.
+  if (kind === 'spacing') {
+    const sample = (spec) => (
+      <div className="flex w-full max-w-56 flex-col rounded-lg bg-white p-3" style={{ gap: spec.gap }}>
+        {['Email', 'Card number'].map((label) => <div key={label} className="rounded border border-slate-300 px-2 py-1 text-[11px] text-slate-600"><LocalizedText text={label} /></div>)}
+      </div>
+    )
+    return <Pair side={side} showLabel={showLabels} contentClassName="h-28" before={sample(before)} after={sample(after)} />
+  }
+
   if (kind === 'text') {
     const sample = (s) => (
       <span className="flex w-full items-center justify-center rounded-lg bg-white px-3 py-3">

@@ -49,21 +49,23 @@ export default function HighReviewNotifications() {
   // With the Inbox open the same items are already on screen, in the spot
   // the banners would cover.
   const show = (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
-  // Toasts land in the same corner. They start under this stack instead of
-  // on top of it: its bottom edge is published as `--ds-toast-top` (read by
+  // Toasts land in the same corner. They stack above this stack instead of
+  // on top of it: its occupied height is published as `--ds-toast-bottom` (read by
   // the toaster's rule in index.css) for as long as it's on screen.
   const stackRef = useRef(null)
   useEffect(() => {
     const el = stackRef.current
     const root = document.documentElement
     if (!show || !el) return
-    const publish = () => root.style.setProperty('--ds-toast-top', `${Math.round(el.getBoundingClientRect().bottom + 8)}px`)
+    const publish = () => root.style.setProperty('--ds-toast-bottom', `${Math.round(window.innerHeight - el.getBoundingClientRect().top + 8)}px`)
     publish()
     const observer = new ResizeObserver(publish)
     observer.observe(el)
+    window.addEventListener('resize', publish)
     return () => {
       observer.disconnect()
-      root.style.removeProperty('--ds-toast-top')
+      window.removeEventListener('resize', publish)
+      root.style.removeProperty('--ds-toast-bottom')
     }
   }, [show, banners.length, showRequest, entry.prompt])
   function dismissEntry() {
@@ -81,7 +83,7 @@ export default function HighReviewNotifications() {
   if (!show) return null
 
   // Rendered into <body> and fixed to the window (.ds-notification-stack:
-  // under the header, 24px off the right edge, never wider than the
+  // above the bottom edge, 24px off the right edge, never wider than the
   // window), so no panel's overflow or transform can clip a card or its
   // dismiss button. "Dismiss all" sits on the same right edge.
   return createPortal(
