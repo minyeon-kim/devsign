@@ -8,6 +8,7 @@ import { activities, allPeople } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
 import { isOpen, isPendingMerge, needsReviewFrom } from '@/lib/conflicts'
 import ConflictRow from '@/components/conflicts/ConflictRow'
+import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { useConflictStore } from '@/state/ConflictStore'
@@ -127,7 +128,9 @@ function ProjectTimeline({ activities: liveActivities, history, conflicts, histo
       kind: 'activity',
       conflict: conflicts.find((conflict) => conflict.id === item.conflictId) ?? null,
       actor: item.actorName ?? allPeople.find((person) => person.id === item.actorId)?.name ?? 'Devsign',
-      verb: activityVerb(item.action, item.type),
+      verb: item.type === 'merge' && conflicts.find((conflict) => conflict.id === item.conflictId)?.revertOf
+        ? 'canceled the merge of'
+        : activityVerb(item.action, item.type),
       token: tokenFor(item),
       timestamp: item.timestamp,
     })),
@@ -164,17 +167,23 @@ function ProjectTimeline({ activities: liveActivities, history, conflicts, histo
           <h3 className="truncate text-xs font-medium text-slate-200"><LocalizedText text={group.token} /></h3>
           <ul className="mt-1">
             {group.entries.map((entry) => {
-              const sentence = entry.kind === 'activity' ? `${entry.actor} ${SHORT_EVENT_VERB[entry.verb] ?? entry.verb}` : null
+              const sentence = entry.kind !== 'activity' ? null
+                : entry.verb === 'canceled the merge of' || entry.verb === 'opened a revert of'
+                  ? `${entry.actor} ${entry.verb} ${entry.token}`
+                  : `${entry.actor} ${SHORT_EVENT_VERB[entry.verb] ?? entry.verb}`
               const versionLabel = entry.versionKind === 'conflict' ? 'Conflict detected' : entry.label
               const time = entry.createdAt
                 ? relativeTime(entry.createdAt)
                 : entry.timestamp === 'Just now' ? null : entry.timestamp
               const content = (
                 <>
-                  <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
-                    {sentence
-                      ? <LocalizedText text={sentence} />
-                      : <><LocalizedText text={versionLabel} />{entry.actor && <> · <LocalizedText text={entry.actor} /></>}</>}
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-xs text-slate-400">
+                      {sentence
+                        ? <LocalizedText text={sentence} />
+                        : <><LocalizedText text={versionLabel} />{entry.actor && <> · <LocalizedText text={entry.actor} /></>}</>}
+                    </span>
+                    {entry.kind === 'activity' && entry.conflict?.revertOf && <MergeCancellationSummary conflict={entry.conflict} conflicts={conflicts} />}
                   </span>
                   {time && <span className="shrink-0 text-[10px] text-slate-500"><LocalizedText text={time} /></span>}
                 </>
@@ -349,7 +358,7 @@ function ProjectOverviewPage() {
                 <div className="mb-5">
                   <h3 className="mb-1 text-xs font-medium text-slate-300"><LocalizedText text="Pending merge" /> <span className="text-slate-500 tabular-nums">{mergeConflicts.length}</span></h3>
                   <ul className="divide-y divide-white/[0.06]">
-                    {mergeConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} onOpen={openConflict} /></li>)}
+                    {mergeConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
                   </ul>
                 </div>
               )}
@@ -357,7 +366,7 @@ function ProjectOverviewPage() {
                 <div>
                   <h3 className="mb-1 text-xs font-medium text-slate-300"><LocalizedText text="Decision needed" /> <span className="text-slate-500 tabular-nums">{decisionConflicts.length}</span></h3>
                   <ul className="divide-y divide-white/[0.06]">
-                    {decisionConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} onOpen={openConflict} /></li>)}
+                    {decisionConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
                   </ul>
                 </div>
               )}
@@ -366,7 +375,7 @@ function ProjectOverviewPage() {
             {merged.length > 0 && (
               <Section title="Recently merged" action={<SectionLink onClick={() => openList('done')}>View all</SectionLink>}>
                 <ul className="divide-y divide-white/[0.06]">
-                  {merged.slice(-4).reverse().map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} onOpen={openConflict} /></li>)}
+                  {merged.slice(-4).reverse().map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
                 </ul>
               </Section>
             )}

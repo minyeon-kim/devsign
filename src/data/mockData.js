@@ -304,7 +304,7 @@ export const conflictChecklist = [
   {
     id: 'cc-4',
     cause: 'Nav icons 20px in code · 24px in the redesigned nav',
-    effect: 'Tab icons smaller than the redesigned tab bar · 44px tap area unchanged',
+    effect: 'The tab icons look smaller than the new tab bar. The 44px touch area stays the same.',
     gitFlow: { source: 'hotfix/mobile-nav-icon', target: 'main' },
     token: 'Nav Icon / Size',
     file: 'src/components/nav/BottomNav.jsx',

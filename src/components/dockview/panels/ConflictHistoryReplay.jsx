@@ -167,6 +167,8 @@ export function useConflictActivity(conflict, workspace) {
     activity.forEach((item) => {
       if (item.kind === 'comment') return
       const group = byKind.get(item.kind) ?? { kind: item.kind, label: GROUP_LABEL[item.kind] ?? item.action, icon: item.icon, timestamp: item.timestamp, actors: [], items: [] }
+      if (conflict.revertOf && item.kind === 'merge') group.label = 'canceled the merge'
+      if (conflict.revertOf && item.kind === 'revert') group.label = 'requested merge cancellation'
       if (!group.actors.includes(item.actor)) {
         group.actors.push(item.actor)
         group.items.push(item)

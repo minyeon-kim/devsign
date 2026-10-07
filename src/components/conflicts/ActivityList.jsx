@@ -34,7 +34,7 @@ function eventToActivity(event) {
   const person = event.actorId === viewer.id ? viewer : allPeople.find((p) => p.id === event.actorId)
   return {
     id: event.id,
-    actorName: event.actorId === viewer.id ? 'You' : person?.name,
+    actorName: event.actorId === viewer.id ? 'You' : person?.name ?? event.actorId ?? 'Devsign',
     actorInitials: person?.initials,
     actorColorClass: person?.colorClass,
     action: EVENT_ACTION[event.kind] ?? event.kind,
@@ -62,6 +62,11 @@ function ActivityList({ projectId, limit = 6, onOpenConflict, inset = false }) {
       {items.map((a) => {
         const conflict = a.conflictId && conflicts.find((c) => c.id === a.conflictId)
         const actionNeeded = conflict && needsReviewFrom(conflict)
+        const eventSentence = a.action === 'opened a revert of'
+          ? `${a.actorName} opened a revert of ${a.target}`
+          : conflict?.revertOf && a.action === 'merged'
+            ? `${a.actorName} canceled the merge of ${a.target}`
+            : `${a.actorName} ${a.action}${a.target ? ` ${a.target}` : ''}`
         return (
           <li
             key={a.id}
@@ -80,10 +85,9 @@ function ActivityList({ projectId, limit = 6, onOpenConflict, inset = false }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-slate-400">
-                <span className="font-medium text-slate-200">{a.actorName}</span> {a.action}{' '}
-                <span className="text-slate-200">{a.target}</span>
+                <LocalizedText text={eventSentence} />
               </span>
-              {actionNeeded && <span className="text-[11px] font-medium text-emerald-300">Needs your review</span>}
+              {actionNeeded && <span className="text-[11px] font-medium text-emerald-300"><LocalizedText text="This needs your review" /></span>}
             </span>
             {/* The way to the conflict: the same secondary button as
                 every other list — "Review →" when it's yours to review. */}

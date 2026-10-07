@@ -3,6 +3,7 @@ import { cn } from 'cn'
 import { RISK_LABEL } from '@/lib/conflicts'
 import { SeverityPill } from '@/components/mergestudio/ConflictTag'
 import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
+import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { LocalizedText } from '@/i18n/runtime'
 
 // Low severity is the default and doesn't need to occupy space in the queue.
@@ -12,7 +13,7 @@ export function RiskBadge({ severity }) {
 }
 
 // The whole row opens the conflict; the full path stays available on hover.
-function ConflictRow({ conflict, showProject = false, note, onOpen }) {
+function ConflictRow({ conflict, conflicts = [], showProject = false, note, onOpen }) {
   const fileName = conflict.file?.split('/').at(-1) ?? conflict.file
   return (
     <button
@@ -27,6 +28,7 @@ function ConflictRow({ conflict, showProject = false, note, onOpen }) {
           <RiskBadge severity={conflict.severity} />
           {note && <span className="shrink-0 text-[10.5px] text-slate-500"><LocalizedText text={note} /></span>}
         </span>
+        <MergeCancellationSummary conflict={conflict} conflicts={conflicts} />
         <span className="mt-1 block min-w-0 truncate text-[11px] text-slate-500">
           {showProject && conflict.projectName && <span className="shrink-0 text-slate-400"><LocalizedText text={conflict.projectName} /> ·</span>}
           <span title={conflict.file} className="inline-flex min-w-0 items-center gap-1 font-mono">

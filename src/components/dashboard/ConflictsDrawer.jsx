@@ -3,6 +3,7 @@ import { CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
 import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
+import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { useConflictList } from '@/components/conflicts/useConflictList'
 import { LocalizedText } from '@/i18n/runtime'
 import { isOpen, shortDue, taskFor } from '@/lib/conflicts'
@@ -55,7 +56,9 @@ function ConflictsDrawer({ project }) {
         <ul className="flex flex-col gap-2">
           {visible.map((conflict) => {
             const task = taskFor(conflict)
-            const due = shortDue(conflict.dueLabel)
+            const due = conflict.reviewStage === 'resolved'
+              ? conflict.resolvedAtLabel ?? conflict.timestamp ?? null
+              : shortDue(conflict.dueLabel)
             return (
               <li key={conflict.id}>
                 <button
@@ -70,8 +73,9 @@ function ConflictsDrawer({ project }) {
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
-                    {!conflict.rollback && <ConflictTypeTag conflict={conflict} quiet />}
+                    <ConflictTypeTag conflict={conflict} quiet />
                   </span>
+                  <MergeCancellationSummary conflict={conflict} conflicts={conflicts} />
                   <MismatchLabel conflict={conflict} className="truncate text-[10.5px] text-slate-500" />
                   <span className="flex min-w-0 items-center gap-x-2 text-[10.5px] text-slate-500">
                     <ListStatusLabel conflict={conflict} className="text-[10.5px] font-normal text-slate-400" />

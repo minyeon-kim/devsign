@@ -1,6 +1,7 @@
 import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
-import { useState, Fragment } from 'react'
+import { useState } from 'react'
+import { requiredReviewers } from '@/lib/conflicts'
 import { REVIEW_HEADER_BADGE } from './ConflictBadges'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
@@ -50,7 +51,7 @@ export function MismatchLabel({ conflict, className }) {
   if (!labels.length) return null
   return (
     <span data-mismatch className={className}>
-      {labels.map((label, index) => <span key={label}>{index > 0 && ' · '}<LocalizedText text={label} /></span>)}
+      {labels.map((label, index) => <span key={label}>{index > 0 && ', '}<LocalizedText text={label} /></span>)}
     </span>
   )
 }
@@ -117,8 +118,8 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
       </div>
       <div className="grid grid-cols-[minmax(72px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 text-[10px] leading-4 text-slate-400">
         <span />
-        <span><LocalizedText text={resolved && mergedSide === 'B' ? 'Final applied value' : resolved ? 'Before merge' : 'Code now'} /></span>
-        <span><LocalizedText text={resolved && mergedSide === 'A' ? 'Final applied value' : 'Design standard'} /></span>
+        <span><LocalizedText text={resolved && mergedSide === 'B' ? 'Final applied value' : resolved ? 'Before merge' : 'Code value'} /></span>
+        <span><LocalizedText text={resolved && mergedSide === 'A' ? 'Final applied value' : 'Design value'} /></span>
       </div>
       <ul className="mt-1 space-y-1.5">
         {differences.map((entry) => (
@@ -144,28 +145,31 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
 // `next`: the line to say after the steps, when the caller already has
 // one (the review's approval area) — so the two never differ.
 const STEP_DESCRIPTION = {
-  conflict: '디자인과 코드의 차이를 확인해요',
-  compare: '현재 값과 디자인 기준을 비교해요',
-  select: '해결 방법을 정하고 검토를 요청해요',
-  approve: '검토자의 승인을 받아요',
-  merge: '승인된 변경 내용을 반영해요',
+  conflict: 'Check the difference',
+  compare: 'Compare code and design values',
+  select: 'Choose a resolution',
+  approve: 'Get approval from the reviewer',
+  merge: 'Apply the approved changes',
 }
 
 export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, className }) {
   const flow = flowOf(conflict, { chosen })
   const [expandedStep, setExpandedStep] = useState(null)
+  const [approveOpenOverride, setApproveOpenOverride] = useState(null)
+  const [doneStepsExpanded, setDoneStepsExpanded] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
-  const isExpanded = expandedStep ?? flow.current !== 'done'
+  const needsReviewer = conflict.reviewStage === 'detected' && requiredReviewers(conflict).length === 0
+  const isExpanded = doneStepsExpanded ?? flow.current !== 'done'
   return (
-    <section data-flow-steps={flow.current} aria-label="검토 진행 상태" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
+    <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="flex items-start justify-between gap-3 px-3 py-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-xs font-semibold text-white">{flow.current === 'done' ? '병합 완료' : '검토 진행 상태'}</h3>
+          <h3 className="text-xs font-semibold text-white"><LocalizedText text={flow.current === 'done' ? 'Merged' : 'Progress'} /></h3>
           <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
         </div>
         {flow.current === 'done' ? (
-          <button type="button" data-flow-toggle aria-expanded={isExpanded} onClick={() => setExpandedStep(!isExpanded)} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-200 hover:text-white">
+          <button type="button" data-flow-toggle aria-expanded={isExpanded} onClick={() => setDoneStepsExpanded(!isExpanded)} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-200 hover:text-white">
             <LocalizedText text={`${flow.steps.length} steps complete`} />
             <ChevronDown className={cn('size-3.5 transition-transform', isExpanded && 'rotate-180')} />
           </button>
@@ -177,7 +181,8 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
           const isApprove = step.id === 'approve'
           const ring = isApprove && approvals?.total > 0 && step.state !== 'done' ? approvals.done / approvals.total : null
           const toggle = () => setExpandedStep(expandedStep === step.id ? null : step.id)
-          const open = isApprove && expandedStep === 'approve' && reviewersJSX
+          const approveOpen = isApprove && (approveOpenOverride ?? (expandedStep === 'approve' || needsReviewer)) && reviewersJSX
+          const toggleApprove = () => setApproveOpenOverride(!approveOpen)
           return (
             <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className={cn('relative flex items-start gap-3', last ? 'pb-0' : 'pb-4')}>
               {!last && (
@@ -188,7 +193,7 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
               )}
               <button
                 type="button"
-                onClick={toggle}
+                onClick={isApprove ? toggleApprove : toggle}
                 className={cn(
                   'ds-intrinsic relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full p-0 text-[10px] leading-none font-semibold transition-opacity hover:opacity-80',
                   step.state === 'done'
@@ -213,18 +218,19 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewersJSX, cla
                 <div
                   role={isApprove ? 'button' : undefined}
                   tabIndex={isApprove ? 0 : undefined}
-                  aria-expanded={isApprove ? Boolean(open) : undefined}
-                  onClick={isApprove ? toggle : undefined}
-                  onKeyDown={isApprove ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } } : undefined}
+                  aria-expanded={isApprove ? Boolean(approveOpen) : undefined}
+                  onClick={isApprove ? toggleApprove : undefined}
+                  onKeyDown={isApprove ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleApprove() } } : undefined}
                   className={cn(isApprove && 'cursor-pointer rounded-md hover:bg-white/[0.03]')}
                 >
                   <p className={cn('flex items-center gap-1 text-xs leading-5 font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
                     <LocalizedText text={step.label} />
-                    {isApprove && reviewersJSX && <ChevronDown className={cn('size-3.5 text-slate-400 transition-transform', open && 'rotate-180')} />}
+                    {needsReviewer && isApprove && <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] leading-none font-medium text-amber-200"><LocalizedText text="Required" /></span>}
+                    {isApprove && reviewersJSX && <ChevronDown className={cn('size-3.5 text-slate-400 transition-transform', approveOpen && 'rotate-180')} />}
                   </p>
-                  <p className="text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
+                  <p className="text-[11px] leading-4 text-slate-400"><LocalizedText text={needsReviewer && isApprove ? 'Add a reviewer other than the author' : STEP_DESCRIPTION[step.id]} /></p>
                 </div>
-                {open && <div className="mt-2 pl-1">{reviewersJSX(true, () => setExpandedStep(null))}</div>}
+                {approveOpen && <div className="mt-2 pl-1">{reviewersJSX(true, () => setExpandedStep(null))}</div>}
               </div>
             </li>
           )

@@ -95,7 +95,7 @@ export const LIST_STATUSES = [
   { id: 'detected', label: 'Review not requested', dot: 'bg-slate-400' },
   { id: 'in_review', label: 'In review', dot: 'bg-sky-400' },
   { id: 'pending_merge', label: 'Pending merge', dot: 'bg-emerald-400' },
-  { id: 'pending_rollback', label: 'Pending rollback', dot: 'bg-amber-400' },
+  { id: 'pending_rollback', label: 'Pending merge cancellation', dot: 'bg-amber-400' },
   { id: 'done', label: 'Done', dot: 'bg-violet-400' },
 ]
 export function listStatusOf(conflict) {
@@ -105,6 +105,18 @@ export function listStatusOf(conflict) {
       ? (conflict.rollback ? 'pending_rollback' : 'pending_merge')
       : conflict.reviewStage === 'in_review' ? 'in_review' : 'detected'
   return LIST_STATUSES.find((status) => status.id === id)
+}
+
+export function mergeCancellationInfo(conflict, conflicts = []) {
+  if (!conflict?.revertOf) return null
+  const original = conflicts.find((candidate) => candidate.id === conflict.revertOf)
+  const changes = (conflict.comparisonFields ?? [])
+    .filter((field) => field.current !== field.expected)
+    .map((field) => ({ label: field.label, from: field.current, to: field.expected }))
+  return {
+    date: original?.resolvedAtLabel ?? original?.timestamp ?? null,
+    changes,
+  }
 }
 
 export function isPendingMerge(conflict) {
@@ -318,7 +330,9 @@ export function toConflictRecord(raw) {
   return {
     ...raw,
     // (A title saved with the prefix stacked reads as one.)
-    title: (raw.title ?? raw.token ?? raw.file)?.replace(/^(?:Revert: ){2,}/, 'Revert: '),
+    title: raw.rollback
+      ? raw.rollback.component ?? String(raw.rollback.target ?? raw.title ?? raw.file ?? '').replace(/\.[a-z]+$/i, '').replace(/^Rollback · /, '')
+      : (raw.title ?? raw.token ?? raw.file)?.replace(/^(?:Revert: )+/, ''),
     // Records saved before the samples named their authors pick them up.
     changedBy: raw.changedBy ?? conflictChecklist.find((seed) => seed.id === raw.id)?.changedBy,
     // …their details (components, files)…

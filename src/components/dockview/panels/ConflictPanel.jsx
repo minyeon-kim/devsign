@@ -1,6 +1,7 @@
 import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
+import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -327,6 +328,8 @@ function ConflictPanel({ inMergeStudio }) {
                             <span className="text-slate-400"> · <LocalizedText text="Confirmed" /> </span>
                             <span className="tabular-nums">{conflict.reviewers.filter((r) => r.status === 'approved').length}/{conflict.reviewers.length}</span>
                           </p>
+                        ) : conflict.revertOf ? (
+                          <MergeCancellationSummary conflict={conflict} conflicts={conflicts} />
                         ) : conflict.message ? (
                           <p className="truncate text-[12.5px] leading-5 text-slate-300" title={conflict.message}>
                             <LocalizedText text={conflict.message} />
@@ -576,17 +579,18 @@ function FilterCount({ mine, count }) {
 function ListStatus({ conflict, ready, note }) {
   const status = listStatusOf(conflict)
   const rollback = Boolean(conflict.rollback)
+  const cancellation = Boolean(conflict.revertOf)
   const signed = `${conflict.reviewers.filter((r) => r.status === 'approved').length}/${conflict.reviewers.length}`
   const tally = <><LocalizedText text={rollback ? 'Confirmed' : 'Approvals'} /> <span className="tabular-nums">{signed}</span></>
   const detail = {
     detected: <LocalizedText text={rollback ? 'Confirmation not requested' : ready ? 'Decided, review request needed' : 'Not decided yet'} />,
     in_review: conflict.reviewers.some((r) => r.status === 'changes_requested') ? <>{tally}, <LocalizedText text="Changes requested" /></> : tally,
     pending_merge: <>{tally}, <LocalizedText text="Ready to merge" /></>,
-    pending_rollback: <>{tally}, <LocalizedText text="Ready to roll back" /></>,
-    done: <LocalizedText text={rollback ? 'Rolled back' : 'Merged'} />,
+    pending_rollback: <>{tally}, <LocalizedText text="Ready to restore previous version" /></>,
+    done: <LocalizedText text={rollback ? 'Previous version restored' : cancellation ? 'Merge canceled' : 'Merged'} />,
   }[status.id]
-  const label = status.id === 'done' ? rollback ? 'Rolled back' : 'Merged' : status.label
-  const merged = status.id === 'done' && !rollback
+  const label = status.id === 'done' ? rollback ? 'Previous version restored' : cancellation ? 'Merge canceled' : 'Merged' : status.label
+  const merged = status.id === 'done'
   return (
     <>
     <Tooltip>

@@ -46,11 +46,11 @@ export function ReviewStageBadge({ stage, ready = false, label, quiet = false, p
 export function ListStatusLabel({ conflict, className }) {
   const status = listStatusOf(conflict)
   const resolvedLabel = conflict.reviewStage === 'resolved'
-    ? conflict.rollback ? 'Rolled back' : 'Merged'
+    ? conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged'
     : status.label
   return (
-    <span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5', conflict.reviewStage === 'resolved' && !conflict.rollback ? 'text-emerald-200' : 'text-slate-200', className)}>
-      {conflict.reviewStage === 'resolved' && !conflict.rollback
+    <span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5', conflict.reviewStage === 'resolved' ? 'text-emerald-200' : 'text-slate-200', className)}>
+      {conflict.reviewStage === 'resolved'
         ? <CircleCheck aria-hidden className="size-3.5 shrink-0 text-emerald-300" />
         : <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />}
       <LocalizedText text={resolvedLabel} />

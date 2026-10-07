@@ -35,7 +35,6 @@ const tr = (text) => translateText(text, getLanguage())
 const personNameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { allPeople, canvasPages, currentUserFor, projectFileSets } from '@/data/mockData'
+import { allPeople, canvasPages, currentUserFor, projectFileSets, projects } from '@/data/mockData'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
@@ -72,6 +71,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { BaselineBadge, ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
+import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -472,7 +472,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   const why = conflict.effect ?? conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
   const standard = rationale ? standardOf(rationale.rules, checks) : null
   // Why it conflicts: its own account when it has one, else what was found.
-  const cause_text = conflict.cause ?? conflict.message ?? summary
+  const causes = conflict.comparisonFields?.length ? conflict.comparisonFields : null
+  const cause_text = causes ? null : conflict.cause ?? conflict.message ?? summary
 
   // What the viewer has to do now — and only that: nothing shows when the
   // next move is someone else's. (A review that's yours to give is said on
@@ -480,7 +481,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   const todo = stage === 'resolved' ? null
     : reasonNeeded ? null
         : stage === 'detected' ? 'Review request needed'
-          : stage === 'approved' ? (conflict.rollback ? 'Ready to roll back' : 'Ready to merge') : null
+          : stage === 'approved' ? (conflict.rollback ? 'Ready to restore previous version' : 'Ready to merge') : null
   const status = listStatusOf(conflict)
   // One label column for the whole tab: every row's label starts at the
   // same x, and so does every value.
@@ -523,22 +524,24 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
 
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
-      {!conflict.rollback && (cause_text || why || standard) && (
-        <InfoSection className="border-t-0 pt-1">
+      {!conflict.rollback && (causes || cause_text || why || standard) && (
+        <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
-            {cause_text && (
+            {(causes || cause_text) && (
               <Row label="Cause" data-summary-row="Cause">
-                <LocalizedText text={cause_text} />
+                {causes
+                  ? causes.map((field) => <span key={field.label} className="block"><LocalizedText text={`Code value ${field.current}, design value ${field.expected}`} /></span>)
+                  : <LocalizedText text={cause_text} />}
                 {cause && (
                   <button
                     type="button"
                     data-cause-version
                     data-open-cause-history
                     onClick={onOpenCause}
-                    title="View origin version in History"
+                    title="View the version where this conflict started"
                     className="ds-intrinsic group mt-1 flex w-fit cursor-pointer items-center gap-1 rounded py-0.5 text-left text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
                   >
-                    <span className="text-[11px] font-medium leading-4"><LocalizedText text="View origin version" /></span>
+                    <span className="text-[11px] font-medium leading-4"><LocalizedText text="View the version where this conflict started" /></span>
                     <ArrowRight className="size-3 shrink-0" />
                   </button>
                 )}
@@ -744,7 +747,23 @@ function CodeDiffColumns({ rows }) {
 const HAND_VALUE = 'flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums'
 const TEXT_ACTION = 'ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-1.5 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange }) {
+function ReviewerPicker({ people, onSelect, children, align = 'start', triggerProps = {} }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger {...triggerProps}>{children}</DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className="w-48">
+        {people.map((person) => (
+          <DropdownMenuItem key={person.id} onClick={() => onSelect(person)} className="gap-2">
+            <PersonAvatar person={person} />
+            <span>{person.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onChangeReviewer }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
@@ -1085,6 +1104,35 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   )
                 })}
               </div>
+              {pairedPreview && !readOnly && choice && reviewerNeeded && (
+                <section data-next-step="reviewer" className="mt-3 min-w-0 rounded-xl border border-emerald-300/35 bg-emerald-400/[0.045] px-4 py-3">
+                  <h3 className="text-xs font-semibold text-emerald-100"><LocalizedText text="Next step · Assign a reviewer" /></h3>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-300"><LocalizedText text="Requesting a review needs at least one reviewer other than the author" /></p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {reviewerCandidates.slice(0, 3).map((person) => (
+                      <button key={person.id} type="button" data-suggested-reviewer={person.id} onClick={() => onAssignReviewer(person)} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 text-xs text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                        <PersonAvatar person={person} />
+                        {person.name}
+                      </button>
+                    ))}
+                    {reviewerCandidates.length > 0 ? (
+                      <ReviewerPicker people={reviewerCandidates} onSelect={onAssignReviewer}>
+                        <span className="inline-flex h-7 cursor-pointer items-center rounded-full px-2 text-xs text-slate-400 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">+ <LocalizedText text="Find someone else" /></span>
+                      </ReviewerPicker>
+                    ) : <span className="text-xs text-slate-400"><LocalizedText text="No other project members available" /></span>}
+                  </div>
+                </section>
+              )}
+              {pairedPreview && !readOnly && choice && !reviewerNeeded && requiredReviewers(conflict).length > 0 && (
+                <p data-reviewer-assigned className="mt-3 text-xs text-slate-300">
+                  <LocalizedText text={`${personNameOf(requiredReviewers(conflict)[0].id) ?? requiredReviewers(conflict)[0].id} will receive the review request`} />
+                  {reviewerCandidates.length > 0 && (
+                    <> · <ReviewerPicker people={reviewerCandidates} onSelect={onChangeReviewer}>
+                      <span className="cursor-pointer text-slate-400 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text="Change reviewer" /></span>
+                    </ReviewerPicker></>
+                  )}
+                </p>
+              )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
@@ -1517,7 +1565,7 @@ function agoLabel(at) {
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, expanded = false, onExpandedChange }) {
+function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, expanded = false, onReviewerAssigned }) {
   // On a rollback agreement the reviewers are the people it affects, and
   // their sign-off is a confirmation.
   const statusLabels = conflict.rollback ? { pending: 'Not confirmed yet', approved: 'Confirmed' } : {}
@@ -1528,7 +1576,9 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
   const { reviewers, reviewStage } = conflict
   // The author can't review their own change, so they're never offered.
   const author = authorOf(conflict)
-  const assignable = allPeople.filter((p) => !reviewers.some((r) => r.id === p.id) && p.id !== author)
+  const projectMemberIds = projects.find((project) => project.id === conflict.projectId)?.memberIds ?? allPeople.map((person) => person.id)
+  const assignable = projectMemberIds.map((id) => allPeople.find((person) => person.id === id)).filter((person) =>
+    person && !reviewers.some((reviewer) => reviewer.id === person.id) && person.id !== author)
   const pending = reviewers.filter((r) => r.status !== 'approved' && r.id !== viewerId && r.id !== authorOf(conflict))
   const canRemind = reviewStage === 'in_review' || reviewStage === 'detected'
 
@@ -1541,6 +1591,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
       [...reviewers, { id: person.id, status: 'pending' }],
       reviewStage === 'approved' ? { reviewStage: 'in_review' } : {}
     )
+    onReviewerAssigned?.()
   }
 
   // Only someone who hasn't reviewed yet can be taken off — a change
@@ -1573,16 +1624,14 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
   // the grid's own label column): one short row per reviewer — avatar,
   // name, status — with its actions on hover, and Add reviewer / Remind all as
   // quiet text actions underneath.
-  // `sectioned` (the sidebar's Info tab): its own header — title, how many,
-  // and + at the right to add one — instead of the text action underneath.
+  // `sectioned` (the sidebar's Info tab): its own header and a text action.
   const addMenu = reviewStage !== 'resolved' && (assignable.length === 0 ? sectioned && (
-    // Everyone who could review already is: the + stays, saying so.
-    <span data-add-reviewer aria-disabled="true" title="Everyone on the project is already on this review" className="ml-auto flex size-5 items-center justify-center rounded text-slate-600"><Plus className="size-3.5" /></span>
+    <span data-add-reviewer aria-disabled="true" className="ml-auto text-xs text-slate-500"><LocalizedText text="No other project members available" /></span>
   ) : (
     <DropdownMenu>
-      <DropdownMenuTrigger data-add-reviewer aria-label="Add reviewer" title="Add reviewer" className={sectioned ? 'ds-intrinsic ml-auto flex size-5 items-center justify-center rounded text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white data-[popup-open]:text-white' : REVIEWER_TEXT_ACTION}>
-        <Plus className="size-3.5" />
-        {!sectioned && 'Add reviewer'}
+      <DropdownMenuTrigger data-add-reviewer aria-label="Add reviewer" className={sectioned ? cn(REVIEWER_TEXT_ACTION, 'ml-auto') : REVIEWER_TEXT_ACTION}>
+        {!sectioned && <Plus className="size-3.5" />}
+        <LocalizedText text="Add reviewer" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align={sectioned ? 'end' : 'start'} className="w-44">
         {assignable.map((person) => (
@@ -1606,7 +1655,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
       {!sectioned || expanded ? (
         <>
           {reviewers.length === 0 ? (
-            <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
+            <p className="py-1.5 text-xs leading-[18px] text-slate-400"><LocalizedText text="No reviewer has been assigned" /></p>
           ) : (
             <div>
               {reviewers.map((reviewer) => {
@@ -2033,13 +2082,31 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
     <div data-approval-bar={mode} className="flex min-w-0 shrink-0 items-center gap-2.5">
       <div data-approval-actions className="flex shrink-0 items-center gap-2">
         {mode === 'idle' && request && (
-          // (Disabled, it still says why on hover: the wrapper takes the pointer.)
-          <Tooltip>
-            <TooltipTrigger render={<span data-approval-request-wrap className="inline-flex" />}>
-              <button type="button" data-approval-request data-choice-label={request.label ?? 'Send review request'} disabled={request.disabled} onClick={request.run} className={REQUEST_REVIEW_BUTTON}><LocalizedText text={request.label ?? 'Send review request'} /></button>
-            </TooltipTrigger>
-            {request.hint && <TooltipContent side="bottom" align="end"><LocalizedText text={request.hint} /></TooltipContent>}
-          </Tooltip>
+          <>
+            {request.assignReviewer && request.assignable.length > 0 ? (
+              <ReviewerPicker
+                people={request.assignable}
+                onSelect={request.onAssign}
+                align="end"
+                triggerProps={{ ref: request.buttonRef, 'data-approval-request': '', 'data-choice-label': request.label, className: cn(PRIMARY_BUTTON, 'gap-1.5') }}
+              >
+                <><Plus className="size-3.5" /><LocalizedText text={request.label} /></>
+              </ReviewerPicker>
+            ) : (
+              <button
+                ref={request.buttonRef}
+                type="button"
+                data-approval-request
+                data-choice-label={request.label ?? 'Send review request'}
+                disabled={request.disabled}
+                onClick={request.run}
+                className={request.assignReviewer ? cn(PRIMARY_BUTTON, 'gap-1.5') : REQUEST_REVIEW_BUTTON}
+              >
+                <LocalizedText text={request.label ?? 'Send review request'} />
+              </button>
+            )}
+            {request.helper && <span data-approval-helper className="max-w-40 text-[11px] leading-4 text-slate-400"><LocalizedText text={request.helper} /></span>}
+          </>
         )}
         {mode === 'waiting' && waiting.length > 0 && onUpdate && (
           <button type="button" data-approval-remind onClick={remind} className={QUIET}><Bell className="size-3.5 text-slate-400" /><LocalizedText text="Remind again" /></button>
@@ -2059,7 +2126,7 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
           <button type="button" data-approval-merge onClick={onMerge} disabled={blockingCount > 0} title={blockingCount > 0 ? tr('Resolve the failing checks before merging.') : undefined} className={CTA}><GitMerge className="size-3.5" /><LocalizedText text={TASK_LABEL.merge} /></button>
         )}
         {mode === 'merged' && onRevert && (
-          <button type="button" data-approval-revert onClick={onRevert} className={TEXT_ACTION}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Revert" /></button>
+          <button type="button" data-approval-revert onClick={onRevert} className={TEXT_ACTION}><RotateCcw className="size-3.5 text-slate-400" /><LocalizedText text="Cancel merge" /></button>
         )}
       </div>
     </div>
@@ -2101,6 +2168,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const [reasonRequest, setReasonRequest] = useState(null)
   const [confirmRevert, setConfirmRevert] = useState(false)
   const [exceptionReasonDraft, setExceptionReasonDraft] = useState('')
+  const requestActionRef = useRef(null)
   const [tabConflictId, setTabConflictId] = useState(conflict?.id)
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
@@ -2393,6 +2461,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const viewerId = conflict ? currentUserFor(conflict.projectId).id : null
   const myReviewer = conflict ? conflict.reviewers.find((r) => r.id === viewerId) : null
   const authorId = conflict ? authorOf(conflict) : null
+  const projectMemberIds = projects.find((project) => project.id === conflict?.projectId)?.memberIds ?? allPeople.map((person) => person.id)
+  const reviewerCandidates = projectMemberIds.map((id) => allPeople.find((person) => person.id === id)).filter((person) =>
+    person && person.id !== authorId && !(conflict?.reviewers ?? []).some((reviewer) => reviewer.id === person.id))
   const ownChange = Boolean(authorId && authorId === viewerId)
   // Never your own change (the GitHub rule) — someone else signs off.
   const canReview = Boolean(myReviewer && myReviewer.status !== 'approved' && !ownChange)
@@ -2433,6 +2504,31 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const stash = stage !== 'resolved' && conflict?.stashedAssemblies && Object.keys(conflict.stashedAssemblies).length ? conflict.stashedAssemblies : null
   // (The third way can be chosen before its value is set: `customChosen`.)
   const choice = !conflict ? null : adjustedByHand || (stage === 'detected' && conflict.customChosen) ? 'C' : stage === 'detected' ? decisionState.side : mergedSide
+  const hasReviewers = conflict ? requiredReviewers(conflict).length > 0 : false
+  const needsReviewer = stage === 'detected' && Boolean(choice) && !hasReviewers
+  function focusNextAction() {
+    window.requestAnimationFrame(() => {
+      const target = !choice
+        ? document.querySelector('[data-decision="A"]')
+        : choice === 'C' && !adjustedByHand
+          ? document.querySelector('[data-decision="C"] [data-value-select], [data-decision="C"] [data-adjust-start]')
+          : decisionState.reasonNeeded
+            ? document.querySelector('[data-decision-reason] textarea, [data-decision-reason] input')
+            : requestActionRef.current
+      target?.focus()
+    })
+  }
+  function assignReviewer(person) {
+    if (!reviewerCandidates.some((candidate) => candidate.id === person.id) || person.id === authorId) return
+    update({ reviewers: [...conflict.reviewers, { id: person.id, status: 'pending' }] })
+    focusNextAction()
+  }
+  function changeReviewer(person) {
+    const currentReviewer = requiredReviewers(conflict)[0]
+    if (!currentReviewer || !reviewerCandidates.some((candidate) => candidate.id === person.id) || person.id === authorId) return
+    update({ reviewers: conflict.reviewers.map((reviewer) => reviewer.id === currentReviewer.id ? { ...reviewer, id: person.id, status: 'pending' } : reviewer) })
+    focusNextAction()
+  }
   const openStudio = stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio ? () => {
     // Arriving there says what to do: the check to fix (its element
     // marked, the value to reach) or, with none failing, how a precise
@@ -2442,12 +2538,19 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   } : null
   function chooseWay(next) {
     if (next === choice) return
+    const focusNext = () => window.requestAnimationFrame(() => {
+      const target = (next === 'C' && !adjustedByHand ? document.querySelector('[data-decision="C"] [data-value-select], [data-decision="C"] [data-adjust-start]') : null)
+        ?? document.querySelector('[data-decision-reason] textarea, [data-decision-reason] input')
+        ?? requestActionRef.current
+      target?.focus()
+    })
     if (next === 'C') {
       // Chosen with or without a value; one set aside before comes back,
       // on the current implementation, where it was set.
       if (stash) workspace.setLayerAdjustments(mergeItem.id, stash)
       if (decisionState.side) undoSide()
       update({ customChosen: true, stashedAssemblies: null, decidedSide: null, decidedBy: null })
+      focusNext()
       return
     }
     if (adjustedByHand && mergeItem && workspace?.setLayerAdjustments) {
@@ -2458,6 +2561,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
     if (conflict.customChosen) update({ customChosen: false })
     decisionState.pick(next)
+    focusNext()
   }
   // The third card's values: what's set now, or what was set aside.
   const customResult = adjustedByHand ? result
@@ -2669,9 +2773,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       request={!onUpdate ? null : cardFlow
         ? {
           run: flow.decide.run,
-          disabled: !choice || Boolean(flow.decide.blocked),
-          hint: !choice ? 'Choose how to resolve it first' : flow.decide.blocked,
-          label: choice === 'A' ? 'Request review with the design reference' : choice === 'B' ? 'Request review keeping the current value' : choice === 'C' ? 'Request review with the adjusted value' : 'Send review request',
+          onAssign: assignReviewer,
+          assignable: reviewerCandidates,
+          assignReviewer: needsReviewer,
+          disabled: !choice || Boolean(decisionState.reasonNeeded) || (hasReviewers && Boolean(flow.decide.blocked)) || (needsReviewer && reviewerCandidates.length === 0),
+          buttonRef: requestActionRef,
+          helper: !choice ? 'Choose a resolution first' : needsReviewer && reviewerCandidates.length === 0 ? 'No other project members available' : null,
+          label: needsReviewer ? 'Assign reviewer' : choice === 'A' ? 'Request review with design values' : choice === 'B' ? 'Request review keeping code values' : choice === 'C' ? 'Request review with adjusted values' : 'Request review',
         }
         : { run: handleRequestReview, disabled: !requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest) }}
       revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
@@ -2686,31 +2794,35 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         {conflict && (
           <>
             <div className="flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card px-4 py-4 sm:px-6">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  title="Back to list"
-                  aria-label="Back to list"
-                  className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
-                >
-                  <ChevronLeft className="size-5" />
-                </button>
-                {!conflict.rollback && <StageBadge stage={stage} />}
-                <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
-                  <LocalizedText text={conflict.title} />
-                </h2>
-                {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
-                {!conflict.rollback && <ConflictTypeTag conflict={conflict} header />}
-                {conflict.rollback && <span className="shrink-0 text-xs text-slate-500">· <LocalizedText text="Revert" /></span>}
-                {severity && (
-                  severity.label === 'Low'
-                    ? <span data-risk-meta className="text-xs text-slate-500"><LocalizedText text="Low risk" /></span>
-                    : <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
-                      <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
-                      <LocalizedText text={severity.label} />
-                    </span>
-                )}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    title="Back to list"
+                    aria-label="Back to list"
+                    className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                  >
+                    <ChevronLeft className="size-5" />
+                  </button>
+                  <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
+                    <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
+                  </h2>
+                  {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                </div>
+                <div data-conflict-meta className="flex flex-wrap items-center gap-1.5 pl-10">
+                  {!conflict.rollback && <StageBadge stage={stage} />}
+                  <ConflictTypeTag conflict={conflict} header />
+                  {severity && (
+                    severity.label === 'Low'
+                      ? <span data-risk-meta className="text-xs text-slate-500"><LocalizedText text="Low risk" /></span>
+                      : <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                        <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
+                        <LocalizedText text={severity.label} />
+                      </span>
+                  )}
+                  {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
+                </div>
               </div>
               {/* Approval — who, where it stands, and its one action — on
                   the title's line. (A rollback keeps its own action.) */}
@@ -2734,7 +2846,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {stage === 'resolved' && (
                     <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
                       <CircleCheck className="size-4 shrink-0 text-emerald-300" />
-                      <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Rolled back' : 'Merged'} /></span>
+                      <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged'} /></span>
                       {/* The decision, here rather than as a row of the
                           summary: which value it merged with, who approved,
                           and when. */}
@@ -2803,6 +2915,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             state={decisionState}
                             checkBlocks={checkBlocks}
                             flow={flow}
+                            reviewerNeeded={needsReviewer}
+                            reviewerCandidates={reviewerCandidates}
+                            onAssignReviewer={assignReviewer}
+                            onChangeReviewer={changeReviewer}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —
@@ -2849,12 +2965,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
                       {!conflict.rollback && <FlowSteps
+                        key={conflict.id}
                         conflict={conflict}
                         chosen={cardFlow ? Boolean(choice) : undefined}
                         approvals={approvals}
                         next={approvalState?.line}
                         className="mb-5"
-                        reviewersJSX={(expanded, onToggle) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onExpandedChange={onToggle} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                        reviewersJSX={(expanded) => <ReviewersSection sectioned conflict={conflict} expanded={expanded} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} onReviewerAssigned={focusNextAction} />}
                       />}
                       <OverviewTab
                         key={conflict.id}
@@ -2888,9 +3005,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         <Dialog open={confirmRevert} onOpenChange={setConfirmRevert}>
           <DialogContent className="gap-0 bg-card p-0 sm:max-w-[420px]">
             <div className="px-5 pt-5 pb-3">
-              <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Create a revert request?" /></DialogTitle>
+              <DialogTitle className="text-sm font-semibold text-white"><LocalizedText text="Cancel this merge?" /></DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-[18px] text-slate-400">
-                <LocalizedText text="The merged change will stay in place until the inverse change is reviewed and merged." />
+                <LocalizedText text="Do you want to cancel this merge? A request to restore the previous values will be created and applied after review and approval." />
               </DialogDescription>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-5 py-4">
@@ -2899,7 +3016,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </button>
               <button type="button" onClick={() => { setConfirmRevert(false); handleRevert() }} className="ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-emerald-950 transition-colors hover:bg-emerald-300">
                 <RotateCcw className="size-3.5" />
-                <LocalizedText text="Create revert request" />
+                <LocalizedText text="Cancel the merge" />
               </button>
             </div>
           </DialogContent>

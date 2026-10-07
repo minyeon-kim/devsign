@@ -151,7 +151,7 @@ export default function HighReviewNotifications() {
           <div className="flex items-start gap-3 pr-8">
             <span className={cn(NOTICE_ICON, NOTICE_ICON_TONE.urgent)}><Bell className="size-4" /></span>
             <div className="min-w-0 flex-1">
-              <p className={NOTICE_TITLE}>High · 즉시 검토가 필요합니다</p>
+              <p className={NOTICE_TITLE}>위험도가 높아요. 바로 검토해 주세요.</p>
               <p className={cn(NOTICE_BODY, 'line-clamp-2 text-slate-300')}>{n.target.label}</p>
             </div>
           </div>

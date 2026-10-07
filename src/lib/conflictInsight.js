@@ -19,7 +19,8 @@ export const CONFLICT_TYPES = {
   'design-drift': { label: 'Design Drift', hint: 'The code differs from the design standard.', tone: 'violet' },
   'production-priority': { label: 'Production Code Priority', hint: 'The code differs from the design, and it’s already on the production branch.', tone: 'amber' },
   'design-decision': { label: 'Design Decision', hint: 'Design drafts to choose between; no code is in conflict.', tone: 'sky' },
-  revert: { label: 'Revert', hint: 'Takes a merged change back.', tone: 'slate' },
+  revert: { label: 'Merge cancellation', hint: 'Creates a reviewed change that restores the values from before the merge.', tone: 'slate' },
+  restore: { label: 'Restore previous version', hint: 'Restores a saved checkpoint after its affected collaborators agree.', tone: 'slate' },
 }
 
 const PRODUCTION_BRANCHES = /^(main|master|production|prod)$/i
@@ -35,7 +36,8 @@ export function baselineOf(conflict) {
 export function conflictTypeOf(conflict) {
   if (!conflict) return null
   const text = `${conflict.title ?? ''} ${conflict.cause ?? ''}`
-  const id = conflict.rollback || /^Revert: /.test(conflict.title ?? '') ? 'revert'
+  const id = conflict.rollback ? 'restore'
+    : conflict.revertOf || /^Revert: /.test(conflict.title ?? '') ? 'revert'
     : isDesignReview(conflict) ? 'design-decision'
     : /merge conflict|branches changed/i.test(text) ? 'code-conflict'
       : baselineOf(conflict)?.production ? 'production-priority'
@@ -89,9 +91,9 @@ export function mismatchesOf(conflict) {
 // says whether a way to resolve it has been picked (the review knows — a
 // saved record carries it once decided).
 export const FLOW_STEPS = [
-  { id: 'conflict', label: 'Conflict' },
-  { id: 'compare', label: 'Compare' },
-  { id: 'select', label: 'Select' },
+  { id: 'conflict', label: 'Check the difference' },
+  { id: 'compare', label: 'Compare values' },
+  { id: 'select', label: 'Choose a method' },
   { id: 'approve', label: 'Approve' },
   { id: 'merge', label: 'Merge' },
 ]
@@ -107,8 +109,7 @@ export function flowOf(conflict, { chosen } = {}) {
   const picked = chosen ?? Boolean(conflict.decidedSide || conflict.customChosen)
   const current = conflict.reviewStage === 'resolved' ? 'done'
     : conflict.reviewStage === 'approved' ? 'merge'
-      : conflict.reviewStage === 'in_review' ? 'approve'
-        : picked ? 'select' : 'compare'
+      : conflict.reviewStage === 'in_review' || picked ? 'approve' : 'compare'
   const at = current === 'done' ? FLOW_STEPS.length : FLOW_STEPS.findIndex((step) => step.id === current)
   return {
     current,

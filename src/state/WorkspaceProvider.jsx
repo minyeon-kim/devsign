@@ -1190,13 +1190,14 @@ export function WorkspaceProvider({ children, projectId }) {
       const conflict = conflicts.find((c) => c.id === conflictId)
       if (!conflict || conflict.reviewStage !== 'resolved') return
       const invertedDiff = conflict.diff && { before: conflict.diff.after, after: conflict.diff.before }
-      const invertedFields = conflict.comparisonFields?.map((f) => ({ ...f, expected: f.current, current: f.expected }))
+      const invertedFields = conflict.comparisonFields?.map((field) => conflict.decidedSide === 'B'
+        ? { ...field }
+        : { ...field, expected: field.current, current: field.expected })
       const revert = {
         ...conflict,
         id: `revert-${crypto.randomUUID()}`,
-        // One "Revert:" however many times it goes back and forth.
-        title: `Revert: ${conflict.title.replace(/^(?:Revert: )+/, '')}`,
-        message: `Reverts the change merged as ${conflict.title.replace(/^(?:Revert: )+/, '')}.`,
+        title: conflict.title.replace(/^(?:Revert: )+/, ''),
+        message: `Cancels the merge of ${conflict.title.replace(/^(?:Revert: )+/, '')}.`,
         reviewStage: 'detected',
         diffInspected: false,
         resolved: false,

@@ -67,8 +67,8 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, fixS
                 {onFix && (
                   <button type="button" onClick={() => onFix(check)} className={cn(ACTION, ACTION_PRIMARY)}>
                     {fixSide ? <Check className="size-3" /> : <ArrowUpRight className="size-3" />}
-                    {fixSide === 'A' ? (ko ? '디자인 기준 적용' : 'Apply design reference')
-                      : fixSide === 'B' ? (ko ? '현재 구현 적용' : 'Apply current implementation')
+                    {fixSide === 'A' ? (ko ? '디자인 값 적용' : 'Apply design value')
+                      : fixSide === 'B' ? (ko ? '코드 값 적용' : 'Apply code value')
                         : (ko ? '수정 위치로 이동' : 'Go to fix')}
                   </button>
                 )}
@@ -96,7 +96,7 @@ export function CheckDecisions({ checks, only, showAccepted = !only, onFix, fixS
           {onUndoAccept && (
             <button type="button" onClick={() => onUndoAccept(check)} className={cn(ACTION, 'h-6 px-2 text-slate-400 hover:bg-white/[0.07] hover:text-white')}>
               <RotateCcw className="size-3" />
-              {ko ? '되돌리기' : 'Undo'}
+              {ko ? '적용 취소하기' : 'Undo'}
             </button>
           )}
         </li>
@@ -123,10 +123,10 @@ export function CheckValueDetails({ check, onApply }) {
       {/* The property first; which element it's on, said as that —
           "Continue · Height token" alone didn't say what either was. */}
       <p className="font-medium text-white"><LocalizedText text={detail.property} /> <span className="font-normal text-slate-400">· {ko ? '요소' : 'element'} “<LocalizedText text={detail.element} />”</span></p>
-      <p className="text-slate-200">{ko ? '현재' : 'Current'} <span className="font-semibold text-red-300"><LocalizedText text={detail.current} /></span> → {ko ? '디자인 기준' : 'Design reference'} <span className="font-semibold text-emerald-200"><LocalizedText text={detail.expected} /></span></p>
+      <p className="text-slate-200">{ko ? '코드 값' : 'Code value'} <span className="font-semibold text-red-300"><LocalizedText text={detail.current} /></span> → {ko ? '디자인 값' : 'Design value'} <span className="font-semibold text-emerald-200"><LocalizedText text={detail.expected} /></span></p>
       {detail.reason && <p className="text-slate-400"><LocalizedText text={detail.reason} /></p>}
       {onApply && detail.canApply && <button type="button" className={cn(ACTION, ACTION_PRIMARY, 'mt-1.5')} onClick={() => onApply(detail)}>
-        <Check className="size-3" />{ko ? '기준값 ' : 'Apply reference value '}<LocalizedText text={detail.expected} />{ko ? ' 적용' : ''}
+        <Check className="size-3" />{ko ? '디자인 값 ' : 'Apply design value '}<LocalizedText text={detail.expected} />{ko ? ' 적용' : ''}
       </button>}
     </li>)}
   </ul>

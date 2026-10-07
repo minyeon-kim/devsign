@@ -5,6 +5,7 @@ import { cn } from 'cn'
 import { currentUserFor } from '@/data/mockData'
 import { needsReviewFrom, isQueuedConflict } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { LocalizedText } from '@/i18n/runtime'
 
 // A nudge under the Inbox bell a moment after entering a project's
 // Workspace (or Merge Studio, which lives on the same route), pointing at
@@ -41,7 +42,7 @@ export function NoticeDismiss({ label = '알림 닫기', onClick }) {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="ds-intrinsic pointer-events-auto absolute top-2 right-2 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-white/[0.06] text-slate-200 hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+      className="ds-intrinsic pointer-events-auto absolute top-3 right-3 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.06] text-slate-200 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
     >
       <X className="pointer-events-none size-4" />
     </button>
@@ -151,8 +152,8 @@ export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
           <TriangleAlert className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className={NOTICE_TITLE}>{prompt.title}</p>
-          <p className={NOTICE_BODY}>Conflict Points are where the design and the code differ — review each one, then merge.</p>
+          <p className={NOTICE_TITLE}><LocalizedText text={prompt.title} /></p>
+          <p className={NOTICE_BODY}><LocalizedText text="Conflict Points are where the design and code differ. Review each one, then merge." /></p>
         </div>
       </div>
 
