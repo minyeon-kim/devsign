@@ -62,6 +62,10 @@ Open preview|열어보기
 Restore this state|이 상태로 복원
 Version actions|버전 메뉴
 Request review again|재검토 요청
+Merge conflict code|병합 충돌 코드
+Local changes|로컬 변경 내용
+Remote changes|원격 변경 내용
+Conflicting changes|충돌 지점
 Conflicting code|충돌 코드
 Proposed resolution|해결 제안
 Reason for adjustment and exception|직접 조정 및 예외 요청 사유

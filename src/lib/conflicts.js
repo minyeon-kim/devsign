@@ -343,6 +343,7 @@ export function toConflictRecord(raw) {
       : { dueBucket: 'soon', dueLabel: 'Due tomorrow' }
   return {
     ...raw,
+    codeComparison: { ...conflictChecklist.find((seed) => seed.id === raw.id)?.codeComparison, ...raw.codeComparison },
     preview: raw.preview ?? conflictChecklist.find((seed) => seed.id === raw.id)?.preview,
     // (A title saved with the prefix stacked reads as one.)
     title: raw.rollback
@@ -387,6 +388,7 @@ export function allConflictRecords() {
     id: point.id === 'conflict-1' ? 'cc-2' : point.id,
     kind: 'code-conflict',
     title: 'DesignCanvas / Merge conflict',
+    codeComparison: { localTitle: '프레임 선택 처리', remoteTitle: '프레임 식별 키 추가', local: '프레임 클릭 시 선택 상태를 변경하는 핸들러를 추가합니다.', remote: '각 프레임에 고유한 key를 추가합니다.' },
     projectId: 'checkout-redesign',
     projectName: 'Checkout Redesign',
     cause: point.message,

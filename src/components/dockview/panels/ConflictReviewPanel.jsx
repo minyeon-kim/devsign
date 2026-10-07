@@ -70,7 +70,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
-import { ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
+import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
@@ -701,10 +701,10 @@ function CodeDiffColumns({ rows, codeConflict = false }) {
       {/* Its own row, not a leading column beside the diff — a column
           there pushed the whole grid-cols-2 diff right of where the
           comparison cards above it start, so the two never lined up. */}
-      <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+      {!codeConflict && <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
         <Sparkles className="size-3 shrink-0 text-emerald-300" />
-        <LocalizedText text={codeConflict ? 'Merge Conflict' : 'AI suggestion'} />
-      </div>
+        <LocalizedText text="AI suggestion" />
+      </div>}
       <div className="grid min-w-0 grid-cols-2 gap-3">
         {columns.map((column) => (
           <div key={column.id} role="group" aria-label={`${column.label} code`} className="scroll-fade-bottom min-w-0 overflow-auto font-mono text-[11px] leading-relaxed">
@@ -1264,7 +1264,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 )}
               </div>
             )}
-            {!pairedPreview && !conflict.comparisonFields?.length && sources && (
+            {!pairedPreview && !codeConflict && !conflict.comparisonFields?.length && sources && (
               <div className="grid grid-cols-2 gap-3">
                 {sources.map((entry) => <ComparisonSource key={entry.label} {...entry} />)}
               </div>
@@ -1297,8 +1297,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             )}
             {codeConflict && conflict.diff && !readOnly && (
               <section data-code-conflict className="min-w-0 space-y-3">
-                <p className="font-mono text-xs text-slate-300">{conflict.file}:{conflict.line ?? 1}</p>
-                <p className="text-xs text-slate-400">{conflict.branches?.local} ↔ {conflict.branches?.remote}</p>
+                <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Merge conflict code" /></h3></div>
+                <p data-conflict-code-location className="break-all font-mono text-xs text-slate-400">{conflict.file}:{conflict.line ?? 1}</p>
+                <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.resolution ?? conflict.suggestion} /></p>
                 <CodeDiffColumns rows={diffLines(conflict.diff.before ?? [], conflict.diff.after ?? [])} codeConflict />
               </section>
             )}
@@ -2919,6 +2920,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           </section>
                         )}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
+                          {(conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => line.startsWith('<<<<<<<'))) && (
+                            <section data-difference-section className="mb-10 min-w-0">
+                              <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="What’s different" /></h3></div>
+                              <CodeDifferenceSummary conflict={conflict} />
+                            </section>
+                          )}
                           {/* (Listed here only where there's no comparison
                               card to carry them — the card shows its own.) */}
                           {studioAdjustments.length > 0 && !conflict.rollback && !(conflict.comparisonFields?.length && !(driftItem && draftColumns(driftItem))) && (

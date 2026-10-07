@@ -208,3 +208,27 @@ export function FlowSteps({ conflict, className }) {
     </section>
   )
 }
+
+export function CodeDifferenceSummary({ conflict }) {
+  const detail = conflict.codeComparison
+  const lines = conflict.diff?.before ?? []
+  const start = lines.findIndex((line) => line.startsWith('<<<<<<<'))
+  const middle = lines.findIndex((line, index) => index > start && line.startsWith('======='))
+  const end = lines.findIndex((line, index) => index > middle && line.startsWith('>>>>>>>'))
+  const snippets = start >= 0 && middle > start && end > middle
+    ? { local: lines.slice(start + 1, middle).join('\n'), remote: lines.slice(middle + 1, end).join('\n') } : {}
+  return (
+    <div data-code-difference-summary className="min-w-0 space-y-3 rounded-xl bg-white/[0.025] p-4">
+      <p className="text-xs leading-5 text-slate-300"><LocalizedText text={detail?.conflict ?? conflict.cause ?? conflict.message} /></p>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+        {['local', 'remote'].map((side) => <section key={side} data-branch-difference={side} className="min-w-0 rounded-lg border border-white/10 p-3">
+          <h4 className="text-xs font-medium text-slate-200"><LocalizedText text={detail?.[`${side}Title`] ?? (side === 'local' ? 'Local changes' : 'Remote changes')} /></h4>
+          <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{conflict.branches?.[side]}</p>
+          {detail?.[side] ? <p className="mt-2 text-xs leading-5 text-slate-200"><LocalizedText text={detail[side]} /></p>
+            : <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-slate-200">{snippets[side]}</pre>}
+        </section>)}
+      </div>
+
+    </div>
+  )
+}
