@@ -1518,6 +1518,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
   // The change request being dismissed (its reviewer id) and the reason.
   const [dismissing, setDismissing] = useState(null)
   const [reason, setReason] = useState('')
+  const [expanded, setExpanded] = useState(true)
   const { reviewers, reviewStage } = conflict
   // The author can't review their own change, so they're never offered.
   const author = authorOf(conflict)
@@ -1595,12 +1596,20 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
         const done = needed.filter((r) => r.status === 'approved').length
         return (
           <>
-            <div data-review-header className="mb-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              data-review-header
+              className="mb-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/[0.04]"
+            >
+              <ChevronDown
+                className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', expanded && 'rotate-180')}
+              />
               <span className="text-[11px] leading-4 text-slate-400"><LocalizedText text="Reviewers" /></span>
               <span className="text-[11px] leading-4 text-slate-400">·</span>
               <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums"><LocalizedText text="Approvals" /> {done}/{needed.length}</span>
               {addMenu}
-            </div>
+            </button>
             {needed.length > 0 && (
               <div data-approval-bar role="progressbar" aria-valuemin={0} aria-valuemax={needed.length} aria-valuenow={done} className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
                 <div className={cn('h-full rounded-full transition-all', done === needed.length ? 'bg-emerald-400' : 'bg-sky-400')} style={{ width: `${(done / needed.length) * 100}%` }} />
@@ -1609,14 +1618,16 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
           </>
         )
       })()}
-      {reviewers.length === 0 ? (
-        <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
-      ) : (
-        <div>
-          {reviewers.map((reviewer) => {
-            const person = allPeople.find((p) => p.id === reviewer.id)
-            if (!person) return null
-            const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
+      {!sectioned || expanded ? (
+        <>
+          {reviewers.length === 0 ? (
+            <p className="py-1.5 text-xs leading-[18px] text-slate-400">No reviewers yet</p>
+          ) : (
+            <div>
+              {reviewers.map((reviewer) => {
+                const person = allPeople.find((p) => p.id === reviewer.id)
+                if (!person) return null
+                const status = REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending
             return (
               <Fragment key={reviewer.id}>
               {/* Three columns — avatar | name over role | status — every row
@@ -1728,6 +1739,8 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false }) 
           })}
         </div>
       )}
+        </>
+      ) : null}
       {(canRemind && pending.length > 1) || (!sectioned && addMenu) ? (
         <div className="mt-0.5 flex items-center gap-3">
           {!sectioned && addMenu}

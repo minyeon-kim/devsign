@@ -148,32 +148,54 @@ export function FlowSteps({ conflict, chosen, approvals, next, reviewers, classN
   const completed = flow.steps.filter(step => step.state === 'done').length
   return (
     <section data-flow-steps={flow.current} aria-label="검토 진행 상태" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
-      <div className="px-3 py-3">
-        <h3 className="text-xs font-semibold text-white">{flow.current === 'done' ? '병합 완료' : '검토 진행 상태'}</h3>
-        <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
-        <div role="progressbar" aria-label="검토 진행률" aria-valuemin={0} aria-valuemax={flow.steps.length} aria-valuenow={completed} className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-[#5EEAB5] transition-[width]" style={{ width: `${completed / flow.steps.length * 100}%` }} />
+      <div className="flex items-start justify-between gap-3 px-3 py-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xs font-semibold text-white">{flow.current === 'done' ? '병합 완료' : '검토 진행 상태'}</h3>
+          <p data-flow-next className="mt-1 text-[11px] leading-4 text-slate-400">{next ?? <LocalizedText text={flow.next} />}</p>
         </div>
-        <p className="mt-2 text-[11px] text-slate-400">{flow.steps.length}단계 중 {completed}단계 완료</p>
+        <span className="shrink-0 text-[11px] font-medium text-slate-200 tabular-nums">{completed}/{flow.steps.length}</span>
       </div>
-      <ol className="px-3 py-2">
-        {flow.steps.map(step => (
-          <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-2.5 py-2">
-            <span aria-hidden className={cn('mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-[3px]', step.state === 'done' ? 'bg-[#5EEAB5] text-[#06281D]' : step.state === 'current' ? 'border border-emerald-300 text-emerald-300' : 'border border-white/20')}>
-              {step.state === 'done' ? <Check className="size-2.5" /> : null}
-            </span>
-            <div className="min-w-0 flex-1">
+      <ol className="px-3 py-2 relative">
+        {flow.steps.map((step, index) => (
+          <li key={step.id} data-step={step.state} aria-current={step.state === 'current' ? 'step' : undefined} className="flex items-start gap-3 py-0.5">
+            <div className="relative mt-1 flex shrink-0 flex-col items-center">
+              <div
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-all ring-4 ring-white/[0.015]',
+                  step.state === 'done' 
+                    ? 'bg-[#5EEAB5] text-[#06281D]' 
+                    : step.state === 'current' 
+                    ? 'border-2 border-[#5EEAB5] bg-transparent text-[#5EEAB5]' 
+                    : 'border border-white/30 bg-transparent text-white/50'
+                )}
+              >
+                {step.state === 'done' ? (
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                ) : (
+                  <span>{index + 1}</span>
+                )}
+              </div>
+              {index < flow.steps.length - 1 && (
+                <div
+                  className={cn(
+                    'w-0.5 transition-colors',
+                    step.state === 'done' ? 'bg-[#5EEAB5]' : 'bg-white/20'
+                  )}
+                  style={{ height: '2rem', marginTop: '2px' }}
+                />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
               <p className={cn('text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')}>
                 <LocalizedText text={step.label} />
                 {step.id === 'approve' && approvals?.total > 0 && <span data-step-approvals className="ml-2 font-normal tabular-nums">{approvals.done}/{approvals.total}</span>}
               </p>
               <p className="mt-0.5 text-[11px] leading-4 text-slate-400">{STEP_DESCRIPTION[step.id]}</p>
             </div>
-
           </li>
         ))}
       </ol>
-      {reviewers && <div className="border-t border-white/[0.05] px-3 py-3">{reviewers}</div>}
+      {flow.current === 'approve' && reviewers && <div className="border-t border-white/[0.05] px-3 py-3">{reviewers}</div>}
     </section>
   )
 }
