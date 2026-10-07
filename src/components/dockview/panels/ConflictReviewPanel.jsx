@@ -406,7 +406,7 @@ const INFO_TITLE = 'text-[11px] leading-4 text-slate-400'
 const INFO_BADGE = 'inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold whitespace-nowrap'
 const INFO_VALUE = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
 const STATUS_TEXT = { detected: 'text-slate-200', in_review: 'text-sky-300', pending_merge: 'text-emerald-300', pending_rollback: 'text-amber-300', done: 'text-violet-300' }
-const RISK_TEXT = { high: 'text-rose-300', medium: 'text-amber-300', low: 'text-sky-300' }
+const RISK_TONE = { high: 'bg-rose-400/20 text-rose-100', medium: 'bg-amber-400/20 text-amber-100', low: 'bg-sky-400/20 text-sky-100' }
 // A value that goes somewhere — a Figma frame (the element on the canvas),
 // a token (where it's defined), WCAG (its page) — as a quiet inline link.
 function InfoLink({ item, onOpen, literal = false }) {
@@ -915,7 +915,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   <div key={card.id} className={cn(
                     'min-w-0 overflow-hidden rounded-xl border transition-colors',
                     readOnly ? (on ? 'border-white/40 bg-white/[0.04]' : 'border-white/10 opacity-50')
-                      : on ? 'border-emerald-300 bg-emerald-400/[0.06]'
+                      : on ? 'border-emerald-300/40 bg-white/[0.025]'
                         : cn(empty ? 'border-dashed border-white/20' : 'border-white/10', !editing && 'opacity-50'),
                     !inert && 'hover:border-white/35'
                   )} data-applied={readOnly && on ? '' : undefined} onMouseEnter={editing ? () => setHover(card.id) : undefined} onMouseLeave={editing ? () => setHover(null) : undefined}>
@@ -936,7 +936,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     data-decision={card.id}
                     className={cn(
                       // 16px inside, 12px between its parts.
-                      'flex h-full min-w-0 flex-col gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
+                      'flex h-full min-w-0 flex-col gap-2.5 rounded-xl p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300',
                       !inert && 'cursor-pointer'
                     )}>
                     {/* 1 · What choosing it does, where its values are from. */}
@@ -960,10 +960,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                           <LocalizedText text="Edit" />
                         </button>
                       )}
-                      {/* Picked: a check. Not picked: an empty ring. */}
+                      {/* Compact selection indicator, matching the progress checklist. */}
                       {!readOnly && (
-                        <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-                          {on ? <Check className="size-5 text-emerald-300" strokeWidth={2.5} /> : editing && <span className="size-4 rounded-full border border-white/30" />}
+                        <span aria-hidden="true" className={cn('mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-[3px]', on ? 'bg-[#5EEAB5] text-[#06281D]' : 'border border-white/25')}>
+                          {on && <Check className="size-2.5" strokeWidth={2.5} />}
                         </span>
                       )}
                     </div>
@@ -1913,15 +1913,15 @@ function CommentThread({ conflict, workspace, flashId }) {
 // Where a conflict stands on the way to merged, as the badge beside its
 // title — the one place the review says it.
 const STAGE_BADGE = {
-  detected: { label: 'Before review', dot: 'bg-slate-400' },
-  in_review: { label: 'Review pending', dot: 'bg-sky-400' },
-  approved: { label: 'Merge pending', dot: 'bg-emerald-400' },
-  resolved: { label: 'Merge complete', dot: 'bg-violet-400' },
+  detected: { label: 'Before review', dot: 'bg-slate-300', tone: 'bg-slate-400/20 text-slate-100' },
+  in_review: { label: 'Review pending', dot: 'bg-sky-300', tone: 'bg-sky-400/20 text-sky-100' },
+  approved: { label: 'Merge pending', dot: 'bg-emerald-300', tone: 'bg-emerald-400/20 text-emerald-100' },
+  resolved: { label: 'Merge complete', dot: 'bg-violet-300', tone: 'bg-violet-400/25 text-violet-100' },
 }
 function StageBadge({ stage }) {
   const badge = STAGE_BADGE[stage] ?? STAGE_BADGE.detected
   return (
-    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, 'bg-white/[0.06] text-slate-200')}>
+    <span data-stage-badge={stage} className={cn(REVIEW_HEADER_BADGE, badge.tone)}>
       <span className={cn('size-1.5 shrink-0 rounded-full', badge.dot)} />
       <LocalizedText text={badge.label} />
     </span>
@@ -1955,13 +1955,6 @@ function approvalStateOf(conflict, canReview) {
   return { mode, line, waiting, asked, required, nameOf, viewerId }
 }
 
-// A reviewer's mark on their avatar: approved ✓, waiting ·, changes asked !.
-const REVIEW_MARK = {
-  approved: { mark: '✓', className: 'bg-emerald-400 text-emerald-950' },
-  pending: { mark: '·', className: 'bg-slate-500 text-white' },
-  changes_requested: { mark: '!', className: 'bg-amber-400 text-slate-950' },
-}
-
 // Approval, at the header's right, on the title's line: who has to sign
 // off (their avatars, each marked with where they stand — hover for the
 // name, role, status and when), the line that says where it stands, and
@@ -1979,8 +1972,8 @@ const REVIEW_MARK = {
 // Approving and merging happen here and nowhere else. The avatars open the
 // reviewers themselves: adding or removing one, reminding, dismissing a
 // change request.
-function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, onDismiss, request, revise, onReview, onMerge, onRevert }) {
-  const { mode, line, waiting, nameOf, viewerId } = state
+function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, request, revise, onReview, onMerge, onRevert }) {
+  const { mode, waiting, nameOf, viewerId } = state
   const author = authorOf(conflict)
   // The sign-off being given: which way, and what's said with it.
   const [deciding, setDeciding] = useState(null)
@@ -2038,38 +2031,8 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
       </PopoverContent>
     </Popover>
   )
-  const people = conflict.reviewers.map((reviewer) => ({ reviewer, person: allPeople.find((entry) => entry.id === reviewer.id) })).filter((entry) => entry.person)
   return (
     <div data-approval-bar={mode} className="flex min-w-0 shrink-0 items-center gap-2.5">
-      <Popover>
-        <PopoverTrigger data-approval-people aria-label="Reviewers" className="ds-intrinsic flex shrink-0 cursor-pointer items-center rounded-full py-0.5 pr-1 pl-0.5 transition-colors hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300">
-          {people.length === 0 && <span aria-hidden className="block size-5 rounded-full border border-dashed border-white/25" />}
-          {people.map(({ reviewer, person }, index) => {
-            const isAuthor = reviewer.id === author
-            const mark = REVIEW_MARK[reviewer.status] ?? REVIEW_MARK.pending
-            const status = isAuthor ? 'Author' : (REVIEWER_STATUS[reviewer.status] ?? REVIEWER_STATUS.pending).label
-            return (
-              <Tooltip key={reviewer.id}>
-                <TooltipTrigger render={<span data-reviewer={reviewer.status} className={cn('relative rounded-full ring-2 ring-card', index > 0 && '-ml-1.5')} />}>
-                  <PersonAvatar person={person} />
-                  {!isAuthor && <span aria-hidden className={cn('absolute -right-1 -bottom-1 flex size-3 items-center justify-center rounded-full text-[8px] leading-none font-bold ring-1 ring-card', mark.className)}>{mark.mark}</span>}
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="block px-2.5 py-1.5 text-left text-xs leading-[18px]">
-                  <span className="block font-medium">{person.name}{person.id === viewerId && <> (<LocalizedText text="You" />)</>}</span>
-                  {person.role && <span className="block opacity-70"><LocalizedText text={person.role} /></span>}
-                  <span className="block"><LocalizedText text={status} />{reviewer.reviewedAt && reviewer.status !== 'pending' && <> · <LocalizedText text={agoLabel(reviewer.reviewedAt)} /></>}</span>
-                </TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={8} className="w-[320px] gap-0 rounded-xl p-3">
-          <ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate} onDismiss={onDismiss} />
-        </PopoverContent>
-      </Popover>
-      <p data-approval-state className={cn('max-w-64 min-w-0 truncate text-xs', mode === 'mine' ? 'font-medium text-sky-200' : mode === 'changes' ? 'text-amber-200' : mode === 'approved' ? 'text-emerald-200' : 'text-slate-300')} title={mode === 'approved' && blockingCount > 0 ? tr('Resolve the failing checks before merging.') : mode === 'idle' && request?.hint ? tr(request.hint) : undefined}>
-        {line}
-      </p>
       <div data-approval-actions className="flex shrink-0 items-center gap-2">
         {mode === 'idle' && request && (
           // (Disabled, it still says why on hover: the wrapper takes the pointer.)
@@ -2741,8 +2704,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {/* Status and risk stay visible beside the title. */}
                 {!conflict.rollback && <StageBadge stage={stage} />}
                 {severity && (
-                  <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, 'bg-white/[0.06]', RISK_TEXT[severity.label.toLowerCase()])}>
-                    <span className="font-normal text-slate-400"><LocalizedText text="Risk" /></span>
+                  <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                    <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                     <LocalizedText text={severity.label} />
                   </span>
                 )}
@@ -2753,10 +2716,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {conflict.rollback ? primary : approvalBar}
               </div>
             </div>
-            {/* Where it is on the way to merged — fixed under the title, like
-                it — with the same line the approval area says. */}
-            {!conflict.rollback && <FlowSteps conflict={conflict} chosen={cardFlow ? Boolean(choice) : undefined} approvals={approvals} next={approvalState?.line} className="shrink-0 pr-4 pb-5 pl-[58px] sm:pr-6 sm:pl-[66px]" />}
-
             {/* Shared outer padding aligns the header and content cards. */}
             {/* The header and the tabs above stay put. On a wide panel the
                 three areas — comparison and diff, reasoning, reviewers and
@@ -2894,6 +2853,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </div>
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                      {!conflict.rollback && <FlowSteps
+                        conflict={conflict}
+                        chosen={cardFlow ? Boolean(choice) : undefined}
+                        approvals={approvals}
+                        next={approvalState?.line}
+                        className="mb-5"
+                        reviewers={<ReviewersSection sectioned conflict={conflict} onUpdate={onUpdate ? update : undefined} onDismiss={workspace?.dismissChangeRequest} />}
+                      />}
                       <OverviewTab
                         key={conflict.id}
                         rationale={rationale}

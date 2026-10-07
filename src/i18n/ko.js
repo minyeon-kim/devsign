@@ -3,6 +3,7 @@ import { docsHistoryKo } from './docsHistoryKo'
 // UI copy and seeded conflict-review content shown to Korean-language users.
 // Source code, file paths and identifiers remain unchanged.
 export const ko = Object.fromEntries(`
+Same value|현재 코드와 같아요
 iconbtn|아이콘 버튼
 Neo Glow|네온 빛 효과
 Gradient Pill|그라데이션 캡슐형
