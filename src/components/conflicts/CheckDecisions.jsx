@@ -184,21 +184,30 @@ export function CheckGuideHighlight({ layerId }) {
 // is, and as the standard writes it). It turns to Fixed as soon as the line
 // typed in the Code view is the standard's; a line changed some other way
 // still counts as an adjustment, to be explained in the review.
-function CodeFixGuide({ conflict, manualCode, low, ko, onShowCode, onClose, onFinish }) {
+function CodeFixGuide({ conflict, manualCode, low, ko, compact, onShowCode, onClose, onFinish }) {
   const before = conflict.diff.before ?? []
-  const after = conflict.diff.after ?? []
+  // (A real conflict — both branches changed it — merges into both changes
+  // kept, `diff.merged`; otherwise the standard's own lines.)
+  const after = conflict.diff.merged ?? conflict.diff.after ?? []
+  const twoWay = Boolean(conflict.diff.merged)
   const change = codeChangeOf(before, after)
   const hand = handLinesOf(conflict, manualCode)
   const changed = Boolean(hand) && hand.some((line, index) => line.trim() !== (before[index] ?? '').trim())
   const fixed = Boolean(hand) && hand.length === after.length && hand.every((line, index) => line.trim() === after[index].trim())
   const where = `${conflict.file ?? conflict.fileId}:${conflict.line ?? 1}`
   const code = (text, tone) => <code translate="no" className={cn('rounded bg-black/30 px-1 py-0.5 font-mono text-[11.5px]', tone)}>{text}</code>
-  const steps = [
+  const steps = twoWay ? [
+    ko ? <>아래 <b className="font-semibold text-white">코드 병합</b> 창에서 두 브랜치가 {code(where, 'text-slate-200')}을(를) 각각 어떻게 바꿨는지 봅니다 (− 빠지는 코드, + 들어오는 코드).</>
+      : <>In the <b className="font-semibold text-white">Merge code</b> window, see how each branch changed {code(where, 'text-slate-200')} (− goes, + comes in).</>,
+    ko ? <>한쪽만 고르면 다른 쪽 변경이 빠져요. <b className="font-semibold text-white">양쪽 변경 모두 반영</b>을 누르거나 결과 줄을 직접 고쳐 합칩니다. 캔버스가 바로 따라 바뀝니다.</>
+      : <>Taking one side drops the other’s change. Press <b className="font-semibold text-white">Keep both changes</b> or edit the result lines to merge them. The canvas follows.</>,
+    ko ? '"수정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done" to go back to the conflict and request review.',
+  ] : [
     ko ? <>아래 <b className="font-semibold text-white">코드 병합</b> 창에서 {code(where, 'text-slate-200')}의 A(디자인 기준)와 B(현재 구현)를 화면과 함께 비교합니다.</>
       : <>In the <b className="font-semibold text-white">Merge code</b> window below, compare A (design reference) and B (current implementation) of {code(where, 'text-slate-200')} beside the screen.</>,
     change.from || change.to
-      ? (ko ? <>결과 줄에서 {code(change.from || '—', 'text-red-300')}을(를) {code(change.to || '—', 'text-emerald-200')}(으)로 고치고 Enter를 누르거나, A/B 적용으로 한쪽을 가져옵니다. 캔버스와 검사가 코드를 따라 바로 바뀝니다.</>
-        : <>In the result line, change {code(change.from || '—', 'text-red-300')} to {code(change.to || '—', 'text-emerald-200')} and press Enter — or take a whole side. The canvas and checks follow the code.</>)
+      ? (ko ? <>결과 줄에서 {code(change.from || '—', 'text-red-300')}을(를) {code(change.to || '—', 'text-emerald-200')}(으)로 고치고 Enter를 누르거나, A만 적용으로 가져옵니다. 캔버스와 검사가 코드를 따라 바로 바뀝니다.</>
+        : <>In the result line, change {code(change.from || '—', 'text-red-300')} to {code(change.to || '—', 'text-emerald-200')} and press Enter — or take A. The canvas and checks follow the code.</>)
       : (ko ? '결과 줄을 고치고 Enter를 누릅니다.' : 'Edit the result line and press Enter.'),
     ko ? '"수정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done" to go back to the conflict and request review.',
   ]
@@ -216,11 +225,11 @@ function CodeFixGuide({ conflict, manualCode, low, ko, onShowCode, onClose, onFi
           </button>
         </div>
         {/* The line as it is, and as the standard has it. */}
-        <div data-guide-code className="mx-3 mt-2.5 overflow-hidden rounded-lg bg-black/25 font-mono text-[11px] leading-5">
+        {!compact && <div data-guide-code className="mx-3 mt-2.5 overflow-hidden rounded-lg bg-black/25 font-mono text-[11px] leading-5">
           <p translate="no" className="truncate border-b border-white/[0.06] px-2.5 py-1 font-sans text-[10.5px] text-slate-400">{where}</p>
           {(hand && !fixed ? hand : before).map((line, index) => <p key={`b${index}`} translate="no" className="truncate bg-red-500/[0.12] px-2.5 text-red-200"><span className="mr-2 select-none opacity-60">−</span>{line.trim()}</p>)}
           {after.map((line, index) => <p key={`a${index}`} translate="no" className="truncate bg-emerald-500/[0.12] px-2.5 text-emerald-200"><span className="mr-2 select-none opacity-60">+</span>{line.trim()}</p>)}
-        </div>
+        </div>}
         <div className="px-3 pt-2.5 pb-3">
           {!fixed && (
             <ol data-guide-steps className="space-y-1 text-xs leading-[18px] text-slate-300">
@@ -233,7 +242,7 @@ function CodeFixGuide({ conflict, manualCode, low, ko, onShowCode, onClose, onFi
             </ol>
           )}
           <div className={cn('flex items-center gap-2', !fixed && 'mt-2.5')}>
-            {fixed && <span className="text-xs text-emerald-200">{ko ? '코드가 기준과 같아졌어요.' : 'The code now matches the standard.'}</span>}
+            {fixed && <span className="text-xs text-emerald-200">{twoWay ? (ko ? '양쪽 변경이 모두 반영됐어요.' : 'Both changes are kept.') : (ko ? '코드가 기준과 같아졌어요.' : 'The code now matches the standard.')}</span>}
             {!fixed && onShowCode && (
               <button type="button" data-guide-show-code onClick={onShowCode} className={cn(ACTION, ACTION_QUIET)}>
                 <Code2 className="size-3.5" />{ko ? '코드 병합 창 열기' : 'Open merge code'}
@@ -267,7 +276,9 @@ export const fixesInCode = (role, conflict) => role === 'Developer'
 
 // `manualCode`: the studio's code as written by hand, so the guide sees the
 // line change as it's typed. `onShowCode`: brings the Code view back up.
-export function MergeCheckGuide({ item, checks, low = false, manualCode = {}, onShowCode }) {
+// `compact`: the code merge window is open — it shows the code, so the
+// guide keeps to what to do.
+export function MergeCheckGuide({ item, checks, low = false, manualCode = {}, onShowCode, compact = false }) {
   const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel, exitMergeStudio, viewerRole } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
@@ -276,7 +287,7 @@ export function MergeCheckGuide({ item, checks, low = false, manualCode = {}, on
   const conflict = conflicts.find((c) => c.id === checkGuide.conflictId) ?? null
   if (conflict ? !(conflict.mergeItemId === item.id || item.conflictId === conflict.id) : checkGuide.itemId !== item.id) return null
   if (fixesInCode(viewerRole, conflict)) {
-    return <CodeFixGuide conflict={conflict} manualCode={manualCode} low={low} ko={ko} onShowCode={onShowCode} onClose={() => setCheckGuide(null)} onFinish={() => {
+    return <CodeFixGuide conflict={conflict} manualCode={manualCode} low={low} ko={ko} compact={compact} onShowCode={onShowCode} onClose={() => setCheckGuide(null)} onFinish={() => {
       setCheckGuide(null)
       exitMergeStudio?.()
       setBottomPanel({ open: true, tab: 'conflict' })

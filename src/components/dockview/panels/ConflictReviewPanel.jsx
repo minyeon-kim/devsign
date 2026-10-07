@@ -1111,11 +1111,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         const text = isCustom ? custom?.rows[index]?.base ?? field.current : card.value(field)
                         // A color value gets its swatch beside it.
                         const swatch = hand ? hand.swatch : swatchIn(text)
+                        // (Being set: the editor under its name, the card's
+                        // whole width — a narrow card never hides either.)
+                        const editorHere = picks && editing && Boolean(flow.controls[index])
                         return (
-                        <div key={field.label} className="flex min-w-0 items-baseline justify-between gap-3">
+                        <div key={field.label} className={editorHere ? 'min-w-0 space-y-1.5' : 'flex min-w-0 items-baseline justify-between gap-3'}>
                           <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                          {picks && editing && flow.controls[index] ? (
-                            <dd data-value-editor={flow.controls[index].mode} className="flex w-[60%] max-w-[160px] min-w-0 shrink-0 flex-col items-end gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
+                          {editorHere ? (
+                            <dd data-value-editor={flow.controls[index].mode} className="flex w-full min-w-0 flex-col gap-1.5"><ValueEditor control={flow.controls[index]} /></dd>
                           ) : picks && hand ? (
                             // (Decided: the value it was set to, as the
                             // other cards show theirs.)
@@ -1430,7 +1433,7 @@ function ValueText({ text }) {
 // with the value so far and `set(px)`.
 // Every editor on the third card is the same box — one width, one height,
 // one border — whatever it edits (a number, a color, a value picked).
-const VALUE_BOX = 'flex h-8 w-full max-w-[160px] min-w-0 items-center rounded-lg border bg-white/[0.03] transition-colors focus-within:border-emerald-300/60'
+const VALUE_BOX = 'flex h-8 w-full min-w-0 items-center rounded-lg border bg-white/[0.03] transition-colors focus-within:border-emerald-300/60'
 function ValueStepper({ control }) {
   const value = control.value ?? control.current
   const step = control.step ?? 1
@@ -1450,7 +1453,7 @@ function ValueStepper({ control }) {
   const stop = (event) => event.stopPropagation()
   const button = 'ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-30'
   return (
-    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col items-end gap-1.5">
+    <span data-value-stepper={control.property} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col gap-1.5">
       <span className={cn(VALUE_BOX, 'gap-0.5 px-1', invalid ? 'border-red-400/60' : 'border-white/[0.14]')}>
         <button type="button" aria-label={`${control.label} −${step}`} disabled={value <= control.min} onClick={() => apply(value - step)} className={button}><Minus className="size-3" /></button>
         <input
@@ -1500,7 +1503,7 @@ function ValueChoice({ control, swatches = false }) {
   // (A picker needs a full #rrggbb to start from.)
   const pickerValue = /^#[0-9a-f]{6}$/i.test(swatch ?? '') ? swatch : /^#[0-9a-f]{3}$/i.test(swatch ?? '') ? `#${swatch.slice(1).split('').map((c) => c + c).join('')}` : '#000000'
   return (
-    <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col items-end gap-1.5">
+    <span data-value-choice={control.kind ?? control.type} onClick={stop} onKeyDown={stop} className="flex w-full min-w-0 cursor-default flex-col gap-1.5">
       <span className={cn(VALUE_BOX, 'gap-1.5 border-white/[0.14] px-2.5')}>
         {swatches && (
           <label className="relative size-4 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/30" style={{ background: swatch ?? 'transparent' }} title="Pick a color">
@@ -1525,7 +1528,7 @@ function ValueChoice({ control, swatches = false }) {
         />
       </span>
       {control.options?.length > 1 && (
-        <span className="flex w-full min-w-0 flex-wrap justify-end gap-1">
+        <span className="flex w-full min-w-0 flex-wrap gap-1">
           {control.options.map((option) => {
             const on = option === value
             const optionSwatch = swatches ? hexIn(option) : null

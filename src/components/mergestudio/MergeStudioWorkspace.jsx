@@ -423,6 +423,7 @@ function MergeStudioWorkspace({ item }) {
     mergeItems,
     viewerRole,
     restartConflict,
+    bottomPanel,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -1387,8 +1388,10 @@ function MergeStudioWorkspace({ item }) {
           />
           </div>
         )}
-        <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} manualCode={syncedCode} onShowCode={showCode} />
-        {codeMergeOpen && mergeConflict && !designComparison && (
+        <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} manualCode={syncedCode} onShowCode={showCode} compact={codeMergeOpen && !bottomPanel.open} />
+        {/* (While the bottom panel is up — a review there — the window steps
+            aside; it's back when the panel folds.) */}
+        {codeMergeOpen && mergeConflict && !designComparison && !bottomPanel.open && (
           <CodeMergeWindow
             conflict={mergeConflict}
             manualCode={manualCode}
