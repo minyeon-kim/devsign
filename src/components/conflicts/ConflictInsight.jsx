@@ -94,7 +94,8 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
   return (
     <section data-difference-summary aria-label="What differs" className={cn('flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 rounded-xl bg-white/[0.025] px-4 py-3', className)}>
       <div className="min-w-0 flex-1 basis-64">
-        <h3 className="text-[13px] leading-5 font-semibold text-white"><MismatchLabel conflict={conflict} /></h3>
+        {/* (The section's title is the review's; this is the kind of difference.) */}
+        <p className="text-xs leading-5 font-medium text-slate-200"><MismatchLabel conflict={conflict} /></p>
         {differing.length > 0 && (
           <ul className="mt-1.5 space-y-1">
             {differing.map((entry) => (

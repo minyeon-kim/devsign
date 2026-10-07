@@ -410,6 +410,18 @@ Adjusted manually|직접 조정
 Takes a merged change back.|병합된 변경을 되돌려요.
 Design Drift|디자인 불일치
 Deployed|배포 중
+What’s different|무엇이 다른가
+How to resolve it|해결 방법
+Not chosen yet|선택 전
+Code that changes|바뀌는 코드
+Show|펼치기
+Hide|접기
+Recommended · can merge|권장 · 병합 가능
+Required rule · can’t merge without an exception|필수 규칙 위반 · 예외 승인 전에는 병합 불가
+Why it matters|왜 중요한가요
+Kind|구분
+Recommended — it doesn’t block the merge|권장 — 병합을 막지 않아요
+Required — merging waits on the reviewers’ exception approval|필수 — 검토자가 예외를 승인해야 병합돼요
 Same|동일
 This value is already deployed, so changing it shows on the live screens.|이미 배포된 값이라 바꾸면 운영 화면에 반영돼요
 Design Decision|디자인 결정

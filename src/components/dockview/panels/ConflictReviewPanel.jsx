@@ -636,6 +636,11 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
   // told apart — whatever is required now holds for either).
   const blockingOf = (run) => run && run.blocking.filter((check) => !settled.includes(check.id))
   const blockingWith = { A: blockingOf(runs.A), B: blockingOf(runs.B) }
+  // …and the checks each side would fail without being blocked by them
+  // (suggestions: consistency with the design system, not a required
+  // rule). "Options undecided" isn't one — that's the choice itself.
+  const suggestedOf = (run) => run && run.failing.filter((check) => !run.blocking.includes(check) && check.id !== 'decided' && !settled.includes(check.id))
+  const suggestedWith = { A: suggestedOf(runs.A), B: suggestedOf(runs.B) }
   // The side that makes this check pass (the other one first, if a side is
   // already picked), or null when neither does.
   const resolvingSide = (checkId) => [side === 'A' ? 'B' : 'A', side === 'A' ? 'A' : 'B'].find((candidate) => failing[candidate] && !failing[candidate].has(checkId)) ?? null
@@ -652,7 +657,7 @@ function decisionStateOf({ conflict, item, workspace, checks, stage, mergedDecis
     undo: () => (sideOnly ? onPickSide(null) : rows.forEach((row) => workspace.decideDrift(item.id, row.key, null))),
     // Neither side passes what's required: picking a card can't settle it.
     bothFail: required.length > 0 && required.every((check) => resolvingSide(check.id) === null),
-    required, suggested, cardBlockers, otherClears, resolvingSide, meets, blockingWith,
+    required, suggested, suggestedWith, cardBlockers, otherClears, resolvingSide, meets, blockingWith,
     otherBlockers: required.filter((check) => !cardBlockers.includes(check)),
   }
 }
@@ -762,15 +767,54 @@ function ReviewerPicker({ people, onSelect, children, align = 'start', triggerPr
   )
 }
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onChangeReviewer }) {
+// The review's main column is three sections — what's different, how to
+// resolve it, the code that changes — each under the same kind of title,
+// with more room between sections than inside one, so the groups show.
+const SECTION_TITLE = 'text-[13px] leading-5 font-semibold text-white'
+const SECTION_HEAD = 'mb-4 flex min-w-0 items-center gap-2' // 16px to its content
+const SECTION_GAP = 'mt-10' // 40px between sections
+const STATE_CHIP = 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap'
+
+// A rule a way of resolving it runs into, on that way's own card: one line
+// saying how much it matters — required (it can't merge without the
+// reviewers' exception) or recommended (it can) — opening to which rule it
+// is and why it's there. Nothing shows for a way that breaks no rule.
+function RuleNote({ check, required }) {
+  const [open, setOpen] = useState(false)
+  const why = checkGuidance(check)?.impact ?? check.hint ?? null
+  return (
+    <div data-rule-note={required ? 'required' : 'recommended'} className={cn('min-w-0 rounded-lg text-[11px] leading-4', required ? 'bg-amber-400/[0.08] text-amber-100' : 'bg-white/[0.04] text-slate-300')}>
+      <button
+        type="button"
+        aria-expanded={open}
+        // (On a card that's itself a choice: opening the note isn't choosing it.)
+        onClick={(event) => { event.stopPropagation(); setOpen((value) => !value) }}
+        onKeyDown={(event) => event.stopPropagation()}
+        className="ds-intrinsic flex w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300"
+      >
+        {required && <TriangleAlert aria-hidden className="size-3 shrink-0 text-amber-300" />}
+        <span className="min-w-0 flex-1 truncate font-medium"><LocalizedText text={required ? 'Required rule · can’t merge without an exception' : 'Recommended · can merge'} /></span>
+        <ChevronDown aria-hidden className={cn('size-3 shrink-0 opacity-70 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <dl className="space-y-1 px-2 pb-2 text-[11px] leading-4">
+          <div><dt className="inline opacity-70"><LocalizedText text="Rule" /> · </dt><dd className="inline"><LocalizedText text={check.title} /></dd></div>
+          {why && <div><dt className="inline opacity-70"><LocalizedText text="Why it matters" /> · </dt><dd className="inline"><LocalizedText text={why} /></dd></div>}
+          <div><dt className="inline opacity-70"><LocalizedText text="Kind" /> · </dt><dd className="inline"><LocalizedText text={required ? 'Required — merging waits on the reviewers’ exception approval' : 'Recommended — it doesn’t block the merge'} /></dd></div>
+        </dl>
+      )}
+    </div>
+  )
+}
+
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
   const [showBefore, setShowBefore] = useState(false)
-  // The code under the cards: the difference is drawn above them, so the
-  // code is there for whoever reads it — shown or hidden, remembered.
-  const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') === '1' } catch { return false } })
+  // The code section: open by default; folding it is remembered.
+  const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') !== '0' } catch { return true } })
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
   // The card under the pointer: the code block shows its result meanwhile.
@@ -789,11 +833,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     const from = Math.max(0, at - 2)
     return mergedFile.slice(from, at + Math.max(after.length, 1) + 2).map((text, index) => ({ number: from + index + 1, text }))
   })()
-  const waiting = requiredReviewers(conflict).filter((reviewer) => reviewer.status !== 'approved').length
-  // (Terse, like the summary beside it — statements, not sentences.)
-  const reviewState = conflict.reviewStage === 'detected' ? 'Before the review request'
-    : conflict.reviewStage === 'approved' ? 'Every reviewer approved'
-      : waiting ? `Waiting on ${waiting} reviewer${waiting === 1 ? '' : 's'}` : 'In review'
   if (!conflict.branches && !conflict.diff && !conflict.suggestion && !conflict.preview && !conflict.comparisonFields?.length) {
     return (
       <div className="h-full">
@@ -815,7 +854,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     { id: 'C', side: custom?.side === 'A' ? 'after' : 'before', title: 'Adjust by hand', source: 'You set the values yourself' },
   ]
   const choice = flow?.choice ?? null
-  const chosen = cards.find((card) => card.id === choice) ?? null
   // The reference is exactly what's there now: choosing it changes nothing,
   // so it isn't offered — two cards, what's there and a value of one's own.
   // (Unless it's what was decided: that still has to show.)
@@ -871,21 +909,20 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
 
   return (
     <div className="flex h-full flex-col">
-      {/* ① The section's title: what to do here — fixed while choosing,
-          the outcome once decided — then how it stands with the rules. */}
+      {/* ② How to resolve it: the title, and one chip saying whether a way
+          is chosen. Which way shows on the cards (the check, the border);
+          who's reviewing is the sidebar's; a rule a way breaks is on that
+          way's card — none of it is repeated here. */}
       {pairedPreview && flow && !readOnly && (
-        <div className="mb-3 flex min-w-0 items-center gap-2">
-          <p data-pick-guide={choice ?? 'none'} className="min-w-0 flex-1 text-xs leading-5 text-slate-300">
-            <span className="text-[13px] font-semibold text-white">
-              {flow.exceptionSent ? <span data-exception-sent><LocalizedText text="Exception requested · Awaiting review" /></span>
-                : flow.decided ? <><LocalizedText text="Decided" />{chosen && <> · <LocalizedText text={chosen.title} /></>}</> : <LocalizedText text="Choose how to resolve it" />}
-            </span>
-            {flow.exceptionSent && chosen && <><span className="text-slate-500"> · </span><LocalizedText text={chosen.title} /></>}
-            {flow.ruleStatus && <><span className="text-slate-500"> · </span><span data-rule-status className="text-slate-400">{flow.ruleStatus.required && <TriangleAlert aria-hidden className="mr-1 inline size-3 -translate-y-px text-amber-300" />}<LocalizedText text={flow.ruleStatus.text} /></span></>}
-            {(flow.decided || !flow.ruleStatus) && !flow.exceptionSent && <><span className="text-slate-500"> · </span><LocalizedText text={reviewState} /></>}
-          </p>
+        <div className={SECTION_HEAD}>
+          <h3 data-pick-guide={choice ?? 'none'} className={SECTION_TITLE}><LocalizedText text="How to resolve it" /></h3>
+          {/* (Decided as soon as a way is chosen — sending it for review is
+              the header button's step, not this one's.) */}
+          <span data-decision-chip={choice ? 'decided' : 'open'} className={cn(STATE_CHIP, choice ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.07] text-slate-300')}>
+            <LocalizedText text={choice ? 'Decided' : 'Not chosen yet'} />
+          </span>
           {flow.canChange && (
-            <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
+            <button type="button" data-change-decision onClick={flow.changeDecision} className={cn(TEXT_ACTION, 'ml-auto')}>
               <LocalizedText text="Change decision" />
             </button>
           )}
@@ -893,7 +930,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       )}
       {/* Decided: why, right under what was decided. */}
       {pairedPreview && flow?.reason?.value && !editing && (
-        <div data-decision-reason={choice} className="-mt-1.5 mb-3 min-w-0"><ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly /></div>
+        <div data-decision-reason={choice} className="-mt-2 mb-4 min-w-0"><ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly /></div>
       )}
       {/* The decision's button and the title above stay put; only what's
           compared scrolls, so neither is ever pushed out of view. */}
@@ -936,7 +973,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   // Any card can be chosen while choosing — the third one
                   // with no value yet too (it's set on the card).
                   const inert = !choose
-                  const badge = badgeOf(card.id)
+                  // A rule this way runs into is said by its own note
+                  // (below the badge row) — and then there's no badge
+                  // claiming the opposite.
+                  const required = breaks(card.id)
+                  const advisories = required.length ? [] : flow?.advisories?.[card.id] ?? []
+                  const badge = required.length || advisories.length ? null : badgeOf(card.id)
                   const codeResult = codeResultOf(card.id)
                   return (
                   <div key={card.id} className={cn(
@@ -1003,6 +1045,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         </span>
                       )}
                     </div>
+                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
+                      <div data-card-rules className="-mt-1 min-w-0 space-y-1">
+                        {required.map((check) => <RuleNote key={check.id} check={check} required />)}
+                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
+                      </div>
+                    )}
                     {/* 3 · The picture. (No value of one's own yet: what's
                         there now, faint — the same place on every card.) */}
                     {conflict.preview && (
@@ -1127,16 +1175,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   </div>
                 </section>
               )}
-              {pairedPreview && !readOnly && choice && !reviewerNeeded && requiredReviewers(conflict).length > 0 && (
-                <p data-reviewer-assigned className="mt-3 text-xs text-slate-300">
-                  <LocalizedText text={`${personNameOf(requiredReviewers(conflict)[0].id) ?? requiredReviewers(conflict)[0].id} will receive the review request`} />
-                  {reviewerCandidates.length > 0 && (
-                    <> · <ReviewerPicker people={reviewerCandidates} onSelect={onChangeReviewer}>
-                      <span className="cursor-pointer text-slate-400 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text="Change reviewer" /></span>
-                    </ReviewerPicker></>
-                  )}
-                </p>
-              )}
               {/* ④ What the chosen way needs said — one thing at a time.
                   Following the standard: nothing. Breaking a required rule:
                   that it needs an exception, what it breaks, and why.
@@ -1166,17 +1204,20 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} readOnly={!editing} />
                 </div>
               )}
-              {/* ③ The code, in full, once: for the way that's chosen — or,
-                  while another card is under the pointer, for that one. */}
+              {/* ③ The code that changes: the file, a way into the editor
+                  and the diff — for the way that's chosen, or the one under
+                  the pointer. Open unless it's been folded. */}
               {conflict.diff && !readOnly && (
-                // (24px from the cards, and to what follows.)
-                <div className="mt-3 min-w-0">
-                  <button type="button" data-code-toggle aria-expanded={showCode} onClick={toggleCode} className={cn(TEXT_ACTION, '-ml-2 mb-1')}>
-                    <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
-                    <LocalizedText text={showCode ? 'Hide code' : 'Show code'} />
-                  </button>
+                <section data-code-section className={cn(SECTION_GAP, 'min-w-0')}>
+                  <div className={SECTION_HEAD}>
+                    <h3 className={SECTION_TITLE}><LocalizedText text="Code that changes" /></h3>
+                    <button type="button" data-code-toggle aria-expanded={showCode} aria-label={showCode ? 'Hide code' : 'Show code'} onClick={toggleCode} className={cn(TEXT_ACTION, 'ml-auto')}>
+                      <LocalizedText text={showCode ? 'Hide' : 'Show'} />
+                      <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
+                    </button>
+                  </div>
                   {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && (shown !== choice || Boolean(peeked))} onOpenFile={code?.onOpenFile} />}
-                </div>
+                </section>
               )}
             </>) : conflict.preview && (
               <div className="min-w-0">
@@ -2508,12 +2549,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     update({ reviewers: [...conflict.reviewers, { id: person.id, status: 'pending' }] })
     focusNextAction()
   }
-  function changeReviewer(person) {
-    const currentReviewer = requiredReviewers(conflict)[0]
-    if (!currentReviewer || !reviewerCandidates.some((candidate) => candidate.id === person.id) || person.id === authorId) return
-    update({ reviewers: conflict.reviewers.map((reviewer) => reviewer.id === currentReviewer.id ? { ...reviewer, id: person.id, status: 'pending' } : reviewer) })
-    focusNextAction()
-  }
   const openStudio = stage !== 'resolved' && onOpenMergeStudio && !inMergeStudio ? () => {
     // Arriving there says what to do: the check to fix (its element
     // marked, the value to reach) or, with none failing, how a precise
@@ -2633,9 +2668,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     openStudio,
     violations,
     customIsReference,
-    // How it stands with the rules, for the title's line.
-    ruleStatus: requiredNow.length ? { required: true, text: `${requiredNow.length} required rule${requiredNow.length === 1 ? '' : 's'} broken` }
-      : decisionState.suggested.length ? { text: `${decisionState.suggested.length} recommended rule${decisionState.suggested.length === 1 ? '' : 's'} not followed` } : null,
+    // The suggestions each way would leave unmet, for that way's card.
+    // (Where the sides can't be told apart, what's failing now belongs to
+    // the current value — it's the code as it is that was checked.)
+    advisories: {
+      A: decisionState.suggestedWith.A ?? [],
+      B: decisionState.suggestedWith.B ?? decisionState.suggested.filter((check) => check.id !== 'decided'),
+      C: [],
+    },
     control: valueControl ? {
       ...valueControl,
       value: valueControl.valueOf(adjustedByHand ? handAssembly : stash?.[conflict.layerId]),
@@ -2848,7 +2888,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
                       <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5', REVIEW_CARD, 'xl:flex-1')}>
-                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && <DifferenceSummary conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} className="mb-5 shrink-0" />}
+                        {/* ① What's different: the summary, under the same kind
+                            of title as the sections below it. */}
+                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
+                          <section data-difference-section className="mb-10 min-w-0 shrink-0">
+                            <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="What’s different" /></h3></div>
+                            <DifferenceSummary conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
+                          </section>
+                        )}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
                           {/* (Listed here only where there's no comparison
                               card to carry them — the card shows its own.) */}
@@ -2901,7 +2948,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             reviewerNeeded={needsReviewer}
                             reviewerCandidates={reviewerCandidates}
                             onAssignReviewer={assignReviewer}
-                            onChangeReviewer={changeReviewer}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —
