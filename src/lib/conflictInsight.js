@@ -17,7 +17,9 @@ import { isDesignReview } from '@/lib/conflicts'
 export const CONFLICT_TYPES = {
   'code-conflict': { label: 'Merge Conflict', hint: 'Two branches changed the same lines; the code can’t merge on its own.', tone: 'rose' },
   'design-drift': { label: 'Design Drift', hint: 'The code differs from the design standard.', tone: 'violet' },
-  'production-priority': { label: 'Production Code Priority', hint: 'The code differs from the design, and it’s already on the production branch.', tone: 'amber' },
+  // (Not another kind of conflict: a design drift whose code is already on
+  // the production branch — what changing it touches, said as its own tag.)
+  'production-priority': { label: 'Deployed', hint: 'This value is already deployed, so changing it shows on the live screens.', tone: 'amber' },
   'design-decision': { label: 'Design Decision', hint: 'Design drafts to choose between; no code is in conflict.', tone: 'sky' },
   revert: { label: 'Merge cancellation', hint: 'Creates a reviewed change that restores the values from before the merge.', tone: 'slate' },
   restore: { label: 'Restore previous version', hint: 'Restores a saved checkpoint after its affected collaborators agree.', tone: 'slate' },
@@ -43,6 +45,13 @@ export function conflictTypeOf(conflict) {
       : baselineOf(conflict)?.production ? 'production-priority'
         : 'design-drift'
   return { id, ...CONFLICT_TYPES[id] }
+}
+
+// The one tag a compact row carries, if any: the default kind — a design
+// drift, which most are — says nothing, so only the exceptions are tagged.
+export function exceptionTypeOf(conflict) {
+  const type = conflictTypeOf(conflict)
+  return type && type.id !== 'design-drift' ? type : null
 }
 
 // A compared value's kind, from what it's called.
@@ -84,6 +93,18 @@ export function mismatchesOf(conflict) {
   if (differing.length) return [...new Set(differing.map((entry) => labelOf(entry.kind)))]
   // Nothing differs between the two: both miss the same standard.
   return differences.length ? ['Below the standard on both sides'] : []
+}
+
+// What a row's title doesn't already say about the difference, if anything:
+// that neither side meets the standard, or that it's several differences
+// at once (`detail` lists them). A single mismatch named by the title
+// ("Tab icon / Size" → "Size mismatch") is nothing new, so it's null.
+export function differenceNoteOf(conflict) {
+  const type = conflictTypeOf(conflict)
+  if (!type || ['code-conflict', 'revert', 'restore', 'design-decision'].includes(type.id)) return null
+  const labels = mismatchesOf(conflict)
+  if (labels.includes('Below the standard on both sides')) return { text: 'Below the standard on both sides', detail: [] }
+  return labels.length >= 2 ? { text: `${labels.length} differences`, detail: labels } : null
 }
 
 // Conflict → Compare → Select → Approve → Merge: progress follows the

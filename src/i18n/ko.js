@@ -409,7 +409,9 @@ Type|유형
 Adjusted manually|직접 조정
 Takes a merged change back.|병합된 변경을 되돌려요.
 Design Drift|디자인 불일치
-Production Code Priority|운영 코드 우선
+Deployed|배포 중
+Same|동일
+This value is already deployed, so changing it shows on the live screens.|이미 배포된 값이라 바꾸면 운영 화면에 반영돼요
 Design Decision|디자인 결정
 Two branches changed the same lines; the code can’t merge on its own.|두 브랜치가 같은 줄을 바꿔서 코드가 자동으로 병합되지 않아요.
 The code differs from the design standard.|코드가 디자인 기준과 달라요.
@@ -2228,7 +2230,7 @@ Object.assign(ko, {
 
 Object.assign(ko, {
   'Needs your review': '내 검토',
-  'Production Code Priority': '운영 중인 코드 값',
+  'Deployed': '배포 중',
   'Design Drift': '디자인 불일치',
   'Merge cancellation': '병합 취소',
   'Restore previous version': '이전 버전 복원',

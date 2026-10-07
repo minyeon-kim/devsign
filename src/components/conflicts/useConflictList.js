@@ -25,7 +25,13 @@ const FILTER_ALIAS = { merged: 'done' }
 // "Everything not done yet" — where a count of open conflicts links to (a
 // project card's badge, a project home's stat). Not one of the standing
 // filters: it shows as one only while it's the filter in use.
-const OPEN_FILTER = { id: 'open', label: 'Open', test: isOpen }
+const OPEN_FILTER = { id: 'open', label: 'In progress', test: isOpen }
+// A narrow list's filters, on one line: everything, what's waiting on you,
+// what's still in progress (every status before done), and what's done.
+// The finer statuses are a dropdown's (STATUS_FILTERS), not tabs of their own.
+const byId = (id) => CONFLICT_FILTERS.find((filter) => filter.id === id)
+export const PRIMARY_FILTERS = [byId('all'), byId('mine'), OPEN_FILTER, byId('done')]
+export const STATUS_FILTERS = CONFLICT_FILTERS.filter((filter) => !['all', 'mine', 'done'].includes(filter.id))
 export const CONFLICT_STATUS_FILTERS = CONFLICT_FILTERS.filter((filter) => filter.id !== 'all').map((filter) => filter.label)
 
 function matchesConflictFilters(conflict, filters) {
@@ -70,8 +76,16 @@ export function useConflictList({ view = 'overlay' } = {}) {
   const visible = sortOpenFirst(
     listRecords.filter(filter.test).filter((conflict) => matchesConflictFilters(conflict, advancedFilters)).filter((conflict) => !typeFilter || conflictTypeOf(conflict).id === typeFilter)
   ).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
+  // Done items step aside: listed apart from what's still open (a narrow
+  // list folds them under a "Done N" heading) — unless Done is the filter.
+  const openItems = filter.id === 'done' ? visible : visible.filter(isOpen)
+  const doneItems = filter.id === 'done' ? [] : visible.filter((conflict) => !isOpen(conflict))
   return {
     conflicts,
+    openItems,
+    doneItems,
+    primaryFilters: PRIMARY_FILTERS,
+    statusFilters: STATUS_FILTERS,
     queued,
     listRecords,
     visible,

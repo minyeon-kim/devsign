@@ -70,7 +70,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
-import { BaselineBadge, ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
+import { ConflictTypeTag, DifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
@@ -471,9 +471,10 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   // first failing check says. (How to resolve it is the comparison's line.)
   const why = conflict.effect ?? conflict.uxNote ?? rationale?.why?.text ?? riskExplanation ?? checkGuidance(checks?.failing[0])?.impact
   const standard = rationale ? standardOf(rationale.rules, checks) : null
-  // Why it conflicts: its own account when it has one, else what was found.
-  const causes = conflict.comparisonFields?.length ? conflict.comparisonFields : null
-  const cause_text = causes ? null : conflict.cause ?? conflict.message ?? summary
+  // Why it conflicts. With compared values, that's the summary over the
+  // choice cards (each differing value, once) — not said again here. Only
+  // a conflict with nothing to compare gives its own account.
+  const cause_text = conflict.comparisonFields?.length ? null : conflict.cause ?? conflict.message ?? summary
 
   // What the viewer has to do now — and only that: nothing shows when the
   // next move is someone else's. (A review that's yours to give is said on
@@ -524,14 +525,12 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
 
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
-      {!conflict.rollback && (causes || cause_text || why || standard) && (
+      {!conflict.rollback && (cause_text || cause || why || standard) && (
         <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
-            {(causes || cause_text) && (
+            {(cause_text || cause) && (
               <Row label="Cause" data-summary-row="Cause">
-                {causes
-                  ? causes.map((field) => <span key={field.label} className="block"><LocalizedText text={`Code value ${field.current}, design value ${field.expected}`} /></span>)
-                  : <LocalizedText text={cause_text} />}
+                {cause_text && <LocalizedText text={cause_text} />}
                 {cause && (
                   <button
                     type="button"
@@ -831,6 +830,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     : text === field.expected || String(field.expected).toLowerCase().includes(String(text).toLowerCase()) ? 'text-emerald-200'
       : text === field.current ? 'text-red-300' : 'text-slate-100')
   const swatchIn = (text) => /#[0-9a-fA-F]{3,8}\b/.exec(text ?? '')?.[0]
+  // The same on both sides: nothing to choose between for this property.
+  const same = (field) => field.current === field.expected
   // The required rules each way would break — never "can't merge": going
   // that way needs the reviewers' exception approval, asked for with a
   // reason. (Said once, under the cards, for the way that's chosen.)
@@ -972,7 +973,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         <p className="truncate text-[10px] text-slate-500" title={card.source}><LocalizedText text={card.source} /></p>
                         {/* The current value is the baseline: the branch its
                             code is on — marked when that's production. */}
-                        {card.id === 'B' && <BaselineBadge conflict={conflict} className="mt-1.5" />}
                       </div>
                       {/* Finished: which card it was merged with. */}
                       {readOnly && on && (
@@ -1051,9 +1051,13 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                               <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
                             </dd>
                           ) : (
-                          <dd className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold break-words tabular-nums', toneOf(text, field))}>
+                          // A value both sides share isn't a difference:
+                          // quiet, and marked "Same". One that differs from
+                          // the standard is the one in color.
+                          <dd data-value={same(field) ? 'same' : 'differs'} className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 break-words tabular-nums', same(field) ? 'font-normal text-slate-500' : cn('font-semibold', toneOf(text, field)))}>
                             {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
                             <ValueText text={text} />
+                            {same(field) && <span data-same className="text-[10.5px] font-normal text-slate-500"><LocalizedText text="Same" /></span>}
                           </dd>
                           )}
                         </div>
