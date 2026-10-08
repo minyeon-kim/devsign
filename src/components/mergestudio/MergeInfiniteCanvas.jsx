@@ -1,6 +1,7 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Maximize2, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
@@ -661,11 +662,47 @@ function RegionTools({ frame, scale, boxH, tools }) {
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools, viewTools }) {
+// Phones and a tablet the Result can be checked on: drawn to the device's
+// width, its screen ends at the device's height — the part past it is what
+// that device only shows after scrolling.
+export const RESULT_DEVICES = [
+  { id: 'se', label: 'iPhone SE', w: 375, h: 667 },
+  { id: 'galaxy', label: 'Galaxy S24', w: 360, h: 780 },
+  { id: 'iphone', label: 'iPhone 15', w: 393, h: 852 },
+  { id: 'max', label: 'iPhone 15 Pro Max', w: 430, h: 932 },
+  { id: 'ipad', label: 'iPad mini', w: 744, h: 1133 },
+]
+
+// Where a device's screen ends on a frame drawn to its width, in the
+// frame's own units: past it the frame is dimmed, with the line marked.
+function DeviceFold({ frame, device, scale }) {
+  const fold = (frame.width * device.h) / device.w
+  const k = 1 / scale
+  const ko = getLanguage() === 'ko'
+  const fits = fold >= frame.height
+  return (
+    <div data-device-fold={device.id} aria-hidden className="pointer-events-none absolute inset-0 z-20" style={{ width: frame.width, height: frame.height }}>
+      {!fits && <div className="absolute inset-x-0 bottom-0 bg-slate-950/45" style={{ top: fold }} />}
+      <div className="absolute inset-x-0 border-t-2 border-dashed border-sky-400" style={{ top: Math.min(fold, frame.height), borderTopWidth: 2 * k }} />
+      <span
+        className="absolute right-1 rounded bg-sky-500 px-1.5 py-0.5 text-[10px] leading-3.5 font-semibold whitespace-nowrap text-white"
+        style={{ top: Math.min(fold, frame.height), transform: `translateY(-100%) scale(${k})`, transformOrigin: 'bottom right' }}
+      >
+        {device.label} · {device.w}×{device.h}{fits ? (ko ? ' · 한 화면에 다 보여요' : ' · fits on one screen') : (ko ? ' · 여기까지 한 화면' : ' · first screen ends here')}
+      </span>
+    </div>
+  )
+}
+
+function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools, viewTools, measure = false }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
   const boxH = h ?? (frame.height * boxW) / frame.width
   const scale = Math.min(boxW / frame.width, boxH / frame.height)
+  // `measure`: the Workspace canvas's spacing redlines for what's pointed at.
+  const [measureBox, setMeasureBox] = useState(null)
+  const [measureHover, setMeasureHover] = useState(null)
+  const device = viewTools?.device ? RESULT_DEVICES.find((entry) => entry.id === viewTools.device) : null
 
   return (
     <div
@@ -689,6 +726,20 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
             <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(viewTools.percent)}%</span>
             <button type="button" data-view-in aria-label={ko ? '확대' : 'Zoom in'} title={ko ? '확대' : 'Zoom in'} onClick={() => viewTools.onZoom(10)} className={BUTTON}><Plus className="size-3.5" /></button>
             <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />
+            {viewTools.onDevice && (
+              <select
+                data-view-device
+                aria-label={ko ? '기기 화면' : 'Device screen'}
+                title={ko ? '기기마다 한 화면이 어디까지인지 보기' : 'See where each device’s first screen ends'}
+                value={viewTools.device ?? ''}
+                onChange={(event) => viewTools.onDevice(event.target.value || null)}
+                className="h-6 cursor-pointer rounded-md bg-transparent px-1 text-[11px] font-medium text-slate-200 outline-none hover:bg-white/15 [&>option]:bg-slate-900"
+              >
+                <option value="">{ko ? '기기 선택' : 'Device'}</option>
+                {RESULT_DEVICES.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.w}×{entry.h}</option>)}
+              </select>
+            )}
+            {viewTools.onDevice && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />}
             <button type="button" data-view-expand title={ko ? '크게 보기 · 기기 폭 전환 (Esc로 닫기)' : 'Open large · device widths (Esc closes)'} onClick={viewTools.onExpand} className={cn(BUTTON, 'gap-1')}><Maximize2 className="size-3" />{ko ? '크게 보기' : 'Open large'}</button>
           </div>
         )
@@ -706,12 +757,18 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       <div className="relative">
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
+        onPointerMove={measure ? (event) => {
+          const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
+          if (id !== measureHover) setMeasureHover(id)
+        } : undefined}
+        onPointerLeave={measure ? () => setMeasureHover(null) : undefined}
         data-frame-box
         // Pristine light product surface inside the dark studio.
         className={cn('relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40', frameKey === 'result' ? 'ring-2 ring-emerald-300 ring-offset-4 ring-offset-background' : 'ring-1 ring-slate-200/80')}
         style={{ width: boxW, height: boxH }}
       >
         <div
+          ref={measure ? setMeasureBox : undefined}
           className="relative"
           style={{
             width: frame.width,
@@ -746,6 +803,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
               />
             )
           })}
+          {measure && <SpacingOverlay container={measureBox} frame={frame} selectedId={regionTools ? null : selectedLayerId} hoverId={measureHover} version={`${scale}:${frame.id}`} />}
+          {device && <DeviceFold frame={frame} device={device} scale={scale} />}
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
       </div>
@@ -1226,6 +1285,8 @@ function MergeInfiniteCanvas({
     designCompare ? Object.fromEntries(designCompare.entries.map((e, i) => [e.key, i + 1])) : { code: 1, a: 2, b: 3 }
   )
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b' | a Design Compare entry key
+  // The device the Result is checked against (RESULT_DEVICES), if any.
+  const [resultDevice, setResultDevice] = useState(null)
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
@@ -2083,7 +2144,12 @@ function MergeInfiniteCanvas({
                     onSelectLayer={pickLayer}
                     onSelectFrame={pickFrame}
                     regionTools={entry.key === 'result' && regionTools ? { ...regionTools, zoom: scale } : undefined}
+                    measure={entry.key === 'result'}
                     viewTools={entry.key === 'result' ? {
+                      device: resultDevice,
+                      // Picking a device shows the whole Result, so where
+                      // its screen ends is in view.
+                      onDevice: (id) => { setResultDevice(id); if (id) setView(fitView(layout, { only: ['result'] })) },
                       zoom: scale,
                       percent: view.zoom,
                       onFit: () => setView(fitView(layout, { only: ['result'], byWidth: true })),

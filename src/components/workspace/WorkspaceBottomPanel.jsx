@@ -176,15 +176,13 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       style={{ height: dragHeight ?? (!open ? STRIP_HEIGHT : maximized ? fullHeight : height) }}
       data-resizing={dragHeight != null ? '' : undefined}
       className={cn(
-        // Merge Studio and plain Workspace share the exact same look (same
-        // rounding/margins/border when open, same flush strip when closed)
-        // — only *positioning* differs: Merge Studio floats the panel over
-        // a full-size canvas instead of shrinking it, so the infinite
-        // canvas never resizes under the user while panel height changes.
+        // Merge Studio and plain Workspace share the exact same look and
+        // place: the panel takes its own room at the bottom and the panes
+        // above end over it (rounded, inset), rather than Merge Studio's
+        // canvas running on underneath and being cut off by it.
         // (No transition while dragging: the edge stays under the pointer.)
-        'flex shrink-0 flex-col overflow-hidden',
+        'relative flex shrink-0 flex-col overflow-hidden',
         dragHeight == null && 'transition-[height] duration-200 ease-out',
-        portal ? 'absolute inset-x-0 bottom-0' : 'relative',
         open || dragHeight != null
           ? 'z-[550] mt-0 mr-2 mb-2 ml-0 rounded-2xl border border-white/10 bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_32px_-14px_rgba(0,0,0,0.65)]'
           : 'rounded-none border-transparent bg-background shadow-none',

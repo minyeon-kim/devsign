@@ -89,11 +89,12 @@ function FloatingRestorePill({ group, panelsById, dockApi }) {
         onClick={() => dockApi.minimizeGroup(group.id, false)}
         data-restore-pill={group.activeId}
         className={cn(
-          // AI Chat's (it starts closed) sits where its window opens — top
-          // left, under the studio header — clear of the bottom panel's tabs.
-          'pointer-events-auto absolute flex h-10',
-          group.panelIds.includes(panelById.chat.id) ? 'top-12 left-0' : 'bottom-4 left-4',
-          'items-center gap-2 px-4 text-[13px] font-medium text-slate-300 transition-colors hover:text-white',
+          // In the studio's header row, clear of the canvas: AI Chat's (it
+          // starts closed) beside the Workspace button, the navigator's at
+          // the right, over where it folded from.
+          'pointer-events-auto absolute top-2 flex h-8',
+          group.panelIds.includes(panelById.chat.id) ? 'left-[152px]' : 'right-[260px]',
+          'items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white',
           PANEL_RADIUS,
           FLOATING_PANEL
         )}
@@ -427,7 +428,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
     <MergeDeckSlotContext.Provider value={{ element: deckElement, setElement: setDeckElement }}>
-    <div className={cn('absolute inset-0 bg-background px-0 pr-2', mergeStudio ? 'pt-0' : 'pt-[var(--ds-chrome-size)]', !mergeStudio && bottomPanel.open ? 'pb-2' : 'pb-0')}>
+    <div className={cn('absolute inset-0 bg-background px-0 pr-2', mergeStudio ? 'pt-0' : 'pt-[var(--ds-chrome-size)]', bottomPanel.open ? 'pb-2' : 'pb-0')}>
       <div ref={rootRef} onDragOver={documentDrop} onDrop={(event) => documentDrop(event, true)} onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setDock(null)
       }} onDragEnd={() => setDock(null)} className="relative isolate flex size-full min-w-0">

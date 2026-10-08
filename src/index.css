@@ -914,9 +914,16 @@ button.editor-line-comment {
   flex-direction: column;
   gap: var(--notification-gap);
   box-sizing: border-box;
-  width: var(--notification-width);
-  max-width: calc(100vw - 32px);
-  max-height: min(55dvh, calc(100dvh - 96px - var(--ds-bottom-panel-offset, 0px)));
+  /* It scrolls when tall, and a scroller clips: room around the cards for
+     their shadow (40px blur, 16px down), taken back with negative margins
+     so the cards sit where they always did — otherwise the shadow is cut
+     square at the stack's edges and the rounded cards read as boxes. */
+  --notification-shadow-room: 40px;
+  padding: var(--notification-shadow-room) var(--notification-shadow-room) calc(var(--notification-shadow-room) * 2);
+  margin: 0 calc(var(--notification-shadow-room) * -1) calc(var(--notification-shadow-room) * -2) 0;
+  width: calc(var(--notification-width) + var(--notification-shadow-room) * 2);
+  max-width: calc(100vw - 32px + var(--notification-shadow-room) * 2);
+  max-height: calc(min(55dvh, calc(100dvh - 96px - var(--ds-bottom-panel-offset, 0px))) + var(--notification-shadow-room) * 3);
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: none;

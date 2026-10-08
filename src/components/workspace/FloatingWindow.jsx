@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Maximize2, Minimize2, X } from 'lucide-react'
+import { ChevronsRight, Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
 import {
   FLOATING_PANEL,
@@ -178,7 +178,20 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             ref={setHeaderSlot}
             className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
           />
-          {docked || isNavigatorGroup ? (
+          {isNavigatorGroup && !docked && !isMaximized ? (
+            // Floating (Merge Studio), the navigator folds away to a pill
+            // at its corner, so the canvas gets the room; the pill unfolds it.
+            <button
+              type="button"
+              data-window-fold
+              title="Fold"
+              aria-label="Fold"
+              onClick={() => dockApi.minimizeGroup(group.id, true)}
+              className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <ChevronsRight className="size-3.5" />
+            </button>
+          ) : docked || isNavigatorGroup ? (
             // Docked panes carry no window controls — each tab closes
             // itself. The one exception: a maximized pane (Layout: Focus
             // Editor) needs a way back.
