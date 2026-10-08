@@ -81,7 +81,11 @@ const HEX = /#[0-9a-fA-F]{3,8}\b/
 // cards show it, as "Same"). A color gets its swatch; nothing else gets a
 // picture. The values themselves are compared on the choice cards — this
 // is the summary, said once, with the branch the code is on at its right.
-export function DifferenceSummary({ conflict, className, resolved = false, mergedSide = 'A' }) {
+// `compact`: one line — the kind of difference, each value's code → design,
+// and the baseline — for over the choice cards, which carry the values
+// themselves (the review keeps it short so the cards, their picture and the
+// code all fit in view).
+export function DifferenceSummary({ conflict, className, resolved = false, mergedSide = 'A', compact = false }) {
   const differing = differencesOf(conflict).filter((entry) => !entry.shared)
   const swatch = (entry, value) => (entry.kind === 'color' ? HEX.exec(String(value))?.[0] : null)
   const value = (entry, text, tone) => (
@@ -91,6 +95,24 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
       <span className={cn('min-w-0 font-medium break-words tabular-nums', tone)}><LocalizedText text={String(text)} /></span>
     </span>
   )
+  const currentTone = resolved ? (mergedSide === 'B' ? 'text-emerald-100' : 'text-slate-400') : 'text-rose-200'
+  const expectedTone = resolved ? (mergedSide === 'A' ? 'text-emerald-100' : 'text-slate-400') : 'text-emerald-200'
+  if (compact) {
+    return (
+      <section data-difference-summary="compact" aria-label="What differs" className={cn('flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-white/[0.025] px-4 py-2 text-xs leading-5', className)}>
+        <span className="shrink-0 font-medium text-slate-200"><MismatchLabel conflict={conflict} /></span>
+        {differing.map((entry) => (
+          <span key={entry.label} data-difference={entry.kind} className="inline-flex min-w-0 items-center gap-x-1.5" title={`${entry.label}: ${entry.current} → ${entry.expected}`}>
+            <span className="text-slate-400"><LocalizedText text={entry.label} /></span>
+            {value(entry, entry.current, currentTone)}
+            <span aria-hidden className="text-slate-500">→</span>
+            {value(entry, entry.expected, expectedTone)}
+          </span>
+        ))}
+        <BaselineBadge conflict={conflict} className="ml-auto" />
+      </section>
+    )
+  }
   return (
     <section data-difference-summary aria-label="What differs" className={cn('flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 rounded-xl bg-white/[0.025] px-4 py-3', className)}>
       <div className="min-w-0 flex-1 basis-64">

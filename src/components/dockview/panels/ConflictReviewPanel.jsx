@@ -10,7 +10,6 @@ import {
   ChevronDown,
   CircleCheck,
   FileCode2,
-  Code,
   ChevronLeft,
   Clock3,
   GitMerge,
@@ -47,7 +46,7 @@ import { allPeople, canvasPages, currentUserFor, projectFileSets, projects } fro
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { mergedSizeAdjustment, sizeAdjustmentOf, studioAdjustmentsOf } from '@/lib/sizeAdjustment'
-import { codeChangeOf, fieldControlsFor, handLinesOf, mergeResultOf, withHandLines, writeFieldValue } from '@/lib/mergeResult'
+import { fieldControlsFor, handLinesOf, mergeResultOf, withHandLines, writeFieldValue } from '@/lib/mergeResult'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useNavigate } from 'react-router-dom'
 import { draftColumns, draftRows, driftRowsFor } from '@/lib/driftDecisions'
@@ -738,7 +737,6 @@ function ReviewerPicker({ people, onSelect, children, align = 'start', triggerPr
 // with more room between sections than inside one, so the groups show.
 const SECTION_TITLE = 'text-[13px] leading-5 font-semibold text-white'
 const SECTION_HEAD = 'mb-4 flex min-w-0 items-center gap-2' // 16px to its content
-const SECTION_GAP = 'mt-10' // 40px between sections
 const STATE_CHIP = 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap'
 
 // A rule a way of resolving it runs into, on that way's own card: one line
@@ -892,16 +890,10 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       : id === 'B' && differs ? DIFFERS
         // (Nothing until a value is chosen; a value being tried on isn't one.)
         : id === 'C' && flow?.custom ? (flow.customIsReference ? MEETS : DIFFERS) : null)
-  // What each way does to the code — in full for the block under the
-  // cards, and as the one value that changes for the card's last line.
+  // What each way does to the code — shown in one place, the block under
+  // the cards (for the way chosen, or the card under the pointer).
   const codeBefore = conflict.diff?.before ?? []
   const linesOf = (id) => (id === 'A' ? conflict.diff?.after : id === 'B' ? codeBefore : custom?.lines) ?? null
-  const between = conflict.diff ? codeChangeOf(codeBefore, conflict.diff.after ?? []) : null
-  const codeResultOf = (id) => {
-    if (!conflict.diff || !linesOf(id)) return null
-    const change = id === 'B' ? { from: '', to: '' } : codeChangeOf(codeBefore, linesOf(id))
-    return change.from || change.to ? change : { from: between?.from, same: true }
-  }
   const shown = hover && hover !== choice && linesOf(hover) ? hover : choice
   const shownCard = cards.find((card) => card.id === shown) ?? null
   // What it breaks, in a line: each compared value against the standard's.
@@ -979,7 +971,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   const required = breaks(card.id)
                   const advisories = required.length ? [] : flow?.advisories?.[card.id] ?? []
                   const badge = required.length || advisories.length ? null : badgeOf(card.id)
-                  const codeResult = codeResultOf(card.id)
                   return (
                   <div key={card.id} className={cn(
                     'min-w-0 overflow-hidden rounded-xl border transition-colors',
@@ -1159,31 +1150,27 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         <LocalizedText text="Edit in Merge Studio" />
                       </button>
                     )}
-                    {/* 5 · What it does to the code, as the one value that
-                        changes — at the foot of every card, so the three
-                        read across. (The whole line is under the cards.) */}
-                    {conflict.diff && (
-                      <p data-card-code className="mt-auto flex min-w-0 items-center gap-1.5 border-t border-white/[0.07] pt-3 text-[11px] leading-4">
-                        <Code aria-hidden className="size-3 shrink-0 text-slate-500" />
-                        {/* (Only the code itself is set in the code face and
-                            left untranslated — the words around it aren't.) */}
-                        {!codeResult ? <span className="truncate text-slate-500"><LocalizedText text="Shown once a value is chosen" /></span>
-                          : codeResult.same ? <span className="truncate text-slate-400">{codeResult.from && <><span translate="no" className="font-mono">{codeResult.from}</span> · </>}<LocalizedText text="No change" /></span>
-                            : <span className="truncate">
-                              {codeResult.from && <><span translate="no" className="font-mono text-slate-500 line-through">{codeResult.from}</span><span className="text-slate-500"> → </span></>}
-                              {/* (A class taken off has nothing after the arrow.) */}
-                              {/* A token: its short name — the whole class is in the diff below. */}
-                              {!codeResult.to ? <span className="text-emerald-200"><LocalizedText text="Removed" /></span>
-                                : /var\((--[\w-]+)\)/.test(codeResult.to) ? <span title={codeResult.to} className="text-emerald-200"><span translate="no" className="font-mono">{shortName(/var\((--[\w-]+)\)/.exec(codeResult.to)[1])}</span> <LocalizedText text="token" /></span>
-                                  : <span translate="no" className="font-mono text-emerald-200">{codeResult.to}</span>}
-                            </span>}
-                      </p>
-                    )}
                   </div>
                   </div>
                   )
                 })}
               </div>
+              {/* ③ The code that changes, right under the cards — the value
+                  picked, its picture and its code read as one: the diff for
+                  the way that's chosen, or the one under the pointer. Open
+                  unless it's been folded. */}
+              {conflict.diff && !readOnly && (
+                <section data-code-section className="mt-4 min-w-0">
+                  <div className={SECTION_HEAD}>
+                    <h3 className={SECTION_TITLE}><LocalizedText text="Code that changes" /></h3>
+                    <button type="button" data-code-toggle aria-expanded={showCode} aria-label={showCode ? 'Hide code' : 'Show code'} onClick={toggleCode} className={cn(TEXT_ACTION, 'ml-auto')}>
+                      <LocalizedText text={showCode ? 'Hide' : 'Show'} />
+                      <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
+                    </button>
+                  </div>
+                  {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && shown !== choice} onOpenFile={code?.onOpenFile} />}
+                </section>
+              )}
               {pairedPreview && !readOnly && editing && flow?.reason && choice && exception && exceptionEditor === `${conflict.id}:${choice}` && (
                 <section data-decision-reason={choice} data-exception-editor className="mt-3 min-w-0 space-y-3 rounded-xl border border-amber-300/25 px-4 py-3">
                   <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-amber-100">
@@ -1231,21 +1218,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 <div data-decision-reason={choice} className="mt-3 w-full max-w-[360px] min-w-0 space-y-5">
                   <ReasonField key={`${conflict.id}:${choice}`} {...flow.reason} select={choice === 'C'} readOnly={!editing} />
                 </div>
-              )}
-              {/* ③ The code that changes: the file, a way into the editor
-                  and the diff — for the way that's chosen, or the one under
-                  the pointer. Open unless it's been folded. */}
-              {conflict.diff && !readOnly && (
-                <section data-code-section className={cn(SECTION_GAP, 'min-w-0')}>
-                  <div className={SECTION_HEAD}>
-                    <h3 className={SECTION_TITLE}><LocalizedText text="Code that changes" /></h3>
-                    <button type="button" data-code-toggle aria-expanded={showCode} aria-label={showCode ? 'Hide code' : 'Show code'} onClick={toggleCode} className={cn(TEXT_ACTION, 'ml-auto')}>
-                      <LocalizedText text={showCode ? 'Hide' : 'Show'} />
-                      <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
-                    </button>
-                  </div>
-                  {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && shown !== choice} onOpenFile={code?.onOpenFile} />}
-                </section>
               )}
             </>) : conflict.preview && (
               <div className="min-w-0">
@@ -3029,9 +3001,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         {/* ① What's different: the summary, under the same kind
                             of title as the sections below it. */}
                         {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
-                          <section data-difference-section className="mb-10 min-w-0 shrink-0">
-                            <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Conflict summary" /></h3></div>
-                            <DifferenceSummary conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
+                          <section data-difference-section aria-label="Conflict summary" className="mb-5 min-w-0 shrink-0">
+                            <DifferenceSummary compact conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
                           </section>
                         )}
                         <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">

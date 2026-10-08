@@ -68,17 +68,20 @@
 }
 
 :root {
-    /* Dark elevation: each level up is one even step lighter.
-       0 base     — activity bar, pages, Merge Studio's canvas
-       1 card     — Workspace windows, page cards, floating pills
+    /* Dark elevation: each level up is one step lighter — the windows float
+       as cards over the frame, with gaps between them, so the frame is the
+       darkest and the windows a step above it.
+       0 base     — the chrome: activity bar, top bar, bottom bar, the gaps
+                    between windows, pages, Merge Studio's canvas (#141414)
+       1 card     — Workspace windows, page cards, floating pills (#1C1C1C)
        2 raised   — hover / selected fills, input wells
        3 overlay  — popovers, menus, tooltips (above cards, so they still
                     separate when they open over one)
        overlay-hover — a menu item's highlight inside an overlay.
        Pure neutral grays (R = G = B): a blue-leaning gray fights the green
        accent, so the levels differ in lightness only. */
-    --ds-bg-base: #111111;
-    --ds-surface-card: #181818;
+    --ds-bg-base: #141414;
+    --ds-surface-card: #1C1C1C;
     --ds-surface-raised: #1F1F1F;
     --ds-surface-overlay: #1F1F1F;
     --ds-surface-overlay-hover: #2A2A2A;
@@ -93,7 +96,11 @@
     --ds-notice-surface-hover: #D2D2D2;
     --ds-primary-foreground: #0A0A0A;
     --ds-primary-violet: #8B5CF6;
-    --ds-chat-action-bg: #0E201C;
+    /* The green tint of something that's yours or picked — your chat
+       bubble, the selected file / layer / item row: one step above the
+       window it's on, so it never reads as a hole in it. */
+    --ds-selected-bg: #143229;
+    --ds-chat-action-bg: var(--ds-selected-bg);
     --ds-chat-action-fg: #D1FAE5;
     --ds-review-action-bg: #5EEAB5;
     --ds-review-action-fg: #0A0A0A;
@@ -152,7 +159,7 @@
        0) read as a darker frame around a slightly lifted canvas (layer 1)
        instead of a flat, muddy void — while staying darker than --card so
        floating panels still read as raised above it. */
-    --canvas: #141414;
+    --canvas: #181818;
     --foreground: #FAFAFA;
     --card: var(--ds-surface-card);
     --card-foreground: #FAFAFA;
@@ -175,7 +182,7 @@
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: var(--ds-surface-card);
+    --sidebar: var(--ds-bg-base);
     --sidebar-foreground: #FAFAFA;
     --sidebar-primary: var(--ds-primary);
     --sidebar-primary-foreground: var(--ds-primary-foreground);
@@ -744,7 +751,8 @@ button.editor-line-comment {
   --notification-action-bg: var(--color-emerald-700);
   --notification-action-bg-hover: var(--color-emerald-800);
   --notification-action-text: var(--foreground);
-  --notification-radius: 12px;
+  /* (The windows' and floating panels' radius.) */
+  --notification-radius: 20px;
   --notification-padding: 14px 16px;
   /* Where the floating ones sit: under the header, off the right edge. */
   /* Always at the bottom: just above the Workspace's bottom bar (its strip

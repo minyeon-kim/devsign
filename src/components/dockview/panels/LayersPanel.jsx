@@ -55,7 +55,7 @@ function LayerRow({ id, name, kind, depth, selected, expanded, collapsible, hidd
         style={{ paddingLeft: 6 + depth * 10 }}
         className={cn(
           'flex h-full min-w-0 flex-1 items-center gap-1.5 py-1 pr-1 text-left text-xs transition-colors',
-          selected ? 'bg-[#0E1F1B] text-[#D1FAE5]' : 'text-muted-foreground',
+          selected ? 'bg-[var(--ds-selected-bg)] text-[#D1FAE5]' : 'text-muted-foreground',
           hidden && 'opacity-40'
         )}
       >

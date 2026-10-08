@@ -193,7 +193,7 @@ function ExplorerPanel() {
           style={{ paddingLeft: 6 + depth * 10 }}
           className={cn(
             'flex w-full items-center gap-1.5 rounded-lg py-1 pr-2 text-left transition-colors hover:bg-muted hover:text-foreground',
-            active && 'bg-[#0E1F1B] text-[#D1FAE5]'
+            active && 'bg-[var(--ds-selected-bg)] text-[#D1FAE5]'
           )}
         >
           <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />

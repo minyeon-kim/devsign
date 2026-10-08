@@ -19,6 +19,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { overrideFromEdit } from '@/lib/prototypeSync'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
@@ -312,21 +313,32 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // every edit — plus fill/radius from the Inspect panel's Appearance
 // section (opened automatically on selection, see `openLayerInspectTab`)
 // — is synced to the page's code file (see lib/prototypeSync).
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress }) {
+// `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
+// under the pointer, its size and its spacing.
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
   const isFrameSelected = selectedId === frame.id
+  const [container, setContainer] = useState(null)
+  const [hoverId, setHoverId] = useState(null)
+  const hoverAt = (event) => {
+    const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
+    if (id !== hoverId) setHoverId(id)
+  }
 
   return (
     <div className="absolute" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       <span className="absolute -top-5 left-0 text-[10px] text-muted-foreground select-none">{frame.name}</span>
       <div
+        ref={setContainer}
         onClick={(event) => {
           if (commentMode) return
           event.stopPropagation()
           onSelect(frame.id)
         }}
+        onPointerMove={measure ? hoverAt : undefined}
+        onPointerLeave={() => setHoverId(null)}
         className={cn(
           'relative h-full w-full cursor-pointer overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/40 ring-1 ring-slate-200/80',
           isFrameSelected && 'outline outline-2 outline-offset-2 outline-emerald-400'
@@ -351,6 +363,9 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
         </div>
         {isFrameSelected && <SelectionHandles />}
       </div>
+      {/* (Beside the frame's box, not in it: that clips, and a tag at the
+          edge would be cut off.) */}
+      {measure && <SpacingOverlay container={container} frame={frame} selectedId={selectedId} hoverId={hoverId} version={`${zoom}:${JSON.stringify(edits)}`} />}
     </div>
   )
 }
@@ -642,6 +657,8 @@ function CanvasPanel() {
                 aiPulseId={aiPulseId}
                 genLayerId={genLayerId}
                 genProgress={genProgress}
+                measure={!commentMode && canvasTool === 'move'}
+                zoom={zoom}
               />
             ))}
 

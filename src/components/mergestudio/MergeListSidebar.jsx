@@ -180,7 +180,7 @@ function MergeItemCard({ item, active, onSelect }) {
         'group/card relative flex w-full items-center px-2 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#5EEAB5]',
         // The item loaded in the center comparison: a soft surface plus the
         // left accent bar, so it's unmistakable at a glance.
-        active ? 'bg-[#0E1F1B] [--avatar-ring:#0E1F1B]' : 'hover:bg-white/[0.05] hover:[--avatar-ring:#1E1E1E]'
+        active ? 'bg-[var(--ds-selected-bg)] [--avatar-ring:var(--ds-selected-bg)]' : 'hover:bg-white/[0.05] hover:[--avatar-ring:#1E1E1E]'
       )}
     >
       {/* The whole card opens the item (files & layers) — no chevron. */}
@@ -216,7 +216,7 @@ function FilesList({ item, files, manualCode, activeFileId, onOpen }) {
             title={f.path}
             className={cn(
               'flex h-8 w-full items-center gap-1.5 rounded-lg px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-[#5EEAB5]',
-              active ? 'bg-[#0E1F1B] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
+              active ? 'bg-[var(--ds-selected-bg)] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
             )}
           >
             <Icon className={cn('size-3.5 shrink-0', !active && colorClass)} />
@@ -317,7 +317,7 @@ function LayersList({ item, frame, selectedLayerId, editedLayerIds, onSelect }) 
             style={{ paddingLeft: 12 + (depth + 1) * 16 }}
             className={cn(
               'flex h-8 w-full items-center gap-1.5 rounded-lg pr-3 text-left text-xs transition-colors focus-visible:outline-2 focus-visible:outline-[#5EEAB5]',
-              active ? 'bg-[#0E1F1B] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
+              active ? 'bg-[var(--ds-selected-bg)] text-[#D1FAE5]' : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
             )}
           >
             <Icon className={cn('size-3.5 shrink-0', active ? 'text-[#D1FAE5]' : 'text-slate-500')} />
