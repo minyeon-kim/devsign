@@ -135,15 +135,40 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               Compose
             </button>
           </div>
-          {item && (
-            <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 px-3 py-2">
-              <span data-design-status={status.id} className={cn('text-xs font-medium', status.className)}>{status.label}</span>
-              <span className="min-w-0 flex-1 text-[11px] text-slate-400">{status.id === 'merged' ? '승인된 조합이 프로젝트에 반영되었습니다.' : '조합 → 검토 요청 → 승인 → 병합 완료'}</span>
-              {conflict && <button type="button" onClick={() => openConflictReview(conflict.id)} className="ds-intrinsic rounded-md bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-400/20">
-                {!isDesignReview(conflict) ? '충돌 검토' : status.id === 'merged' ? '병합 결과 보기' : status.id === 'approved' ? '승인 확인 및 병합' : '조합 검토'}
-              </button>}
-            </div>
-          )}
+          {item && (() => {
+            // Where this set is on its way to merging, as steps with the
+            // current one lit — and, beside it, the one thing to do next
+            // (named for that step), when it's done from the review.
+            const STEPS = ['조합', '검토 요청', '승인', '병합 완료']
+            const requested = Boolean(conflict && isDesignReview(conflict))
+            const current = status.id === 'merged' ? STEPS.length
+              : status.id === 'approved' ? 3
+                : status.id === 'in_review' || status.id === 'changes_requested' ? 2
+                  : requested ? 1 : 0
+            const action = !conflict ? null
+              : !isDesignReview(conflict) ? '충돌 검토'
+                : { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기'
+            return (
+              <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-white/10 px-3 py-2">
+                <ol data-design-steps className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-[11.5px]">
+                  {STEPS.map((step, index) => (
+                    <li key={step} data-step-state={index < current ? 'done' : index === current ? 'current' : 'todo'} className="flex items-center gap-1">
+                      {index > 0 && <span aria-hidden className={cn('h-px w-3', index <= current ? 'bg-emerald-400/50' : 'bg-white/15')} />}
+                      <span className={cn('rounded-full px-2 py-0.5',
+                        index < current ? 'text-emerald-300' : index === current ? 'bg-emerald-400/15 font-semibold text-emerald-200 ring-1 ring-emerald-400/40' : 'text-slate-500')}>
+                        {index < current && '✓ '}{step}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                {action && (
+                  <button type="button" data-design-next onClick={() => openConflictReview(conflict.id)} className="ds-intrinsic shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300">
+                    {action}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
           {commentModeVariantKey && (
             <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
               <MapPin className="size-3 shrink-0" />
