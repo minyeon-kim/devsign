@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { LayoutGrid, Minus, Plus } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { optionEffects } from '@/components/mergestudio/DesignComparison'
@@ -102,7 +102,14 @@ function useClearInsets(ref) {
   return insets
 }
 
-export default function DraftCompareBoard({ item, options, frame, decisions }) {
+// The pane's view: every draft at once in a grid, or one draft alone.
+const ALL = 'all'
+const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)
+
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5 }) {
+  const [mode, setMode] = useState(ALL)
+  const shown = mode === ALL ? compared : compared.filter((option) => option.key === mode)
+  const options = shown.length ? shown : compared
   const ko = getLanguage() === 'ko'
   const paneRef = useRef(null)
   const insets = useClearInsets(paneRef)
@@ -122,7 +129,9 @@ export default function DraftCompareBoard({ item, options, frame, decisions }) {
     const observer = new ResizeObserver(([entry]) => setCell({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(element)
     return () => observer.disconnect()
-  }, [count])
+  }, [count, mode])
+  // A new view starts fitted.
+  useEffect(() => { setView(null) }, [mode])
   const PAD = 12
   const fitScale = cell
     ? Math.max(MIN_SCALE, Math.min((cell.width - PAD * 2) / frame.width, (cell.height - PAD * 2) / frame.height))
@@ -210,12 +219,41 @@ export default function DraftCompareBoard({ item, options, frame, decisions }) {
       data-draft-board
       aria-label={ko ? '시안 비교' : 'Draft comparison'}
       ref={paneRef}
-      className="flex h-full min-h-0 w-1/2 min-w-0 shrink-0 flex-col border-r border-white/[0.08] px-3"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      className="flex h-full min-h-0 min-w-0 shrink-0 flex-col px-3"
+      style={{ width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <div className="mb-2 flex shrink-0 items-center gap-2">
-        <h2 className="text-xs font-semibold text-slate-200">{ko ? `시안 비교 · ${count}개` : `Drafts · ${count}`}</h2>
-        <span className="truncate text-[11px] text-slate-500">{ko ? '칸 안에서 끌어 이동 · ⌘/Ctrl+스크롤로 확대 · 요소를 가리키면 간격' : 'Drag inside a cell to move · ⌘/Ctrl-scroll to zoom · point at an element for spacing'}</span>
+        <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '시안 비교' : 'Drafts'}</h2>
+        {/* The view: all of them side by side, or one draft by itself. */}
+        <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === ALL}
+            data-draft-view={ALL}
+            title={ko ? `전체 한 번에 비교 · ${compared.length}개` : `Compare all · ${compared.length}`}
+            onClick={() => setMode(ALL)}
+            className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', mode === ALL ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+          >
+            <LayoutGrid className="size-3.5" />
+            {ko ? '전체' : 'All'}
+          </button>
+          {compared.map((option, index) => (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={mode === option.key}
+              data-draft-view={option.key}
+              title={option.label}
+              onClick={() => setMode(option.key)}
+              className={cn('flex size-6 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', mode === option.key ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+            >
+              {letterOf(option, index)}
+            </button>
+          ))}
+        </div>
+        <span className="min-w-0 truncate text-[11px] text-slate-500">{ko ? '칸 안에서 끌어 이동 · ⌘/Ctrl+스크롤로 확대 · 요소를 가리키면 간격' : 'Drag inside a cell to move · ⌘/Ctrl-scroll to zoom · point at an element for spacing'}</span>
         <div data-board-zoom className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
           <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
           <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3.5" /></button>
@@ -238,7 +276,7 @@ export default function DraftCompareBoard({ item, options, frame, decisions }) {
             key={option.key}
             item={item}
             option={option}
-            letter={/^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)}
+            letter={letterOf(option, compared.indexOf(option) >= 0 ? compared.indexOf(option) : index)}
             frame={frame}
             view={current}
             usedParts={usedOf(option.key)}

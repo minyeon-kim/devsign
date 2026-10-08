@@ -662,47 +662,29 @@ function RegionTools({ frame, scale, boxH, tools }) {
 // since they're relative to the scaled parent), so Mobile App's 280px-wide
 // frame and Marketing Site's 480px-wide one both read at a consistent size
 // on the canvas.
-// Phones and a tablet the Result can be checked on: drawn to the device's
-// width, its screen ends at the device's height — the part past it is what
-// that device only shows after scrolling.
+// The frames the Result can be seen in: the whole screen, or a phone's or
+// a tablet's — drawn to the device's width in a frame of its shape, so what
+// fits on its first screen is what shows, and the rest scrolls inside it.
 export const RESULT_DEVICES = [
-  { id: 'se', label: 'iPhone SE', w: 375, h: 667 },
-  { id: 'galaxy', label: 'Galaxy S24', w: 360, h: 780 },
-  { id: 'iphone', label: 'iPhone 15', w: 393, h: 852 },
-  { id: 'max', label: 'iPhone 15 Pro Max', w: 430, h: 932 },
-  { id: 'ipad', label: 'iPad mini', w: 744, h: 1133 },
+  { id: 'se', label: 'iPhone SE', short: 'SE', w: 375, h: 667 },
+  { id: 'galaxy', label: 'Galaxy S24', short: 'S24', w: 360, h: 780 },
+  { id: 'iphone', label: 'iPhone 15', short: '15', w: 393, h: 852 },
+  { id: 'max', label: 'iPhone 15 Pro Max', short: 'Pro Max', w: 430, h: 932 },
+  { id: 'ipad', label: 'iPad mini', short: 'iPad', w: 744, h: 1133 },
 ]
-
-// Where a device's screen ends on a frame drawn to its width, in the
-// frame's own units: past it the frame is dimmed, with the line marked.
-function DeviceFold({ frame, device, scale }) {
-  const fold = (frame.width * device.h) / device.w
-  const k = 1 / scale
-  const ko = getLanguage() === 'ko'
-  const fits = fold >= frame.height
-  return (
-    <div data-device-fold={device.id} aria-hidden className="pointer-events-none absolute inset-0 z-20" style={{ width: frame.width, height: frame.height }}>
-      {!fits && <div className="absolute inset-x-0 bottom-0 bg-slate-950/45" style={{ top: fold }} />}
-      <div className="absolute inset-x-0 border-t-2 border-dashed border-sky-400" style={{ top: Math.min(fold, frame.height), borderTopWidth: 2 * k }} />
-      <span
-        className="absolute right-1 rounded bg-sky-500 px-1.5 py-0.5 text-[10px] leading-3.5 font-semibold whitespace-nowrap text-white"
-        style={{ top: Math.min(fold, frame.height), transform: `translateY(-100%) scale(${k})`, transformOrigin: 'bottom right' }}
-      >
-        {device.label} · {device.w}×{device.h}{fits ? (ko ? ' · 한 화면에 다 보여요' : ' · fits on one screen') : (ko ? ' · 여기까지 한 화면' : ' · first screen ends here')}
-      </span>
-    </div>
-  )
-}
 
 function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText, driftLayerIds, x, y, w, h, z, onDragStart, onResizeStart, onClickCapture, linkedLayerIds, hoverLayerId, onHoverLayer, selectedLayerId, overrides, onSelectLayer, onSelectFrame, regionTools, viewTools, measure = false }) {
   // The box is freely resizable; its content scales uniformly to fit.
   const boxW = w ?? ARTBOARD_PREVIEW_WIDTH
-  const boxH = h ?? (frame.height * boxW) / frame.width
-  const scale = Math.min(boxW / frame.width, boxH / frame.height)
+  const device = viewTools?.device ? RESULT_DEVICES.find((entry) => entry.id === viewTools.device) : null
+  // In a device's frame: the device's shape, the screen at its width.
+  const boxH = device ? (boxW * device.h) / device.w : h ?? (frame.height * boxW) / frame.width
+  const scale = device ? boxW / frame.width : Math.min(boxW / frame.width, boxH / frame.height)
   // `measure`: the Workspace canvas's spacing redlines for what's pointed at.
   const [measureBox, setMeasureBox] = useState(null)
   const [measureHover, setMeasureHover] = useState(null)
-  const device = viewTools?.device ? RESULT_DEVICES.find((entry) => entry.id === viewTools.device) : null
+  // (Region tools sit over the unscrolled screen — not in a device's frame.)
+  if (device) regionTools = undefined
 
   return (
     <div
@@ -719,7 +701,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         const ko = getLanguage() === 'ko'
         const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
         return (
-          <div data-result-view onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute right-0 bottom-full z-10 mb-1.5 flex cursor-default items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 shadow-lg ring-1 ring-white/15" style={{ transform: `scale(${1 / viewTools.zoom})`, transformOrigin: 'bottom right' }}>
+          <div data-result-view onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute bottom-full left-0 z-10 mb-1.5 flex cursor-default items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 whitespace-nowrap shadow-lg ring-1 ring-white/15" style={{ transform: `scale(${1 / viewTools.zoom})`, transformOrigin: 'bottom left' }}>
             <button type="button" data-view-fit title={ko ? '폭에 맞춤' : 'Fit to width'} onClick={viewTools.onFit} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
             <button type="button" data-view-actual onClick={viewTools.onActual} className={BUTTON}>100%</button>
             <button type="button" data-view-out aria-label={ko ? '축소' : 'Zoom out'} title={ko ? '축소' : 'Zoom out'} onClick={() => viewTools.onZoom(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
@@ -727,17 +709,22 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
             <button type="button" data-view-in aria-label={ko ? '확대' : 'Zoom in'} title={ko ? '확대' : 'Zoom in'} onClick={() => viewTools.onZoom(10)} className={BUTTON}><Plus className="size-3.5" /></button>
             <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />
             {viewTools.onDevice && (
-              <select
-                data-view-device
-                aria-label={ko ? '기기 화면' : 'Device screen'}
-                title={ko ? '기기마다 한 화면이 어디까지인지 보기' : 'See where each device’s first screen ends'}
-                value={viewTools.device ?? ''}
-                onChange={(event) => viewTools.onDevice(event.target.value || null)}
-                className="h-6 cursor-pointer rounded-md bg-transparent px-1 text-[11px] font-medium text-slate-200 outline-none hover:bg-white/15 [&>option]:bg-slate-900"
-              >
-                <option value="">{ko ? '기기 선택' : 'Device'}</option>
-                {RESULT_DEVICES.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.w}×{entry.h}</option>)}
-              </select>
+              <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} data-view-frames className="flex items-center gap-0.5">
+                {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => (
+                  <button
+                    key={entry.id ?? 'full'}
+                    type="button"
+                    role="tab"
+                    aria-selected={(viewTools.device ?? null) === entry.id}
+                    data-view-frame={entry.id ?? 'full'}
+                    title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
+                    onClick={() => viewTools.onDevice(entry.id)}
+                    className={cn(BUTTON, (viewTools.device ?? null) === entry.id && 'bg-white/[0.14] text-white')}
+                  >
+                    {entry.short}
+                  </button>
+                ))}
+              </div>
             )}
             {viewTools.onDevice && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />}
             <button type="button" data-view-expand title={ko ? '크게 보기 · 기기 폭 전환 (Esc로 닫기)' : 'Open large · device widths (Esc closes)'} onClick={viewTools.onExpand} className={cn(BUTTON, 'gap-1')}><Maximize2 className="size-3" />{ko ? '크게 보기' : 'Open large'}</button>
@@ -751,7 +738,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
           frameKey === 'result' ? 'bg-emerald-300 text-slate-950' : editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
         )}
       >
-        {frameKey === 'result' ? <><CircleCheck className="size-3" /><LocalizedText text="Result preview" /></> : label}
+        {frameKey === 'result' ? <><CircleCheck className="size-3" /><LocalizedText text="Result preview" />{device && <span className="font-medium opacity-70">· {device.label} {device.w}×{device.h}</span>}</> : label}
         {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
       <div className="relative">
@@ -767,6 +754,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         className={cn('relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40', frameKey === 'result' ? 'ring-2 ring-emerald-300 ring-offset-4 ring-offset-background' : 'ring-1 ring-slate-200/80')}
         style={{ width: boxW, height: boxH }}
       >
+        <div data-device-scroll={device ? device.id : undefined} className={device ? 'h-full overflow-y-auto overscroll-contain [scrollbar-width:thin]' : 'contents'}>
+        <div style={device ? { width: boxW, height: frame.height * scale } : undefined} className={device ? 'relative' : 'contents'}>
         <div
           ref={measure ? setMeasureBox : undefined}
           className="relative"
@@ -804,7 +793,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
             )
           })}
           {measure && <SpacingOverlay container={measureBox} frame={frame} selectedId={regionTools ? null : selectedLayerId} hoverId={measureHover} version={`${scale}:${frame.id}`} />}
-          {device && <DeviceFold frame={frame} device={device} scale={scale} />}
+        </div>
+        </div>
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
       </div>
@@ -1357,10 +1347,9 @@ function MergeInfiniteCanvas({
     const availW = Math.max(160, visRight - startX)
     // The design-pick panel floats over the canvas; never reserve canvas
     // space for it. The Result controls still need their normal top clearance.
-    // (Comparing drafts, the fit clears the mix panel, so the Result's
-    // title and view tools never sit under it.)
-    const mixPanel = designCompare ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
-    const top = mixPanel?.height ? Math.max(72, mixPanel.bottom - rect.top + 48) : designCompare ? 72 : TOP_CONTROLS_CLEARANCE
+    // (Comparing drafts the element picker floats and can be moved, so the
+    // Result keeps the room: only its title and view tools are cleared.)
+    const top = designCompare ? 132 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -1388,7 +1377,9 @@ function MergeInfiniteCanvas({
     // (never past their real size) rather than shrunk until all of them fit
     // under the mix panel: the Result is what's worked on, and the rest of
     // it is a scroll away.
-    const fitFor = (target) => (designCompare ? fitView(target, { byWidth: true, maxZoom: MAX_ZOOM / 100 }) : fitView(target))
+    // Comparing drafts, the Result fills its side: the whole screen as large
+    // as the room allows.
+    const fitFor = (target) => (designCompare ? fitView(target, { maxZoom: MAX_ZOOM / 100 }) : fitView(target))
     const firstFit = fitFor(lay)
     setView(firstFit)
     setLayout(lay)
@@ -1873,6 +1864,8 @@ function MergeInfiniteCanvas({
     if (!el) return
     function onWheel(e) {
       if (e.target.closest?.('[data-code-scroll]') && !e.ctrlKey && !e.metaKey) return
+      // In a device's frame, scrolling scrolls the screen inside it.
+      if (e.target.closest?.('[data-device-scroll]') && !e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       const rect = el.getBoundingClientRect()
       if (e.ctrlKey || e.metaKey) {
@@ -2147,15 +2140,21 @@ function MergeInfiniteCanvas({
                     measure={entry.key === 'result'}
                     viewTools={entry.key === 'result' ? {
                       device: resultDevice,
-                      // Picking a device shows the whole Result, so where
-                      // its screen ends is in view.
-                      onDevice: (id) => { setResultDevice(id); if (id) setView(fitView(layout, { only: ['result'] })) },
+                      // A frame: the Result in that device's shape, refitted.
+                      onDevice: (id) => {
+                        const dev = RESULT_DEVICES.find((entry) => entry.id === id)
+                        const w = layout.result?.w ?? ARTBOARD_PREVIEW_WIDTH
+                        const next = { ...layout, result: { ...layout.result, h: dev ? (w * dev.h) / dev.w : null } }
+                        setResultDevice(id ?? null)
+                        setLayout(next)
+                        setView(fitView(next, { only: ['result'] }))
+                      },
                       zoom: scale,
                       percent: view.zoom,
-                      onFit: () => setView(fitView(layout, { only: ['result'], byWidth: true })),
+                      onFit: () => setView(fitView(layout, { only: ['result'] })),
                       onActual: () => setView((v) => {
                         // (Its top-left stays where the fit would put it.)
-                        const fitted = fitView(layout, { only: ['result'], byWidth: true })
+                        const fitted = fitView(layout, { only: ['result'] })
                         const k = 100 / fitted.zoom
                         return { zoom: 100, x: fitted.x + (layout.result?.x ?? 0) * (fitted.zoom / 100) * (1 - k), y: fitted.y + (layout.result?.y ?? 0) * (fitted.zoom / 100) * (1 - k) }
                       }),
