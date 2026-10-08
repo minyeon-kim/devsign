@@ -14,10 +14,12 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, GripVertical, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Ellipsis, GripVertical, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
 import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -64,66 +66,24 @@ import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyl
 // compared draft. Clicking on a draft's artboard picks too (see the
 // selection effect below). Picks are ordinary decisions, so the Result
 // artboard, the conflict's review, checks and merging all follow.
-// One draft's version of one screen region, drawn small — what a pick
-// card in the Mix panel shows.
-function RegionPreview({ part, width = 132 }) {
-  const scale = Math.min(width / 280, 88 / ((part?.height ?? 0) + 16))
-  if (!part?.layers.length) {
-    return <div className="flex h-10 items-center justify-center rounded-md bg-white text-[10px] text-slate-400" style={{ width }}><LocalizedText text="Nothing here" /></div>
-  }
-  const h = part.height + 16
-  return (
-    <div className="relative overflow-hidden rounded-md bg-white" style={{ width, height: Math.max(32, h * scale) }}>
-      <div className="pointer-events-none absolute top-0 origin-top-left" style={{ left: (width - 280 * scale) / 2, width: 280, height: h, transform: `scale(${scale})` }}>
-        {part.layers.map((layer) => (
-          <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// A property value drawn small, for a pick card: a color as its swatch, a
-// radius as a corner, spacing as an inset, anything else as the value.
-function ValuePreview({ label, value, swatch }) {
-  const px = parseFloat(value)
-  const kind = swatch ? 'color' : /radius/i.test(label) && px >= 0 ? 'radius' : /spacing|padding|gap/i.test(label) && px >= 0 ? 'spacing' : 'text'
-  if (kind === 'color') return <span data-value-preview="color" className={cn('h-12 w-24 rounded-lg ring-1 ring-white/15', swatch)} />
-  if (kind === 'radius') return <span data-value-preview="radius" className="h-12 w-24 border-2 border-white/70 bg-white/10" style={{ borderRadius: Math.min(px, 24) }} />
-  if (kind === 'spacing') {
-    return (
-      <span data-value-preview="spacing" className="flex h-14 w-24 items-stretch rounded-md border border-dashed border-white/40" style={{ padding: Math.max(2, Math.min(px / 2.5, 16)) }}>
-        <span className="flex-1 rounded-sm bg-white/60" />
-      </span>
-    )
-  }
-  return <span data-value-preview="text" className="px-2 text-center text-sm font-semibold text-white"><LocalizedText text={String(value)} /></span>
-}
-
-// Mixing drafts one part at a time: the current part's version from every
-// compared draft side by side. Looking and using are two things: the
-// arrows (and ← / →, and a click on a card) move which draft is being
-// looked at — a border and "Viewing", nothing more; a draft is used for
-// this part only by its own "Use this draft" (again takes it back), which
-// is what puts the check and "In use" on it. A draft used for some parts
-// but not all says how many.
-// The region selector jumps between parts; the letters take
-// a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
-// the conflict's review, checks and merging all follow.
+// Mixing drafts one part at a time, from a slim floating bar: the part is
+// picked from a dropdown (or by selecting it on the canvas, or ← / →), and
+// its drafts are letters — pressing one uses it for that part, pressing it
+// again takes it back. A whole draft for every part, and starting over, are
+// in its ⋯ menu. Picks are ordinary decisions, so the Result, the
+// conflict's review, checks and merging all follow.
 function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onGripPointerDown }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
   const columns = rows[0]?.options ?? []
   const partName = (row) => [row.layer && translateText(row.layer, language), translateText(row.label, language)].filter(Boolean).join(' · ')
-  const screen = draftScreens[item.id]
   const decided = rows.filter((row) => row.decided).length
   const [step, setStep] = useState(() => Math.max(0, rows.findIndex((row) => !row.decided)))
   const current = rows[Math.min(step, rows.length - 1)]
-  // Categories first: a category's drafts (A, B, C, D) show once it's
-  // chosen, so the panel stays a slim bar over the canvas until then.
+  // The parts dropdown.
   const [open, setOpen] = useState(false)
-  const show = (index) => { setStep(index); setOpen(true) }
+  const show = (index) => setStep(index)
   // Selecting a part on the canvas brings its step up.
   const source = layerSource(selectedLayerId)
   const activeKey = source ? regionKey(source.regionId) : rows.find((row) => row.key.startsWith(`${selectedLayerId}:`))?.key
@@ -150,23 +110,13 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     ? issuesWith({ ...picksNow, [row.region.id]: option.key }).filter((check) => check.regionIds?.includes(row.region.id))
     : [])
   const rowIssues = (row) => (row.region ? issuesNow.filter((check) => check.regionIds?.includes(row.region.id)) : [])
-  // For a problem: the part to change and the drafts that clear it there.
-  const fixesFor = (check) => rows
-    .filter((row) => row.region && check.regionIds?.includes(row.region.id))
-    .map((row) => ({ row, index: rows.indexOf(row), options: row.options.filter((option) => {
-      if (option.picked) return false
-      // Clears this one without bringing in a problem that isn't there now.
-      const after = issuesWith({ ...picksNow, [row.region.id]: option.key })
-      return !after.some((other) => other.id === check.id) && after.every((other) => issuesNow.some((now) => now.id === other.id))
-    }) }))
-    .filter((fix) => fix.options.length)
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
   // Used for this part, or taken back.
   function use(option) {
     onDecide(current.key, option.picked ? null : option.decision)
   }
-  const stepRegion = useEffectEvent((direction) => { setStep((value) => Math.max(0, Math.min(rows.length - 1, value + direction))); setOpen(true) })
+  const stepRegion = useEffectEvent((direction) => setStep((value) => Math.max(0, Math.min(rows.length - 1, value + direction))))
   useEffect(() => {
     function onKey(event) {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
@@ -178,176 +128,110 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-  // How much of the mix each draft is: every part, or so many of them.
-  const usedFrom = (key) => rows.filter((row) => row.options.find((o) => o.key === key)?.picked).length
   if (!current) return null
-  // The distinct things this part can be: fewer than two means there's
-  // nothing to pick.
-  const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
+  const ko = language === 'ko'
+  const ICON = 'ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white'
+  const dot = (row) => (rowIssues(row).length ? 'bg-amber-300' : row.decided ? 'bg-emerald-400' : 'bg-white/25')
+  const pickedOf = (row) => row.options.find((option) => option.picked)
+  const fixCheck = (check) => {
+    const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
+    if (index >= 0) setStep(index)
+    else onFix(check)
+  }
 
   return (
-    // One slim row — the parts, how many are picked, a whole draft, start
-    // over, the checks — and a part's drafts under it only once it's opened.
-    <div data-mix-panel className="pointer-events-auto flex max-h-[min(42vh,320px)] min-w-0 flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#17191d]/95 p-1.5 shadow-2xl backdrop-blur-xl">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {onGripPointerDown && (
-          <span
-            data-mix-grip
-            onPointerDown={onGripPointerDown}
-            title={language === 'ko' ? '끌어서 옮기기' : 'Drag to move'}
-            className="flex h-6 w-4 shrink-0 cursor-grab items-center justify-center rounded text-slate-500 hover:bg-white/[0.08] hover:text-slate-200 active:cursor-grabbing"
-          >
-            <GripVertical className="size-3.5" />
-          </span>
-        )}
-        <nav aria-label={language === 'ko' ? '요소 카테고리' : 'Element categories'} className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-          {rows.map((row, i) => (
-            <button key={row.key} type="button" onClick={() => (open && step === i ? setOpen(false) : show(i))}
-              title={partName(row)}
-              aria-label={`${i + 1}. ${partName(row)}`}
-              aria-expanded={open && step === i}
-              aria-current={open && step === i ? 'step' : undefined}
-              className={cn('ds-intrinsic inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', open && step === i ? 'border-emerald-300/50 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20 hover:bg-white/[0.08]')}>
-              <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('size-1.5 shrink-0 rounded-full', rowIssues(row).length ? 'bg-amber-300' : (open && step === i) || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
-              <span className="max-w-24 truncate">{partName(row)}</span>
-            </button>
-          ))}
-        </nav>
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] tabular-nums text-emerald-300" title={language === 'ko' ? '선택한 영역 · 결과 화면에 반영돼요' : 'Regions picked · shown in the result'}>{decided === rows.length && <Check className="size-3" />}{decided}/{rows.length}</span>
-        <div className="ml-auto flex items-center gap-1" role="group" aria-label={language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'} title={language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}>
-          {columns.map((column) => {
-            const whole = wholeFrom(column.key)
-            const parts = usedFrom(column.key)
-            return (
-            <button key={column.key} type="button" onClick={() => (whole ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}
-              aria-pressed={whole}
-              data-draft-tab={column.key}
-              data-draft-use={whole ? 'whole' : parts ? 'parts' : 'none'}
-              title={language === 'ko'
-                ? (whole ? `시안 ${column.letter} 사용 중 · 다시 누르면 해제` : parts ? `시안 ${column.letter} · 요소 ${parts}개 사용 · 누르면 모든 영역을 이 시안으로` : `시안 ${column.letter}로 모든 영역 바꾸기`)
-                : (whole ? `Draft ${column.letter} in use · press again to take it back` : parts ? `Draft ${column.letter} · ${parts} part${parts === 1 ? '' : 's'} used · press to use it for every region` : `Replace every region with draft ${column.letter}`)}
-              className={cn('ds-intrinsic flex h-6 min-w-6 items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', whole ? 'bg-emerald-300/15 text-emerald-200 ring-1 ring-emerald-300/40' : 'bg-white/[0.06] text-slate-300 hover:bg-white/10')}>
-              {column.letter}
-              {/* Used for all of it: a check. For some of it: how many. */}
-              {whole ? <Check className="size-3" /> : parts > 0 && <span className="rounded bg-white/[0.12] px-1 text-[9.5px] leading-4 text-slate-200 tabular-nums">{parts}</span>}
-            </button>
-            )
-          })}
-        </div>
-        <CheckStatus checks={checks} onFix={(check) => {
-          const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
-          if (index >= 0) show(index)
-          else onFix(check)
-        }} />
-        <button
-          type="button"
-          disabled={decided === 0 && !decisions[LAYOUT_KEY]}
-          title="Reset picks"
-          aria-label="Reset picks"
-          onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0); setOpen(false) }}
-          className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-40"
+    // One slim, floating bar: the part (picked from a dropdown), that
+    // part's drafts as letters, the checks as an icon, and a menu with the
+    // rest (a whole draft, start over). Drag it anywhere by its background.
+    <div
+      data-mix-panel
+      onPointerDown={(event) => { if (onGripPointerDown && !event.target.closest('button, [role="menu"], [role="listbox"], [data-slot="popover-content"]')) onGripPointerDown(event) }}
+      className="pointer-events-auto flex w-fit max-w-full cursor-grab items-center gap-1 rounded-xl border border-white/15 bg-[#17191d]/95 p-1 shadow-2xl backdrop-blur-xl active:cursor-grabbing"
+    >
+      <GripVertical data-mix-grip aria-hidden className="size-3.5 shrink-0 text-slate-500" />
+      {/* The part being picked: a dropdown of every part, each with its pick. */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          data-mix-region-trigger
+          title={ko ? '요소 고르기' : 'Pick a part'}
+          className="ds-intrinsic flex h-7 min-w-0 items-center gap-1.5 rounded-lg bg-white/[0.06] pr-1.5 pl-2 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.1]"
         >
-          <RotateCcw className="size-3.5" />
-        </button>
-      </div>
-
-      {/* Each card applies its draft to the current region. */}
-      {open && <div className="mt-1.5 flex min-h-0 items-center gap-2 border-t border-white/[0.08] pt-1.5">
-        <div className="min-w-0 w-full">
-          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(112px,1fr))] gap-1.5 p-0.5">
-            {/* Nothing to choose between here: said, rather than left blank. */}
-            {choices.length < 2 && (
-              <p data-mix-single className="flex h-16 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
-                {language === 'ko' ? '이 영역은 시안이 하나뿐이라 그대로 사용돼요' : 'This part has only one draft, so it’s used as it is'}
-              </p>
-            )}
-            {choices.length >= 2 && current.options.map((option) => {
-              const parts = usedFrom(option.key)
+          <span className={cn('size-1.5 shrink-0 rounded-full', dot(current))} />
+          <span className="max-w-28 truncate">{partName(current)}</span>
+          <span className="text-[10.5px] font-normal text-slate-500 tabular-nums">{decided}/{rows.length}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
+        </PopoverTrigger>
+        <PopoverContent align="start" sideOffset={6} className="w-60 gap-0 rounded-xl p-1">
+          <ul role="listbox" aria-label={ko ? '요소' : 'Parts'} className="flex flex-col">
+            {rows.map((row, i) => {
+              const picked = pickedOf(row)
               return (
-              <div
-                key={option.key}
-                data-mix-option={option.key}
-                data-in-use={option.picked ? '' : undefined}
-                title={option.name}
-                className={cn(
-                  'flex min-w-0 flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors',
-                  option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
-                )}
-              >
-                {/* The card and its action share one applied state. */}
-                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 적용` : `Use draft ${option.letter}`} aria-pressed={option.picked} onClick={() => onDecide(current.key, option.decision)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-                {current.region
-                  ? <span className="flex h-16 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={104} /></span>
-                  : <span className="flex h-16 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
-                {/* How this choice checks out, shown before it's picked. */}
-                {current.region && (() => {
-                  const issues = optionIssues(current, option)
-                  return (
-                    <span data-option-check={issues.length ? 'issue' : 'ok'} className={cn('flex items-center gap-1 px-0.5 text-[10.5px] leading-4', issues.length ? 'text-amber-200' : 'text-emerald-300/90')} title={issues.map((check) => translateText(check.title, language)).join(' · ') || undefined}>
-                      {issues.length ? <TriangleAlert className="size-3 shrink-0" /> : <Check className="size-3 shrink-0" />}
-                      <span className="truncate">{issues.length ? <LocalizedText text={issues[0].title} /> : (language === 'ko' ? '검사 통과' : 'Passes checks')}</span>
-                    </span>
-                  )
-                })()}
-                <span className="flex items-center gap-1.5 px-0.5 text-[10.5px]">
-                  <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
-                  <span className={cn('max-w-28 truncate', option.picked ? 'text-emerald-100' : 'text-slate-400')}>
-                    {current.region ? <LocalizedText text={option.value} /> : <LocalizedText text={option.name} />}
-                  </span>
-                </span>
-                {/* A property's choice: where it's from (above), then the
-                    value it gives this property. */}
-                {!current.region && (
-                  <span data-option-value className="truncate px-0.5 text-[11px] leading-4 text-slate-200">
-                    <LocalizedText text={current.label} />{' '}
-                    <span className="font-semibold text-white" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
-                  </span>
-                )}
-                </button>
-                {/* Where it stands: in use here (a check), being looked at,
-                    or — used elsewhere in the mix — for how many parts. */}
-                <span data-option-state className="flex min-h-4 flex-wrap items-center gap-1 px-0.5 text-[10px] leading-4">
-                  {option.picked
-                    ? <span data-state="in-use" className="inline-flex items-center gap-0.5 font-medium text-emerald-200"><Check className="size-3" />{language === 'ko' ? '사용 중' : 'In use'}</span>
-                    : null}
-                  {!option.picked && parts > 0 && <span data-state="parts" className="rounded bg-white/[0.08] px-1 text-slate-300">{language === 'ko' ? `요소 ${parts}개 사용` : `${parts} part${parts === 1 ? '' : 's'} used`}</span>}
-                </span>
-                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => use(option)}
-                  className={cn('ds-intrinsic flex h-6 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
-                  {option.picked ? (language === 'ko' ? '사용 해제' : 'Stop using') : (language === 'ko' ? '이 시안 사용' : 'Use this draft')}
-                </button>
-              </div>
+                <li key={row.key}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={i === step}
+                    data-mix-region={row.region?.id ?? row.key}
+                    onClick={() => { setStep(i); setOpen(false) }}
+                    className={cn('ds-intrinsic flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] transition-colors', i === step ? 'bg-white/[0.08] text-white' : 'text-slate-300 hover:bg-white/[0.05]')}
+                  >
+                    <span className={cn('size-1.5 shrink-0 rounded-full', dot(row))} />
+                    <span className="min-w-0 flex-1 truncate">{partName(row)}</span>
+                    {rowIssues(row).length > 0 && <TriangleAlert className="size-3 shrink-0 text-amber-300" />}
+                    <span className={cn('flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold', picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.06] text-slate-500')}>{picked?.letter ?? '–'}</span>
+                  </button>
+                </li>
               )
             })}
-          </div>
-          {/* Taken out of the Result: said here, with the way back. */}
-          {current.region && removedRegions.includes(current.region.id) && (
-            <p data-mix-removed className="mt-1 text-center text-[11px] text-amber-200/90">{language === 'ko' ? '결과 화면에서 뺀 영역이에요 · 시안을 사용하면 다시 들어가요' : 'Taken out of the result · using a draft puts it back'}</p>
-          )}
-        </div>
-      </div>}
-      {/* What's wrong with the mix as it stands, each with where to change
-          it and which drafts fix it — a click goes to that part. */}
-      {issuesNow.length > 0 && (
-        <ul data-mix-issues className="mt-1.5 space-y-1 border-t border-white/[0.08] px-1 pt-1.5 text-[11px] leading-4">
-          {issuesNow.map((check) => {
-            const fixes = fixesFor(check)
-            return (
-              <li key={check.id} className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-slate-300">
-                <TriangleAlert className="size-3 shrink-0 text-amber-300" />
-                <span className="font-medium text-amber-100"><LocalizedText text={check.title} /></span>
-                {fixes.length > 0 ? fixes.map((fix) => (
-                  <button key={fix.row.key} type="button" onClick={() => show(fix.index)} className="ds-intrinsic inline-flex h-5 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 text-slate-200 transition-colors hover:bg-white/[0.12] hover:text-white">
-                    <LocalizedText text={fix.row.label} />
-                    <span className="text-slate-400">→</span>
-                    <span translate="no" className="font-semibold text-emerald-200">{fix.options.map((option) => option.letter).join(' · ')}</span>
-                  </button>
-                )) : <span className="text-slate-500">{language === 'ko' ? '시안을 바꿔서는 해결되지 않아요' : 'No draft clears this'}</span>}
-                {fixes.length > 0 && <span className="text-slate-500">{language === 'ko' ? '로 바꾸면 해결' : 'clears it'}</span>}
-              </li>
-            )
-          })}
-        </ul>
+          </ul>
+        </PopoverContent>
+      </Popover>
+      {/* This part's drafts: a letter each — the one in use lit, a dot on one
+          that would bring a problem in. Pressing the one in use takes it back. */}
+      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex items-center gap-0.5">
+        {current.options.map((option) => {
+          const issues = optionIssues(current, option)
+          return (
+            <button
+              key={option.key}
+              type="button"
+              data-mix-option={option.key}
+              aria-pressed={option.picked}
+              onClick={() => use(option)}
+              title={`${option.name} · ${option.literal ? option.value : translateText(String(option.value), language)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
+              className={cn('ds-intrinsic relative flex size-7 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors', option.picked ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-white/[0.08] hover:text-white')}
+            >
+              {option.letter}
+              {issues.length > 0 && !option.picked && <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-300" />}
+            </button>
+          )
+        })}
+      </div>
+      <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+      <CheckStatus compact checks={checks} onFix={fixCheck} />
+      {/* The rest, out of the way: a whole draft for every part, or start over. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className={ICON}>
+          <Ellipsis className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {columns.map((column) => (
+            <DropdownMenuItem key={column.key} data-draft-tab={column.key} onClick={() => (wholeFrom(column.key) ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}>
+              {wholeFrom(column.key) ? <Check className="size-3.5 text-emerald-300" /> : <span className="size-3.5" />}
+              {ko ? `모두 시안 ${column.letter}로` : `All from draft ${column.letter}`}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            disabled={decided === 0 && !decisions[LAYOUT_KEY]}
+            onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
+          >
+            <RotateCcw className="size-3.5" />
+            {ko ? '처음부터 다시' : 'Start over'}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {current.region && removedRegions.includes(current.region.id) && (
+        <span data-mix-removed title={ko ? '결과 화면에서 뺀 영역 · 시안을 고르면 다시 들어가요' : 'Taken out of the result · picking a draft puts it back'} className="px-1 text-amber-300"><TriangleAlert className="size-3.5" /></span>
       )}
     </div>
   )
@@ -1343,8 +1227,9 @@ function MergeStudioWorkspace({ item }) {
         )}
         {designComparison && (
           // A floating window: at first over the Result's top left (the drafts
-          // pane keeps its side to itself); its grip moves it anywhere.
-          <div className="pointer-events-none absolute z-40 w-[min(520px,calc(100%-24px))]" style={mixPos ? { left: mixPos.x, top: mixPos.y } : { left: `calc(${draftShare * 100}% + 12px)`, top: 12 }} data-mix-pane>
+          // pane keeps its side to itself); dragged, it stays where it's put —
+          // kept inside the canvas when that shrinks (the bottom panel opening).
+          <div className="pointer-events-none absolute z-40 w-[min(520px,calc(100%-24px))]" style={mixPos ? { left: `min(${mixPos.x}px, calc(100% - 120px))`, top: `min(${mixPos.y}px, calc(100% - 48px))` } : { left: `calc(${draftShare * 100}% + 12px)`, top: 12 }} data-mix-pane>
           <MixPanel
             onGripPointerDown={startMixDrag}
             item={item}

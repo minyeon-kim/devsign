@@ -224,9 +224,10 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       // the same 48px line the Workspace's windows start on.
       dockApi.moveGroup(groupId, right ? bounds.width - width : 0, 48)
       dockApi.resizeGroup(groupId, width, height)
-      // AI Chat floats closed until asked for (its pill brings it up), so
-      // the canvas starts with the room; the navigator stays open.
-      dockApi.minimizeGroup(groupId, !right)
+      // AI Chat and the navigator both float folded until asked for (their
+      // pills in the header row bring them up), so the canvas starts with
+      // the room.
+      dockApi.minimizeGroup(groupId, true)
     }
   }, [mergeStudio, dockApi, store, filesWindow.open, studioGroup?.id])
 
