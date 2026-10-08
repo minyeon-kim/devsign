@@ -2112,16 +2112,13 @@ function MergeInfiniteCanvas({
           const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
           return (
             <div data-result-header className="pointer-events-none absolute top-3 right-4 left-4 z-30 flex items-center gap-2">
-              {/* The Result's name, marked as the one screen being made. */}
-              <h2 data-result-title className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-950 shadow-[0_0_0_4px_rgba(110,231,183,0.12)]">
-                <CircleCheck className="size-3.5" />
-                {ko ? '결과 미리보기' : 'Result preview'}
-                {resultDevice && (() => { const dev = RESULT_DEVICES.find((entry) => entry.id === resultDevice); return dev ? <span className="font-medium opacity-70">· {dev.label} {dev.w}×{dev.h}</span> : null })()}
-              </h2>
               {/* The frame: one icon (with the frame it's in); pressing it
                   slides the choices out beside it, and picking one — or the
                   icon again — folds them away. */}
-              <div data-view-frames className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+              {/* (No title: the pane is the Result by its green-framed
+                  screen; its tools sit at the right, clear of the merge
+                  button above.) */}
+              <div data-view-frames className="pointer-events-auto ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
                 <button
                   type="button"
                   data-frame-toggle
@@ -2155,7 +2152,7 @@ function MergeInfiniteCanvas({
                 </div>
               </div>
               {/* Its zoom and the full preview, at the pane's top right. */}
-              <div data-result-zoom className="pointer-events-auto ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+              <div data-result-zoom className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
                 <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
                 <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
                 <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
