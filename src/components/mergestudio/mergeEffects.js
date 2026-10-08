@@ -122,10 +122,13 @@ export function assemblyToOverride(assembly, layer) {
   // Replace-with-component: render as a different element type / label.
   if (assembly.asType) override.asType = assembly.asType
   if (assembly.asLabel) override.asLabel = assembly.asLabel
+  // Typed on the canvas toolbar: text color and the element's copy.
+  if (assembly.textColor) override.textColor = assembly.textColor
+  if (assembly.copy) override.copy = assembly.copy
   return override
 }
 
-const PRECISION_KEYS = ['strokeStyle', 'padding', 'gap', 'direction', 'valign', 'opacity', 'dx', 'dy']
+const PRECISION_KEYS = ['textColor', 'strokeStyle', 'padding', 'gap', 'direction', 'valign', 'opacity', 'dx', 'dy']
 
 // Layers two overrides: later fill/radius/etc. win, size deltas add up.
 export function mergeOverride(a = {}, b = {}) {
