@@ -18,6 +18,7 @@ import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, 
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
@@ -30,7 +31,7 @@ import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopy
 import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, designCompareOptions, optionEffects, resolvedEffects } from '@/components/mergestudio/DesignComparison'
+import { DesignComparePanel, designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
 import { LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
@@ -595,11 +596,8 @@ function MergeStudioWorkspace({ item }) {
     return {
       frame: compareFrame,
       entries: [
-        // Every draft being compared, whole, on the one screen with the
-        // mix they feed — compared at a glance, not one at a time.
-        ...designComparison.options.map((option) => draftScreens[compareItem.id]
-          ? { key: option.key, label: option.label, frame: draftFrame(compareItem.id, compareFrame, option.key), overrides: {} }
-          : { key: option.key, label: option.label, overrides: optionEffects(compareItem, option) }),
+        // (The drafts themselves are their own pane beside it:
+        // DraftCompareBoard.)
         {
           // The mix so far, beside the drafts it's drawn from.
           key: 'result',
@@ -1331,6 +1329,11 @@ function MergeStudioWorkspace({ item }) {
         )}
         <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
+        {/* Comparing drafts: the drafts in a pane of their own, the Result
+            artboard in the canvas beside it — each with its own zoom. */}
+        {designCompare && (
+          <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} />
+        )}
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={designComparison ? 0 : reserve}
