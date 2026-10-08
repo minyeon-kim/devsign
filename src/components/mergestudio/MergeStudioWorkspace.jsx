@@ -36,7 +36,7 @@ import { draftRows } from '@/lib/driftDecisions'
 import { LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
-import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
+import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -186,24 +186,25 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const choices = [...new Set(current.options.map((option) => (current.region ? option.key : option.value)))]
 
   return (
-    <div data-mix-panel className="pointer-events-auto flex max-h-[min(42vh,360px)] min-w-0 flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#17191d]/95 p-3 shadow-2xl backdrop-blur-xl">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] pb-2.5">
-        <nav aria-label={language === 'ko' ? '요소 카테고리' : 'Element categories'} className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+    // One slim row — the parts, how many are picked, a whole draft, start
+    // over, the checks — and a part's drafts under it only once it's opened.
+    <div data-mix-panel className="pointer-events-auto flex max-h-[min(42vh,320px)] min-w-0 flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#17191d]/95 p-1.5 shadow-2xl backdrop-blur-xl">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <nav aria-label={language === 'ko' ? '요소 카테고리' : 'Element categories'} className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {rows.map((row, i) => (
             <button key={row.key} type="button" onClick={() => (open && step === i ? setOpen(false) : show(i))}
               title={partName(row)}
               aria-label={`${i + 1}. ${partName(row)}`}
               aria-expanded={open && step === i}
               aria-current={open && step === i ? 'step' : undefined}
-              className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', open && step === i ? 'border-emerald-300/50 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20 hover:bg-white/[0.08]')}>
+              className={cn('ds-intrinsic inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', open && step === i ? 'border-emerald-300/50 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20 hover:bg-white/[0.08]')}>
               <span data-region-dot={rowIssues(row).length ? 'issue' : 'ok'} className={cn('size-1.5 shrink-0 rounded-full', rowIssues(row).length ? 'bg-amber-300' : (open && step === i) || row.decided ? 'bg-emerald-400' : 'bg-white/25')} />
-              <span className="max-w-32 truncate">{partName(row)}</span>
+              <span className="max-w-24 truncate">{partName(row)}</span>
             </button>
           ))}
         </nav>
-        <span className="shrink-0 text-[11px] tabular-nums text-emerald-300">{decided}/{rows.length}</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="mr-1 text-[11px] text-slate-400">{language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}</span>
+        <span className="flex shrink-0 items-center gap-0.5 text-[11px] tabular-nums text-emerald-300" title={language === 'ko' ? '선택한 영역 · 결과 화면에 반영돼요' : 'Regions picked · shown in the result'}>{decided === rows.length && <Check className="size-3" />}{decided}/{rows.length}</span>
+        <div className="ml-auto flex items-center gap-1" role="group" aria-label={language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'} title={language === 'ko' ? '시안 그대로 쓰기' : 'Use a full draft'}>
           {columns.map((column) => {
             const whole = wholeFrom(column.key)
             const parts = usedFrom(column.key)
@@ -223,6 +224,11 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
             )
           })}
         </div>
+        <CheckStatus checks={checks} onFix={(check) => {
+          const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
+          if (index >= 0) show(index)
+          else onFix(check)
+        }} />
         <button
           type="button"
           disabled={decided === 0 && !decisions[LAYOUT_KEY]}
@@ -236,12 +242,12 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
       </div>
 
       {/* Each card applies its draft to the current region. */}
-      {open && <div className="mt-2.5 flex min-h-0 items-center gap-2">
+      {open && <div className="mt-1.5 flex min-h-0 items-center gap-2 border-t border-white/[0.08] pt-1.5">
         <div className="min-w-0 w-full">
-          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2 p-1">
+          <div data-mix-options className="grid grid-cols-[repeat(auto-fit,minmax(112px,1fr))] gap-1.5 p-0.5">
             {/* Nothing to choose between here: said, rather than left blank. */}
             {choices.length < 2 && (
-              <p data-mix-single className="flex h-24 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
+              <p data-mix-single className="flex h-16 min-w-64 items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-xs text-slate-400">
                 {language === 'ko' ? '이 영역은 시안이 하나뿐이라 그대로 사용돼요' : 'This part has only one draft, so it’s used as it is'}
               </p>
             )}
@@ -254,15 +260,15 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 data-in-use={option.picked ? '' : undefined}
                 title={option.name}
                 className={cn(
-                  'flex min-w-0 flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
+                  'flex min-w-0 flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors',
                   option.picked ? 'border-emerald-300 bg-emerald-300/[0.06]' : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.05]'
                 )}
               >
                 {/* The card and its action share one applied state. */}
                 <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 적용` : `Use draft ${option.letter}`} aria-pressed={option.picked} onClick={() => onDecide(current.key, option.decision)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
                 {current.region
-                  ? <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
-                  : <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
+                  ? <span className="flex h-16 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={104} /></span>
+                  : <span className="flex h-16 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
                 {/* How this choice checks out, shown before it's picked. */}
                 {current.region && (() => {
                   const issues = optionIssues(current, option)
@@ -297,7 +303,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                   {!option.picked && parts > 0 && <span data-state="parts" className="rounded bg-white/[0.08] px-1 text-slate-300">{language === 'ko' ? `요소 ${parts}개 사용` : `${parts} part${parts === 1 ? '' : 's'} used`}</span>}
                 </span>
                 <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => use(option)}
-                  className={cn('ds-intrinsic flex h-7 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
+                  className={cn('ds-intrinsic flex h-6 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
                   {option.picked ? (language === 'ko' ? '사용 해제' : 'Stop using') : (language === 'ko' ? '이 시안 사용' : 'Use this draft')}
                 </button>
               </div>
@@ -313,7 +319,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
       {/* What's wrong with the mix as it stands, each with where to change
           it and which drafts fix it — a click goes to that part. */}
       {issuesNow.length > 0 && (
-        <ul data-mix-issues className="mt-3 space-y-1 border-t border-white/[0.08] pt-2.5 text-[11px] leading-4">
+        <ul data-mix-issues className="mt-1.5 space-y-1 border-t border-white/[0.08] px-1 pt-1.5 text-[11px] leading-4">
           {issuesNow.map((check) => {
             const fixes = fixesFor(check)
             return (
@@ -333,18 +339,6 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           })}
         </ul>
       )}
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-2.5 text-[11px]">
-        <span className="flex items-center gap-1 text-emerald-200">
-          {decided === rows.length && <Check className="size-3" />}
-          {language === 'ko' ? `${decided}/${rows.length} 영역 선택` : `${decided}/${rows.length} regions selected`}
-        </span>
-        <span className="text-slate-400">{language === 'ko' ? '선택한 시안이 결과 화면에 반영됩니다.' : 'Your choices appear in the result preview.'}</span>
-        <CheckStatus checks={checks} onFix={(check) => {
-          const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
-          if (index >= 0) show(index)
-          else onFix(check)
-        }} />
-      </div>
     </div>
   )
 }
@@ -453,6 +447,26 @@ function MergeStudioWorkspace({ item }) {
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
   const studioRootRef = useRef(null)
+  // Room the mix panel leaves at the right for a floating window there (the
+  // navigator), measured as it moves, folds or resizes.
+  const [mixRight, setMixRight] = useState(12)
+  useEffect(() => {
+    if (!designComparison) return
+    function measure() {
+      const stage = studioRootRef.current?.querySelector('[data-studio-stage]')?.getBoundingClientRect()
+      if (!stage) return
+      let right = 12
+      for (const el of document.querySelectorAll('[data-window]')) {
+        const r = el.getBoundingClientRect()
+        if (!r.width || r.left < stage.left + stage.width / 2 || r.top > stage.top + 120) continue
+        right = Math.max(right, stage.right - r.left + 12)
+      }
+      setMixRight((current) => (current === right ? current : right))
+    }
+    measure()
+    const timer = window.setInterval(measure, 400)
+    return () => window.clearInterval(timer)
+  }, [designComparison])
 
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -1217,15 +1231,9 @@ function MergeStudioWorkspace({ item }) {
         <ArrowLeft className="size-4" />
         Workspace
       </button>
-      <div className="relative flex min-h-0 flex-1">
-
-      {item ? (
-        <div className="flex min-h-0 min-w-0 flex-1">
-        {designComparison && (
-          // Floating over the canvas rather than its own screen — Design
-          // Compare's drafts now render as real frames on the infinite
-          // canvas below (see `designCompare`), so this is just the "what
-          // am I looking at / how do I leave" strip for that mode.
+        {item && designComparison && (
+          // In the header row, above the canvas panel: the "what am I
+          // looking at / how do I leave" strip for comparing drafts.
           // Three groups, divided: what's being compared (and leaving it),
           // the alternatives (other drafts, one whole draft), and the one
           // primary action — finishing the mix.
@@ -1258,6 +1266,13 @@ function MergeStudioWorkspace({ item }) {
             </button>
           </div>
         )}
+      {/* The canvas is a panel like the Workspace's: under the header row,
+          rounded and bordered, ending where the bottom panel begins — not
+          a full-bleed sheet the bottom panel slices across. */}
+      <div data-studio-stage className={cn('relative mt-12 mr-2 flex min-h-0 flex-1 overflow-hidden border border-white/10', PANEL_RADIUS)}>
+
+      {item ? (
+        <div className="flex min-h-0 min-w-0 flex-1">
         {/* Adjusting for a conflict: what's been changed so far, and the
             one button that finishes — back to that conflict's review, where
             the adjustments are listed. Always here, guide open or not. */}
@@ -1306,7 +1321,9 @@ function MergeStudioWorkspace({ item }) {
           </div>
         )}
         {designComparison && (
-          <div className="pointer-events-none absolute top-14 left-1/2 z-40 w-[min(760px,calc(100%-2rem))] -translate-x-1/2" data-mix-pane>
+          // Over the Result side (the drafts pane has the left half to itself),
+          // stopping short of a floating window docked at the right.
+          <div className="pointer-events-none absolute top-3 left-[calc(50%+12px)] z-40" style={{ right: mixRight }} data-mix-pane>
           <MixPanel
             item={item}
             options={designComparison.options}

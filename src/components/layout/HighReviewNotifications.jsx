@@ -101,7 +101,7 @@ export default function HighReviewNotifications() {
     const el = stackRef.current
     const root = document.documentElement
     if (!show || !el) return
-    const publish = () => root.style.setProperty('--ds-toast-bottom', `${Math.round(window.innerHeight - el.getBoundingClientRect().top + 8)}px`)
+    const publish = () => root.style.setProperty('--ds-toast-bottom', `${Math.round(window.innerHeight - (el.firstElementChild ?? el).getBoundingClientRect().top + 8)}px`)
     publish()
     const observer = new ResizeObserver(publish)
     observer.observe(el)
