@@ -90,7 +90,7 @@ function SlotEditor({ value, onLive, onCommit, onCancel, className, style }) {
       }}
       onBlur={() => finish(true)}
       style={{ font: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', ...style }}
-      className={cn('w-full min-w-0 rounded-sm bg-white px-0.5 text-inherit outline-none ring-2 ring-emerald-500', className)}
+      className={cn('w-full min-w-0 rounded-sm bg-white px-0.5 text-slate-900 outline-none ring-2 ring-emerald-500', className)}
     />
   )
 }
@@ -599,6 +599,13 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 // own box on screen, so it's right at any zoom.
 function RegionTools({ frame, scale, boxH, tools }) {
   const [drag, setDrag] = useState(null)
+  // When the last click landed: the one that picked this region, then each
+  // click through it. Two inside a double-click's time make a double-click
+  // (the browser's own dblclick is lost as this bar comes and goes).
+  const lastTap = useRef(0)
+  useEffect(() => {
+    lastTap.current = performance.now()
+  }, [tools.selected])
   const regions = frame.regions ?? []
   const region = regions.find((entry) => entry.id === tools.selected)
   if (!region) return null
@@ -633,7 +640,10 @@ function RegionTools({ frame, scale, boxH, tools }) {
         // A click, not a drag: it takes the element under the pointer on
         // its own (to move or resize it), through the layer beneath.
         const under = document.elementsFromPoint(next.clientX, next.clientY).find((node) => node.matches?.('[data-layer-id]') && !node.closest('[data-region-selected]'))
+        const double = performance.now() - lastTap.current < 450
+        lastTap.current = performance.now()
         under?.click()
+        if (double) editUnder(next)
         return
       }
       const to = landing(next, box)
@@ -643,6 +653,13 @@ function RegionTools({ frame, scale, boxH, tools }) {
     window.addEventListener('pointerup', up)
   }
   const stop = (event) => event.stopPropagation()
+  // A double-click goes through to the element underneath: its text opens
+  // for editing in place.
+  function editUnder(event) {
+    const nodes = document.elementsFromPoint(event.clientX, event.clientY).filter((node) => !node.closest('[data-region-selected]'))
+    const target = nodes.find((node) => node.matches?.('[data-slot]')) ?? nodes.find((node) => node.matches?.('[data-layer-id]'))
+    target?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: event.clientX, clientY: event.clientY }))
+  }
   const BUTTON = 'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     // Over the artboard, not inside it: the bar stands beside the screen
@@ -769,7 +786,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
                 dimmed={!regionTools && Boolean(selectedLayerId)}
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
-                onEditText={regionTools ? undefined : onEditText}
+                onEditText={regionTools ? regionTools.onEditText : onEditText}
               />
             )
           })}
