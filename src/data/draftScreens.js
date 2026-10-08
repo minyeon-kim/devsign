@@ -15,6 +15,11 @@ const X = 20
 const text = (id, value, y, { h = 12, tone = 'muted', weight, x = X, w = W, look } = {}) =>
   ({ id, name: value, kind: 'text', type: 'text', x, y, width: w, height: h, mock: { text: value, tone, weight }, ...(look && { look }) })
 
+// The checkout drafts' shared design system: the brand's primary button and
+// the one corner radius every surface uses.
+const PRIMARY = { className: 'bg-violet-600', radius: 12 }
+const RADIUS = { radius: 12 }
+
 export const draftScreens = {
   'merge-checkout-payment-drafts': {
     regions: [
@@ -23,6 +28,10 @@ export const draftScreens = {
       { id: 'payment', label: 'Payment method' },
       { id: 'footer', label: 'Checkout bar' },
     ],
+    // The four drafts are one design system's (the brand violet, 12px
+    // radius, neutral surfaces, one type scale) — they differ in what's
+    // in each part and how it's laid out, so any part from any draft fits
+    // with the others.
     drafts: {
       // A · Taylor — the plain baseline.
       jane: {
@@ -31,38 +40,38 @@ export const draftScreens = {
           text('h-step', 'Step 3 of 3 · Payment', 32, { h: 10 }),
         ] },
         summary: { summary: 'One card', height: 104, layers: [
-          { id: 's-card', name: 'Order summary', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 104, mock: { icon: 'shield', title: 'Order summary', body: '2 items · $128.00' } },
+          { id: 's-card', name: 'Order summary', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 104, mock: { icon: 'shield', title: 'Order summary', body: '2 items · $128.00' }, look: RADIUS },
         ] },
         payment: { summary: 'Card field', height: 64, layers: [
           text('p-label', 'Card number', 0, { h: 10, weight: 500 }),
-          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 18, width: W, height: 40, mock: { placeholder: '1234 5678 9012 3456' } },
+          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 18, width: W, height: 40, mock: { placeholder: '1234 5678 9012 3456' }, look: RADIUS },
         ] },
         footer: { summary: 'Total + button', height: 76, layers: [
           text('f-total', 'Total  $128.00', 0, { h: 14, tone: 'strong', weight: 600 }),
-          { id: 'f-cta', name: 'Place order', kind: 'component', type: 'button', x: X, y: 28, width: W, height: 44, label: 'Place order' },
+          { id: 'f-cta', name: 'Place order', kind: 'component', type: 'button', x: X, y: 28, width: W, height: 44, label: 'Place order', look: PRIMARY },
         ] },
       },
-      // B · Alex — softer, denser: progress, tiles, method tabs, a sticky bar.
+      // B · Alex — denser: progress, two tiles, method tabs, a sticky bar.
       min: {
         header: { summary: 'Title + progress', height: 56, layers: [
-          text('h-title', 'Payment', 4, { h: 18, tone: 'strong', weight: 700, look: { extraClass: 'text-violet-700' } }),
+          text('h-title', 'Payment', 4, { h: 18, tone: 'strong', weight: 700 }),
           { id: 'h-track', name: 'Progress', kind: 'shape', type: 'shape', x: X, y: 34, width: W, height: 4, look: { className: 'bg-violet-100', radius: 999 } },
-          { id: 'h-fill', name: 'Progress', kind: 'shape', type: 'shape', x: X, y: 34, width: 200, height: 4, look: { className: 'bg-violet-500', radius: 999 } },
+          { id: 'h-fill', name: 'Progress', kind: 'shape', type: 'shape', x: X, y: 34, width: 200, height: 4, look: { className: 'bg-violet-600', radius: 999 } },
           text('h-step', 'Step 3 of 3', 44, { h: 9 }),
         ] },
         summary: { summary: 'Two tiles', height: 72, layers: [
-          { id: 's-items', name: 'Items', kind: 'component', type: 'card', x: X, y: 0, width: 116, height: 72, mock: { icon: 'shield', title: '2 items', body: 'Ships in 3–5 days' }, look: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 14 } },
-          { id: 's-total', name: 'Total', kind: 'component', type: 'card', x: 144, y: 0, width: 116, height: 72, mock: { icon: 'chart', title: '$128.00', body: 'Incl. shipping' }, look: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 14 } },
+          { id: 's-items', name: 'Items', kind: 'component', type: 'card', x: X, y: 0, width: 116, height: 72, mock: { icon: 'shield', title: '2 items', body: 'Ships in 3–5 days' }, look: RADIUS },
+          { id: 's-total', name: 'Total', kind: 'component', type: 'card', x: 144, y: 0, width: 116, height: 72, mock: { icon: 'chart', title: '$128.00', body: 'Incl. shipping' }, look: RADIUS },
         ] },
         payment: { summary: 'Card / Apple Pay tabs', height: 92, layers: [
-          { id: 'p-tab-card', name: 'Card', kind: 'component', type: 'chip', x: X, y: 0, width: 116, height: 30, label: 'Card', look: { className: 'bg-violet-500' } },
-          { id: 'p-tab-pay', name: 'Apple Pay', kind: 'component', type: 'chip', x: 144, y: 0, width: 116, height: 30, label: 'Apple Pay', mock: { role: 'ghost' } },
-          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 44, width: W, height: 40, mock: { placeholder: 'Card number' }, look: { extraClass: 'border-transparent bg-slate-100 shadow-none', radius: 12 } },
+          { id: 'p-tab-card', name: 'Card', kind: 'component', type: 'chip', x: X, y: 0, width: 116, height: 30, label: 'Card', look: { className: 'bg-violet-600', radius: 12 } },
+          { id: 'p-tab-pay', name: 'Apple Pay', kind: 'component', type: 'chip', x: 144, y: 0, width: 116, height: 30, label: 'Apple Pay', mock: { role: 'ghost' }, look: RADIUS },
+          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 44, width: W, height: 40, mock: { placeholder: 'Card number' }, look: RADIUS },
         ] },
         footer: { summary: 'Sticky bar', height: 72, layers: [
-          { id: 'f-bar', name: 'Checkout bar', kind: 'component', type: 'card', x: 0, y: 0, width: 280, height: 72, mock: { role: 'container' }, look: { extraClass: 'border-x-0 border-b-0 border-violet-100 bg-violet-50/60 shadow-none', radius: 0 } },
+          { id: 'f-bar', name: 'Checkout bar', kind: 'component', type: 'card', x: 0, y: 0, width: 280, height: 72, mock: { role: 'container' }, look: { extraClass: 'border-x-0 border-b-0 shadow-none', radius: 0 } },
           text('f-total', '$128.00', 26, { h: 16, tone: 'strong', weight: 700, w: 100 }),
-          { id: 'f-cta', name: 'Pay now', kind: 'component', type: 'button', x: 140, y: 16, width: 120, height: 40, label: 'Pay now', look: { className: 'bg-gradient-to-r from-violet-500 to-fuchsia-500', radius: 999 } },
+          { id: 'f-cta', name: 'Place order', kind: 'component', type: 'button', x: 140, y: 16, width: 120, height: 40, label: 'Place order', look: PRIMARY },
         ] },
       },
       // C · Jordan — utilitarian: back button, collapsed summary, saved cards.
@@ -72,35 +81,35 @@ export const draftScreens = {
           text('h-title', 'Review & pay', 10, { h: 18, tone: 'strong', weight: 700, x: 58, w: 200 }),
         ] },
         summary: { summary: 'Collapsed row', height: 44, layers: [
-          { id: 's-row', name: 'Order summary', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: '2 items · $128.00   ▾' }, look: { extraClass: 'border-dashed border-slate-400 text-slate-700 shadow-none', radius: 6 } },
+          { id: 's-row', name: 'Order summary', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: '2 items · $128.00   ▾' }, look: RADIUS },
         ] },
         payment: { summary: 'Saved cards', height: 116, layers: [
           text('p-label', 'Pay with', 0, { h: 10, weight: 500 }),
-          { id: 'p-visa', name: 'Visa 4242', kind: 'component', type: 'input', x: X, y: 18, width: W, height: 38, mock: { placeholder: '●  Visa •••• 4242' }, look: { extraClass: 'border-slate-900 text-slate-900 ring-1 ring-slate-900', radius: 6 } },
-          { id: 'p-mc', name: 'Mastercard 1881', kind: 'component', type: 'input', x: X, y: 62, width: W, height: 38, mock: { placeholder: '○  Mastercard •••• 1881' }, look: { radius: 6 } },
-          text('p-add', '+ Add a card', 106, { h: 10, look: { extraClass: 'text-slate-900' } }),
+          { id: 'p-visa', name: 'Visa 4242', kind: 'component', type: 'input', x: X, y: 18, width: W, height: 38, mock: { placeholder: '●  Visa •••• 4242' }, look: { extraClass: 'border-violet-600 ring-1 ring-violet-600', radius: 12 } },
+          { id: 'p-mc', name: 'Mastercard 1881', kind: 'component', type: 'input', x: X, y: 62, width: W, height: 38, mock: { placeholder: '○  Mastercard •••• 1881' }, look: RADIUS },
+          text('p-add', '+ Add a card', 106, { h: 10, look: { extraClass: 'text-violet-700' } }),
         ] },
         footer: { summary: 'Button + terms', height: 80, layers: [
-          { id: 'f-cta', name: 'Place order', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 52, label: 'Place order · $128.00', look: { className: 'bg-slate-900', radius: 6 } },
-          text('f-terms', 'By placing your order you agree to the Terms.', 62, { h: 9 }),
+          { id: 'f-cta', name: 'Place order', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 44, label: 'Place order · $128.00', look: PRIMARY },
+          text('f-terms', 'By placing your order you agree to the Terms.', 54, { h: 9 }),
         ] },
       },
-      // D · AI — trust-first: secure badge, no summary card, pill field.
+      // D · AI — trust-first: secure badge, no summary card, wallets.
       ai: {
         header: { summary: 'Title + secure badge', height: 48, layers: [
-          text('h-title', 'Secure checkout', 6, { h: 18, tone: 'strong', weight: 700, w: 160, look: { extraClass: 'text-emerald-700' } }),
-          { id: 'h-badge', name: 'Secure', kind: 'component', type: 'chip', x: 190, y: 6, width: 70, height: 20, label: '🔒 SSL', look: { className: 'bg-emerald-50', extraClass: 'text-emerald-700' } },
+          text('h-title', 'Secure checkout', 6, { h: 18, tone: 'strong', weight: 700, w: 160 }),
+          { id: 'h-badge', name: 'Secure', kind: 'component', type: 'chip', x: 190, y: 6, width: 70, height: 20, label: '🔒 SSL', mock: { role: 'ghost' }, look: RADIUS },
         ] },
         summary: { summary: 'No summary', height: 0, layers: [] },
-        payment: { summary: 'Pill field + wallets', height: 96, layers: [
-          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: '1234 5678 9012 3456' }, look: { extraClass: 'border-emerald-400 ring-2 ring-emerald-100', radius: 999 } },
+        payment: { summary: 'Card field + wallets', height: 96, layers: [
+          { id: 'p-input', name: 'Card number', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: '1234 5678 9012 3456' }, look: RADIUS },
           text('p-or', 'or pay with', 52, { h: 9, x: 104, w: 80 }),
-          { id: 'p-apple', name: 'Apple Pay', kind: 'component', type: 'chip', x: X, y: 68, width: 116, height: 26, label: 'Apple Pay', look: { className: 'bg-slate-900' } },
-          { id: 'p-google', name: 'Google Pay', kind: 'component', type: 'chip', x: 144, y: 68, width: 116, height: 26, label: 'Google Pay', mock: { role: 'ghost' } },
+          { id: 'p-apple', name: 'Apple Pay', kind: 'component', type: 'chip', x: X, y: 68, width: 116, height: 26, label: 'Apple Pay', mock: { role: 'ghost' }, look: RADIUS },
+          { id: 'p-google', name: 'Google Pay', kind: 'component', type: 'chip', x: 144, y: 68, width: 116, height: 26, label: 'Google Pay', mock: { role: 'ghost' }, look: RADIUS },
         ] },
         footer: { summary: 'Pay button', height: 64, layers: [
-          { id: 'f-cta', name: 'Pay', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 40, label: 'Pay $138.24', look: { className: 'bg-emerald-500' } },
-          text('f-total', 'Total (incl. tax)  $138.24', 50, { h: 10 }),
+          { id: 'f-cta', name: 'Pay', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 40, label: 'Pay $128.00', look: PRIMARY },
+          text('f-total', 'Total incl. shipping  $128.00', 50, { h: 10 }),
         ] },
       },
     },
@@ -119,7 +128,7 @@ export const draftScreens = {
       // A · Taylor — celebratory and centered.
       jane: {
         status: { summary: 'Big check + title', height: 104, layers: [
-          { id: 's-check', name: 'Check', kind: 'component', type: 'iconbtn', x: 116, y: 0, width: 48, height: 48, label: '✓', look: { className: 'bg-emerald-500', extraClass: 'border-transparent text-white text-lg' } },
+          { id: 's-check', name: 'Check', kind: 'component', type: 'iconbtn', x: 116, y: 0, width: 48, height: 48, label: '✓', look: { className: 'bg-violet-600', extraClass: 'border-transparent text-white text-lg' } },
           text('s-title', 'Order placed!', 60, { h: 18, tone: 'strong', weight: 700, x: 60, w: 160, look: { extraClass: 'text-center' } }),
           text('s-sub', 'Order #A1042 · we sent a receipt to your email', 86, { h: 9, x: 30, w: 220, look: { extraClass: 'text-center' } }),
         ] },
@@ -128,14 +137,14 @@ export const draftScreens = {
         ] },
         delivery: { summary: 'Date + 3-step progress', height: 52, layers: [
           text('v-date', 'Arrives Thu, Oct 9', 0, { h: 12, tone: 'strong', weight: 600 }),
-          { id: 'v-1', name: 'Placed', kind: 'shape', type: 'shape', x: X, y: 26, width: 76, height: 6, look: { className: 'bg-emerald-500', radius: 999 } },
+          { id: 'v-1', name: 'Placed', kind: 'shape', type: 'shape', x: X, y: 26, width: 76, height: 6, look: { className: 'bg-violet-600', radius: 999 } },
           { id: 'v-2', name: 'Shipped', kind: 'shape', type: 'shape', x: 102, y: 26, width: 76, height: 6, look: { className: 'bg-slate-200', radius: 999 } },
           { id: 'v-3', name: 'Delivered', kind: 'shape', type: 'shape', x: 184, y: 26, width: 76, height: 6, look: { className: 'bg-slate-200', radius: 999 } },
           text('v-steps', 'Placed · Shipped · Delivered', 40, { h: 9 }),
         ] },
         actions: { summary: 'Button + link', height: 76, layers: [
-          { id: 'a-cta', name: 'Continue shopping', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 44, label: 'Continue shopping', look: { className: 'bg-emerald-500' } },
-          text('a-link', 'View order details', 58, { h: 10, x: 92, w: 120, look: { extraClass: 'text-emerald-700' } }),
+          { id: 'a-cta', name: 'Continue shopping', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 44, label: 'Continue shopping', look: PRIMARY },
+          text('a-link', 'View order details', 58, { h: 10, x: 92, w: 120, look: { extraClass: 'text-violet-700' } }),
         ] },
       },
       // B · Jordan — a receipt: personal header, line items, the address.
@@ -146,34 +155,34 @@ export const draftScreens = {
           text('s-sub', 'Order #A1042 · Oct 3', 32, { h: 9 }),
         ] },
         details: { summary: 'Line items', height: 92, layers: [
-          { id: 'd-box', name: 'Line items', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 92, mock: { role: 'container' }, look: { extraClass: 'border-slate-200 shadow-none', radius: 6 } },
+          { id: 'd-box', name: 'Line items', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 92, mock: { role: 'container' }, look: { extraClass: 'shadow-none', radius: 12 } },
           text('d-1', 'Subtotal                                        $118.00', 14, { h: 10, x: 32, w: 216 }),
           text('d-2', 'Shipping                                         $10.00', 34, { h: 10, x: 32, w: 216 }),
           text('d-3', 'Total                                            $128.00', 60, { h: 12, tone: 'strong', weight: 700, x: 32, w: 216 }),
         ] },
         delivery: { summary: 'Map + address', height: 96, layers: [
-          { id: 'v-map', name: 'Map', kind: 'component', type: 'image', x: X, y: 0, width: W, height: 64, look: { radius: 6 } },
+          { id: 'v-map', name: 'Map', kind: 'component', type: 'image', x: X, y: 0, width: W, height: 64, look: RADIUS },
           text('v-addr', '221B Baker St · Standard shipping', 76, { h: 10 }),
         ] },
         actions: { summary: 'Track + Done', height: 48, layers: [
-          { id: 'a-track', name: 'Track', kind: 'component', type: 'button', x: X, y: 0, width: 116, height: 40, label: 'Track', mock: { role: 'secondary' } },
-          { id: 'a-done', name: 'Done', kind: 'component', type: 'button', x: 144, y: 0, width: 116, height: 40, label: 'Done', look: { className: 'bg-slate-900', radius: 6 } },
+          { id: 'a-track', name: 'Track', kind: 'component', type: 'button', x: X, y: 0, width: 116, height: 40, label: 'Track', mock: { role: 'secondary' }, look: RADIUS },
+          { id: 'a-done', name: 'Done', kind: 'component', type: 'button', x: 144, y: 0, width: 116, height: 40, label: 'Done', look: PRIMARY },
         ] },
       },
       // C · AI — tracking first: live status up top, the receipt folded.
       ai: {
         status: { summary: 'Live status banner', height: 72, layers: [
-          { id: 's-banner', name: 'Status', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 64, mock: { icon: 'zap', title: 'Preparing your order', body: 'Ships within 24 hours' }, look: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 14 } },
+          { id: 's-banner', name: 'Status', kind: 'component', type: 'card', x: X, y: 0, width: W, height: 64, mock: { icon: 'zap', title: 'Preparing your order', body: 'Ships within 24 hours' }, look: { extraClass: 'border-transparent bg-violet-50 shadow-none', radius: 12 } },
         ] },
         details: { summary: 'Collapsed receipt', height: 44, layers: [
-          { id: 'd-row', name: 'Receipt', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: 'Receipt · $128.00   ▾' }, look: { radius: 999 } },
+          { id: 'd-row', name: 'Receipt', kind: 'component', type: 'input', x: X, y: 0, width: W, height: 40, mock: { placeholder: 'Receipt · $128.00   ▾' }, look: RADIUS },
         ] },
         delivery: { summary: 'Track chip + SMS', height: 52, layers: [
-          { id: 'v-chip', name: 'Track package', kind: 'component', type: 'chip', x: X, y: 0, width: 130, height: 28, label: 'Track package', look: { className: 'bg-violet-500' } },
+          { id: 'v-chip', name: 'Track package', kind: 'component', type: 'chip', x: X, y: 0, width: 130, height: 28, label: 'Track package', look: { className: 'bg-violet-600', radius: 12 } },
           text('v-sms', 'We’ll text you at each step', 38, { h: 9 }),
         ] },
         actions: { summary: 'Receipt download', height: 52, layers: [
-          { id: 'a-cta', name: 'Download receipt', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 40, label: 'Download receipt', look: { className: 'bg-violet-500', radius: 999 } },
+          { id: 'a-cta', name: 'Download receipt', kind: 'component', type: 'button', x: X, y: 0, width: W, height: 40, label: 'Download receipt', look: PRIMARY },
         ] },
       },
     },
@@ -256,16 +265,17 @@ export function regionPicks(itemId, decisions) {
 // What each draft's part says and how it's styled — what the composition
 // checks compare across the parts a mix takes from different drafts.
 const PART_META = {
+  // (Every draft is the one design system's, so they share the one accent.)
   'merge-confirmation-drafts': {
-    jane: { status: { accent: 'emerald' }, details: { amount: '128.00' }, delivery: { accent: 'emerald' }, actions: { accent: 'emerald' } },
-    james: { details: { amount: '128.00' }, actions: { accent: 'slate' } },
+    jane: { status: { accent: 'violet' }, details: { amount: '128.00' }, delivery: { accent: 'violet' }, actions: { accent: 'violet' } },
+    james: { details: { amount: '128.00' }, actions: { accent: 'violet' } },
     ai: { status: { accent: 'violet' }, details: { amount: '128.00' }, delivery: { accent: 'violet' }, actions: { accent: 'violet' } },
   },
   'merge-checkout-payment-drafts': {
-  jane: { summary: { amount: '128.00', total: true }, footer: { accent: 'indigo', amount: '128.00', total: true } },
-  min: { header: { accent: 'violet' }, summary: { accent: 'violet', amount: '128.00', total: true }, payment: { accent: 'violet' }, footer: { accent: 'violet', amount: '128.00', total: true } },
-  james: { summary: { amount: '128.00', total: true }, footer: { accent: 'slate', amount: '128.00', total: true } },
-  ai: { header: { accent: 'emerald' }, payment: { accent: 'emerald' }, footer: { accent: 'emerald', amount: '138.24', total: true } },
+    jane: { summary: { amount: '128.00', total: true }, footer: { accent: 'violet', amount: '128.00', total: true } },
+    min: { header: { accent: 'violet' }, summary: { amount: '128.00', total: true }, payment: { accent: 'violet' }, footer: { accent: 'violet', amount: '128.00', total: true } },
+    james: { summary: { amount: '128.00', total: true }, footer: { accent: 'violet', amount: '128.00', total: true } },
+    ai: { footer: { accent: 'violet', amount: '128.00', total: true } },
   },
 }
 

@@ -1108,7 +1108,7 @@ export const mergeListItems = [
       { key: 'jane', label: 'Standard checkout' },
       { key: 'min', label: 'Progress and wallet' },
       { key: 'james', label: 'Saved card' },
-      { key: 'ai', label: 'Express pay and tax total' },
+      { key: 'ai', label: 'Secure checkout and wallets' },
     ],
   },
   // Three drafts of the order confirmation screen with nothing in common —
