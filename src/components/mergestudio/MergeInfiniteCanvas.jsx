@@ -617,17 +617,29 @@ function RegionTools({ frame, scale, boxH, tools }) {
     event.stopPropagation()
     event.preventDefault()
     const box = event.currentTarget.closest('[data-frame-key]').querySelector('[data-frame-box]')
-    const move = (next) => setDrag(landing(next, box))
+    const start = { x: event.clientX, y: event.clientY }
+    let moved = false
+    const move = (next) => {
+      if (!moved && Math.hypot(next.clientX - start.x, next.clientY - start.y) < 4) return
+      moved = true
+      setDrag(landing(next, box))
+    }
     const up = (next) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
-      const to = landing(next, box)
       setDrag(null)
+      if (!moved) {
+        // A click, not a drag: it takes the element under the pointer on
+        // its own (to move or resize it), through the layer beneath.
+        const under = document.elementsFromPoint(next.clientX, next.clientY).find((node) => node.matches?.('[data-layer-id]') && !node.closest('[data-region-selected]'))
+        under?.click()
+        return
+      }
+      const to = landing(next, box)
       if (to.index !== index) tools.onReorder(region.id, to.index)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
-    setDrag(landing(event, box))
   }
   const stop = (event) => event.stopPropagation()
   const BUTTON = 'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
@@ -635,7 +647,7 @@ function RegionTools({ frame, scale, boxH, tools }) {
     // Over the artboard, not inside it: the bar stands beside the screen
     // (clear of the element's own handles), so nothing here is clipped.
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? "영역 전체 드래그해서 옮기기" : "Drag the whole region to move"} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
+      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? "끌어서 영역 순서 바꾸기 · 누르면 그 요소만 선택" : "Drag to reorder the region · click to take one element"} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
       {/* Which draft it's from, on the region itself. */}
       <span data-region-source className="absolute left-0 rounded-br-md bg-emerald-400 px-1.5 py-0.5 text-[10px] leading-none font-semibold whitespace-nowrap text-slate-950" style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}>
         {letter ? (ko ? (region.picked ? `시안 ${letter}` : `시안 ${letter} · 기본값`) : (region.picked ? `Draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
@@ -695,7 +707,8 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      <p
+      {/* (The Result's name is its pane's header — not said again here.) */}
+      {frameKey !== 'result' && <p
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
           'mb-1.5 flex w-fit items-center gap-1.5 rounded-full font-semibold whitespace-nowrap',
@@ -706,7 +719,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       >
         {frameKey === 'result' ? <><CircleCheck className="size-2.5" /><LocalizedText text="Result preview" />{device && <span className="font-medium opacity-70">· {device.label} {device.w}×{device.h}</span>}</> : label}
         {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
-      </p>
+      </p>}
       <div className="relative">
       <div
         onClick={(e) => onSelectFrame(frameKey, e.currentTarget)}
@@ -724,6 +737,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         <div style={device ? { width: boxW, height: frame.height * scale } : undefined} className={device ? 'relative' : 'contents'}>
         <div
           ref={measure ? setMeasureBox : undefined}
+          data-frame-content
           className="relative"
           style={{
             width: frame.width,
@@ -2075,7 +2089,12 @@ function MergeInfiniteCanvas({
           const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
           return (
             <div data-result-header className="pointer-events-none absolute top-3 right-4 left-4 z-30 flex items-center gap-2">
-              <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '결과' : 'Result'}</h2>
+              {/* The Result's name, marked as the one screen being made. */}
+              <h2 data-result-title className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-950 shadow-[0_0_0_4px_rgba(110,231,183,0.12)]">
+                <CircleCheck className="size-3.5" />
+                {ko ? '결과 미리보기' : 'Result preview'}
+                {resultDevice && (() => { const dev = RESULT_DEVICES.find((entry) => entry.id === resultDevice); return dev ? <span className="font-medium opacity-70">· {dev.label} {dev.w}×{dev.h}</span> : null })()}
+              </h2>
               {/* The frame: one icon (with the frame it's in); pressing it
                   slides the choices out beside it, and picking one — or the
                   icon again — folds them away. */}

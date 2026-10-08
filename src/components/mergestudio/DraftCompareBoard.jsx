@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { LayoutGrid, Minus, Plus } from 'lucide-react'
+import { LayoutGrid, Minus, Plus, ScanEye } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { optionEffects } from '@/components/mergestudio/DesignComparison'
@@ -140,6 +140,9 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const [view, setView] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState(null) // { key, id }
+  // Whether the part selected on the Result is outlined here — off, to see
+  // the drafts as they are.
+  const [outline, setOutline] = useState(true)
   const count = options.length
   // Up to three side by side; more in a grid.
   const cols = count <= 3 ? count : Math.ceil(Math.sqrt(count))
@@ -276,7 +279,18 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
           ))}
         </div>
         <span className="min-w-0 truncate text-[11px] text-slate-500">{ko ? '칸 안에서 끌어 이동 · ⌘/Ctrl+스크롤로 확대 · 요소를 가리키면 간격' : 'Drag inside a cell to move · ⌘/Ctrl-scroll to zoom · point at an element for spacing'}</span>
-        <div data-board-zoom className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+        <button
+          type="button"
+          data-board-outline
+          aria-pressed={outline}
+          title={outline ? (ko ? '선택한 요소 표시 끄기' : 'Stop outlining the selected part') : (ko ? '선택한 요소 표시 켜기' : 'Outline the selected part')}
+          onClick={() => setOutline((value) => !value)}
+          className={cn('ml-auto flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-medium ring-1 transition-colors', outline ? 'bg-emerald-300/15 text-emerald-200 ring-emerald-300/40' : 'text-slate-400 ring-white/15 hover:text-slate-200')}
+        >
+          <ScanEye className="size-3.5" />
+          {ko ? '표시' : 'Outline'}
+        </button>
+        <div data-board-zoom className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
           <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
           <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3.5" /></button>
           <span data-board-percent className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
@@ -305,7 +319,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             totalParts={totalParts}
             cellRef={index === 0 ? firstCellRef : undefined}
             selected={selected?.key === option.key ? selected.id : null}
-            regionId={regionId}
+            regionId={outline ? regionId : null}
             onSelect={(id) => {
               if (draggedRef.current) { draggedRef.current = false; return }
               setSelected(id ? { key: option.key, id } : null)
