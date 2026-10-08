@@ -1,4 +1,3 @@
-import { reviewTabFor } from '@/lib/conflicts'
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
@@ -14,7 +13,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Check, ChevronDown, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
@@ -496,8 +495,9 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio()
     // Straight to the request just made — its review, with the merged
     // result — rather than the list to find it in.
-    setBottomPanel({ tab: reviewTabFor(conflict ?? { id: requestId }), open: true })
-    openConflictReview(requestId)
+    // Full screen, not the bottom panel: the request is read whole, with
+    // room for the result and its review.
+    openConflictReview(requestId, { view: 'overlay' })
     toast('병합 요청을 만들었어요', { description: '조합한 결과를 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
   }
 
@@ -1148,14 +1148,6 @@ function MergeStudioWorkspace({ item }) {
 
   return (
     <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-      <button
-        type="button"
-        onClick={exitMergeStudio}
-        className={cn(STUDIO_PILL, 'absolute top-2 left-4 z-40 flex items-center justify-center gap-2 px-3')}
-      >
-        <ArrowLeft className="size-4" />
-        Workspace
-      </button>
         {item && designComparison && (
           // In the header row, above the canvas panel: the "what am I
           // looking at / how do I leave" strip for comparing drafts.
