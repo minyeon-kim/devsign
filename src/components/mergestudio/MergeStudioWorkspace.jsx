@@ -972,7 +972,39 @@ function MergeStudioWorkspace({ item }) {
   const selLayer = selId ? frame0?.layers.find((l) => l.id === selId) : null
   const selIsAdded = Boolean(selId && addedLayers.some((l) => l.id === selId))
   const selAssembly = selId ? assemblies[selId] : null
-  const selHasGeomEdit = Boolean(selAssembly && ['dx', 'dy', 'width', 'height'].some((k) => selAssembly[k] !== undefined))
+  const TOOLBAR_KEYS = ['dx', 'dy', 'width', 'height', 'fillColor', 'textColor', 'copy']
+  const selHasGeomEdit = Boolean(selAssembly && TOOLBAR_KEYS.some((k) => selAssembly[k] !== undefined))
+  // The toolbar's fill / text color / text: `null` puts the element's own
+  // value back.
+  const changeSelectedStyle = useCallback(
+    (patch) => {
+      if (!selId) return
+      setAssemblies((prev) => {
+        const next = { ...prev[selId] }
+        for (const [key, value] of Object.entries(patch)) {
+          if (key === 'copy') {
+            const copy = { ...next.copy }
+            for (const [slot, text] of Object.entries(value)) {
+              if (text == null) delete copy[slot]
+              else copy[slot] = text
+            }
+            if (Object.keys(copy).length) next.copy = copy
+            else delete next.copy
+          } else if (value == null) delete next[key]
+          else next[key] = value
+        }
+        const all = { ...prev }
+        if (Object.keys(next).length) all[selId] = next
+        else delete all[selId]
+        return all
+      })
+      const keys = Object.keys(patch)
+      if (Object.values(patch).every((v) => v == null)) dropSources(selId, keys)
+      else recordSources(selId, keys, { kind: 'custom', detail: patch.copy ? 'Text edited on canvas' : 'Color changed on canvas' })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selId]
+  )
   const changeSelectedGeom = useCallback(
     (g) => {
       if (!selLayer) return
@@ -1014,13 +1046,13 @@ function MergeStudioWorkspace({ item }) {
       const a = prev[selId]
       if (!a) return prev
       // eslint-disable-next-line no-unused-vars
-      const { dx, dy, width, height, ...rest } = a
+      const { dx, dy, width, height, fillColor, textColor, copy, ...rest } = a
       const next = { ...prev }
       if (Object.keys(rest).length) next[selId] = rest
       else delete next[selId]
       return next
     })
-    dropSources(selId, ['dx', 'dy', 'width', 'height'])
+    dropSources(selId, TOOLBAR_KEYS)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId])
   const handleBoards = useMemo(() => designComparison ? ['result'] : (selIsAdded ? ['a', 'b'] : ['b']), [designComparison, selIsAdded])
@@ -1419,6 +1451,7 @@ function MergeStudioWorkspace({ item }) {
           onChange={changeSelectedGeom}
           onDelete={selIsAdded ? deleteAddedLayer : undefined}
           onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
+          onStyle={changeSelectedStyle}
         />
       )}
 

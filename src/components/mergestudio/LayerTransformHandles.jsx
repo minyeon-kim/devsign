@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { RotateCcw, Trash2 } from 'lucide-react'
+import { RotateCcw, Trash2, Type } from 'lucide-react'
 import { SNAP_PX, snapAxis, snapBox, xCandidates, yCandidates } from '@/components/mergestudio/snapGuides'
 
 // Figma-style direct manipulation for the selected canvas element: drag its
@@ -43,7 +43,7 @@ function measureBoards(boards, layerId, frame) {
     if (!inner.width || !r.width) return []
     const k = inner.width / frame.width
     return [{
-      key, clip, inner, k, rect: r,
+      key, clip, inner, k, rect: r, look: readStyle(el),
       geom: { x: (r.left - inner.left) / k, y: (r.top - inner.top) / k, w: r.width / k, h: r.height / k },
     }]
   })
@@ -87,8 +87,99 @@ function GeomField({ name, label, value, onCommit }) {
   )
 }
 
-function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset }) {
+// The design system's colors, offered first; the native picker covers the
+// rest. `null` puts the element's own color back.
+const SWATCHES = [
+  ['#7c3aed', 'Violet 600'], ['#ede9fe', 'Violet 100'], ['#0f172a', 'Slate 900'], ['#64748b', 'Slate 500'],
+  ['#ffffff', 'White'], ['#10b981', 'Emerald 500'], ['#f43f5e', 'Rose 500'], ['#f59e0b', 'Amber 500'],
+]
+
+// Any CSS color (Tailwind's are oklch) as #rrggbb, by painting one pixel;
+// null when transparent.
+let probe
+const hexCache = new Map()
+function toHex(color) {
+  if (!color) return null
+  if (hexCache.has(color)) return hexCache.get(color)
+  probe ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+  probe.clearRect(0, 0, 1, 1)
+  probe.fillStyle = '#000'
+  probe.fillStyle = color
+  probe.fillRect(0, 0, 1, 1)
+  const [r, g, b, a] = probe.getImageData(0, 0, 1, 1).data
+  const hex = a < 8 ? null : `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`
+  hexCache.set(color, hex)
+  return hex
+}
+
+// What the element looks like now, read off the rendered element: its fill,
+// its text color, and its main piece of text (the slot it lives in).
+function readStyle(el) {
+  const body = el?.firstElementChild
+  const textEl = el?.querySelector('[data-text]')
+  return {
+    fill: body ? toHex(getComputedStyle(body).backgroundColor) : null,
+    text: textEl ? toHex(getComputedStyle(textEl).color) : body ? toHex(getComputedStyle(body).color) : null,
+    slot: textEl?.dataset.text ?? null,
+    copy: textEl?.textContent ?? '',
+  }
+}
+
+function ColorRow({ name, value, onPick }) {
+  return (
+    <div data-style-colors={name} className="flex items-center gap-1">
+      {SWATCHES.map(([hex, label]) => (
+        <button
+          key={hex}
+          type="button"
+          title={label}
+          data-swatch={hex}
+          onClick={() => onPick(hex)}
+          className={`ds-intrinsic size-4 rounded-full ring-1 ring-white/20 transition-transform hover:scale-110 ${value === hex ? 'outline-2 outline-offset-1 outline-emerald-400' : ''}`}
+          style={{ background: hex }}
+        />
+      ))}
+      <label title="Custom" className="relative size-4 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#f43f5e,#f59e0b,#10b981,#3b82f6,#7c3aed,#f43f5e)] ring-1 ring-white/20">
+        <input type="color" value={value ?? '#7c3aed'} onChange={(event) => onPick(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+      </label>
+      <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+      <button type="button" title="Original" data-swatch-reset onClick={() => onPick(null)} className="rounded-full px-1.5 text-[10px] text-slate-400 hover:bg-white/10 hover:text-slate-100">
+        <RotateCcw className="size-3" />
+      </button>
+    </div>
+  )
+}
+
+function CopyField({ value, onCommit }) {
+  const [draft, setDraft] = useState(value)
+  const cancelled = useRef(false)
+  return (
+    <input
+      data-style-copy
+      autoFocus
+      value={draft}
+      onPointerDown={(event) => event.stopPropagation()}
+      onChange={(event) => setDraft(event.target.value)}
+      // (Emptied, it goes back to the element's own text.)
+      onBlur={() => {
+        if (cancelled.current) cancelled.current = false
+        else if (draft !== value) onCommit(draft.trim() ? draft : null)
+      }}
+      onKeyDown={(event) => {
+        event.stopPropagation()
+        if (event.key === 'Enter') event.currentTarget.blur()
+        else if (event.key === 'Escape') { cancelled.current = true; setDraft(value); event.currentTarget.blur() }
+      }}
+      className="w-52 bg-transparent px-1.5 text-[11px] text-slate-100 outline-none"
+    />
+  )
+}
+
+function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset, onStyle }) {
   const [found, setFound] = useState([])
+  // The toolbar's open row: 'fill' / 'text' colors, or 'copy'.
+  const [panel, setPanel] = useState(null)
+  useEffect(() => setPanel(null), [layerId])
   const [guides, setGuides] = useState(null)
   const drag = useRef(null)
 
@@ -100,7 +191,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
     let last = ''
     function tick() {
       const next = measureBoards(boards, layerId, frame)
-      const sig = next.map((b) => [b.rect.left, b.rect.top, b.rect.width, b.rect.height, b.clip.left, b.clip.top, b.clip.width, b.clip.height].map(Math.round).join(',')).join('|')
+      const sig = next.map((b) => [b.rect.left, b.rect.top, b.rect.width, b.rect.height, b.clip.left, b.clip.top, b.clip.width, b.clip.height].map(Math.round).join(',') + JSON.stringify(b.look)).join('|')
       if (sig !== last) {
         last = sig
         setFound(next)
@@ -208,6 +299,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
     <div className="pointer-events-none fixed inset-0 z-[25]">
       {found.map((board) => {
         const { clip, inner, k, rect } = board
+        const look = onStyle ? board.look : null
         return (
           <div key={board.key}>
             {guides?.x != null && <span className="absolute w-px bg-rose-500" style={{ left: inner.left + guides.x * k, top: clip.top, height: clip.height }} />}
@@ -256,11 +348,53 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                       }}
                     />
                   ))}
+                  {/* Fill, text color and the text itself. */}
+                  {look && (
+                    <>
+                      <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+                      <button
+                        type="button"
+                        title="Fill"
+                        data-style-toggle="fill"
+                        aria-pressed={panel === 'fill'}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => setPanel((p) => (p === 'fill' ? null : 'fill'))}
+                        className={`ds-intrinsic flex size-5 items-center justify-center rounded-full transition-colors hover:bg-white/10 ${panel === 'fill' ? 'bg-white/10' : ''}`}
+                      >
+                        <span className="size-3 rounded-full ring-1 ring-white/30" style={{ background: look.fill ?? 'transparent' }} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Text color"
+                        data-style-toggle="text"
+                        aria-pressed={panel === 'text'}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => setPanel((p) => (p === 'text' ? null : 'text'))}
+                        className={`ds-intrinsic flex size-5 flex-col items-center justify-center rounded-full text-[11px] leading-none font-bold text-slate-100 transition-colors hover:bg-white/10 ${panel === 'text' ? 'bg-white/10' : ''}`}
+                      >
+                        A
+                        <span className="mt-px h-[2px] w-2.5 rounded-full" style={{ background: look.text ?? '#94a3b8' }} />
+                      </button>
+                      {look.slot && (
+                        <button
+                          type="button"
+                          title="Text"
+                          data-style-toggle="copy"
+                          aria-pressed={panel === 'copy'}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => setPanel((p) => (p === 'copy' ? null : 'copy'))}
+                          className={`ds-intrinsic flex size-5 items-center justify-center rounded-full text-slate-100 transition-colors hover:bg-white/10 ${panel === 'copy' ? 'bg-white/10' : ''}`}
+                        >
+                          <Type className="size-3" />
+                        </button>
+                      )}
+                    </>
+                  )}
                   {(onReset || onDelete) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
                   {onReset && (
                     <button
                       type="button"
-                      title="Reset position & size"
+                      title="Reset edits"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={onReset}
                       className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
@@ -278,6 +412,19 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                     >
                       <Trash2 className="size-3" />
                     </button>
+                  )}
+                  {look && panel && (
+                    <div
+                      data-style-panel={panel}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="absolute bottom-full left-0 mb-1.5 flex h-7 items-center rounded-full border border-white/10 bg-card/95 px-1.5 shadow-lg backdrop-blur-md"
+                    >
+                      {panel === 'fill' && <ColorRow name="fill" value={look.fill} onPick={(hex) => onStyle({ fillColor: hex })} />}
+                      {panel === 'text' && <ColorRow name="text" value={look.text} onPick={(hex) => onStyle({ textColor: hex })} />}
+                      {panel === 'copy' && look.slot && (
+                        <CopyField key={`${layerId}:${look.slot}`} value={look.copy} onCommit={(text) => onStyle({ copy: { [look.slot]: text } })} />
+                      )}
+                    </div>
                   )}
               </div>
             </div>

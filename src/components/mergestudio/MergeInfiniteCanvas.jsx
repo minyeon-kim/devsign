@@ -252,6 +252,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
     ...(override?.padding?.y !== undefined && { paddingTop: override.padding.y, paddingBottom: override.padding.y }),
     ...override?.strokeStyle,
     ...(override?.opacity !== undefined && { opacity: override.opacity / 100 }),
+    ...(override?.textColor && { color: override.textColor }),
   }
   const contentStyle = Object.keys(layoutStyle).length ? { ...radiusStyle, ...layoutStyle } : radiusStyle
   const extra = lightClasses(override?.extraClass)
@@ -280,7 +281,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
         style={props.style}
       />
     ) : (
-      <span data-slot={canEdit ? slot : undefined} className={props.className} style={props.style}>
+      <span data-slot={canEdit ? slot : undefined} data-text={slot} className={props.className} style={props.style}>
         {props.children ?? value}
       </span>
     )
@@ -327,7 +328,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
         <span className="mb-0.5 flex size-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
           <Icon className="size-3" />
         </span>
-        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate font-semibold text-slate-900', style: { fontSize: 9, fontWeight: 600 } })}
+        {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate font-semibold text-slate-900', style: { fontSize: 9, fontWeight: 600, color: override?.textColor } })}
         {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 leading-snug text-slate-500', style: { fontSize: 7.5 } })}
       </div>
     )
