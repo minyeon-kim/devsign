@@ -249,22 +249,60 @@ function driftItemOf(conflict, workspace) {
 // is design work, so it's Merge Studio's: there each row also offers every
 // draft to switch to, beside the canvas. Elsewhere the list only reports,
 // and its action opens the drafts side by side in Merge Studio.
-function DraftResultPreview({ result, height }) {
+// `active`: the region the list points at — lit on the screen, the rest
+// dimmed, with the draft it comes from beside it. Each region is also a
+// target: pointing at it here lights its row in the list.
+// The whole screen fits the room it's given (width and height), so a lit
+// region is never below the fold of a short panel; where the room has no
+// height of its own, it fits the width and scrolls the lit region in.
+function DraftResultPreview({ result, height, active, onHover, onPick }) {
+  const boxRef = useRef(null)
   const viewportRef = useRef(null)
-  const [width, setWidth] = useState(result.width)
+  const [room, setRoom] = useState({ width: result.width, height: 0 })
   useEffect(() => {
-    const element = viewportRef.current
+    const element = boxRef.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => setRoom({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  const scale = width / result.width
+  const scale = Math.min(room.width / result.width, room.height > 40 ? room.height / height : Infinity)
+  useEffect(() => {
+    if (!active?.id) return
+    viewportRef.current?.querySelector(`[data-mix-region="${active.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [active?.id])
   return (
-    <div ref={viewportRef} className="relative w-full overflow-hidden rounded-xl bg-white" style={{ aspectRatio: `${result.width} / ${height}` }}>
+    <div ref={boxRef} data-mix-preview-room className="flex min-h-0 w-full flex-1 justify-center">
+    <div ref={viewportRef} className="relative shrink-0 overflow-hidden rounded-xl bg-white" style={{ width: result.width * scale, height: height * scale }}>
       <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: result.width, height, transform: `scale(${scale})` }}>
         {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
       </div>
+      {result.regions?.map((region) => {
+        const on = region.id === active?.id
+        return (
+          <button
+            key={region.id}
+            type="button"
+            data-mix-region={region.id}
+            data-active={on || undefined}
+            aria-label={region.label}
+            onMouseEnter={() => onHover?.(region.id)}
+            onMouseLeave={() => onHover?.(null)}
+            onClick={() => onPick?.(region.id)}
+            className={cn('ds-intrinsic absolute inset-x-0 cursor-pointer transition-[box-shadow,background-color] duration-150',
+              on ? 'z-10 shadow-[0_0_0_9999px_rgba(15,23,42,0.45),inset_0_0_0_2px_rgb(110,231,183)]' : 'hover:bg-emerald-400/[0.05]')}
+            style={{ top: region.y * scale, height: region.height * scale }}
+          >
+            {on && active.option && (
+              <span className="absolute top-1 right-1 inline-flex items-center gap-1 rounded-md bg-slate-950/85 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-100">
+                <span className="flex size-3.5 items-center justify-center rounded bg-emerald-300 text-[9px] font-semibold text-slate-950">{active.option.letter}</span>
+                <LocalizedText text={region.label} />
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
     </div>
   )
 }
@@ -274,6 +312,19 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   const rows = draftRows(conflict, item, decisions)
   const decided = rows.filter((row) => row.decided).length
   const decide = (row, option) => workspace.decideDrift(item.id, row.key, option.picked ? null : option.decision)
+  // The region pointed at (hovered) or picked (clicked) — in the list or on
+  // the result — is lit in both, so a row and the part of the screen it
+  // made are seen together.
+  const [hovered, setHovered] = useState(null)
+  const [pinned, setPinned] = useState(null)
+  const focusId = hovered ?? pinned
+  const focusRow = rows.find((row) => row.region?.id === focusId)
+  const choicesRef = useRef(null)
+  const pin = (id) => setPinned((current) => (current === id ? null : id))
+  const pinFromPreview = (id) => {
+    pin(id)
+    choicesRef.current?.querySelector(`[data-mix-choice="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
   // Drafts mixed by screen region: the picks composed into the one screen
   // they make (parts not picked fall back to the first draft, as merging does).
   const base = draftScreens[item.id] && canvasPages.find((page) => page.id === item.designPageId)?.frames[0]
@@ -307,17 +358,42 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
       <div data-draft-review-split className={cn("grid min-h-0 flex-1 gap-4 overflow-hidden", result ? "grid-cols-2" : "grid-cols-1")}>
       {/* Equal columns keep the composition and its result visible together. */}
       {result && (
-        <figure data-mix-result className="order-last min-h-0 min-w-0 overflow-auto border-l border-white/[0.06] pl-4">
-          <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
-          <DraftResultPreview result={result} height={resultHeight} />
+        <figure data-mix-result className="order-last flex min-h-0 min-w-0 flex-col overflow-auto border-l border-white/[0.06] pl-4">
+          <figcaption className="mb-3 shrink-0 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
+          <DraftResultPreview
+            result={result}
+            height={resultHeight}
+            active={focusRow ? { id: focusId, option: focusRow.options.find((option) => option.picked) ?? null } : null}
+            onHover={setHovered}
+            onPick={pinFromPreview}
+          />
         </figure>
       )}
-      <div data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
+      <div ref={choicesRef} data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
         {rows.map((row) => {
           const picked = row.options.find((option) => option.picked)
+          const region = result && row.region ? row.region.id : null
+          const on = region != null && region === focusId
           return (
-            <div key={row.key} className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2">
-              <span className="truncate text-[11.5px] text-slate-400">
+            <div
+              key={row.key}
+              data-mix-choice={region ?? undefined}
+              data-active={on || undefined}
+              {...(region && {
+                role: 'button',
+                tabIndex: 0,
+                'aria-pressed': pinned === region,
+                onMouseEnter: () => setHovered(region),
+                onMouseLeave: () => setHovered(null),
+                // (Picking a draft in the row keeps it lit; the row itself toggles.)
+                onClick: (event) => (event.target.closest('button') ? setPinned(region) : pin(region)),
+                onKeyDown: (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); pin(region) } },
+              })}
+              className={cn('grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2',
+                region && '-mx-2 cursor-pointer rounded-md px-2 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                on ? 'bg-emerald-400/[0.08]' : region && 'hover:bg-white/[0.03]')}
+            >
+              <span className={cn('truncate text-[11.5px]', on ? 'text-emerald-200' : 'text-slate-400')}>
                 {row.element && <><LocalizedText text={row.element} /> · </>}
                 <LocalizedText text={row.label} />
               </span>
@@ -448,7 +524,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false }) {
+function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -516,9 +592,31 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
       </InfoSection>
 
+      {/* 2 · A mix of drafts says what it is by its result — which draft
+          each part comes from — not by a cause. */}
+      {mix && (
+        <InfoSection title="Mix of drafts" className="border-t-0 pt-1">
+          <dl data-info-mix className={GRID}>
+            {mix.map((row) => {
+              const picked = row.options.find((option) => option.picked)
+              return (
+                <Row key={row.key} label={row.label} data-mix-row={row.key}>
+                  {picked ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{picked.letter}</span>
+                      <LocalizedText text={picked.name} />
+                    </span>
+                  ) : <span className="text-slate-500"><LocalizedText text="Not picked" /></span>}
+                </Row>
+              )
+            })}
+          </dl>
+        </InfoSection>
+      )}
+
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
-      {!conflict.rollback && (cause_text || cause || why || standard) && (
+      {!mix && !conflict.rollback && (cause_text || cause || why || standard) && (
         <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
             {(cause_text || cause) && (
@@ -3138,6 +3236,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         cause={causeVersion}
                         onOpenCause={openProjectHistory}
                         reasonNeeded={decisionState.reasonNeeded}
+                        mix={!conflict.rollback && driftItem && draftColumns(driftItem)
+                          ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
+                          : null}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (

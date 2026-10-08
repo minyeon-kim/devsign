@@ -16,17 +16,18 @@ import { changedTokens } from '@/lib/lineDiff'
 //
 // − is red (what goes), + green (what comes in); on a changed line only the
 // part that differs is lit. The layout picked is one preference for the
-// whole app (kept between visits), so every diff switches together.
+// whole app (kept between visits), so every diff switches together; side
+// by side until someone picks stacked.
 const KEY = 'devsign.diffLayout'
 const listeners = new Set()
-const read = () => { try { return localStorage.getItem(KEY) === 'split' ? 'split' : 'unified' } catch { return 'unified' } }
+const read = () => { try { return localStorage.getItem(KEY) === 'unified' ? 'unified' : 'split' } catch { return 'split' } }
 const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener) }
 export function setDiffLayout(layout) {
   try { localStorage.setItem(KEY, layout) } catch { /* kept for this visit only */ }
   listeners.forEach((listener) => listener())
 }
 export function useDiffLayout() {
-  const layout = useSyncExternalStore(subscribe, read, () => 'unified')
+  const layout = useSyncExternalStore(subscribe, read, () => 'split')
   return [layout, setDiffLayout]
 }
 
