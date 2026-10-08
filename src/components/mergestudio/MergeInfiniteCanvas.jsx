@@ -1,6 +1,7 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
@@ -1241,6 +1242,9 @@ function MergeInfiniteCanvas({
   // The device the Result is checked against (RESULT_DEVICES), if any.
   const [resultDevice, setResultDevice] = useState(null)
   const [framesOpen, setFramesOpen] = useState(false)
+  // The studio header's slot for the session controls (MergeStudioWorkspace).
+  const [headerSlot, setHeaderSlot] = useState(null)
+  useEffect(() => { setHeaderSlot(document.querySelector('[data-studio-header-slot]')) }, [])
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
@@ -2068,7 +2072,7 @@ function MergeInfiniteCanvas({
           const ko = getLanguage() === 'ko'
           const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
           return (
-            <div data-result-header className="pointer-events-none absolute top-3 left-4 z-30 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
+            <div data-result-header className="pointer-events-none absolute top-3 right-4 left-4 z-30 flex items-center gap-2">
               <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '결과' : 'Result'}</h2>
               {/* The frame: one icon (with the frame it's in); pressing it
                   slides the choices out beside it, and picking one — or the
@@ -2106,7 +2110,8 @@ function MergeInfiniteCanvas({
                   })}
                 </div>
               </div>
-              <div data-result-zoom className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+              {/* Its zoom and the full preview, at the pane's top right. */}
+              <div data-result-zoom className="pointer-events-auto ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
                 <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
                 <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
                 <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
@@ -2336,25 +2341,11 @@ function MergeInfiniteCanvas({
           />
         )}
 
-        {/* Right-hand header cluster (notifications + avatars, Preview,
-            Apply with AI): pinned top-right. The docked Block Deck and the
-            merge wizard both open below this row (60px), so neither pushes
-            it aside. */}
-        <div
-          className="pointer-events-none absolute top-2 z-20 flex h-8 items-center"
-          style={{ left: leftInset, right: 16 }}
-        >
-          {/* The back-to-workspace / sidebar-toggle / "Merge Studio" label
-              cluster that used to live here moved up to
-              MergeStudioWorkspace.jsx instead — it needs to stay on screen
-              even before an item is selected (this whole canvas doesn't
-              mount until one is), so it can't live inside this
-              per-item component. `pointer-events-none` on this outer box
-              (only the two clusters below opt back in) — otherwise this
-              row's own empty space, right where the floating back button
-              sits at this same `left: leftInset` starting edge, silently
-              swallows clicks meant for it, since a transparent box still
-              hit-tests above whatever's underneath it. */}
+        {/* Right-hand header cluster (presence, Share, Preview, Inbox, Apply
+            with AI): in the studio's own header row, above the canvas panel
+            (portalled into its slot), else pinned to the canvas's top right. */}
+        {(() => {
+          const cluster = (
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
           {/* The collapsed Block Deck lives here, in the header, as a
               toggle pill (see MergeStudioWorkspace). */}
@@ -2422,7 +2413,11 @@ function MergeInfiniteCanvas({
             </button>
           </div>
           </div>
-        </div>
+          )
+          return headerSlot ? createPortal(cluster, headerSlot) : (
+            <div className="pointer-events-none absolute top-2 z-20 flex h-8 items-center" style={{ left: leftInset, right: 16 }}>{cluster}</div>
+          )
+        })()}
 
         {/* Drift navigation replaces the redundant workflow stepper. */}
         <div className="pointer-events-none absolute top-2 left-1/2 z-20 flex -translate-x-1/2 justify-center">
@@ -2505,6 +2500,7 @@ function MergeInfiniteCanvas({
         history={editHistory}
         guidesVisible={guidesVisible}
         onToggleGuides={onToggleGuides}
+        showZoom={!designCompare}
       />
 
 

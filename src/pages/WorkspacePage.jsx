@@ -156,14 +156,6 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
       </div>
-      {/* The floating panel's own mb-2 leaves a sliver of full-size canvas
-          visible below it — paint that sliver the same color as the
-          activity rail it's flush against, instead of the canvas's dot
-          grid. Sits BEHIND the panel (z-549 < the panel's z-550), so the
-          panel's own opaque rounded card always paints over it wherever
-          they overlap — this mask only shows in the gap the panel doesn't
-          cover, and can never flatten its rounded corner. */}
-      {inMergeStudio && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[549] h-4 bg-background" />}
       {!inMergeStudio && <WorkspaceBottomPanel />}
       {/* A conflict's detail, full-screen over all of the above. */}
       <ConflictReviewOverlay inMergeStudio={inMergeStudio} />

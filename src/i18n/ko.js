@@ -499,6 +499,7 @@ Standard checkout|기본 결제
 Progress and wallet|진행 단계와 간편결제
 Saved card|저장된 카드
 Express pay and tax total|빠른 결제와 세금 합계
+Secure checkout and wallets|보안 결제와 간편결제
 Conflict activity|충돌 활동
 Project history|프로젝트 전체 히스토리
 Conversation|대화

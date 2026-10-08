@@ -1177,6 +1177,7 @@ function MergeStudioWorkspace({ item }) {
             <button
               type="button"
               disabled={mixPicked === 0 || item.tag === 'Merged'}
+              data-merge-request
               title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
               onClick={finishMix}
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:bg-white/[0.06] disabled:font-medium disabled:text-slate-500"
@@ -1186,6 +1187,9 @@ function MergeStudioWorkspace({ item }) {
             </button>
           </div>
         )}
+      {/* The header row's right side: the canvas's session controls
+          (presence, Share, Preview, Inbox) land here, left of the files pill. */}
+      <div data-studio-header-slot className="absolute top-2 right-[104px] z-40 flex h-8 items-center" />
       {/* The canvas is a panel like the Workspace's: under the header row,
           rounded and bordered, ending where the bottom panel begins — not
           a full-bleed sheet the bottom panel slices across. */}
