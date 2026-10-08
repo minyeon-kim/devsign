@@ -587,6 +587,13 @@ function MergeStudioWorkspace({ item }) {
     const regionId = layerSource(layerId)?.regionId
     if (designComparison && draftScreens[item.id] && !regionId) return
     if (designComparison && regionId) {
+      // A first click takes the whole part (to swap, reorder or remove it);
+      // a second, inside the part already taken, takes that element — to
+      // move or resize it on its own (LayerTransformHandles).
+      if (layerSource(syncSelection?.layerId)?.regionId === regionId && layerId.includes('--')) {
+        setSyncSelection({ layerId, element: true })
+        return
+      }
       const first = frame0?.layers.find((layer) => layer.regionId === regionId)
       setSyncSelection({ layerId: first?.id ?? layerId })
       return
@@ -845,6 +852,8 @@ function MergeStudioWorkspace({ item }) {
   const mixLayout = item && draftScreens[item.id] ? regionLayout(item.id, resolutions) : null
   // The region selected on the Result (through any of its elements).
   const selectedRegion = designComparison && mixLayout ? (() => {
+    // (Not while one element of it is taken on its own.)
+    if (syncSelection?.element) return null
     const id = layerSource(syncSelection?.layerId)?.regionId
     return id && !mixLayout.removed.includes(id) ? id : null
   })() : null

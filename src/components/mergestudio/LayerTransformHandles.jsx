@@ -32,7 +32,9 @@ function isTyping() {
 function measureBoards(boards, layerId, frame) {
   return boards.flatMap((key) => {
     const box = document.querySelector(`[data-frame-key="${key}"] [data-frame-box]`)
-    const innerEl = box?.firstElementChild
+    // (The scaled screen inside the box — under a device frame's scroller
+    // when there is one.)
+    const innerEl = box?.querySelector('[data-frame-content]') ?? box?.firstElementChild
     const el = box?.querySelector(`[data-layer-id="${CSS.escape(layerId)}"]`)
     if (!box || !innerEl || !el) return []
     const clip = box.getBoundingClientRect()
