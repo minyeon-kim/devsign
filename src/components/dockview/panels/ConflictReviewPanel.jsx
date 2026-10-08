@@ -249,7 +249,10 @@ function driftItemOf(conflict, workspace) {
 // is design work, so it's Merge Studio's: there each row also offers every
 // draft to switch to, beside the canvas. Elsewhere the list only reports,
 // and its action opens the drafts side by side in Merge Studio.
-function DraftResultPreview({ result, height }) {
+// `active`: the region the list points at — lit on the screen, the rest
+// dimmed, with the draft it comes from beside it. Each region is also a
+// target: pointing at it here lights its row in the list.
+function DraftResultPreview({ result, height, active, onHover, onPick }) {
   const viewportRef = useRef(null)
   const [width, setWidth] = useState(result.width)
   useEffect(() => {
@@ -265,6 +268,31 @@ function DraftResultPreview({ result, height }) {
       <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: result.width, height, transform: `scale(${scale})` }}>
         {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
       </div>
+      {result.regions?.map((region) => {
+        const on = region.id === active?.id
+        return (
+          <button
+            key={region.id}
+            type="button"
+            data-mix-region={region.id}
+            data-active={on || undefined}
+            aria-label={region.label}
+            onMouseEnter={() => onHover?.(region.id)}
+            onMouseLeave={() => onHover?.(null)}
+            onClick={() => onPick?.(region.id)}
+            className={cn('ds-intrinsic absolute inset-x-0 cursor-pointer transition-[box-shadow,background-color] duration-150',
+              on ? 'z-10 shadow-[0_0_0_9999px_rgba(15,23,42,0.45),inset_0_0_0_2px_rgb(110,231,183)]' : 'hover:bg-emerald-400/[0.05]')}
+            style={{ top: region.y * scale, height: region.height * scale }}
+          >
+            {on && active.option && (
+              <span className="absolute top-1 right-1 inline-flex items-center gap-1 rounded-md bg-slate-950/85 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-100">
+                <span className="flex size-3.5 items-center justify-center rounded bg-emerald-300 text-[9px] font-semibold text-slate-950">{active.option.letter}</span>
+                <LocalizedText text={region.label} />
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -274,6 +302,19 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   const rows = draftRows(conflict, item, decisions)
   const decided = rows.filter((row) => row.decided).length
   const decide = (row, option) => workspace.decideDrift(item.id, row.key, option.picked ? null : option.decision)
+  // The region pointed at (hovered) or picked (clicked) — in the list or on
+  // the result — is lit in both, so a row and the part of the screen it
+  // made are seen together.
+  const [hovered, setHovered] = useState(null)
+  const [pinned, setPinned] = useState(null)
+  const focusId = hovered ?? pinned
+  const focusRow = rows.find((row) => row.region?.id === focusId)
+  const choicesRef = useRef(null)
+  const pin = (id) => setPinned((current) => (current === id ? null : id))
+  const pinFromPreview = (id) => {
+    pin(id)
+    choicesRef.current?.querySelector(`[data-mix-choice="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
   // Drafts mixed by screen region: the picks composed into the one screen
   // they make (parts not picked fall back to the first draft, as merging does).
   const base = draftScreens[item.id] && canvasPages.find((page) => page.id === item.designPageId)?.frames[0]
@@ -309,15 +350,40 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
       {result && (
         <figure data-mix-result className="order-last min-h-0 min-w-0 overflow-auto border-l border-white/[0.06] pl-4">
           <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
-          <DraftResultPreview result={result} height={resultHeight} />
+          <DraftResultPreview
+            result={result}
+            height={resultHeight}
+            active={focusRow ? { id: focusId, option: focusRow.options.find((option) => option.picked) ?? null } : null}
+            onHover={setHovered}
+            onPick={pinFromPreview}
+          />
         </figure>
       )}
-      <div data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
+      <div ref={choicesRef} data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
         {rows.map((row) => {
           const picked = row.options.find((option) => option.picked)
+          const region = result && row.region ? row.region.id : null
+          const on = region != null && region === focusId
           return (
-            <div key={row.key} className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2">
-              <span className="truncate text-[11.5px] text-slate-400">
+            <div
+              key={row.key}
+              data-mix-choice={region ?? undefined}
+              data-active={on || undefined}
+              {...(region && {
+                role: 'button',
+                tabIndex: 0,
+                'aria-pressed': pinned === region,
+                onMouseEnter: () => setHovered(region),
+                onMouseLeave: () => setHovered(null),
+                // (Picking a draft in the row keeps it lit; the row itself toggles.)
+                onClick: (event) => (event.target.closest('button') ? setPinned(region) : pin(region)),
+                onKeyDown: (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); pin(region) } },
+              })}
+              className={cn('grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2',
+                region && '-mx-2 cursor-pointer rounded-md px-2 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                on ? 'bg-emerald-400/[0.08]' : region && 'hover:bg-white/[0.03]')}
+            >
+              <span className={cn('truncate text-[11.5px]', on ? 'text-emerald-200' : 'text-slate-400')}>
                 {row.element && <><LocalizedText text={row.element} /> · </>}
                 <LocalizedText text={row.label} />
               </span>
