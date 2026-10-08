@@ -87,8 +87,13 @@ function FloatingRestorePill({ group, panelsById, dockApi }) {
         title={`Restore ${panel?.title ?? 'window'}`}
         aria-label={`Restore ${panel?.title ?? 'window'}`}
         onClick={() => dockApi.minimizeGroup(group.id, false)}
+        data-restore-pill={group.activeId}
         className={cn(
-          'pointer-events-auto absolute bottom-4 left-4 flex h-10 items-center gap-2 px-4 text-[13px] font-medium text-slate-300 transition-colors hover:text-white',
+          // AI Chat's (it starts closed) sits where its window opens — top
+          // left, under the studio header — clear of the bottom panel's tabs.
+          'pointer-events-auto absolute flex h-10',
+          group.panelIds.includes(panelById.chat.id) ? 'top-12 left-0' : 'bottom-4 left-4',
+          'items-center gap-2 px-4 text-[13px] font-medium text-slate-300 transition-colors hover:text-white',
           PANEL_RADIUS,
           FLOATING_PANEL
         )}
@@ -218,7 +223,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       // the same 48px line the Workspace's windows start on.
       dockApi.moveGroup(groupId, right ? bounds.width - width : 0, 48)
       dockApi.resizeGroup(groupId, width, height)
-      dockApi.minimizeGroup(groupId, false)
+      // AI Chat floats closed until asked for (its pill brings it up), so
+      // the canvas starts with the room; the navigator stays open.
+      dockApi.minimizeGroup(groupId, !right)
     }
   }, [mergeStudio, dockApi, store, filesWindow.open, studioGroup?.id])
 
