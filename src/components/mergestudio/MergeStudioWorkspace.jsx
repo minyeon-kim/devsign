@@ -71,7 +71,7 @@ import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyl
 // again takes it back. A whole draft for every part, and starting over, are
 // in its ⋯ menu. Picks are ordinary decisions, so the Result, the
 // conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onGripPointerDown, onShowRegion }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onShowRegion }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -135,7 +135,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   // take on it, is recognized at a glance rather than by name.
   const thumb = (row, option, width) => (row.region && screen
     ? <RegionThumb part={screen.drafts[option.key]?.[row.region.id]} width={width} />
-    : <span className="flex h-8 items-center justify-center truncate rounded-md bg-white px-1 text-[10px] text-slate-600" style={{ width }}>{option.literal ? option.value : translateText(String(option.value), language)}</span>)
+    : <span className="flex items-center justify-center truncate rounded-md bg-white px-1 text-[10px] text-slate-600" style={{ width, height: Math.round(width * 0.62) }}>{option.literal ? option.value : translateText(String(option.value), language)}</span>)
   const fixCheck = (check) => {
     const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
     if (index >= 0) setStep(index)
@@ -143,19 +143,18 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   }
 
   return (
-    // A slim floating bar: the part (from a dropdown of thumbnails), that
-    // part as each draft draws it — pick one by its picture — the checks,
-    // and a menu with the rest. Drag it anywhere by its background.
+    // In the Result's header row, the same height as the tools beside it:
+    // the part (from a dropdown of thumbnails), that part as each draft
+    // draws it — pick one by its picture — the checks, and a menu.
     <div
       data-mix-panel
-      onPointerDown={(event) => { if (onGripPointerDown && !event.target.closest('button, [role="menu"], [role="listbox"], [data-slot="popover-content"]')) onGripPointerDown(event) }}
-      className="pointer-events-auto flex w-fit max-w-full cursor-grab items-center gap-2 rounded-2xl border border-white/10 bg-[#17191d]/95 p-1.5 shadow-2xl backdrop-blur-xl active:cursor-grabbing"
+      className="pointer-events-auto flex h-9 w-fit max-w-full min-w-0 items-center gap-1 overflow-x-auto rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10 backdrop-blur-xl [scrollbar-width:none]"
     >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           data-mix-region-trigger
           title={ko ? '요소 고르기' : 'Pick a part'}
-          className="ds-intrinsic flex h-9 min-w-0 items-center gap-1 rounded-xl px-2 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.06]"
+          className="ds-intrinsic flex h-8 min-w-0 shrink-0 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.06]"
         >
           <span className="max-w-24 truncate">{partName(current)}</span>
           <ChevronDown className="size-3.5 shrink-0 text-slate-500" />
@@ -187,7 +186,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
       </Popover>
       {/* This part as each draft has it: its picture, the letter in the
           corner. The one in use is ringed; pressing it again takes it back. */}
-      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex items-center gap-1.5">
+      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex shrink-0 items-center gap-1">
         {current.options.map((option) => {
           const issues = optionIssues(current, option)
           return (
@@ -198,10 +197,10 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               aria-pressed={option.picked}
               onClick={() => use(option)}
               title={`${option.name} · ${option.literal ? option.value : translateText(String(option.value), language)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-              className={cn('ds-intrinsic relative rounded-lg p-0.5 transition-[box-shadow,opacity]', option.picked ? 'ring-2 ring-emerald-300' : 'opacity-70 ring-1 ring-white/10 hover:opacity-100 hover:ring-white/30')}
+              className={cn('ds-intrinsic relative rounded-md p-px transition-[box-shadow,opacity]', option.picked ? 'ring-2 ring-emerald-300' : 'opacity-70 ring-1 ring-white/10 hover:opacity-100 hover:ring-white/30')}
             >
-              {thumb(current, option, 64)}
-              <span className={cn('absolute bottom-1 left-1 flex size-4 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : issues.length ? 'bg-amber-300 text-slate-950' : 'bg-slate-900/80 text-white')}>{option.letter}</span>
+              {thumb(current, option, 44)}
+              <span className={cn('absolute bottom-0.5 left-0.5 flex size-3.5 items-center justify-center rounded-sm text-[8.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : issues.length ? 'bg-amber-300 text-slate-950' : 'bg-slate-900/80 text-white')}>{option.letter}</span>
             </button>
           )
         })}
@@ -368,25 +367,6 @@ function MergeStudioWorkspace({ item }) {
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
   }
-  // The element picker floats: null is its spot at the Result's top left;
-  // dragged by its grip, it stays where it's put ({ x, y } in the stage).
-  const [mixPos, setMixPos] = useState(null)
-  function startMixDrag(event) {
-    if (event.button !== 0) return
-    event.preventDefault()
-    const pane = event.currentTarget.closest('[data-mix-pane]')
-    const stage = pane.offsetParent.getBoundingClientRect()
-    const box = pane.getBoundingClientRect()
-    const start = { px: event.clientX, py: event.clientY, x: box.left - stage.left, y: box.top - stage.top }
-    const move = (m) => setMixPos({
-      x: Math.min(stage.width - 120, Math.max(0, start.x + m.clientX - start.px)),
-      y: Math.min(stage.height - 40, Math.max(0, start.y + m.clientY - start.py)),
-    })
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   // Variant Compare state lives here (not in the deck) so choosing — or
@@ -1295,9 +1275,8 @@ function MergeStudioWorkspace({ item }) {
           // A floating window: at first over the Result's top left (the drafts
           // pane keeps its side to itself); dragged, it stays where it's put —
           // kept inside the canvas when that shrinks (the bottom panel opening).
-          <div className="pointer-events-none absolute z-40 w-[min(760px,calc(100%-24px))]" style={mixPos ? { left: `min(${mixPos.x}px, calc(100% - 120px))`, top: `min(${mixPos.y}px, calc(100% - 48px))` } : { left: `calc(${draftShare * 100}% + 12px)`, top: 52 }} data-mix-pane>
+          <div className="pointer-events-none absolute z-40 flex" style={{ left: `calc(${draftShare * 100}% + 12px)`, top: 12, width: `calc(${(1 - draftShare) * 100}% - 340px)` }} data-mix-pane>
           <MixPanel
-            onGripPointerDown={startMixDrag}
             // A part picked from the list is outlined on the Result too.
             onShowRegion={(regionId) => {
               setBoardRegion(regionId)

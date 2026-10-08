@@ -1350,7 +1350,7 @@ function MergeInfiniteCanvas({
     // space for it. The Result controls still need their normal top clearance.
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
-    let top = designCompare ? 112 : TOP_CONTROLS_CLEARANCE
+    let top = designCompare ? 64 : TOP_CONTROLS_CLEARANCE
     // ...unless the picker sits over the Result's side: then below it.
     const picker = designCompare && document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect()
     if (picker?.height && picker.right > rect.left && picker.left < rect.right) top = Math.max(top, picker.bottom - rect.top + 16)
@@ -2109,7 +2109,7 @@ function MergeInfiniteCanvas({
             full preview. */}
         {designCompare && (() => {
           const ko = getLanguage() === 'ko'
-          const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
+          const BUTTON = 'flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
           return (
             <div data-result-header className="pointer-events-none absolute top-3 right-4 left-4 z-30 flex items-center gap-2">
               {/* The frame: one icon (with the frame it's in); pressing it
@@ -2118,14 +2118,14 @@ function MergeInfiniteCanvas({
               {/* (No title: the pane is the Result by its green-framed
                   screen; its tools sit at the right, clear of the merge
                   button above.) */}
-              <div data-view-frames className="pointer-events-auto ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+              <div data-view-frames className="pointer-events-auto ml-auto flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
                 <button
                   type="button"
                   data-frame-toggle
                   aria-expanded={framesOpen}
                   title={ko ? '프레임 고르기' : 'Pick a frame'}
                   onClick={() => setFramesOpen((value) => !value)}
-                  className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
+                  className={cn('flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
                 >
                   {resultDevice === 'ipad' ? <Tablet className="size-3.5" /> : resultDevice ? <Smartphone className="size-3.5" /> : <Monitor className="size-3.5" />}
                   {!framesOpen && <span>{RESULT_DEVICES.find((entry) => entry.id === resultDevice)?.short ?? (ko ? '전체' : 'Full')}</span>}
@@ -2143,7 +2143,7 @@ function MergeInfiniteCanvas({
                         data-view-frame={entry.id ?? 'full'}
                         title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
                         onClick={() => { pickResultFrame(entry.id); setFramesOpen(false) }}
-                        className={cn('flex h-6 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
+                        className={cn('flex h-8 shrink-0 items-center rounded-md px-2 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
                       >
                         {entry.short}
                       </button>
@@ -2152,7 +2152,7 @@ function MergeInfiniteCanvas({
                 </div>
               </div>
               {/* Its zoom and the full preview, at the pane's top right. */}
-              <div data-result-zoom className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+              <div data-result-zoom className="pointer-events-auto flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
                 <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
                 <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
                 <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
@@ -2163,7 +2163,7 @@ function MergeInfiniteCanvas({
                 data-result-preview
                 title={ko ? '결과를 크게 미리보기 · 기기별 (Esc로 닫기)' : 'Preview the result large · per device (Esc closes)'}
                 onClick={() => setMergePreviewOpen(true)}
-                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-200 ring-1 ring-emerald-400/40 transition-colors ring-inset hover:bg-emerald-400/15"
+                className="pointer-events-auto flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.05] px-3 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1] hover:text-white"
               >
                 <Play className="size-3" />
                 {ko ? '미리보기' : 'Preview'}
