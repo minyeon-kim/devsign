@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Monitor, RotateCw, Smartphone, Tablet, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -112,8 +113,10 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
   const k = frame ? Math.min(vw / frame.width, 1.5) : 1
   const selected = frame?.layers.find((l) => l.id === selectedId)
 
-  return (
-    <div ref={stageRef} className="absolute inset-0 z-40 overflow-hidden bg-background" style={CANVAS_GRID}>
+  // Full screen: over the whole app (header, rails, panels), not just the
+  // canvas — the screen seen as it will ship, at its real size.
+  return createPortal(
+    <div ref={stageRef} data-merge-preview className="fixed inset-0 z-[1500] overflow-hidden bg-background" style={CANVAS_GRID}>
       {/* Floating header island: three groups — version | device |
           utilities — each on its own track, split by dividers. */}
       <div
@@ -223,7 +226,8 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.querySelector('.ds-workspace') ?? document.body
   )
 }
 
