@@ -497,8 +497,9 @@ function MergeStudioWorkspace({ item }) {
     // result — rather than the list to find it in.
     // Full screen, not the bottom panel: the request is read whole, with
     // room for the result and its review.
+    // (Its next step, asking for approval, is the bar at the top there —
+    // no toast saying it again.)
     openConflictReview(requestId, { view: 'overlay' })
-    toast('병합 요청을 만들었어요', { description: '조합한 결과를 확인한 뒤 검토 요청 → 승인 → 병합 순서로 진행하세요.' })
   }
 
   function openReviewFor(target) {
