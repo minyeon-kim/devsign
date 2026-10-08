@@ -2996,6 +2996,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // action that calls for, at the header's right (ApprovalBar) — approving
   // and merging happen only there.
   const approvalState = conflict && !conflict.rollback ? approvalStateOf(conflict, canReview) : null
+  // A mix of drafts just sent to merge asks for approval from a bar of its
+  // own under the title (below), so the header doesn't say it twice.
+  const approvalNudge = Boolean(conflict && conflict.kind === 'design-review' && stage === 'detected' && conflict.submittedForMergeAt && approvalState?.mode === 'idle' && onUpdate && !cardFlow)
   const approvalBar = approvalState ? (
     <ApprovalBar
       conflict={conflict}
@@ -3004,7 +3007,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       blockingCount={checks?.blocking.length ?? 0}
       onUpdate={onUpdate ? update : undefined}
       onDismiss={workspace?.dismissChangeRequest}
-      request={!onUpdate ? null : cardFlow
+      request={!onUpdate || approvalNudge ? null : cardFlow
         ? {
           run: flow.decide.run,
           onAssign: assignReviewer,
@@ -3060,6 +3063,35 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {conflict.rollback ? primary : approvalBar}
               </div>
             </div>
+            {/* A mix of drafts just sent to merge: its next step — asking the
+                reviewers for approval — said plainly, with the button, right
+                under the title, rather than left to the header's corner. */}
+            {approvalNudge && (() => {
+              const reviewers = requiredReviewers(conflict).map((reviewer) => personNameOf(reviewer.id ?? reviewer)).filter(Boolean)
+              const blocked = !reviewers.length || decisionState.reasonNeeded || Boolean(reasonRequest)
+              return (
+                <div data-request-approval-bar className="mx-4 mb-2 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-400/10 px-4 py-3 ring-1 ring-emerald-400/30 sm:mx-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-emerald-100"><LocalizedText text="The merge request is ready" /></p>
+                    <p className="mt-0.5 text-xs text-emerald-200/70">
+                      {reviewers.length
+                        ? <><LocalizedText text="Ask for approval from" /> <span translate="no" className="font-medium text-emerald-100">{reviewers.join(', ')}</span></>
+                        : <LocalizedText text="No other project members available" />}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    data-request-approval
+                    disabled={blocked}
+                    onClick={() => handleRequestReview()}
+                    className="ds-intrinsic inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500"
+                  >
+                    <Send className="size-3.5" />
+                    <LocalizedText text="Request approval" />
+                  </button>
+                </div>
+              )
+            })()}
             {/* Shared outer padding aligns the header and content cards. */}
             {/* The header and the tabs above stay put. On a wide panel the
                 three areas — comparison and diff, reasoning, reviewers and

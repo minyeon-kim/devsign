@@ -409,6 +409,9 @@ approval pending|승인 대기 중
 It needs your approval|내 승인이 필요해요
 Every approval is in|모든 승인이 끝났어요
 Send review request|검토 요청 보내기
+The merge request is ready|병합 요청이 준비됐어요
+Ask for approval from|승인을 요청할 검토자
+Request approval|승인 요청 보내기
 Remind again|다시 알리기
 Approve it|승인하기
 Fix and request again|수정하고 다시 요청
