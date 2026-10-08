@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -217,7 +217,7 @@ function TransactionsTable({ style, className }) {
 // titles/bodies) can be edited in place by double-clicking it. A non-static
 // override renders a small badge so the change reads as a live preview
 // rather than a permanent edit.
-export function StaticLayer({ layer, override: overrideProp, selected, onSelect, linked, hovered, onHover, onEditText, drift, dimmed, aiChanged, generating, genProgress = 0 }) {
+export function StaticLayer({ layer, override: overrideProp, selected, onSelect, linked, hovered, onHover, onEditText, editHint = true, drift, dimmed, aiChanged, generating, genProgress = 0 }) {
   const [editingSlot, setEditingSlot] = useState(null)
   // A draft layer's own look (draftScreens), under any override — wherever
   // the layer is drawn (canvas, preview, Merge Studio).
@@ -543,7 +543,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
           : undefined
       }
       // Layers skip the JSX translation pass (their content is the design's), so the tooltip is translated here.
-      title={canEdit ? translateText('Double-click to edit text', getLanguage()) : undefined}
+      title={canEdit && editHint ? translateText('Double-click to edit text', getLanguage()) : undefined}
       onPointerEnter={linked ? () => onHover?.(layer.id) : undefined}
       onPointerLeave={linked ? () => onHover?.(null) : undefined}
       className={cn(
@@ -606,6 +606,9 @@ function RegionTools({ frame, scale, boxH, tools }) {
   useEffect(() => {
     lastTap.current = performance.now()
   }, [tools.selected])
+  // The pane's dock at the bottom, where the region's actions sit.
+  const [dockEl, setDockEl] = useState(null)
+  useEffect(() => setDockEl(document.querySelector('[data-result-dock]')), [])
   const regions = frame.regions ?? []
   const region = regions.find((entry) => entry.id === tools.selected)
   if (!region) return null
@@ -660,29 +663,24 @@ function RegionTools({ frame, scale, boxH, tools }) {
     const target = nodes.find((node) => node.matches?.('[data-slot]')) ?? nodes.find((node) => node.matches?.('[data-layer-id]'))
     target?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: event.clientX, clientY: event.clientY }))
   }
-  const BUTTON = 'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
+  const BUTTON = 'ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   return (
-    // Over the artboard, not inside it: the bar stands beside the screen
-    // (clear of the element's own handles), so nothing here is clipped.
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? "끌어서 영역 순서 바꾸기 · 누르면 그 요소만 선택" : "Drag to reorder the region · click to take one element"} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
-      {/* Which draft it's from, on the region itself. */}
-      <span data-region-source className="absolute left-0 rounded-br-md bg-emerald-400 px-1.5 py-0.5 text-[10px] leading-none font-semibold whitespace-nowrap text-slate-950" style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}>
-        {letter ? (ko ? (region.picked ? `시안 ${letter}` : `시안 ${letter} · 기본값`) : (region.picked ? `Draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
-      </span>
-      {/* (Kept its own size whatever the canvas zoom.) */}
-      <div
-        data-region-toolbar
-        onPointerDown={stop}
-        onClick={stop}
-        className="pointer-events-auto absolute left-full ml-2 flex cursor-default flex-col items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 shadow-lg ring-1 ring-white/15"
-        style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}
-      >
-        <button type="button" data-region-grip aria-label={ko ? '드래그해서 옮기기' : 'Drag to move'} title={ko ? '드래그해서 옮기기' : 'Drag to move'} onPointerDown={startDrag} className={cn(BUTTON, 'cursor-grab active:cursor-grabbing')}><GripVertical className="size-3.5" /></button>
-        <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={BUTTON}><ArrowUp className="size-3.5" /></button>
-        <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={BUTTON}><ArrowDown className="size-3.5" /></button>
-        <button type="button" data-region-remove aria-label={ko ? '삭제' : 'Remove'} title={ko ? '삭제 (Delete)' : 'Remove (Delete)'} onClick={() => tools.onRemove(region.id)} className={BUTTON}><Trash2 className="size-3.5" /></button>
-      </div>
+      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
+      {/* The region's actions: in the pane's dock, clear of the screen. */}
+      {dockEl && createPortal(
+        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 pr-1 pl-1 whitespace-nowrap shadow-lg backdrop-blur-md">
+          <span data-region-source className="flex h-5 items-center gap-1 rounded-full bg-emerald-400/15 px-2 text-[10.5px] font-semibold text-emerald-300">
+            {letter ? (ko ? `시안 ${letter}` : `Draft ${letter}`) : null}
+            <span className="font-medium text-slate-300"><LocalizedText text={region.label} /></span>
+          </span>
+          <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+          <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={BUTTON}><ArrowUp className="size-3.5" /></button>
+          <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={BUTTON}><ArrowDown className="size-3.5" /></button>
+          <button type="button" data-region-remove aria-label={ko ? '삭제' : 'Remove'} title={ko ? '삭제 (Delete)' : 'Remove (Delete)'} onClick={() => tools.onRemove(region.id)} className={BUTTON}><Trash2 className="size-3.5" /></button>
+        </div>,
+        dockEl
+      )}
       {drag && <div data-region-drop className="absolute inset-x-0 h-0.5 -translate-y-1/2 bg-emerald-400 shadow-[0_0_0_1px_rgb(52_211_153/40%)]" style={{ top: drag.y * scale }} />}
     </div>
   )
@@ -787,6 +785,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
                 onHover={onHoverLayer}
                 onSelect={(el) => onSelectLayer(layer.id, el)}
                 onEditText={regionTools ? regionTools.onEditText : onEditText}
+                editHint={!regionTools}
               />
             )
           })}
@@ -1351,7 +1350,10 @@ function MergeInfiniteCanvas({
     // space for it. The Result controls still need their normal top clearance.
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
-    const top = designCompare ? 112 : TOP_CONTROLS_CLEARANCE
+    let top = designCompare ? 112 : TOP_CONTROLS_CLEARANCE
+    // ...unless the picker sits over the Result's side: then below it.
+    const picker = designCompare && document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect()
+    if (picker?.height && picker.right > rect.left && picker.left < rect.right) top = Math.max(top, picker.bottom - rect.top + 16)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -2099,6 +2101,9 @@ function MergeInfiniteCanvas({
     // keeps `bg-canvas`, since it sits inside a card.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
+        {/* Comparing drafts: the selection's tools (a region's, or one
+            element's) dock at the bottom of the Result pane, never over it. */}
+        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the
             full preview. */}

@@ -278,7 +278,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             </button>
           ))}
         </div>
-        <span className="min-w-0 truncate text-[11px] text-slate-500">{ko ? '칸 안에서 끌어 이동 · ⌘/Ctrl+스크롤로 확대 · 요소를 가리키면 간격' : 'Drag inside a cell to move · ⌘/Ctrl-scroll to zoom · point at an element for spacing'}</span>
+        <span className="min-w-0 flex-1" />
         <button
           type="button"
           data-board-outline

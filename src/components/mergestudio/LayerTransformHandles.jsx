@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { RotateCcw, Trash2, Type } from 'lucide-react'
 import { SNAP_PX, snapAxis, snapBox, xCandidates, yCandidates } from '@/components/mergestudio/snapGuides'
 
@@ -175,8 +176,11 @@ function CopyField({ value, onCommit }) {
   )
 }
 
-function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset, onStyle }) {
+function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset, onStyle, dock }) {
   const [found, setFound] = useState([])
+  // The pane's dock (a selector) the toolbar sits in, clear of the screen.
+  const [dockEl, setDockEl] = useState(null)
+  useLayoutEffect(() => setDockEl(dock ? document.querySelector(dock) : null), [dock])
   // The toolbar's open row: 'fill' / 'text' colors, or 'copy'.
   const [panel, setPanel] = useState(null)
   useEffect(() => setPanel(null), [layerId])
@@ -295,11 +299,116 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
     window.addEventListener('pointerup', up)
   }
 
+  // The element's position and size as numbers, to type exactly (frame
+  // pixels), its fill / text color / text, and reset / delete — above the
+  // element, or in the pane's dock when there is one (`dock`).
+  function toolbar(board, place) {
+    const look = onStyle ? board.look : null
+    return (
+      <div data-geom-toolbar className={`pointer-events-auto ${place} flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 px-1 whitespace-nowrap shadow-lg backdrop-blur-md`}>
+        {[['x', 'X'], ['y', 'Y'], ['w', 'W'], ['h', 'H']].map(([key, label]) => (
+          <GeomField
+            key={key}
+            name={key}
+            label={label}
+            value={Math.round(board.geom[key])}
+            onCommit={(next) => {
+              const geom = { ...board.geom, [key]: next }
+              onChange({
+                x: Math.round(Math.max(0, geom.x)),
+                y: Math.round(Math.max(0, geom.y)),
+                w: Math.round(Math.max(MIN, geom.w)),
+                h: Math.round(Math.max(MIN, geom.h)),
+              })
+            }}
+          />
+        ))}
+        {/* Fill, text color and the text itself. */}
+        {look && (
+          <>
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+            <button
+              type="button"
+              title="Fill"
+              data-style-toggle="fill"
+              aria-pressed={panel === 'fill'}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setPanel((p) => (p === 'fill' ? null : 'fill'))}
+              className={`ds-intrinsic flex size-5 items-center justify-center rounded-full transition-colors hover:bg-white/10 ${panel === 'fill' ? 'bg-white/10' : ''}`}
+            >
+              <span className="size-3 rounded-full ring-1 ring-white/30" style={{ background: look.fill ?? 'transparent' }} />
+            </button>
+            <button
+              type="button"
+              title="Text color"
+              data-style-toggle="text"
+              aria-pressed={panel === 'text'}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setPanel((p) => (p === 'text' ? null : 'text'))}
+              className={`ds-intrinsic flex size-5 flex-col items-center justify-center rounded-full text-[11px] leading-none font-bold text-slate-100 transition-colors hover:bg-white/10 ${panel === 'text' ? 'bg-white/10' : ''}`}
+            >
+              A
+              <span className="mt-px h-[2px] w-2.5 rounded-full" style={{ background: look.text ?? '#94a3b8' }} />
+            </button>
+            {look.slot && (
+              <button
+                type="button"
+                title="Text"
+                data-style-toggle="copy"
+                aria-pressed={panel === 'copy'}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setPanel((p) => (p === 'copy' ? null : 'copy'))}
+                className={`ds-intrinsic flex size-5 items-center justify-center rounded-full text-slate-100 transition-colors hover:bg-white/10 ${panel === 'copy' ? 'bg-white/10' : ''}`}
+              >
+                <Type className="size-3" />
+              </button>
+            )}
+          </>
+        )}
+        {(onReset || onDelete) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
+        {onReset && (
+          <button
+            type="button"
+            title="Reset edits"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onReset}
+            className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+          >
+            <RotateCcw className="size-3" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            title="Delete (⌫)"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onDelete}
+            className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+          >
+            <Trash2 className="size-3" />
+          </button>
+        )}
+        {look && panel && (
+          <div
+            data-style-panel={panel}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute bottom-full left-0 mb-1.5 flex h-7 items-center rounded-full border border-white/10 bg-card/95 px-1.5 shadow-lg backdrop-blur-md"
+          >
+            {panel === 'fill' && <ColorRow name="fill" value={look.fill} onPick={(hex) => onStyle({ fillColor: hex })} />}
+            {panel === 'text' && <ColorRow name="text" value={look.text} onPick={(hex) => onStyle({ textColor: hex })} />}
+            {panel === 'copy' && look.slot && (
+              <CopyField key={`${layerId}:${look.slot}`} value={look.copy} onCommit={(text) => onStyle({ copy: { [look.slot]: text } })} />
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="pointer-events-none fixed inset-0 z-[25]">
       {found.map((board) => {
         const { clip, inner, k, rect } = board
-        const look = onStyle ? board.look : null
         return (
           <div key={board.key}>
             {guides?.x != null && <span className="absolute w-px bg-rose-500" style={{ left: inner.left + guides.x * k, top: clip.top, height: clip.height }} />}
@@ -307,7 +416,6 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
             <div className="absolute" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}>
               {/* Move: the whole body. */}
               <div
-                title="Drag to move"
                 className="pointer-events-auto absolute inset-0 cursor-move"
                 onPointerDown={(e) => start(e, 'move', board)}
                 // Double-click still reaches the element underneath (inline
@@ -328,109 +436,12 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                   style={{ left: `${fx * 100}%`, top: `${fy * 100}%`, cursor: CURSOR[id] }}
                 />
               ))}
-              {/* The element's position and size as numbers, to type exactly
-                  (frame pixels) — beside reset / delete. */}
-              <div data-geom-toolbar className="pointer-events-auto absolute bottom-full left-0 mb-2 flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 px-1 whitespace-nowrap shadow-lg backdrop-blur-md">
-                  {[['x', 'X'], ['y', 'Y'], ['w', 'W'], ['h', 'H']].map(([key, label]) => (
-                    <GeomField
-                      key={key}
-                      name={key}
-                      label={label}
-                      value={Math.round(board.geom[key])}
-                      onCommit={(next) => {
-                        const geom = { ...board.geom, [key]: next }
-                        onChange({
-                          x: Math.round(Math.max(0, geom.x)),
-                          y: Math.round(Math.max(0, geom.y)),
-                          w: Math.round(Math.max(MIN, geom.w)),
-                          h: Math.round(Math.max(MIN, geom.h)),
-                        })
-                      }}
-                    />
-                  ))}
-                  {/* Fill, text color and the text itself. */}
-                  {look && (
-                    <>
-                      <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
-                      <button
-                        type="button"
-                        title="Fill"
-                        data-style-toggle="fill"
-                        aria-pressed={panel === 'fill'}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => setPanel((p) => (p === 'fill' ? null : 'fill'))}
-                        className={`ds-intrinsic flex size-5 items-center justify-center rounded-full transition-colors hover:bg-white/10 ${panel === 'fill' ? 'bg-white/10' : ''}`}
-                      >
-                        <span className="size-3 rounded-full ring-1 ring-white/30" style={{ background: look.fill ?? 'transparent' }} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Text color"
-                        data-style-toggle="text"
-                        aria-pressed={panel === 'text'}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => setPanel((p) => (p === 'text' ? null : 'text'))}
-                        className={`ds-intrinsic flex size-5 flex-col items-center justify-center rounded-full text-[11px] leading-none font-bold text-slate-100 transition-colors hover:bg-white/10 ${panel === 'text' ? 'bg-white/10' : ''}`}
-                      >
-                        A
-                        <span className="mt-px h-[2px] w-2.5 rounded-full" style={{ background: look.text ?? '#94a3b8' }} />
-                      </button>
-                      {look.slot && (
-                        <button
-                          type="button"
-                          title="Text"
-                          data-style-toggle="copy"
-                          aria-pressed={panel === 'copy'}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={() => setPanel((p) => (p === 'copy' ? null : 'copy'))}
-                          className={`ds-intrinsic flex size-5 items-center justify-center rounded-full text-slate-100 transition-colors hover:bg-white/10 ${panel === 'copy' ? 'bg-white/10' : ''}`}
-                        >
-                          <Type className="size-3" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {(onReset || onDelete) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
-                  {onReset && (
-                    <button
-                      type="button"
-                      title="Reset edits"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={onReset}
-                      className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-                    >
-                      <RotateCcw className="size-3" />
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      type="button"
-                      title="Delete (⌫)"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={onDelete}
-                      className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  )}
-                  {look && panel && (
-                    <div
-                      data-style-panel={panel}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      className="absolute bottom-full left-0 mb-1.5 flex h-7 items-center rounded-full border border-white/10 bg-card/95 px-1.5 shadow-lg backdrop-blur-md"
-                    >
-                      {panel === 'fill' && <ColorRow name="fill" value={look.fill} onPick={(hex) => onStyle({ fillColor: hex })} />}
-                      {panel === 'text' && <ColorRow name="text" value={look.text} onPick={(hex) => onStyle({ textColor: hex })} />}
-                      {panel === 'copy' && look.slot && (
-                        <CopyField key={`${layerId}:${look.slot}`} value={look.copy} onCommit={(text) => onStyle({ copy: { [look.slot]: text } })} />
-                      )}
-                    </div>
-                  )}
-              </div>
+              {!dockEl && toolbar(board, 'absolute bottom-full left-0 mb-2')}
             </div>
           </div>
         )
       })}
+      {dockEl && found[0] && createPortal(toolbar(found[0], 'relative'), dockEl)}
     </div>
   )
 }

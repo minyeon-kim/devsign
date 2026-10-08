@@ -1461,6 +1461,7 @@ function MergeStudioWorkspace({ item }) {
           onDelete={selIsAdded ? deleteAddedLayer : undefined}
           onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
           onStyle={changeSelectedStyle}
+          dock={designComparison ? '[data-result-dock]' : undefined}
         />
       )}
 
