@@ -448,7 +448,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false }) {
+function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -516,9 +516,31 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
       </InfoSection>
 
+      {/* 2 · A mix of drafts says what it is by its result — which draft
+          each part comes from — not by a cause. */}
+      {mix && (
+        <InfoSection title="Mix of drafts" className="border-t-0 pt-1">
+          <dl data-info-mix className={GRID}>
+            {mix.map((row) => {
+              const picked = row.options.find((option) => option.picked)
+              return (
+                <Row key={row.key} label={row.label} data-mix-row={row.key}>
+                  {picked ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{picked.letter}</span>
+                      <LocalizedText text={picked.name} />
+                    </span>
+                  ) : <span className="text-slate-500"><LocalizedText text="Not picked" /></span>}
+                </Row>
+              )
+            })}
+          </dl>
+        </InfoSection>
+      )}
+
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
-      {!conflict.rollback && (cause_text || cause || why || standard) && (
+      {!mix && !conflict.rollback && (cause_text || cause || why || standard) && (
         <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
             {(cause_text || cause) && (
@@ -3138,6 +3160,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         cause={causeVersion}
                         onOpenCause={openProjectHistory}
                         reasonNeeded={decisionState.reasonNeeded}
+                        mix={!conflict.rollback && driftItem && draftColumns(driftItem)
+                          ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
+                          : null}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (
