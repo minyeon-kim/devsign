@@ -331,7 +331,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
   const result = base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisions), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, decisions)) : null
   const resultHeight = result ? Math.max(120, ...result.layers.map((layer) => (layer.y ?? 0) + (layer.height ?? 0))) + 16 : 0
   const Letter = ({ option, on }) => (
-    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', on ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-300')}>{option.letter}</span>
+    <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold', on ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-300')}>{option.letter}</span>
   )
   const Value = ({ option }) => (
     <span className="truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={option.value} />}</span>
@@ -339,16 +339,22 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
 
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <div className="mb-3 flex items-center gap-2">
-        <p className="text-xs font-medium text-slate-200"><LocalizedText text={rows[0]?.region ? 'Mix of drafts' : 'Values from drafts'} /></p>
-        <span className={cn('text-[11px] tabular-nums', decided === rows.length ? 'text-emerald-300' : 'text-slate-500')}>
-          <LocalizedText text={decided === rows.length ? 'All picked' : `${decided} of ${rows.length} picked`} />
-        </span>
+      <div className="mb-4 flex items-start gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2">
+            <span data-mix-title className="text-[15px] font-semibold text-slate-50"><LocalizedText text={rows[0]?.region ? 'Mix of drafts' : 'Values from drafts'} /></span>
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums', decided === rows.length ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/[0.06] text-slate-400')}>
+              <LocalizedText text={decided === rows.length ? 'All picked' : `${decided} of ${rows.length} picked`} />
+            </span>
+          </p>
+          {/* What this view is, said up front where it's read. */}
+          {!editable && <p data-mix-note className="mt-1 text-[12.5px] leading-5 text-slate-300"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>}
+        </div>
         {onCompare && (
           <button
             type="button"
             onClick={onCompare}
-            className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15"
+            className="ds-intrinsic ml-auto inline-flex shrink-0 h-7 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15"
           >
             <Layers3 className="size-3.5" />
             <LocalizedText text={compareLabel} />
@@ -389,11 +395,11 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                 onClick: (event) => (event.target.closest('button') ? setPinned(region) : pin(region)),
                 onKeyDown: (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); pin(region) } },
               })}
-              className={cn('grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2',
+              className={cn('grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2.5',
                 region && '-mx-2 cursor-pointer rounded-md px-2 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
                 on ? 'bg-emerald-400/[0.08]' : region && 'hover:bg-white/[0.03]')}
             >
-              <span className={cn('truncate text-[11.5px]', on ? 'text-emerald-200' : 'text-slate-400')}>
+              <span className={cn('truncate text-[13px]', on ? 'text-emerald-200' : 'text-slate-300')}>
                 {row.element && <><LocalizedText text={row.element} /> · </>}
                 <LocalizedText text={row.label} />
               </span>
@@ -417,10 +423,10 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                   ))}
                 </div>
               ) : picked ? (
-                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-100">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-slate-50">
                   <Letter option={picked} on />
                   <Value option={picked} />
-                  <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={`from ${picked.name}`} /></span>
+                  <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11.5px] font-normal text-slate-300"><LocalizedText text={picked.name} /></span>
                 </span>
               ) : (
                 <span className="text-[11.5px] text-slate-500"><LocalizedText text="Not picked — keeps the code" /></span>
@@ -430,9 +436,6 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
         })}
       </div>
       </div>
-      {!editable && (
-        <p className="mt-2 text-[10.5px] text-slate-500"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>
-      )}
     </div>
   )
 }
@@ -524,7 +527,7 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null }) {
+function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null, hideTodo }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -556,7 +559,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   // What the viewer has to do now — and only that: nothing shows when the
   // next move is someone else's. (A review that's yours to give is said on
   // the Review button itself.)
-  const todo = stage === 'resolved' ? null
+  const todo = stage === 'resolved' || hideTodo ? null
     : reasonNeeded ? null
         : stage === 'detected' ? 'Review request needed'
           : stage === 'approved' ? (conflict.rollback ? 'Ready to restore previous version' : 'Ready to merge') : null
@@ -592,27 +595,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
       </InfoSection>
 
-      {/* 2 · A mix of drafts says what it is by its result — which draft
-          each part comes from — not by a cause. */}
-      {mix && (
-        <InfoSection title="Mix of drafts" className="border-t-0 pt-1">
-          <dl data-info-mix className={GRID}>
-            {mix.map((row) => {
-              const picked = row.options.find((option) => option.picked)
-              return (
-                <Row key={row.key} label={row.label} data-mix-row={row.key}>
-                  {picked ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{picked.letter}</span>
-                      <LocalizedText text={picked.name} />
-                    </span>
-                  ) : <span className="text-slate-500"><LocalizedText text="Not picked" /></span>}
-                </Row>
-              )
-            })}
-          </dl>
-        </InfoSection>
-      )}
+      {/* (A mix of drafts lists its picks in the main view, beside the
+          result — not again here.) */}
 
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
@@ -3268,6 +3252,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         cause={causeVersion}
                         onOpenCause={openProjectHistory}
                         reasonNeeded={decisionState.reasonNeeded}
+                        hideTodo={approvalNudge}
                         mix={!conflict.rollback && driftItem && draftColumns(driftItem)
                           ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
                           : null}

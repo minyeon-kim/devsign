@@ -2533,7 +2533,12 @@ function MergeInfiniteCanvas({
           pan/zoom-transformed content) so cursors track real screen
           position regardless of canvas pan/zoom, matching how the
           workspace panels position it. */}
-      <MultiplayerCursors members={otherMembers} scopeKey={item.id} />
+      <MultiplayerCursors
+        members={otherMembers}
+        scopeKey={item.id}
+        // Comparing drafts: off the Result and its tools, never over them.
+        avoid={designCompare ? '[data-draft-board], [data-frame-box], [data-result-header] > *, [data-mix-pane] > *, [data-result-dock] > *, [data-history-controls], [data-geom-toolbar]' : undefined}
+      />
       <MergeCanvasControls
         zoom={view.zoom}
         onZoomBy={zoomFromCenter}
