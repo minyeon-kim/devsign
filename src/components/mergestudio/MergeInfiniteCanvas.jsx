@@ -1296,7 +1296,10 @@ function MergeInfiniteCanvas({
     const availW = Math.max(160, visRight - startX)
     // The design-pick panel floats over the canvas; never reserve canvas
     // space for it. The Result controls still need their normal top clearance.
-    const top = designCompare ? 72 : TOP_CONTROLS_CLEARANCE
+    // (Comparing drafts, the fit clears the mix panel, so the Result's
+    // title and view tools never sit under it.)
+    const mixPanel = designCompare ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
+    const top = mixPanel?.height ? Math.max(72, mixPanel.bottom - rect.top + 48) : designCompare ? 72 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100

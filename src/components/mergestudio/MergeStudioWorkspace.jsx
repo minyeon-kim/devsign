@@ -18,6 +18,7 @@ import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, 
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
@@ -109,7 +110,7 @@ function ValuePreview({ label, value, swatch }) {
 // The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], viewedDraft, onViewDraft }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [] }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -207,7 +208,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
             const whole = wholeFrom(column.key)
             const parts = usedFrom(column.key)
             return (
-            <button key={column.key} type="button" onClick={() => { onViewDraft?.(column.key); if (whole) rows.forEach((row) => onDecide(row.key, null)); else takeAll(column.key) }}
+            <button key={column.key} type="button" onClick={() => (whole ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}
               aria-pressed={whole}
               data-draft-tab={column.key}
               data-draft-use={whole ? 'whole' : parts ? 'parts' : 'none'}
@@ -222,15 +223,6 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
             )
           })}
         </div>
-        {/* The draft drawn beside the Result, and the way to put it away. */}
-        {viewedDraft && columns.some((column) => column.key === viewedDraft) && (
-          <button type="button" data-viewed-draft={viewedDraft} onClick={() => onViewDraft?.(null)}
-            title={language === 'ko' ? '캔버스에서 시안 닫기' : 'Close the draft on the canvas'}
-            className="ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-white/[0.06] px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-            {language === 'ko' ? `시안 ${columns.find((column) => column.key === viewedDraft).letter} 보는 중` : `Viewing draft ${columns.find((column) => column.key === viewedDraft).letter}`}
-            <X className="size-3" />
-          </button>
-        )}
         <button
           type="button"
           disabled={decided === 0 && !decisions[LAYOUT_KEY]}
@@ -267,7 +259,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 )}
               >
                 {/* The card and its action share one applied state. */}
-                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 적용` : `Use draft ${option.letter}`} aria-pressed={option.picked} onClick={() => { onViewDraft?.(option.key); onDecide(current.key, option.decision) }} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+                <button type="button" aria-label={language === 'ko' ? `시안 ${option.letter} 적용` : `Use draft ${option.letter}`} aria-pressed={option.picked} onClick={() => onDecide(current.key, option.decision)} className="ds-intrinsic flex cursor-pointer flex-col gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
                 {current.region
                   ? <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.02]"><RegionPreview part={screen.drafts[option.key]?.[current.region.id]} width={140} /></span>
                   : <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-white/[0.04]"><ValuePreview label={current.label} value={option.value} swatch={option.swatch} /></span>}
@@ -304,7 +296,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                     : null}
                   {!option.picked && parts > 0 && <span data-state="parts" className="rounded bg-white/[0.08] px-1 text-slate-300">{language === 'ko' ? `요소 ${parts}개 사용` : `${parts} part${parts === 1 ? '' : 's'} used`}</span>}
                 </span>
-                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => { onViewDraft?.(option.key); use(option) }}
+                <button type="button" data-use-draft aria-pressed={option.picked} onClick={() => use(option)}
                   className={cn('ds-intrinsic flex h-7 cursor-pointer items-center justify-center rounded-lg text-[11px] font-medium transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25' : 'bg-white/[0.07] text-slate-200 hover:bg-white/[0.14] hover:text-white')}>
                   {option.picked ? (language === 'ko' ? '사용 해제' : 'Stop using') : (language === 'ko' ? '이 시안 사용' : 'Use this draft')}
                 </button>
@@ -458,9 +450,6 @@ function MergeStudioWorkspace({ item }) {
   const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
   const [designCompareKeys, setDesignCompareKeys] = useState([])
   const [designComparison, setDesignComparison] = useState(null)
-  // The draft last pressed in the mix panel, drawn whole on the canvas
-  // beside the Result — what's being taken from is seen, not just named.
-  const [viewedDraft, setViewedDraft] = useState(null)
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
   const studioRootRef = useRef(null)
@@ -546,7 +535,6 @@ function MergeStudioWorkspace({ item }) {
   }
   function endComparison() {
     setDesignComparison(null)
-    setViewedDraft(null)
     setDesignCompareRequest(null)
   }
   useEffect(() => {
@@ -605,12 +593,11 @@ function MergeStudioWorkspace({ item }) {
     const framePage = canvasPages.find((p) => p.id === compareItem.designPageId)
     const compareFrame = framePage?.frames[0]
     if (!compareFrame) return null
-    const viewed = draftScreens[compareItem.id] && designCompareOptions(compareItem).find((option) => option.key === viewedDraft)
     return {
       frame: compareFrame,
       entries: [
-        // The draft being looked at, whole, left of the mix it feeds.
-        ...(viewed ? [{ key: viewed.key, label: viewed.label, frame: draftFrame(compareItem.id, compareFrame, viewed.key), overrides: {} }] : []),
+        // (The drafts themselves are their own pane beside it:
+        // DraftCompareBoard.)
         {
           // The mix so far, beside the drafts it's drawn from.
           key: 'result',
@@ -619,7 +606,7 @@ function MergeStudioWorkspace({ item }) {
         },
       ],
     }
-  }, [designComparison, viewedDraft])
+  }, [designComparison])
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -1326,8 +1313,6 @@ function MergeStudioWorkspace({ item }) {
             decisions={resolutions}
             selectedLayerId={syncSelection?.layerId}
             onDecide={decideMix}
-            viewedDraft={draftScreens[item.id] ? viewedDraft : undefined}
-            onViewDraft={draftScreens[item.id] ? setViewedDraft : undefined}
             removedRegions={mixLayout?.removed ?? []}
             checks={liveChecks}
             requestedRegion={designCompareRequest?.regionId}
@@ -1344,6 +1329,11 @@ function MergeStudioWorkspace({ item }) {
         )}
         <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
+        {/* Comparing drafts: the drafts in a pane of their own, the Result
+            artboard in the canvas beside it — each with its own zoom. */}
+        {designCompare && (
+          <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} />
+        )}
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={designComparison ? 0 : reserve}
