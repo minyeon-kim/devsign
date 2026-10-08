@@ -1880,6 +1880,31 @@ function MergeInfiniteCanvas({
     window.addEventListener('pointerup', onUp)
   }
 
+  // Move the view by dragging on an artboard: past a 4px threshold, so a
+  // click still selects what's under it.
+  function dragView(e) {
+    const start = { px: e.clientX, py: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y }
+    let moved = false
+    function onMove(m) {
+      const dx = m.clientX - start.px
+      const dy = m.clientY - start.py
+      if (!moved && Math.hypot(dx, dy) < 4) return
+      if (!moved) { moved = true; setPanning(true) }
+      setView((v) => ({ ...v, x: start.vx + dx, y: start.vy + dy }))
+    }
+    function onUp() {
+      if (moved) {
+        setPanning(false)
+        suppressClick.current = true
+        setTimeout(() => (suppressClick.current = false), 0)
+      }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   // Cards drag from anywhere on their surface. Pointer origin (px/py) and
   // card origin (cx/cy) are kept separate so the card tracks the cursor
   // 1:1 at any zoom. A 4px threshold separates a drag from a click.
@@ -1888,6 +1913,13 @@ function MergeInfiniteCanvas({
       if (e.button !== 0) return
       if (e.target.closest('button, input, [data-code-scroll]')) return
       e.stopPropagation()
+      // Comparing drafts, the Result is the one artboard and fills its
+      // pane: dragging it moves the view to the part you want to see
+      // (like the drafts beside it) instead of pulling the card loose.
+      if (designCompare) {
+        dragView(e)
+        return
+      }
       const start = { px: e.clientX, py: e.clientY, cx: layout[key].x, cy: layout[key].y }
       let moved = false
       setOrder((o) => ({ ...o, [key]: Math.max(...Object.values(o)) + 1 }))
