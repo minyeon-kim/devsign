@@ -236,7 +236,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const picks = regionPicks(item.id, decisions)
   const totalParts = draftScreens[item.id]?.regions.length ?? 0
   const usedOf = (key) => Object.values(picks).filter((value) => value === key).length
-  const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:opacity-40'
+  const BUTTON = 'flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:opacity-40'
 
   return (
     <section
@@ -249,7 +249,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
     >
       <div className="mb-2 flex shrink-0 items-center gap-2">
         {/* The view: all of them, or the drafts picked here, side by side. */}
-        <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+        <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
           <button
             type="button"
             role="tab"
@@ -257,7 +257,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             data-draft-view={ALL}
             title={ko ? `전체 한 번에 비교 · ${compared.length}개` : `Compare all · ${compared.length}`}
             onClick={() => setPicked(null)}
-            className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+            className={cn('flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
           >
             <LayoutGrid className="size-3.5" />
             {ko ? '전체 시안' : 'All drafts'}
@@ -271,25 +271,26 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
               data-draft-view={option.key}
               title={ko ? `${option.label} · 눌러서 보기에 넣거나 빼기` : `${option.label} · press to add or take out of the view`}
               onClick={() => toggle(option.key)}
-              className={cn('flex size-6 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', picked?.includes(option.key) ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200')}
+              className={cn('flex size-8 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', picked?.includes(option.key) ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200')}
             >
               {letterOf(option, index)}
             </button>
           ))}
         </div>
         <span className="min-w-0 flex-1" />
-        <button
-          type="button"
-          data-board-outline
-          aria-pressed={outline}
-          title={outline ? (ko ? '선택한 요소 표시 끄기' : 'Stop outlining the selected part') : (ko ? '선택한 요소 표시 켜기' : 'Outline the selected part')}
-          onClick={() => setOutline((value) => !value)}
-          className={cn('ml-auto flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-medium ring-1 transition-colors', outline ? 'bg-emerald-300/15 text-emerald-200 ring-emerald-300/40' : 'text-slate-400 ring-white/15 hover:text-slate-200')}
-        >
-          <ScanEye className="size-3.5" />
-          {ko ? '표시' : 'Outline'}
-        </button>
-        <div data-board-zoom className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+        {/* One group: outline the picked part · fit · zoom. */}
+        <div data-board-zoom className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
+          <button
+            type="button"
+            data-board-outline
+            aria-pressed={outline}
+            title={outline ? (ko ? '선택한 요소 표시 끄기' : 'Stop outlining the selected part') : (ko ? '선택한 요소 표시 켜기' : 'Outline the selected part')}
+            onClick={() => setOutline((value) => !value)}
+            className={cn(BUTTON, outline ? 'text-emerald-300' : 'text-slate-500')}
+          >
+            <ScanEye className="size-3.5" />
+          </button>
+          <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
           <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
           <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3.5" /></button>
           <span data-board-percent className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
