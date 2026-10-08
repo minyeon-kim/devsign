@@ -49,6 +49,44 @@ function measureBoards(boards, layerId, frame) {
   })
 }
 
+// One number of the element's geometry, typed: Enter or leaving the field
+// applies it, Esc puts it back, ↑ / ↓ step it (⇧ by 10).
+function GeomField({ name, label, value, onCommit }) {
+  const [draft, setDraft] = useState(null)
+  const shown = draft ?? String(value)
+  function commit() {
+    if (draft == null) return
+    const next = Number(draft)
+    setDraft(null)
+    if (Number.isFinite(next) && next !== value) onCommit(next)
+  }
+  return (
+    <label className="flex items-center gap-0.5 rounded-md px-1 text-[10.5px] text-slate-400 focus-within:bg-white/[0.08]" title={label}>
+      <span className="font-semibold">{label}</span>
+      <input
+        data-geom-field={name}
+        inputMode="numeric"
+        value={shown}
+        onPointerDown={(event) => event.stopPropagation()}
+        onChange={(event) => setDraft(event.target.value.replace(/[^\d.-]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+          if (event.key === 'Enter') { commit(); event.currentTarget.blur() }
+          else if (event.key === 'Escape') { setDraft(null); event.currentTarget.blur() }
+          else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault()
+            const step = (event.shiftKey ? 10 : 1) * (event.key === 'ArrowUp' ? 1 : -1)
+            setDraft(null)
+            onCommit((Number(shown) || 0) + step)
+          }
+        }}
+        className="w-9 bg-transparent text-[11px] text-slate-100 tabular-nums outline-none"
+      />
+    </label>
+  )
+}
+
 function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset }) {
   const [found, setFound] = useState([])
   const [guides, setGuides] = useState(null)
@@ -198,8 +236,27 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                   style={{ left: `${fx * 100}%`, top: `${fy * 100}%`, cursor: CURSOR[id] }}
                 />
               ))}
-              {(onDelete || onReset) && (
-                <div className="pointer-events-auto absolute bottom-full left-0 mb-2 flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 px-1 shadow-lg backdrop-blur-md">
+              {/* The element's position and size as numbers, to type exactly
+                  (frame pixels) — beside reset / delete. */}
+              <div data-geom-toolbar className="pointer-events-auto absolute bottom-full left-0 mb-2 flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 px-1 whitespace-nowrap shadow-lg backdrop-blur-md">
+                  {[['x', 'X'], ['y', 'Y'], ['w', 'W'], ['h', 'H']].map(([key, label]) => (
+                    <GeomField
+                      key={key}
+                      name={key}
+                      label={label}
+                      value={Math.round(board.geom[key])}
+                      onCommit={(next) => {
+                        const geom = { ...board.geom, [key]: next }
+                        onChange({
+                          x: Math.round(Math.max(0, geom.x)),
+                          y: Math.round(Math.max(0, geom.y)),
+                          w: Math.round(Math.max(MIN, geom.w)),
+                          h: Math.round(Math.max(MIN, geom.h)),
+                        })
+                      }}
+                    />
+                  ))}
+                  {(onReset || onDelete) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
                   {onReset && (
                     <button
                       type="button"
@@ -222,8 +279,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                       <Trash2 className="size-3" />
                     </button>
                   )}
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )
