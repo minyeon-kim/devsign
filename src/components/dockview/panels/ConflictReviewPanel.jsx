@@ -252,19 +252,28 @@ function driftItemOf(conflict, workspace) {
 // `active`: the region the list points at — lit on the screen, the rest
 // dimmed, with the draft it comes from beside it. Each region is also a
 // target: pointing at it here lights its row in the list.
+// The whole screen fits the room it's given (width and height), so a lit
+// region is never below the fold of a short panel; where the room has no
+// height of its own, it fits the width and scrolls the lit region in.
 function DraftResultPreview({ result, height, active, onHover, onPick }) {
+  const boxRef = useRef(null)
   const viewportRef = useRef(null)
-  const [width, setWidth] = useState(result.width)
+  const [room, setRoom] = useState({ width: result.width, height: 0 })
   useEffect(() => {
-    const element = viewportRef.current
+    const element = boxRef.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => setRoom({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  const scale = width / result.width
+  const scale = Math.min(room.width / result.width, room.height > 40 ? room.height / height : Infinity)
+  useEffect(() => {
+    if (!active?.id) return
+    viewportRef.current?.querySelector(`[data-mix-region="${active.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [active?.id])
   return (
-    <div ref={viewportRef} className="relative w-full overflow-hidden rounded-xl bg-white" style={{ aspectRatio: `${result.width} / ${height}` }}>
+    <div ref={boxRef} data-mix-preview-room className="flex min-h-0 w-full flex-1 justify-center">
+    <div ref={viewportRef} className="relative shrink-0 overflow-hidden rounded-xl bg-white" style={{ width: result.width * scale, height: height * scale }}>
       <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: result.width, height, transform: `scale(${scale})` }}>
         {result.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
       </div>
@@ -293,6 +302,7 @@ function DraftResultPreview({ result, height, active, onHover, onPick }) {
           </button>
         )
       })}
+    </div>
     </div>
   )
 }
@@ -348,8 +358,8 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
       <div data-draft-review-split className={cn("grid min-h-0 flex-1 gap-4 overflow-hidden", result ? "grid-cols-2" : "grid-cols-1")}>
       {/* Equal columns keep the composition and its result visible together. */}
       {result && (
-        <figure data-mix-result className="order-last min-h-0 min-w-0 overflow-auto border-l border-white/[0.06] pl-4">
-          <figcaption className="mb-3 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
+        <figure data-mix-result className="order-last flex min-h-0 min-w-0 flex-col overflow-auto border-l border-white/[0.06] pl-4">
+          <figcaption className="mb-3 shrink-0 text-xs font-medium text-slate-400"><LocalizedText text={conflict.reviewStage === 'resolved' ? 'Merged result' : '조합 미리보기'} /></figcaption>
           <DraftResultPreview
             result={result}
             height={resultHeight}
