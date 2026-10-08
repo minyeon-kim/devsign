@@ -248,7 +248,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
       style={{ width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <div className="mb-2 flex shrink-0 items-center gap-2">
-        <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '시안 비교' : 'Drafts'}</h2>
         {/* The view: all of them, or the drafts picked here, side by side. */}
         <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
           <button
@@ -261,7 +260,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
           >
             <LayoutGrid className="size-3.5" />
-            {ko ? '전체' : 'All'}
+            {ko ? '전체 시안' : 'All drafts'}
           </button>
           {compared.map((option, index) => (
             <button
