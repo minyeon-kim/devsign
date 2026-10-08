@@ -1296,7 +1296,10 @@ function MergeInfiniteCanvas({
     const availW = Math.max(160, visRight - startX)
     // The design-pick panel floats over the canvas; never reserve canvas
     // space for it. The Result controls still need their normal top clearance.
-    const top = designCompare ? 72 : TOP_CONTROLS_CLEARANCE
+    // (With every draft on the screen, the fit clears the panel instead, so
+    // no draft's title sits under it.)
+    const mixPanel = designCompare?.entries.length > 1 ? document.querySelector('[data-mix-panel]')?.getBoundingClientRect() : null
+    const top = mixPanel?.height ? Math.max(72, mixPanel.bottom - rect.top + 48) : designCompare ? 72 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -1324,7 +1327,9 @@ function MergeInfiniteCanvas({
     // (never past their real size) rather than shrunk until all of them fit
     // under the mix panel: the Result is what's worked on, and the rest of
     // it is a scroll away.
-    const fitFor = (target) => (designCompare ? fitView(target, { byWidth: true, maxZoom: MAX_ZOOM / 100 }) : fitView(target))
+    // With the drafts beside it, all of them fit the one screen instead —
+    // the point is comparing them at a glance.
+    const fitFor = (target) => (designCompare?.entries.length === 1 ? fitView(target, { byWidth: true, maxZoom: MAX_ZOOM / 100 }) : fitView(target))
     const firstFit = fitFor(lay)
     setView(firstFit)
     setLayout(lay)
