@@ -14,7 +14,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, GripVertical, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -110,7 +110,7 @@ function ValuePreview({ label, value, swatch }) {
 // The region selector jumps between parts; the letters take
 // a whole draft; ↺ starts over. Picks are ordinary decisions, so the Result,
 // the conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [] }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onGripPointerDown }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -190,6 +190,16 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     // over, the checks — and a part's drafts under it only once it's opened.
     <div data-mix-panel className="pointer-events-auto flex max-h-[min(42vh,320px)] min-w-0 flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#17191d]/95 p-1.5 shadow-2xl backdrop-blur-xl">
       <div className="flex flex-wrap items-center gap-1.5">
+        {onGripPointerDown && (
+          <span
+            data-mix-grip
+            onPointerDown={onGripPointerDown}
+            title={language === 'ko' ? '끌어서 옮기기' : 'Drag to move'}
+            className="flex h-6 w-4 shrink-0 cursor-grab items-center justify-center rounded text-slate-500 hover:bg-white/[0.08] hover:text-slate-200 active:cursor-grabbing"
+          >
+            <GripVertical className="size-3.5" />
+          </span>
+        )}
         <nav aria-label={language === 'ko' ? '요소 카테고리' : 'Element categories'} className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {rows.map((row, i) => (
             <button key={row.key} type="button" onClick={() => (open && step === i ? setOpen(false) : show(i))}
@@ -447,26 +457,37 @@ function MergeStudioWorkspace({ item }) {
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
   const studioRootRef = useRef(null)
-  // Room the mix panel leaves at the right for a floating window there (the
-  // navigator), measured as it moves, folds or resizes.
-  const [mixRight, setMixRight] = useState(12)
-  useEffect(() => {
-    if (!designComparison) return
-    function measure() {
-      const stage = studioRootRef.current?.querySelector('[data-studio-stage]')?.getBoundingClientRect()
-      if (!stage) return
-      let right = 12
-      for (const el of document.querySelectorAll('[data-window]')) {
-        const r = el.getBoundingClientRect()
-        if (!r.width || r.left < stage.left + stage.width / 2 || r.top > stage.top + 120) continue
-        right = Math.max(right, stage.right - r.left + 12)
-      }
-      setMixRight((current) => (current === right ? current : right))
-    }
-    measure()
-    const timer = window.setInterval(measure, 400)
-    return () => window.clearInterval(timer)
-  }, [designComparison])
+  // Comparing drafts: the share of the stage the drafts pane takes (the
+  // Result has the rest), dragged on the divider between them.
+  const [draftShare, setDraftShare] = useState(0.5)
+  function startSplitDrag(event) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    const pane = event.currentTarget.parentElement.getBoundingClientRect()
+    const move = (m) => setDraftShare(Math.min(0.8, Math.max(0.2, (m.clientX - pane.left) / pane.width)))
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = '' }
+    document.body.style.cursor = 'col-resize'
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  // The element picker floats: null is its spot at the Result's top left;
+  // dragged by its grip, it stays where it's put ({ x, y } in the stage).
+  const [mixPos, setMixPos] = useState(null)
+  function startMixDrag(event) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    const pane = event.currentTarget.closest('[data-mix-pane]')
+    const stage = pane.offsetParent.getBoundingClientRect()
+    const box = pane.getBoundingClientRect()
+    const start = { px: event.clientX, py: event.clientY, x: box.left - stage.left, y: box.top - stage.top }
+    const move = (m) => setMixPos({
+      x: Math.min(stage.width - 120, Math.max(0, start.x + m.clientX - start.px)),
+      y: Math.min(stage.height - 40, Math.max(0, start.y + m.clientY - start.py)),
+    })
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
@@ -1321,10 +1342,11 @@ function MergeStudioWorkspace({ item }) {
           </div>
         )}
         {designComparison && (
-          // Over the Result side (the drafts pane has the left half to itself),
-          // stopping short of a floating window docked at the right.
-          <div className="pointer-events-none absolute top-3 left-[calc(50%+12px)] z-40" style={{ right: mixRight }} data-mix-pane>
+          // A floating window: at first over the Result's top left (the drafts
+          // pane keeps its side to itself); its grip moves it anywhere.
+          <div className="pointer-events-none absolute z-40 w-[min(520px,calc(100%-24px))]" style={mixPos ? { left: mixPos.x, top: mixPos.y } : { left: `calc(${draftShare * 100}% + 12px)`, top: 12 }} data-mix-pane>
           <MixPanel
+            onGripPointerDown={startMixDrag}
             item={item}
             options={designComparison.options}
             decisions={resolutions}
@@ -1349,7 +1371,22 @@ function MergeStudioWorkspace({ item }) {
         {/* Comparing drafts: the drafts in a pane of their own, the Result
             artboard in the canvas beside it — each with its own zoom. */}
         {designCompare && (
-          <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} />
+          <>
+            <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} share={draftShare} />
+            {/* The divider: drag to give either side more room. */}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize drafts and result"
+              data-compare-divider
+              onPointerDown={startSplitDrag}
+              onDoubleClick={() => setDraftShare(0.5)}
+              className="group relative z-30 -mx-1.5 w-3 shrink-0 cursor-col-resize"
+            >
+              <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/[0.08] transition-colors group-hover:w-0.5 group-hover:bg-emerald-300/70" />
+              <span className="absolute top-1/2 left-1/2 h-8 w-1 -translate-1/2 rounded-full bg-white/25 group-hover:bg-emerald-300" />
+            </div>
+          </>
         )}
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
