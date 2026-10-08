@@ -93,7 +93,7 @@ function FloatingRestorePill({ group, panelsById, dockApi }) {
           // starts closed) beside the Workspace button, the navigator's at
           // the right, over where it folded from.
           'pointer-events-auto absolute top-2 flex h-8',
-          group.panelIds.includes(panelById.chat.id) ? 'left-[152px]' : 'right-[260px]',
+          group.panelIds.includes(panelById.chat.id) ? 'left-[152px]' : 'right-2',
           'items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white',
           PANEL_RADIUS,
           FLOATING_PANEL

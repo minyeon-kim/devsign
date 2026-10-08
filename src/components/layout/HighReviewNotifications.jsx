@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
@@ -18,6 +18,8 @@ function findBell() {
 // Walkthrough review requests that appear a few seconds after entering a
 // project's Workspace. `restart` puts the conflict back before its review.
 const NAV_REQUEST_DELAY_MS = 4000
+// How long the notices stay up before going (they're kept in the Inbox).
+const AUTO_HIDE_MS = 8000
 // Each scenario's request: the conflict it's about.
 const REQUESTS = {
   'mobile-nav-revamp': { conflictId: 'cc-4' },
@@ -49,7 +51,7 @@ function ConflictNotice({ conflict, title, type = 'info', onDismiss, actions }) 
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
-  const { conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict } = useWorkspace()
+  const { conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict, activeView } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [requestDismissed, setRequestDismissed] = useState(false)
@@ -92,7 +94,11 @@ export default function HighReviewNotifications() {
   const banners = visibleIds.map(id => notifications.find(n => n.id === id && n.unread)).filter(n => n && !entry.conflictIds.has(n.target?.conflictId))
   // With the Inbox open the same items are already on screen, in the spot
   // the banners would cover.
-  const show = (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
+  // Only on the Workspace itself — not over Merge Studio, the docs, history
+  // or any other page — and only for a moment (see below): everything here
+  // is also in the bell's Inbox, so nothing is lost when it goes.
+  const inWorkspaceView = onWorkspace && activeView !== 'mergeStudio'
+  const show = inWorkspaceView && (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
   // Toasts land in the same corner. They stack above this stack instead of
   // on top of it: its occupied height is published as `--ds-toast-bottom` (read by
   // the toaster's rule in index.css) for as long as it's on screen.
@@ -124,6 +130,15 @@ export default function HighReviewNotifications() {
     entry.close()
     toast.dismiss()
   }
+  // The stack leaves on its own after a while, unless it's being pointed at
+  // (then it waits until the pointer leaves).
+  const [hovering, setHovering] = useState(false)
+  const dismissAllLater = useEffectEvent(() => dismissAll())
+  useEffect(() => {
+    if (!show || hovering) return
+    const timer = window.setTimeout(dismissAllLater, AUTO_HIDE_MS)
+    return () => window.clearTimeout(timer)
+  }, [show, hovering])
   if (!show) return null
   const cardCount = Number(showRequest) + Number(Boolean(entry.prompt)) + banners.length
 
@@ -132,7 +147,7 @@ export default function HighReviewNotifications() {
   // window), so no panel's overflow or transform can clip a card or its
   // dismiss button. "Dismiss all" sits on the same right edge.
   return createPortal(
-    <aside ref={stackRef} data-notice-stack aria-label="High priority notifications" aria-live="polite" className="ds-notification-stack">
+    <aside ref={stackRef} data-notice-stack onPointerEnter={() => setHovering(true)} onPointerLeave={() => setHovering(false)} aria-label="High priority notifications" aria-live="polite" className="ds-notification-stack">
       {/* (One card closes with its own ×: "Dismiss all" is for a stack.) */}
       {cardCount > 1 && (
         <div className="flex shrink-0 justify-end">

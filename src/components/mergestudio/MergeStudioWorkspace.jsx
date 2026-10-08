@@ -72,7 +72,7 @@ import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyl
 // again takes it back. A whole draft for every part, and starting over, are
 // in its ⋯ menu. Picks are ordinary decisions, so the Result, the
 // conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onGripPointerDown }) {
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, removedRegions = [], onGripPointerDown, onShowRegion }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -172,7 +172,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                     role="option"
                     aria-selected={i === step}
                     data-mix-region={row.region?.id ?? row.key}
-                    onClick={() => { setStep(i); setOpen(false) }}
+                    onClick={() => { setStep(i); setOpen(false); if (row.region) onShowRegion?.(row.region.id) }}
                     className={cn('ds-intrinsic flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] transition-colors', i === step ? 'bg-white/[0.08] text-white' : 'text-slate-300 hover:bg-white/[0.05]')}
                   >
                     <span className={cn('size-1.5 shrink-0 rounded-full', dot(row))} />
@@ -188,7 +188,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
       </Popover>
       {/* This part's drafts: a letter each — the one in use lit, a dot on one
           that would bring a problem in. Pressing the one in use takes it back. */}
-      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex items-center gap-0.5">
+      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex min-w-0 flex-wrap items-center gap-0.5">
         {current.options.map((option) => {
           const issues = optionIssues(current, option)
           return (
@@ -199,9 +199,11 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               aria-pressed={option.picked}
               onClick={() => use(option)}
               title={`${option.name} · ${option.literal ? option.value : translateText(String(option.value), language)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-              className={cn('ds-intrinsic relative flex size-7 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors', option.picked ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-white/[0.08] hover:text-white')}
+              className={cn('ds-intrinsic relative flex h-7 max-w-32 min-w-0 items-center gap-1.5 rounded-lg pr-2 pl-1 text-[11px] transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-50 ring-1 ring-emerald-300/50 ring-inset' : 'text-slate-300 hover:bg-white/[0.08] hover:text-white')}
             >
-              {option.letter}
+              <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08]')}>{option.letter}</span>
+              {/* What this draft's version of the part is, in a word or two. */}
+              <span className="min-w-0 truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={String(option.value)} />}</span>
               {issues.length > 0 && !option.picked && <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-300" />}
             </button>
           )
@@ -1229,9 +1231,14 @@ function MergeStudioWorkspace({ item }) {
           // A floating window: at first over the Result's top left (the drafts
           // pane keeps its side to itself); dragged, it stays where it's put —
           // kept inside the canvas when that shrinks (the bottom panel opening).
-          <div className="pointer-events-none absolute z-40 w-[min(520px,calc(100%-24px))]" style={mixPos ? { left: `min(${mixPos.x}px, calc(100% - 120px))`, top: `min(${mixPos.y}px, calc(100% - 48px))` } : { left: `calc(${draftShare * 100}% + 12px)`, top: 12 }} data-mix-pane>
+          <div className="pointer-events-none absolute z-40 w-[min(760px,calc(100%-24px))]" style={mixPos ? { left: `min(${mixPos.x}px, calc(100% - 120px))`, top: `min(${mixPos.y}px, calc(100% - 48px))` } : { left: `calc(${draftShare * 100}% + 12px)`, top: 52 }} data-mix-pane>
           <MixPanel
             onGripPointerDown={startMixDrag}
+            // A part picked from the list is outlined on the Result too.
+            onShowRegion={(regionId) => {
+              const first = frame0?.layers.find((layer) => layer.regionId === regionId)
+              if (first) setSyncSelection({ layerId: first.id })
+            }}
             item={item}
             options={designComparison.options}
             decisions={resolutions}
@@ -1415,6 +1422,7 @@ function MergeStudioWorkspace({ item }) {
           assemblies={assemblies}
           extraLayers={addedLayers}
           manualCode={syncedCode}
+          frameOverride={draftScreens[item.id] ? frame0 : null}
           onClose={() => setMergePreviewOpen(false)}
         />
       )}
