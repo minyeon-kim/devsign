@@ -976,35 +976,43 @@ function MergeStudioWorkspace({ item }) {
   const selHasGeomEdit = Boolean(selAssembly && TOOLBAR_KEYS.some((k) => selAssembly[k] !== undefined))
   // The toolbar's fill / text color / text: `null` puts the element's own
   // value back.
+  function editLayerStyle(layerId, patch) {
+    if (!layerId) return
+    setAssemblies((prev) => {
+      const next = { ...prev[layerId] }
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === 'copy') {
+          const copy = { ...next.copy }
+          for (const [slot, text] of Object.entries(value)) {
+            if (text == null) delete copy[slot]
+            else copy[slot] = text
+          }
+          if (Object.keys(copy).length) next.copy = copy
+          else delete next.copy
+        } else if (value == null) delete next[key]
+        else next[key] = value
+      }
+      const all = { ...prev }
+      if (Object.keys(next).length) all[layerId] = next
+      else delete all[layerId]
+      return all
+    })
+    const keys = Object.keys(patch)
+    if (Object.values(patch).every((v) => v == null)) dropSources(layerId, keys)
+    else recordSources(layerId, keys, { kind: 'custom', detail: patch.copy ? 'Text edited on canvas' : 'Color changed on canvas' })
+  }
   const changeSelectedStyle = useCallback(
-    (patch) => {
-      if (!selId) return
-      setAssemblies((prev) => {
-        const next = { ...prev[selId] }
-        for (const [key, value] of Object.entries(patch)) {
-          if (key === 'copy') {
-            const copy = { ...next.copy }
-            for (const [slot, text] of Object.entries(value)) {
-              if (text == null) delete copy[slot]
-              else copy[slot] = text
-            }
-            if (Object.keys(copy).length) next.copy = copy
-            else delete next.copy
-          } else if (value == null) delete next[key]
-          else next[key] = value
-        }
-        const all = { ...prev }
-        if (Object.keys(next).length) all[selId] = next
-        else delete all[selId]
-        return all
-      })
-      const keys = Object.keys(patch)
-      if (Object.values(patch).every((v) => v == null)) dropSources(selId, keys)
-      else recordSources(selId, keys, { kind: 'custom', detail: patch.copy ? 'Text edited on canvas' : 'Color changed on canvas' })
-    },
+    (patch) => editLayerStyle(selId, patch),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selId]
   )
+  // Double-click on a Result element's text: edit it in place (the same
+  // copy the toolbar's T field writes). Typing previews in the field itself;
+  // the text lands on Enter / leaving it, and emptied it goes back.
+  function editResultText(layerId, slot, value, { live = false } = {}) {
+    if (live) return
+    editLayerStyle(layerId, { copy: { [slot]: value?.trim() ? value : null } })
+  }
   const changeSelectedGeom = useCallback(
     (g) => {
       if (!selLayer) return
@@ -1357,6 +1365,7 @@ function MergeStudioWorkspace({ item }) {
             onMove: moveRegion,
             onRemove: removeRegion,
             onReorder: reorderRegion,
+            onEditText: editResultText,
             letterOf: (key) => { const at = designCompareOptions(item).findIndex((option) => option.key === key); return at < 0 ? null : String.fromCharCode(65 + at) },
           } : null}
           assemblies={assemblies}
@@ -1452,6 +1461,7 @@ function MergeStudioWorkspace({ item }) {
           onDelete={selIsAdded ? deleteAddedLayer : undefined}
           onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
           onStyle={changeSelectedStyle}
+          dock={designComparison ? '[data-result-dock]' : undefined}
         />
       )}
 
