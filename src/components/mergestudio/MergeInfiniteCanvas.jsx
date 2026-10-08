@@ -638,7 +638,7 @@ function RegionTools({ frame, scale, boxH, tools }) {
       <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? "영역 전체 드래그해서 옮기기" : "Drag the whole region to move"} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
       {/* Which draft it's from, on the region itself. */}
       <span data-region-source className="absolute left-0 rounded-br-md bg-emerald-400 px-1.5 py-0.5 text-[10px] leading-none font-semibold whitespace-nowrap text-slate-950" style={{ top: region.y * scale, transform: `scale(${1 / tools.zoom})`, transformOrigin: 'top left' }}>
-        {letter ? (ko ? (region.picked ? `시안 ${letter}에서 가져옴` : `시안 ${letter} · 기본값`) : (region.picked ? `From draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
+        {letter ? (ko ? (region.picked ? `시안 ${letter}` : `시안 ${letter} · 기본값`) : (region.picked ? `Draft ${letter}` : `Draft ${letter} · default`)) : <LocalizedText text={region.label} />}
       </span>
       {/* (Kept its own size whatever the canvas zoom.) */}
       <div
@@ -698,11 +698,13 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       <p
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
-          'mb-1.5 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
-          frameKey === 'result' ? 'bg-emerald-300 text-slate-950' : editable ? 'bg-emerald-400/20 text-emerald-200' : 'bg-card/90 text-muted-foreground'
+          'mb-1.5 flex w-fit items-center gap-1.5 rounded-full font-semibold whitespace-nowrap',
+          frameKey === 'result' ? 'bg-emerald-300/90 px-2 py-0.5 text-[10px] text-slate-950' : editable ? 'bg-emerald-400/20 px-2.5 py-1 text-[11px] text-emerald-200' : 'bg-card/90 px-2.5 py-1 text-[11px] text-muted-foreground'
         )}
+        // The Result's tag keeps a small, steady size whatever the zoom.
+        style={frameKey === 'result' && viewTools?.zoom ? { transform: `scale(${1 / viewTools.zoom})`, transformOrigin: 'bottom left' } : undefined}
       >
-        {frameKey === 'result' ? <><CircleCheck className="size-3" /><LocalizedText text="Result preview" />{device && <span className="font-medium opacity-70">· {device.label} {device.w}×{device.h}</span>}</> : label}
+        {frameKey === 'result' ? <><CircleCheck className="size-2.5" /><LocalizedText text="Result preview" />{device && <span className="font-medium opacity-70">· {device.label} {device.w}×{device.h}</span>}</> : label}
         {editable && <Pencil className="size-2.5 text-emerald-300/80" />}
       </p>
       <div className="relative">
@@ -2188,7 +2190,7 @@ function MergeInfiniteCanvas({
                     regionTools={entry.key === 'result' && regionTools ? { ...regionTools, zoom: scale } : undefined}
                     measure={entry.key === 'result'}
                     // (Its frame, zoom and preview are the Result pane's header.)
-                    viewTools={entry.key === 'result' ? { device: resultDevice } : undefined}
+                    viewTools={entry.key === 'result' ? { device: resultDevice, zoom: scale } : undefined}
                   />
                 ))
               ) : frame && (
