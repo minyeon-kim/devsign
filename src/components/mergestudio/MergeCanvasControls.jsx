@@ -3,10 +3,8 @@ import { cn } from 'cn'
 import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import MergeHelp from '@/components/mergestudio/MergeHelp'
-import { useWorkspace } from '@/state/WorkspaceProvider'
 
 export default function MergeCanvasControls({ zoom, onZoomBy, onResetZoom, onFit, onSelection, hasSelection, history, guidesVisible, onToggleGuides }) {
-  const { bottomPanel } = useWorkspace()
   const actions = [
     ['Zoom in', () => onZoomBy(10)],
     ['Zoom out', () => onZoomBy(-10)],
@@ -15,7 +13,10 @@ export default function MergeCanvasControls({ zoom, onZoomBy, onResetZoom, onFit
     ['Zoom to Selection', onSelection, !hasSelection],
   ]
   return (
-    <div className="merge-canvas-controls absolute right-4 z-[560] flex items-center gap-2" style={{ bottom: (bottomPanel.open ? bottomPanel.height : 48) + 20 }}>
+    // At the canvas panel's own bottom right corner: the bottom panel sits
+    // below the canvas (not over it), so the corner follows it as it opens,
+    // closes or is dragged.
+    <div className="merge-canvas-controls absolute right-3 bottom-3 z-[560] flex items-center gap-2">
       {/* Same studio pill as the header's (see .ds-merge-pill) — one
           surface, height and hairline for every floating control. */}
       <div className={cn(STUDIO_PILL, 'flex items-center px-0.5')}>

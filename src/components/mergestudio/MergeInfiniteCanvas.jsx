@@ -1392,10 +1392,15 @@ function MergeInfiniteCanvas({
     // The floating windows the fit steers around settle into place just
     // after the studio mounts — fit once more when they have, unless the
     // user has already moved the view.
-    const timer = window.setTimeout(() => {
-      if (viewRef.current === firstFit) setView(fitFor(lay))
-    }, 150)
-    return () => window.clearTimeout(timer)
+    // (The windows fold away on entering — AI Chat, the navigator — a beat
+    // later still, so it fits again then too.)
+    let last = firstFit
+    const timers = [150, 450, 900].map((delay) => window.setTimeout(() => {
+      if (viewRef.current !== last) return
+      last = fitFor(lay)
+      setView(last)
+    }, delay))
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparisonKey])
 
