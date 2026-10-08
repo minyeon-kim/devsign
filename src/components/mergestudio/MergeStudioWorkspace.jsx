@@ -848,6 +848,11 @@ function MergeStudioWorkspace({ item }) {
     const id = layerSource(syncSelection?.layerId)?.regionId
     return id && !mixLayout.removed.includes(id) ? id : null
   })() : null
+  // The part the drafts pane outlines: the last one pointed to — selected on
+  // the Result, or chosen in the picker (even before it's in the Result).
+  const [boardRegion, setBoardRegion] = useState(null)
+  const selectedRegionId = layerSource(syncSelection?.layerId)?.regionId ?? null
+  useEffect(() => { if (selectedRegionId) setBoardRegion(selectedRegionId) }, [selectedRegionId])
   const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, next))
   const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
   function reorderRegion(id, index) {
@@ -1253,6 +1258,7 @@ function MergeStudioWorkspace({ item }) {
             onGripPointerDown={startMixDrag}
             // A part picked from the list is outlined on the Result too.
             onShowRegion={(regionId) => {
+              setBoardRegion(regionId)
               const first = frame0?.layers.find((layer) => layer.regionId === regionId)
               if (first) setSyncSelection({ layerId: first.id })
             }}
@@ -1281,7 +1287,7 @@ function MergeStudioWorkspace({ item }) {
             artboard in the canvas beside it — each with its own zoom. */}
         {designCompare && (
           <>
-            <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} share={draftShare} />
+            <DraftCompareBoard item={item} options={designComparison.options} frame={designCompare.frame} decisions={resolutions} share={draftShare} regionId={boardRegion} />
             {/* The divider: drag to give either side more room. */}
             <div
               role="separator"

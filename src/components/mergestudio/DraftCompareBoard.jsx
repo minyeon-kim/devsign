@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -65,6 +65,16 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
               <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} selected={selected === layer.id} onSelect={() => {}} />
             ))}
             <SpacingOverlay container={container} frame={drawn} selectedId={selected} hoverId={hoverId} version={view.scale} />
+            {/* The part selected on the Result (or in the picker), outlined
+                here too — the same part in every draft — the rest dimmed. */}
+            {(() => {
+              const band = regionId && drawn.regions?.find((region) => region.id === regionId)
+              if (!band) return null
+              const k = 1 / view.scale
+              return (
+                <div data-draft-region-highlight={regionId} aria-hidden className="pointer-events-none absolute inset-x-0 z-20 rounded-[6px]" style={{ top: band.y, height: band.height, boxShadow: `0 0 0 ${2 * k}px rgb(110 231 183), 0 0 0 9999px rgba(15,23,42,0.35)` }} />
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -107,7 +117,8 @@ function useClearInsets(ref) {
 const ALL = 'all'
 const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)
 
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5 }) {
+// `regionId`: the part selected on the Result, outlined in every cell.
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -227,6 +238,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   return (
     <section
       data-draft-board
+      data-draft-region={regionId ?? undefined}
       aria-label={ko ? '시안 비교' : 'Draft comparison'}
       ref={paneRef}
       className="flex h-full min-h-0 min-w-0 shrink-0 flex-col px-3"
@@ -293,6 +305,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             totalParts={totalParts}
             cellRef={index === 0 ? firstCellRef : undefined}
             selected={selected?.key === option.key ? selected.id : null}
+            regionId={regionId}
             onSelect={(id) => {
               if (draggedRef.current) { draggedRef.current = false; return }
               setSelected(id ? { key: option.key, id } : null)
