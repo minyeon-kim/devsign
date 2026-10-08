@@ -33,6 +33,7 @@ export default function CheckStatus({ checks, onFix, quiet = false, compact = fa
       <span aria-live="polite">{label}</span><ChevronDown className="size-3.5" />
     </PopoverTrigger>
     )}
+    {compact ? <CompactChecks checks={checks} ko={ko} onFix={onFix && ((check) => { setOpen(false); onFix(check) })} /> : (
     <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-xl p-3">
       <p className="text-xs font-medium text-white">{ko ? '병합 전 검사' : 'Pre-merge checks'}</p>
       <p className="text-[11px] leading-4 text-slate-400">{ko ? '변경할 때 자동으로 다시 확인합니다. 승인 상태는 별도로 확인하세요.' : 'Checks update automatically when you edit. Review approvals are tracked separately.'}</p>
@@ -51,5 +52,57 @@ export default function CheckStatus({ checks, onFix, quiet = false, compact = fa
         </li>)}
       </ul>
     </PopoverContent>
+    )}
   </Popover>
+}
+
+// The compact list: one line per problem (what, required or not, and the
+// way to it), its details only when opened; what passed folded into a count.
+function CompactChecks({ checks, ko, onFix }) {
+  const [openId, setOpenId] = useState(null)
+  const [showPassed, setShowPassed] = useState(false)
+  const passed = checks.checks.filter((check) => check.ok)
+  return (
+    <PopoverContent align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] gap-1 rounded-xl p-1.5 text-[11px] leading-4">
+      {checks.failing.map((check) => {
+        const required = checks.blocking.includes(check)
+        const open = openId === check.id
+        return (
+          <div key={check.id} data-compact-check={check.id} className="rounded-lg hover:bg-white/[0.04]">
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className={`size-1.5 shrink-0 rounded-full ${required ? 'bg-amber-400' : 'bg-amber-200/60'}`} title={required ? (ko ? '필수' : 'Required') : (ko ? '권장' : 'Suggestion')} />
+              <button type="button" onClick={() => setOpenId(open ? null : check.id)} className="ds-intrinsic min-w-0 flex-1 truncate text-left text-slate-100">
+                <LocalizedText text={check.title} />
+              </button>
+              {onFix && (
+                <button type="button" onClick={() => onFix(check)} title={ko ? '수정할 위치로 이동' : 'Go to fix'} aria-label={ko ? '수정할 위치로 이동' : 'Go to fix'} className="ds-intrinsic shrink-0 rounded p-0.5 text-slate-400 hover:bg-white/[0.08] hover:text-emerald-300">
+                  <ArrowUpRight className="size-3.5" />
+                </button>
+              )}
+            </div>
+            {open && (
+              <div className="px-2 pb-2 pl-5.5 text-slate-400">
+                {!check.details?.length && check.hint && <p><LocalizedText text={check.hint} /></p>}
+                <CheckValueDetails check={check} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {passed.length > 0 && (
+        <div className={checks.failing.length ? 'mt-0.5 border-t border-white/[0.06] pt-1' : ''}>
+          <button type="button" onClick={() => setShowPassed((value) => !value)} className="ds-intrinsic flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-slate-400 hover:bg-white/[0.04]">
+            <CircleCheck className="size-3 shrink-0 text-emerald-300" />
+            <span className="flex-1">{ko ? `통과 ${passed.length}개` : `${passed.length} passed`}</span>
+            <ChevronDown className={`size-3 transition-transform ${showPassed ? 'rotate-180' : ''}`} />
+          </button>
+          {showPassed && (
+            <ul className="space-y-1 px-2 pb-1.5 pl-7 text-slate-500">
+              {passed.map((check) => <li key={check.id} className="truncate"><LocalizedText text={check.title} /></li>)}
+            </ul>
+          )}
+        </div>
+      )}
+    </PopoverContent>
+  )
 }

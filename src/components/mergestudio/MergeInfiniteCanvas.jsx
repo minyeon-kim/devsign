@@ -2,7 +2,7 @@ import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Maximize2, Menu, Minus, Pencil, Play, Plus, Search, ShieldCheck, Signal, Sparkles, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, GripVertical, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -694,43 +694,6 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       onPointerDown={onDragStart}
       onClickCapture={onClickCapture}
     >
-      {/* How the Result is looked at, on its own label row: fitted to the
-          room, at its real size, a step in or out, or opened large (where
-          the device widths are). Kept its size whatever the zoom. */}
-      {viewTools?.onFit && (() => {
-        const ko = getLanguage() === 'ko'
-        const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
-        return (
-          <div data-result-view onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute bottom-full left-0 z-10 mb-1.5 flex cursor-default items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 whitespace-nowrap shadow-lg ring-1 ring-white/15" style={{ transform: `scale(${1 / viewTools.zoom})`, transformOrigin: 'bottom left' }}>
-            <button type="button" data-view-fit title={ko ? '폭에 맞춤' : 'Fit to width'} onClick={viewTools.onFit} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
-            <button type="button" data-view-actual onClick={viewTools.onActual} className={BUTTON}>100%</button>
-            <button type="button" data-view-out aria-label={ko ? '축소' : 'Zoom out'} title={ko ? '축소' : 'Zoom out'} onClick={() => viewTools.onZoom(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
-            <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(viewTools.percent)}%</span>
-            <button type="button" data-view-in aria-label={ko ? '확대' : 'Zoom in'} title={ko ? '확대' : 'Zoom in'} onClick={() => viewTools.onZoom(10)} className={BUTTON}><Plus className="size-3.5" /></button>
-            <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />
-            {viewTools.onDevice && (
-              <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} data-view-frames className="flex items-center gap-0.5">
-                {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => (
-                  <button
-                    key={entry.id ?? 'full'}
-                    type="button"
-                    role="tab"
-                    aria-selected={(viewTools.device ?? null) === entry.id}
-                    data-view-frame={entry.id ?? 'full'}
-                    title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
-                    onClick={() => viewTools.onDevice(entry.id)}
-                    className={cn(BUTTON, (viewTools.device ?? null) === entry.id && 'bg-white/[0.14] text-white')}
-                  >
-                    {entry.short}
-                  </button>
-                ))}
-              </div>
-            )}
-            {viewTools.onDevice && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/15" />}
-            <button type="button" data-view-expand title={ko ? '크게 보기 · 기기 폭 전환 (Esc로 닫기)' : 'Open large · device widths (Esc closes)'} onClick={viewTools.onExpand} className={cn(BUTTON, 'gap-1')}><Maximize2 className="size-3" />{ko ? '크게 보기' : 'Open large'}</button>
-          </div>
-        )
-      })()}
       <p
         title={editable ? 'Double-click any text on this artboard to edit it — synced to copy.json' : undefined}
         className={cn(
@@ -1277,6 +1240,7 @@ function MergeInfiniteCanvas({
   const [frameSel, setFrameSel] = useState(null) // 'a' | 'b' | a Design Compare entry key
   // The device the Result is checked against (RESULT_DEVICES), if any.
   const [resultDevice, setResultDevice] = useState(null)
+  const [framesOpen, setFramesOpen] = useState(false)
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
@@ -2106,24 +2070,41 @@ function MergeInfiniteCanvas({
           return (
             <div data-result-header className="pointer-events-none absolute top-3 left-4 z-30 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
               <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '결과' : 'Result'}</h2>
-              <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} data-view-frames className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
-                {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => {
-                  const on = (resultDevice ?? null) === entry.id
-                  return (
-                    <button
-                      key={entry.id ?? 'full'}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      data-view-frame={entry.id ?? 'full'}
-                      title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
-                      onClick={() => pickResultFrame(entry.id)}
-                      className={cn('flex h-6 items-center rounded-md px-1.5 text-[11px] font-medium transition-colors', on ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
-                    >
-                      {entry.short}
-                    </button>
-                  )
-                })}
+              {/* The frame: one icon (with the frame it's in); pressing it
+                  slides the choices out beside it, and picking one — or the
+                  icon again — folds them away. */}
+              <div data-view-frames className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+                <button
+                  type="button"
+                  data-frame-toggle
+                  aria-expanded={framesOpen}
+                  title={ko ? '프레임 고르기' : 'Pick a frame'}
+                  onClick={() => setFramesOpen((value) => !value)}
+                  className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
+                >
+                  {resultDevice === 'ipad' ? <Tablet className="size-3.5" /> : resultDevice ? <Smartphone className="size-3.5" /> : <Monitor className="size-3.5" />}
+                  {!framesOpen && <span>{RESULT_DEVICES.find((entry) => entry.id === resultDevice)?.short ?? (ko ? '전체' : 'Full')}</span>}
+                </button>
+                <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} className={cn('flex items-center gap-0.5 overflow-hidden transition-[max-width,opacity] duration-200 ease-out', framesOpen ? 'max-w-[420px] opacity-100' : 'max-w-0 opacity-0')}>
+                  {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => {
+                    const on = (resultDevice ?? null) === entry.id
+                    return (
+                      <button
+                        key={entry.id ?? 'full'}
+                        type="button"
+                        role="tab"
+                        tabIndex={framesOpen ? 0 : -1}
+                        aria-selected={on}
+                        data-view-frame={entry.id ?? 'full'}
+                        title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
+                        onClick={() => { pickResultFrame(entry.id); setFramesOpen(false) }}
+                        className={cn('flex h-6 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
+                      >
+                        {entry.short}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div data-result-zoom className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
                 <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>

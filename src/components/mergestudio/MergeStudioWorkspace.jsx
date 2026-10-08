@@ -14,12 +14,12 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Fragment, useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Ellipsis, GripVertical, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
+import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -130,9 +130,13 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   }, [])
   if (!current) return null
   const ko = language === 'ko'
-  const ICON = 'ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white'
-  const dot = (row) => (rowIssues(row).length ? 'bg-amber-300' : row.decided ? 'bg-emerald-400' : 'bg-white/25')
+  const screen = draftScreens[item.id]
   const pickedOf = (row) => row.options.find((option) => option.picked)
+  // A draft's version of a part, drawn small — how a part, and each draft's
+  // take on it, is recognized at a glance rather than by name.
+  const thumb = (row, option, width) => (row.region && screen
+    ? <RegionThumb part={screen.drafts[option.key]?.[row.region.id]} width={width} />
+    : <span className="flex h-8 items-center justify-center truncate rounded-md bg-white px-1 text-[10px] text-slate-600" style={{ width }}>{option.literal ? option.value : translateText(String(option.value), language)}</span>)
   const fixCheck = (check) => {
     const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
     if (index >= 0) setStep(index)
@@ -140,29 +144,25 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   }
 
   return (
-    // One slim, floating bar: the part (picked from a dropdown), that
-    // part's drafts as letters, the checks as an icon, and a menu with the
-    // rest (a whole draft, start over). Drag it anywhere by its background.
+    // A slim floating bar: the part (from a dropdown of thumbnails), that
+    // part as each draft draws it — pick one by its picture — the checks,
+    // and a menu with the rest. Drag it anywhere by its background.
     <div
       data-mix-panel
       onPointerDown={(event) => { if (onGripPointerDown && !event.target.closest('button, [role="menu"], [role="listbox"], [data-slot="popover-content"]')) onGripPointerDown(event) }}
-      className="pointer-events-auto flex w-fit max-w-full cursor-grab items-center gap-1 rounded-xl border border-white/15 bg-[#17191d]/95 p-1 shadow-2xl backdrop-blur-xl active:cursor-grabbing"
+      className="pointer-events-auto flex w-fit max-w-full cursor-grab items-center gap-2 rounded-2xl border border-white/10 bg-[#17191d]/95 p-1.5 shadow-2xl backdrop-blur-xl active:cursor-grabbing"
     >
-      <GripVertical data-mix-grip aria-hidden className="size-3.5 shrink-0 text-slate-500" />
-      {/* The part being picked: a dropdown of every part, each with its pick. */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           data-mix-region-trigger
           title={ko ? '요소 고르기' : 'Pick a part'}
-          className="ds-intrinsic flex h-7 min-w-0 items-center gap-1.5 rounded-lg bg-white/[0.06] pr-1.5 pl-2 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.1]"
+          className="ds-intrinsic flex h-9 min-w-0 items-center gap-1 rounded-xl px-2 text-[12px] font-medium text-slate-100 transition-colors hover:bg-white/[0.06]"
         >
-          <span className={cn('size-1.5 shrink-0 rounded-full', dot(current))} />
-          <span className="max-w-28 truncate">{partName(current)}</span>
-          <span className="text-[10.5px] font-normal text-slate-500 tabular-nums">{decided}/{rows.length}</span>
-          <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
+          <span className="max-w-24 truncate">{partName(current)}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-slate-500" />
         </PopoverTrigger>
-        <PopoverContent align="start" sideOffset={6} className="w-60 gap-0 rounded-xl p-1">
-          <ul role="listbox" aria-label={ko ? '요소' : 'Parts'} className="flex flex-col">
+        <PopoverContent align="start" sideOffset={8} className="w-64 gap-0 rounded-xl p-1">
+          <ul role="listbox" aria-label={ko ? '요소' : 'Parts'} className="flex flex-col gap-0.5">
             {rows.map((row, i) => {
               const picked = pickedOf(row)
               return (
@@ -173,12 +173,12 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                     aria-selected={i === step}
                     data-mix-region={row.region?.id ?? row.key}
                     onClick={() => { setStep(i); setOpen(false); if (row.region) onShowRegion?.(row.region.id) }}
-                    className={cn('ds-intrinsic flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] transition-colors', i === step ? 'bg-white/[0.08] text-white' : 'text-slate-300 hover:bg-white/[0.05]')}
+                    className={cn('ds-intrinsic flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left text-[12px] transition-colors', i === step ? 'bg-white/[0.08] text-white' : 'text-slate-300 hover:bg-white/[0.05]')}
                   >
-                    <span className={cn('size-1.5 shrink-0 rounded-full', dot(row))} />
+                    {/* The part as it is in the mix (or the first draft's, until picked). */}
+                    {thumb(row, picked ?? row.options[0], 72)}
                     <span className="min-w-0 flex-1 truncate">{partName(row)}</span>
-                    {rowIssues(row).length > 0 && <TriangleAlert className="size-3 shrink-0 text-amber-300" />}
-                    <span className={cn('flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold', picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.06] text-slate-500')}>{picked?.letter ?? '–'}</span>
+                    <span className={cn('text-[11px] font-semibold', picked ? (rowIssues(row).length ? 'text-amber-300' : 'text-emerald-300') : 'text-slate-600')}>{picked?.letter ?? '–'}</span>
                   </button>
                 </li>
               )
@@ -186,9 +186,9 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           </ul>
         </PopoverContent>
       </Popover>
-      {/* This part's drafts: a letter each — the one in use lit, a dot on one
-          that would bring a problem in. Pressing the one in use takes it back. */}
-      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex min-w-0 flex-wrap items-center gap-0.5">
+      {/* This part as each draft has it: its picture, the letter in the
+          corner. The one in use is ringed; pressing it again takes it back. */}
+      <div role="group" aria-label={ko ? `${partName(current)} 시안` : `${partName(current)} drafts`} className="flex items-center gap-1.5">
         {current.options.map((option) => {
           const issues = optionIssues(current, option)
           return (
@@ -199,21 +199,18 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
               aria-pressed={option.picked}
               onClick={() => use(option)}
               title={`${option.name} · ${option.literal ? option.value : translateText(String(option.value), language)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-              className={cn('ds-intrinsic relative flex h-7 max-w-32 min-w-0 items-center gap-1.5 rounded-lg pr-2 pl-1 text-[11px] transition-colors', option.picked ? 'bg-emerald-300/15 text-emerald-50 ring-1 ring-emerald-300/50 ring-inset' : 'text-slate-300 hover:bg-white/[0.08] hover:text-white')}
+              className={cn('ds-intrinsic relative rounded-lg p-0.5 transition-[box-shadow,opacity]', option.picked ? 'ring-2 ring-emerald-300' : 'opacity-70 ring-1 ring-white/10 hover:opacity-100 hover:ring-white/30')}
             >
-              <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08]')}>{option.letter}</span>
-              {/* What this draft's version of the part is, in a word or two. */}
-              <span className="min-w-0 truncate" {...(option.literal && { translate: 'no' })}>{option.literal ? option.value : <LocalizedText text={String(option.value)} />}</span>
-              {issues.length > 0 && !option.picked && <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-300" />}
+              {thumb(current, option, 64)}
+              <span className={cn('absolute bottom-1 left-1 flex size-4 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? 'bg-emerald-300 text-slate-950' : issues.length ? 'bg-amber-300 text-slate-950' : 'bg-slate-900/80 text-white')}>{option.letter}</span>
             </button>
           )
         })}
       </div>
-      <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
       <CheckStatus compact checks={checks} onFix={fixCheck} />
       {/* The rest, out of the way: a whole draft for every part, or start over. */}
       <DropdownMenu>
-        <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className={ICON}>
+        <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white">
           <Ellipsis className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-48">
@@ -233,9 +230,25 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </DropdownMenuContent>
       </DropdownMenu>
       {current.region && removedRegions.includes(current.region.id) && (
-        <span data-mix-removed title={ko ? '결과 화면에서 뺀 영역 · 시안을 고르면 다시 들어가요' : 'Taken out of the result · picking a draft puts it back'} className="px-1 text-amber-300"><TriangleAlert className="size-3.5" /></span>
+        <span data-mix-removed className="sr-only">{ko ? '결과 화면에서 뺀 영역 · 시안을 고르면 다시 들어가요' : 'Taken out of the result · picking a draft puts it back'}</span>
       )}
     </div>
+  )
+}
+
+// One draft's version of one screen region, drawn small (its whole width,
+// scaled) — the picker's thumbnails.
+function RegionThumb({ part, width }) {
+  const height = Math.round(width * 0.62)
+  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={{ width, height }} />
+  const h = (part.height ?? 0) + 16
+  const scale = Math.min(width / 280, height / h)
+  return (
+    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width, height }}>
+      <span className="pointer-events-none absolute top-1/2 left-1/2 block origin-center" style={{ width: 280, height: h, transform: `translate(-50%, -50%) scale(${scale})` }}>
+        {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />)}
+      </span>
+    </span>
   )
 }
 
