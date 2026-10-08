@@ -697,7 +697,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
       {/* How the Result is looked at, on its own label row: fitted to the
           room, at its real size, a step in or out, or opened large (where
           the device widths are). Kept its size whatever the zoom. */}
-      {viewTools && (() => {
+      {viewTools?.onFit && (() => {
         const ko = getLanguage() === 'ko'
         const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
         return (
@@ -1349,7 +1349,7 @@ function MergeInfiniteCanvas({
     // space for it. The Result controls still need their normal top clearance.
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
-    const top = designCompare ? 132 : TOP_CONTROLS_CLEARANCE
+    const top = designCompare ? 112 : TOP_CONTROLS_CLEARANCE
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -1909,6 +1909,17 @@ function MergeInfiniteCanvas({
     }
   }, [zoomAt])
 
+  // The Result pane's header: its frame (the whole screen, or a device's),
+  // fitted when picked.
+  function pickResultFrame(id) {
+    const dev = RESULT_DEVICES.find((entry) => entry.id === id)
+    const w = layout.result?.w ?? ARTBOARD_PREVIEW_WIDTH
+    const next = { ...layout, result: { ...layout.result, h: dev ? (w * dev.h) / dev.w : null } }
+    setResultDevice(id ?? null)
+    setLayout(next)
+    setView(fitView(next, { only: ['result'] }))
+  }
+
   function zoomFromCenter(delta) {
     const rect = viewportRef.current.getBoundingClientRect()
     zoomAt(viewRef.current.zoom + delta, rect.width / 2, rect.height / 2)
@@ -2086,6 +2097,53 @@ function MergeInfiniteCanvas({
     // keeps `bg-canvas`, since it sits inside a card.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
+        {/* Comparing drafts: the Result pane's own header, like the drafts
+            pane's — its title, the frame to see it in, its zoom, and the
+            full preview. */}
+        {designCompare && (() => {
+          const ko = getLanguage() === 'ko'
+          const BUTTON = 'flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
+          return (
+            <div data-result-header className="pointer-events-none absolute top-3 left-4 z-30 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
+              <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '결과' : 'Result'}</h2>
+              <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} data-view-frames className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
+                {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => {
+                  const on = (resultDevice ?? null) === entry.id
+                  return (
+                    <button
+                      key={entry.id ?? 'full'}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      data-view-frame={entry.id ?? 'full'}
+                      title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
+                      onClick={() => pickResultFrame(entry.id)}
+                      className={cn('flex h-6 items-center rounded-md px-1.5 text-[11px] font-medium transition-colors', on ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+                    >
+                      {entry.short}
+                    </button>
+                  )
+                })}
+              </div>
+              <div data-result-zoom className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-900/95 p-0.5 ring-1 ring-white/15">
+                <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
+                <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
+                <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
+                <button type="button" aria-label={ko ? '확대' : 'Zoom in'} onClick={() => zoomFromCenter(10)} className={BUTTON}><Plus className="size-3.5" /></button>
+              </div>
+              <button
+                type="button"
+                data-result-preview
+                title={ko ? '결과를 크게 미리보기 · 기기별 (Esc로 닫기)' : 'Preview the result large · per device (Esc closes)'}
+                onClick={() => setMergePreviewOpen(true)}
+                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-200 ring-1 ring-emerald-400/40 transition-colors ring-inset hover:bg-emerald-400/15"
+              >
+                <Play className="size-3" />
+                {ko ? '미리보기' : 'Preview'}
+              </button>
+            </div>
+          )
+        })()}
         {!frame && !designCompare && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
             <div className="pointer-events-auto max-w-64 space-y-3 text-center">
@@ -2143,29 +2201,8 @@ function MergeInfiniteCanvas({
                     onSelectFrame={pickFrame}
                     regionTools={entry.key === 'result' && regionTools ? { ...regionTools, zoom: scale } : undefined}
                     measure={entry.key === 'result'}
-                    viewTools={entry.key === 'result' ? {
-                      device: resultDevice,
-                      // A frame: the Result in that device's shape, refitted.
-                      onDevice: (id) => {
-                        const dev = RESULT_DEVICES.find((entry) => entry.id === id)
-                        const w = layout.result?.w ?? ARTBOARD_PREVIEW_WIDTH
-                        const next = { ...layout, result: { ...layout.result, h: dev ? (w * dev.h) / dev.w : null } }
-                        setResultDevice(id ?? null)
-                        setLayout(next)
-                        setView(fitView(next, { only: ['result'] }))
-                      },
-                      zoom: scale,
-                      percent: view.zoom,
-                      onFit: () => setView(fitView(layout, { only: ['result'] })),
-                      onActual: () => setView((v) => {
-                        // (Its top-left stays where the fit would put it.)
-                        const fitted = fitView(layout, { only: ['result'] })
-                        const k = 100 / fitted.zoom
-                        return { zoom: 100, x: fitted.x + (layout.result?.x ?? 0) * (fitted.zoom / 100) * (1 - k), y: fitted.y + (layout.result?.y ?? 0) * (fitted.zoom / 100) * (1 - k) }
-                      }),
-                      onZoom: zoomFromCenter,
-                      onExpand: () => setMergePreviewOpen(true),
-                    } : undefined}
+                    // (Its frame, zoom and preview are the Result pane's header.)
+                    viewTools={entry.key === 'result' ? { device: resultDevice } : undefined}
                   />
                 ))
               ) : frame && (

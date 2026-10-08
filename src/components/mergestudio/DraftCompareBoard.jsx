@@ -102,14 +102,23 @@ function useClearInsets(ref) {
   return insets
 }
 
-// The pane's view: every draft at once in a grid, or one draft alone.
+// The pane's view: every draft at once, or just the ones picked (A and B,
+// A and C, one alone…), split side by side.
 const ALL = 'all'
 const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)
 
 export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5 }) {
-  const [mode, setMode] = useState(ALL)
-  const shown = mode === ALL ? compared : compared.filter((option) => option.key === mode)
+  // null: every draft; else the keys picked to be shown.
+  const [picked, setPicked] = useState(null)
+  const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
   const options = shown.length ? shown : compared
+  const mode = picked ? picked.join(',') : ALL
+  // A letter adds or takes out its draft; none left, or every one, is all.
+  function toggle(key) {
+    const current = picked ?? []
+    const next = current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]
+    setPicked(next.length === 0 || next.length === compared.length ? null : compared.map((option) => option.key).filter((entry) => next.includes(entry)))
+  }
   const ko = getLanguage() === 'ko'
   const paneRef = useRef(null)
   const insets = useClearInsets(paneRef)
@@ -121,7 +130,8 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState(null) // { key, id }
   const count = options.length
-  const cols = Math.max(1, Math.ceil(Math.sqrt(count)))
+  // Up to three side by side; more in a grid.
+  const cols = count <= 3 ? count : Math.ceil(Math.sqrt(count))
   const rows = Math.max(1, Math.ceil(count / cols))
   useEffect(() => {
     const element = firstCellRef.current
@@ -224,16 +234,16 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
     >
       <div className="mb-2 flex shrink-0 items-center gap-2">
         <h2 className="shrink-0 text-xs font-semibold text-slate-200">{ko ? '시안 비교' : 'Drafts'}</h2>
-        {/* The view: all of them side by side, or one draft by itself. */}
+        {/* The view: all of them, or the drafts picked here, side by side. */}
         <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5">
           <button
             type="button"
             role="tab"
-            aria-selected={mode === ALL}
+            aria-selected={!picked}
             data-draft-view={ALL}
             title={ko ? `전체 한 번에 비교 · ${compared.length}개` : `Compare all · ${compared.length}`}
-            onClick={() => setMode(ALL)}
-            className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', mode === ALL ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+            onClick={() => setPicked(null)}
+            className={cn('flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
           >
             <LayoutGrid className="size-3.5" />
             {ko ? '전체' : 'All'}
@@ -243,11 +253,11 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
               key={option.key}
               type="button"
               role="tab"
-              aria-selected={mode === option.key}
+              aria-selected={Boolean(picked?.includes(option.key))}
               data-draft-view={option.key}
-              title={option.label}
-              onClick={() => setMode(option.key)}
-              className={cn('flex size-6 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', mode === option.key ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+              title={ko ? `${option.label} · 눌러서 보기에 넣거나 빼기` : `${option.label} · press to add or take out of the view`}
+              onClick={() => toggle(option.key)}
+              className={cn('flex size-6 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', picked?.includes(option.key) ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200')}
             >
               {letterOf(option, index)}
             </button>

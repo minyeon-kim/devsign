@@ -68,7 +68,9 @@ function Group({ label, children }) {
 // bezel and a deep soft shadow, scaled to fit the space between the header
 // and the bottom info pill. Layers can be hovered and clicked to inspect.
 // Esc closes.
-function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, onClose }) {
+// `frameOverride`: the screen to show instead of the item's page (a mix of
+// drafts' composed Result).
+function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, onClose, frameOverride = null }) {
   const { getFileLines } = useWorkspace()
   const [device, setDevice] = useState('mobile')
   const [source, setSource] = useState('merged')
@@ -94,7 +96,9 @@ function MergePreviewOverlay({ item, resolutions, annotations, preset, assemblie
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const { frame, overrides } = buildOverrides(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, getFileLines)
+  const built = buildOverrides(item, resolutions, annotations, preset, assemblies, extraLayers, manualCode, getFileLines)
+  const frame = frameOverride ?? built.frame
+  const overrides = built.overrides
   const dev = DEVICES.find((d) => d.id === device)
   const rotated = landscape && device !== 'desktop'
   const vw = rotated ? dev.h : dev.w
