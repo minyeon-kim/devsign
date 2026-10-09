@@ -1,6 +1,6 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
@@ -600,6 +600,17 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 function RegionTools({ frame, scale, boxH, tools, overrides }) {
   // Whether the group is being dragged.
   const [drag, setDrag] = useState(false)
+  // The actions go under the region — or over it when the parts bar (or
+  // the window's edge) leaves no room below.
+  const bandRef = useRef(null)
+  const [above, setAbove] = useState(false)
+  useLayoutEffect(() => {
+    const band = bandRef.current?.getBoundingClientRect()
+    if (!band) return
+    const floor = document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect().top ?? window.innerHeight
+    const next = band.bottom + 48 > floor
+    if (next !== above) setAbove(next)
+  })
   // When the last click landed: the one that picked this region, then each
   // click through it. Two inside a double-click's time make a double-click
   // (the browser's own dblclick is lost as this bar comes and goes).
@@ -607,9 +618,6 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   useEffect(() => {
     lastTap.current = performance.now()
   }, [tools.selected])
-  // The pane's dock at the bottom, where the region's actions sit.
-  const [dockEl, setDockEl] = useState(null)
-  useEffect(() => setDockEl(document.querySelector('[data-result-dock]')), [])
   const regions = frame.regions ?? []
   const region = regions.find((entry) => entry.id === tools.selected)
   if (!region) return null
@@ -665,10 +673,10 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const BUTTON = 'ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} className={cn('pointer-events-auto absolute inset-x-0 cursor-move rounded-sm ring-2 ring-sky-400 ring-inset', drag && 'bg-sky-400/10')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translateX(${offset.x * scale}px)` }} />
-      {/* The region's actions: in the pane's dock, clear of the screen. */}
-      {dockEl && createPortal(
-        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 pr-1 pl-1 whitespace-nowrap shadow-lg backdrop-blur-md">
+      <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} className={cn('pointer-events-auto absolute inset-x-0 cursor-move rounded-sm ring-2 ring-sky-400 ring-inset', drag && 'bg-sky-400/10')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translateX(${offset.x * scale}px)` }} />
+      {/* The region's actions, right under it (kept one size at any zoom). */}
+      {(
+        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 pr-1 pl-1 whitespace-nowrap shadow-lg backdrop-blur-md" style={{ top: above ? (region.y + offset.y) * scale - 8 / (tools.zoom || 1) : (region.y + offset.y + region.height) * scale + 8 / (tools.zoom || 1), left: offset.x * scale, transform: `scale(${1 / (tools.zoom || 1)})${above ? ' translateY(-100%)' : ''}`, transformOrigin: 'top left' }}>
           <span data-region-source className="flex h-5 items-center gap-1 rounded-full bg-emerald-400/15 px-2 text-[10.5px] font-semibold text-emerald-300">
             {letter ? (ko ? `시안 ${letter}` : `Draft ${letter}`) : null}
             <span className="font-medium text-slate-300"><LocalizedText text={region.label} />{region.copyOf && (ko ? ' · 복제' : ' · copy')}</span>
@@ -678,8 +686,7 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
           <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={BUTTON}><ArrowDown className="size-3.5" /></button>
           {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '복제 (바로 아래에)' : 'Duplicate (right below)'} onClick={() => tools.onDuplicate(region.id)} className={BUTTON}><Copy className="size-3.5" /></button>}
           <button type="button" data-region-remove aria-label={ko ? '삭제' : 'Remove'} title={ko ? '삭제 (Delete)' : 'Remove (Delete)'} onClick={() => tools.onRemove(region.id)} className={BUTTON}><Trash2 className="size-3.5" /></button>
-        </div>,
-        dockEl
+        </div>
       )}
     </div>
   )
@@ -1350,10 +1357,10 @@ function MergeInfiniteCanvas({
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
     const top = designCompare ? 64 : TOP_CONTROLS_CLEARANCE
-    // Comparing drafts, the parts picker is docked at the bottom, with the
-    // selection's tools just above it: the Result stays clear of both.
+    // Comparing drafts, the parts bar is docked at the bottom: the Result
+    // stays clear of it.
     const picker = designCompare && document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect()
-    if (picker?.height) visBottom = Math.min(visBottom, picker.top - rect.top - 56)
+    if (picker?.height) visBottom = Math.min(visBottom, picker.top - rect.top - 20)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -2101,10 +2108,6 @@ function MergeInfiniteCanvas({
     // keeps `bg-canvas`, since it sits inside a card.
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
-        {/* Comparing drafts: the selection's tools (a region's, or one
-            element's) dock at the bottom of the Result pane, just above the
-            parts picker docked there. */}
-        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[68px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the
             full preview. */}
@@ -2539,7 +2542,7 @@ function MergeInfiniteCanvas({
         members={otherMembers}
         scopeKey={item.id}
         // Comparing drafts: off the Result and its tools, never over them.
-        avoid={designCompare ? '[data-draft-board], [data-frame-box], [data-result-header] > *, [data-mix-pane] > *, [data-result-dock] > *, [data-history-controls], [data-geom-toolbar]' : undefined}
+        avoid={designCompare ? '[data-draft-board], [data-frame-box], [data-result-header] > *, [data-mix-pane] > *, [data-region-toolbar], [data-history-controls], [data-geom-toolbar]' : undefined}
       />
       {!designCompare && <MergeCanvasControls
         zoom={view.zoom}

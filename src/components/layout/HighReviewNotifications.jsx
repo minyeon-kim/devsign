@@ -19,7 +19,7 @@ function findBell() {
 // project's Workspace. `restart` puts the conflict back before its review.
 const NAV_REQUEST_DELAY_MS = 4000
 // How long the notices stay up before going (they're kept in the Inbox).
-const AUTO_HIDE_MS = 8000
+const AUTO_HIDE_MS = 6000
 // Each scenario's request: the conflict it's about.
 const REQUESTS = {
   'mobile-nav-revamp': { conflictId: 'cc-4' },
@@ -48,13 +48,31 @@ function ConflictNotice({ conflict, title, type = 'info', onDismiss, actions }) 
   )
 }
 
+// Once a project's notices have been seen — dismissed, or gone on their
+// own — they don't come back on returning to its Workspace (this browser
+// session, reloads included): they're in the Inbox.
+const SEEN_KEY = 'devsign:notices-seen:v1'
+function readSeen() {
+  try { return new Set(JSON.parse(window.sessionStorage.getItem(SEEN_KEY) ?? '[]')) } catch { return new Set() }
+}
+function markSeen(...ids) {
+  try {
+    const seen = readSeen()
+    ids.forEach((id) => seen.add(id))
+    window.sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
+  } catch { /* storage unavailable: they may show again */ }
+}
+const seenProjects = { has: (id) => readSeen().has(`project:${id}`), add: (id) => markSeen(`project:${id}`) }
+const seenNotifications = { has: (id) => readSeen().has(`notice:${id}`), add: (id) => markSeen(`notice:${id}`) }
+
 // Project-wide review banners survive navigation between project pages.
 // Dismissing a banner leaves its review unread in the inbox.
 export default function HighReviewNotifications() {
   const { conflicts, notifications, projectId, mergeDrawer, setMergeDrawer, exitMergeStudio, openConflictFromNotification, restartConflict, activeView } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const [requestDismissed, setRequestDismissed] = useState(false)
+  const [requestDismissed, setRequestDismissedState] = useState(() => seenProjects.has(projectId))
+  const setRequestDismissed = (value) => { if (value) seenProjects.add(projectId); setRequestDismissedState(value) }
   const onWorkspace = /\/workspace\/?$/.test(pathname)
   const [navDue, setNavDue] = useState(false)
   const isNav = projectId === 'mobile-nav-revamp'
@@ -68,7 +86,7 @@ export default function HighReviewNotifications() {
   const requestConflict = request ? conflicts.find((c) => c.id === request.conflictId) : null
   const requester = allPeople.find((person) => person.id === (requestConflict?.requestedBy ?? requestConflict?.changedBy?.id))?.name ?? 'A teammate'
   const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (isNav && navDue && !navResolved))
-  const seen = useRef(new Set())
+  const seen = useRef(seenNotifications)
   const [visibleIds, setVisibleIds] = useState([])
 
   useEffect(() => {
@@ -99,25 +117,7 @@ export default function HighReviewNotifications() {
   // is also in the bell's Inbox, so nothing is lost when it goes.
   const inWorkspaceView = onWorkspace && activeView !== 'mergeStudio'
   const show = inWorkspaceView && (showRequest || banners.length > 0 || !!entry.prompt) && mergeDrawer !== 'inbox'
-  // Toasts land in the same corner. They stack above this stack instead of
-  // on top of it: its occupied height is published as `--ds-toast-bottom` (read by
-  // the toaster's rule in index.css) for as long as it's on screen.
   const stackRef = useRef(null)
-  useEffect(() => {
-    const el = stackRef.current
-    const root = document.documentElement
-    if (!show || !el) return
-    const publish = () => root.style.setProperty('--ds-toast-bottom', `${Math.round(window.innerHeight - (el.firstElementChild ?? el).getBoundingClientRect().top + 8)}px`)
-    publish()
-    const observer = new ResizeObserver(publish)
-    observer.observe(el)
-    window.addEventListener('resize', publish)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', publish)
-      root.style.removeProperty('--ds-toast-bottom')
-    }
-  }, [show, banners.length, showRequest, entry.prompt])
   function dismissEntry() {
     // Suppressed duplicates must not surface after their summary is closed.
     setVisibleIds(ids => ids.filter(id => !entry.conflictIds.has(notifications.find(n => n.id === id)?.target?.conflictId)))

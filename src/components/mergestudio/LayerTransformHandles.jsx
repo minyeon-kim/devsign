@@ -315,7 +315,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
   // The element's position and size as numbers, to type exactly (frame
   // pixels), its fill / text color / text, and reset / delete — above the
   // element, or in the pane's dock when there is one (`dock`).
-  function toolbar(board, place) {
+  function toolbar(board, place, below = false) {
     const look = onStyle ? board.look : null
     return (
       <div data-geom-toolbar className={`pointer-events-auto ${place} flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 px-1 whitespace-nowrap shadow-lg backdrop-blur-md`}>
@@ -417,7 +417,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
           <div
             data-style-panel={panel}
             onPointerDown={(e) => e.stopPropagation()}
-            className="absolute bottom-full left-0 mb-1.5 flex h-7 items-center rounded-full border border-white/10 bg-card/95 px-1.5 shadow-lg backdrop-blur-md"
+            className={`absolute left-0 flex h-7 items-center rounded-full border border-white/10 bg-card/95 px-1.5 shadow-lg backdrop-blur-md ${below ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}
           >
             {panel === 'fill' && <ColorRow name="fill" value={look.fill} onPick={(hex) => onStyle({ fillColor: hex })} />}
             {panel === 'text' && <ColorRow name="text" value={look.text} onPick={(hex) => onStyle({ textColor: hex })} />}
@@ -461,7 +461,11 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
                   style={{ left: `${fx * 100}%`, top: `${fy * 100}%`, cursor: CURSOR[id] }}
                 />
               ))}
-              {!dockEl && toolbar(board, 'absolute bottom-full left-0 mb-2')}
+              {/* Right by the element — under it, or over it when it's near
+                  the window's bottom — where the pointer already is. */}
+              {!dockEl && (rect.bottom + 96 < (document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect().top ?? window.innerHeight)
+                ? toolbar(board, 'absolute top-full left-0 mt-2', true)
+                : toolbar(board, 'absolute bottom-full left-0 mb-2'))}
             </div>
           </div>
         )
