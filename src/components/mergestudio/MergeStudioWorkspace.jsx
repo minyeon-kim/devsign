@@ -1445,7 +1445,6 @@ function MergeStudioWorkspace({ item }) {
           onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
           onStyle={changeSelectedStyle}
           onDuplicate={designComparison ? duplicateSelected : undefined}
-          dock={designComparison ? '[data-result-dock]' : undefined}
         />
       )}
 

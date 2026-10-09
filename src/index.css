@@ -906,8 +906,11 @@ button.editor-line-comment {
    rendered into <body>, so no panel's overflow or transform can clip it —
    above the bottom edge and off the right edge, never wider than the window. */
 .ds-notification-stack {
+  /* Top right, just under the top bar's bell — where they're kept — so
+     they read as its and stay off the canvas and the bottom panel. (The
+     padding below gives the cards' shadow room; taken back by the margin.) */
   position: fixed;
-  bottom: var(--notification-bottom);
+  top: calc(52px - var(--notification-shadow-room));
   right: var(--notification-right);
   z-index: 1100;
   display: flex;
@@ -920,7 +923,7 @@ button.editor-line-comment {
      square at the stack's edges and the rounded cards read as boxes. */
   --notification-shadow-room: 40px;
   padding: var(--notification-shadow-room) var(--notification-shadow-room) calc(var(--notification-shadow-room) * 2);
-  margin: 0 calc(var(--notification-shadow-room) * -1) calc(var(--notification-shadow-room) * -2) 0;
+  margin: 0 calc(var(--notification-shadow-room) * -1) 0 0;
   width: calc(var(--notification-width) + var(--notification-shadow-room) * 2);
   max-width: calc(100vw - 32px + var(--notification-shadow-room) * 2);
   max-height: calc(min(55dvh, calc(100dvh - 96px - var(--ds-bottom-panel-offset, 0px))) + var(--notification-shadow-room) * 3);
