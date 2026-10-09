@@ -501,7 +501,11 @@ function MergeStudioWorkspace({ item }) {
 
   function selectLayer(layerId, { openDeck = true } = {}) {
     const regionId = layerSource(layerId)?.regionId
-    if (designComparison && draftScreens[item.id] && !regionId) return
+    // (An element added to the Result — a duplicate — is taken on its own.)
+    if (designComparison && draftScreens[item.id] && !regionId) {
+      if (addedLayers.some((layer) => layer.id === layerId)) setSyncSelection({ layerId, element: true })
+      return
+    }
     if (designComparison && regionId) {
       // A first click takes the whole part (to swap, reorder or remove it);
       // a second, inside the part already taken, takes that element — to
@@ -778,7 +782,7 @@ function MergeStudioWorkspace({ item }) {
   const [boardRegion, setBoardRegion] = useState(null)
   const selectedRegionId = layerSource(syncSelection?.layerId)?.regionId ?? null
   useEffect(() => { if (selectedRegionId) setBoardRegion(selectedRegionId) }, [selectedRegionId])
-  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, next))
+  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, ...next }))
   const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
   function reorderRegion(id, index) {
     const rest = shown(mixLayout).filter((entry) => entry !== id)
@@ -790,8 +794,29 @@ function MergeStudioWorkspace({ item }) {
     if (at >= 0) reorderRegion(id, at + by)
   }
   function removeRegion(id) {
-    arrange({ order: mixLayout.order, removed: [...mixLayout.removed, id] })
+    // (An added copy goes away; a region of the screen is taken out.)
+    if (mixLayout.extras.some((extra) => extra.id === id)) arrange({ order: mixLayout.order.filter((entry) => entry !== id), removed: mixLayout.removed, extras: mixLayout.extras.filter((extra) => extra.id !== id) })
+    else arrange({ order: mixLayout.order, removed: [...mixLayout.removed, id] })
     setSyncSelection(null)
+  }
+  // Another copy of a region — a draft's version of it — right after it
+  // (and its other copies) on the Result, then taken (selected).
+  function addRegionCopy(baseId, draftKey) {
+    const ids = new Set(mixLayout.order)
+    let n = mixLayout.extras.filter((extra) => extra.base === baseId).length + 2
+    while (ids.has(`${baseId}~${n}`)) n += 1
+    const id = `${baseId}~${n}`
+    const order = [...mixLayout.order]
+    const last = Math.max(...order.map((entry, i) => (entry === baseId || mixLayout.extras.some((extra) => extra.id === entry && extra.base === baseId) ? i : -1)))
+    order.splice(last + 1, 0, id)
+    arrange({ order, removed: mixLayout.removed.filter((entry) => entry !== baseId), extras: [...mixLayout.extras, { id, base: baseId, draftKey }] })
+    const firstLayer = draftScreens[item.id]?.drafts[draftKey]?.[baseId]?.layers[0]
+    if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${id}--${firstLayer.id}` })
+    setBoardRegion(baseId)
+  }
+  function duplicateRegion(id) {
+    const region = frame0?.regions?.find((entry) => entry.id === id)
+    if (region) addRegionCopy(region.copyOf ?? region.id, region.draftKey)
   }
   // Using a draft for a region that was taken out puts the region back.
   function decideMix(key, decision) {
@@ -799,7 +824,7 @@ function MergeStudioWorkspace({ item }) {
     if (!decision || !id || !mixLayout?.removed.includes(id)) { decide(key, decision); return }
     setResolutions((prev) => {
       const next = { ...prev, [key]: decision }
-      const layout = layoutDecision(item.id, { order: mixLayout.order, removed: mixLayout.removed.filter((entry) => entry !== id) })
+      const layout = layoutDecision(item.id, { order: mixLayout.order, removed: mixLayout.removed.filter((entry) => entry !== id), extras: mixLayout.extras })
       if (layout) next[LAYOUT_KEY] = layout
       else delete next[LAYOUT_KEY]
       return next
@@ -972,6 +997,23 @@ function MergeStudioWorkspace({ item }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selLayer, selIsAdded]
   )
+  // A copy of the selected element, just under it — added to the Result
+  // (its own element from then on: moved, restyled or deleted alone).
+  const duplicateSelected = useCallback(() => {
+    if (!selLayer) return
+    const a = assemblies[selLayer.id] ?? {}
+    const w = a.width ?? selLayer.width
+    const h = a.height ?? selLayer.height
+    const id = `added-${Date.now().toString(36)}`
+    // eslint-disable-next-line no-unused-vars
+    const { regionId, draftKey, ...rest } = selLayer
+    setAddedLayers((prev) => [...prev, { ...rest, id, name: `${selLayer.name ?? 'Element'} copy`, x: selLayer.x + (a.dx ?? 0), y: selLayer.y + (a.dy ?? 0) + h + 8, width: w, height: h }])
+    // eslint-disable-next-line no-unused-vars
+    const { dx, dy, width, height, ...style } = a
+    if (Object.keys(style).length) setAssemblies((prev) => ({ ...prev, [id]: style }))
+    setSyncSelection({ layerId: id, element: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selLayer, assemblies])
   const deleteAddedLayer = useCallback(() => {
     if (!selIsAdded) return
     setAddedLayers((prev) => prev.filter((l) => l.id !== selId))
@@ -1268,7 +1310,8 @@ function MergeStudioWorkspace({ item }) {
               frame={designCompare.frame}
               decisions={resolutions}
               share={draftShare}
-              regionId={boardRegion}
+              regionId={boardRegion?.split('~')[0] ?? null}
+              onAdd={(regionId, draftKey) => addRegionCopy(regionId, draftKey)}
               // Picked right in a draft's cell: that draft's version of the
               // part goes into the Result (and is outlined there).
               onPick={(regionId, draftKey) => {
@@ -1311,6 +1354,7 @@ function MergeStudioWorkspace({ item }) {
             selected: selectedRegion,
             onMove: moveRegion,
             onRemove: removeRegion,
+            onDuplicate: duplicateRegion,
             onReorder: reorderRegion,
             onMoveGroup: moveGroup,
             onEditText: editResultText,
@@ -1409,6 +1453,7 @@ function MergeStudioWorkspace({ item }) {
           onDelete={selIsAdded ? deleteAddedLayer : undefined}
           onReset={!selIsAdded && selHasGeomEdit ? resetSelectedGeom : undefined}
           onStyle={changeSelectedStyle}
+          onDuplicate={designComparison ? duplicateSelected : undefined}
           dock={designComparison ? '[data-result-dock]' : undefined}
         />
       )}

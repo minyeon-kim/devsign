@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -671,11 +671,12 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
         <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 pr-1 pl-1 whitespace-nowrap shadow-lg backdrop-blur-md">
           <span data-region-source className="flex h-5 items-center gap-1 rounded-full bg-emerald-400/15 px-2 text-[10.5px] font-semibold text-emerald-300">
             {letter ? (ko ? `시안 ${letter}` : `Draft ${letter}`) : null}
-            <span className="font-medium text-slate-300"><LocalizedText text={region.label} /></span>
+            <span className="font-medium text-slate-300"><LocalizedText text={region.label} />{region.copyOf && (ko ? ' · 복제' : ' · copy')}</span>
           </span>
           <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
           <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={BUTTON}><ArrowUp className="size-3.5" /></button>
           <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={BUTTON}><ArrowDown className="size-3.5" /></button>
+          {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '복제 (바로 아래에)' : 'Duplicate (right below)'} onClick={() => tools.onDuplicate(region.id)} className={BUTTON}><Copy className="size-3.5" /></button>}
           <button type="button" data-region-remove aria-label={ko ? '삭제' : 'Remove'} title={ko ? '삭제 (Delete)' : 'Remove (Delete)'} onClick={() => tools.onRemove(region.id)} className={BUTTON}><Trash2 className="size-3.5" /></button>
         </div>,
         dockEl

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { RotateCcw, Trash2, Type } from 'lucide-react'
+import { Copy, RotateCcw, Trash2, Type } from 'lucide-react'
 import { SNAP_PX, snapAxis, snapBox, xCandidates, yCandidates } from '@/components/mergestudio/snapGuides'
 
 // Figma-style direct manipulation for the selected canvas element: drag its
@@ -176,7 +176,7 @@ function CopyField({ value, onCommit }) {
   )
 }
 
-function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset, onStyle, dock }) {
+function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onReset, onStyle, onDuplicate, dock }) {
   const [found, setFound] = useState([])
   // The pane's dock (a selector) the toolbar sits in, clear of the screen.
   const [dockEl, setDockEl] = useState(null)
@@ -205,6 +205,19 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
     tick()
     return () => cancelAnimationFrame(raf)
   }, [boards, layerId, frame])
+
+  // ⌘ / Ctrl+D duplicates it.
+  useEffect(() => {
+    if (!onDuplicate) return undefined
+    function key(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && !isTyping()) {
+        e.preventDefault()
+        onDuplicate()
+      }
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [onDuplicate])
 
   // Delete / Backspace removes the element, when deleting is allowed (not
   // while typing in a field).
@@ -365,7 +378,19 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
             )}
           </>
         )}
-        {(onReset || onDelete) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
+        {(onReset || onDelete || onDuplicate) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
+        {onDuplicate && (
+          <button
+            type="button"
+            data-geom-duplicate
+            title="Duplicate (⌘D)"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onDuplicate}
+            className="ds-intrinsic flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+          >
+            <Copy className="size-3" />
+          </button>
+        )}
         {onReset && (
           <button
             type="button"
