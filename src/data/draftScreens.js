@@ -249,7 +249,10 @@ export function composeDraftFrame(itemId, base, picks, fallback = null, layout =
     if (part.height) y += part.height + GAP
     else y += 24 + GAP
   }
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => region.id).join('-')}` : ''}`, layers, regions }
+  // The screen grows to hold everything in it — a part added never spills
+  // past the artboard's bottom edge.
+  const height = Math.max(base.height, y + GAP)
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => region.id).join('-')}` : ''}`, height, layers, regions }
 }
 
 // A whole draft as a screen.

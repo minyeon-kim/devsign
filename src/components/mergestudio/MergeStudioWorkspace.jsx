@@ -1308,6 +1308,9 @@ function MergeStudioWorkspace({ item }) {
               // part goes into the Result.
               onPick={(regionId, draftKey) => {
                 decideMix(regionKey(regionId), draftKey ? { custom: draftKey } : null)
+                // …and it's taken (selected) there, so where it went shows.
+                const firstLayer = draftKey && draftScreens[item.id]?.drafts[draftKey]?.[regionId]?.layers[0]
+                if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${regionId}--${firstLayer.id}` })
               }}
             />
             {/* The divider: drag to give either side more room. */}
