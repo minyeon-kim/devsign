@@ -54,7 +54,7 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
         )}
       </figcaption>
       {/* The cell's window onto its screen: fixed, and the screen moves in it. */}
-      <div ref={cellRef} data-draft-window className="relative min-h-0 flex-1 overflow-hidden" onPointerMove={hoverAt} onPointerLeave={() => { setHoverId(null); setHoverRegion(null) }}>
+      <div ref={cellRef} data-draft-window className={cn('relative min-h-0 flex-1 overflow-hidden', onPick && hoverRegion && !dragging && 'cursor-pointer')} onPointerMove={hoverAt} onPointerLeave={() => { setHoverId(null); setHoverRegion(null) }}>
         <div
           className="absolute top-0 left-0 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/30"
           style={{ width: drawn.width * view.scale, height: drawn.height * view.scale, transform: `translate(${view.x}px, ${view.y}px)` }}
@@ -65,7 +65,12 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
             style={{ width: drawn.width, height: drawn.height, transform: `scale(${view.scale})` }}
             onClick={(event) => {
               const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
-              onSelect(id)
+              // Clicking a part picks it, like its "이걸로" button (taking it
+              // back is the "빼기" button's, not a stray click's); off a part,
+              // it keeps the element for the spacing redlines.
+              if (!onSelect(id, { probe: true })) return
+              if (onPick && hoverRegion) { if (picks[hoverRegion] !== option.key) onPick(hoverRegion, true) }
+              else onSelect(id)
             }}
           >
             {drawn.layers.map((layer) => (
@@ -363,9 +368,12 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             picks={picks}
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
-            onSelect={(id) => {
-              if (draggedRef.current) { draggedRef.current = false; return }
+            onSelect={(id, { probe = false } = {}) => {
+              // (A drag that ended here isn't a click.)
+              if (draggedRef.current) { draggedRef.current = false; return false }
+              if (probe) return true
               setSelected(id ? { key: option.key, id } : null)
+              return true
             }}
           />
         ))}
