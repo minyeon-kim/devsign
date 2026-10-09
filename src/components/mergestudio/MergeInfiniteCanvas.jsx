@@ -2103,7 +2103,7 @@ function MergeInfiniteCanvas({
         {/* Comparing drafts: the selection's tools (a region's, or one
             element's) dock at the bottom of the Result pane, just above the
             parts picker docked there. */}
-        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[212px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
+        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[68px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the
             full preview. */}
