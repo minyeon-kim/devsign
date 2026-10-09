@@ -33,6 +33,17 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
   const [hoverId, setHoverId] = useState(null)
   // The part (region) under the pointer — offered to use in the Result.
   const [hoverRegion, setHoverRegion] = useState(null)
+  // Spacing redlines only while ⌥ / Alt is held (as in Figma): otherwise
+  // the parts to pick stay clean.
+  const [measuring, setMeasuring] = useState(false)
+  useEffect(() => {
+    const on = (event) => setMeasuring(event.altKey)
+    const off = () => setMeasuring(false)
+    window.addEventListener('keydown', on)
+    window.addEventListener('keyup', on)
+    window.addEventListener('blur', off)
+    return () => { window.removeEventListener('keydown', on); window.removeEventListener('keyup', on); window.removeEventListener('blur', off) }
+  }, [])
   const hoverAt = (event) => {
     const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
     if (id !== hoverId) setHoverId(id)
@@ -74,10 +85,11 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
             }}
           >
             {drawn.layers.map((layer) => (
-              <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} selected={selected === layer.id} onSelect={() => {}} />
+              <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} selected={measuring && selected === layer.id} onSelect={() => {}} />
             ))}
-            <SpacingOverlay container={container} frame={drawn} selectedId={selected} hoverId={hoverId} version={view.scale} />
-            {/* Picking here. A part this draft gives the Result carries a ✓.
+            {measuring && <SpacingOverlay container={container} frame={drawn} selectedId={selected} hoverId={hoverId} version={view.scale} />}
+            {/* Picking here. A part this draft gives the Result carries a ✓
+                (no outline: only the part pointed at is outlined).
                 Pointing at a part tints it and says what a click does —
                 swap it into the Result — with "+ 추가" to add it as one
                 more, below the one there. Kept one size at any zoom. */}
@@ -87,7 +99,7 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
               if (!used && !offered) return null
               const k = 1 / view.scale
               return (
-                <div key={region.id} data-draft-part={region.id} data-draft-part-used={used || undefined} className="pointer-events-none absolute inset-x-0 z-30 rounded-[6px]" style={{ top: region.y, height: region.height, boxShadow: `0 0 0 ${2 * k}px ${used ? 'rgb(110 231 183)' : 'rgb(56 189 248)'}`, background: offered && !used ? 'rgba(56,189,248,0.10)' : undefined }}>
+                <div key={region.id} data-draft-part={region.id} data-draft-part-used={used || undefined} className="pointer-events-none absolute inset-x-0 z-30 rounded-[6px]" style={{ top: region.y, height: region.height, boxShadow: offered ? `0 0 0 ${2 * k}px ${used ? 'rgb(110 231 183)' : 'rgb(56 189 248)'}` : undefined, background: offered && !used ? 'rgba(56,189,248,0.10)' : undefined }}>
                   {used && (
                     <span title={ko ? '결과에 사용 중' : 'Used in the Result'} className="absolute top-0 left-0 flex size-4 items-center justify-center rounded-full bg-emerald-300 text-[10px] leading-none font-bold text-slate-950 shadow" style={{ transform: `translate(${4 * k}px, ${4 * k}px) scale(${k})`, transformOrigin: 'top left' }}>
                       ✓
