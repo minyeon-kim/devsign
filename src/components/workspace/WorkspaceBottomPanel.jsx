@@ -89,7 +89,9 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     if (checkGuide?.conflictId === reviewConflictId) return
     // A height the user dragged to is theirs: it's what opens. Otherwise
     // the default share of the window.
-    const target = userHeight ?? Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * REVIEW_SHARE))
+    // (Never a sliver: a tiny saved height — an old stray click on the
+    // edge — opens at the list's usual height.)
+    const target = userHeight != null ? Math.max(LIST_MIN_HEIGHT, userHeight) : Math.max(REVIEW_MIN_HEIGHT, Math.round(window.innerHeight * REVIEW_SHARE))
     setBottomPanel({ open: true, height: target, tab: reviewTabFor(conflicts.find(record => record.id === reviewConflictId) ?? { id: reviewConflictId }) })
   }, [reviewConflictId, setBottomPanel])
 
@@ -145,6 +147,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
     let frame = 0
 
     function onMove(m) {
+      // (A press that barely moves is a click, not a resize.)
+      if (latest == null && Math.abs(m.clientY - startY) < 4) return
       latest = Math.min(limit, Math.max(MIN_HEIGHT, startHeight + startY - m.clientY))
       // One update a frame, however fast the pointer reports.
       if (!frame) frame = requestAnimationFrame(() => { frame = 0; setDragHeight(latest) })
@@ -157,7 +161,18 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
       setDragHeight(null)
-      if (latest == null) return
+      // A click on the edge of the closed panel opens it at its full,
+      // usual size — as a tab does — not a sliver.
+      if (latest == null) {
+        if (!open) setBottomPanel({ open: true })
+        return
+      }
+      // A short pull up from closed opens it at its usual size too; only
+      // a real drag sets (and keeps) a height of its own.
+      if (!open && latest < LIST_MIN_HEIGHT * 0.6) {
+        setBottomPanel({ open: true, maximized: false })
+        return
+      }
       if (!open) openedByDrag.current = true
       setBottomPanel({ height: latest, userHeight: latest, open: true, maximized: false })
     }

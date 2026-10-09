@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { LayoutGrid, Minus, Plus, ScanEye } from 'lucide-react'
+import { LayoutGrid, Minus, Plus } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { optionEffects } from '@/components/mergestudio/DesignComparison'
@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null, picks = {}, onPick, onAdd, dragging = false }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, onAdd, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -77,16 +77,6 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
               <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} selected={selected === layer.id} onSelect={() => {}} />
             ))}
             <SpacingOverlay container={container} frame={drawn} selectedId={selected} hoverId={hoverId} version={view.scale} />
-            {/* The part selected on the Result (or in the picker), outlined
-                here too — the same part in every draft — the rest dimmed. */}
-            {(() => {
-              const band = regionId && drawn.regions?.find((region) => region.id === regionId)
-              if (!band) return null
-              const k = 1 / view.scale
-              return (
-                <div data-draft-region-highlight={regionId} aria-hidden className="pointer-events-none absolute inset-x-0 z-20 rounded-[6px]" style={{ top: band.y, height: band.height, boxShadow: `0 0 0 ${2 * k}px rgb(110 231 183), 0 0 0 9999px rgba(15,23,42,0.35)` }} />
-              )
-            })()}
             {/* Picking here. A part this draft gives the Result carries a ✓.
                 Pointing at a part tints it and says what a click does —
                 swap it into the Result — with "+ 추가" to add it as one
@@ -170,11 +160,10 @@ function useClearInsets(ref) {
 const ALL = 'all'
 const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)
 
-// `regionId`: the part selected on the Result, outlined in every cell.
 // `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
 // Result (null takes it back).
 // `onAdd(regionId, draftKey)`: add a draft's version of a part as one more.
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null, onPick, onAdd }) {
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onAdd }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -196,9 +185,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const [view, setView] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState(null) // { key, id }
-  // Whether the part selected on the Result is outlined here — off, to see
-  // the drafts as they are.
-  const [outline, setOutline] = useState(true)
   const count = options.length
   // Up to three side by side; more in a grid.
   const cols = count <= 3 ? count : Math.ceil(Math.sqrt(count))
@@ -297,7 +283,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   return (
     <section
       data-draft-board
-      data-draft-region={regionId ?? undefined}
       aria-label={ko ? '시안 비교' : 'Draft comparison'}
       ref={paneRef}
       className="flex h-full min-h-0 min-w-0 shrink-0 flex-col px-3"
@@ -334,19 +319,8 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
           ))}
         </div>
         <span className="min-w-0 flex-1" />
-        {/* One group: outline the picked part · fit · zoom. */}
+        {/* One group: fit · zoom. */}
         <div data-board-zoom className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
-          <button
-            type="button"
-            data-board-outline
-            aria-pressed={outline}
-            title={outline ? (ko ? '선택한 요소 표시 끄기' : 'Stop outlining the selected part') : (ko ? '선택한 요소 표시 켜기' : 'Outline the selected part')}
-            onClick={() => setOutline((value) => !value)}
-            className={cn(BUTTON, outline ? 'text-emerald-300' : 'text-slate-500')}
-          >
-            <ScanEye className="size-3.5" />
-          </button>
-          <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
           <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
           <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3.5" /></button>
           <span data-board-percent className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
@@ -375,7 +349,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             totalParts={totalParts}
             cellRef={index === 0 ? firstCellRef : undefined}
             selected={selected?.key === option.key ? selected.id : null}
-            regionId={outline ? regionId : null}
             picks={picks}
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}

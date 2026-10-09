@@ -777,11 +777,6 @@ function MergeStudioWorkspace({ item }) {
     const id = layerSource(syncSelection?.layerId)?.regionId
     return id && !mixLayout.removed.includes(id) ? id : null
   })() : null
-  // The part the drafts pane outlines: the last one pointed to — selected on
-  // the Result, or chosen in the picker (even before it's in the Result).
-  const [boardRegion, setBoardRegion] = useState(null)
-  const selectedRegionId = layerSource(syncSelection?.layerId)?.regionId ?? null
-  useEffect(() => { if (selectedRegionId) setBoardRegion(selectedRegionId) }, [selectedRegionId])
   const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, ...next }))
   const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
   function reorderRegion(id, index) {
@@ -812,7 +807,6 @@ function MergeStudioWorkspace({ item }) {
     arrange({ order, removed: mixLayout.removed.filter((entry) => entry !== baseId), extras: [...mixLayout.extras, { id, base: baseId, draftKey }] })
     const firstLayer = draftScreens[item.id]?.drafts[draftKey]?.[baseId]?.layers[0]
     if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${id}--${firstLayer.id}` })
-    setBoardRegion(baseId)
   }
   function duplicateRegion(id) {
     const region = frame0?.regions?.find((entry) => entry.id === id)
@@ -1275,7 +1269,6 @@ function MergeStudioWorkspace({ item }) {
           <MixPanel
             // A part picked from the list is outlined on the Result too.
             onShowRegion={(regionId) => {
-              setBoardRegion(regionId)
               const first = frame0?.layers.find((layer) => layer.regionId === regionId)
               if (first) setSyncSelection({ layerId: first.id })
             }}
@@ -1310,13 +1303,11 @@ function MergeStudioWorkspace({ item }) {
               frame={designCompare.frame}
               decisions={resolutions}
               share={draftShare}
-              regionId={boardRegion?.split('~')[0] ?? null}
               onAdd={(regionId, draftKey) => addRegionCopy(regionId, draftKey)}
               // Picked right in a draft's cell: that draft's version of the
-              // part goes into the Result (and is outlined there).
+              // part goes into the Result.
               onPick={(regionId, draftKey) => {
                 decideMix(regionKey(regionId), draftKey ? { custom: draftKey } : null)
-                setBoardRegion(regionId)
               }}
             />
             {/* The divider: drag to give either side more room. */}
