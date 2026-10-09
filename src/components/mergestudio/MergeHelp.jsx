@@ -89,7 +89,7 @@ function CoachMarks({ onClose }) {
   )
 }
 
-function MergeHelp({ inline = false }) {
+function MergeHelp({ inline = false, compact = false }) {
   const [open, setOpen] = useState(false)
   return (
     <div className={inline ? 'shrink-0' : 'absolute bottom-5 left-4 z-40'}>
@@ -100,7 +100,9 @@ function MergeHelp({ inline = false }) {
         title="Merge Studio help"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className={cn(inline && 'merge-help-inline', 'flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', open && 'bg-muted', FLOATING_PILL)}
+        className={compact
+          ? cn('ds-intrinsic flex size-9 items-center justify-center rounded-lg bg-white/[0.05] text-[13px] font-semibold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1]', open && 'bg-white/[0.1]')
+          : cn(inline && 'merge-help-inline', 'flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', open && 'bg-muted', FLOATING_PILL)}
       >
         <span aria-hidden>?</span>
       </button>
