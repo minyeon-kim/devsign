@@ -203,16 +203,20 @@ const GAP = 22
 // Arranging is by order, never by position: a region lands wherever the
 // ones before it end.
 export const LAYOUT_KEY = 'layout:regions'
+// `extras`: copies of a region added to the screen ({ id, base, draftKey }),
+// each taking its place in `order` like any region.
 export function regionLayout(itemId, decisions) {
-  const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
+  const baseIds = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
   const saved = decisions?.[LAYOUT_KEY]?.custom ?? {}
+  const extras = (saved.extras ?? []).filter((extra) => baseIds.includes(extra.base))
+  const ids = [...baseIds, ...extras.map((extra) => extra.id)]
   const order = [...(saved.order ?? []).filter((id) => ids.includes(id)), ...ids.filter((id) => !(saved.order ?? []).includes(id))]
-  return { order, removed: (saved.removed ?? []).filter((id) => ids.includes(id)) }
+  return { order, removed: (saved.removed ?? []).filter((id) => ids.includes(id)), extras }
 }
 // The decision that records an arrangement (null: the screen's own).
-export function layoutDecision(itemId, { order, removed }) {
+export function layoutDecision(itemId, { order, removed, extras = [] }) {
   const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
-  return order.join() === ids.join() && !removed.length ? null : { custom: { order, removed } }
+  return order.join() === ids.join() && !removed.length && !extras.length ? null : { custom: { order, removed, extras } }
 }
 
 // (`layout`: regionLayout's — the screen's own order, all of it, without.)
@@ -224,15 +228,24 @@ export function composeDraftFrame(itemId, base, picks, fallback = null, layout =
   // its band on the screen and the draft it came from.
   const regions = []
   let y = TOP
-  const arranged = layout ? layout.order.filter((id) => !layout.removed.includes(id)).map((id) => screen.regions.find((region) => region.id === id)).filter(Boolean) : screen.regions
+  // (An added copy is its base region again, from the draft it was added
+  // from, under its own id.)
+  const regionOf = (id) => {
+    const own = screen.regions.find((region) => region.id === id)
+    if (own) return own
+    const extra = layout?.extras?.find((entry) => entry.id === id)
+    const base = extra && screen.regions.find((region) => region.id === extra.base)
+    return base ? { ...base, id: extra.id, base: base.id, draftKey: extra.draftKey } : null
+  }
+  const arranged = layout ? layout.order.filter((id) => !layout.removed.includes(id)).map(regionOf).filter(Boolean) : screen.regions
   for (const region of arranged) {
-    const draftKey = picks[region.id] ?? fallback
-    const part = draftKey && screen.drafts[draftKey]?.[region.id]
+    const draftKey = picks[region.id] ?? region.draftKey ?? fallback
+    const part = draftKey && screen.drafts[draftKey]?.[region.base ?? region.id]
     if (!part) continue
     for (const layer of part.layers) {
       layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, y: y + layer.y, regionId: region.id, draftKey })
     }
-    regions.push({ id: region.id, label: region.label, y: y - GAP / 2, height: Math.max(part.height, 24) + GAP, draftKey, picked: Boolean(picks[region.id]) })
+    regions.push({ id: region.id, label: region.label, y: y - GAP / 2, height: Math.max(part.height, 24) + GAP, draftKey, picked: Boolean(picks[region.id] ?? region.base), copyOf: region.base })
     if (part.height) y += part.height + GAP
     else y += 24 + GAP
   }

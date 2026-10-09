@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null, picks = {}, onPick, dragging = false }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null, picks = {}, onPick, onAdd, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -65,9 +65,9 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
             style={{ width: drawn.width, height: drawn.height, transform: `scale(${view.scale})` }}
             onClick={(event) => {
               const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
-              // Clicking a part picks it, like its "이걸로" button (taking it
-              // back is the "빼기" button's, not a stray click's); off a part,
-              // it keeps the element for the spacing redlines.
+              // Clicking a part swaps this draft's version into the Result
+              // (one already there stays: taking a part out is the Result's
+              // 🗑); off a part, it keeps the element for the spacing redlines.
               if (!onSelect(id, { probe: true })) return
               if (onPick && hoverRegion) { if (picks[hoverRegion] !== option.key) onPick(hoverRegion, true) }
               else onSelect(id)
@@ -87,33 +87,43 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
                 <div data-draft-region-highlight={regionId} aria-hidden className="pointer-events-none absolute inset-x-0 z-20 rounded-[6px]" style={{ top: band.y, height: band.height, boxShadow: `0 0 0 ${2 * k}px rgb(110 231 183), 0 0 0 9999px rgba(15,23,42,0.35)` }} />
               )
             })()}
-            {/* Picking here: the parts this draft gives the Result are marked
-                (✓); pointing at a part offers it — "이걸로" puts this draft's
-                version in the Result, "빼기" takes it back. Kept one size at
-                any zoom. */}
+            {/* Picking here. A part this draft gives the Result carries a ✓.
+                Pointing at a part tints it and says what a click does —
+                swap it into the Result — with "+ 추가" to add it as one
+                more, below the one there. Kept one size at any zoom. */}
             {onPick && drawn.regions?.map((region) => {
               const used = picks[region.id] === option.key
               const offered = !dragging && hoverRegion === region.id
               if (!used && !offered) return null
               const k = 1 / view.scale
               return (
-                <div key={region.id} data-draft-part={region.id} data-draft-part-used={used || undefined} className="pointer-events-none absolute inset-x-0 z-30 rounded-[6px]" style={{ top: region.y, height: region.height, boxShadow: `0 0 0 ${2 * k}px ${used ? 'rgb(110 231 183)' : 'rgb(56 189 248)'}`, background: offered ? (used ? 'rgba(110,231,183,0.06)' : 'rgba(56,189,248,0.06)') : undefined }}>
+                <div key={region.id} data-draft-part={region.id} data-draft-part-used={used || undefined} className="pointer-events-none absolute inset-x-0 z-30 rounded-[6px]" style={{ top: region.y, height: region.height, boxShadow: `0 0 0 ${2 * k}px ${used ? 'rgb(110 231 183)' : 'rgb(56 189 248)'}`, background: offered && !used ? 'rgba(56,189,248,0.10)' : undefined }}>
                   {used && (
                     <span title={ko ? '결과에 사용 중' : 'Used in the Result'} className="absolute top-0 left-0 flex size-4 items-center justify-center rounded-full bg-emerald-300 text-[10px] leading-none font-bold text-slate-950 shadow" style={{ transform: `translate(${4 * k}px, ${4 * k}px) scale(${k})`, transformOrigin: 'top left' }}>
                       ✓
                     </span>
                   )}
                   {offered && (
-                    <button
-                      type="button"
-                      data-draft-use={region.id}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => { event.stopPropagation(); onPick(region.id, !used) }}
-                      className={cn('ds-intrinsic pointer-events-auto absolute top-1 right-1 rounded-full px-3 py-1 text-[11px] font-semibold shadow-lg transition-colors', used ? 'bg-slate-900 text-slate-100 ring-1 ring-white/20 hover:bg-slate-800' : 'bg-sky-400 text-slate-950 hover:bg-sky-300')}
-                      style={{ transform: `scale(${k})`, transformOrigin: 'top right' }}
-                    >
-                      {used ? (ko ? '빼기' : 'Remove') : (ko ? '이걸로' : 'Use this')}
-                    </button>
+                    <>
+                      {/* What a click does, at the part's top left (clear of
+                          the spacing redlines around the element pointed at). */}
+                      <span data-draft-hint className={cn('absolute top-0 left-0 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap shadow-lg', used ? 'bg-emerald-300 text-slate-950' : 'bg-sky-400 text-slate-950')} style={{ transform: `translate(${4 * k}px, ${-50 * k}%) scale(${k})`, transformOrigin: 'top left' }}>
+                        {used ? (ko ? '결과에 사용 중' : 'In the Result') : (ko ? '클릭해서 교체' : 'Click to swap in')}
+                      </span>
+                      {onAdd && (
+                        <button
+                          type="button"
+                          data-draft-add={region.id}
+                          title={ko ? '결과에 하나 더 추가 (지금 것 아래에)' : 'Add one more to the Result (below the current one)'}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => { event.stopPropagation(); onAdd(region.id) }}
+                          className="ds-intrinsic pointer-events-auto absolute top-0 right-0 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-slate-100 shadow-lg ring-1 ring-white/20 transition-colors hover:bg-slate-800"
+                          style={{ transform: `translate(${-4 * k}px, ${4 * k}px) scale(${k})`, transformOrigin: 'top right' }}
+                        >
+                          + {ko ? '추가' : 'Add'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )
@@ -163,7 +173,8 @@ const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ??
 // `regionId`: the part selected on the Result, outlined in every cell.
 // `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
 // Result (null takes it back).
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null, onPick }) {
+// `onAdd(regionId, draftKey)`: add a draft's version of a part as one more.
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null, onPick, onAdd }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -368,6 +379,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             picks={picks}
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
+            onAdd={onAdd && ((region) => onAdd(region, option.key))}
             onSelect={(id, { probe = false } = {}) => {
               // (A drag that ended here isn't a click.)
               if (draggedRef.current) { draggedRef.current = false; return false }
