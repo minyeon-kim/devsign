@@ -463,7 +463,7 @@ function LayerTransformHandles({ layerId, frame, boards, onChange, onDelete, onR
               ))}
               {/* Right by the element — under it, or over it when it's near
                   the window's bottom — where the pointer already is. */}
-              {!dockEl && (rect.bottom + 96 < (document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect().top ?? window.innerHeight)
+              {!dockEl && (rect.bottom + 96 < (document.querySelector('section[aria-label="Bottom panel"]')?.getBoundingClientRect().top ?? window.innerHeight)
                 ? toolbar(board, 'absolute top-full left-0 mt-2', true)
                 : toolbar(board, 'absolute bottom-full left-0 mb-2'))}
             </div>

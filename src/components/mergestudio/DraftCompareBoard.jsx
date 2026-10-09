@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, onAdd, dragging = false }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -91,8 +91,7 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
             {/* Picking here. A part this draft gives the Result carries a ✓
                 (no outline: only the part pointed at is outlined).
                 Pointing at a part tints it and says what a click does —
-                swap it into the Result — with "+ 추가" to add it as one
-                more, below the one there. Kept one size at any zoom. */}
+                swap it into the Result. Kept one size at any zoom. */}
             {onPick && drawn.regions?.map((region) => {
               const used = picks[region.id] === option.key
               const offered = !dragging && hoverRegion === region.id
@@ -112,19 +111,6 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
                       <span data-draft-hint className={cn('absolute top-0 left-0 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap shadow-lg', used ? 'bg-emerald-300 text-slate-950' : 'bg-sky-400 text-slate-950')} style={{ transform: `translate(${4 * k}px, ${-50 * k}%) scale(${k})`, transformOrigin: 'top left' }}>
                         {used ? (ko ? '결과에 사용 중' : 'In the Result') : (ko ? '클릭해서 교체' : 'Click to swap in')}
                       </span>
-                      {onAdd && (
-                        <button
-                          type="button"
-                          data-draft-add={region.id}
-                          title={ko ? '결과에 하나 더 추가 (지금 것 아래에)' : 'Add one more to the Result (below the current one)'}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={(event) => { event.stopPropagation(); onAdd(region.id) }}
-                          className="ds-intrinsic pointer-events-auto absolute top-0 right-0 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-slate-100 shadow-lg ring-1 ring-white/20 transition-colors hover:bg-slate-800"
-                          style={{ transform: `translate(${-4 * k}px, ${4 * k}px) scale(${k})`, transformOrigin: 'top right' }}
-                        >
-                          + {ko ? '추가' : 'Add'}
-                        </button>
-                      )}
                     </>
                   )}
                 </div>
@@ -174,8 +160,7 @@ const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ??
 
 // `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
 // Result (null takes it back).
-// `onAdd(regionId, draftKey)`: add a draft's version of a part as one more.
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onAdd }) {
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -364,7 +349,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             picks={picks}
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
-            onAdd={onAdd && ((region) => onAdd(region, option.key))}
             onSelect={(id, { probe = false } = {}) => {
               // (A drag that ended here isn't a click.)
               if (draggedRef.current) { draggedRef.current = false; return false }

@@ -600,14 +600,14 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 function RegionTools({ frame, scale, boxH, tools, overrides }) {
   // Whether the group is being dragged.
   const [drag, setDrag] = useState(false)
-  // The actions go under the region — or over it when the parts bar (or
+  // The actions go under the region — or over it when the bottom panel (or
   // the window's edge) leaves no room below.
   const bandRef = useRef(null)
   const [above, setAbove] = useState(false)
   useLayoutEffect(() => {
     const band = bandRef.current?.getBoundingClientRect()
     if (!band) return
-    const floor = document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect().top ?? window.innerHeight
+    const floor = document.querySelector('section[aria-label="Bottom panel"]')?.getBoundingClientRect().top ?? window.innerHeight
     const next = band.bottom + 48 > floor
     if (next !== above) setAbove(next)
   })
@@ -1357,10 +1357,6 @@ function MergeInfiniteCanvas({
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
     const top = designCompare ? 64 : TOP_CONTROLS_CLEARANCE
-    // Comparing drafts, the parts bar is docked at the bottom: the Result
-    // stays clear of it.
-    const picker = designCompare && document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect()
-    if (picker?.height) visBottom = Math.min(visBottom, picker.top - rect.top - 20)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
