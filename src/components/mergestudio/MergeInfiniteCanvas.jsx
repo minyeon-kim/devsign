@@ -1350,10 +1350,11 @@ function MergeInfiniteCanvas({
     // space for it. The Result controls still need their normal top clearance.
     // (Comparing drafts the element picker floats and can be moved, so the
     // Result keeps the room: only its title and view tools are cleared.)
-    let top = designCompare ? 64 : TOP_CONTROLS_CLEARANCE
-    // ...unless the picker sits over the Result's side: then below it.
+    const top = designCompare ? 64 : TOP_CONTROLS_CLEARANCE
+    // Comparing drafts, the parts picker is docked at the bottom, with the
+    // selection's tools just above it: the Result stays clear of both.
     const picker = designCompare && document.querySelector('[data-mix-pane] > *')?.getBoundingClientRect()
-    if (picker?.height && picker.right > rect.left && picker.left < rect.right) top = Math.max(top, picker.bottom - rect.top + 16)
+    if (picker?.height) visBottom = Math.min(visBottom, picker.top - rect.top - 56)
     const availH = Math.max(160, visBottom - top)
     const zoom = clampZoom(Math.floor(Math.min(maxZoom, availW / worldW, byWidth ? Infinity : availH / worldH) * 100))
     const k = zoom / 100
@@ -2102,8 +2103,9 @@ function MergeInfiniteCanvas({
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         {/* Comparing drafts: the selection's tools (a region's, or one
-            element's) dock at the bottom of the Result pane, never over it. */}
-        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
+            element's) dock at the bottom of the Result pane, just above the
+            parts picker docked there. */}
+        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[140px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the
             full preview. */}
@@ -2168,6 +2170,9 @@ function MergeInfiniteCanvas({
                 <Play className="size-3" />
                 {ko ? '미리보기' : 'Preview'}
               </button>
+              {/* Undo / redo and help: in this row too, so nothing else
+                  floats over the Result. */}
+              <MergeCanvasControls inline history={editHistory} showZoom={false} />
             </div>
           )
         })()}
@@ -2420,7 +2425,8 @@ function MergeInfiniteCanvas({
             </span>
             <span aria-hidden className="mx-1 h-5 w-px bg-white/10" />
             <MergeShareButton item={item} inline />
-            <button
+            {/* (Comparing drafts, the preview is the Result header's.) */}
+            {!designCompare && <button
               type="button"
               onClick={() => setMergePreviewOpen((v) => !v)}
               title={mergePreviewOpen ? 'Close preview' : 'Preview'}
@@ -2433,7 +2439,7 @@ function MergeInfiniteCanvas({
             >
               {/* Outline play triangle, nudged 1px right to sit optically centered. */}
               <Play className="size-4 translate-x-px" />
-            </button>
+            </button>}
             <button
               type="button"
               title="Notifications"
@@ -2536,7 +2542,7 @@ function MergeInfiniteCanvas({
         // Comparing drafts: off the Result and its tools, never over them.
         avoid={designCompare ? '[data-draft-board], [data-frame-box], [data-result-header] > *, [data-mix-pane] > *, [data-result-dock] > *, [data-history-controls], [data-geom-toolbar]' : undefined}
       />
-      <MergeCanvasControls
+      {!designCompare && <MergeCanvasControls
         zoom={view.zoom}
         onZoomBy={zoomFromCenter}
         onResetZoom={() => zoomFromCenter(100 - view.zoom)}
@@ -2547,7 +2553,7 @@ function MergeInfiniteCanvas({
         guidesVisible={guidesVisible}
         onToggleGuides={onToggleGuides}
         showZoom={!designCompare}
-      />
+      />}
 
 
     </div>
