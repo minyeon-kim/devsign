@@ -597,8 +597,9 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 // `tools`: { selected, zoom, onMove(id, by), onRemove(id), onReorder(id,
 // index), letterOf(draftKey) }. The pointer is read against the artboard's
 // own box on screen, so it's right at any zoom.
-function RegionTools({ frame, scale, boxH, tools }) {
-  const [drag, setDrag] = useState(null)
+function RegionTools({ frame, scale, boxH, tools, overrides }) {
+  // Whether the group is being dragged.
+  const [drag, setDrag] = useState(false)
   // When the last click landed: the one that picked this region, then each
   // click through it. Two inside a double-click's time make a double-click
   // (the browser's own dblclick is lost as this bar comes and goes).
@@ -615,30 +616,25 @@ function RegionTools({ frame, scale, boxH, tools }) {
   const index = regions.indexOf(region)
   const ko = getLanguage() === 'ko'
   const letter = tools.letterOf(region.draftKey)
-  // Where the dragged region would go among the others, from the pointer.
-  function landing(event, box) {
-    const rect = box.getBoundingClientRect()
-    const y = ((event.clientY - rect.top) / rect.height) * (boxH / scale)
-    const others = regions.filter((entry) => entry.id !== region.id)
-    const at = others.filter((entry) => entry.y + entry.height / 2 < y).length
-    const last = others.at(-1)
-    return { index: at, y: at < others.length ? others[at].y : last ? last.y + last.height : region.y }
-  }
+  // The region moves as one group: dragging it shifts all of its elements
+  // together (anywhere — ↑ / ↓ in the dock reorder it); a click without
+  // moving takes the element underneath on its own.
   function startDrag(event) {
     event.stopPropagation()
     event.preventDefault()
-    const box = event.currentTarget.closest('[data-frame-key]').querySelector('[data-frame-box]')
     const start = { x: event.clientX, y: event.clientY }
+    const k = scale * (tools.zoom || 1)
     let moved = false
     const move = (next) => {
       if (!moved && Math.hypot(next.clientX - start.x, next.clientY - start.y) < 4) return
       moved = true
-      setDrag(landing(next, box))
+      setDrag(true)
+      tools.onMoveGroup?.(region.id, Math.round((next.clientX - start.x) / k), Math.round((next.clientY - start.y) / k), { live: true })
     }
     const up = (next) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
-      setDrag(null)
+      setDrag(false)
       if (!moved) {
         // A click, not a drag: it takes the element under the pointer on
         // its own (to move or resize it), through the layer beneath.
@@ -649,12 +645,15 @@ function RegionTools({ frame, scale, boxH, tools }) {
         if (double) editUnder(next)
         return
       }
-      const to = landing(next, box)
-      if (to.index !== index) tools.onReorder(region.id, to.index)
+      tools.onMoveGroup?.(region.id, Math.round((next.clientX - start.x) / k), Math.round((next.clientY - start.y) / k))
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
   }
+  // Where the group sits now: its band, shifted by the offset its elements
+  // carry (they move together, so the first one's says it).
+  const first = frame.layers.find((layer) => layer.regionId === region.id)
+  const offset = { x: overrides?.[first?.id]?.dx ?? 0, y: overrides?.[first?.id]?.dy ?? 0 }
   const stop = (event) => event.stopPropagation()
   // A double-click goes through to the element underneath: its text opens
   // for editing in place.
@@ -666,7 +665,7 @@ function RegionTools({ frame, scale, boxH, tools }) {
   const BUTTON = 'ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} className="pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing" style={{ top: region.y * scale, height: region.height * scale }} />
+      <div data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} className={cn('pointer-events-auto absolute inset-x-0 cursor-move rounded-sm ring-2 ring-sky-400 ring-inset', drag && 'bg-sky-400/10')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translateX(${offset.x * scale}px)` }} />
       {/* The region's actions: in the pane's dock, clear of the screen. */}
       {dockEl && createPortal(
         <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto flex h-7 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 pr-1 pl-1 whitespace-nowrap shadow-lg backdrop-blur-md">
@@ -681,7 +680,6 @@ function RegionTools({ frame, scale, boxH, tools }) {
         </div>,
         dockEl
       )}
-      {drag && <div data-region-drop className="absolute inset-x-0 h-0.5 -translate-y-1/2 bg-emerald-400 shadow-[0_0_0_1px_rgb(52_211_153/40%)]" style={{ top: drag.y * scale }} />}
     </div>
   )
 }
@@ -795,7 +793,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
       </div>
-      {regionTools && <RegionTools frame={frame} scale={scale} boxH={boxH} tools={regionTools} />}
+      {regionTools && <RegionTools frame={frame} scale={scale} boxH={boxH} tools={regionTools} overrides={overrides} />}
       </div>
     </div>
   )
@@ -2105,7 +2103,7 @@ function MergeInfiniteCanvas({
         {/* Comparing drafts: the selection's tools (a region's, or one
             element's) dock at the bottom of the Result pane, just above the
             parts picker docked there. */}
-        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[140px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
+        {designCompare && <div data-result-dock className="pointer-events-none absolute bottom-[212px] left-1/2 z-30 flex -translate-x-1/2 flex-col items-center" />}
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the
             full preview. */}
