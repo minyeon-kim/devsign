@@ -8,8 +8,8 @@ import { getLanguage } from '@/i18n/language'
 // the order they're used, each with one short note — right where it is.
 // Any click or Esc closes it. A mark shows only for what's on screen.
 const MARKS = [
-  { selector: '[data-draft-board]', ko: ['시안 비교', '탭으로 보기 · 끌어서 이동 · ⌘+스크롤 확대'], en: ['Drafts', 'Pick with the tabs · drag to move · ⌘-scroll to zoom'] },
-  { selector: '[data-mix-panel]', ko: ['조합', '요소를 고르고, 쓸 시안을 누르기'], en: ['Mix', 'Pick a part, then the draft to use'] },
+  { selector: '[data-draft-board]', ko: ['시안 비교', '요소에 올리고 "이걸로" · 끌어서 이동 · ⌘+스크롤 확대'], en: ['Drafts', 'Point at a part, "Use this" · drag to move · ⌘-scroll to zoom'] },
+  { selector: '[data-mix-panel]', ko: ['조합 진행', '요소마다 쓰는 시안 · 눌러서 이동'], en: ['Mix', 'The draft each part uses · press to go to it'] },
   { selector: '[data-frame-key="result"] [data-frame-box]', ko: ['결과', '클릭: 영역 → 요소 · 더블클릭: 텍스트 수정'], en: ['Result', 'Click a region · again for one element · double-click for text'] },
   { selector: '[data-merge-request]', ko: ['병합 요청', '조합을 마치면'], en: ['Request merge', 'When the mix is done'] },
 ]

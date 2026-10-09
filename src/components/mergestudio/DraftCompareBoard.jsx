@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, regionId = null, picks = {}, onPick, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -31,9 +31,16 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
   const whole = totalParts > 0 && usedParts === totalParts
   const [container, setContainer] = useState(null)
   const [hoverId, setHoverId] = useState(null)
+  // The part (region) under the pointer — offered to use in the Result.
+  const [hoverRegion, setHoverRegion] = useState(null)
   const hoverAt = (event) => {
     const id = event.target.closest?.('[data-layer-id]')?.getAttribute('data-layer-id') ?? null
     if (id !== hoverId) setHoverId(id)
+    const box = container?.getBoundingClientRect()
+    const y = box ? (event.clientY - box.top) / view.scale : -1
+    const inside = box && event.clientX >= box.left && event.clientX <= box.right
+    const region = inside ? drawn.regions?.find((entry) => y >= entry.y && y < entry.y + entry.height)?.id ?? null : null
+    if (region !== hoverRegion) setHoverRegion(region)
   }
   return (
     <figure data-draft-cell={option.key} className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] ring-1 ring-white/[0.08]">
@@ -47,7 +54,7 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
         )}
       </figcaption>
       {/* The cell's window onto its screen: fixed, and the screen moves in it. */}
-      <div ref={cellRef} data-draft-window className="relative min-h-0 flex-1 overflow-hidden" onPointerMove={hoverAt} onPointerLeave={() => setHoverId(null)}>
+      <div ref={cellRef} data-draft-window className="relative min-h-0 flex-1 overflow-hidden" onPointerMove={hoverAt} onPointerLeave={() => { setHoverId(null); setHoverRegion(null) }}>
         <div
           className="absolute top-0 left-0 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/30"
           style={{ width: drawn.width * view.scale, height: drawn.height * view.scale, transform: `translate(${view.x}px, ${view.y}px)` }}
@@ -75,6 +82,37 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
                 <div data-draft-region-highlight={regionId} aria-hidden className="pointer-events-none absolute inset-x-0 z-20 rounded-[6px]" style={{ top: band.y, height: band.height, boxShadow: `0 0 0 ${2 * k}px rgb(110 231 183), 0 0 0 9999px rgba(15,23,42,0.35)` }} />
               )
             })()}
+            {/* Picking here: the parts this draft gives the Result are marked
+                (✓); pointing at a part offers it — "이걸로" puts this draft's
+                version in the Result, "빼기" takes it back. Kept one size at
+                any zoom. */}
+            {onPick && drawn.regions?.map((region) => {
+              const used = picks[region.id] === option.key
+              const offered = !dragging && hoverRegion === region.id
+              if (!used && !offered) return null
+              const k = 1 / view.scale
+              return (
+                <div key={region.id} data-draft-part={region.id} data-draft-part-used={used || undefined} className="pointer-events-none absolute inset-x-0 z-30 rounded-[6px]" style={{ top: region.y, height: region.height, boxShadow: `0 0 0 ${2 * k}px ${used ? 'rgb(110 231 183)' : 'rgb(56 189 248)'}`, background: offered ? (used ? 'rgba(110,231,183,0.06)' : 'rgba(56,189,248,0.06)') : undefined }}>
+                  {used && (
+                    <span title={ko ? '결과에 사용 중' : 'Used in the Result'} className="absolute top-0 left-0 flex size-4 items-center justify-center rounded-full bg-emerald-300 text-[10px] leading-none font-bold text-slate-950 shadow" style={{ transform: `translate(${4 * k}px, ${4 * k}px) scale(${k})`, transformOrigin: 'top left' }}>
+                      ✓
+                    </span>
+                  )}
+                  {offered && (
+                    <button
+                      type="button"
+                      data-draft-use={region.id}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => { event.stopPropagation(); onPick(region.id, !used) }}
+                      className={cn('ds-intrinsic pointer-events-auto absolute top-1 right-1 rounded-full px-3 py-1 text-[11px] font-semibold shadow-lg transition-colors', used ? 'bg-slate-900 text-slate-100 ring-1 ring-white/20 hover:bg-slate-800' : 'bg-sky-400 text-slate-950 hover:bg-sky-300')}
+                      style={{ transform: `scale(${k})`, transformOrigin: 'top right' }}
+                    >
+                      {used ? (ko ? '빼기' : 'Remove') : (ko ? '이걸로' : 'Use this')}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -118,7 +156,9 @@ const ALL = 'all'
 const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ?? String.fromCharCode(65 + index)
 
 // `regionId`: the part selected on the Result, outlined in every cell.
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null }) {
+// `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
+// Result (null takes it back).
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, regionId = null, onPick }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -320,6 +360,9 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             cellRef={index === 0 ? firstCellRef : undefined}
             selected={selected?.key === option.key ? selected.id : null}
             regionId={outline ? regionId : null}
+            picks={picks}
+            dragging={dragging}
+            onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
             onSelect={(id) => {
               if (draggedRef.current) { draggedRef.current = false; return }
               setSelected(id ? { key: option.key, id } : null)
