@@ -9,7 +9,7 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { CONFLICT_TONE_BADGE, CONFLICT_TONE_ICON, conflictAlertTone, conflictCounts, reviewTabFor } from '@/lib/conflicts'
+import { CONFLICT_DOT, conflictCounts, reviewTabFor } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const DEFAULT_TABS = [
@@ -42,7 +42,7 @@ const REVIEW_SHARE = 0.6
 // window floating over it. It spans the workspace's full width on the
 // panel surface with a hairline above; its tab row uses the studio's pill
 // category tabs. Conflict Points sits with the Terminal and Console like
-// a Problems tab, its open count badged on the tab. Drag the grip on its top
+// a Problems tab, a dot on the tab while any is open. Drag the grip on its top
 // edge to resize — a height set that way is kept (`userHeight`, saved with
 // the panel's state) and is what it opens to from then on — or use the
 // button at the strip's right to maximize it to the full height and back.
@@ -120,11 +120,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   useLayoutEffect(() => {
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
   }, [open, height, availableHeight, setBottomPanel])
-  const conflictTotals = conflictCounts(conflicts)
-  const openConflicts = conflictTotals.open
-  // Amber while any conflict is open — on the tab's icon first, its count
-  // second.
-  const conflictTone = conflictAlertTone(conflictTotals)
+  const { open: openConflicts } = conflictCounts(conflicts)
   const designSets = mergeItems.filter((item) => item.hasDesign).length
 
   function maxHeight() {
@@ -270,15 +266,17 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
               onClick={() => pickTab(id)}
               className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
-              <Icon className={cn('size-3', id === 'conflict' && CONFLICT_TONE_ICON[conflictTone])} data-tone={id === 'conflict' ? conflictTone ?? undefined : undefined} />
+              <Icon className="size-3" />
               {label}
+              {/* While any conflict is open: a red dot, no count. */}
               {id === 'conflict' && openConflicts > 0 && (
                 <span
+                  role="img"
+                  aria-label={`${openConflicts} open`}
                   title={`${openConflicts} open`}
-                  className={cn('inline-flex size-3.5 shrink-0 items-center justify-center rounded-full p-0 text-[9px] leading-none font-bold tabular-nums', CONFLICT_TONE_BADGE[conflictTone])}
-                >
-                  {openConflicts}
-                </span>
+                  data-conflict-dot
+                  className={cn('size-1.5 shrink-0 rounded-full', CONFLICT_DOT)}
+                />
               )}
               {id === 'design-compare' && designSets > 0 && (
                 <span
