@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, CircleCheck, FileImage, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople } from '@/data/mockData'
-import { CAN_APPLY_LABEL, CATEGORY_LABEL, DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, REQUEST_FIELD_LABEL, REQUIRED_BY_STAGE, SEVERITY_LABEL, STAGE_GUIDE, TIMING_HINT, TIMING_LABEL, decisionStageOf, defaultTimingFor } from '@/lib/designDecisions'
+import { CAN_APPLY_LABEL, requestBrief, CATEGORY_LABEL, DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, REQUEST_FIELD_LABEL, REQUIRED_BY_STAGE, SEVERITY_LABEL, STAGE_GUIDE, TIMING_HINT, TIMING_LABEL, decisionStageOf, defaultTimingFor } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -169,6 +169,32 @@ function ReasonField({ label, value, onChange, suggestions, placeholder }) {
   )
 }
 
+// What the request says, in the order its stage cares about it: the thing that
+// stage turns on first (kind of problem, importance, what's to change), then
+// the rest. (A request sent before stages had their own fields just has the
+// common rows.)
+function requestRowsOf(request, conflict) {
+  const impact = [...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')
+  const rows = {
+    target: request.target && ['변경 대상', request.target],
+    category: request.category && ['분류', CATEGORY_LABEL[request.category], request.category === 'polish' ? 'text-slate-200' : 'font-medium text-amber-200'],
+    severity: request.severity && ['중요도', SEVERITY_LABEL[request.severity], 'font-medium text-amber-200'],
+    reason: ['변경 사유', request.reason, 'text-slate-100'],
+    expected: request.expected && ['기대 결과', request.expected],
+    affected: ['영향받는 화면·기능', request.affected?.length ? request.affected.join(' · ') : impact],
+    canApplyNow: request.canApplyNow && ['지금 반영 가능 여부', CAN_APPLY_LABEL[request.canApplyNow], 'font-medium text-sky-200'],
+    proposal: request.proposal && ['수정안', `${PROPOSAL_LABEL[request.proposal] ?? request.proposal}${request.proposalNote ? ` · ${request.proposalNote}` : ''}`, 'font-medium text-sky-200'],
+    attachment: ['구현 화면', request.attachment ? <span key="a" className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'],
+    timing: ['희망 반영 시점', TIMING_LABEL[request.timing] ?? '—', 'font-medium text-slate-100'],
+  }
+  const order = {
+    early: ['target', 'reason', 'expected', 'proposal', 'attachment', 'affected', 'timing'],
+    mid: ['severity', 'reason', 'affected', 'canApplyNow', 'proposal', 'attachment', 'timing'],
+    late: ['category', 'reason', 'attachment', 'proposal', 'affected', 'timing'],
+  }[request.devStage] ?? ['reason', 'proposal', 'attachment', 'timing', 'affected']
+  return order.map((key) => rows[key]).filter(Boolean)
+}
+
 // The request as sent: who, why, what's attached and proposed, and when.
 function RequestCard({ conflict }) {
   const request = conflict.decisionRequest
@@ -176,21 +202,16 @@ function RequestCard({ conflict }) {
     <section data-decision-request className={CARD}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
+        {request.devStage && <span data-request-stage className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-medium text-sky-200">{DEV_STAGE_LABEL[request.devStage]}</span>}
         <span className="text-[11px] text-slate-500">개발자 · {request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>
-      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
-        <dt className="text-slate-400">변경 사유</dt>
-        <dd className="text-slate-100">{request.reason}</dd>
-        <dt className="text-slate-400">수정안</dt>
-        <dd className="font-medium text-sky-200">{PROPOSAL_LABEL[request.proposal] ?? request.proposal}{request.proposalNote ? ` · ${request.proposalNote}` : ''}</dd>
-        <dt className="text-slate-400">구현 화면</dt>
-        <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
-        <dt className="text-slate-400">개발 단계</dt>
-        <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
-        <dt className="text-slate-400">희망 반영 시점</dt>
-        <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd>
-        <dt className="text-slate-400">영향 범위</dt>
-        <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
+      <dl className="grid grid-cols-[136px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+        {requestRowsOf(request, conflict).map(([label, value, tone]) => (
+          <Fragment key={label}>
+            <dt className="text-slate-400">{label}</dt>
+            <dd className={cn('text-slate-200', tone)}>{value}</dd>
+          </Fragment>
+        ))}
       </dl>
     </section>
   )
@@ -523,7 +544,7 @@ function DecisionForm({ conflict, onDecide }) {
             name="decision-timing"
             value={timing}
             onChange={setTiming}
-            hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}` : null}
+            hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}${request.devStage ? ` · ${DEV_STAGE_LABEL[request.devStage]} 단계` : ''}` : null}
             options={[['now', '지금 반영'], ['before-release', '출시 전'], ['next-version', '다음 버전']]}
           />
         )}
