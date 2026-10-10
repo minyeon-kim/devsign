@@ -1132,9 +1132,16 @@ export function WorkspaceProvider({ children, projectId }) {
       ?? files.find((file) => file.id === historyFileId)?.lines
       ?? currentSnapshot().lines
     const historyPreviewSide = conflict ? mergedSideForConflict(conflict) : 'after'
-    recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+    // A mix of drafts says what it took from which: "Card layout ← Draft A · …".
+    const picks = item && draftScreens[item.id] ? regionPicks(item.id, mergedResolutions) : {}
+    const picksReason = Object.keys(picks).length
+      ? draftScreens[item.id].regions.filter((region) => picks[region.id])
+        .map((region) => `${region.label} ← 시안 ${String.fromCharCode(65 + Math.max(0, item.variants.findIndex((variant) => variant.key === picks[region.id])))}`).join(' · ')
+      : null
+    const historyId = recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+      ...(picksReason && !conflict && { reason: picksReason }),
       conflictIds: [...mergedIds],
-      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers).filter((r) => r.status === 'approved').map((r) => r.id))],
+      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers ?? []).filter((r) => r.status === 'approved').map((r) => r.id))],
       snapshot: { ...currentSnapshot(), activeFileId: historyFileId, fileId: historyFileId, lines: historyLines,
         files: finalFiles, mergeOutput: output, conflicts: resolvedConflicts, previewProps: nextPreviewProps,
         prototypeEdits: nextPrototypeEdits, activePageId,
@@ -1156,7 +1163,8 @@ export function WorkspaceProvider({ children, projectId }) {
       if (update) setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [...prev, update])
     }
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
-    return true
+    // (Truthy: the checkpoint it saved, for a "View in History" link.)
+    return historyId
   }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits, currentUser.id])
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])

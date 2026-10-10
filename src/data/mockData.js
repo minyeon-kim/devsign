@@ -73,8 +73,8 @@ export const teamMembers = [
   {
     id: 'min',
     name: 'Alex',
-    role: 'Designer',
-    team: 'Product',
+    role: 'Developer',
+    team: 'Engineering',
     initials: 'AL',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
@@ -110,26 +110,56 @@ export const projectViewportSequences = {
 // Jordan on the developer track. A project with no entry falls back to the
 // global `currentUser` default (Taylor).
 export const projectViewerIds = {
+  'dashboard-redesign': 'jane',
   'checkout-redesign': 'jane',
   'mobile-nav-revamp': 'james',
+}
+
+// Projects where more than one person has a UT track: Dashboard Redesign
+// is tested as Taylor (designer — scenarios A and B) and as Alex (developer
+// — scenario C), on the same project and the same Conflict Points. Which of
+// them "you" are is kept in the browser (see setProjectViewer).
+export const projectViewerOptions = {
+  'dashboard-redesign': ['jane', 'min'],
+}
+const viewerKey = (projectId) => `devsign:viewer:${projectId}`
+function storedViewer(projectId) {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(viewerKey(projectId))
+  } catch {
+    return null
+  }
+}
+export function setProjectViewer(projectId, personId) {
+  try {
+    window.localStorage.setItem(viewerKey(projectId), personId)
+  } catch {
+    // Storage blocked — the project's default viewer stays.
+  }
+}
+export function viewerIdFor(projectId) {
+  const stored = storedViewer(projectId)
+  return projectViewerOptions[projectId]?.includes(stored) ? stored : projectViewerIds[projectId]
 }
 
 // The active project's viewer, resolved from the full roster — same shape
 // as `currentUser`, with `role` forced to 'You' so screens that special-
 // case it (e.g. hiding your own role badge in a reviewer/author list) keep
-// working no matter which project's viewer this resolves to.
+// working no matter which project's viewer this resolves to. (`jobRole`
+// keeps the real job title for the screens that branch on it.)
 export function currentUserFor(projectId) {
-  const person = teamMembers.find((p) => p.id === projectViewerIds[projectId])
-  return person ? { ...person, role: 'You' } : currentUser
+  const person = teamMembers.find((p) => p.id === viewerIdFor(projectId))
+  return person ? { ...person, jobRole: person.role, role: 'You' } : { ...currentUser, jobRole: 'Designer' }
 }
 
 // The people with a complete UT track (each project's own scripted
 // scenario) — backs the profile menu's "Switch user" control, where
 // picking one both identifies you and takes you to their project.
-export const viewerPersonas = Object.entries(projectViewerIds).map(([projectId, id]) => ({
-  projectId,
-  person: teamMembers.find((p) => p.id === id),
-}))
+export const viewerPersonas = Object.entries(projectViewerIds).flatMap(([projectId, id]) =>
+  (projectViewerOptions[projectId] ?? [id]).map((personId) => ({
+    projectId,
+    person: teamMembers.find((p) => p.id === personId),
+  })))
 
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
@@ -160,6 +190,17 @@ export const teams = [
 // multi-tenant data model; only the displayed name/metadata differ per
 // project. `memberIds` resolve against `allPeople`.
 export const projects = [
+  {
+    id: 'dashboard-redesign',
+    name: 'Dashboard Redesign',
+    description: 'Dashboard redesign — AI drafts mixed into one design, and the responsive grid kept in sync with the design at 768px.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'min', 'james'],
+    updatedAtLabel: 'Just now',
+    filesCount: 4,
+    thumbnailType: 'checkout',
+    activityCount: 6,
+  },
   {
     id: 'checkout-redesign',
     name: 'Checkout Redesign',
@@ -1064,6 +1105,38 @@ export const mergeListItems = [
     dueBucket: 'soon',
     assigneeId: 'jane',
   },
+  // Dashboard Redesign: two AI drafts of the dashboard, compared in Design
+  // Compare and mixed in Merge Studio. `saveOnFinish`: the designer owns
+  // this screen — finishing the mix saves it (a History checkpoint), no
+  // approval round.
+  {
+    id: 'merge-dashboard-drafts',
+    projectId: 'dashboard-redesign',
+    title: 'Dashboard · AI 시안 A/B',
+    subtitle: 'Design · 2 drafts',
+    tag: 'Needs Review',
+    updatedLabel: 'Just now',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-dashboard',
+    category: 'Dashboard',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+    saveOnFinish: true,
+    // What sets the two drafts apart — shown above them in Design Compare.
+    differences: [
+      { id: 'layout', label: '레이아웃', values: ['2열 카드', '3열 카드'] },
+      { id: 'color', label: '컬러', values: ['Blue CTA', 'Dark CTA'] },
+      { id: 'spacing', label: '간격', values: ['카드 간격 16px · 여백 20px', '카드 간격 8px · 여백 16px'] },
+      { id: 'component', label: '컴포넌트', values: ['아이콘 카드 · 전체 너비 버튼', '숫자 타일 · 캡슐형 버튼 + 가격'] },
+    ],
+    variants: [
+      { key: 'ai-a', label: '2열 카드 · Blue CTA', ai: true },
+      { key: 'ai-b', label: '3열 카드 · Dark CTA', ai: true },
+    ],
+  },
   // Design-only alternatives live in Workspace Design Compare. They are
   // options to compare, not conflicts requiring approval.
   {
@@ -1767,6 +1840,78 @@ export const openFiles = [
 // name/path/lines differ per project, giving each one its own files to
 // switch between instead of every project showing an identical file list.
 export const projectFileSets = {
+  // Dashboard Redesign's files. DashboardGrid.tsx line 7 is the grid Conflict
+  // Point CON-002 is about: at the 768px breakpoint it keeps two columns of
+  // fixed 360px cards, which can't fit — the cards overlap.
+  'dashboard-redesign': [
+    {
+      ...openFiles[0],
+      name: 'DashboardGrid.tsx',
+      path: 'src/components/dashboard/DashboardGrid.tsx',
+      language: 'tsx',
+      lines: [
+        "import { StatCard } from './StatCard'",
+        "import { PurchaseCTA } from './PurchaseCTA'",
+        "import { useBreakpoint } from '@/hooks/useBreakpoint'",
+        '',
+        'export function DashboardGrid({ cards }: { cards: Stat[] }) {',
+        '  const tablet = useBreakpoint() === "tablet" // 768px',
+        '  const columns = tablet ? "repeat(2, 360px)" : "repeat(2, minmax(0, 1fr))"',
+        '',
+        '  return (',
+        '    <section className="dashboard-grid" style={{ gridTemplateColumns: columns }}>',
+        '      {cards.map((card) => <StatCard key={card.id} {...card} />)}',
+        '      <PurchaseCTA />',
+        '    </section>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'dashboard.css',
+      path: 'src/styles/dashboard.css',
+      lines: [
+        '.dashboard-grid {',
+        '  display: grid;',
+        '  gap: var(--space-4); /* 16px */',
+        '  padding: var(--space-5); /* 20px */',
+        '}',
+        '',
+        '.purchase-cta {',
+        '  background: var(--color-cta); /* Blue 600 */',
+        '  border-radius: var(--radius-md);',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'tokens.json',
+      path: 'src/design/tokens.json',
+      lines: [
+        '{',
+        '  "space": { "2": "8px", "4": "16px", "5": "20px" },',
+        '  "color": { "cta": "#2563EB", "ctaDark": "#0F172A" },',
+        '  "radius": { "md": "12px", "pill": "9999px" },',
+        '  "breakpoint": { "tablet": "768px" }',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'PurchaseCTA.tsx',
+      path: 'src/components/dashboard/PurchaseCTA.tsx',
+      language: 'tsx',
+      iconName: 'FileCode',
+      lines: [
+        'export function PurchaseCTA() {',
+        '  return (',
+        '    <button className="purchase-cta">Upgrade to Pro</button>',
+        '  )',
+        '}',
+      ],
+    },
+  ],
   // The Checkout scenario's own files (same four ids as `openFiles`). Line 8
   // of PlaceOrderButton.jsx is the line Conflict Point cc-11's diff, the
   // Merge Studio item and the AI fix all refer to.
@@ -2425,6 +2570,19 @@ export const canvasPages = [
       },
     ],
   },
+  // Dashboard Redesign's design page: the dashboard as designed — draft A
+  // until a mix of the AI drafts (draftScreens) is saved over it.
+  {
+    id: 'page-dashboard',
+    name: 'Dashboard',
+    projectId: 'dashboard-redesign',
+    frames: [
+      (() => {
+        const meta = { id: 'frame-dashboard', name: 'Dashboard', kind: 'frame', x: 80, y: 40, width: 280, height: 520 }
+        return { ...meta, layers: draftFrame('merge-dashboard-drafts', meta, 'ai-a').layers }
+      })(),
+    ],
+  },
   // Checkout Redesign's own design page (see pagesForProject): the payment
   // step with the Place order button (Conflict Point cc-11). The design
   // uses the 44px large button; the code currently renders 40px.
@@ -2832,6 +2990,28 @@ function navCheckpoint({ id, label, branch, actorId, target, timestamp, ...value
   return { id, label, kind: 'edit', branch, ...(actorId && { actorId }), target, timestamp, archived: false, snapshot: navSnapshot(values) }
 }
 
+// Dashboard Redesign's checkpoints: DashboardGrid.tsx as it was (desktop
+// only, before the responsive change) or as it is now.
+const DASHBOARD_GRID_DESKTOP = [
+  "import { StatCard } from './StatCard'",
+  "import { PurchaseCTA } from './PurchaseCTA'",
+  '',
+  'export function DashboardGrid({ cards }: { cards: Stat[] }) {',
+  '  return (',
+  '    <section className="dashboard-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>',
+  '      {cards.map((card) => <StatCard key={card.id} {...card} />)}',
+  '      <PurchaseCTA />',
+  '    </section>',
+  '  )',
+  '}',
+]
+function dashboardCheckpoint({ id, label, reason, actorId, target, timestamp, lines = projectFileSets['dashboard-redesign'][0].lines }) {
+  return {
+    id, label, ...(reason && { reason }), kind: 'edit', ...(actorId && { actorId }), target, timestamp, archived: false,
+    snapshot: { activeFileId: 'app', fileId: 'app', lines, activePageId: 'page-dashboard', conflicts: [], selectedLayerId: null },
+  }
+}
+
 export const projectHistorySeeds = {
   // Mobile Nav Revamp — the sample History playback runs on. Every
   // checkpoint keeps the whole file as it was then (`snapshot.lines`, via
@@ -2862,6 +3042,19 @@ export const projectHistorySeeds = {
     navCheckpoint({ id: 'history-nav-hotfix-2', label: 'Draft 24px icons', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
     { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'Merge unread badge', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx', timestamp: 'Yesterday, 3:15 PM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'] },
     navCheckpoint({ id: 'history-nav-hotfix-3', label: 'Tap area to 48px', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
+  ],
+  // Dashboard Redesign — the AI drafts arriving, the responsive grid going
+  // in, and Conflict Point CON-002 caught on it at 768px. (Draft A is the
+  // design until a mix is saved; the grid code is the file as it is now.)
+  'dashboard-redesign': [
+    dashboardCheckpoint({ id: 'history-db-1', label: 'AI 시안 A · B 생성 (대시보드 리디자인)', actorId: 'jane', target: 'Dashboard.jsx', timestamp: 'Yesterday, 10:20 AM', lines: DASHBOARD_GRID_DESKTOP }),
+    dashboardCheckpoint({ id: 'history-db-2', label: 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정', reason: '태블릿에서도 데스크톱과 같은 2열을 유지하려고', actorId: 'min', target: 'DashboardGrid.tsx · line 7', timestamp: 'Today, 9:05 AM' }),
+    {
+      ...dashboardCheckpoint({ id: 'history-conflict-con-002', label: '768px에서 카드 2열이 겹쳐요 — 디자인 원안과 구조가 달라요 (Structural Drift)', target: 'DashboardGrid.tsx · Structural Drift', timestamp: 'Today, 9:12 AM' }),
+      kind: 'conflict',
+      conflictId: 'CON-002',
+      actorLabel: 'Devsign design ↔ code sync',
+    },
   ],
   'checkout-redesign': [
     {
