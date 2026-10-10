@@ -68,6 +68,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
+import { isDeveloperViewer } from '@/lib/viewerRole'
 import DesignLinkThumb, { DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
@@ -670,7 +671,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       )}
 
       {/* Details: folded; its rows share the same label column. */}
-      <InfoSection sectionRef={detailsRef} title="Details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
+      <InfoSection sectionRef={detailsRef} title="Developer details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
         {showDetails && (
           <dl data-review-summary className={GRID}>
             {conflict.rollback ? [
@@ -901,7 +902,14 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // conflict as it was.
   const [showBefore, setShowBefore] = useState(false)
   // The code section: open by default; folding it is remembered.
-  const [showCode, setShowCode] = useState(() => { try { return localStorage.getItem('devsign.review.showCode') !== '0' } catch { return true } })
+  // (Designers start with it folded, developers with it open; whichever they choose is kept.)
+  const [showCode, setShowCode] = useState(() => {
+    try {
+      const kept = localStorage.getItem('devsign.review.showCode')
+      if (kept === '0' || kept === '1') return kept === '1'
+    } catch { /* not kept */ }
+    return isDeveloperViewer(conflict.projectId)
+  })
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
   // A merge conflict: which side's code to take — the suggested mix by default.

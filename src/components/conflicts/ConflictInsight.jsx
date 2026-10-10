@@ -1,3 +1,4 @@
+import { isDeveloperViewer } from '@/lib/viewerRole'
 import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { useState } from 'react'
@@ -61,7 +62,8 @@ export function MismatchLabel({ conflict, className }) {
 // the code that's live — and anything else as the branch it merges into.
 export function BaselineBadge({ conflict, className }) {
   const baseline = baselineOf(conflict)
-  if (!baseline) return null
+  // Branch names are developer details; a designer isn't shown them here.
+  if (!baseline || !isDeveloperViewer(conflict.projectId)) return null
   return (
     <span
       data-baseline={baseline.production ? 'production' : 'branch'}

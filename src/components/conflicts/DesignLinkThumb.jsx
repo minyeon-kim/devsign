@@ -30,7 +30,7 @@ export function DesignLinkChip({ conflict, compact = false, className }) {
       aria-label={`${label} · ${link.layer.name}`}
       title={`${label} · ${link.layer.name}`}
       onClick={(event) => { event.stopPropagation(); workspace.revealConflictOnCanvas(conflict) }}
-      className={cn('ds-intrinsic inline-flex w-fit max-w-full cursor-pointer items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] leading-4 font-medium text-slate-200 tabular-nums transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary', className)}
+      className={cn('ds-intrinsic inline-flex w-fit max-w-full cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] leading-4 font-medium text-slate-200 tabular-nums transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary', className)}
     >
       {compact ? (
         <span>{multiPage ? `p${link.pageNumber} · ` : ''}f{link.frameNumber}</span>
