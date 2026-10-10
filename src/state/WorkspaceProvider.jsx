@@ -1370,10 +1370,14 @@ export function WorkspaceProvider({ children, projectId }) {
   // The walkthroughs' other side, played for whoever isn't at the keyboard:
   // the designer's walkthrough starts with Alex's request already in; the
   // developer's gets Taylor's decision a few seconds after asking.
+  // (Once per conflict, however many times the effect runs before the
+  // request lands in the store.)
+  const seededRequests = useRef(new Set())
   useEffect(() => {
     if (isDeveloperViewer) return
-    const waiting = conflicts.filter((c) => c.decisionFlow && c.scriptedRequest && !c.decisionRequest && !c.designDecision && c.reviewStage !== 'resolved')
+    const waiting = conflicts.filter((c) => c.decisionFlow && c.scriptedRequest && !c.decisionRequest && !c.designDecision && c.reviewStage !== 'resolved' && !seededRequests.current.has(c.id))
     if (!waiting.length) return
+    waiting.forEach((c) => seededRequests.current.add(c.id))
     setConflicts((prev) => prev.map((c) => (!waiting.some((w) => w.id === c.id) ? c : {
       ...c, decisionRequest: { ...c.scriptedRequest, round: 1 }, reviewStage: 'in_review', requestedBy: c.scriptedRequest.by,
     })))

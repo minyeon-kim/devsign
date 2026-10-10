@@ -68,6 +68,8 @@ export function resetDemo() {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith(DEMO_PREFIX)) localStorage.removeItem(key)
   }
+  // (…and which walkthrough notices were seen, so they start over too.)
+  try { sessionStorage.removeItem('devsign:notices-seen:v1') } catch { /* storage unavailable */ }
 }
 
 // Stable ordering prevents object insertion order from invalidating reviews.
