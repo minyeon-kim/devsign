@@ -29,17 +29,6 @@ export const STAGE_GUIDE = {
   mid: '수정 비용과 영향을 확인해요. 지금 반영할지, 다음 작업으로 미룰지 판단할 수 있게 적어 주세요.',
   late: '필수 수정과 후속 개선을 구분해요. 출시 전에 꼭 반영할 사항인지 골라 주세요.',
 }
-// One short line of what a request is about, for a notice: the stage and the
-// thing that stage is mostly asking ("개발 중간 · 지금 반영 가능").
-export function requestBrief(request) {
-  if (!request) return ''
-  const stage = DEV_STAGE_LABEL[request.devStage]
-  const point = request.devStage === 'mid'
-    ? (request.canApplyNow === 'now' ? '지금 반영 가능' : request.canApplyNow === 'later' ? '다음 작업으로 미룰 수 있음' : null)
-    : request.devStage === 'late' ? CATEGORY_LABEL[request.category] : request.devStage === 'early' ? request.target : null
-  return [stage, point].filter(Boolean).join(' · ')
-}
-
 // When it should land, if the stage (and, near the end, the kind of problem)
 // already says. The developer can change it; nothing is forced.
 export function defaultTimingFor(stage, category) {
