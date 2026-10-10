@@ -4,7 +4,7 @@ import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictI
 import DesignLinkThumb, { DesignLinkChip } from '@/components/conflicts/DesignLinkThumb'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -102,7 +102,14 @@ function ConflictPanel({ inMergeStudio }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor, mergeDrafts } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId } = useWorkspace()
+  // The element picked on the canvas: the Conflict Points about it light up
+  // and the first scrolls into view (the other half of the canvas markers).
+  const listRef = useRef(null)
+  useEffect(() => {
+    if (!selectedLayerId) return
+    listRef.current?.querySelector('[data-canvas-linked="true"]')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedLayerId])
   const blockerOf = (conflict) => batchBlocker(conflict, comments)
   const batchable = queued.filter((c) => !blockerOf(c))
   // Only what's still batchable stays selected (e.g. after a review moves on).
@@ -132,7 +139,7 @@ function ConflictPanel({ inMergeStudio }) {
   if (reviewConflict && reviewView === 'panel') return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col bg-card">
+    <div ref={listRef} className="flex h-full min-h-0 min-w-0 flex-col bg-card">
       {/* No internal title bar here — the bottom panel's tab above already
           reads "Conflict Points". */}
       {conflicts.length > 0 && (
@@ -247,6 +254,7 @@ function ConflictPanel({ inMergeStudio }) {
                 return (
                   <Fragment key={conflict.id}>
                   <tr
+                    data-canvas-linked={Boolean(selectedLayerId) && conflict.layerId === selectedLayerId && isOpen(conflict)}
                     onClick={() => { openRow(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
@@ -259,7 +267,7 @@ function ConflictPanel({ inMergeStudio }) {
                     }}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
-                      'group animate-in cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60',
+                      'group animate-in scroll-mt-12 cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60 data-[canvas-linked=true]:bg-amber-400/10 data-[canvas-linked=true]:[&>td:first-child]:shadow-[inset_3px_0_0_#fbbf24]',
                       // Done: the whole row steps back.
                       !isOpen(conflict) && 'opacity-45'
                     )}
