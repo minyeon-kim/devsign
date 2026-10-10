@@ -1263,6 +1263,7 @@ Checks passed|통과한 검사
 Merge impact|병합 영향
 All automated checks pass|모든 자동 검사 통과
 Impact|영향
+Proposed fix|제안 수정안
 Resolve|해결
 Merged result|병합 결과
 Both at|공통 배율
