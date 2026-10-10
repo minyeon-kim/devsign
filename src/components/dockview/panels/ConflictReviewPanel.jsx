@@ -67,7 +67,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -3232,9 +3232,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </div>
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                      {!conflict.rollback && !conflict.decisionFlow && <FlowSteps
+                      {!conflict.rollback && <FlowSteps
                         key={`flow:${conflict.id}`}
                         conflict={conflict}
+                        flow={conflict.decisionFlow ? decisionFlowOf(conflict, currentUserFor(conflict.projectId)) : undefined}
                         className="mb-5"
                       />}
                       {!conflict.rollback && (

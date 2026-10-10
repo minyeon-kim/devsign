@@ -168,8 +168,8 @@ const STEP_DOT = 16
 const STEP_DOT_TOP = (STEP_ROW - STEP_DOT) / 2
 const STEP_LINE_INSET = 4
 
-export function FlowSteps({ conflict, className }) {
-  const flow = flowOf(conflict)
+export function FlowSteps({ conflict, flow: given, className }) {
+  const flow = given ?? flowOf(conflict)
   const [doneStepsExpanded, setDoneStepsExpanded] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
@@ -227,8 +227,8 @@ export function FlowSteps({ conflict, className }) {
                 <p data-step-title className={cn('flex items-center text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')} style={{ height: STEP_ROW }}>
                   <LocalizedText text={step.label} />
                 </p>
-                {step.state === 'current' && STEP_DESCRIPTION[step.id] && (
-                  <p className="text-[11px] leading-4 text-slate-400" style={{ marginTop: STEP_TEXT_GAP }}><LocalizedText text={STEP_DESCRIPTION[step.id]} /></p>
+                {step.state === 'current' && (step.description ?? STEP_DESCRIPTION[step.id]) && (
+                  <p className="text-[11px] leading-4 text-slate-400" style={{ marginTop: STEP_TEXT_GAP }}><LocalizedText text={step.description ?? STEP_DESCRIPTION[step.id]} /></p>
                 )}
               </div>
             </li>
