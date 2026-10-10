@@ -9,7 +9,7 @@ import { LocalizedText } from '@/i18n/runtime'
 // Every known risk level uses the same badge, including Low.
 export function RiskBadge({ severity }) {
   if (!severity) return null
-  return <SeverityPill bare quiet icon level={RISK_LABEL[severity]} />
+  return <SeverityPill bare quiet emphasis level={RISK_LABEL[severity]} />
 }
 
 // The whole row opens the conflict; the full path stays available on hover.

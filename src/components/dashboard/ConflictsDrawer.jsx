@@ -4,7 +4,7 @@ import { ArrowRight, ChevronDown, CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
 import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag } from '@/components/conflicts/ConflictInsight'
-import { RiskIcon } from '@/components/mergestudio/ConflictTag'
+import { RiskDot } from '@/components/mergestudio/ConflictTag'
 import { useConflictList } from '@/components/conflicts/useConflictList'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -20,7 +20,7 @@ import { differenceNoteOf, exceptionTypeOf } from '@/lib/conflictInsight'
 // project's home, Docs, History) it goes to the Workspace and opens there.
 //
 // A card is two lines, no more:
-//   1 · the title — led by its risk icon when it's High (red) or Medium
+//   1 · the title — led by a risk dot when it's High (red) or Medium
 //       (yellow), and a tag only when it's an exception (most conflicts
 //       are design drifts, so that's never tagged; one tag at most);
 //   2 · its status, when it's due (accented only when that's close), and
@@ -52,7 +52,7 @@ function ConflictCard({ conflict, selected, onOpen }) {
       >
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex min-w-0 items-center gap-1.5">
-            {!done && <RiskIcon level={conflict.severity} />}
+            {!done && <RiskDot level={conflict.severity} />}
             <span className="min-w-0 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
             {exceptionTypeOf(conflict) && <ConflictTypeTag conflict={conflict} quiet className="h-[18px] px-1.5 text-[10.5px]" />}
           </span>
