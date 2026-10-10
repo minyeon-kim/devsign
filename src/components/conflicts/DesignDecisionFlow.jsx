@@ -1,10 +1,10 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, CircleCheck, FileImage, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople } from '@/data/mockData'
-import { CAN_APPLY_LABEL, requestBrief, CATEGORY_LABEL, DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, REQUEST_FIELD_LABEL, REQUIRED_BY_STAGE, SEVERITY_LABEL, STAGE_GUIDE, TIMING_HINT, TIMING_LABEL, decisionStageOf, defaultTimingFor } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, TIMING_LABEL, decisionStageOf } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -169,32 +169,6 @@ function ReasonField({ label, value, onChange, suggestions, placeholder }) {
   )
 }
 
-// What the request says, in the order its stage cares about it: the thing that
-// stage turns on first (kind of problem, importance, what's to change), then
-// the rest. (A request sent before stages had their own fields just has the
-// common rows.)
-function requestRowsOf(request, conflict) {
-  const impact = [...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')
-  const rows = {
-    target: request.target && ['변경 대상', request.target],
-    category: request.category && ['분류', CATEGORY_LABEL[request.category], request.category === 'polish' ? 'text-slate-200' : 'font-medium text-amber-200'],
-    severity: request.severity && ['중요도', SEVERITY_LABEL[request.severity], 'font-medium text-amber-200'],
-    reason: ['변경 사유', request.reason, 'text-slate-100'],
-    expected: request.expected && ['기대 결과', request.expected],
-    affected: ['영향받는 화면·기능', request.affected?.length ? request.affected.join(' · ') : impact],
-    canApplyNow: request.canApplyNow && ['지금 반영 가능 여부', CAN_APPLY_LABEL[request.canApplyNow], 'font-medium text-sky-200'],
-    proposal: request.proposal && ['수정안', `${PROPOSAL_LABEL[request.proposal] ?? request.proposal}${request.proposalNote ? ` · ${request.proposalNote}` : ''}`, 'font-medium text-sky-200'],
-    attachment: ['구현 화면', request.attachment ? <span key="a" className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'],
-    timing: ['희망 반영 시점', TIMING_LABEL[request.timing] ?? '—', 'font-medium text-slate-100'],
-  }
-  const order = {
-    early: ['target', 'reason', 'expected', 'proposal', 'attachment', 'affected', 'timing'],
-    mid: ['severity', 'reason', 'affected', 'canApplyNow', 'proposal', 'attachment', 'timing'],
-    late: ['category', 'reason', 'attachment', 'proposal', 'affected', 'timing'],
-  }[request.devStage] ?? ['reason', 'proposal', 'attachment', 'timing', 'affected']
-  return order.map((key) => rows[key]).filter(Boolean)
-}
-
 // The request as sent: who, why, what's attached and proposed, and when.
 function RequestCard({ conflict }) {
   const request = conflict.decisionRequest
@@ -202,16 +176,21 @@ function RequestCard({ conflict }) {
     <section data-decision-request className={CARD}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
-        {request.devStage && <span data-request-stage className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-medium text-sky-200">{DEV_STAGE_LABEL[request.devStage]}</span>}
         <span className="text-[11px] text-slate-500">개발자 · {request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>
-      <dl className="grid grid-cols-[136px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
-        {requestRowsOf(request, conflict).map(([label, value, tone]) => (
-          <Fragment key={label}>
-            <dt className="text-slate-400">{label}</dt>
-            <dd className={cn('text-slate-200', tone)}>{value}</dd>
-          </Fragment>
-        ))}
+      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+        <dt className="text-slate-400">변경 사유</dt>
+        <dd className="text-slate-100">{request.reason}</dd>
+        <dt className="text-slate-400">수정안</dt>
+        <dd className="font-medium text-sky-200">{PROPOSAL_LABEL[request.proposal] ?? request.proposal}{request.proposalNote ? ` · ${request.proposalNote}` : ''}</dd>
+        <dt className="text-slate-400">구현 화면</dt>
+        <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
+        <dt className="text-slate-400">개발 단계</dt>
+        <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
+        <dt className="text-slate-400">희망 반영 시점</dt>
+        <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd>
+        <dt className="text-slate-400">영향 범위</dt>
+        <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
       </dl>
     </section>
   )
@@ -250,158 +229,69 @@ function DecisionCard({ conflict, viewerId }) {
 }
 
 // ── The developer's side ─────────────────────────────────────────────
-// A few of several: pills that toggle on and off (checkbox group).
-function MultiChoice({ label, name, options, value, onChange, hint }) {
-  return (
-    <fieldset className="min-w-0">
-      <legend className={cn(LABEL, 'mb-1.5')}>{label}</legend>
-      <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
-        {options.map((text) => {
-          const on = value.includes(text)
-          return (
-            <button
-              key={text}
-              type="button"
-              role="checkbox"
-              aria-checked={on}
-              data-choice={`${name}:${text}`}
-              onClick={() => onChange(on ? value.filter((item) => item !== text) : [...value, text])}
-              className={cn('ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium ring-1 ring-inset transition-colors',
-                on ? 'bg-emerald-400/15 text-emerald-100 ring-emerald-400/60' : 'bg-white/[0.03] text-slate-300 ring-white/10 hover:bg-white/[0.06] hover:text-white')}
-            >
-              {on && <Check className="size-3.5" />}
-              {text}
-            </button>
-          )
-        })}
-      </div>
-      {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
-    </fieldset>
-  )
-}
-
-const REASON_BY_STAGE = {
-  early: ['왜 디자인 원안과 다르게 바꿔야 하나요?', '768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 1열로 쌓는 편이 읽기 쉬워요.'],
-  mid: ['왜 수정이 필요한가요?', '768px에서 카드가 겹쳐 숫자가 가려지고 구매 버튼이 아래로 밀려요. 1열로 바꾸면 해결돼요.'],
-  late: ['출시 전에 왜 이 수정이 필요한가요?', '태블릿에서 카드가 겹쳐 숫자를 읽을 수 없어요. 출시 전에 고치지 않으면 사용자가 주요 지표를 볼 수 없어요.'],
-}
-
-// The request asks for what the stage calls for (REQUIRED_BY_STAGE): what is
-// shown and what blocks sending follow from the stage picked first. What was
-// typed for a field the stage doesn't ask for is kept, so going back to
-// that stage brings it back.
 function RequestForm({ conflict, onSend }) {
   const previous = conflict.decisionRequest
   const rework = conflict.designDecision?.choice === 'rework'
-  const impact = [...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])]
-  const [devStage, setDevStage] = useState(previous?.devStage ?? null)
   const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
-  const [target, setTarget] = useState(previous?.target ?? conflict.title?.split(' / ')[0] ?? '')
-  const [expected, setExpected] = useState(previous?.expected ?? '')
-  const [severity, setSeverity] = useState(previous?.severity ?? null)
-  const [affected, setAffected] = useState(previous?.affected ?? impact)
-  const [canApplyNow, setCanApplyNow] = useState(previous?.canApplyNow ?? null)
-  const [category, setCategory] = useState(previous?.category ?? null)
   const [attachment, setAttachment] = useState(previous?.attachment ?? true)
   const [proposal, setProposal] = useState(rework ? null : previous?.proposal ?? null)
-  const [chosenTiming, setChosenTiming] = useState(previous?.timing ?? null)
-  // (The stage's own suggestion until the developer picks one.)
-  const timing = chosenTiming ?? defaultTimingFor(devStage, category)
+  const [devStage, setDevStage] = useState(previous?.devStage ?? null)
+  const [timing, setTiming] = useState(previous?.timing ?? null)
   const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
-  const filled = {
-    target: Boolean(target.trim()), reason: Boolean(reason.trim()), expected: Boolean(expected.trim()), severity: Boolean(severity),
-    affected: affected.length > 0, canApplyNow: Boolean(canApplyNow), category: Boolean(category), attachment, timing: Boolean(timing),
-  }
-  const missing = devStage ? REQUIRED_BY_STAGE[devStage].filter((field) => !filled[field]).map((field) => REQUEST_FIELD_LABEL[field]) : ['개발 단계']
-  const required = (field) => devStage && REQUIRED_BY_STAGE[devStage].includes(field)
-  const mark = (text, field) => (required(field) ? text : `${text} (선택)`)
-  const [reasonPlaceholder, reasonSuggestion] = REASON_BY_STAGE[devStage ?? 'early']
-  const send = () => {
-    const request = { reason: reason.trim(), attachment, proposal, devStage, timing }
-    if (devStage === 'early') Object.assign(request, { target: target.trim(), expected: expected.trim() })
-    if (devStage === 'mid') Object.assign(request, { severity, affected, canApplyNow })
-    if (devStage === 'late') Object.assign(request, { category })
-    onSend(request)
-  }
+  const missing = [!reason.trim() && '변경 사유', !proposal && '수정안', !devStage && '개발 단계', !timing && '희망 반영 시점'].filter(Boolean)
   return (
     <section data-decision-request-form className={CARD}>
       <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
-      <p className="mt-0.5 mb-4 text-xs text-slate-400">디자인 원안과 다르게 바꿔야 한다면, 개발 단계에 맞춰 필요한 내용을 적고 승인을 요청하세요.</p>
+      <p className="mt-0.5 mb-4 text-xs text-slate-400">디자인 원안과 다르게 바꿔야 한다면, 이유와 구현 화면, 수정안을 붙여 승인을 요청하세요.</p>
       <div className="flex flex-col gap-4">
-        <Choice
-          label="개발 단계 *"
-          name="dev-stage"
-          value={devStage}
-          onChange={setDevStage}
-          options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]}
-          hint={devStage ? STAGE_GUIDE[devStage] : '지금 어느 단계인지 고르면, 그 단계에 필요한 항목만 보여드려요.'}
+        <ReasonField
+          label="변경 사유"
+          value={reason}
+          onChange={setReason}
+          placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
+          suggestions={['768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 1열로 쌓는 편이 읽기 쉬워요.']}
         />
-        {devStage && (
-          <>
-            {devStage === 'early' && (
-              <label className={cn(LABEL, 'block')} data-field="target">
-                {mark('변경 대상', 'target')} <span className="text-rose-300">*</span>
-                <input value={target} onChange={(event) => setTarget(event.target.value)} className="mt-1.5 block h-9 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-[13px] font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60" />
-              </label>
-            )}
-            <ReasonField label="변경 사유" value={reason} onChange={setReason} placeholder={reasonPlaceholder} suggestions={[reasonSuggestion]} />
-            {devStage === 'early' && (
-              <label className={cn(LABEL, 'block')} data-field="expected">
-                {mark('기대 결과', 'expected')} <span className="text-rose-300">*</span>
-                <textarea value={expected} onChange={(event) => setExpected(event.target.value)} rows={2} placeholder="바꾸면 사용자 화면이 어떻게 되나요?" className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60" />
-              </label>
-            )}
-            {devStage === 'mid' && (
-              <>
-                <Choice label="중요도 *" name="severity" value={severity} onChange={setSeverity} options={Object.entries(SEVERITY_LABEL)} />
-                <MultiChoice label="영향받는 화면·기능 *" name="affected" options={impact} value={affected} onChange={setAffected} />
-                <Choice label="지금 반영 가능 여부 *" name="can-apply" value={canApplyNow} onChange={setCanApplyNow} options={Object.entries(CAN_APPLY_LABEL)} />
-              </>
-            )}
-            {devStage === 'late' && (
-              <Choice label="분류 *" name="category" value={category} onChange={setCategory} options={Object.entries(CATEGORY_LABEL)} hint="기능 오류·사용에 큰 영향은 출시 전 반영, 단순 개선은 출시 후 개선으로 제안돼요." />
-            )}
-            <div className="min-w-0">
-              <span className={cn(LABEL, 'mb-1.5 block')}>{mark('구현 화면', 'attachment')}{required('attachment') && <span className="text-rose-300"> *</span>}</span>
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={attachment}
-                data-attach-screenshot
-                onClick={() => setAttachment(!attachment)}
-                className={cn('ds-intrinsic flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-inset transition-colors',
-                  attachment ? 'bg-emerald-400/[0.07] ring-emerald-400/40' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
-              >
-                <span className="w-16 shrink-0"><TabletPreview columns={2} overlap /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-slate-100"><FileImage className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span>
-                  <span className="block text-[11px] text-slate-400">768px에서 카드가 겹친 현재 구현 화면</span>
-                </span>
-                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', attachment ? 'border-emerald-300 bg-emerald-400 text-slate-950' : 'border-white/30')}>
-                  {attachment && <Check className="size-3" strokeWidth={3} />}
-                </span>
-              </button>
-            </div>
-            <Choice
-              label={mark('수정안', 'proposal')}
-              name="proposal"
-              value={proposal}
-              onChange={setProposal}
-              options={[['one-column', '1열로 변경', '768px 이하 카드 1열'], ['narrow-cards', '2열 유지 · 카드 폭 줄이기'], ['other', '다른 수정안']]}
-            />
-            <Choice
-              label="희망 반영 시점 *"
-              name="timing"
-              value={timing}
-              onChange={setChosenTiming}
-              options={[['now', '지금'], ['before-release', '출시 전'], ['next-version', '다음 버전']]}
-              hint={timing && !chosenTiming ? `${DEV_STAGE_LABEL[devStage]} 단계의 권장 시점이에요. 바꿀 수 있어요.` : TIMING_HINT[devStage]}
-            />
-          </>
-        )}
+        <div className="min-w-0">
+          <span className={cn(LABEL, 'mb-1.5 block')}>구현 화면</span>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={attachment}
+            data-attach-screenshot
+            onClick={() => setAttachment(!attachment)}
+            className={cn('ds-intrinsic flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-inset transition-colors',
+              attachment ? 'bg-emerald-400/[0.07] ring-emerald-400/40' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
+          >
+            <span className="w-16 shrink-0"><TabletPreview columns={2} overlap /></span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-100"><FileImage className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span>
+              <span className="block text-[11px] text-slate-400">768px에서 카드가 겹친 현재 구현 화면</span>
+            </span>
+            <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', attachment ? 'border-emerald-300 bg-emerald-400 text-slate-950' : 'border-white/30')}>
+              {attachment && <Check className="size-3" strokeWidth={3} />}
+            </span>
+          </button>
+        </div>
+        <Choice
+          label="수정안"
+          name="proposal"
+          value={proposal}
+          onChange={setProposal}
+          options={[['one-column', '1열로 변경', '768px 이하 카드 1열'], ['narrow-cards', '2열 유지 · 카드 폭 줄이기'], ['other', '다른 수정안']]}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
+          <Choice label="희망 반영 시점" name="timing" value={timing} onChange={setTiming} options={[['now', '지금'], ['before-release', '출시 전'], ['next-version', '다음 버전']]} />
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
           {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
-          <button type="button" data-send-decision-request disabled={missing.length > 0} onClick={send} className={PRIMARY}>
+          <button
+            type="button"
+            data-send-decision-request
+            disabled={missing.length > 0}
+            onClick={() => onSend({ reason: reason.trim(), attachment, proposal, devStage, timing })}
+            className={PRIMARY}
+          >
             <Send className="size-3.5" />
             {designer}님에게 승인 요청 보내기
           </button>
@@ -544,7 +434,7 @@ function DecisionForm({ conflict, onDecide }) {
             name="decision-timing"
             value={timing}
             onChange={setTiming}
-            hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}${request.devStage ? ` · ${DEV_STAGE_LABEL[request.devStage]} 단계` : ''}` : null}
+            hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}` : null}
             options={[['now', '지금 반영'], ['before-release', '출시 전'], ['next-version', '다음 버전']]}
           />
         )}

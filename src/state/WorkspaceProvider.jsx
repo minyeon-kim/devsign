@@ -3,7 +3,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
-import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, requestBrief } from '@/lib/designDecisions'
+import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL } from '@/lib/designDecisions'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -1295,7 +1295,7 @@ export function WorkspaceProvider({ children, projectId }) {
       reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
     })))
     logEvent({ kind: 'decision_requested', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
-    notifyPerson(designerId, conflict, `디자인 결정을 요청했어요${requestBrief(request) ? ` · ${requestBrief(request)}` : ''} · ${conflict.id} ${conflict.title}`)
+    notifyPerson(designerId, conflict, `디자인 결정을 요청했어요 · ${conflict.id} ${conflict.title}`)
     recordDecisionStep(conflict, { label: `${conflict.id} 디자인 결정 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
