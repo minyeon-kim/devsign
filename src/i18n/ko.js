@@ -1203,6 +1203,7 @@ Show on canvas|캔버스에서 보기
 Page|페이지
 Frame|프레임
 Screen|화면
+Screen not available|화면을 찾을 수 없어요
 Locate|위치 찾기
 Previous|이전
 Apply resolution|해결 결과 적용

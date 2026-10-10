@@ -1,5 +1,5 @@
 import './CanvasToolbar.css'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FileImage,
   Check,
@@ -21,6 +21,7 @@ import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { overrideFromEdit } from '@/lib/prototypeSync'
+import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import {
@@ -139,7 +140,10 @@ function CanvasToolbar({ tool, onSelectTool, compact }) {
 // files.
 // (The layer tree opens from the window's `+` or the command palette.)
 function PageTabs({ activePageId, onSelectPage }) {
-  const { projectPages } = useWorkspace()
+  const { projectPages, conflicts } = useWorkspace()
+  // How many open conflicts are about each page's elements.
+  const byLayer = openConflictsByLayer(conflicts)
+  const conflictsOnPage = (page) => conflictCountOnPage(page, byLayer)
   // In a docked window the header draws the page tabs itself (PanelTabs).
   if (useContext(WindowTabsContext)) return null
   // On the window's title line (see WindowHeaderSlot), right after "Canvas".
@@ -162,6 +166,7 @@ function PageTabs({ activePageId, onSelectPage }) {
           >
             <FileImage className={cn('size-3.5 shrink-0', active ? 'text-emerald-300' : '')} />
             {page.name}
+            {conflictsOnPage(page) > 0 && <span data-page-conflict-dot aria-label={`${conflictsOnPage(page)} conflicts on this page`} title={`${conflictsOnPage(page)} conflicts`} className="size-1.5 shrink-0 rounded-full bg-amber-400" />}
           </button>
         )
       })}
@@ -315,7 +320,51 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // — is synced to the page's code file (see lib/prototypeSync).
 // `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
 // under the pointer, its size and its spacing.
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom }) {
+// A conflict's mark on the canvas: an amber dot on the element's top-right
+// corner (with a count when several are about it). One opens its Conflict
+// Point; several list them first. Drawn beside the frame's clipped box so a
+// list can reach past the frame's edge.
+function ConflictMarkers({ frame, byLayer, onOpen }) {
+  const [openId, setOpenId] = useState(null)
+  const marked = frame.layers.filter((layer) => byLayer.has(layer.id))
+  if (marked.length === 0) return null
+  return marked.map((layer) => {
+    const list = byLayer.get(layer.id)
+    const left = Math.min(layer.x + layer.width - 7, frame.width - 14)
+    const top = Math.max(layer.y - 7, 2)
+    return (
+      <div key={layer.id} className="absolute z-20" style={{ left, top }}>
+        <button
+          type="button"
+          data-canvas-conflict-marker={layer.id}
+          aria-label={`${list.length} conflict${list.length > 1 ? 's' : ''} on ${layer.name}`}
+          title={list.length > 1 ? `${list.length} conflicts · ${layer.name}` : `${list[0].title}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            if (list.length === 1) onOpen(list[0].id)
+            else setOpenId(openId === layer.id ? null : layer.id)
+          }}
+          className="flex size-3.5 min-w-3.5 cursor-pointer items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-slate-950 ring-2 ring-white transition-transform hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+        >
+          {list.length > 1 ? list.length : ''}
+        </button>
+        {openId === layer.id && (
+          <ul data-canvas-conflict-list className="absolute top-4 left-0 w-52 rounded-lg bg-popover p-1 text-xs text-foreground shadow-xl ring-1 ring-white/10">
+            {list.map((conflict) => (
+              <li key={conflict.id}>
+                <button type="button" onClick={(event) => { event.stopPropagation(); setOpenId(null); onOpen(conflict.id) }} className="block w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-left hover:bg-muted">
+                  {conflict.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  })
+}
+
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom, conflictsByLayer, onOpenConflict }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -363,6 +412,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
         </div>
         {isFrameSelected && <SelectionHandles />}
       </div>
+      {conflictsByLayer && !merged && <ConflictMarkers frame={frame} byLayer={conflictsByLayer} onOpen={onOpenConflict} />}
       {/* (Beside the frame's box, not in it: that clips, and a tag at the
           edge would be cut off.) */}
       {measure && <SpacingOverlay container={container} frame={frame} selectedId={selectedId} hoverId={hoverId} version={`${zoom}:${JSON.stringify(edits)}`} />}
@@ -418,7 +468,10 @@ function CanvasPanel() {
     editPrototypeLayer,
     aiEditPulse,
     aiGenerating,
+    conflicts,
+    openConflictFromNotification,
   } = useWorkspace()
+  const conflictsByLayer = useMemo(() => openConflictsByLayer(conflicts), [conflicts])
   // The value a text slot had when in-place editing started, so Escape can
   // put it back after the live preview.
   const editStart = useRef(new Map())
@@ -659,6 +712,8 @@ function CanvasPanel() {
                 genProgress={genProgress}
                 measure={!commentMode && canvasTool === 'move'}
                 zoom={zoom}
+                conflictsByLayer={conflictsByLayer}
+                onOpenConflict={openConflictFromNotification}
               />
             ))}
 

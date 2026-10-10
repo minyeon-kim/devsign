@@ -1,3 +1,4 @@
+import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { orderedTabs } from '@/lib/tabOrder'
 import { Component, FileImage, Files, Layers, ScanEye, X } from 'lucide-react'
@@ -44,11 +45,13 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       }
     })
   } else if (panel.component === 'canvas') {
+    const byLayer = openConflictsByLayer(workspace.conflicts)
     items = workspace.projectPages.map((page) => {
       const active = panelActive && workspace.activePageId === page.id
       return {
         key: page.id,
         label: page.name,
+        conflictCount: conflictCountOnPage(page, byLayer),
         icon: <FileImage className={cn('size-3.5 shrink-0', active && 'text-emerald-300')} />,
         active,
         select: () => workspace.setActivePageId(page.id),
@@ -121,6 +124,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       >
         {panel.component === 'navigator' ? <span className="shrink-0 @max-[340px]/nav:hidden">{item.icon}</span> : item.icon}
         <span className="max-w-[160px] truncate">{item.label}</span>
+        {item.conflictCount > 0 && <span data-page-conflict-dot role="img" aria-label={`${item.conflictCount} conflicts on this page`} title={`${item.conflictCount} conflicts`} className="size-1.5 shrink-0 rounded-full bg-amber-400" />}
         {item.dirty && (
           <span
             className={cn(

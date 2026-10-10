@@ -44,9 +44,10 @@ export function DesignLinkChip({ conflict, compact = false, className }) {
   )
 }
 
-export default function DesignLinkThumb({ conflict, size = 'sm', className }) {
+export default function DesignLinkThumb({ conflict, size = 'sm', className, placeholder = false }) {
   const { workspace, link } = useDesignLink(conflict)
-  if (!link) return null
+  // The element is gone from the canvas: say so where the screen is the point.
+  if (!link) return placeholder && conflict?.layerId ? <span data-design-link-missing className={cn('text-[11px] text-slate-500', className)}><LocalizedText text="Screen not available" /></span> : null
   const { frame, layer } = link
   const box = SIZES[size]
   const scale = Math.min(box.w / frame.width, box.h / frame.height)

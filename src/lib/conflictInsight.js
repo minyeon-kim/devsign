@@ -155,3 +155,20 @@ export function designLinkOf(conflict, pages = []) {
   }
   return null
 }
+
+// The open conflicts that are about a canvas element, by element id — what
+// the canvas marks and what its page tabs flag. A merged, rollback or
+// design-decision conflict has nothing to mark.
+export function openConflictsByLayer(conflicts = []) {
+  const byLayer = new Map()
+  for (const conflict of conflicts) {
+    if (!conflict.layerId || conflict.rollback || conflict.reviewStage === 'resolved' || isDesignReview(conflict)) continue
+    byLayer.set(conflict.layerId, [...(byLayer.get(conflict.layerId) ?? []), conflict])
+  }
+  return byLayer
+}
+
+// How many of those are about a page's elements — the dot on its tab.
+export function conflictCountOnPage(page, byLayer) {
+  return (page.frames ?? []).reduce((total, frame) => total + frame.layers.reduce((sum, layer) => sum + (byLayer.get(layer.id)?.length ?? 0), 0), 0)
+}
