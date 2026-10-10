@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
-import { conflictAlertTone, conflictCounts } from '@/lib/conflicts'
+import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 
 // The common application shell, shared by the dashboard-level pages and
@@ -88,9 +88,7 @@ function AppShell({ topBar, project, children }) {
       workspace.setBottomPanel({ open: false })
     }
   }
-  const conflictTotals = workspace ? conflictCounts(workspace.conflicts) : null
-  const openConflicts = conflictTotals?.open ?? 0
-  const conflictTone = conflictAlertTone(conflictTotals)
+  const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -99,7 +97,6 @@ function AppShell({ topBar, project, children }) {
         drawer={drawer}
         onToggleDrawer={toggleDrawer}
         openConflicts={openConflicts}
-        conflictTone={conflictTone}
         onCloseDrawer={() => (leavingHistory(drawer) ? exitHistory() : setDrawer(null))}
       />
 
