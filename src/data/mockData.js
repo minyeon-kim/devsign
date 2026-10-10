@@ -893,6 +893,14 @@ export const conflictChecklist = [
       { label: 'Columns at 768px', expected: '2열 · 화면 폭에 맞춤 (1fr)', current: '2열 · 360px 고정 (겹침)' },
     ],
     // The three layouts the decision is between, for the comparison.
+    // What differs between the design and the code, as properties the developer
+    // can set in a proposal (each with what the code has now).
+    driftProps: [
+      { id: 'columns', label: '열 수', kind: 'choice', options: [1, 2, 3], current: 2, currentText: '현재 2열' },
+      { id: 'cardWidth', label: '카드 폭', kind: 'width', current: { mode: 'fixed', px: 360 }, currentText: '현재 360px 고정' },
+      { id: 'gap', label: '카드 간격', kind: 'px', current: 24, currentText: '현재 24px' },
+      { id: 'range', label: '적용 구간', kind: 'choice', options: ['~768px', '~1024px', '전체'], current: '~768px', currentText: '현재 ~768px' },
+    ],
     layouts: {
       original: { label: '디자인 원안', note: '768px · 카드 2열 (화면 폭에 맞춤)', columns: 2 },
       implementation: { label: '실제 구현', note: '768px · 360px 고정 2열 → 카드 겹침', columns: 2, overlap: true },
