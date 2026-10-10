@@ -470,6 +470,7 @@ function CanvasPanel() {
     aiGenerating,
     conflicts,
     openConflictFromNotification,
+    setBottomPanel,
   } = useWorkspace()
   const conflictsByLayer = useMemo(() => openConflictsByLayer(conflicts), [conflicts])
   // The value a text slot had when in-place editing started, so Escape can
@@ -520,6 +521,8 @@ function CanvasPanel() {
       conflict: id === 'primary-button' ? paddingConflict : undefined,
     })
     setPendingComment(null)
+    // An element with open conflicts: bring up Conflict Points, where they're lit.
+    if (conflictsByLayer.has(id)) setBottomPanel({ open: true, tab: 'conflict' })
     const target = findCanvasTarget(id)
     if (target) {
       openLayerInspectTab(dockApi, target.layer ?? target.frame)
