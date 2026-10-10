@@ -16,6 +16,7 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
 import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/dockPanels'
+import { isDeveloperViewer } from '@/lib/viewerRole'
 import SplitHandle from '@/components/layout/SplitHandle'
 import FloatingWindow from '@/components/workspace/FloatingWindow'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
@@ -154,7 +155,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -178,6 +179,14 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     if (didInit.current) return
     didInit.current = true
     buildInitialLayout(dockApi)
+    // The canvas is what a designer works in: AI Chat and the code file that
+    // ride along with it start folded to a slim strip (one press opens them,
+    // and anything that opens them does). Developers start with them open.
+    if (!mergeStudio && !isDeveloperViewer(projectId)) {
+      const chatGroupId = store.panels[panelById.chat.id]?.groupId
+      if (chatGroupId) dockApi.minimizeGroup(chatGroupId, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dockApi])
 
   // Keep the same dock and side-panel instances across both work modes.
