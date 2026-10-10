@@ -1,6 +1,7 @@
 import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
+import DesignLinkThumb, { DesignLinkChip } from '@/components/conflicts/DesignLinkThumb'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useState } from 'react'
@@ -292,7 +293,15 @@ function ConflictPanel({ inMergeStudio }) {
                     {/* The branch isn't a column — it's on hover here, and in
                         the review's Details. */}
                     <td className="min-w-0 py-3.5 pt-4" title={flow ? `${flow.source} → ${flow.target}` : undefined}>
-                      <div className="min-w-0 space-y-px">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                      {/* The screen it's about, beside its name; not in Merge Studio, which already has the canvas beside it. */}
+                      {!inMergeStudio && (
+                        <div className="flex shrink-0 flex-col items-start gap-1">
+                          <DesignLinkThumb conflict={conflict} size="sm" />
+                          <DesignLinkChip conflict={conflict} compact />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
                           {/* A mix of design drafts sent from Design Compare —
@@ -314,6 +323,7 @@ function ConflictPanel({ inMergeStudio }) {
                           <FileCode2 className="mt-0.5 size-3 shrink-0" />
                           <span className="font-mono [overflow-wrap:anywhere]">{conflict.file}</span>
                         </p>
+                      </div>
                       </div>
                     </td>
                     <td className="min-w-0 py-3.5 pt-4">

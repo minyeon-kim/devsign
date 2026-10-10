@@ -2260,6 +2260,24 @@ export function WorkspaceProvider({ children, projectId }) {
     return true
   }, [canvasLocationFor, exitMergeStudio])
 
+  // A Conflict Point's screen, from its thumbnail or screen chip: the same
+  // pan / zoom / pulse as "Show on canvas", the element selected, and its
+  // code file opened at the changed line.
+  const revealConflictOnCanvas = useCallback((conflict) => {
+    const location = conflict?.layerId && canvasLocationFor({ layerId: conflict.layerId })
+    if (!location) return false
+    exitMergeStudio()
+    setMergeDrawer(null)
+    setActivePageId(location.pageId)
+    setSelectedLayerId(conflict.layerId)
+    setCanvasFocus({ ...location, commentId: null, nonce: nextId('canvas-focus') })
+    if (conflict.fileId) {
+      setActiveFileIdState(conflict.fileId)
+      if (conflict.line) setCodeFlash({ fileId: conflict.fileId, line: conflict.line, nonce: nextId('flash') })
+    }
+    return true
+  }, [canvasLocationFor, exitMergeStudio])
+
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's
   // Comments and logged to its History. The reviewer stays on the change,
@@ -2430,6 +2448,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setCheckGuide,
     canvasLocationFor,
     revealOnCanvas,
+    revealConflictOnCanvas,
     canvasFocus,
     historyDrawerRequest,
     requestHistoryDrawer,
