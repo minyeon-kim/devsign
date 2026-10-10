@@ -433,7 +433,8 @@ What’s different|무엇이 다른가
 Conflict summary|변경 요약
 How to resolve it|해결 방법
 Not chosen yet|선택 전
-Code that changes|바뀌는 코드
+Code that changes|개발 세부 정보 · 바뀌는 코드
+Developer details|개발 세부 정보
 Show|펼치기
 Hide|접기
 Recommended · can merge|권장 · 병합 가능
