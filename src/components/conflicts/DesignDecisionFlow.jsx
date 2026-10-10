@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, CircleCheck, FileImage, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import { Check, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
-import { allPeople } from '@/data/mockData'
+import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, TIMING_LABEL, decisionStageOf } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
@@ -63,7 +63,7 @@ function TabletPreview({ columns, overlap = false }) {
 }
 
 // Design reference · as built · the developer's proposal, side by side.
-function LayoutComparison({ conflict, showProposal }) {
+function LayoutComparison({ conflict, showProposal, picker }) {
   const layouts = conflict.layouts ?? {}
   const entries = [
     ['original', 'text-emerald-300'],
@@ -84,6 +84,8 @@ function LayoutComparison({ conflict, showProposal }) {
           </figure>
         ))}
       </div>
+      {/* The developer's proposal is picked right here, under the two screens it is about. */}
+      {picker}
     </section>
   )
 }
@@ -229,20 +231,26 @@ function DecisionCard({ conflict, viewerId }) {
 }
 
 // ── The developer's side ─────────────────────────────────────────────
-function RequestForm({ conflict, onSend }) {
+const STAGE_SHORT = { early: '초기', mid: '중간', late: '완료 직전' }
+const PROPOSAL_OPTIONS = [['one-column', '1열로 변경', '768px 이하 카드 1열'], ['narrow-cards', '2열 유지 · 카드 폭 줄이기'], ['other', '다른 수정안']]
+
+function RequestForm({ conflict, proposal, onSend }) {
   const previous = conflict.decisionRequest
   const rework = conflict.designDecision?.choice === 'rework'
+  const project = projects.find((candidate) => candidate.id === conflict.projectId)
   const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
-  const [attachment, setAttachment] = useState(previous?.attachment ?? true)
-  const [proposal, setProposal] = useState(rework ? null : previous?.proposal ?? null)
-  const [devStage, setDevStage] = useState(previous?.devStage ?? null)
+  // The stage comes from the project's own data; it is only asked when the project doesn't have one, or the developer says it differs.
+  const [devStage, setDevStage] = useState(previous?.devStage ?? project?.devStage ?? null)
+  const [changingStage, setChangingStage] = useState(!project?.devStage)
   const [timing, setTiming] = useState(previous?.timing ?? null)
   const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
   const missing = [!reason.trim() && '변경 사유', !proposal && '수정안', !devStage && '개발 단계', !timing && '희망 반영 시점'].filter(Boolean)
+  // Where it could land: the next releases, by name and date when the project has them.
+  const release = project?.release
   return (
     <section data-decision-request-form className={CARD}>
       <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
-      <p className="mt-0.5 mb-4 text-xs text-slate-400">디자인 원안과 다르게 바꿔야 한다면, 이유와 구현 화면, 수정안을 붙여 승인을 요청하세요.</p>
+      <p className="mt-0.5 mb-4 text-xs text-slate-400">디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요. 수정안은 위 비교 카드에서 골라요.</p>
       <div className="flex flex-col gap-4">
         <ReasonField
           label="변경 사유"
@@ -251,37 +259,24 @@ function RequestForm({ conflict, onSend }) {
           placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
           suggestions={['768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 1열로 쌓는 편이 읽기 쉬워요.']}
         />
-        <div className="min-w-0">
-          <span className={cn(LABEL, 'mb-1.5 block')}>구현 화면</span>
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={attachment}
-            data-attach-screenshot
-            onClick={() => setAttachment(!attachment)}
-            className={cn('ds-intrinsic flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-inset transition-colors',
-              attachment ? 'bg-emerald-400/[0.07] ring-emerald-400/40' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
-          >
-            <span className="w-16 shrink-0"><TabletPreview columns={2} overlap /></span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-100"><FileImage className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span>
-              <span className="block text-[11px] text-slate-400">768px에서 카드가 겹친 현재 구현 화면</span>
-            </span>
-            <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', attachment ? 'border-emerald-300 bg-emerald-400 text-slate-950' : 'border-white/30')}>
-              {attachment && <Check className="size-3" strokeWidth={3} />}
-            </span>
-          </button>
-        </div>
-        <Choice
-          label="수정안"
-          name="proposal"
-          value={proposal}
-          onChange={setProposal}
-          options={[['one-column', '1열로 변경', '768px 이하 카드 1열'], ['narrow-cards', '2열 유지 · 카드 폭 줄이기'], ['other', '다른 수정안']]}
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
-          <Choice label="희망 반영 시점" name="timing" value={timing} onChange={setTiming} options={[['now', '지금'], ['before-release', '출시 전'], ['next-version', '다음 버전']]} />
+        <div className="min-w-0 space-y-3">
+          <Choice
+            label="희망 반영 시점"
+            name="timing"
+            value={timing}
+            onChange={setTiming}
+            options={[['now', '지금', '이번 작업에'], ['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
+            hint="희망일 뿐이에요. 디자이너가 결정하면서 반영 시점을 확정해요."
+          />
+          {devStage && !changingStage ? (
+            <p data-dev-stage className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              개발 단계 · <span className="font-medium text-slate-200">{STAGE_SHORT[devStage]}</span>
+              <span className="text-slate-500">프로젝트 정보에서 가져왔어요</span>
+              <button type="button" onClick={() => setChangingStage(true)} className="text-slate-300 underline-offset-2 hover:text-white hover:underline">변경</button>
+            </p>
+          ) : (
+            <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
           {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
@@ -289,7 +284,7 @@ function RequestForm({ conflict, onSend }) {
             type="button"
             data-send-decision-request
             disabled={missing.length > 0}
-            onClick={() => onSend({ reason: reason.trim(), attachment, proposal, devStage, timing })}
+            onClick={() => onSend({ reason: reason.trim(), attachment: true, proposal, devStage, timing })}
             className={PRIMARY}
           >
             <Send className="size-3.5" />
@@ -505,6 +500,11 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     </button>
   )
 
+  // The proposal is picked under the comparison (not in the form below it); a new round starts without one.
+  const askingNow = stage === 'detected' || stage === 'rework'
+  const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? null))
+  useEffect(() => { if (stage === 'rework') setProposal(null) }, [stage])
+
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
       {(request || decision) && <div className="flex justify-end">{historyLink}</div>}
@@ -515,7 +515,15 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
         <DetectedSummary conflict={conflict} />
       )}
 
-      <LayoutComparison conflict={conflict} showProposal={Boolean(request?.proposal === 'one-column') || !developer} />
+      <LayoutComparison
+        conflict={conflict}
+        showProposal={developer && askingNow ? proposal === 'one-column' : Boolean(request?.proposal === 'one-column') || !developer}
+        picker={developer && askingNow && (
+          <div className="mt-4 border-t border-white/[0.06] pt-3">
+            <Choice label="수정안 *" name="proposal" value={proposal} onChange={setProposal} options={PROPOSAL_OPTIONS} hint="어떻게 바꾸면 좋을지 골라 주세요. 선택하면 위에 제안 화면이 나타나요." />
+          </div>
+        )}
+      />
 
       {request && <RequestCard conflict={conflict} />}
 
@@ -527,6 +535,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
               <RequestForm
                 key={`${conflict.id}:${request?.round ?? 0}`}
                 conflict={conflict}
+                proposal={proposal}
                 onSend={(next) => {
                   workspace.requestDesignDecision(conflict.id, next)
                   toast(`${designer}님에게 승인 요청을 보냈어요`, { description: `${conflict.id} · 희망 반영 시점 ${TIMING_LABEL[next.timing]}` })

@@ -193,6 +193,9 @@ export const projects = [
   {
     id: 'dashboard-redesign',
     name: 'Dashboard Redesign',
+    // Where the work stands and what ships next — the decision request reads both.
+    devStage: 'mid',
+    release: { name: 'v2.4', date: '10/24' },
     description: 'Dashboard redesign — AI drafts mixed into one design, and the responsive grid kept in sync with the design at 768px.',
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'min', 'james'],
@@ -204,6 +207,8 @@ export const projects = [
   {
     id: 'checkout-redesign',
     name: 'Checkout Redesign',
+    devStage: 'late',
+    release: { name: 'v1.8', date: '10/17' },
     description: 'Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.',
     ownerId: currentUser.id,
     memberIds: [currentUser.id, 'james', 'min'],
