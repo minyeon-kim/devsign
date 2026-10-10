@@ -225,10 +225,12 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       const groupId = store.panels[id]?.groupId
       if (!groupId || floatingGroups.current.has(groupId)) continue
       floatingGroups.current.add(groupId)
-      // AI Chat a little narrower than a docked pane, and both windows flush
-      // with the bottom panel's left and right edges (the same column).
-      const width = Math.min(right ? NAVIGATOR_W : 300, bounds.width * 0.3)
-      const height = Math.max(180, Math.min(560, bounds.height - 160))
+      // Both windows flush with the bottom panel's left and right edges (the
+      // same column).
+      // (AI Chat is the roomier of the two: it holds a conversation, so it
+      // opens wide and tall instead of as a narrow card.)
+      const width = right ? Math.min(NAVIGATOR_W, bounds.width * 0.3) : Math.min(440, bounds.width * 0.36)
+      const height = right ? Math.max(180, Math.min(560, bounds.height - 160)) : Math.max(240, Math.min(760, bounds.height - 120))
       // Just under the 32px studio header row (8px + 32px + 8px gap) —
       // the same 48px line the Workspace's windows start on.
       dockApi.moveGroup(groupId, right ? bounds.width - width : 0, 48)
