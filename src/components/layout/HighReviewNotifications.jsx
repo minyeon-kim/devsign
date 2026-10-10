@@ -7,8 +7,9 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/layout/ConflictEntryPrompt'
 import { Notification } from '@/components/layout/Notification'
 import { LocalizedText } from '@/i18n/runtime'
-import { allPeople } from '@/data/mockData'
+import { allPeople, currentUserFor } from '@/data/mockData'
 import { shortDue } from '@/lib/conflicts'
+import { DECISION_LABEL, DEV_STAGE_LABEL } from '@/lib/designDecisions'
 
 // The on-screen Inbox bell (InboxButton tags itself), if any.
 function findBell() {
@@ -22,6 +23,9 @@ const NAV_REQUEST_DELAY_MS = 4000
 const AUTO_HIDE_MS = 6000
 // Each scenario's request: the conflict it's about.
 const REQUESTS = {
+  // (Dashboard Redesign: the designer gets Alex's request for a design
+  // decision; the developer, the drift being detected on their code.)
+  'dashboard-redesign': { conflictId: 'CON-002' },
   'mobile-nav-revamp': { conflictId: 'cc-4' },
   'checkout-redesign': { conflictId: 'cc-11' },
 }
@@ -29,7 +33,7 @@ const REQUESTS = {
 // A notification about one conflict, kept to what's needed: who and what in
 // the title, the conflict and when it's due in one line, and the way in.
 // (Why, and what to do there, are the review's to say.)
-function ConflictNotice({ conflict, title, type = 'info', onDismiss, actions }) {
+function ConflictNotice({ conflict, title, meta, type = 'info', onDismiss, actions }) {
   // ("Due tomorrow", in full: a bare "Tomorrow" doesn't say it's a deadline.)
   const due = shortDue(conflict.dueLabel) ? conflict.dueLabel : null
   return (
@@ -44,8 +48,20 @@ function ConflictNotice({ conflict, title, type = 'info', onDismiss, actions }) 
       bodyClassName="line-clamp-1"
       onDismiss={onDismiss}
       actions={actions}
-    />
+    >
+      {meta && <p data-notice-meta className="ds-notification-meta mt-1 pl-11 text-xs">{meta}</p>}
+    </Notification>
   )
+}
+
+// A design decision's notice says who asked and where the work is (the
+// designer's), or what was detected (the developer's).
+const RISK_WORD = { high: '높음', medium: '보통', low: '낮음' }
+function requestMeta(conflict, developer) {
+  const request = conflict.decisionRequest ?? conflict.scriptedRequest
+  if (developer) return `${conflict.id} · ${conflict.driftType === 'structural' ? 'Structural Drift' : '디자인 차이'} · 위험도 ${RISK_WORD[conflict.severity] ?? conflict.severity}`
+  const requester = allPeople.find((person) => person.id === request?.by)?.name
+  return [conflict.id, requester && `요청자 ${requester}`, DEV_STAGE_LABEL[request?.devStage], `위험도 ${RISK_WORD[conflict.severity] ?? conflict.severity}`].filter(Boolean).join(' · ')
 }
 
 // Once a project's notices have been seen — dismissed, or gone on their
@@ -85,7 +101,13 @@ export default function HighReviewNotifications() {
   const request = REQUESTS[projectId] ?? null
   const requestConflict = request ? conflicts.find((c) => c.id === request.conflictId) : null
   const requester = allPeople.find((person) => person.id === (requestConflict?.requestedBy ?? requestConflict?.changedBy?.id))?.name ?? 'A teammate'
-  const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (isNav && navDue && !navResolved))
+  const developer = currentUserFor(projectId).jobRole === 'Developer'
+  const requestTitle = projectId === 'dashboard-redesign'
+    ? (developer
+      ? (requestConflict?.designDecision ? `${allPeople.find((person) => person.id === requestConflict.designDecision.by)?.name}님이 결정했어요: ${DECISION_LABEL[requestConflict.designDecision.choice]}` : `새 충돌이 자동 감지됐어요 · ${request?.conflictId}`)
+      : `${requester} requested your review`)
+    : `${requester} requested your review`
+  const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (isNav && navDue && !navResolved))
   const seen = useRef(seenNotifications)
   const [visibleIds, setVisibleIds] = useState([])
 
@@ -157,7 +179,8 @@ export default function HighReviewNotifications() {
       {showRequest && request && requestConflict && (
         <ConflictNotice
           conflict={requestConflict}
-          title={`${requester} requested your review`}
+          title={requestTitle}
+          meta={projectId === 'dashboard-redesign' && requestConflict.decisionFlow ? requestMeta(requestConflict, developer) : null}
           onDismiss={() => setRequestDismissed(true)}
           actions={[
             { label: 'Later', quiet: true, onClick: () => setRequestDismissed(true) },

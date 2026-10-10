@@ -72,7 +72,7 @@ export function useConflictEntryPrompt() {
 
   // The delay starts on entering the Workspace; leaving it drops the prompt.
   useEffect(() => {
-    if (!onWorkspace || projectId === 'mobile-nav-revamp') {
+    if (!onWorkspace || projectId === 'mobile-nav-revamp' || projectId === 'dashboard-redesign') {
       setDue(false)
       setPrompt(null)
       return

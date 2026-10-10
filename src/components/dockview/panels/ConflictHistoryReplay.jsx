@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Code2, Eye, GitMerge, History, MessageSquare, Play, RotateCcw, Send, TriangleAlert, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Code2, Eye, GitMerge, History, MessageSquare, Play, RotateCcw, Scale, Send, TriangleAlert, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
@@ -24,6 +24,8 @@ const EVENT_COPY = {
   revert: { action: 'opened a revert of this change', Icon: RotateCcw },
   code_change: { action: 'pushed code changes', Icon: Code2 },
   comment: { action: 'commented on this conflict', Icon: MessageSquare },
+  decision_requested: { action: '디자인 결정을 요청했어요', Icon: Send },
+  decided: { action: '디자인을 결정했어요', Icon: Scale },
 }
 
 // A system event as the few words its one-line group uses: "Taylor, Alex
@@ -39,6 +41,8 @@ const GROUP_LABEL = {
   code_change: 'changed the code',
   detected: 'found a difference',
   comment: 'commented',
+  decision_requested: '디자인 결정 요청',
+  decided: '디자인 결정',
 }
 // A seeded activity is worded as a sentence ("requested your review on");
 // it joins the group of the event it is.

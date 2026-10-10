@@ -91,6 +91,8 @@ const EVENT_ACTION = {
   comment: 'commented on',
   dismiss: 'closed the review for',
   reopened: 'reopened',
+  decision_requested: 'asked for a design decision on',
+  decided: 'made a design decision on',
 }
 
 function activityVerb(action, type) {

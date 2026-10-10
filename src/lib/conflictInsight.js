@@ -21,6 +21,9 @@ export const CONFLICT_TYPES = {
   // the production branch — what changing it touches, said as its own tag.)
   'production-priority': { label: 'Deployed', hint: 'This value is already deployed, so changing it shows on the live screens.', tone: 'amber' },
   'design-decision': { label: 'Design Decision', hint: 'Design drafts to choose between; no code is in conflict.', tone: 'sky' },
+  // The layout's structure differs (columns, order, nesting) — not a value
+  // to copy over: someone decides which structure is right.
+  'structural-drift': { label: 'Structural Drift', hint: 'The implemented layout is structured differently from the design; a design decision is needed.', tone: 'amber' },
   revert: { label: 'Merge cancellation', hint: 'Creates a reviewed change that restores the values from before the merge.', tone: 'slate' },
   restore: { label: 'Restore previous version', hint: 'Restores a saved checkpoint after its affected collaborators agree.', tone: 'slate' },
 }
@@ -42,6 +45,7 @@ export function conflictTypeOf(conflict) {
     : conflict.revertOf || /^Revert: /.test(conflict.title ?? '') ? 'revert'
     : isDesignReview(conflict) ? 'design-decision'
     : conflict.kind === 'code-conflict' || /merge conflict|branches changed/i.test(text) || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line)) ? 'code-conflict'
+      : conflict.driftType === 'structural' ? 'structural-drift'
       : baselineOf(conflict)?.production ? 'production-priority'
         : 'design-drift'
   return { id, ...CONFLICT_TYPES[id] }
