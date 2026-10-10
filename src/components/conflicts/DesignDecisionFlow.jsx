@@ -204,6 +204,7 @@ function RequestCard({ conflict }) {
           {request.proposal === 'other' && ` · ${proposalOf('other', request.custom).spec}`}
           {request.proposalNote ? ` · ${request.proposalNote}` : ''}
           {request.proposal === 'other' && request.custom?.description && <span className="mt-0.5 block text-xs font-normal text-slate-300">{request.custom.description}</span>}
+          {request.proposal === 'other' && request.custom?.rationale && <span className="mt-1 block text-xs font-normal text-slate-300"><span className="text-slate-500">고른 이유 · </span>{request.custom.rationale}</span>}
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
@@ -353,25 +354,39 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} />
               </button>
               {option.id === 'other' && on && (
-                <div data-custom-proposal className="mb-1 ml-10 flex flex-col gap-3 py-2 pr-1">
+                <div data-custom-proposal className="mb-1 ml-10 flex flex-col gap-4 py-3 pr-1">
                   <label className={cn(LABEL, 'block')}>
-                    설명 <span className="text-rose-300">*</span>
+                    어떻게 바꾸나요? <span className="text-rose-300">*</span>
                     <textarea
                       value={custom.description}
                       onChange={(event) => setCustom({ description: event.target.value })}
-                      rows={2}
-                      placeholder="어떻게 바꾸고 싶은지 적어 주세요. 예: 768px에서는 카드 3열, 폭은 화면에 맞춰요."
-                      className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
+                      rows={4}
+                      placeholder="바꾸려는 모양을 구체적으로 적어 주세요. 예: 768px에서는 카드를 3열로 두고, 카드 폭은 화면에 맞춰요."
+                      className="mt-1.5 block min-h-24 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-3 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
                     />
                   </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Choice label="열 수 (선택)" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
-                    <Choice label="폭 방식 (선택)" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
-                  </div>
                   <label className={cn(LABEL, 'block')}>
-                    참고 이미지·링크 (선택)
-                    <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-9 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-[13px] font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
+                    왜 이 방식을 골랐나요? <span className="text-rose-300">*</span>
+                    <span className="mt-0.5 block font-normal text-slate-500">다른 세 가지로는 안 되는 이유를 적어 주세요. 디자이너가 결정하는 데 가장 중요한 내용이에요.</span>
+                    <textarea
+                      value={custom.rationale}
+                      onChange={(event) => setCustom({ rationale: event.target.value })}
+                      rows={4}
+                      placeholder="예: 1열은 스크롤이 너무 길어지고, 2열은 768px에서 카드가 좁아져 숫자가 잘려요. 3열이 한 화면에 가장 많이 보여요."
+                      className="mt-1.5 block min-h-24 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-3 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
+                    />
                   </label>
+                  <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-3">
+                    <p className="text-[11px] text-slate-500">위 미리보기에 반영 · 선택 사항</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Choice label="열 수" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
+                      <Choice label="폭 방식" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
+                    </div>
+                    <label className={cn(LABEL, 'block')}>
+                      참고 이미지·링크
+                      <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3.5 text-sm font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
+                    </label>
+                  </div>
                 </div>
               )}
             </Fragment>
@@ -401,7 +416,8 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   const direct = proposal === 'original'
   const missing = [
     !chosen && '수정안',
-    proposal === 'other' && !custom.description.trim() && '수정안 설명',
+    proposal === 'other' && !custom.description.trim() && '수정 내용',
+    proposal === 'other' && !custom.rationale.trim() && '이 방식을 고른 이유',
     !reason.trim() && '변경 사유',
     !devStage && '개발 단계',
     !timing && '희망 반영 시점',
@@ -688,7 +704,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
   // 다른 수정안's own fields are kept while another card is looked at. A new
   // round after a rework starts without one.
   const askingNow = stage === 'detected' || stage === 'rework'
-  const EMPTY_CUSTOM = { description: '', columns: null, widthMode: null, reference: '' }
+  const EMPTY_CUSTOM = { description: '', rationale: '', columns: null, widthMode: null, reference: '' }
   const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? null))
   const [custom, setCustom] = useState(() => ({ ...EMPTY_CUSTOM, ...(request?.custom ?? conflict.decisionDraft?.custom ?? {}) }))
   useEffect(() => { if (stage === 'rework') { setProposal(null); setCustom(EMPTY_CUSTOM) } }, [stage])

@@ -32,7 +32,8 @@ export function reasonSuggestionFor(id, custom) {
   if (id === 'narrow-cards') return '768px에서 카드 폭만 줄이면 2열 배치를 그대로 두고도 겹치지 않아요. 디자인 원안의 2열을 최대한 지킬 수 있어요.'
   if (id === 'other') {
     const spec = proposalOf('other', custom)
-    return `768px에서 카드가 겹치는 문제를 ${spec.described ? `${spec.spec}으로` : '제안한 방식으로'} 풀려고 해요. ${custom?.description?.trim() ? custom.description.trim() : '이렇게 바꾸는 이유를 적어 주세요.'}`
+    const why = custom?.rationale?.trim() || custom?.description?.trim()
+    return `768px에서 카드가 겹치는 문제를 ${spec.described ? `${spec.spec}으로` : '제안한 방식으로'} 풀려고 해요. ${why || '이렇게 바꾸는 이유를 적어 주세요.'}`
   }
   return '768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 어떻게 바꾸면 좋을지 수정안을 먼저 골라 주세요.'
 }
