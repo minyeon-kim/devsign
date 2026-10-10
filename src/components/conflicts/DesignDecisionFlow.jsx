@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, PROPOSAL_LABEL, TIMING_LABEL, decisionStageOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, decisionStageOf, proposalOf, reasonSuggestionFor } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -29,15 +29,18 @@ const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
 // One tablet screen (768px) of the dashboard, drawn small: the cards in
 // the given number of columns — or, built with fixed widths that don't fit,
 // overlapping each other.
-function TabletPreview({ columns, overlap = false }) {
-  const cards = [0, 1, 2, 3]
+function TabletPreview({ columns, overlap = false, widthMode = 'fit', maxWidth = 200 }) {
+  const cards = [0, 1, 2, 3, 4, 5]
+  const shown = columns === 1 ? 3 : columns === 3 ? 6 : 4
+  // 'narrow' / 'fixed': the cards keep a set width inside their column instead of filling it.
+  const set = widthMode === 'narrow' || widthMode === 'fixed'
   return (
-    <div className="relative mx-auto w-full max-w-[200px] overflow-hidden rounded-lg border border-slate-300 bg-white p-2.5 shadow-sm" style={{ aspectRatio: '768 / 640' }}>
+    <div className="relative mx-auto w-full overflow-hidden rounded-lg border border-slate-300 bg-white p-2.5 shadow-sm" style={{ maxWidth, aspectRatio: '768 / 640' }}>
       <div className="mb-1.5 h-2 w-14 rounded-sm bg-slate-800" />
       <div className="mb-2 h-1 w-20 rounded-sm bg-slate-300" />
       {overlap ? (
         <div className="relative h-[58%]">
-          {cards.map((index) => (
+          {cards.slice(0, 4).map((index) => (
             <div
               key={index}
               className="absolute h-[44%] w-[62%] rounded-md border border-rose-400 bg-indigo-50/90 shadow-sm"
@@ -50,8 +53,11 @@ function TabletPreview({ columns, overlap = false }) {
         </div>
       ) : (
         <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-          {cards.slice(0, columns === 1 ? 3 : 4).map((index) => (
-            <div key={index} className={cn('rounded-md border border-slate-200 bg-indigo-50', columns === 1 ? 'h-5' : 'h-9')}>
+          {cards.slice(0, shown).map((index) => (
+            <div
+              key={index}
+              className={cn('rounded-md border border-slate-200 bg-indigo-50', columns === 1 ? 'h-5' : columns === 3 ? 'h-7' : 'h-9', set && 'mx-auto w-[72%]')}
+            >
               <div className="m-1 h-1.5 w-1.5 rounded-sm bg-indigo-400" />
             </div>
           ))}
@@ -63,29 +69,28 @@ function TabletPreview({ columns, overlap = false }) {
 }
 
 // Design reference · as built · the developer's proposal, side by side.
-function LayoutComparison({ conflict, showProposal, picker }) {
+// (`proposal`: the proposal to draw as the third screen, from proposalOf.)
+function LayoutComparison({ conflict, proposal }) {
   const layouts = conflict.layouts ?? {}
   const entries = [
-    ['original', 'text-emerald-300'],
-    ['implementation', 'text-rose-300'],
-    ...(showProposal ? [['proposal', 'text-sky-300']] : []),
-  ].filter(([key]) => layouts[key])
+    ['original', layouts.original, 'text-emerald-300'],
+    ['implementation', layouts.implementation, 'text-rose-300'],
+    ...(proposal?.columns ? [['proposal', { label: '개발자 제안', note: `768px · ${proposal.spec}`, columns: proposal.columns, widthMode: proposal.widthMode }, 'text-sky-300']] : []),
+  ].filter(([, layout]) => layout)
   return (
     <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={CARD}>
-      <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{showProposal ? ' · 개발자 제안' : ''} (768px)</h3>
+      <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>
       <div className={cn('grid gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
-        {entries.map(([key, tone]) => (
+        {entries.map(([key, layout, tone]) => (
           <figure key={key} data-layout={key} className="min-w-0">
-            <TabletPreview columns={layouts[key].columns} overlap={layouts[key].overlap} />
+            <TabletPreview columns={layout.columns} overlap={layout.overlap} widthMode={layout.widthMode} />
             <figcaption className="mt-2 text-center">
-              <span className={cn('block text-xs font-semibold', tone)}>{layouts[key].label}</span>
-              <span className="block text-[11px] leading-4 text-slate-400">{layouts[key].note}</span>
+              <span className={cn('block text-xs font-semibold', tone)}>{layout.label}</span>
+              <span className="block text-[11px] leading-4 text-slate-400">{layout.note}</span>
             </figcaption>
           </figure>
         ))}
       </div>
-      {/* The developer's proposal is picked right here, under the two screens it is about. */}
-      {picker}
     </section>
   )
 }
@@ -144,11 +149,11 @@ function Choice({ label, name, options, value, onChange, hint }) {
   )
 }
 
-function ReasonField({ label, value, onChange, suggestions, placeholder }) {
+function ReasonField({ label, value, onChange, suggestions, placeholder, required = true }) {
   return (
     <div data-reason-field className="min-w-0">
       <label className={cn(LABEL, 'mb-1.5 block')}>
-        {label} <span className="text-rose-300">*</span>
+        {label} {required && <span className="text-rose-300">*</span>}
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -184,7 +189,12 @@ function RequestCard({ conflict }) {
         <dt className="text-slate-400">변경 사유</dt>
         <dd className="text-slate-100">{request.reason}</dd>
         <dt className="text-slate-400">수정안</dt>
-        <dd className="font-medium text-sky-200">{PROPOSAL_LABEL[request.proposal] ?? request.proposal}{request.proposalNote ? ` · ${request.proposalNote}` : ''}</dd>
+        <dd className="font-medium text-sky-200">
+          {PROPOSAL_LABEL[request.proposal] ?? request.proposal}
+          {request.proposal === 'other' && ` · ${proposalOf('other', request.custom).spec}`}
+          {request.proposalNote ? ` · ${request.proposalNote}` : ''}
+          {request.proposal === 'other' && request.custom?.description && <span className="mt-0.5 block text-xs font-normal text-slate-300">{request.custom.description}</span>}
+        </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
         <dt className="text-slate-400">개발 단계</dt>
@@ -231,10 +241,136 @@ function DecisionCard({ conflict, viewerId }) {
 }
 
 // ── The developer's side ─────────────────────────────────────────────
-const STAGE_SHORT = { early: '초기', mid: '중간', late: '완료 직전' }
-const PROPOSAL_OPTIONS = [['one-column', '1열로 변경', '768px 이하 카드 1열'], ['narrow-cards', '2열 유지 · 카드 폭 줄이기'], ['other', '다른 수정안']]
+// Which way forward to take, picked on the screens themselves. The two
+// screens that matter (the design, what is built) sit above as plain
+// references — small, dimmed, nothing to press — and the four ways forward
+// below are cards that draw their own 768px result. Picking one shows what
+// changes: the built screen → the chosen one.
+const PICK_RING = 'border-emerald-400'
+function ReferenceFigure({ layout, tag, tone }) {
+  return (
+    <figure data-reference className="pointer-events-none w-24 shrink-0 select-none">
+      <TabletPreview columns={layout.columns} overlap={layout.overlap} maxWidth={96} />
+      <figcaption className="mt-1 text-center">
+        <span className={cn('inline-block rounded px-1.5 text-[9.5px] leading-4 font-medium', tone)}>{tag}</span>
+        <span className="block text-[10.5px] leading-4 text-slate-500">{layout.label}</span>
+      </figcaption>
+    </figure>
+  )
+}
 
-function RequestForm({ conflict, proposal, onSend }) {
+function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
+  const layouts = conflict.layouts ?? {}
+  const refs = useRef([])
+  const chosen = proposalOf(proposal, custom)
+  const move = (event, index) => {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    if (!step) return
+    event.preventDefault()
+    refs.current[(index + step + PROPOSALS.length) % PROPOSALS.length]?.focus()
+  }
+  const setCustom = (patch) => onCustom({ ...custom, ...patch })
+  return (
+    <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-2">
+        <h3 className="text-[13px] font-semibold text-white">수정안 선택 <span className="text-rose-300">*</span></h3>
+        <span className="text-[11px] text-slate-500">768px에서 어떻게 바꿀지 골라 주세요</span>
+      </div>
+
+      <div data-references aria-label="참고" className="mb-4 flex items-end gap-4 opacity-60">
+        {layouts.original && <ReferenceFigure layout={layouts.original} tag="기준" tone="bg-emerald-400/10 text-emerald-300" />}
+        {layouts.implementation && <ReferenceFigure layout={layouts.implementation} tag="현재 문제" tone="bg-rose-400/10 text-rose-300" />}
+      </div>
+
+      <div role="radiogroup" aria-label="수정안" className="grid grid-cols-2 gap-3 min-[769px]:grid-cols-4">
+        {PROPOSALS.map((option, index) => {
+          const on = proposal === option.id
+          const shape = proposalOf(option.id, custom)
+          const emptyOther = option.id === 'other' && !shape.described
+          return (
+            <button
+              key={option.id}
+              ref={(node) => { refs.current[index] = node }}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              data-choice={`proposal:${option.id}`}
+              tabIndex={on || (!proposal && index === 0) ? 0 : -1}
+              onClick={() => onProposal(option.id)}
+              onKeyDown={(event) => move(event, index)}
+              className={cn(
+                'ds-intrinsic relative flex min-w-0 flex-col gap-2 rounded-xl border-2 bg-white/[0.03] p-2 text-left transition-[opacity,border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300',
+                on ? PICK_RING : emptyOther ? 'border-dashed border-white/20 opacity-60 hover:opacity-90' : 'border-white/10 opacity-60 hover:opacity-90',
+              )}
+            >
+              {on && <span data-picked-badge aria-hidden className="absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3.5" strokeWidth={3} /></span>}
+              <div className="flex aspect-[768/640] items-center justify-center">
+                {option.id === 'other' && !shape.columns ? (
+                  shape.described && custom?.description?.trim() ? (
+                    <p className="line-clamp-2 px-1 text-center text-[11px] leading-4 text-slate-300">{custom.description.trim()}</p>
+                  ) : (
+                    <span className="text-[12px] font-medium text-slate-400">+ 직접 입력</span>
+                  )
+                ) : (
+                  <TabletPreview columns={shape.columns} widthMode={shape.widthMode} maxWidth={150} />
+                )}
+              </div>
+              <span className="min-w-0">
+                <span className={cn('block text-[12.5px] leading-4 font-semibold', on ? 'text-emerald-100' : 'text-slate-100')}>{option.name}</span>
+                <span className="block text-[11px] leading-4 text-slate-400">{option.id === 'other' ? shape.spec : option.spec}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {proposal === 'other' && (
+        <div data-custom-proposal className="mt-3 flex flex-col gap-3 rounded-lg bg-black/20 p-3">
+          <label className={cn(LABEL, 'block')}>
+            설명 <span className="text-rose-300">*</span>
+            <textarea
+              value={custom.description}
+              onChange={(event) => setCustom({ description: event.target.value })}
+              rows={2}
+              placeholder="어떻게 바꾸고 싶은지 적어 주세요. 예: 768px에서는 카드 3열, 폭은 화면에 맞춰요."
+              className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Choice label="열 수 (선택)" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
+            <Choice label="폭 방식 (선택)" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
+          </div>
+          <label className={cn(LABEL, 'block')}>
+            참고 이미지·링크 (선택)
+            <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-9 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-[13px] font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60" />
+          </label>
+        </div>
+      )}
+
+      {/* What changes: the screen as built → the way picked. */}
+      <div data-proposal-summary className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
+        {chosen && (chosen.columns || chosen.described) ? (
+          <>
+            <span className="w-14 shrink-0"><TabletPreview columns={layouts.implementation?.columns ?? 2} overlap maxWidth={56} /></span>
+            <span aria-hidden className="text-slate-500">→</span>
+            <span className="w-14 shrink-0">
+              {chosen.columns ? <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} maxWidth={56} /> : <span className="flex aspect-[768/640] items-center justify-center rounded-lg border border-dashed border-white/30 text-[10px] text-slate-400">직접</span>}
+            </span>
+            <span className="min-w-0 text-[12px] text-slate-200"><span className="text-slate-400">{IMPLEMENTATION_SPEC}</span> → <span className="font-medium text-emerald-200">{chosen.id === 'other' ? chosen.spec : chosen.spec}</span></span>
+          </>
+        ) : (
+          <span className="text-[12px] text-amber-200">수정안을 선택해 주세요</span>
+        )}
+      </div>
+    </section>
+  )
+}
+
+const STAGE_SHORT = { early: '초기', mid: '중간', late: '완료 직전' }
+
+const jumpToProposal = () => document.querySelector('[data-proposal-section]')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+
+function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   const previous = conflict.decisionRequest
   const rework = conflict.designDecision?.choice === 'rework'
   const project = projects.find((candidate) => candidate.id === conflict.projectId)
@@ -244,52 +380,84 @@ function RequestForm({ conflict, proposal, onSend }) {
   const [changingStage, setChangingStage] = useState(!project?.devStage)
   const [timing, setTiming] = useState(previous?.timing ?? null)
   const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
-  const missing = [!reason.trim() && '변경 사유', !proposal && '수정안', !devStage && '개발 단계', !timing && '희망 반영 시점'].filter(Boolean)
+  const chosen = proposalOf(proposal, custom)
+  // 원안대로 맞추기 needs no approval: nothing to ask, only to start.
+  const direct = proposal === 'original'
+  const missing = direct ? [] : [
+    !chosen && '수정안',
+    proposal === 'other' && !custom.description.trim() && '수정안 설명',
+    !reason.trim() && '변경 사유',
+    !devStage && '개발 단계',
+    !timing && '희망 반영 시점',
+  ].filter(Boolean)
   // Where it could land: the next releases, by name and date when the project has them.
   const release = project?.release
+  const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage, timing })
   return (
     <section data-decision-request-form className={CARD}>
-      <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
-      <p className="mt-0.5 mb-4 text-xs text-slate-400">디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요. 수정안은 위 비교 카드에서 골라요.</p>
+      <h3 className="text-[13px] font-semibold text-white">{direct ? '승인 없이 바로 수정' : `${designer}님(디자이너)에게 디자인 결정 요청`}</h3>
+      <p className="mt-0.5 mb-3 text-xs text-slate-400">
+        {direct ? `디자인 원안대로 맞추는 거라 승인이 필요 없어요. ${designer}님에게는 알림만 가요.` : '디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요.'}
+      </p>
+
+      {/* The way picked above, kept in view here; pressing it goes back to the cards. */}
+      <button
+        type="button"
+        data-picked-proposal
+        onClick={jumpToProposal}
+        className={cn('ds-intrinsic mb-4 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-inset transition-colors hover:bg-white/[0.06]', chosen ? 'bg-emerald-400/[0.07] ring-emerald-400/40' : 'bg-amber-400/[0.07] ring-amber-400/40')}
+      >
+        {chosen && chosen.columns && <span className="w-10 shrink-0"><TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} maxWidth={40} /></span>}
+        <span className="min-w-0 flex-1 text-xs">
+          <span className="text-slate-400">선택한 수정안 · </span>
+          {chosen ? <span className="font-semibold text-emerald-100">{chosen.name}<span className="font-normal text-slate-300"> · {chosen.spec}</span></span> : <span className="font-medium text-amber-200">수정안을 선택해 주세요</span>}
+        </span>
+        <span className="shrink-0 text-[11px] text-slate-400">{chosen ? '바꾸기' : '고르러 가기'} ↑</span>
+      </button>
+
       <div className="flex flex-col gap-4">
         <ReasonField
-          label="변경 사유"
+          label={direct ? '메모 (선택)' : '변경 사유'}
           value={reason}
           onChange={setReason}
-          placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
-          suggestions={['768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 1열로 쌓는 편이 읽기 쉬워요.']}
+          placeholder={direct ? '남기고 싶은 메모가 있다면 적어 주세요' : '왜 디자인 원안과 다르게 바꿔야 하나요?'}
+          suggestions={[reasonSuggestionFor(proposal, custom)]}
+          required={!direct}
         />
-        <div className="min-w-0 space-y-3">
-          <Choice
-            label="희망 반영 시점"
-            name="timing"
-            value={timing}
-            onChange={setTiming}
-            options={[['now', '지금', '이번 작업에'], ['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
-            hint="희망일 뿐이에요. 디자이너가 결정하면서 반영 시점을 확정해요."
-          />
-          {devStage && !changingStage ? (
-            <p data-dev-stage className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-              개발 단계 · <span className="font-medium text-slate-200">{STAGE_SHORT[devStage]}</span>
-              <span className="text-slate-500">프로젝트 정보에서 가져왔어요</span>
-              <button type="button" onClick={() => setChangingStage(true)} className="text-slate-300 underline-offset-2 hover:text-white hover:underline">변경</button>
-            </p>
-          ) : (
-            <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
-          )}
-        </div>
+        {!direct && (
+          <div className="min-w-0 space-y-3">
+            <Choice
+              label="희망 반영 시점"
+              name="timing"
+              value={timing}
+              onChange={setTiming}
+              options={[['now', '지금', '이번 작업에'], ['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
+              hint="희망일 뿐이에요. 디자이너가 결정하면서 반영 시점을 확정해요."
+            />
+            {devStage && !changingStage ? (
+              <p data-dev-stage className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                개발 단계 · <span className="font-medium text-slate-200">{STAGE_SHORT[devStage]}</span>
+                <span className="text-slate-500">프로젝트 정보에서 가져왔어요</span>
+                <button type="button" onClick={() => setChangingStage(true)} className="text-slate-300 underline-offset-2 hover:text-white hover:underline">변경</button>
+              </p>
+            ) : (
+              <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
-          {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
-          <button
-            type="button"
-            data-send-decision-request
-            disabled={missing.length > 0}
-            onClick={() => onSend({ reason: reason.trim(), attachment: true, proposal, devStage, timing })}
-            className={PRIMARY}
-          >
-            <Send className="size-3.5" />
-            {designer}님에게 승인 요청 보내기
-          </button>
+          {missing.length > 0 && <span className="text-[11px] text-slate-500">{!chosen ? '수정안을 선택해 주세요' : `남은 항목: ${missing.join(', ')}`}</span>}
+          {direct ? (
+            <button type="button" data-start-direct-fix onClick={() => onDirect({ ...payload(), devStage: devStage ?? project?.devStage ?? null, timing: 'now' })} className={PRIMARY}>
+              <ArrowRight className="size-3.5" />
+              바로 수정 시작
+            </button>
+          ) : (
+            <button type="button" data-send-decision-request disabled={missing.length > 0} onClick={() => onSend(payload())} className={PRIMARY}>
+              <Send className="size-3.5" />
+              {designer}님에게 승인 요청 보내기
+            </button>
+          )}
         </div>
       </div>
     </section>
@@ -500,10 +668,21 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     </button>
   )
 
-  // The proposal is picked under the comparison (not in the form below it); a new round starts without one.
+  // The way forward is picked on the proposal cards (not in the form below);
+  // 다른 수정안's own fields are kept while another card is looked at. A new
+  // round after a rework starts without one.
   const askingNow = stage === 'detected' || stage === 'rework'
-  const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? null))
-  useEffect(() => { if (stage === 'rework') setProposal(null) }, [stage])
+  const EMPTY_CUSTOM = { description: '', columns: null, widthMode: null, reference: '' }
+  const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? null))
+  const [custom, setCustom] = useState(() => ({ ...EMPTY_CUSTOM, ...(request?.custom ?? conflict.decisionDraft?.custom ?? {}) }))
+  useEffect(() => { if (stage === 'rework') { setProposal(null); setCustom(EMPTY_CUSTOM) } }, [stage])
+  // Kept on the conflict while it is being decided, so the side panel can show it too.
+  const draftKey = JSON.stringify([proposal, custom])
+  useEffect(() => {
+    if (!developer || !askingNow || !workspace) return
+    if (JSON.stringify([conflict.decisionDraft?.proposal ?? null, { ...EMPTY_CUSTOM, ...(conflict.decisionDraft?.custom ?? {}) }]) === draftKey) return
+    workspace.setDecisionDraft(conflict.id, { proposal, custom })
+  }, [draftKey])
 
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
@@ -515,15 +694,14 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
         <DetectedSummary conflict={conflict} />
       )}
 
-      <LayoutComparison
-        conflict={conflict}
-        showProposal={developer && askingNow ? proposal === 'one-column' : Boolean(request?.proposal === 'one-column') || !developer}
-        picker={developer && askingNow && (
-          <div className="mt-4 border-t border-white/[0.06] pt-3">
-            <Choice label="수정안 *" name="proposal" value={proposal} onChange={setProposal} options={PROPOSAL_OPTIONS} hint="어떻게 바꾸면 좋을지 골라 주세요. 선택하면 위에 제안 화면이 나타나요." />
-          </div>
-        )}
-      />
+      {developer && askingNow ? (
+        <ProposalSection conflict={conflict} proposal={proposal} onProposal={setProposal} custom={custom} onCustom={setCustom} />
+      ) : (
+        <LayoutComparison
+          conflict={conflict}
+          proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : developer ? null : proposalOf('one-column')}
+        />
+      )}
 
       {request && <RequestCard conflict={conflict} />}
 
@@ -536,6 +714,11 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
                 key={`${conflict.id}:${request?.round ?? 0}`}
                 conflict={conflict}
                 proposal={proposal}
+                custom={custom}
+                onDirect={(next) => {
+                  workspace.startDirectFix(conflict.id, next)
+                  toast('승인 없이 바로 수정을 시작했어요', { description: `${designer}님에게 알림만 보냈어요 · ${conflict.id}` })
+                }}
                 onSend={(next) => {
                   workspace.requestDesignDecision(conflict.id, next)
                   toast(`${designer}님에게 승인 요청을 보냈어요`, { description: `${conflict.id} · 희망 반영 시점 ${TIMING_LABEL[next.timing]}` })

@@ -1299,6 +1299,32 @@ export function WorkspaceProvider({ children, projectId }) {
     recordDecisionStep(conflict, { label: `${conflict.id} 디자인 결정 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
+  // The developer's working choice of a way forward, before anything is sent —
+  // kept on the conflict so the review's side panel can say it too.
+  const setDecisionDraft = useCallback((conflictId, draft) => {
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, decisionDraft: draft })))
+  }, [setConflicts])
+
+  // 원안대로 맞추기: the way forward is the design itself, so there is nothing
+  // to ask — the developer goes straight to the fix, and the designer is told.
+  const startDirectFix = useCallback((conflictId, request) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict) return
+    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    const at = timeLabel()
+    const decision = { choice: 'keep', by: currentUser.id, at, decidedAt: Date.now(), timing: 'now', direct: true, reason: request.reason || '디자인 원안대로 맞춰 바로 수정해요.' }
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c,
+      decisionRequest: { ...request, by: currentUser.id, at, sentAt: Date.now(), round: (c.decisionRequest?.round ?? 0) + 1, direct: true },
+      designDecision: decision,
+      decisionFix: null,
+      reviewStage: 'approved',
+    })))
+    logEvent({ kind: 'decided', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    notifyPerson(designerId, conflict, `디자인 원안대로 바로 수정을 시작했어요 · ${conflict.id} ${conflict.title}`)
+    recordDecisionStep(conflict, { label: `${conflict.id} 원안대로 바로 수정 시작 (승인 없이)`, reason: decision.reason })
+  }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
+
   // The designer decides. Keep / approve settle it (the reviewer signs
   // off); asking for another look sends it back to the developer.
   const decideDesign = useCallback((conflictId, decision, { actorId = currentUser.id } = {}) => {
@@ -2431,6 +2457,8 @@ export function WorkspaceProvider({ children, projectId }) {
     completeMerge,
     updateMergeItem,
     requestDesignDecision,
+    setDecisionDraft,
+    startDirectFix,
     decideDesign,
     applyDecisionFix,
     verifyDecisionFix,

@@ -69,6 +69,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
+import { proposalOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
@@ -636,6 +637,15 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               </Row>
             )}
             {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
+            {conflict.decisionFlow && !conflict.rollback && (() => {
+              const pick = conflict.decisionRequest?.proposal ?? conflict.decisionDraft?.proposal
+              const shape = proposalOf(pick, conflict.decisionRequest?.custom ?? conflict.decisionDraft?.custom)
+              return (
+                <Row label="Proposed fix" data-summary-row="Proposed fix">
+                  {shape ? <span className="font-medium text-sky-200">{shape.name}<span className="font-normal text-slate-300"> · {shape.spec}</span></span> : <span className="text-amber-200">수정안을 선택해 주세요</span>}
+                </Row>
+              )
+            })()}
           </dl>
         </InfoSection>
       )}
