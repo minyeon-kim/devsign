@@ -871,6 +871,7 @@ export const conflictChecklist = [
     gitFlow: { source: 'feature/dashboard-responsive', target: 'develop' },
     cause: '768px에서 카드 2열(360px 고정) · 화면 폭보다 넓어 카드가 겹침',
     effect: '태블릿에서 카드 내용이 가려짐 · 구매 버튼 위치가 밀림',
+    summary: '768px에서 카드가 겹쳐요. 디자인은 화면 폭에 맞춘 2열, 구현은 360px 고정 2열이에요.',
     message: '768px(태블릿)에서 DashboardGrid가 360px 고정 카드 2열을 유지해, 카드가 서로 겹쳐요. 디자인 원안은 768px에서 화면 폭에 맞춘 카드 2열이에요.',
     riskReason: 'Medium: 태블릿 레이아웃 구조가 바뀌는 변경 · 데이터나 결제 로직은 그대로예요.',
     impact: {

@@ -450,6 +450,37 @@ function DecisionForm({ conflict, onDecide }) {
   )
 }
 
+// Compact detection card: one sentence + chips; the file/cause/impact table
+// stays folded until asked for.
+function DetectedSummary({ conflict }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <section data-decision-detected className={cn(CARD, 'ring-amber-400/25 !py-3')}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-100">{conflict.summary ?? conflict.message}</p>
+        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">보통</span>
+        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">디자인 결정 필요</span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <p className="text-[11px] text-slate-500">자동 감지 · {conflict.detectedBy} · {conflict.timestamp}</p>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="text-[11px] font-medium text-slate-400 hover:text-slate-200">
+          {open ? '접기' : '자세히 보기'}
+        </button>
+      </div>
+      {open && (
+        <dl className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-xs">
+          <dt className="text-slate-400">관련 파일</dt>
+          <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
+          <dt className="text-slate-400">원인</dt>
+          <dd className="text-slate-200">{conflict.cause}</dd>
+          <dt className="text-slate-400">영향 범위</dt>
+          <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
+        </dl>
+      )}
+    </section>
+  )
+}
+
 export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
   const navigate = useNavigate()
   const developer = viewer?.jobRole === 'Developer'
@@ -484,20 +515,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
       {/* What was detected — said first on the developer's side, before
           anything has been asked. */}
       {developer && stage === 'detected' && (
-        <section data-decision-detected className={cn(CARD, 'ring-amber-400/25')}>
-          <p className="text-[11px] font-medium text-amber-300">자동 감지 · {conflict.detectedBy} · {conflict.timestamp}</p>
-          <p className="mt-1 text-[13px] leading-5 text-slate-100">{conflict.message}</p>
-          <dl className="mt-3 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-xs">
-            <dt className="text-slate-400">관련 파일</dt>
-            <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
-            <dt className="text-slate-400">원인</dt>
-            <dd className="text-slate-200">{conflict.cause}</dd>
-            <dt className="text-slate-400">영향 범위</dt>
-            <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
-            <dt className="text-slate-400">심각도</dt>
-            <dd className="text-amber-200">보통 (Medium) · 상태: 디자인 결정 필요</dd>
-          </dl>
-        </section>
+        <DetectedSummary conflict={conflict} />
       )}
 
       <LayoutComparison conflict={conflict} showProposal={Boolean(request?.proposal === 'one-column') || !developer} />
