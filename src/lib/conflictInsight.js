@@ -162,13 +162,34 @@ export function designLinkOf(conflict, pages = []) {
 export function openConflictsByLayer(conflicts = []) {
   const byLayer = new Map()
   for (const conflict of conflicts) {
-    if (!conflict.layerId || conflict.rollback || conflict.reviewStage === 'resolved' || isDesignReview(conflict)) continue
-    byLayer.set(conflict.layerId, [...(byLayer.get(conflict.layerId) ?? []), conflict])
+    if (layerIdsOf(conflict).length === 0 || conflict.rollback || conflict.reviewStage === 'resolved' || isDesignReview(conflict)) continue
+    for (const layerId of layerIdsOf(conflict)) byLayer.set(layerId, [...(byLayer.get(layerId) ?? []), conflict])
   }
   return byLayer
 }
 
+// Every canvas element a conflict is about: its main one (`layerId`, what
+// its thumbnail shows) and any others it applies to (`layerIds` — a spacing
+// rule is about every card, not one).
+export function layerIdsOf(conflict) {
+  return [...new Set([conflict?.layerId, ...(conflict?.layerIds ?? [])].filter(Boolean))]
+}
+
+// Whether picking `selectedId` on the canvas — an element, or a whole
+// frame — is picking something this conflict is about.
+export function conflictIsAbout(conflict, selectedId, pages = []) {
+  if (!selectedId) return false
+  const ids = layerIdsOf(conflict)
+  if (ids.includes(selectedId)) return true
+  const frame = pages.flatMap((page) => page.frames ?? []).find((candidate) => candidate.id === selectedId)
+  return Boolean(frame?.layers.some((layer) => ids.includes(layer.id)))
+}
+
 // How many of those are about a page's elements — the dot on its tab.
 export function conflictCountOnPage(page, byLayer) {
-  return (page.frames ?? []).reduce((total, frame) => total + frame.layers.reduce((sum, layer) => sum + (byLayer.get(layer.id)?.length ?? 0), 0), 0)
+  const ids = new Set()
+  for (const frame of page.frames ?? []) {
+    for (const layer of frame.layers) for (const conflict of byLayer.get(layer.id) ?? []) ids.add(conflict.id)
+  }
+  return ids.size
 }

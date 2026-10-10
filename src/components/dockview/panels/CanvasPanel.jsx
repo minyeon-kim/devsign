@@ -21,7 +21,7 @@ import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { overrideFromEdit } from '@/lib/prototypeSync'
-import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
+import { conflictCountOnPage, conflictIsAbout, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import {
@@ -522,7 +522,7 @@ function CanvasPanel() {
     })
     setPendingComment(null)
     // An element with open conflicts: bring up Conflict Points, where they're lit.
-    if (conflictsByLayer.has(id)) setBottomPanel({ open: true, tab: 'conflict' })
+    if ([...conflictsByLayer.values()].flat().some((conflict) => conflictIsAbout(conflict, id, projectPages))) setBottomPanel({ open: true, tab: 'conflict' })
     const target = findCanvasTarget(id)
     if (target) {
       openLayerInspectTab(dockApi, target.layer ?? target.frame)
