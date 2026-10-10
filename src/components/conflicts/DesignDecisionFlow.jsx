@@ -92,18 +92,27 @@ function LayoutComparison({ conflict, showProposal }) {
 const DEV_STEPS = ['충돌 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
 const DESIGN_STEPS = ['요청 확인', '비교', '결정 · 반영 시점', 'Alex에게 전달', '개발 반영']
 const STAGE_INDEX = { detected: 0, requested: 1, rework: 1, decided: 3, fixed: 3, verified: 3, resolved: 5 }
-function Steps({ steps, current }) {
+function Steps({ steps, current, hint }) {
   return (
-    <ol data-decision-steps className="flex flex-wrap items-center gap-1 text-[11.5px]">
-      {steps.map((step, index) => (
-        <li key={step} data-step-state={index < current ? 'done' : index === current ? 'current' : 'todo'} className="flex items-center gap-1">
-          {index > 0 && <span aria-hidden className={cn('h-px w-3', index <= current ? 'bg-emerald-400/50' : 'bg-white/15')} />}
-          <span className={cn('rounded-full px-2 py-0.5', index < current ? 'text-emerald-300' : index === current ? 'bg-emerald-400/15 font-semibold text-emerald-200 ring-1 ring-emerald-400/40' : 'text-slate-500')}>
-            {index < current && '✓ '}{step}
-          </span>
-        </li>
-      ))}
-    </ol>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <ol data-decision-steps className="flex flex-wrap items-center gap-1 text-[11.5px]">
+        {steps.map((step, index) => {
+          const state = index < current ? 'done' : index === current ? 'current' : 'todo'
+          return (
+            <li key={step} data-step-state={state} aria-current={state === 'current' ? 'step' : undefined} className="flex items-center gap-1">
+              {index > 0 && <span aria-hidden className={cn('h-px w-4', index <= current ? 'bg-emerald-400/60' : 'bg-white/15')} />}
+              <span className={cn('flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-0.5', state === 'current' && 'bg-emerald-400/15 font-semibold text-emerald-100 ring-1 ring-emerald-400/40', state === 'done' && 'text-emerald-300', state === 'todo' && 'text-slate-500')}>
+                <span aria-hidden className={cn('grid size-4 place-items-center rounded-full text-[10px] font-semibold', state === 'done' && 'bg-emerald-400/20', state === 'current' && 'bg-emerald-400 text-slate-900', state === 'todo' && 'ring-1 ring-white/20 ring-inset')}>
+                  {state === 'done' ? <Check className="size-2.5" /> : index + 1}
+                </span>
+                {step}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      {hint && <p data-decision-next className="pl-1 text-xs text-slate-300">다음 할 일 · {hint}</p>}
+    </div>
   )
 }
 
@@ -505,10 +514,14 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
     : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
 
+  const hint = developer
+    ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리는 중이에요`, decided: '결정대로 코드를 수정하세요' }[stage]
+    : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요' }[stage]
+
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Steps steps={developer ? DEV_STEPS : DESIGN_STEPS} current={current} />
+        <Steps steps={developer ? DEV_STEPS : DESIGN_STEPS} current={current} hint={hint} />
         {(request || decision) && historyLink}
       </div>
 
