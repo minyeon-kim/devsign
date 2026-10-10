@@ -5,37 +5,62 @@ export const TIMING_LABEL = { now: '지금', 'before-release': '출시 전', 'ne
 export const PROPOSAL_LABEL = { original: '원안대로 맞추기', 'one-column': '1열로 변경', 'narrow-cards': '2열 유지 · 카드 폭 줄이기', other: '다른 수정안' }
 // What the screen is now, said the way a proposal's spec is.
 export const IMPLEMENTATION_SPEC = '360px 고정 2열'
-// The ways forward a developer can propose. Each draws its own 768px preview
-// (columns, and how the card width behaves) and says itself in one line.
+// The ways forward a developer can propose. Each carries the values it stands
+// for (the same ones 다른 수정안's controls edit), draws its own 768px preview
+// from them and says itself in one line.
+// values: { columns, cardWidth: { mode: 'fit' | 'fixed', px }, gap, range }
 export const PROPOSALS = [
-  { id: 'original', name: '원안대로 맞추기', spec: '화면 폭 맞춤 2열', columns: 2, widthMode: 'fit' },
-  { id: 'one-column', name: '1열로 변경', spec: '768px 이하 카드 1열', columns: 1, widthMode: 'fit' },
-  { id: 'narrow-cards', name: '2열 유지 · 카드 폭 줄이기', spec: '2열 · 카드 폭을 줄여 맞춤', columns: 2, widthMode: 'narrow' },
-  { id: 'other', name: '다른 수정안', spec: '직접 입력', columns: null, widthMode: null },
+  { id: 'original', name: '원안대로 맞추기', spec: '화면 폭 맞춤 2열', values: { columns: 2, cardWidth: { mode: 'fit' }, range: '~768px' } },
+  { id: 'one-column', name: '1열로 변경', spec: '768px 이하 카드 1열', values: { columns: 1, cardWidth: { mode: 'fit' }, range: '~768px' } },
+  { id: 'narrow-cards', name: '2열 유지 · 카드 폭 줄이기', spec: '2열 · 카드 폭을 줄여 맞춤', values: { columns: 2, cardWidth: { mode: 'fixed', px: 320 }, range: '~768px' } },
+  { id: 'other', name: '다른 수정안', spec: '직접 입력', values: {} },
 ]
-export const WIDTH_MODE_LABEL = { fixed: '고정', fit: '맞춤' }
+// The controls a conflict offers for 다른 수정안: one per property that
+// differs between the design and the code (`conflict.driftProps`, from what
+// was detected), each with what the code has now. A conflict that doesn't
+// list any gets the layout basics.
+const DEFAULT_PROPS = [
+  { id: 'columns', label: '열 수', kind: 'choice', options: [1, 2, 3], current: 2, currentText: '현재 2열' },
+  { id: 'cardWidth', label: '카드 폭', kind: 'width', current: { mode: 'fixed', px: 360 }, currentText: '현재 360px 고정' },
+]
+export const controlsOf = (conflict) => conflict?.driftProps ?? DEFAULT_PROPS
+const RANGE_LABEL = { '~768px': '768px 이하', '~1024px': '1024px 이하', 전체: '모든 화면' }
+// The values as one line: "768px 이하 · 카드 3열 · 화면 맞춤 · 간격 12px".
+export function summarizeValues(values = {}) {
+  return [
+    values.range && RANGE_LABEL[values.range],
+    values.columns && `카드 ${values.columns}열`,
+    values.cardWidth?.mode === 'fit' ? '화면 맞춤' : values.cardWidth?.mode === 'fixed' ? `폭 ${values.cardWidth.px ? `${values.cardWidth.px}px ` : ''}고정` : null,
+    values.gap != null && values.gap !== '' && `간격 ${values.gap}px`,
+  ].filter(Boolean).join(' · ')
+}
+// The values a proposal stands for — a preset's own, or what 다른 수정안 has set.
+export const valuesOf = (id, custom) => (id === 'other' ? (custom?.values ?? {}) : PROPOSALS.find((proposal) => proposal.id === id)?.values ?? {})
 // One proposal, fully described — for previews, summaries and the request.
-// `custom` is what was typed for 다른 수정안 ({ description, columns, widthMode, reference }).
+// `custom` is what 다른 수정안 holds: { values, note }.
 export function proposalOf(id, custom) {
   const base = PROPOSALS.find((proposal) => proposal.id === id)
   if (!base) return null
-  if (id !== 'other') return base
-  const columns = custom?.columns ?? null
-  const widthMode = custom?.widthMode ?? null
-  const parts = [columns && `${columns}열`, widthMode && `카드 폭 ${WIDTH_MODE_LABEL[widthMode]}`].filter(Boolean)
-  return { ...base, columns, widthMode, spec: parts.length ? parts.join(' · ') : (custom?.description?.trim() || base.spec), described: Boolean(parts.length || custom?.description?.trim()) }
+  const values = valuesOf(id, custom)
+  const widthMode = values.cardWidth?.mode === 'fixed' ? (id === 'narrow-cards' ? 'narrow' : 'fixed') : values.cardWidth?.mode ?? null
+  const shape = { ...base, values, columns: values.columns ?? null, widthMode, gap: values.gap ?? null }
+  if (id !== 'other') return shape
+  const summary = summarizeValues(values)
+  return { ...shape, spec: summary || custom?.note?.trim() || base.spec, described: Boolean(summary || custom?.note?.trim()) }
 }
-// The reason's suggested wording follows the proposal picked.
-export function reasonSuggestionFor(id, custom) {
-  if (id === 'original') return '768px에서 360px 고정 카드 2장이 화면 폭을 넘어 겹쳐요. 디자인 원안대로 화면 폭에 맞춘 2열로 되돌리면 해결돼요.'
-  if (id === 'one-column') return '768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 1열로 쌓는 편이 읽기 쉬워요.'
-  if (id === 'narrow-cards') return '768px에서 카드 폭만 줄이면 2열 배치를 그대로 두고도 겹치지 않아요. 디자인 원안의 2열을 최대한 지킬 수 있어요.'
-  if (id === 'other') {
-    const spec = proposalOf('other', custom)
-    const why = custom?.rationale?.trim() || custom?.description?.trim()
-    return `768px에서 카드가 겹치는 문제를 ${spec.described ? `${spec.spec}으로` : '제안한 방식으로'} 풀려고 해요. ${why || '이렇게 바꾸는 이유를 적어 주세요.'}`
-  }
-  return '768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 어떻게 바꾸면 좋을지 수정안을 먼저 골라 주세요.'
+// Why-it-fits sentences to pick from, made from the way chosen and what was
+// detected. They are offered, never filled in.
+export function reasonChipsFor(id, custom) {
+  const shape = proposalOf(id, custom)
+  if (!shape) return []
+  const { columns, gap, values } = shape
+  const chips = [`${IMPLEMENTATION_SPEC}이라 768px에서 카드가 겹쳐요`]
+  if (columns === 1) chips.push('1열로 쌓으면 카드가 겹치지 않고 숫자가 또렷해요', '태블릿에서는 한 줄에 하나씩 보는 편이 읽기 쉬워요')
+  else if (columns === 2 && values.cardWidth?.mode === 'fixed') chips.push('2열을 유지해서 한 화면에 보이는 정보가 줄지 않아요', '카드 폭을 줄이면 겹치지 않아요')
+  else if (columns === 2) chips.push('디자인 원안과 같은 2열이라 디자인을 바꿀 필요가 없어요')
+  else if (columns === 3) chips.push('3열이 한 화면에 가장 많이 보여요', '1열은 스크롤이 길어지고 2열은 카드가 좁아 숫자가 잘려요')
+  if (gap != null && gap !== '') chips.push(`간격을 ${gap}px로 하면 카드가 한 줄에 더 들어가요`)
+  return chips.slice(0, 3)
 }
 
 export const DEV_STAGE_LABEL = { early: '개발 초기', mid: '개발 중간', late: '완료 직전' }

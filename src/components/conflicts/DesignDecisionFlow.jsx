@@ -4,7 +4,7 @@ import { ArrowRight, Check, CircleCheck, History, Paperclip, RotateCcw, Send, Sh
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, decisionStageOf, proposalOf, reasonSuggestionFor } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionStageOf, proposalOf, reasonChipsFor, summarizeValues, valuesOf } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -29,13 +29,13 @@ const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
 // One tablet screen (768px) of the dashboard, drawn small: the cards in
 // the given number of columns — or, built with fixed widths that don't fit,
 // overlapping each other.
-function TabletPreview({ columns, overlap = false, widthMode = 'fit', maxWidth = 200, scale = 1 }) {
+function TabletPreview({ columns, overlap = false, widthMode = 'fit', gap = null, maxWidth = 200, scale = 1 }) {
   if (scale !== 1) {
     // The same small drawing, scaled up as a whole so it stays in proportion.
     return (
       <div className="mx-auto" style={{ width: 200 * scale, height: 200 * scale * (640 / 768) }}>
         <div style={{ width: 200, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-          <TabletPreview columns={columns} overlap={overlap} widthMode={widthMode} />
+          <TabletPreview columns={columns} overlap={overlap} widthMode={widthMode} gap={gap} />
         </div>
       </div>
     )
@@ -62,7 +62,7 @@ function TabletPreview({ columns, overlap = false, widthMode = 'fit', maxWidth =
           <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[8px] font-bold text-white">겹침</span>
         </div>
       ) : (
-        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: gap != null && gap !== '' ? Math.max(1, Math.min(12, Number(gap) * 0.26)) : 6 }}>
           {cards.slice(0, shown).map((index) => (
             <div
               key={index}
@@ -159,11 +159,25 @@ function Choice({ label, name, options, value, onChange, hint }) {
   )
 }
 
-function ReasonField({ label, value, onChange, suggestions, placeholder, required = true }) {
+function ReasonField({ label, value, onChange, suggestions, placeholder, append = false }) {
   return (
     <div data-reason-field className="min-w-0">
       <label className={cn(LABEL, 'mb-1.5 block')}>
-        {label} {required && <span className="text-rose-300">*</span>}
+        {label} <span className="text-rose-300">*</span>
+        {/* Suggestions sit above the box: pressing one adds its sentence (append) or sets it. */}
+        {append && suggestions?.length > 0 && (
+          <span data-reason-chips className="mt-1.5 mb-1.5 flex flex-wrap gap-1.5">
+            {suggestions.map((text) => {
+              const used = value.includes(text)
+              return (
+                <button key={text} type="button" disabled={used} onClick={() => onChange(value.trim() ? `${value.trim()} ${text}.` : `${text}.`)} className="ds-intrinsic inline-flex min-h-6 items-center gap-1 rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] font-normal text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-40">
+                  <Sparkles className="size-3 shrink-0 text-slate-400" />
+                  {text}
+                </button>
+              )
+            })}
+          </span>
+        )}
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -172,7 +186,7 @@ function ReasonField({ label, value, onChange, suggestions, placeholder, require
           className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60"
         />
       </label>
-      {suggestions?.length > 0 && (
+      {!append && suggestions?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {suggestions.map((text) => (
             <button key={text} type="button" onClick={() => onChange(text)} className="ds-intrinsic inline-flex min-h-6 items-center gap-1 rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
@@ -203,8 +217,7 @@ function RequestCard({ conflict }) {
           {PROPOSAL_LABEL[request.proposal] ?? request.proposal}
           {request.proposal === 'other' && ` · ${proposalOf('other', request.custom).spec}`}
           {request.proposalNote ? ` · ${request.proposalNote}` : ''}
-          {request.proposal === 'other' && request.custom?.description && <span className="mt-0.5 block text-xs font-normal text-slate-300">{request.custom.description}</span>}
-          {request.proposal === 'other' && request.custom?.rationale && <span className="mt-1 block text-xs font-normal text-slate-300"><span className="text-slate-500">고른 이유 · </span>{request.custom.rationale}</span>}
+          {request.proposal === 'other' && request.custom?.note && <span className="mt-0.5 block text-xs font-normal text-slate-300">{request.custom.note}</span>}
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
@@ -268,6 +281,81 @@ function LayoutGlyph({ columns, widthMode }) {
   )
 }
 
+// The controls for the values of a way forward: one per property that
+// differs between the design and the code (controlsOf), each beside what the
+// code has now. Used for 다른 수정안, and for a preset too — touching a value
+// there turns it into 다른 수정안 with the rest carried over.
+const numberField = 'h-8 w-20 rounded-lg border border-white/10 bg-black/20 px-2.5 text-[13px] text-slate-100 outline-none focus:border-white/30 disabled:opacity-40'
+function ControlChips({ label, name, options, value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
+      {options.map(([id, text]) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={value === id}
+          data-choice={`${name}:${id}`}
+          onClick={() => onChange(id)}
+          className={cn('ds-intrinsic inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium ring-1 ring-inset transition-colors',
+            value === id ? 'bg-emerald-400/15 text-emerald-100 ring-emerald-400/60' : 'bg-white/[0.03] text-slate-300 ring-white/10 hover:bg-white/[0.06] hover:text-white')}
+        >
+          {value === id && <Check className="size-3.5" />}
+          {text}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ProposalControls({ conflict, values, onEdit, note, onNote }) {
+  const [noteOpen, setNoteOpen] = useState(Boolean(note))
+  const summary = summarizeValues(values)
+  return (
+    <div data-proposal-controls className="mb-1 ml-10 flex flex-col gap-3 py-3 pr-1">
+      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {controlsOf(conflict).map((control) => (
+          <div key={control.id} data-control={control.id} className="min-w-0">
+            <div className="mb-1.5 flex items-baseline gap-2">
+              <span className={LABEL}>{control.label}</span>
+              {control.currentText && <span className="text-[11px] text-slate-500">{control.currentText}</span>}
+            </div>
+            {control.kind === 'choice' && (
+              <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : option === '전체' ? '모든 화면' : option])} />
+            )}
+            {control.kind === 'width' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <ControlChips label={control.label} name={`control-${control.id}`} value={values.cardWidth?.mode ?? null} onChange={(mode) => onEdit('cardWidth', { ...values.cardWidth, mode })} options={[['fit', '화면 맞춤'], ['fixed', '고정']]} />
+                <span className="flex items-center gap-1 text-xs text-slate-400">
+                  <input type="number" min="0" aria-label="카드 폭(px)" data-control-input="cardWidth" disabled={values.cardWidth?.mode !== 'fixed'} value={values.cardWidth?.px ?? ''} onChange={(event) => onEdit('cardWidth', { ...values.cardWidth, mode: 'fixed', px: event.target.value === '' ? undefined : Number(event.target.value) })} className={numberField} />
+                  px
+                </span>
+              </div>
+            )}
+            {control.kind === 'px' && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <input type="number" min="0" aria-label={`${control.label}(px)`} data-control-input={control.id} value={values[control.id] ?? ''} onChange={(event) => onEdit(control.id, event.target.value === '' ? null : Number(event.target.value))} className={numberField} />
+                px
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <p data-proposal-summary-line className="text-xs text-slate-400">
+        요약 · <span className="text-slate-100">{summary || '값을 정하면 한 줄로 정리해 드려요'}</span>
+      </p>
+      {noteOpen ? (
+        <label className={cn(LABEL, 'block')}>
+          추가 설명 (선택)
+          <textarea value={note} onChange={(event) => onNote(event.target.value)} rows={3} placeholder="위 값으로 표현하기 어려운 내용만 적어 주세요." className="mt-1.5 block min-h-20 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
+        </label>
+      ) : (
+        <button type="button" data-open-note onClick={() => setNoteOpen(true)} className="w-fit text-xs text-slate-400 underline-offset-2 hover:text-white hover:underline">+ 추가 설명 (선택)</button>
+      )}
+    </div>
+  )
+}
+
 function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
   const layouts = conflict.layouts ?? {}
   const refs = useRef([])
@@ -279,7 +367,11 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
     event.preventDefault()
     refs.current[(index + step + PROPOSALS.length) % PROPOSALS.length]?.focus()
   }
-  const setCustom = (patch) => onCustom({ ...custom, ...patch })
+  // A value changed: that is 다른 수정안, with whatever the picked way had kept.
+  const edit = (id, value) => {
+    onCustom({ ...custom, values: { ...valuesOf(proposal, custom), [id]: value } })
+    if (proposal !== 'other') onProposal('other')
+  }
   const before = showDesign ? layouts.original : layouts.implementation
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
@@ -309,11 +401,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
         <figure data-layout="proposal" className={cn('min-w-0 rounded-xl p-4', chosen ? 'border-2 border-emerald-400 bg-emerald-400/[0.04]' : 'border-2 border-dashed border-white/15 bg-black/20')}>
           <div className="flex items-center justify-center" style={{ minHeight: 200 * 1.5 * (640 / 768) }}>
             {chosen?.columns ? (
-              <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} scale={1.5} />
-            ) : chosen && custom.description.trim() ? (
-              <p className="line-clamp-2 max-w-[260px] text-center text-[13px] leading-5 text-slate-300">{custom.description.trim()}</p>
+              <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} gap={chosen.gap} scale={1.5} />
             ) : (
-              <span className="text-[13px] text-slate-500">{chosen ? '아래에 수정안을 적어 주세요' : '수정안을 고르면 여기에 보여요'}</span>
+              <span className="max-w-[260px] text-center text-[13px] leading-5 text-slate-500">{chosen ? '아래 값을 정하면 여기에 보여요' : '수정안을 고르면 여기에 보여요'}</span>
             )}
           </div>
           <figcaption className="mt-3 text-center">
@@ -353,42 +443,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 </span>
                 <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} />
               </button>
-              {option.id === 'other' && on && (
-                <div data-custom-proposal className="mb-1 ml-10 flex flex-col gap-4 py-3 pr-1">
-                  <label className={cn(LABEL, 'block')}>
-                    어떻게 바꾸나요? <span className="text-rose-300">*</span>
-                    <textarea
-                      value={custom.description}
-                      onChange={(event) => setCustom({ description: event.target.value })}
-                      rows={4}
-                      placeholder="바꾸려는 모양을 구체적으로 적어 주세요. 예: 768px에서는 카드를 3열로 두고, 카드 폭은 화면에 맞춰요."
-                      className="mt-1.5 block min-h-24 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-3 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
-                    />
-                  </label>
-                  <label className={cn(LABEL, 'block')}>
-                    왜 이 방식을 골랐나요? <span className="text-rose-300">*</span>
-                    <span className="mt-0.5 block font-normal text-slate-500">다른 세 가지로는 안 되는 이유를 적어 주세요. 디자이너가 결정하는 데 가장 중요한 내용이에요.</span>
-                    <textarea
-                      value={custom.rationale}
-                      onChange={(event) => setCustom({ rationale: event.target.value })}
-                      rows={4}
-                      placeholder="예: 1열은 스크롤이 너무 길어지고, 2열은 768px에서 카드가 좁아져 숫자가 잘려요. 3열이 한 화면에 가장 많이 보여요."
-                      className="mt-1.5 block min-h-24 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-3 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
-                    />
-                  </label>
-                  <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-3">
-                    <p className="text-[11px] text-slate-500">위 미리보기에 반영 · 선택 사항</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Choice label="열 수" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
-                      <Choice label="폭 방식" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
-                    </div>
-                    <label className={cn(LABEL, 'block')}>
-                      참고 이미지·링크
-                      <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3.5 text-sm font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
-                    </label>
-                  </div>
-                </div>
-              )}
+              {on && <ProposalControls conflict={conflict} values={valuesOf(option.id, custom)} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
             </Fragment>
           )
         })}
@@ -416,8 +471,7 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   const direct = proposal === 'original'
   const missing = [
     !chosen && '수정안',
-    proposal === 'other' && !custom.description.trim() && '수정 내용',
-    proposal === 'other' && !custom.rationale.trim() && '이 방식을 고른 이유',
+    proposal === 'other' && !chosen?.described && '수정안 값',
     !reason.trim() && '변경 사유',
     !devStage && '개발 단계',
     !timing && '희망 반영 시점',
@@ -461,7 +515,8 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
           value={reason}
           onChange={setReason}
           placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
-          suggestions={[reasonSuggestionFor(proposal, custom)]}
+          suggestions={reasonChipsFor(proposal, custom)}
+          append
         />
         {(
           <div className="min-w-0 space-y-3">
@@ -704,7 +759,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
   // 다른 수정안's own fields are kept while another card is looked at. A new
   // round after a rework starts without one.
   const askingNow = stage === 'detected' || stage === 'rework'
-  const EMPTY_CUSTOM = { description: '', rationale: '', columns: null, widthMode: null, reference: '' }
+  const EMPTY_CUSTOM = { values: {}, note: '' }
   const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? null))
   const [custom, setCustom] = useState(() => ({ ...EMPTY_CUSTOM, ...(request?.custom ?? conflict.decisionDraft?.custom ?? {}) }))
   useEffect(() => { if (stage === 'rework') { setProposal(null); setCustom(EMPTY_CUSTOM) } }, [stage])
