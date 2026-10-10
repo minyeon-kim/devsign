@@ -568,7 +568,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           : stage === 'approved' ? (conflict.rollback ? 'Ready to restore previous version' : 'Ready to merge') : null
   const status = listStatusOf(conflict)
   // The design screen it is about (a design-decision review shows its own comparison).
-  const designLink = useDesignLink(conflict).link && !isDesignReview(conflict)
+  const designLink = (useDesignLink(conflict).link || conflict.layerId) && !isDesignReview(conflict)
   // One label column for the whole tab: every row's label starts at the
   // same x, and so does every value.
   const GRID = 'grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2'
@@ -612,7 +612,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               <Row label="Screen" data-summary-row="Screen">
                 <div className="flex min-w-0 flex-col items-start gap-1.5">
                   <DesignLinkChip conflict={conflict} />
-                  <DesignLinkThumb conflict={conflict} size="md" />
+                  <DesignLinkThumb conflict={conflict} size="md" placeholder />
                 </div>
               </Row>
             )}
