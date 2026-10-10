@@ -19,6 +19,10 @@ const DEFAULT_TABS = [
   { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
 ]
 
+// Terminal and Console are developer details: still one press away, but they
+// sit back from the change list and design tabs.
+const DEV_TABS = new Set(['terminal', 'console'])
+
 const STRIP_HEIGHT = 40
 const MIN_HEIGHT = 120
 // Leave the work area above at least this much room (maximizing the panel
@@ -264,7 +268,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
                 setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
               }}
               onClick={() => pickTab(id)}
-              className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
+              title={DEV_TABS.has(id) ? 'Developer details' : undefined}
+              className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE, DEV_TABS.has(id) && !(id === tab && open) && 'opacity-60 hover:opacity-100')}
             >
               <Icon className="size-3" />
               {label}
