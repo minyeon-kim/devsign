@@ -4,7 +4,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutDashboard, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
+import { LocalizedText } from '@/i18n/runtime'
+import { currentUser, currentUserFor } from '@/data/mockData'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
@@ -187,8 +191,11 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
       </nav>
 
       {/* Match the 48px bottom tab strip so the icon centers align. */}
-      <div className="mt-auto flex h-12 shrink-0 items-center">
-        <SettingsDialog triggerClassName={iconButtonClass} />
+      <div className="mt-auto flex shrink-0 flex-col items-center gap-1">
+        <UserBadge projectId={project?.id} />
+        <div className="flex h-12 items-center">
+          <SettingsDialog triggerClassName={iconButtonClass} />
+        </div>
       </div>
     </div>
   )
@@ -252,6 +259,46 @@ const DRAWER_MAX = 480
 // keeps a fixed w-68 so nothing re-wraps mid-animation) and closes from its
 // own button or the same icon again. Every other destination is a plain
 // full page.
+// Who the app is being viewed as — initials, a role badge (D / Dev), the full
+// name and role on hover; opens the user switcher.
+const ROLE_BADGE = {
+  Designer: { text: 'D', className: 'bg-violet-500' },
+  Developer: { text: 'Dev', className: 'bg-sky-500' },
+}
+function UserBadge({ projectId }) {
+  const user = projectId ? currentUserFor(projectId) : { ...currentUser, jobRole: currentUser.role }
+  const role = user.jobRole ?? user.role
+  const badge = ROLE_BADGE[role]
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              data-user-badge
+              aria-label={`${user.name} · ${role}`}
+              className="relative mx-auto flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted"
+            >
+              <Avatar size="sm">
+                <AvatarFallback className={cn('text-[10px] font-medium text-white', user.colorClass)}>{user.initials}</AvatarFallback>
+              </Avatar>
+              {badge && (
+                <span aria-hidden className={cn('absolute right-0 bottom-0.5 rounded-full px-1 text-[8px] leading-[14px] font-semibold text-white ring-2 ring-background', badge.className)}>
+                  {badge.text}
+                </span>
+              )}
+            </DropdownMenuTrigger>
+          }
+        />
+        <TooltipContent side="right">{user.name} · <LocalizedText text={role} /></TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent side="right" align="end" className="min-w-60">
+        <SwitchUserItems />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
