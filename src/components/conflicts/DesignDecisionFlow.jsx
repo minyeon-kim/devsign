@@ -284,7 +284,7 @@ function RequestForm({ conflict, onSend }) {
           <Choice label="희망 반영 시점" name="timing" value={timing} onChange={setTiming} options={[['now', '지금'], ['before-release', '출시 전'], ['next-version', '다음 버전']]} />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
-          {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
+          {missing.length > 0 && <span className="text-xs text-slate-400">남은 항목: {missing.join(', ')}</span>}
           <button
             type="button"
             data-send-decision-request
@@ -377,10 +377,16 @@ function FixSteps({ conflict, onApply, onVerify, onResolve, onPropose }) {
 
 // ── The designer's side ──────────────────────────────────────────────
 const DECISIONS = [
-  ['keep', '원안 유지', '코드를 디자인 원안(768px 카드 2열)에 맞춰 고쳐요.'],
-  ['approve', '변경 승인', '개발자 제안(1열)을 승인하고 디자인 원안도 바꿔요.'],
-  ['rework', '재검토 요청', '이 제안으로는 어려워요. 다른 수정안을 요청해요.'],
+  ['keep', '원안 유지', '코드를 원안(2열)에 맞춰요', 'sky'],
+  ['approve', '변경 승인', '1열로 바꾸고 원안도 고쳐요', 'emerald'],
+  ['rework', '재검토 요청', '다른 수정안이 필요해요', 'amber'],
 ]
+// Each choice's own color, spelled out so the classes are statically known.
+const TONE = {
+  sky: { on: 'bg-sky-400/10 ring-sky-400/60', title: 'text-sky-100', dot: 'border-sky-300 bg-sky-400' },
+  emerald: { on: 'bg-emerald-400/10 ring-emerald-400/60', title: 'text-emerald-100', dot: 'border-emerald-300 bg-emerald-400' },
+  amber: { on: 'bg-amber-400/10 ring-amber-400/60', title: 'text-amber-100', dot: 'border-amber-300 bg-amber-400' },
+}
 const REASON_SUGGESTIONS = {
   keep: '2열 배치가 대시보드의 핵심 정보를 한눈에 보여줘요. 카드 폭을 화면에 맞춰 2열을 유지해 주세요.',
   approve: '768px에서는 1열이 더 읽기 쉬워요. 디자인 원안도 1열로 업데이트할게요.',
@@ -391,15 +397,14 @@ function DecisionForm({ conflict, onDecide }) {
   const request = conflict.decisionRequest
   const [choice, setChoice] = useState(null)
   const [reason, setReason] = useState('')
-  const [timing, setTiming] = useState(request?.timing ?? null)
+  const [timing, setTiming] = useState(null)
   const requester = nameOf(request?.by)
   const missing = [!choice && '결정', !reason.trim() && '이유', choice !== 'rework' && !timing && '반영 시점'].filter(Boolean)
   return (
     <section data-decision-form className={CARD}>
-      <h3 className="text-[13px] font-semibold text-white">어떻게 할까요?</h3>
-      <p className="mt-0.5 mb-4 text-xs text-slate-400">결정과 이유는 {requester}님에게 전달되고 승인 이력으로 남아요.</p>
+      <h3 className="mb-3 text-sm font-semibold text-white">어떻게 할까요?</h3>
       <div role="radiogroup" aria-label="디자인 결정" className="grid gap-2 sm:grid-cols-3">
-        {DECISIONS.map(([id, title, body]) => (
+        {DECISIONS.map(([id, title, body, tone]) => (
           <button
             key={id}
             type="button"
@@ -407,20 +412,21 @@ function DecisionForm({ conflict, onDecide }) {
             aria-checked={choice === id}
             data-decision-choice={id}
             onClick={() => setChoice(id)}
-            className={cn('ds-intrinsic flex min-h-[76px] flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left ring-1 ring-inset transition-colors',
-              choice === id ? 'bg-emerald-400/10 ring-emerald-400/60' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
+            className={cn('ds-intrinsic flex min-h-[68px] flex-col items-start gap-1 rounded-xl px-3.5 py-3 text-left ring-1 ring-inset transition-colors',
+              choice === id ? TONE[tone].on : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
           >
-            <span className={cn('flex items-center gap-1.5 text-[13px] font-semibold', choice === id ? 'text-emerald-100' : 'text-slate-100')}>
-              <span className={cn('flex size-3.5 items-center justify-center rounded-full border', choice === id ? 'border-emerald-300 bg-emerald-400' : 'border-white/30')}>
+            <span className={cn('flex items-center gap-2 text-sm font-semibold', choice === id ? TONE[tone].title : 'text-slate-100')}>
+              <span className={cn('flex size-4 items-center justify-center rounded-full border-2', choice === id ? TONE[tone].dot : 'border-white/40')}>
                 {choice === id && <span className="size-1.5 rounded-full bg-slate-950" />}
               </span>
               {title}
             </span>
-            <span className="text-[11px] leading-4 text-slate-400">{body}</span>
+            <span className="text-xs leading-4 text-slate-300">{body}</span>
           </button>
         ))}
       </div>
-      <div className="mt-4 flex flex-col gap-4">
+      {!choice && <p className="mt-3 text-xs text-slate-400">하나를 고르면 이유를 적을 수 있어요.</p>}
+      {choice && <div className="mt-4 flex flex-col gap-4">
         <ReasonField
           label="이유"
           value={reason}
@@ -435,11 +441,11 @@ function DecisionForm({ conflict, onDecide }) {
             value={timing}
             onChange={setTiming}
             hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}` : null}
-            options={[['now', '지금 반영'], ['before-release', '출시 전'], ['next-version', '다음 버전']]}
+            options={[['now', '지금 반영'], ['before-release', '출시 전'], ['next-version', '다음 버전']].map(([id, text]) => (id === request?.timing ? [id, text, '희망'] : [id, text]))}
           />
         )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
-          {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
+          {missing.length > 0 && <span className="text-xs text-slate-400">남은 항목: {missing.join(', ')}</span>}
           <button
             type="button"
             data-send-decision
@@ -451,7 +457,7 @@ function DecisionForm({ conflict, onDecide }) {
             {requester}님에게 결정 보내기
           </button>
         </div>
-      </div>
+      </div>}
     </section>
   )
 }
