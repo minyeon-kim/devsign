@@ -419,6 +419,19 @@ export function conflictCounts(conflicts, userId) {
   }
 }
 
+// How the Conflict Points entry points (the rail icon, the bottom panel
+// tab) announce that something is open: amber (a caution) whenever any
+// conflict is open, null when none is. The icon carries the tone so
+// "there is a conflict right now" reads before the count does; red is
+// kept for the risk itself, on each conflict's own risk icon (RiskIcon).
+export function conflictAlertTone(counts) {
+  return counts?.open ? 'warning' : null
+}
+
+// Icon and count-badge classes per tone.
+export const CONFLICT_TONE_ICON = { warning: 'text-amber-300' }
+export const CONFLICT_TONE_BADGE = { warning: 'bg-amber-300 text-[#050505]' }
+
 // The person who made a change — who a review decision goes to, and who
 // can't review it themselves. A person's change, or an AI draft someone
 // applied (older records note the requester in `changedBy.what`). Null

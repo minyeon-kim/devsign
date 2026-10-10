@@ -30,12 +30,26 @@ const SEVERITY_QUIET_CLASS = SEVERITY_PILL_CLASS
 
 // `bare`: just the level ("Medium"), for places whose column or context
 // already says it's a level. `quiet`: color only for High.
+const RISK_TINT_CLASS = { high: 'bg-rose-400/15', medium: 'bg-amber-400/15' }
 const SEVERITY_DOT_CLASS = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-sky-400', none: 'bg-slate-500' }
 
+// The risk icon: red (danger) for High, yellow (caution) for Medium; Low
+// gets none, so the two that need attention stand out from the rest.
+const RISK_ICON_CLASS = { high: 'text-rose-400', medium: 'text-amber-300' }
+const RISK_ICON_LABEL = { high: 'High risk', medium: 'Medium risk' }
+
+export function RiskIcon({ level, className }) {
+  const key = String(level ?? '').toLowerCase()
+  if (!RISK_ICON_CLASS[key]) return null
+  return <TriangleAlert role="img" aria-label={RISK_ICON_LABEL[key]} data-risk-icon={key} className={cn('size-3.5 shrink-0', RISK_ICON_CLASS[key], className)} />
+}
+
+// `icon`: lead with the risk icon (High red, Medium yellow), on a tint of
+// the same color — for the conflict lists, where risk is what to scan for.
 // `plain`: no box — a dot in the level's color and the level as text.
 // `labeled` (with `plain`): says what the word is — "Risk High" — with the
 // level in its color.
-export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, labeled = false, ...props }) {
+export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, labeled = false, icon = false, ...props }) {
   const key = String(level).toLowerCase()
   const tones = quiet ? SEVERITY_QUIET_CLASS : SEVERITY_PILL_CLASS
   if (plain) {
@@ -53,9 +67,11 @@ export function SeverityPill({ level, className, bare = false, quiet = false, pl
       className={cn(
         CONFLICT_BADGE,
         tones[key] ?? tones.medium,
+        icon && RISK_TINT_CLASS[key],
         className
       )}
     >
+      {icon && <RiskIcon level={key} className="size-3" />}
       {!bare && <span className="text-slate-400">Level</span>}
       <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>

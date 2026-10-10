@@ -9,7 +9,7 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
-import { conflictCounts, reviewTabFor } from '@/lib/conflicts'
+import { CONFLICT_TONE_BADGE, CONFLICT_TONE_ICON, conflictAlertTone, conflictCounts, reviewTabFor } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const DEFAULT_TABS = [
@@ -120,7 +120,11 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   useLayoutEffect(() => {
     if (open && height > availableHeight) setBottomPanel({ height: availableHeight })
   }, [open, height, availableHeight, setBottomPanel])
-  const { open: openConflicts } = conflictCounts(conflicts)
+  const conflictTotals = conflictCounts(conflicts)
+  const openConflicts = conflictTotals.open
+  // Amber while any conflict is open — on the tab's icon first, its count
+  // second.
+  const conflictTone = conflictAlertTone(conflictTotals)
   const designSets = mergeItems.filter((item) => item.hasDesign).length
 
   function maxHeight() {
@@ -266,12 +270,12 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
               onClick={() => pickTab(id)}
               className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
-              <Icon className="size-3" />
+              <Icon className={cn('size-3', id === 'conflict' && CONFLICT_TONE_ICON[conflictTone])} data-tone={id === 'conflict' ? conflictTone ?? undefined : undefined} />
               {label}
               {id === 'conflict' && openConflicts > 0 && (
                 <span
                   title={`${openConflicts} open`}
-                  className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-300 p-0 text-[9px] leading-none font-bold text-[#050505] shadow-[0_0_10px_rgba(110,231,183,0.18)] tabular-nums"
+                  className={cn('inline-flex size-3.5 shrink-0 items-center justify-center rounded-full p-0 text-[9px] leading-none font-bold tabular-nums', CONFLICT_TONE_BADGE[conflictTone])}
                 >
                   {openConflicts}
                 </span>

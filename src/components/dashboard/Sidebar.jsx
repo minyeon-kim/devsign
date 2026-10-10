@@ -12,6 +12,7 @@ import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { projectTone } from '@/lib/projectTone'
+import { CONFLICT_TONE_BADGE, CONFLICT_TONE_ICON } from '@/lib/conflicts'
 
 // The global destinations, shown only outside a project: Home (the
 // project hub), Activity and Team. Inside a project they step aside so
@@ -30,11 +31,11 @@ const iconButtonClass =
 const activeClass = 'bg-white/[0.08] text-foreground'
 
 // An icon-only activity bar button, named by its tooltip.
-function RailButton({ label, icon: Icon, className, ...triggerProps }) {
+function RailButton({ label, icon: Icon, className, iconClassName, ...triggerProps }) {
   return (
     <Tooltip>
       <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
-        <Icon className="size-[18px]" />
+        <Icon className={cn('size-[18px]', iconClassName)} />
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
@@ -72,7 +73,7 @@ function ProjectsMark({ project }) {
 //     Conflict Points opens the conflict list in the drawer — the same
 //     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
-function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
+function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, conflictTone = null }) {
   const { pathname } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const overviewPath = project ? `/projects/${project.id}` : null
@@ -143,18 +144,23 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
             {/* The conflict list, in the drawer: a second way into what the
-                Workspace's bottom panel lists. Its open count rides on it. */}
+                Workspace's bottom panel lists. The icon itself turns amber
+                while any conflict is open, so that there's a conflict right
+                now reads first; the open count rides on it, in the same
+                tone, second. */}
             <div className="relative">
               <RailButton
-                label="Conflict Points"
+                label={conflictTone ? `Conflict Points · ${openConflicts} open` : 'Conflict Points'}
                 icon={TriangleAlert}
                 data-conflicts-entry
+                data-tone={conflictTone ?? undefined}
                 onClick={() => onToggleDrawer('conflicts')}
                 aria-expanded={drawer === 'conflicts'}
                 className={cn(drawer === 'conflicts' && activeClass)}
+                iconClassName={CONFLICT_TONE_ICON[conflictTone]}
               />
               {openConflicts > 0 && (
-                <span aria-hidden className="pointer-events-none absolute top-0.5 right-1.5 flex min-w-3.5 items-center justify-center rounded-full bg-emerald-300 px-1 text-[9px] leading-[14px] font-bold text-[#050505] tabular-nums">{openConflicts}</span>
+                <span aria-hidden className={cn('pointer-events-none absolute top-0.5 right-1 flex min-w-3.5 items-center justify-center rounded-full px-1 text-[9px] leading-[14px] font-bold tabular-nums ring-2 ring-background', CONFLICT_TONE_BADGE[conflictTone])}>{openConflicts}</span>
               )}
             </div>
             {/* A drawer beside the current view, like Docs. */}
@@ -249,7 +255,7 @@ const DRAWER_MAX = 480
 // keeps a fixed w-68 so nothing re-wraps mid-animation) and closes from its
 // own button or the same icon again. Every other destination is a plain
 // full page.
-function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts }) {
+function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts, conflictTone }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
   if (drawer && drawer !== shown) setShown(drawer)
@@ -263,7 +269,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} />
+      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} conflictTone={conflictTone} />
 
       <div
         inert={!drawer}
