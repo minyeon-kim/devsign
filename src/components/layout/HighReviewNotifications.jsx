@@ -9,7 +9,7 @@ import { Notification } from '@/components/layout/Notification'
 import { LocalizedText } from '@/i18n/runtime'
 import { allPeople, currentUserFor } from '@/data/mockData'
 import { shortDue } from '@/lib/conflicts'
-import { DECISION_LABEL, DEV_STAGE_LABEL } from '@/lib/designDecisions'
+import { DECISION_LABEL, requestBrief } from '@/lib/designDecisions'
 
 // The on-screen Inbox bell (InboxButton tags itself), if any.
 function findBell() {
@@ -61,7 +61,7 @@ function requestMeta(conflict, developer) {
   const request = conflict.decisionRequest ?? conflict.scriptedRequest
   if (developer) return `${conflict.id} · ${conflict.driftType === 'structural' ? 'Structural Drift' : '디자인 차이'} · 위험도 ${RISK_WORD[conflict.severity] ?? conflict.severity}`
   const requester = allPeople.find((person) => person.id === request?.by)?.name
-  return [conflict.id, requester && `요청자 ${requester}`, DEV_STAGE_LABEL[request?.devStage], `위험도 ${RISK_WORD[conflict.severity] ?? conflict.severity}`].filter(Boolean).join(' · ')
+  return [conflict.id, requester && `요청자 ${requester}`, requestBrief(request), `위험도 ${RISK_WORD[conflict.severity] ?? conflict.severity}`].filter(Boolean).join(' · ')
 }
 
 // Once a project's notices have been seen — dismissed, or gone on their
