@@ -1,6 +1,6 @@
 import { ko } from './ko'
 
-const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '충돌', conflicts: '충돌', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
+const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '변경점', conflicts: '변경점', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
   [/^(\d+) design sets$/, (_, n) => `디자인 세트 ${n}개`],
   [/^Button text contrast ([\d.]+):1$/, (_, ratio) => `버튼 텍스트 대비 ${ratio}:1`],
@@ -104,7 +104,7 @@ const rules = [
   [/^(\S+) approved (.+)$/, (_, name, title) => `${name}님이 ${withObjectParticle(core(title))} 승인했어요`],
   [/^requested your review on (.+)$/, (_, title) => `${core(title)} 검토를 요청했어요`],
   [/^approved the (design|code) changes(?: on (.+))?$/, (_, kind, target) => `${target ? `${core(target)} ` : ''}${kind === 'design' ? '디자인' : '코드'} 변경을 승인했어요`],
-  [/^Conflict detected: (.+)$/, (_, title) => `충돌 감지: ${core(title)}`],
+  [/^Conflict detected: (.+)$/, (_, title) => `변경 감지: ${core(title)}`],
   [/^Restored: (.+)$/, (_, title) => `복원: ${core(title)}`],
   [/^Revert: (.+)$/, (_, title) => core(title)],
   [/^Rollback: (.+)$/, (_, title) => `이전 버전 복원: ${core(title)}`],
@@ -117,7 +117,7 @@ const rules = [
   [/^(.+) from (.+) to (.+)$/, (_, label, from, to) => `${core(label)} ${from}에서 ${to}로 바뀌어요`],
   [/^line (\d+)$/, (_, n) => `${n}번째 줄`],
   [/^(\d+) preview props?$/, (_, n) => `미리보기 속성 ${n}개`],
-  [/^([+-]\d+) conflicts?$/, (_, n) => `충돌 ${n}개`],
+  [/^([+-]\d+) conflicts?$/, (_, n) => `변경점 ${n}개`],
   [/^(\d+) adjusted$/, (_, n) => `조정 ${n}개`],
   [/^(\d+) applied$/, (_, n) => `${n}개 적용됨`],
   [/^Daily digest · (\d+) changes? needs? review$/, (_, n) => `일일 요약 · 변경 ${n}개 검토 필요`],
@@ -144,7 +144,7 @@ const rules = [
   [/^(\d+) open$/, (_, n) => `미해결 ${n}개`],
   [/^(\d+) merged$/, (_, n) => `병합 완료 ${n}개`],
   [/^(\d+) pending$/, (_, n) => `대기 ${n}개`],
-  [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '병합 충돌'}`],
+  [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '같은 부분을 둘이 고쳤어요'}`],
   [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^Waiting for (.+)$/, (_, name) => `${core(name)} 대기 중`],
   [/^Create a revert request\?$/, () => '병합을 취소할까요?'],
@@ -228,14 +228,14 @@ const rules = [
   // for design review" would otherwise match THAT rule first (action
   // "Remove", name "X for design review") and never reach this one.
   [/^(.+) requested your review$/, (_, name) => `${core(name)}님이 검토를 요청했어요`],
-  [/^(\d+) high-risk conflicts? needs? a look$/, (_, n) => `확인이 필요한 위험도 높음 충돌 ${n}개`],
+  [/^(\d+) high-risk conflicts? needs? a look$/, (_, n) => `확인이 필요한 위험도 높음 변경점 ${n}개`],
   [/^(\d+) changes? waiting on your review$/, (_, n) => `내 검토를 기다리는 변경 ${n}개`],
-  [/^(\d+) open Conflict Points?$/, (_, n) => `해결할 충돌 ${n}개`],
+  [/^(\d+) open Conflict Points?$/, (_, n) => `해결할 변경점 ${n}개`],
   [/^\+ (\d+) more$/, (_, n) => `외 ${n}개`],
   [/^Decided (\d+)\/(\d+)$/, (_, a, b) => `결정 ${a}/${b}`],
   [/^(\d+) of (\d+) decided · undecided values keep the code$/, (_, a, b) => `${b}개 중 ${a}개 결정 · 결정하지 않은 값은 코드 값을 유지해요`],
   [/^Use (.+) for all$/, (_, name) => `모두 ${core(name)} 값으로`],
-  [/^(\d+) values? set — adjust them in the conflict’s Decide row\.$/, (_, n) => `값 ${n}개를 정했어요 — 충돌의 결정 항목에서 조정할 수 있어요.`],
+  [/^(\d+) values? set — adjust them in the conflict’s Decide row\.$/, (_, n) => `값 ${n}개를 정했어요 — 변경점의 결정 항목에서 조정할 수 있어요.`],
   [/^(\d+)\/(\d+) picked$/, (_, a, b) => `${a}/${b} 선택`],
   [/^(\d+) of (\d+) elements picked — the rest keep the code\.$/, (_, a, b) => `요소 ${b}개 중 ${a}개를 골랐어요 — 나머지는 코드 값을 유지해요.`],
   [/^([A-Z]) · (.+’s draft|AI draft)$/, (_, letter, name) => `${letter} · ${core(name)}`],

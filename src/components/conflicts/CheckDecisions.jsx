@@ -208,14 +208,14 @@ export function MergeCheckGuide({ item, checks, low = false }) {
   const steps = check?.details?.length ? [
     ko ? '아래 "기준값 적용" 버튼으로 해당 속성을 기준값으로 바꿉니다.' : 'Use "Apply reference value" below to set the property.',
     ko ? '검사를 통과하면 이 안내가 "해결됨"으로 바뀝니다.' : 'This turns to Fixed once the check passes.',
-    ko ? '"조정 완료"를 눌러 충돌 내역에서 결과를 확인합니다.' : 'Press "Done adjusting" to see the result in the conflict.',
+    ko ? '"조정 완료"를 눌러 변경 내역에서 결과를 확인합니다.' : 'Press "Done adjusting" to see the result in the conflict.',
   ] : [
     ko ? '캔버스에서 노란 테두리로 표시된 요소를 선택합니다.' : 'Select the element outlined in yellow on the canvas.',
     check?.editFields
       ? (ko ? `속성 → 레이아웃에서 W와 H를 ${check.editFields.minimum}px 이상으로 입력합니다 (강조된 입력란).` : `In Properties → Layout, set W and H to at least ${check.editFields.minimum}px (the highlighted fields).`)
-      : (ko ? '속성 패널에서 값을 직접 입력합니다. 바꾼 값은 충돌 내역의 카드와 코드에 바로 반영됩니다.' : 'Type the value in the Properties panel. It shows on the conflict’s card and code right away.'),
+      : (ko ? '속성 패널에서 값을 직접 입력합니다. 바꾼 값은 변경 내역의 카드와 코드에 바로 반영됩니다.' : 'Type the value in the Properties panel. It shows on the conflict’s card and code right away.'),
     !conflict ? (ko ? '"조정 완료"를 누른 뒤 위쪽의 "병합 요청"으로 이어갑니다.' : 'Press "Done adjusting", then continue with "Request merge" above.')
-      : ko ? '"조정 완료"를 눌러 충돌 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done adjusting" to go back to the conflict and request review.',
+      : ko ? '"조정 완료"를 눌러 변경 내역으로 돌아가 검토를 요청합니다.' : 'Press "Done adjusting" to go back to the conflict and request review.',
   ]
   return (
     <>
@@ -259,7 +259,7 @@ export function MergeCheckGuide({ item, checks, low = false }) {
               </ol>
             )}
             <div className={cn('flex items-center gap-2', !resolved && 'mt-2.5')}>
-              {resolved && <span className="text-xs text-emerald-200">{ko ? '검사를 통과했어요. 충돌 내역에서 결과를 확인하세요.' : 'The check passes. See the result in the conflict.'}</span>}
+              {resolved && <span className="text-xs text-emerald-200">{ko ? '검사를 통과했어요. 변경 내역에서 결과를 확인하세요.' : 'The check passes. See the result in the conflict.'}</span>}
               <button
                 type="button"
                 data-guide-done
@@ -267,7 +267,7 @@ export function MergeCheckGuide({ item, checks, low = false }) {
                 className={cn(ACTION, 'ml-auto h-8 px-3', resolved || manual ? 'bg-emerald-400 font-semibold text-emerald-950 hover:bg-emerald-300' : ACTION_QUIET)}
               >
                 <Check className="size-3.5" />
-                {resolved || manual ? (ko ? '조정 완료' : 'Done adjusting') : conflict ? (ko ? '충돌 내역으로 돌아가기' : 'Back to the conflict') : (ko ? '가이드 닫기' : 'Close guide')}
+                {resolved || manual ? (ko ? '조정 완료' : 'Done adjusting') : conflict ? (ko ? '변경 내역으로 돌아가기' : 'Back to the conflict') : (ko ? '가이드 닫기' : 'Close guide')}
               </button>
             </div>
           </div>

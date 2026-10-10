@@ -76,7 +76,7 @@ Apply both|둘 다 적용
 Suggested|제안
 Keep local|로컬 유지
 Take remote|원격 사용
-How to resolve the conflict|충돌 해결 방법
+How to resolve the conflict|해결 방법
 Required rule|필수
 Recommended rule|권장
 It can’t be merged: a required rule isn’t kept.|필수 규칙 미충족 · 병합 불가
@@ -163,7 +163,7 @@ Merged with the design reference value|디자인 기준 값으로 병합
 Merged with the current implementation value|현재 구현 값으로 병합
 Merged code|병합된 코드
 Before it was resolved|해결 전
-Show the conflict before it was resolved|해결 전 충돌 보기
+Show the conflict before it was resolved|해결 전 변경점 보기
 Show the merged code|병합된 코드 보기
 Two branches changed lines 9–14 of DesignCanvas.jsx differently, so it couldn’t be merged automatically.|두 브랜치가 DesignCanvas.jsx 9~14번째 줄을 서로 다르게 수정해 자동 병합이 안 됐어요
 A frame loses either its selection handler or its key, which can break selecting frames.|프레임의 선택 핸들러나 key 중 하나가 빠져 선택 기능이 깨질 수 있어요
@@ -250,8 +250,8 @@ No check results yet|검사 결과 없음
 Failing checks|미통과 검사
 Decision|결정
 Show less|접기
-Detected because the button height and color differ from the checkout design|결제 디자인 기준과 높이·색상이 달라 충돌로 감지됨
-Detected because the implementation differs from the design reference|구현이 디자인 기준과 달라 충돌로 감지됨
+Detected because the button height and color differ from the checkout design|결제 디자인 기준과 높이·색상이 달라 변경점으로 감지됨
+Detected because the implementation differs from the design reference|구현이 디자인 기준과 달라 변경점으로 감지됨
 Saved to record the implementation at this point|이 시점의 구현 상태를 기록하기 위해 저장됨
 Reason|이유
 Edit reason|수정
@@ -368,7 +368,7 @@ reopened it|다시 열림
 asked to revert|되돌리기 요청
 changed the code|코드 수정
 Go to review|검토하기
-Review the conflict|충돌 검토하기
+Review the conflict|변경 검토하기
 Review the request|요청 검토하기
 Continue your work|이어서 하기
 Merge now|병합하기
@@ -382,7 +382,7 @@ Review requests|검토 요청
 Start review|검토하기
 Decide|결정
 Revert in progress|되돌리기 진행 중
-Resolution in progress|충돌 해결 진행 중
+Resolution in progress|변경 해결 진행 중
 No tasks in this project|이 프로젝트에 할 일이 없어요
 Clear filter|필터 해제
 Waiting for your approval|내 승인을 기다려요
@@ -390,7 +390,7 @@ A reason is still needed|이유 입력이 남았어요
 The review request is still left|검토 요청이 남았어요
 Changes were requested|수정 요청이 왔어요
 Only the merge is left|병합만 남았어요
-No conflicts to decide|결정할 충돌이 없어요
+No conflicts to decide|결정할 변경점이 없어요
 No approval requests|승인 요청이 없어요
 Show more|더 보기
 Next step|다음 할 일
@@ -402,7 +402,7 @@ Review request not sent|검토 요청 전
 review pending|검토 대기
 complete|완료
 approved it|승인
-Conflict detail|충돌 상세
+Conflict detail|변경 확인 상세
 Approval|승인
 The review hasn’t been requested yet|아직 검토 요청 전
 approval pending|승인 대기 중
@@ -423,14 +423,14 @@ Enter why you’re keeping it|유지하는 이유를 입력하세요
 Enter why it was adjusted|조정한 이유를 입력하세요
 Enter the reason for the exception|예외 요청 이유를 입력하세요
 Resolve the failing checks before merging.|실패한 검사를 해결해야 병합할 수 있어요.
-Merge Conflict|병합 충돌
+Merge Conflict|같은 부분을 둘이 고쳤어요
 Type|유형
 Adjusted manually|직접 조정
 Takes a merged change back.|병합된 변경을 되돌려요.
-Design Drift|디자인 불일치
-Deployed|배포 중
+Design Drift|디자인과 달라요
+Deployed|이미 사용 중
 What’s different|무엇이 다른가
-Conflict summary|충돌 요약
+Conflict summary|변경 요약
 How to resolve it|해결 방법
 Not chosen yet|선택 전
 Code that changes|바뀌는 코드
@@ -448,7 +448,7 @@ Design Decision|디자인 결정
 Two branches changed the same lines; the code can’t merge on its own.|두 브랜치가 같은 줄을 바꿔서 코드가 자동으로 병합되지 않아요.
 The code differs from the design standard.|코드가 디자인 기준과 달라요.
 The code differs from the design, and it’s already on the production branch.|코드가 디자인과 다르고, 이미 운영 브랜치에 올라가 있어요.
-Design drafts to choose between; no code is in conflict.|고를 디자인 시안이 있어요. 코드 충돌은 아니에요.
+Design drafts to choose between; no code is in conflict.|고를 디자인 시안이 있어요. 코드 변경점은 아니에요.
 Spacing mismatch|간격 불일치
 Border radius mismatch|모서리 반경 불일치
 Typography mismatch|타이포그래피 불일치
@@ -456,7 +456,7 @@ Color mismatch|색상 불일치
 Stroke mismatch|선 두께 불일치
 Size mismatch|크기 불일치
 Value mismatch|값 불일치
-Merge conflict|병합 충돌
+Merge conflict|같은 부분을 둘이 고쳤어요
 Drafts to choose between|시안 선택 필요
 Below the standard on both sides|양쪽 모두 기준 미달
 Production baseline|운영 기준
@@ -474,10 +474,10 @@ Waiting for the reviewers’ approval.|검토자의 승인을 기다리고 있�
 Every approval is in. Merge it to finish.|모든 승인이 끝났어요. 병합하면 완료돼요.
 Merged. Nothing is left to do.|병합됐어요. 남은 일이 없어요.
 Show all|모두 보기
-Open conflicts|미해결 충돌
+Open conflicts|미해결 변경점
 Recently viewed|최근 열람
-No conflicts to review.|검토할 충돌이 없어요
-Conflicts not merged yet|아직 병합되지 않은 충돌
+No conflicts to review.|검토할 변경점이 없어요
+Conflicts not merged yet|아직 반영되지 않은 변경점
 No projects match this filter.|조건에 맞는 프로젝트가 없어요
 Loading|불러오는 중
 Detected automatically|자동 감지
@@ -503,13 +503,13 @@ Progress and wallet|진행 단계와 간편결제
 Saved card|저장된 카드
 Express pay and tax total|빠른 결제와 세금 합계
 Secure checkout and wallets|보안 결제와 간편결제
-Conflict activity|충돌 활동
+Conflict activity|변경 활동
 Project history|프로젝트 전체 히스토리
 Conversation|대화
 Step replay|단계별 리플레이
 commented|댓글을 남겼어요
 replied|답글을 남겼어요
-Resolved conflicts|해결된 충돌 표시
+Resolved conflicts|해결된 변경점 표시
 Change merged|변경을 병합했습니다
 Set icons to 20px|아이콘 20px 적용
 Tap area to 48px|터치 영역 48px 확대
@@ -525,7 +525,7 @@ Checkout tabs (Figma)|결제 탭 (Figma)
 The tab icon is 20px in code; the design uses 24px.|탭 아이콘이 코드에서는 20px이고, 디자인 기준은 24px입니다.
 Pick the design size, or set the icon’s W and H in Merge Studio.|디자인 크기를 선택하거나, 병합 스튜디오에서 아이콘의 W와 H를 직접 조정하세요.
 Low: one icon on the checkout tabs.|낮음: 결제 탭의 아이콘 하나에만 해당합니다.
-Conflict marks|충돌 표시
+Conflict marks|변경 표시
 Add bottom nav|하단 내비 추가
 Keep icons at 20px|아이콘 20px 유지
 Add unread badge|읽지 않음 배지 추가
@@ -580,7 +580,7 @@ Tomorrow|내일
 Merge blocked|병합 차단
 This decision is blocking the merge|현재 결정 때문에 병합이 막혀 있습니다
 Suggestions|권장 항목
-View in Conflict list|충돌 목록에서 보기
+View in Conflict list|변경점 목록에서 보기
 Rolling back|되돌리는 대상
 Affected people|영향받는 작업자
 Affected|영향
@@ -600,12 +600,12 @@ They’re in this file right now, building on the version being undone.|지금 �
 Part of it can’t be fully undone|완전히 원복되지 않는 요소가 있습니다
 A merge after this checkpoint already went out, so rolling back won’t put everything back.|이 버전 이후에 이미 반영된 병합이 있어, 롤백해도 전부 되돌아가지 않습니다.
 This rollback needs agreement first|합의가 필요한 롤백입니다
-It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.|충돌 목록에 되돌리는 대상, 영향받는 작업자, 작업자별 확인 여부를 올려 합의를 진행합니다. 모두 확인하면 롤백을 실행할 수 있습니다.
+It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.|변경점 목록에 되돌리는 대상, 영향받는 작업자, 작업자별 확인 여부를 올려 합의를 진행합니다. 모두 확인하면 롤백을 실행할 수 있습니다.
 Only your own changes go back, so this doesn’t need anyone’s agreement. The team is told once it’s done.|본인이 수정한 내용만 되돌리므로 합의 없이 진행합니다. 롤백 후 팀에 공유됩니다.
 Request agreement|합의 요청
 Rollback and share|롤백 후 공유
 Rollback sent for agreement|롤백 합의를 요청했습니다
-It’s on the Conflict list — it runs once everyone affected has confirmed.|충돌 목록에 등록했습니다. 영향받는 작업자가 모두 확인하면 실행할 수 있습니다.
+It’s on the Conflict list — it runs once everyone affected has confirmed.|변경점 목록에 등록했습니다. 영향받는 작업자가 모두 확인하면 실행할 수 있습니다.
 Rollback shared with the team|롤백하고 팀에 공유했습니다
 This rollback reaches other people’s work. Everyone it affects confirms here before it runs.|다른 사람의 작업에 영향을 주는 롤백입니다. 영향받는 작업자가 모두 확인한 뒤 실행합니다.
 Requested this rollback|이 롤백을 요청함
@@ -665,7 +665,7 @@ Design system size/md = 40px|디자인 시스템 size/md = 40px
 Use the shared token|공용 토큰을 사용합니다
 Visual refresh of the checkout flow — payment step layout, button and card styling kept in sync with the Figma design.|결제 플로우의 비주얼 리뉴얼입니다 — 결제 단계 레이아웃, 버튼과 카드 스타일을 Figma 디자인과 동기화된 상태로 유지합니다.
 Shared components and design tokens used across every product surface, kept consistent between Figma and code.|모든 제품 화면에서 쓰이는 공용 컴포넌트와 디자인 토큰입니다. Figma와 코드 간 일관성을 유지합니다.
-Issue summary|충돌 요약
+Issue summary|변경 요약
 Review impact|검토 필요 이유
 Proposal|제안
 Why|이유
@@ -698,7 +698,7 @@ Editing md size in Button.jsx|Button.jsx에서 md 크기 편집 중
 Checking --button-height-md in tokens.css|tokens.css에서 --button-height-md 확인 중
 Reviewing size tokens in tokens.css|tokens.css에서 size 토큰 검토 중
 Viewing compact Button|Small 버튼 보는 중
-Reviewing the Button height conflict|Button 높이 충돌 검토 중
+Reviewing the Button height conflict|Button 높이 변경 검토 중
 Commenting on --button-height-md in tokens.css|tokens.css의 --button-height-md에 댓글 작성 중
 Marketing Site Refresh|마케팅 사이트 리뉴얼
 size="lg" and the primary token replace the fixed violet hex|size="lg"와 primary 토큰이 고정된 violet hex를 대체합니다
@@ -751,7 +751,7 @@ Projects|프로젝트
 Rollback here|여기로 되돌리기
 AI edit|AI 편집
 Rollback|롤백
-Conflict detected|충돌 감지됨
+Conflict detected|변경 감지됨
 Design decision|디자인 결정
 asked for a design decision on|디자인 결정을 요청했어요 ·
 made a design decision on|디자인을 결정했어요 ·
@@ -770,7 +770,7 @@ Edit in Merge Studio|병합 스튜디오에서 수정
 Both branches changed the tab icon lines: feature/nav-badges added badges, main (the redesign) resized the icon and showed the label.|두 브랜치가 탭 아이콘 줄을 각각 바꿨어요. feature/nav-badges는 배지를, main(리디자인)은 아이콘 크기와 보이는 라벨을 바꿨어요.
 Keep both: the redesign’s 24px icon, 1.75 stroke and visible label, with the badge and aria-hidden from feature/nav-badges.|양쪽 모두 반영: 리디자인의 24px 아이콘·1.75 선 두께·보이는 라벨에 feature/nav-badges의 배지와 aria-hidden을 함께 유지해요.
 main · Nav tab bar (Figma sync)|main · 내비 탭 바 (Figma 동기화)
-Open the conflict|충돌 열기
+Open the conflict|변경 확인 열기
 A high-risk change needs your review|위험도 높은 변경이 검토를 기다려요
 See it in the Inbox|받은 알림에서 보기
 Review the first one|첫 번째부터 검토
@@ -812,7 +812,7 @@ Resolved|해결됨
 High|높음
 Medium|보통
 Low|낮음
-Conflict Points|충돌
+Conflict Points|확인할 변경점
 Assets|에셋
 Terminal|터미널
 Console|콘솔
@@ -830,9 +830,9 @@ This week|이번 주
 Last week|지난 주
 This month|이번 달
 Earlier|이전 히스토리
-Conflict|충돌
+Conflict|변경 확인
 Comment|댓글
-Conflicts|충돌
+Conflicts|확인할 변경점
 Updated|수정됨
 On this page|이 페이지의 항목
 Draft changes · Not merged|변경 초안 · 병합 전
@@ -930,9 +930,9 @@ Activity overview|활동 개요
 More|더 보기
 Most active projects|활동이 많은 프로젝트
 Stay in sync|최신 소식 받기
-Get notified when there are new conflicts or merges.|새 충돌이나 병합이 발생하면 알림을 받습니다.
+Get notified when there are new conflicts or merges.|새 변경점이나 병합이 발생하면 알림을 받습니다.
 Turn on notifications|알림 켜기
-Merge|병합
+Merge|반영
 File|파일
 Mention|멘션
 Merges|병합
@@ -942,7 +942,7 @@ Doc|문서
 Generate documentation|문서 생성
 Archive to history|히스토리에 보관
 Changes to the design system are written up as documentation, then recorded in the project's history.|디자인 시스템 변경을 문서로 작성한 뒤 프로젝트 히스토리에 보관합니다.
-No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 충돌을 해결하면 시작됩니다.
+No design system updates yet. Resolving a Conflict Point starts one.|아직 디자인 시스템 업데이트가 없습니다. 변경점을 해결하면 시작됩니다.
 Spec|명세
 Guide|안내
 Target:|대상:
@@ -994,14 +994,14 @@ Double-click text to edit|텍스트를 두 번 클릭하여 편집
 Zoom out|축소
 Zoom in|확대
 Write a comment...|댓글 작성...
-Filter conflicts|충돌 필터
-No conflicts — design and code are in sync.|충돌이 없습니다. 디자인과 코드가 일치합니다.
-Select all low-risk conflicts|낮은 위험도의 충돌 모두 선택
+Filter conflicts|변경점 필터
+No conflicts — design and code are in sync.|변경점이 없습니다. 디자인과 코드가 일치합니다.
+Select all low-risk conflicts|낮은 위험도의 변경점 모두 선택
 Severity|위험도
 Issue|항목
 Nothing needs your review right now.|현재 검토할 항목이 없습니다.
-No conflicts in this view.|이 보기에 충돌이 없습니다.
-Only low-risk conflicts waiting on review can be batch-approved|검토 대기 중인 낮은 위험도의 충돌만 일괄 승인할 수 있습니다
+No conflicts in this view.|이 보기에 변경점이 없습니다.
+Only low-risk conflicts waiting on review can be batch-approved|검토 대기 중인 낮은 위험도의 변경점만 일괄 승인할 수 있습니다
 Unassigned|미배정
 low-risk selected|개의 낮은 위험도 항목 선택됨
 Batch Approve Selected|선택 항목 일괄 승인
@@ -1061,7 +1061,7 @@ Preview & canvas|미리보기와 캔버스
 Agent memory|에이전트 기억
 Nothing to forget — the agent conversation hasn’t moved on since.|이후 에이전트 대화가 없어 지울 내용이 없습니다.
 Preview settings and the canvas selection at this checkpoint.|이 체크포인트 시점의 미리보기 설정과 캔버스 선택 상태입니다.
-Review state of the conflicts this checkpoint knows about.|이 체크포인트가 알고 있는 충돌의 검토 상태입니다.
+Review state of the conflicts this checkpoint knows about.|이 체크포인트가 알고 있는 변경점의 검토 상태입니다.
 Database|데이터베이스
 No database is connected to this project.|이 프로젝트에 연결된 데이터베이스가 없습니다.
 the current target|현재 대상
@@ -1450,7 +1450,7 @@ Before and after|변경 전후
 What changed|변경 내용
 No comparison captured yet.|아직 비교 정보가 없습니다.
 Why review is needed|검토가 필요한 이유
-No diff captured for this conflict yet.|이 충돌의 코드 차이가 아직 없습니다.
+No diff captured for this conflict yet.|이 변경점의 코드 차이가 아직 없습니다.
 Proposed change|제안된 변경
 Applied after required approvals and merge|필수 승인 후 병합 시 적용
 All|전체
@@ -1494,8 +1494,8 @@ Design frame padding (12px 24px) does not match code button padding (8px 16px).|
 Ask Devsign to apply the padding fix — it will update the button className to px-6 py-3 to match the design frame.|Devsign에 여백 수정을 요청하세요. 디자인 프레임에 맞게 버튼 className을 px-6 py-3으로 변경합니다.
 Fix the button padding to match the design frame|버튼 여백을 디자인 프레임에 맞추기
 Approved · Pending merge|승인됨 · 병합 대기
-Merged|병합 완료
-No conflicts|충돌 없음
+Merged|반영 완료
+No conflicts|변경 없음
 Button / Height|버튼 / 높이
 Merge conflict · DesignCanvas.jsx|병합 충돌 · DesignCanvas.jsx
 Card / Radius|카드 / 모서리 반경
@@ -1656,7 +1656,7 @@ Approve change|변경 승인
 Merge change|변경 병합
 Reopen|다시 열기
 Risk|위험도
-Conflict details|충돌 상세
+Conflict details|변경 확인 상세
 Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 히스토리에서 확인할 수 있습니다.
 Open History|히스토리 열기
 Open in Merge Studio|병합 스튜디오에서 열기
@@ -1692,10 +1692,10 @@ Open in Workspace|워크스페이스에서 열기
 Open Workspace|워크스페이스 열기
 Open design ↔ code differences|디자인 ↔ 코드 차이 열기
 None high risk|고위험 항목 없음
-Conflict Points not merged yet|아직 병합되지 않은 충돌
-Open Conflict Points|해결할 충돌
+Conflict Points not merged yet|아직 반영되지 않은 변경점
+Open Conflict Points|해결할 변경점
 In Workspace|워크스페이스에서
-No open Conflict Points.|미해결 충돌이 없습니다.
+No open Conflict Points.|미해결 변경점이 없습니다.
 Recent activity|최근 활동
 All activity|모든 활동
 Design system pipeline|디자인 시스템 처리 과정
@@ -1738,17 +1738,17 @@ No reviewers assigned|아직 검토자 없음
 Your approval is needed|내 승인이 필요합니다
 You requested changes|변경을 요청했습니다
 Review not requested yet|아직 검토를 요청하지 않았습니다
-Issue activity|충돌 활동
+Issue activity|변경 활동
 Change replay|변경 리플레이
-No activity has been recorded for this conflict yet.|이 충돌에 기록된 활동이 없습니다.
-No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline.|아직 이 충돌에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
+No activity has been recorded for this conflict yet.|이 변경점에 기록된 활동이 없습니다.
+No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline.|아직 이 변경점에 연결된 리플레이 스냅샷이 없습니다. 검토 및 댓글 활동은 타임라인에 표시됩니다.
 requested a review|검토를 요청했어요
 approved this change|이 변경을 승인했어요
 requested changes|변경을 요청했어요
 merged this change|이 변경을 병합했어요
-reopened this conflict|이 충돌을 다시 열었어요
+reopened this conflict|이 변경점을 다시 열었어요
 pushed code changes|코드를 수정했어요
-commented on this conflict|이 충돌에 댓글을 남겼어요
+commented on this conflict|이 변경점에 댓글을 남겼어요
 opened a revert of this change|이 변경의 되돌리기를 요청했어요
 Merge the approved change|승인된 변경 병합
 Assign reviewers|검토자 배정
@@ -1766,7 +1766,7 @@ Approve update|변경사항 승인
 Record in history|히스토리에 저장
 Affected docs|관련 문서
 Waiting for earlier updates|이전 변경사항 처리 대기
-System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|충돌·병합에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 히스토리에 기록합니다.
+System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.|변경점·병합에서 발생한 시스템 변경사항이 자동으로 등록됩니다. 모든 프로젝트 문서를 대상으로 순차 승인하고 히스토리에 기록합니다.
 No document updates yet. Resolving a Conflict Point or merging system changes adds an update automatically.|문서 업데이트가 없습니다. Conflict 해결 또는 시스템 변경사항 Merge 시 자동 등록됩니다.
 Create new document|새 문서 생성
 Created document|생성된 문서
@@ -1788,13 +1788,13 @@ Other checkout buttons live in files that aren’t in this workspace.|다른 결
 Updated Button height to use the size token|공통 버튼 높이 토큰 적용
 Updated Button.jsx: the md size now uses --button-height-md (40px) instead of h-9.|Button.jsx의 md 높이를 수정했어요. 이제 h-9 대신 --button-height-md 토큰을 사용해 40px로 표시돼요.
 Updated Continue button padding|Continue 버튼 패딩을 업데이트했습니다
-Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.|수정했습니다 — Continue 버튼이 이제 디자인 프레임과 일치하는 12px/24px 패딩을 사용합니다. 패딩 충돌이 다시 검토 중 상태가 되었습니다 — 검토자들이 승인하면 종료됩니다.
+Fixed it — the Continue button now uses 12px/24px padding to match the design frame. The padding conflict is back in review — it closes once its reviewers approve.|수정했습니다 — Continue 버튼이 이제 디자인 프레임과 일치하는 12px/24px 패딩을 사용합니다. 패딩 변경점이 다시 검토 중 상태가 되었습니다 — 검토자들이 승인하면 종료됩니다.
 Changed primary button color to sky|기본 버튼 색상을 sky로 변경했습니다
 Swapped the primary button to the sky accent token in theme.css.|theme.css에서 기본 버튼을 sky 강조 색상 토큰으로 변경했습니다.
 Where should I start?|어떤 것부터 확인할까요?
-Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|충돌 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
+Work through Conflict Points → Diff → Merge Studio → Assemble → Merge Changes, in that order.|변경점 → 차이 보기 → 병합 스튜디오 → 조합 → 변경 사항 병합 순서로 진행하세요.
 **Follow these steps:**|**이렇게 진행해보세요:**
-1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **충돌**에서 \`Place order 버튼\` 충돌을 선택하세요.
+1. Open **Conflict Points** and select the \`Place order button\` issue.|1. **변경점**에서 \`Place order 버튼\` 변경점을 선택하세요.
 2. Read the summary, then open **Diff** to compare the 40px implementation with the 44px design.|2. 요약을 읽은 뒤 **차이 보기**를 열어 40px 구현과 44px 디자인을 비교하세요.
 3. Open **Merge Studio**, select \`Place order\`, and use **Compare** to choose the design value.|3. **병합 스튜디오**를 열고 \`Place order\`를 선택한 뒤 **비교**에서 디자인 값을 선택하세요.
 4. Use **Assemble** for further styling.|4. 스타일을 더 다듬고 싶으면 **조합**을 사용하세요.
@@ -1810,8 +1810,8 @@ AI edits create a draft checkpoint — review and approval are required before i
 - **Request review** and collect the required approvals, then merge.|- **검토를 요청**하고 필요한 승인을 받은 뒤 병합하세요.
 - Use **History** to inspect or roll back the saved checkpoint anytime.|- **히스토리**에서 저장된 버전을 언제든 확인하거나 되돌릴 수 있어요.
 Guide me through code review|버튼 코드 검토 시작하기
-Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 충돌 → 차이 보기 → 병합 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
-1. Open the **Button / Height** conflict from the project overview.|1. 프로젝트 홈에서 **Button / Height** 충돌을 여세요.
+Button / Height conflict → Diff → Merge Studio Compare → Merge Changes → review → merge.|Button / Height 변경점 → 차이 보기 → 병합 스튜디오 비교 → 변경 사항 병합 → 검토 → 병합 순서예요.
+1. Open the **Button / Height** conflict from the project overview.|1. 프로젝트 홈에서 **Button / Height** 변경점을 여세요.
 2. Inspect **Diff** — the implementation uses \`h-9\` while the design system requires the medium height token.|2. **차이 보기**를 확인하세요 — 현재 코드는 \`h-9\`를 쓰지만 디자인 시스템 기준은 medium 높이 토큰이에요.
 3. Open **Workspace** to inspect the affected file, then use **Merge Studio Compare** to resolve the drift.|3. **워크스페이스**에서 관련 파일을 확인한 뒤 **병합 스튜디오 비교**로 차이를 해결하세요.
 4. Review the resulting code in **Merge Changes**, assign reviewers, and request review.|4. **변경 사항 병합**에서 결과 코드를 확인하고 검토자를 지정해 검토를 요청하세요.
@@ -1867,7 +1867,7 @@ mentioned you in a comment on|댓글에서 언급했습니다 ·
 Object.assign(ko, {
   'of': '/', 'file': '파일', 'files': '파일', 'change': '변경', 'changes': '변경',
   'code': '코드', 'design': '디자인', 'layers': '레이어', 'copy': '복사',
-  'drift': '드리프트', 'drifts': '드리프트', 'conflict': '충돌', 'conflicts': '충돌',
+  'drift': '드리프트', 'drifts': '드리프트', 'conflict': '변경점', 'conflicts': '변경점',
   'element': '요소', 'elements': '요소', 'propert': '속성', 'ies': '',
   'note': '메모', 'notes': '메모', 'checkpoints': '체크포인트', 's': '',
   'resolve': '해결', 'resolved': '해결됨', 'reviewed': '검토 완료', 'stale': '검토 후 변경됨',
@@ -1878,7 +1878,7 @@ Object.assign(ko, {
   'top': '위', 'bottom': '아래', 'above': '위', 'below': '아래', 'horizontal': '가로', 'vertical': '세로',
   'No one matches “': '검색 결과 없음: “', 'Share “': '공유: “', 'across': '범위',
   'Any': '전체', 'Due Soon': '마감 임박', 'No Due Date': '마감일 없음',
-  'Has conflicts': '충돌 있음', 'Most conflicts': '충돌 많은 순',
+  'Has conflicts': '변경 있음', 'Most conflicts': '변경 많은 순',
   'Just Now': '방금', 'Viewer': '뷰어', 'Admin': '관리자', 'Developer': '개발자', 'Designer': '디자이너',
   'Design System': '디자인 시스템', 'Component': '컴포넌트', 'Buttons': '버튼', 'Inputs': '입력',
   'Chips': '칩', 'Surfaces': '표면', 'Controls': '컨트롤', 'Navigation': '탐색',
@@ -1901,11 +1901,11 @@ Object.assign(ko, docsHistoryKo)
 Object.assign(ko, {
   'Merge Studio help': '병합 스튜디오 도움말',
   'Close help': '도움말 닫기',
-  'Filter by status, conflict or due date.': '상태, 충돌 여부, 마감일로 병합 목록을 필터링하세요.',
+  'Filter by status, conflict or due date.': '상태, 변경점 여부, 마감일로 병합 목록을 필터링하세요.',
   'Open an item, or add files to start a merge.': '항목을 열거나 파일을 추가해 병합을 시작하세요.',
   'Use ‹ › to review each visual change.': '‹ › 버튼으로 각 변경점을 확인하세요.',
   'Select a canvas element to compare values and edit styles or tokens in the Block Deck.': '캔버스 요소를 선택하면 블록 덱에서 값을 비교하고 스타일이나 토큰을 편집할 수 있어요.',
-  'Click Merge Changes to check conflicts, preview changes and request a review.': '변경 사항 병합을 눌러 충돌을 확인하고, 변경 사항을 미리 본 뒤 검토를 요청하세요.',
+  'Click Merge Changes to check conflicts, preview changes and request a review.': '변경 사항 병합을 눌러 변경점을 확인하고, 변경 사항을 미리 본 뒤 검토를 요청하세요.',
 })
 
 Object.assign(ko, {
@@ -1952,12 +1952,12 @@ Object.assign(ko, {
   'No design preview for this item.': '이 항목에는 미리 볼 디자인이 없습니다.',
   'Checks pass': '검사 통과',
   'Shown as “In review” in the Merge List': '병합 목록에 “검토 중”으로 표시됩니다',
-  'Back to conflict list': '충돌 목록으로 돌아가기',
+  'Back to conflict list': '변경점 목록으로 돌아가기',
   'Merge complete': '병합 완료',
   'Merge steps': '병합 단계',
   'Changes already merged': '이미 병합된 변경 사항',
   'This item is complete. It can’t be submitted or merged again.': '이 항목은 이미 완료되어 다시 제출하거나 병합할 수 없습니다.',
-  'Back to conflict': '충돌로 돌아가기',
+  'Back to conflict': '변경점으로 돌아가기',
   'Draft changes': '변경 초안',
   'Reviews': '검토',
   'Waiting': '대기 중',
@@ -2144,8 +2144,8 @@ Object.assign(ko, {
   "Matches the glow treatment already used on this file's primary CTAs.": '이 파일의 주요 CTA에 쓰인 글로우 효과와 맞춰요.',
   "Applies the same indigo → violet gradient found across the design system's hero buttons.": '디자인 시스템 히어로 버튼의 인디고 → 바이올렛 그라데이션 적용',
   'Reduces visual weight to match the calmer surfaces used in lower-priority actions.': '우선순위가 낮은 동작의 차분한 표면에 맞춰 시각적 무게를 줄여요.',
-  'Conflict Points are where the design and the code differ — review each one, then merge.': '충돌은 디자인과 코드가 달라진 곳이에요. 하나씩 검토한 뒤 병합하세요.',
-  'Review Conflict Points': '충돌 검토하기',
+  'Conflict Points are where the design and the code differ — review each one, then merge.': '변경점은 디자인과 코드가 달라진 곳이에요. 하나씩 검토한 뒤 병합하세요.',
+  'Review Conflict Points': '변경 검토하기',
   'Later': '나중에',
   'Author': '작성자',
   'Dismiss': '닫기',
@@ -2198,9 +2198,9 @@ Object.assign(ko, {
   'Gradient pill (Alex’s draft)': '그라데이션 알약 (Alex의 시안)',
   'Indigo (Taylor’s draft)': '인디고 (Taylor의 시안)',
   'Decided · request review': '결정 완료 · 검토 요청 필요',
-  'Comment added to the conflict': '충돌에 코멘트를 남겼어요',
+  'Comment added to the conflict': '변경점에 코멘트를 남겼어요',
   'View': '보기',
-  'Comment — it goes to the conflict’s Comments': '코멘트 — 충돌의 코멘트에 남아요',
+  'Comment — it goes to the conflict’s Comments': '코멘트 — 변경점의 코멘트에 남아요',
   'Compare drafts': '시안 비교',
   'Undecided values keep the code.': '결정하지 않은 값은 코드 값을 유지해요.',
   'Use Design for all': '모두 디자인 값으로',
@@ -2235,7 +2235,7 @@ Object.assign(ko, {
   'Values from drafts': '시안별 값',
   'All picked': '모두 골랐어요',
   'Not picked — keeps the code': '안 고름 — 코드 값 유지',
-  'Check the picks in the conflict, then request review.': '충돌에서 고른 내용을 확인한 뒤 검토를 요청하세요.',
+  'Check the picks in the conflict, then request review.': '변경점에서 고른 내용을 확인한 뒤 검토를 요청하세요.',
   'Four drafts of the payment step — Taylor’s, Alex’s, Jordan’s and an AI draft — each lay out the header, order summary, payment method and checkout bar differently.': '결제 단계 시안 4개(Taylor·Alex·Jordan·AI) · 헤더·주문 요약·결제 수단·결제 바 구성 불일치',
   'Parts you don’t pick keep the current screen’s version.': '고르지 않은 영역은 지금 화면의 구성을 유지해요.',
   'Amounts agree': '금액 일치',
@@ -2244,7 +2244,7 @@ Object.assign(ko, {
   'No order summary': '주문 요약 없음',
   'Order summary shown': '주문 요약 있음',
   'The screen never says what’s being paid for.': '화면 내 결제 대상 정보 누락',
-  'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.': '충돌 검토에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
+  'Decide them in the conflict’s review — undecided ones ship the Current Implementation’s value.': '변경 검토에서 결정하세요 — 결정하지 않은 값은 현재 구현 값으로 병합돼요.',
   'Use one draft': '한 시안 통째로 쓰기',
   'Back to drafts': '시안 고르기로 돌아가기',
   'Reset picks': '고른 것 초기화',
@@ -2358,9 +2358,9 @@ Object.assign(ko, {
   'Choose a resolution first': '해결 방법을 먼저 선택해 주세요',
   'Get approval from the reviewer': '검토자에게 승인을 받아요',
   'Apply the approved changes': '승인된 변경 내용을 반영해요',
-  'Conflict information': '충돌 정보',
+  'Conflict information': '변경 정보',
   'No reviewer has been assigned': '지정된 검토자가 없어요',
-  'View the version where this conflict started': '충돌이 생긴 버전 보기',
+  'View the version where this conflict started': '변경점이 생긴 버전 보기',
   'Assign a reviewer other than the author to request review.': '검토자를 지정하면 검토를 요청할 수 있어요. 본인은 지정할 수 없어요.',
   'Review request needed': '검토 요청 필요',
   'No reviewers assigned': '지정된 검토자가 없어요',
@@ -2414,7 +2414,7 @@ Object.assign(ko, {
   'Pending rollback': '이전 버전 복원 대기',
   'Confirmed · ready to roll back': '확인 완료 · 이전 버전 복원 대기',
   'This rollback needs agreement first': '이전 버전을 복원하려면 먼저 동의가 필요해요.',
-  'It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.': '복원할 내용과 영향을 받는 사람, 각자의 확인 여부가 충돌 목록에 표시돼요. 모두 확인하면 복원돼요.',
+  'It goes on the Conflict list with what’s being rolled back, who it affects and whether each of them has confirmed. It runs once they all have.': '복원할 내용과 영향을 받는 사람, 각자의 확인 여부가 변경점 목록에 표시돼요. 모두 확인하면 복원돼요.',
   'Only your own changes go back, so this doesn’t need anyone’s agreement. The team is told once it’s done.': '내 변경사항만 복원하므로 다른 사람의 동의가 필요하지 않아요. 복원이 끝나면 팀에 알려요.',
   'This rollback reaches other people’s work. Everyone it affects confirms here before it runs.': '다른 사람의 작업에도 영향을 줘요. 영향을 받는 사람이 모두 확인한 뒤 복원돼요.',
   'Requested this rollback': '이전 버전 복원 요청',
