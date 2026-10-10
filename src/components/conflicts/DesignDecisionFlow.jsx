@@ -92,19 +92,25 @@ function LayoutComparison({ conflict, showProposal }) {
 const DEV_STEPS = ['충돌 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
 const DESIGN_STEPS = ['요청 확인', '비교', '결정 · 반영 시점', 'Alex에게 전달', '개발 반영']
 const STAGE_INDEX = { detected: 0, requested: 1, rework: 1, decided: 3, fixed: 3, verified: 3, resolved: 5 }
-function Steps({ steps, current }) {
-  return (
-    <ol data-decision-steps className="flex flex-wrap items-center gap-1 text-[11.5px]">
-      {steps.map((step, index) => (
-        <li key={step} data-step-state={index < current ? 'done' : index === current ? 'current' : 'todo'} className="flex items-center gap-1">
-          {index > 0 && <span aria-hidden className={cn('h-px w-3', index <= current ? 'bg-emerald-400/50' : 'bg-white/15')} />}
-          <span className={cn('rounded-full px-2 py-0.5', index < current ? 'text-emerald-300' : index === current ? 'bg-emerald-400/15 font-semibold text-emerald-200 ring-1 ring-emerald-400/40' : 'text-slate-500')}>
-            {index < current && '✓ '}{step}
-          </span>
-        </li>
-      ))}
-    </ol>
-  )
+
+// The same shape the review's progress card (FlowSteps) draws, so the
+// design-decision flow reads like every other conflict's progress.
+export function decisionFlowOf(conflict, viewer) {
+  const developer = viewer?.jobRole === 'Developer'
+  const stage = decisionStageOf(conflict)
+  const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
+  const labels = developer ? DEV_STEPS : DESIGN_STEPS
+  const at = developer
+    ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
+    : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
+  const next = (developer
+    ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 수정하세요', resolved: '해결됐어요' }
+    : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요', resolved: '해결됐어요' })[stage]
+  return {
+    current: at >= labels.length ? 'done' : labels[at],
+    next: next ?? '',
+    steps: labels.map((label, index) => ({ id: label, label, state: index < at ? 'done' : index === at ? 'current' : 'todo' })),
+  }
 }
 
 // A one-of-a-few choice as pills (radio group).
@@ -450,6 +456,37 @@ function DecisionForm({ conflict, onDecide }) {
   )
 }
 
+// Compact detection card: one sentence + chips; the file/cause/impact table
+// stays folded until asked for.
+function DetectedSummary({ conflict }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <section data-decision-detected className={cn(CARD, 'ring-amber-400/25 !py-3')}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-100">{conflict.summary ?? conflict.message}</p>
+        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">보통</span>
+        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">디자인 결정 필요</span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <p className="text-[11px] text-slate-500">자동 감지 · {conflict.detectedBy} · {conflict.timestamp}</p>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="text-[11px] font-medium text-slate-400 hover:text-slate-200">
+          {open ? '접기' : '자세히 보기'}
+        </button>
+      </div>
+      {open && (
+        <dl className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-xs">
+          <dt className="text-slate-400">관련 파일</dt>
+          <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
+          <dt className="text-slate-400">원인</dt>
+          <dd className="text-slate-200">{conflict.cause}</dd>
+          <dt className="text-slate-400">영향 범위</dt>
+          <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
+        </dl>
+      )}
+    </section>
+  )
+}
+
 export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
   const navigate = useNavigate()
   const developer = viewer?.jobRole === 'Developer'
@@ -468,36 +505,14 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     </button>
   )
 
-  // Which step is lit: the developer's from where the decision stands; the
-  // designer's from the same, seen from their side.
-  const current = developer
-    ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
-    : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
-
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Steps steps={developer ? DEV_STEPS : DESIGN_STEPS} current={current} />
-        {(request || decision) && historyLink}
-      </div>
+      {(request || decision) && <div className="flex justify-end">{historyLink}</div>}
 
       {/* What was detected — said first on the developer's side, before
           anything has been asked. */}
       {developer && stage === 'detected' && (
-        <section data-decision-detected className={cn(CARD, 'ring-amber-400/25')}>
-          <p className="text-[11px] font-medium text-amber-300">자동 감지 · {conflict.detectedBy} · {conflict.timestamp}</p>
-          <p className="mt-1 text-[13px] leading-5 text-slate-100">{conflict.message}</p>
-          <dl className="mt-3 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-xs">
-            <dt className="text-slate-400">관련 파일</dt>
-            <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
-            <dt className="text-slate-400">원인</dt>
-            <dd className="text-slate-200">{conflict.cause}</dd>
-            <dt className="text-slate-400">영향 범위</dt>
-            <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
-            <dt className="text-slate-400">심각도</dt>
-            <dd className="text-amber-200">보통 (Medium) · 상태: 디자인 결정 필요</dd>
-          </dl>
-        </section>
+        <DetectedSummary conflict={conflict} />
       )}
 
       <LayoutComparison conflict={conflict} showProposal={Boolean(request?.proposal === 'one-column') || !developer} />
