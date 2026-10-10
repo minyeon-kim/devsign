@@ -3,6 +3,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
+import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL } from '@/lib/designDecisions'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -73,6 +74,7 @@ const REMOTE_VIEWPORT_INTERVAL = 20000
 
 const WorkspaceContext = createContext(null)
 
+
 function nextId(prefix) {
   return `${prefix}-${crypto.randomUUID()}`
 }
@@ -102,6 +104,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // cursors and Follow Me timelines actually render as *other* people.
   const currentUser = currentUserFor(projectId)
   const otherMembers = useMemo(() => teamMembers.filter((m) => m.id !== currentUser.id), [currentUser.id])
+  // (The developer track plays the other side of design decisions.)
+  const isDeveloperViewer = currentUser.jobRole === 'Developer'
   // Every project's file set shares the same file *ids* as the default
   // (`openFiles`) — see the comment on `projectFileSets` in mockData.js —
   // so this only needs to swap which file objects those ids resolve to,
@@ -339,7 +343,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // Merge Studio's feed plus this project's Conflict Points items.
   const [storedNotifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
     ...conflictNotifications.filter((n) => n.projectId === projectId),
-    ...seedMergeNotifications,
+    // (Merge Studio's sample feed is the other projects' — Dashboard
+    // Redesign's Inbox is its own walkthrough's.)
+    ...(projectId === 'dashboard-redesign' ? [] : seedMergeNotifications),
   ])
   const notificationDay = new Date().toLocaleDateString('en-CA')
   const notifications = useMemo(() => {
@@ -803,6 +809,26 @@ export function WorkspaceProvider({ children, projectId }) {
   const restartConflict = useCallback((conflictId) => {
     const conflict = conflicts.find((candidate) => candidate.id === conflictId)
     if (!conflict || conflict.reviewStage === 'resolved') return false
+    // A design-decision walkthrough starts where its persona's does: the
+    // designer with the developer's request in, the developer before asking
+    // — unless the other side was actually played (a request the developer
+    // sent, a decision the designer made): that's kept, to carry on from.
+    if (conflict.decisionFlow) {
+      const playedByOther = isDeveloperViewer ? conflict.designDecision && !conflict.designDecision.scripted : conflict.decisionRequest?.sentAt
+      if (playedByOther) return false
+      const designer = !isDeveloperViewer && conflict.scriptedRequest
+      setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+        ...c,
+        reviewStage: designer ? 'in_review' : 'detected',
+        requestedBy: designer ? conflict.scriptedRequest.by : null,
+        decisionRequest: designer ? { ...conflict.scriptedRequest, round: 1 } : null,
+        designDecision: null,
+        decisionFix: null,
+        dsProposal: null,
+        reviewers: c.reviewers.map((reviewer) => ({ id: reviewer.id, status: 'pending' })),
+      })))
+      return true
+    }
     // What was picked or set by hand for it (its merge draft) goes first:
     // changing a draft touches the review's stage, set last below.
     const draft = conflict.mergeItemId ? mergeDrafts.current[conflict.mergeItemId] : null
@@ -827,7 +853,7 @@ export function WorkspaceProvider({ children, projectId }) {
       acceptedChecks: [],
     })))
     return true
-  }, [conflicts, saveMergeDraft, setConflicts])
+  }, [conflicts, isDeveloperViewer, saveMergeDraft, setConflicts])
 
   const setActiveFileId = useCallback((fileId) => {
     setActiveFileIdState(fileId)
@@ -1132,9 +1158,16 @@ export function WorkspaceProvider({ children, projectId }) {
       ?? files.find((file) => file.id === historyFileId)?.lines
       ?? currentSnapshot().lines
     const historyPreviewSide = conflict ? mergedSideForConflict(conflict) : 'after'
-    recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+    // A mix of drafts says what it took from which: "Card layout ← Draft A · …".
+    const picks = item && draftScreens[item.id] ? regionPicks(item.id, mergedResolutions) : {}
+    const picksReason = Object.keys(picks).length
+      ? draftScreens[item.id].regions.filter((region) => picks[region.id])
+        .map((region) => `${region.label} ← 시안 ${String.fromCharCode(65 + Math.max(0, item.variants.findIndex((variant) => variant.key === picks[region.id])))}`).join(' · ')
+      : null
+    const historyId = recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+      ...(picksReason && !conflict && { reason: picksReason }),
       conflictIds: [...mergedIds],
-      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers).filter((r) => r.status === 'approved').map((r) => r.id))],
+      timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers ?? []).filter((r) => r.status === 'approved').map((r) => r.id))],
       snapshot: { ...currentSnapshot(), activeFileId: historyFileId, fileId: historyFileId, lines: historyLines,
         files: finalFiles, mergeOutput: output, conflicts: resolvedConflicts, previewProps: nextPreviewProps,
         prototypeEdits: nextPrototypeEdits, activePageId,
@@ -1156,7 +1189,8 @@ export function WorkspaceProvider({ children, projectId }) {
       if (update) setDsUpdates((prev) => prev.some((u) => u.id === update.id) ? prev : [...prev, update])
     }
     appendTerminalLines([`$ devsign merge "${item?.title ?? conflict.title}"`, '✓ merged · local checkpoint saved to History'])
-    return true
+    // (Truthy: the checkpoint it saved, for a "View in History" link.)
+    return historyId
   }, [conflicts, mergeItems, projectId, fileOverrides, files, draftChanges, previewProps, prototypeEdits, activePageId, setMergedBaseline, setConflicts, updateMergeItem, recordHistory, currentSnapshot, logEvent, appendTerminalLines, setFileOverrides, setDraftChanges, setDsUpdates, setPreviewProps, setPrototypeEdits, currentUser.id])
   const resolveConflict = useCallback((conflictId) => commitMerge({ conflictId }), [commitMerge])
   const completeMerge = useCallback((itemId) => commitMerge({ itemId }), [commitMerge])
@@ -1216,6 +1250,156 @@ export function WorkspaceProvider({ children, projectId }) {
     },
     [conflicts, logEvent, notifyAuthor, projectId, setConflicts, currentUser.id]
   )
+
+  // ── Design decisions (a `decisionFlow` conflict, e.g. CON-002) ──────
+  // A structural drift isn't settled by picking values: its developer asks
+  // the designer for a decision (with the reason, the screen as built, a
+  // proposal, how far along the work is and when it should land), the
+  // designer decides — keep the design, approve the change, or ask for
+  // another look — and when it applies, and the developer then fixes the
+  // code, verifies it and resolves the conflict. Every step is a History
+  // checkpoint on the conflict (so its Activity tab and History both
+  // show the trail) and a project event.
+  const recordDecisionStep = useCallback((conflict, { label, kind = 'decision', reason, lines, actorId = currentUser.id }) => {
+    const fileId = conflict.fileId ?? activeFileId
+    return recordHistory({
+      label, kind, actorId, reason, conflictId: conflict.id, ...(kind === 'merge' && { conflictIds: [conflict.id] }),
+      target: `${conflict.file?.split('/').pop() ?? conflict.title} · ${conflict.title.split(' / ').pop()}`,
+      timestamp: timeLabel(),
+      snapshot: { ...currentSnapshot(), activeFileId: fileId, fileId, lines: lines ?? fileOverrides[fileId] ?? files.find((f) => f.id === fileId)?.lines ?? [] },
+    })
+  }, [activeFileId, currentSnapshot, currentUser.id, fileOverrides, files, recordHistory])
+
+  const notifyPerson = useCallback((recipientId, conflict, text, kind = 'approval', authorId = currentUser.id) => {
+    if (!recipientId) return
+    setNotifications((prev) => [{
+      id: nextId('n'), kind, authorId, recipientId, text, timeLabel: 'Just now', unread: true,
+      target: { conflictId: conflict.id, label: conflict.title },
+    }, ...prev])
+  }, [currentUser.id, setNotifications])
+
+  // The developer asks: the conflict goes to review with the designer.
+  const requestDesignDecision = useCallback((conflictId, request) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict) return
+    const round = (conflict.decisionRequest?.round ?? 0) + 1
+    const record = { ...request, by: currentUser.id, at: timeLabel(), sentAt: Date.now(), round }
+    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c,
+      decisionRequest: record,
+      designDecision: null,
+      decisionFix: null,
+      reviewStage: 'in_review',
+      requestedBy: currentUser.id,
+      reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+    })))
+    logEvent({ kind: 'decision_requested', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    notifyPerson(designerId, conflict, `디자인 결정을 요청했어요 · ${conflict.id} ${conflict.title}`)
+    recordDecisionStep(conflict, { label: `${conflict.id} 디자인 결정 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
+  }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
+
+  // The designer decides. Keep / approve settle it (the reviewer signs
+  // off); asking for another look sends it back to the developer.
+  const decideDesign = useCallback((conflictId, decision, { actorId = currentUser.id } = {}) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict) return
+    const settled = decision.choice !== 'rework'
+    // (`scripted`: played by the walkthrough for the other side.)
+    const record = { ...decision, by: actorId, at: timeLabel(), decidedAt: Date.now(), ...(actorId !== currentUser.id && { scripted: true }) }
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c,
+      designDecision: record,
+      reviewStage: settled ? 'approved' : 'in_review',
+      reviewers: c.reviewers.map((r) => (r.id === actorId ? { ...r, status: settled ? 'approved' : 'changes_requested', reviewedAt: Date.now(), note: decision.reason } : r)),
+    })))
+    logEvent({ kind: 'decided', projectId, conflictId, actorId, title: conflict.title })
+    if (actorId === currentUser.id) notifyPerson(conflict.decisionRequest?.by ?? authorOf(conflict), conflict, `${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing] ?? ''} — ${conflict.title}`, 'comment')
+    recordDecisionStep(conflict, { label: `디자인 결정: ${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing] ?? ''} 반영`, reason: decision.reason, actorId })
+  }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
+
+  // The developer acts on the decision: the code (and, for an approved
+  // change, the design) moves to what was decided.
+  const applyDecisionFix = useCallback((conflictId) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    const choice = conflict?.designDecision?.choice
+    const fixLine = conflict?.fixes?.[choice]
+    if (!conflict || !fixLine || !conflict.fileId || !conflict.line) return
+    const base = fileOverrides[conflict.fileId] ?? files.find((f) => f.id === conflict.fileId)?.lines ?? []
+    const lines = base.map((line, index) => (index + 1 === conflict.line ? fixLine : line))
+    setFileOverrides((prev) => ({ ...prev, [conflict.fileId]: lines }))
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c, decisionFix: { choice, appliedAt: timeLabel(), designSynced: choice === 'approve', verified: false },
+    })))
+    logEvent({ kind: 'code_change', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    recordDecisionStep(conflict, {
+      kind: 'edit',
+      label: choice === 'approve' ? `${conflict.id} 1열 레이아웃 적용 · 디자인 원안 동기화` : `${conflict.id} 코드를 디자인 원안(2열)에 맞춤`,
+      reason: conflict.designDecision?.reason,
+      lines,
+    })
+    appendTerminalLines([`$ devsign apply ${conflict.id} --decision ${choice}`, `✓ ${conflict.file} · line ${conflict.line} updated`])
+  }, [appendTerminalLines, conflicts, currentUser.id, fileOverrides, files, logEvent, projectId, recordDecisionStep, setConflicts, setFileOverrides])
+
+  const verifyDecisionFix = useCallback((conflictId) => {
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId || !c.decisionFix ? c : { ...c, decisionFix: { ...c.decisionFix, verified: true, verifiedAt: timeLabel() } })))
+    appendTerminalLines(['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout'])
+  }, [appendTerminalLines, setConflicts])
+
+  const resolveDecision = useCallback((conflictId) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict?.decisionFix?.verified) return null
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
+    })))
+    logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    notifyPerson(conflict.designDecision?.by, conflict, `충돌을 해결했어요 · ${conflict.id} ${conflict.title}`, 'comment')
+    return recordDecisionStep(conflict, {
+      kind: 'merge',
+      label: `${conflict.id} 해결 · ${conflict.decisionFix.choice === 'approve' ? '1열 레이아웃' : '디자인 원안 2열'}`,
+      reason: `${DECISION_LABEL[conflict.designDecision?.choice] ?? ''} · ${TIMING_LABEL[conflict.designDecision?.timing] ?? ''} 반영 — 검증 완료`,
+    })
+  }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
+
+  // A shared component or token changed along the way: a note for the
+  // design system's owners (optional; kept on the conflict).
+  const proposeDesignSystemUpdate = useCallback((conflictId, note) => {
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, dsProposal: { note, by: currentUser.id, at: timeLabel() } })))
+  }, [currentUser.id, setConflicts])
+
+  // The walkthroughs' other side, played for whoever isn't at the keyboard:
+  // the designer's walkthrough starts with Alex's request already in; the
+  // developer's gets Taylor's decision a few seconds after asking.
+  // (Once per conflict, however many times the effect runs before the
+  // request lands in the store.)
+  const seededRequests = useRef(new Set())
+  useEffect(() => {
+    if (isDeveloperViewer) return
+    const waiting = conflicts.filter((c) => c.decisionFlow && c.scriptedRequest && !c.decisionRequest && !c.designDecision && c.reviewStage !== 'resolved' && !seededRequests.current.has(c.id))
+    if (!waiting.length) return
+    waiting.forEach((c) => seededRequests.current.add(c.id))
+    setConflicts((prev) => prev.map((c) => (!waiting.some((w) => w.id === c.id) ? c : {
+      ...c, decisionRequest: { ...c.scriptedRequest, round: 1 }, reviewStage: 'in_review', requestedBy: c.scriptedRequest.by,
+    })))
+    for (const c of waiting) {
+      recordDecisionStep(c, { label: `${c.id} 디자인 결정 요청 · ${PROPOSAL_LABEL[c.scriptedRequest.proposal] ?? '수정안'}`, reason: c.scriptedRequest.reason, actorId: c.scriptedRequest.by })
+    }
+  }, [conflicts, isDeveloperViewer, recordDecisionStep, setConflicts])
+  useEffect(() => {
+    if (!isDeveloperViewer) return
+    const asked = conflicts.filter((c) => c.decisionFlow && c.scriptedDecision && c.decisionRequest?.by === currentUser.id && c.decisionRequest.sentAt && !c.designDecision)
+    if (!asked.length) return
+    const timer = window.setTimeout(() => {
+      for (const c of asked) {
+        const decision = { ...c.scriptedDecision, timing: c.decisionRequest.timing ?? 'before-release' }
+        decideDesign(c.id, decision, { actorId: c.scriptedDecision.by })
+        const designer = teamMembers.find((p) => p.id === c.scriptedDecision.by)?.name ?? 'The designer'
+        notifyPerson(currentUser.id, c, `${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing]} — ${c.title}`, 'comment', c.scriptedDecision.by)
+        toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · ${TIMING_LABEL[decision.timing]} 반영`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id, { view: 'overlay' }) } })
+      }
+    }, Math.max(0, Math.min(...asked.map((c) => c.decisionRequest.sentAt)) + DECISION_REPLY_MS - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [conflicts, currentUser.id, decideDesign, isDeveloperViewer, notifyPerson, openConflictReview])
 
   // A merged conflict is history, not a draft — real tools never flip it
   // back to "open" in place (its merge commit already happened). Reverting
@@ -2228,6 +2412,12 @@ export function WorkspaceProvider({ children, projectId }) {
     startMergeFromFiles,
     completeMerge,
     updateMergeItem,
+    requestDesignDecision,
+    decideDesign,
+    applyDecisionFix,
+    verifyDecisionFix,
+    resolveDecision,
+    proposeDesignSystemUpdate,
     mergeDrawer,
     setMergeDrawer,
     notifications,

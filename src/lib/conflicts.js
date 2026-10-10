@@ -442,5 +442,7 @@ export function authorOf(conflict) {
 // Preserve saved review progress while introducing missing code-conflict records.
 export function restoreCodeConflicts(records) {
   const known = new Set(records.map((record) => record.id))
-  return [...records, ...allConflictRecords().filter((record) => record.kind === 'code-conflict' && !known.has(record.id))]
+  // (…and a project added since the records were saved gets its seeds.)
+  const projectsKnown = new Set(records.map((record) => record.projectId))
+  return [...records, ...allConflictRecords().filter((record) => !known.has(record.id) && (record.kind === 'code-conflict' || !projectsKnown.has(record.projectId)))]
 }

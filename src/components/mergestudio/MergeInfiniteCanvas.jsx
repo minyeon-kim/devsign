@@ -1302,7 +1302,7 @@ function MergeInfiniteCanvas({
   const frameLabelA = item.authorAId ? (allPeople.find((p) => p.id === item.authorAId)?.name ?? 'Original Design') : 'Original Design'
   // Drafts that have been mixed (any value decided) render the picks on the
   // second artboard — so it's the result, not the second author's draft.
-  const mixed = item.variants?.length > 2 && Object.keys(decisionsFor?.(item.id) ?? {}).length > 0
+  const mixed = (item.variants?.length > 2 || (item.variants?.length > 1 && draftScreens[item.id])) && Object.keys(decisionsFor?.(item.id) ?? {}).length > 0
   const frameLabelB = mixed ? 'Result — your picks'
     : item.authorBId ? (allPeople.find((p) => p.id === item.authorBId)?.name ?? 'Current Implementation') : 'Current Implementation'
 

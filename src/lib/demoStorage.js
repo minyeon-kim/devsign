@@ -11,7 +11,8 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // 6: Card / Radius (cc-3) gained its design page — stored merge items and
 // conflicts from before would keep it code-only.
 // 7: a three-draft sample item for mixing drafts per element.
-export const DEMO_VERSION = 15
+// 16: Dashboard Redesign (AI drafts, CON-002's design decision) joined.
+export const DEMO_VERSION = 16
 
 export function readDemo(key, fallback) {
   try {
@@ -67,6 +68,8 @@ export function resetDemo() {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith(DEMO_PREFIX)) localStorage.removeItem(key)
   }
+  // (…and which walkthrough notices were seen, so they start over too.)
+  try { sessionStorage.removeItem('devsign:notices-seen:v1') } catch { /* storage unavailable */ }
 }
 
 // Stable ordering prevents object insertion order from invalidating reviews.

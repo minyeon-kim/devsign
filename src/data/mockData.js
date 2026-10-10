@@ -73,8 +73,8 @@ export const teamMembers = [
   {
     id: 'min',
     name: 'Alex',
-    role: 'Designer',
-    team: 'Product',
+    role: 'Developer',
+    team: 'Engineering',
     initials: 'AL',
     colorClass: 'bg-emerald-500',
     cursorColor: '#10b981',
@@ -110,26 +110,56 @@ export const projectViewportSequences = {
 // Jordan on the developer track. A project with no entry falls back to the
 // global `currentUser` default (Taylor).
 export const projectViewerIds = {
+  'dashboard-redesign': 'jane',
   'checkout-redesign': 'jane',
   'mobile-nav-revamp': 'james',
+}
+
+// Projects where more than one person has a UT track: Dashboard Redesign
+// is tested as Taylor (designer — scenarios A and B) and as Alex (developer
+// — scenario C), on the same project and the same Conflict Points. Which of
+// them "you" are is kept in the browser (see setProjectViewer).
+export const projectViewerOptions = {
+  'dashboard-redesign': ['jane', 'min'],
+}
+const viewerKey = (projectId) => `devsign:viewer:${projectId}`
+function storedViewer(projectId) {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(viewerKey(projectId))
+  } catch {
+    return null
+  }
+}
+export function setProjectViewer(projectId, personId) {
+  try {
+    window.localStorage.setItem(viewerKey(projectId), personId)
+  } catch {
+    // Storage blocked — the project's default viewer stays.
+  }
+}
+export function viewerIdFor(projectId) {
+  const stored = storedViewer(projectId)
+  return projectViewerOptions[projectId]?.includes(stored) ? stored : projectViewerIds[projectId]
 }
 
 // The active project's viewer, resolved from the full roster — same shape
 // as `currentUser`, with `role` forced to 'You' so screens that special-
 // case it (e.g. hiding your own role badge in a reviewer/author list) keep
-// working no matter which project's viewer this resolves to.
+// working no matter which project's viewer this resolves to. (`jobRole`
+// keeps the real job title for the screens that branch on it.)
 export function currentUserFor(projectId) {
-  const person = teamMembers.find((p) => p.id === projectViewerIds[projectId])
-  return person ? { ...person, role: 'You' } : currentUser
+  const person = teamMembers.find((p) => p.id === viewerIdFor(projectId))
+  return person ? { ...person, jobRole: person.role, role: 'You' } : { ...currentUser, jobRole: 'Designer' }
 }
 
 // The people with a complete UT track (each project's own scripted
 // scenario) — backs the profile menu's "Switch user" control, where
 // picking one both identifies you and takes you to their project.
-export const viewerPersonas = Object.entries(projectViewerIds).map(([projectId, id]) => ({
-  projectId,
-  person: teamMembers.find((p) => p.id === id),
-}))
+export const viewerPersonas = Object.entries(projectViewerIds).flatMap(([projectId, id]) =>
+  (projectViewerOptions[projectId] ?? [id]).map((personId) => ({
+    projectId,
+    person: teamMembers.find((p) => p.id === personId),
+  })))
 
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.
@@ -160,6 +190,17 @@ export const teams = [
 // multi-tenant data model; only the displayed name/metadata differ per
 // project. `memberIds` resolve against `allPeople`.
 export const projects = [
+  {
+    id: 'dashboard-redesign',
+    name: 'Dashboard Redesign',
+    description: 'Dashboard redesign — AI drafts mixed into one design, and the responsive grid kept in sync with the design at 768px.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'min', 'james'],
+    updatedAtLabel: 'Just now',
+    filesCount: 4,
+    thumbnailType: 'checkout',
+    activityCount: 6,
+  },
   {
     id: 'checkout-redesign',
     name: 'Checkout Redesign',
@@ -801,6 +842,234 @@ export const conflictChecklist = [
     mergeTitle: 'Merged Place order button size and color',
     linkedCommentId: 'comment-cc11',
   },
+  // ── Dashboard Redesign ──────────────────────────────────────────────
+  // CON-002 is the UT's Structural Drift, played from both sides: Alex
+  // (developer, scenario C) finds it and asks for a design decision; Taylor
+  // (designer, scenario B) receives that request and decides. `decisionFlow`
+  // gives its review the design-decision flow (DesignDecisionFlow) instead
+  // of picking values. `scriptedRequest` is Alex's request as the designer's
+  // walkthrough finds it; `scriptedDecision` is Taylor's answer as the
+  // developer's walkthrough receives it a few seconds after asking.
+  {
+    id: 'CON-002',
+    decisionFlow: true,
+    driftType: 'structural',
+    title: 'DashboardGrid / Mobile Layout Adjustment',
+    token: 'DashboardGrid / Mobile Layout Adjustment',
+    file: 'src/components/dashboard/DashboardGrid.tsx',
+    fileId: 'app',
+    line: 7,
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Today, 9:12 AM',
+    dueLabel: 'Due tomorrow',
+    resolved: false,
+    severity: 'medium',
+    reviewStage: 'detected',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'min', what: 'Implemented the responsive grid in DashboardGrid.tsx' },
+    gitFlow: { source: 'feature/dashboard-responsive', target: 'develop' },
+    cause: '768px에서 카드 2열(360px 고정) · 화면 폭보다 넓어 카드가 겹침',
+    effect: '태블릿에서 카드 내용이 가려짐 · 구매 버튼 위치가 밀림',
+    message: '768px(태블릿)에서 DashboardGrid가 360px 고정 카드 2열을 유지해, 카드가 서로 겹쳐요. 디자인 원안은 768px에서 화면 폭에 맞춘 카드 2열이에요.',
+    riskReason: 'Medium: 태블릿 레이아웃 구조가 바뀌는 변경 · 데이터나 결제 로직은 그대로예요.',
+    impact: {
+      screens: ['Dashboard · 768px (tablet)'],
+      components: ['DashboardGrid', 'StatCard', 'PurchaseCTA'],
+      files: ['src/components/dashboard/DashboardGrid.tsx', 'src/styles/dashboard.css'],
+    },
+    uxNote: '태블릿에서 카드가 겹쳐 숫자가 가려지고, 구매 버튼이 아래로 밀려요.',
+    suggestion: '디자인 결정이 필요해요: 원안(2열)에 맞춰 코드를 고치거나, 1열로 바꾸는 변경을 승인받으세요.',
+    branches: { local: 'DashboardGrid.tsx', remote: 'Dashboard · 768px (Figma)' },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'spacing', before: { gap: '0px' }, after: { gap: '8px' } },
+    comparisonFields: [
+      { label: 'Columns at 768px', expected: '2열 · 화면 폭에 맞춤 (1fr)', current: '2열 · 360px 고정 (겹침)' },
+    ],
+    // The three layouts the decision is between, for the comparison.
+    layouts: {
+      original: { label: '디자인 원안', note: '768px · 카드 2열 (화면 폭에 맞춤)', columns: 2 },
+      implementation: { label: '실제 구현', note: '768px · 360px 고정 2열 → 카드 겹침', columns: 2, overlap: true },
+      proposal: { label: '개발자 제안', note: '768px · 카드 1열', columns: 1 },
+    },
+    // The code each way forward lands on (line 7).
+    fixes: {
+      keep: '  const columns = tablet ? "repeat(2, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))"',
+      approve: '  const columns = tablet ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))"',
+    },
+    diff: {
+      before: ['  const columns = tablet ? "repeat(2, 360px)" : "repeat(2, minmax(0, 1fr))"'],
+      after: ['  const columns = tablet ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))"'],
+    },
+    scriptedRequest: {
+      by: 'min',
+      reason: '768px에서 360px 고정 카드 2장과 간격이 화면 폭을 넘어 카드가 겹쳐요. 태블릿에서는 카드를 1열로 쌓는 편이 읽기 쉬워요.',
+      attachment: true,
+      proposal: 'one-column',
+      devStage: 'mid',
+      timing: 'before-release',
+      at: 'Today, 9:20 AM',
+    },
+    scriptedDecision: {
+      by: 'jane',
+      choice: 'approve',
+      reason: '768px에서는 1열이 더 읽기 쉬워요. 출시 전에 디자인 원안도 1열로 업데이트할게요.',
+    },
+  },
+  {
+    id: 'CON-003',
+    title: 'StatCard / Padding',
+    token: 'StatCard / Padding',
+    file: 'src/components/dashboard/StatCard.tsx',
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Today, 8:40 AM',
+    dueLabel: 'Due in 3 days',
+    dueBucket: 'week',
+    resolved: false,
+    severity: 'low',
+    reviewStage: 'detected',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'min', what: 'Changed the code' },
+    gitFlow: { source: 'feature/dashboard-responsive', target: 'develop' },
+    cause: '카드 안쪽 여백 12px · 디자인은 16px (space.4)',
+    effect: '카드 내용이 조금 답답해 보임',
+    message: 'StatCard의 안쪽 여백이 12px이에요. 디자인은 space.4(16px)를 써요.',
+    impact: { screens: ['Dashboard'], components: ['StatCard'], files: ['src/components/dashboard/StatCard.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'spacing', before: { gap: '12px' }, after: { gap: '16px' } },
+    comparisonFields: [{ label: 'Padding', expected: '16px (space.4)', current: '12px' }],
+    diff: { before: ['<article className="stat-card p-3">'], after: ['<article className="stat-card p-4">'] },
+  },
+  {
+    id: 'CON-005',
+    title: 'PurchaseCTA / Color token',
+    token: 'PurchaseCTA / Color token',
+    file: 'src/components/dashboard/PurchaseCTA.tsx',
+    fileId: 'sync-script',
+    line: 3,
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Today, 8:55 AM',
+    dueLabel: 'Due tomorrow',
+    resolved: false,
+    severity: 'medium',
+    reviewStage: 'in_review',
+    requestedBy: 'min',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'min', what: 'Changed the code' },
+    gitFlow: { source: 'feature/dashboard-cta', target: 'develop' },
+    cause: '구매 버튼 배경이 #1D4ED8 고정값 · 디자인은 color.cta 토큰',
+    effect: '테마 변경을 따르지 않음',
+    message: '구매 버튼 배경이 #1D4ED8로 고정돼 있어요. 디자인은 color.cta 토큰을 써요.',
+    impact: { screens: ['Dashboard'], components: ['PurchaseCTA'], files: ['src/components/dashboard/PurchaseCTA.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'button', label: 'Upgrade to Pro', before: { height: 44, background: '#1D4ED8' }, after: { height: 44, background: '#2563EB' } },
+    comparisonFields: [{ label: 'Background', expected: 'color.cta (#2563EB)', current: '#1D4ED8 (fixed hex)' }],
+    diff: { before: ['    <button className="purchase-cta">Upgrade to Pro</button>'], after: ['    <button className="purchase-cta bg-[var(--color-cta)]">Upgrade to Pro</button>'] },
+  },
+  {
+    id: 'CON-006',
+    title: 'Dashboard header / Font weight',
+    token: 'Dashboard header / Font weight',
+    file: 'src/components/dashboard/DashboardHeader.tsx',
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Yesterday',
+    dueLabel: 'Due in 7 days',
+    dueBucket: 'week',
+    resolved: false,
+    severity: 'low',
+    reviewStage: 'detected',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
+    gitFlow: { source: 'feature/dashboard-header', target: 'develop' },
+    cause: '제목 굵기 600 · 디자인은 700',
+    effect: '제목이 덜 강조됨',
+    message: '대시보드 제목이 font-weight 600이에요. 디자인은 700을 써요.',
+    impact: { screens: ['Dashboard'], components: ['DashboardHeader'], files: ['src/components/dashboard/DashboardHeader.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'text', label: 'Dashboard', before: { fontWeight: 600 }, after: { fontWeight: 700 } },
+    comparisonFields: [{ label: 'Font weight', expected: '700', current: '600' }],
+    diff: { before: ['<h1 className="text-xl font-semibold">Dashboard</h1>'], after: ['<h1 className="text-xl font-bold">Dashboard</h1>'] },
+  },
+  {
+    id: 'CON-008',
+    title: 'Chart legend / Spacing',
+    token: 'Chart legend / Spacing',
+    file: 'src/components/dashboard/RevenueChart.tsx',
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Today, 8:10 AM',
+    dueLabel: 'Due in 3 days',
+    dueBucket: 'week',
+    resolved: false,
+    severity: 'low',
+    reviewStage: 'in_review',
+    requestedBy: 'james',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
+    gitFlow: { source: 'feature/revenue-chart', target: 'develop' },
+    cause: '범례 항목 간격 4px · 디자인은 8px',
+    effect: '범례 항목이 붙어 보임',
+    message: '차트 범례 항목 사이 간격이 4px이에요. 디자인은 8px(space.2)이에요.',
+    impact: { screens: ['Dashboard'], components: ['RevenueChart'], files: ['src/components/dashboard/RevenueChart.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'spacing', before: { gap: '4px' }, after: { gap: '8px' } },
+    comparisonFields: [{ label: 'Gap', expected: '8px (space.2)', current: '4px' }],
+    diff: { before: ['<ul className="legend flex gap-1">'], after: ['<ul className="legend flex gap-2">'] },
+  },
+  {
+    id: 'CON-009',
+    title: 'Sidebar / Breakpoint',
+    token: 'Sidebar / Breakpoint',
+    file: 'src/components/dashboard/Sidebar.tsx',
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Yesterday',
+    dueLabel: 'Due in 7 days',
+    dueBucket: 'week',
+    resolved: false,
+    severity: 'medium',
+    reviewStage: 'detected',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'min', what: 'Changed the code' },
+    gitFlow: { source: 'feature/dashboard-responsive', target: 'develop' },
+    cause: '사이드바 접힘 기준 1024px · 디자인은 768px',
+    effect: '태블릿 가로 화면에서 사이드바가 일찍 접힘',
+    message: '사이드바가 1024px부터 접혀요. 디자인은 768px(breakpoint.tablet)에서 접혀요.',
+    impact: { screens: ['Dashboard · tablet'], components: ['Sidebar'], files: ['src/components/dashboard/Sidebar.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'card', content: { title: 'Sidebar.tsx', detail: 'collapse < 1024px → 768px' }, before: { radius: 12 }, after: { radius: 12 } },
+    comparisonFields: [{ label: 'Collapse at', expected: '768px (breakpoint.tablet)', current: '1024px' }],
+    diff: { before: ['const collapsed = width < 1024'], after: ['const collapsed = width < 768'] },
+  },
+  {
+    id: 'CON-011',
+    title: 'Empty state / Illustration size',
+    token: 'Empty state / Illustration size',
+    file: 'src/components/dashboard/EmptyState.tsx',
+    projectId: 'dashboard-redesign',
+    projectName: 'Dashboard Redesign',
+    timestamp: 'Yesterday',
+    dueLabel: 'Due in 7 days',
+    dueBucket: 'week',
+    resolved: false,
+    severity: 'low',
+    reviewStage: 'in_review',
+    requestedBy: 'james',
+    detectedBy: 'Devsign design ↔ code sync',
+    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
+    gitFlow: { source: 'feature/empty-state', target: 'develop' },
+    cause: '빈 상태 일러스트 96px · 디자인은 120px',
+    effect: '빈 화면이 허전해 보임',
+    message: '빈 상태 일러스트가 96px이에요. 디자인은 120px이에요.',
+    impact: { screens: ['Dashboard · empty'], components: ['EmptyState'], files: ['src/components/dashboard/EmptyState.tsx'] },
+    reviewers: [{ id: 'jane', status: 'pending' }],
+    preview: { kind: 'icon', before: { size: 24, stroke: 2 }, after: { size: 30, stroke: 2 } },
+    comparisonFields: [{ label: 'Size', expected: '120px', current: '96px' }],
+    diff: { before: ['<img className="size-24" src={empty} alt="" />'], after: ['<img className="size-30" src={empty} alt="" />'] },
+  },
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -1063,6 +1332,38 @@ export const mergeListItems = [
     dueLabel: 'Due tomorrow',
     dueBucket: 'soon',
     assigneeId: 'jane',
+  },
+  // Dashboard Redesign: two AI drafts of the dashboard, compared in Design
+  // Compare and mixed in Merge Studio. `saveOnFinish`: the designer owns
+  // this screen — finishing the mix saves it (a History checkpoint), no
+  // approval round.
+  {
+    id: 'merge-dashboard-drafts',
+    projectId: 'dashboard-redesign',
+    title: 'Dashboard · AI 시안 A/B',
+    subtitle: 'Design · 2 drafts',
+    tag: 'Needs Review',
+    updatedLabel: 'Just now',
+    fileIds: ['app'],
+    hasDesign: true,
+    designPageId: 'page-dashboard',
+    category: 'Dashboard',
+    conflictLevel: 'Low',
+    dueLabel: 'No due date',
+    dueBucket: 'none',
+    assigneeId: 'jane',
+    saveOnFinish: true,
+    // What sets the two drafts apart — shown above them in Design Compare.
+    differences: [
+      { id: 'layout', label: '레이아웃', values: ['2열 카드', '3열 카드'] },
+      { id: 'color', label: '컬러', values: ['Blue CTA', 'Dark CTA'] },
+      { id: 'spacing', label: '간격', values: ['카드 간격 16px · 여백 20px', '카드 간격 8px · 여백 16px'] },
+      { id: 'component', label: '컴포넌트', values: ['아이콘 카드 · 전체 너비 버튼', '숫자 타일 · 캡슐형 버튼 + 가격'] },
+    ],
+    variants: [
+      { key: 'ai-a', label: '2열 카드 · Blue CTA', ai: true },
+      { key: 'ai-b', label: '3열 카드 · Dark CTA', ai: true },
+    ],
   },
   // Design-only alternatives live in Workspace Design Compare. They are
   // options to compare, not conflicts requiring approval.
@@ -1767,6 +2068,78 @@ export const openFiles = [
 // name/path/lines differ per project, giving each one its own files to
 // switch between instead of every project showing an identical file list.
 export const projectFileSets = {
+  // Dashboard Redesign's files. DashboardGrid.tsx line 7 is the grid Conflict
+  // Point CON-002 is about: at the 768px breakpoint it keeps two columns of
+  // fixed 360px cards, which can't fit — the cards overlap.
+  'dashboard-redesign': [
+    {
+      ...openFiles[0],
+      name: 'DashboardGrid.tsx',
+      path: 'src/components/dashboard/DashboardGrid.tsx',
+      language: 'tsx',
+      lines: [
+        "import { StatCard } from './StatCard'",
+        "import { PurchaseCTA } from './PurchaseCTA'",
+        "import { useBreakpoint } from '@/hooks/useBreakpoint'",
+        '',
+        'export function DashboardGrid({ cards }: { cards: Stat[] }) {',
+        '  const tablet = useBreakpoint() === "tablet" // 768px',
+        '  const columns = tablet ? "repeat(2, 360px)" : "repeat(2, minmax(0, 1fr))"',
+        '',
+        '  return (',
+        '    <section className="dashboard-grid" style={{ gridTemplateColumns: columns }}>',
+        '      {cards.map((card) => <StatCard key={card.id} {...card} />)}',
+        '      <PurchaseCTA />',
+        '    </section>',
+        '  )',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[1],
+      name: 'dashboard.css',
+      path: 'src/styles/dashboard.css',
+      lines: [
+        '.dashboard-grid {',
+        '  display: grid;',
+        '  gap: var(--space-4); /* 16px */',
+        '  padding: var(--space-5); /* 20px */',
+        '}',
+        '',
+        '.purchase-cta {',
+        '  background: var(--color-cta); /* Blue 600 */',
+        '  border-radius: var(--radius-md);',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[2],
+      name: 'tokens.json',
+      path: 'src/design/tokens.json',
+      lines: [
+        '{',
+        '  "space": { "2": "8px", "4": "16px", "5": "20px" },',
+        '  "color": { "cta": "#2563EB", "ctaDark": "#0F172A" },',
+        '  "radius": { "md": "12px", "pill": "9999px" },',
+        '  "breakpoint": { "tablet": "768px" }',
+        '}',
+      ],
+    },
+    {
+      ...openFiles[3],
+      name: 'PurchaseCTA.tsx',
+      path: 'src/components/dashboard/PurchaseCTA.tsx',
+      language: 'tsx',
+      iconName: 'FileCode',
+      lines: [
+        'export function PurchaseCTA() {',
+        '  return (',
+        '    <button className="purchase-cta">Upgrade to Pro</button>',
+        '  )',
+        '}',
+      ],
+    },
+  ],
   // The Checkout scenario's own files (same four ids as `openFiles`). Line 8
   // of PlaceOrderButton.jsx is the line Conflict Point cc-11's diff, the
   // Merge Studio item and the AI fix all refer to.
@@ -2425,6 +2798,19 @@ export const canvasPages = [
       },
     ],
   },
+  // Dashboard Redesign's design page: the dashboard as designed — draft A
+  // until a mix of the AI drafts (draftScreens) is saved over it.
+  {
+    id: 'page-dashboard',
+    name: 'Dashboard',
+    projectId: 'dashboard-redesign',
+    frames: [
+      (() => {
+        const meta = { id: 'frame-dashboard', name: 'Dashboard', kind: 'frame', x: 80, y: 40, width: 280, height: 520 }
+        return { ...meta, layers: draftFrame('merge-dashboard-drafts', meta, 'ai-a').layers }
+      })(),
+    ],
+  },
   // Checkout Redesign's own design page (see pagesForProject): the payment
   // step with the Place order button (Conflict Point cc-11). The design
   // uses the 44px large button; the code currently renders 40px.
@@ -2832,6 +3218,28 @@ function navCheckpoint({ id, label, branch, actorId, target, timestamp, ...value
   return { id, label, kind: 'edit', branch, ...(actorId && { actorId }), target, timestamp, archived: false, snapshot: navSnapshot(values) }
 }
 
+// Dashboard Redesign's checkpoints: DashboardGrid.tsx as it was (desktop
+// only, before the responsive change) or as it is now.
+const DASHBOARD_GRID_DESKTOP = [
+  "import { StatCard } from './StatCard'",
+  "import { PurchaseCTA } from './PurchaseCTA'",
+  '',
+  'export function DashboardGrid({ cards }: { cards: Stat[] }) {',
+  '  return (',
+  '    <section className="dashboard-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>',
+  '      {cards.map((card) => <StatCard key={card.id} {...card} />)}',
+  '      <PurchaseCTA />',
+  '    </section>',
+  '  )',
+  '}',
+]
+function dashboardCheckpoint({ id, label, reason, actorId, target, timestamp, lines = projectFileSets['dashboard-redesign'][0].lines }) {
+  return {
+    id, label, ...(reason && { reason }), kind: 'edit', ...(actorId && { actorId }), target, timestamp, archived: false,
+    snapshot: { activeFileId: 'app', fileId: 'app', lines, activePageId: 'page-dashboard', conflicts: [], selectedLayerId: null },
+  }
+}
+
 export const projectHistorySeeds = {
   // Mobile Nav Revamp — the sample History playback runs on. Every
   // checkpoint keeps the whole file as it was then (`snapshot.lines`, via
@@ -2862,6 +3270,19 @@ export const projectHistorySeeds = {
     navCheckpoint({ id: 'history-nav-hotfix-2', label: 'Draft 24px icons', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
     { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'Merge unread badge', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx', timestamp: 'Yesterday, 3:15 PM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'] },
     navCheckpoint({ id: 'history-nav-hotfix-3', label: 'Tap area to 48px', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
+  ],
+  // Dashboard Redesign — the AI drafts arriving, the responsive grid going
+  // in, and Conflict Point CON-002 caught on it at 768px. (Draft A is the
+  // design until a mix is saved; the grid code is the file as it is now.)
+  'dashboard-redesign': [
+    dashboardCheckpoint({ id: 'history-db-1', label: 'AI 시안 A · B 생성 (대시보드 리디자인)', actorId: 'jane', target: 'Dashboard.jsx', timestamp: 'Yesterday, 10:20 AM', lines: DASHBOARD_GRID_DESKTOP }),
+    dashboardCheckpoint({ id: 'history-db-2', label: 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정', reason: '태블릿에서도 데스크톱과 같은 2열을 유지하려고', actorId: 'min', target: 'DashboardGrid.tsx · line 7', timestamp: 'Today, 9:05 AM' }),
+    {
+      ...dashboardCheckpoint({ id: 'history-conflict-con-002', label: '768px에서 카드 2열이 겹쳐요 — 디자인 원안과 구조가 달라요 (Structural Drift)', target: 'DashboardGrid.tsx · Structural Drift', timestamp: 'Today, 9:12 AM' }),
+      kind: 'conflict',
+      conflictId: 'CON-002',
+      actorLabel: 'Devsign design ↔ code sync',
+    },
   ],
   'checkout-redesign': [
     {

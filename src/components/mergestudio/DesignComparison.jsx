@@ -1,13 +1,14 @@
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { isDesignReview } from '@/lib/conflicts'
 import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { canvasPages, designMergeVariants } from '@/data/mockData'
 import { draftFrame, draftScreens } from '@/data/draftScreens'
+import { useNavigate } from 'react-router-dom'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { toast } from '@/i18n/toast'
 
@@ -15,7 +16,7 @@ export function designCompareOptions(item) {
   if (item?.variants?.length) {
     return item.variants.map((variant, index) => ({
       key: variant.key,
-      label: `시안 ${String.fromCharCode(65 + index)} · ${variant.label ?? ''}`.replace(/ · $/, ''),
+      label: `${variant.ai ? 'AI ' : ''}시안 ${String.fromCharCode(65 + index)} · ${variant.label ?? ''}`.replace(/ · $/, ''),
     }))
   }
   return [
@@ -26,6 +27,7 @@ export function designCompareOptions(item) {
 
 function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
   const { conflicts, addComment, openConflictReview, reviewConflictId } = useWorkspace()
+  const navigate = useNavigate()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key))
@@ -139,15 +141,19 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             // Where this set is on its way to merging, as steps with the
             // current one lit — and, beside it, the one thing to do next
             // (named for that step), when it's done from the review.
-            const STEPS = ['조합', '검토 요청', '승인', '병합 완료']
+            // (A screen the designer owns is saved straight from the mix —
+            // no review round: compare, compose, save.)
+            const STEPS = item.saveOnFinish ? ['비교', '조합', '저장 완료'] : ['조합', '검토 요청', '승인', '병합 완료']
             const requested = Boolean(conflict && isDesignReview(conflict))
             const current = status.id === 'merged' ? STEPS.length
-              : status.id === 'approved' ? 3
-                : status.id === 'in_review' || status.id === 'changes_requested' ? 2
-                  : requested ? 1 : 0
-            const action = !conflict ? null
-              : !isDesignReview(conflict) ? '충돌 검토'
-                : { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기'
+              : item.saveOnFinish ? 0
+                : status.id === 'approved' ? 3
+                  : status.id === 'in_review' || status.id === 'changes_requested' ? 2
+                    : requested ? 1 : 0
+            const action = item.saveOnFinish ? (status.id === 'merged' ? 'History에서 보기' : null)
+              : !conflict ? null
+                : !isDesignReview(conflict) ? '충돌 검토'
+                  : { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기'
             return (
               <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-white/10 px-3 py-2">
                 <ol data-design-steps className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-[11.5px]">
@@ -162,13 +168,27 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                   ))}
                 </ol>
                 {action && (
-                  <button type="button" data-design-next onClick={() => openConflictReview(conflict.id)} className="ds-intrinsic shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300">
+                  <button type="button" data-design-next onClick={() => (item.saveOnFinish ? navigate(`/projects/${item.projectId}/history`) : openConflictReview(conflict.id))} className="ds-intrinsic shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300">
                     {action}
                   </button>
                 )}
               </div>
             )
           })()}
+          {/* What sets the drafts apart, property by property — so the
+              comparison starts from the differences, not a hunt for them. */}
+          {item?.differences?.length > 0 && (
+            <dl data-design-differences className="mb-3 grid grid-cols-[auto_repeat(var(--cols),minmax(0,1fr))] gap-x-3 gap-y-1 rounded-lg border border-white/10 px-3 py-2 text-[11.5px]" style={{ '--cols': options.length }}>
+              <dt className="text-slate-500">차이</dt>
+              {options.map((option, index) => <dd key={option.key} className="truncate font-medium text-slate-300">{`시안 ${String.fromCharCode(65 + index)}`}</dd>)}
+              {item.differences.map((difference) => (
+                <Fragment key={difference.id}>
+                  <dt className="text-slate-400">{difference.label}</dt>
+                  {difference.values.map((value, index) => <dd key={index} className="truncate text-slate-200" title={value}>{value}</dd>)}
+                </Fragment>
+              ))}
+            </dl>
+          )}
           {commentModeVariantKey && (
             <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
               <MapPin className="size-3 shrink-0" />

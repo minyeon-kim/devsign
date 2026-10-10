@@ -111,7 +111,7 @@ function ChangePreview({ preview, side, showLabels = true, override }) {
   if (kind === 'text') {
     const sample = (s) => (
       <span className="flex w-full items-center justify-center rounded-lg bg-white px-3 py-3">
-        <span className="text-base font-medium text-slate-800" style={{ letterSpacing: s.letterSpacing }}>
+        <span className="text-base font-medium text-slate-800" style={{ letterSpacing: s.letterSpacing, fontWeight: s.fontWeight }}>
           <LocalizedText text={preview.label} />
         </span>
       </span>

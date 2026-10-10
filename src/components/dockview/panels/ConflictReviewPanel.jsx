@@ -67,6 +67,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
+import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -2528,6 +2529,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const mergeConflict = Boolean(conflict?.diff?.before?.some((line) => line.startsWith('<<<<<<<')))
   const mergedSide = decisionState.side ?? conflict?.decidedSide ?? 'A'
   const mergedWith = !conflict ? null
+    // (A design decision says what was decided and applied.)
+    : conflict.decisionFlow ? (conflict.decisionFix?.choice === 'approve' ? '변경 승인 · 1열 레이아웃으로 해결' : conflict.decisionFix ? '원안 유지 · 디자인 원안(2열)으로 해결' : null)
     : mergeConflict ? (conflict.codeChoice === 'both' || !conflict.codeChoice ? 'Resolved by applying both changes'
         : `Resolved with the ${conflict.codeChoice === 'remote' ? 'remote' : 'local'} branch (${conflict.codeChoice === 'remote' ? conflict.branches?.remote : conflict.branches?.local}) value`)
       : mergedSide === 'A' ? 'Resolved with the design reference' : 'Resolved by keeping the current implementation'
@@ -3044,7 +3047,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
               {/* Align the review action with the lower metadata row. */}
               <div className="relative top-2 flex min-w-0 shrink-0 self-end items-center gap-2">
-                {conflict.rollback ? primary : approvalBar}
+                {conflict.rollback ? primary : conflict.decisionFlow ? null : approvalBar}
               </div>
             </div>
             {/* A mix of drafts just sent to merge: its next step — asking the
@@ -3107,7 +3110,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>
                   )}
-                  {!replayId ? (
+                  {!replayId && conflict.decisionFlow ? (
+                    // A structural drift: a design decision to ask for and
+                    // make, not values to pick (DesignDecisionFlow).
+                    <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
+                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} />
+                    </div>
+                  ) : !replayId ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
@@ -3223,7 +3232,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </div>
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                      {!conflict.rollback && <FlowSteps
+                      {!conflict.rollback && !conflict.decisionFlow && <FlowSteps
                         key={`flow:${conflict.id}`}
                         conflict={conflict}
                         className="mb-5"

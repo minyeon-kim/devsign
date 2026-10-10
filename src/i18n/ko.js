@@ -752,6 +752,11 @@ Rollback here|여기로 되돌리기
 AI edit|AI 편집
 Rollback|롤백
 Conflict detected|충돌 감지됨
+Design decision|디자인 결정
+asked for a design decision on|디자인 결정을 요청했어요 ·
+made a design decision on|디자인을 결정했어요 ·
+Structural Drift|구조 차이 (Structural Drift)
+The implemented layout is structured differently from the design; a design decision is needed.|구현된 레이아웃의 구조가 디자인과 달라요. 디자인 결정이 필요해요.
 All kinds|전체 종류
 All files|모든 파일
 No checkpoints match this filter.|이 필터에 맞는 체크포인트가 없습니다.

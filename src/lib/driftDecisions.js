@@ -15,7 +15,8 @@ export function isRealDiff(diff) {
 // The drafts of a multi-draft item as columns (A, B, C, …), each with the
 // value it gives a diff; null for an ordinary design-vs-code item.
 export function draftColumns(item) {
-  if (!(item?.variants?.length > 2)) return null
+  // (Two drafts are enough when they're whole screens — draftScreens.)
+  if (!(item?.variants?.length > 2 || (item?.variants?.length > 1 && draftScreens[item.id]))) return null
   return item.variants.map((variant, index) => ({
     key: variant.key,
     letter: String.fromCharCode(65 + index),

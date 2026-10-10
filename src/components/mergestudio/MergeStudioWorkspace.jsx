@@ -2,6 +2,7 @@ import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
+import { useNavigate } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
 import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
@@ -309,6 +310,7 @@ function defaultLineFor(item) {
 // Deck width plus its 16px right inset and 16px breathing room.
 
 function MergeStudioWorkspace({ item }) {
+  const navigate = useNavigate()
   const {
     setActiveFileId,
     setFilesWindow,
@@ -338,6 +340,7 @@ function MergeStudioWorkspace({ item }) {
     conflicts,
     updateConflict,
     createMergeRequest,
+    completeMerge,
     currentUser,
     mergeItems,
   } = useWorkspace()
@@ -498,6 +501,21 @@ function MergeStudioWorkspace({ item }) {
     // (Its next step, asking for approval, is the bar at the top there —
     // no toast saying it again.)
     openConflictReview(requestId, { view: 'overlay' })
+  }
+
+  // A screen the designer owns (`saveOnFinish`) is saved as mixed — the
+  // composed result replaces the page's design and a History checkpoint
+  // records it — with no approval round.
+  function saveMix() {
+    if (item.tag === 'Merged') return
+    const checkpointId = completeMerge(item.id)
+    if (!checkpointId) return
+    endComparison()
+    exitMergeStudio()
+    toast('최종 디자인을 저장했어요', {
+      description: '병합 전후 변경 이력은 History에서 확인할 수 있어요.',
+      action: { label: 'History에서 보기', onClick: () => navigate(`/projects/${item.projectId}/history?v=${checkpointId}`, { state: { flashCheckpoint: checkpointId } }) },
+    })
   }
 
   function openReviewFor(target) {
@@ -1297,11 +1315,11 @@ function MergeStudioWorkspace({ item }) {
               disabled={mixPicked === 0 || item.tag === 'Merged'}
               data-merge-request
               title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
-              onClick={finishMix}
+              onClick={item.saveOnFinish ? saveMix : finishMix}
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:bg-white/[0.06] disabled:font-medium disabled:text-slate-500"
             >
               <Check className="size-3.5" strokeWidth={2.5} />
-              <LocalizedText text="병합 요청" />
+              <LocalizedText text={item.saveOnFinish ? (item.tag === 'Merged' ? '저장됨' : '확정하고 저장') : '병합 요청'} />
             </button>
           </div>
         )}

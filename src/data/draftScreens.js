@@ -115,6 +115,56 @@ export const draftScreens = {
     },
   },
 
+  // Dashboard Redesign — two AI drafts of the same dashboard. They differ
+  // in Layout (2 vs 3 columns of cards), Color (a blue vs a dark purchase
+  // button), Spacing (16px vs 8px between cards, 20px vs 16px edges) and
+  // Component (icon stat cards vs compact number tiles; a full-width button
+  // vs a pill with its price). The scenario mixes A's cards with B's CTA.
+  'merge-dashboard-drafts': {
+    regions: [
+      { id: 'header', label: '헤더' },
+      { id: 'cards', label: '카드 배치' },
+      { id: 'cta', label: '구매 버튼 (CTA)' },
+    ],
+    drafts: {
+      // A · AI — two columns of icon stat cards, a blue CTA.
+      'ai-a': {
+        header: { summary: '제목 + 인사말', height: 44, layers: [
+          text('h-title', 'Dashboard', 4, { h: 18, tone: 'strong', weight: 700 }),
+          text('h-sub', 'Good morning, Sam · This week', 30, { h: 10 }),
+        ] },
+        cards: { summary: '2열 · 간격 16px', height: 196, layers: [
+          { id: 'c-revenue', name: 'Revenue', kind: 'component', type: 'card', x: 20, y: 0, width: 112, height: 90, mock: { icon: 'chart', title: '$12.4k', body: 'Revenue · +8%' }, look: RADIUS },
+          { id: 'c-orders', name: 'Orders', kind: 'component', type: 'card', x: 148, y: 0, width: 112, height: 90, mock: { icon: 'zap', title: '320', body: 'Orders · +12' }, look: RADIUS },
+          { id: 'c-visitors', name: 'Visitors', kind: 'component', type: 'card', x: 20, y: 106, width: 112, height: 90, mock: { icon: 'shield', title: '8,210', body: 'Visitors · −3%' }, look: RADIUS },
+          { id: 'c-conversion', name: 'Conversion', kind: 'component', type: 'card', x: 148, y: 106, width: 112, height: 90, mock: { icon: 'chart', title: '3.9%', body: 'Conversion · +0.4' }, look: RADIUS },
+        ] },
+        cta: { summary: 'Blue CTA · 전체 너비', height: 44, layers: [
+          { id: 'cta-buy', name: 'Purchase button', kind: 'component', type: 'button', x: 20, y: 0, width: 240, height: 44, label: 'Upgrade to Pro', look: { className: 'bg-blue-600', radius: 12 } },
+        ] },
+      },
+      // B · AI — three columns of compact tiles, a dark pill CTA.
+      'ai-b': {
+        header: { summary: '제목 + 기간 칩', height: 40, layers: [
+          text('h-title', 'Overview', 6, { h: 18, tone: 'strong', weight: 700, x: 16, w: 150 }),
+          { id: 'h-period', name: 'Period', kind: 'component', type: 'chip', x: 194, y: 4, width: 70, height: 24, label: 'This week', mock: { role: 'ghost' } },
+        ] },
+        cards: { summary: '3열 · 간격 8px', height: 144, layers: [
+          { id: 'c-revenue', name: 'Revenue', kind: 'component', type: 'card', x: 16, y: 0, width: 77, height: 68, mock: { icon: 'chart', title: '$12.4k', body: 'Revenue' }, look: { radius: 8 } },
+          { id: 'c-orders', name: 'Orders', kind: 'component', type: 'card', x: 101, y: 0, width: 78, height: 68, mock: { icon: 'zap', title: '320', body: 'Orders' }, look: { radius: 8 } },
+          { id: 'c-visitors', name: 'Visitors', kind: 'component', type: 'card', x: 187, y: 0, width: 77, height: 68, mock: { icon: 'shield', title: '8,210', body: 'Visitors' }, look: { radius: 8 } },
+          { id: 'c-conversion', name: 'Conversion', kind: 'component', type: 'card', x: 16, y: 76, width: 77, height: 68, mock: { icon: 'chart', title: '3.9%', body: 'Conversion' }, look: { radius: 8 } },
+          { id: 'c-refunds', name: 'Refunds', kind: 'component', type: 'card', x: 101, y: 76, width: 78, height: 68, mock: { icon: 'zap', title: '4', body: 'Refunds' }, look: { radius: 8 } },
+          { id: 'c-rating', name: 'Rating', kind: 'component', type: 'card', x: 187, y: 76, width: 77, height: 68, mock: { icon: 'shield', title: '4.8', body: 'Rating' }, look: { radius: 8 } },
+        ] },
+        cta: { summary: 'Dark CTA · 캡슐형 + 가격', height: 64, layers: [
+          { id: 'cta-buy', name: 'Purchase button', kind: 'component', type: 'button', x: 16, y: 0, width: 248, height: 44, label: 'Buy Pro · $12/mo', look: { className: 'bg-slate-900', radius: 999 } },
+          text('cta-note', 'Cancel anytime', 52, { h: 9, x: 104, w: 80 }),
+        ] },
+      },
+    },
+  },
+
   // Order confirmation — three takes that share no structure: a centered
   // celebration, a receipt-first summary, a tracking-first status page.
   'merge-confirmation-drafts': {
@@ -287,6 +337,8 @@ const PART_META = {
     james: { details: { amount: '128.00' }, actions: { accent: 'violet' } },
     ai: { status: { accent: 'violet' }, details: { amount: '128.00' }, delivery: { accent: 'violet' }, actions: { accent: 'violet' } },
   },
+  // (A's blue and B's dark are one brand's: the mix is meant to take them.)
+  'merge-dashboard-drafts': {},
   'merge-checkout-payment-drafts': {
     jane: { summary: { amount: '128.00', total: true }, footer: { accent: 'violet', amount: '128.00', total: true } },
     min: { header: { accent: 'violet' }, summary: { amount: '128.00', total: true }, payment: { accent: 'violet' }, footer: { accent: 'violet', amount: '128.00', total: true } },
