@@ -30,26 +30,33 @@ const SEVERITY_QUIET_CLASS = SEVERITY_PILL_CLASS
 
 // `bare`: just the level ("Medium"), for places whose column or context
 // already says it's a level. `quiet`: color only for High.
-const RISK_TINT_CLASS = { high: 'bg-rose-400/15', medium: 'bg-amber-400/15' }
+const RISK_EMPHASIS_CLASS = {
+  high: 'bg-rose-500/25 font-semibold text-rose-100 ring-1 ring-rose-400/40 ring-inset',
+  medium: 'bg-amber-400/15 text-amber-200',
+  low: 'bg-transparent font-normal text-slate-400',
+}
 const SEVERITY_DOT_CLASS = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-sky-400', none: 'bg-slate-500' }
 
-// The risk icon: red (danger) for High, yellow (caution) for Medium; Low
-// gets none, so the two that need attention stand out from the rest.
-const RISK_ICON_CLASS = { high: 'text-rose-400', medium: 'text-amber-300' }
-const RISK_ICON_LABEL = { high: 'High risk', medium: 'Medium risk' }
+// The risk mark for a line of text: a dot, red (danger) for High, yellow
+// (caution) for Medium; Low gets none, so the two that need attention
+// stand out from the rest.
+const RISK_DOT_CLASS = { high: 'bg-rose-400', medium: 'bg-amber-300' }
+const RISK_DOT_LABEL = { high: 'High risk', medium: 'Medium risk' }
 
-export function RiskIcon({ level, className }) {
+export function RiskDot({ level, className }) {
   const key = String(level ?? '').toLowerCase()
-  if (!RISK_ICON_CLASS[key]) return null
-  return <TriangleAlert role="img" aria-label={RISK_ICON_LABEL[key]} data-risk-icon={key} className={cn('size-3.5 shrink-0', RISK_ICON_CLASS[key], className)} />
+  if (!RISK_DOT_CLASS[key]) return null
+  return <span role="img" aria-label={RISK_DOT_LABEL[key]} data-risk-dot={key} className={cn('size-1.5 shrink-0 rounded-full', RISK_DOT_CLASS[key], className)} />
 }
 
-// `icon`: lead with the risk icon (High red, Medium yellow), on a tint of
-// the same color — for the conflict lists, where risk is what to scan for.
+// `emphasis`: risk as the row's loudest signal, in three clear steps —
+// High a strong red fill with a ring and bold text (danger), Medium a soft
+// yellow fill (caution), Low no fill at all, in muted text — for the
+// conflict lists, where risk is what to scan for.
 // `plain`: no box — a dot in the level's color and the level as text.
 // `labeled` (with `plain`): says what the word is — "Risk High" — with the
 // level in its color.
-export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, labeled = false, icon = false, ...props }) {
+export function SeverityPill({ level, className, bare = false, quiet = false, plain = false, labeled = false, emphasis = false, ...props }) {
   const key = String(level).toLowerCase()
   const tones = quiet ? SEVERITY_QUIET_CLASS : SEVERITY_PILL_CLASS
   if (plain) {
@@ -66,12 +73,10 @@ export function SeverityPill({ level, className, bare = false, quiet = false, pl
       {...props}
       className={cn(
         CONFLICT_BADGE,
-        tones[key] ?? tones.medium,
-        icon && RISK_TINT_CLASS[key],
+        emphasis ? RISK_EMPHASIS_CLASS[key] ?? RISK_EMPHASIS_CLASS.medium : tones[key] ?? tones.medium,
         className
       )}
     >
-      {icon && <RiskIcon level={key} className="size-3" />}
       {!bare && <span className="text-slate-400">Level</span>}
       <LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1)} />
     </span>

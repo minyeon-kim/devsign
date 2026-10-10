@@ -280,12 +280,13 @@ function ConflictPanel({ inMergeStudio }) {
                       <ListStatus conflict={conflict} ready={readyToRequest} note={adjusted ? 'Adjusted manually' : null} />
                     </td>
                     <td className="py-3.5">
-                      <SeverityPill bare quiet icon level={severity.label} />
+                      <SeverityPill bare quiet emphasis level={severity.label} />
                     </td>
                     {/* What kind of thing it is — one broad tag — and, under
-                        it, the kind of difference. */}
+                        it, the kind of difference. Neutral here: risk, just
+                        before it, is the row's one color signal. */}
                     <td className="min-w-0 py-3.5 pt-4">
-                      <ConflictTypeTag conflict={conflict} />
+                      <ConflictTypeTag conflict={conflict} neutral />
                       <MismatchLabel conflict={conflict} className="mt-1 block truncate text-[11px] leading-4 text-slate-500" />
                     </td>
                     {/* The branch isn't a column — it's on hover here, and in

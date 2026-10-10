@@ -34,11 +34,13 @@ const QUIET_TYPE_TONE = {
   slate: 'bg-white/[0.05] text-slate-300',
 }
 
-export function ConflictTypeTag({ conflict, className, header = false, quiet = false }) {
+// `neutral`: no color of its own — beside a risk level, so the type never
+// reads as one.
+export function ConflictTypeTag({ conflict, className, header = false, quiet = false, neutral = false }) {
   const type = conflictTypeOf(conflict)
   if (!type) return null
   return (
-    <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', (header ? HEADER_TYPE_TONE : quiet ? QUIET_TYPE_TONE : TYPE_TONE)[type.tone], className)}>
+    <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', neutral ? TYPE_TONE.slate : (header ? HEADER_TYPE_TONE : quiet ? QUIET_TYPE_TONE : TYPE_TONE)[type.tone], className)}>
       <LocalizedText text={type.label} />
     </span>
   )
