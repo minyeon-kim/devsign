@@ -321,14 +321,11 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
 // under the pointer, its size and its spacing.
 // A conflict's mark on the canvas: an amber dot on the element's top-right
-// corner (with a count when several are about it). One opens its Conflict
-// Point; several list them first. Drawn beside the frame's clipped box so a
-// list can reach past the frame's edge.
-function ConflictMarkers({ frame, byLayer, onOpen }) {
-  const [openId, setOpenId] = useState(null)
-  const marked = frame.layers.filter((layer) => byLayer.has(layer.id))
-  if (marked.length === 0) return null
-  return marked.map((layer) => {
+// corner (with a count when several are about it). Pressing it picks the
+// element like a click on it does — the Conflict Points panel comes up
+// below with the conflicts about it lit — rather than leaving for a review.
+function ConflictMarkers({ frame, byLayer, onSelect }) {
+  return frame.layers.filter((layer) => byLayer.has(layer.id)).map((layer) => {
     const list = byLayer.get(layer.id)
     const left = Math.min(layer.x + layer.width - 7, frame.width - 14)
     const top = Math.max(layer.y - 7, 2)
@@ -337,34 +334,19 @@ function ConflictMarkers({ frame, byLayer, onOpen }) {
         <button
           type="button"
           data-canvas-conflict-marker={layer.id}
-          aria-label={`${list.length} conflict${list.length > 1 ? 's' : ''} on ${layer.name}`}
-          title={list.length > 1 ? `${list.length} conflicts · ${layer.name}` : `${list[0].title}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            if (list.length === 1) onOpen(list[0].id)
-            else setOpenId(openId === layer.id ? null : layer.id)
-          }}
+          aria-label={`${list.length} conflict${list.length > 1 ? 's' : ''} on ${layer.name} — show in Conflict Points`}
+          title={list.length > 1 ? `${list.length} conflicts · ${layer.name}` : list[0].title}
+          onClick={(event) => { event.stopPropagation(); onSelect(layer.id) }}
           className="flex size-3.5 min-w-3.5 cursor-pointer items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-slate-950 ring-2 ring-white transition-transform hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
         >
           {list.length > 1 ? list.length : ''}
         </button>
-        {openId === layer.id && (
-          <ul data-canvas-conflict-list className="absolute top-4 left-0 w-52 rounded-lg bg-popover p-1 text-xs text-foreground shadow-xl ring-1 ring-white/10">
-            {list.map((conflict) => (
-              <li key={conflict.id}>
-                <button type="button" onClick={(event) => { event.stopPropagation(); setOpenId(null); onOpen(conflict.id) }} className="block w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-left hover:bg-muted">
-                  {conflict.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
     )
   })
 }
 
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom, conflictsByLayer, onOpenConflict }) {
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom, conflictsByLayer, onSelectLayer }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -412,7 +394,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
         </div>
         {isFrameSelected && <SelectionHandles />}
       </div>
-      {conflictsByLayer && !merged && <ConflictMarkers frame={frame} byLayer={conflictsByLayer} onOpen={onOpenConflict} />}
+      {conflictsByLayer && !merged && <ConflictMarkers frame={frame} byLayer={conflictsByLayer} onSelect={onSelectLayer} />}
       {/* (Beside the frame's box, not in it: that clips, and a tag at the
           edge would be cut off.) */}
       {measure && <SpacingOverlay container={container} frame={frame} selectedId={selectedId} hoverId={hoverId} version={`${zoom}:${JSON.stringify(edits)}`} />}
@@ -469,8 +451,9 @@ function CanvasPanel() {
     aiEditPulse,
     aiGenerating,
     conflicts,
-    openConflictFromNotification,
     setBottomPanel,
+    reviewConflictId,
+    openConflictReview,
   } = useWorkspace()
   const conflictsByLayer = useMemo(() => openConflictsByLayer(conflicts), [conflicts])
   // The value a text slot had when in-place editing started, so Escape can
@@ -716,7 +699,8 @@ function CanvasPanel() {
                 measure={!commentMode && canvasTool === 'move'}
                 zoom={zoom}
                 conflictsByLayer={conflictsByLayer}
-                onOpenConflict={openConflictFromNotification}
+                // (A review open in the panel would hide the list the highlight is in.)
+                onSelectLayer={(id) => { if (reviewConflictId) openConflictReview(null); handleSelect(id) }}
               />
             ))}
 
