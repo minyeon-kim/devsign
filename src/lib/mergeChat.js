@@ -30,7 +30,7 @@ export function mergeChatIntro(item, related) {
       id: `merge-intro-${item.id}`,
       role: 'assistant',
       text: isKo()
-        ? `**${tr(item.title)}**을(를) 머지하고 있어요. 남은 충돌은 ${open.length}개예요. 이 변경에 대해 묻거나, 머지 전에 남은 일을 확인하거나, 검토 요청 메시지를 써 달라고 해 주세요.`
+        ? `**${tr(item.title)}**을(를) 머지하고 있어요. 남은 변경점은 ${open.length}개예요. 이 변경에 대해 묻거나, 머지 전에 남은 일을 확인하거나, 검토 요청 메시지를 써 달라고 해 주세요.`
         : `You're merging **${item.title}** — ${count}. Ask me about this change, what's left before it can merge, or have me draft a review request.`,
     },
   ]
@@ -71,7 +71,7 @@ export function mergeChatAnswer(item, related, text, viewerId) {
   if (is(PROMPTS.explain)) {
     if (!related.length) {
       return isKo()
-        ? `**${tr(item.title)}**에는 연결된 충돌이 없어요. 캔버스의 두 아트보드를 비교해 차이를 확인해 주세요.`
+        ? `**${tr(item.title)}**에는 연결된 변경점이 없어요. 캔버스의 두 아트보드를 비교해 차이를 확인해 주세요.`
         : `**${item.title}** has no linked conflicts — compare the two artboards on the canvas to see what differs.`
     }
     return [
@@ -80,7 +80,7 @@ export function mergeChatAnswer(item, related, text, viewerId) {
       ...related.map((c) => `- **${tr(c.title)}** (${tr(c.severity === 'high' ? 'High' : c.severity === 'low' ? 'Low' : 'Medium')})${c.message ? ` — ${tr(c.message)}` : ''}`),
       '',
       isKo()
-        ? '각 충돌의 코드는 아래 **충돌 지점**의 리뷰에서 볼 수 있고, 머지 전에 거기서 직접 고칠 수 있어요.'
+        ? '각 변경점의 코드는 아래 **확인할 변경점**의 리뷰에서 볼 수 있고, 머지 전에 거기서 직접 고칠 수 있어요.'
         : 'Each conflict’s code is in its review in **Conflict Points** below — you can edit it there before it merges.',
     ].join('\n')
   }
@@ -116,7 +116,7 @@ export function mergeChatAnswer(item, related, text, viewerId) {
           ...open.map((c) => `- ${c.title}${c.message ? `: ${c.message}` : ''}`),
         ]
     const intro = isKo()
-      ? '검토 요청과 함께 남길 메시지예요. **코멘트로 쓰기**를 누르면 충돌의 Comments에 들어가요.'
+      ? '검토 요청과 함께 남길 메시지예요. **코멘트로 쓰기**를 누르면 변경점의 Comments에 들어가요.'
       : 'Here’s a note to go with the review request — **Use as comment** puts it in the conflict’s Comments.'
     const target = open[0]
     return {

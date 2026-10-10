@@ -89,7 +89,7 @@ function LayoutComparison({ conflict, showProposal }) {
 }
 
 // Where the decision is, as steps — worded for whoever's looking.
-const DEV_STEPS = ['충돌 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
+const DEV_STEPS = ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
 const DESIGN_STEPS = ['요청 확인', '비교', '결정 · 반영 시점', 'Alex에게 전달', '개발 반영']
 const STAGE_INDEX = { detected: 0, requested: 1, rework: 1, decided: 3, fixed: 3, verified: 3, resolved: 5 }
 
@@ -326,7 +326,7 @@ function FixSteps({ conflict, onApply, onVerify, onResolve, onPropose }) {
     {
       id: 'resolve',
       title: 'Conflict 해결',
-      detail: conflict.reviewStage === 'resolved' ? '해결됐어요. History에 수정 · 승인 · 해결 이력이 남았어요.' : '검증이 끝나면 충돌을 해결로 닫아요.',
+      detail: conflict.reviewStage === 'resolved' ? '해결됐어요. History에 수정 · 승인 · 해결 이력이 남았어요.' : '검증이 끝나면 변경 확인을 해결로 닫아요.',
       done: conflict.reviewStage === 'resolved',
       action: fix?.verified && conflict.reviewStage !== 'resolved' && <button type="button" data-resolve-decision onClick={onResolve} className={PRIMARY}><CircleCheck className="size-3.5" />해결하기</button>,
     },
@@ -589,7 +589,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
                   {stage === 'rework' && ' 새 수정안이 오면 다시 알려 드려요.'}
                   {stage === 'fixed' && ` ${nameOf(request?.by)}님이 결정을 반영했어요.`}
                   {stage === 'verified' && ` ${nameOf(request?.by)}님이 반영하고 검증했어요.`}
-                  {stage === 'resolved' && ' 충돌이 해결됐어요.'}
+                  {stage === 'resolved' && ' 변경 확인이 끝났어요.'}
                 </span>
                 {stage === 'rework' && <RotateCcw className="size-3.5 shrink-0 text-amber-300" />}
               </p>

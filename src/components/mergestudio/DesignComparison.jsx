@@ -152,7 +152,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                     : requested ? 1 : 0
             const action = item.saveOnFinish ? (status.id === 'merged' ? 'History에서 보기' : null)
               : !conflict ? null
-                : !isDesignReview(conflict) ? '충돌 검토'
+                : !isDesignReview(conflict) ? '변경 검토'
                   : { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기'
             return (
               <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-white/10 px-3 py-2">

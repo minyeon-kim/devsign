@@ -1371,7 +1371,7 @@ function MergeStudioWorkspace({ item }) {
                 exitMergeStudio()
                 setBottomPanel({ tab: 'conflict', open: true })
                 openConflictReview(adjustingFor.id)
-                toast(adjustmentCount ? '조정 내용을 충돌 내역에 반영했어요' : '충돌 내역으로 돌아왔어요', adjustmentCount ? { description: adjustingFor.adjustmentReason?.text ? '검토 화면의 카드에 조정한 값이 표시돼요.' : '검토 화면의 카드에 조정한 값이 표시돼요. 조정한 이유를 선택하세요.' } : undefined)
+                toast(adjustmentCount ? '조정 내용을 변경 내역에 반영했어요' : '변경 내역으로 돌아왔어요', adjustmentCount ? { description: adjustingFor.adjustmentReason?.text ? '검토 화면의 카드에 조정한 값이 표시돼요.' : '검토 화면의 카드에 조정한 값이 표시돼요. 조정한 이유를 선택하세요.' } : undefined)
               }}
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
             >
