@@ -122,8 +122,8 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
   }, [open, height, availableHeight, setBottomPanel])
   const conflictTotals = conflictCounts(conflicts)
   const openConflicts = conflictTotals.open
-  // Amber with open conflicts, red with a High-risk one open — on the
-  // tab's icon first, its count second.
+  // Amber while any conflict is open — on the tab's icon first, its count
+  // second.
   const conflictTone = conflictAlertTone(conflictTotals)
   const designSets = mergeItems.filter((item) => item.hasDesign).length
 
@@ -274,7 +274,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
               {label}
               {id === 'conflict' && openConflicts > 0 && (
                 <span
-                  title={`${openConflicts} open${conflictTone === 'danger' ? ' · high risk' : ''}`}
+                  title={`${openConflicts} open`}
                   className={cn('inline-flex size-3.5 shrink-0 items-center justify-center rounded-full p-0 text-[9px] leading-none font-bold tabular-nums', CONFLICT_TONE_BADGE[conflictTone])}
                 >
                   {openConflicts}

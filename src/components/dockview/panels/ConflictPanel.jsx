@@ -280,7 +280,7 @@ function ConflictPanel({ inMergeStudio }) {
                       <ListStatus conflict={conflict} ready={readyToRequest} note={adjusted ? 'Adjusted manually' : null} />
                     </td>
                     <td className="py-3.5">
-                      <SeverityPill bare quiet level={severity.label} />
+                      <SeverityPill bare quiet icon level={severity.label} />
                     </td>
                     {/* What kind of thing it is — one broad tag — and, under
                         it, the kind of difference. */}

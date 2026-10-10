@@ -145,12 +145,12 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, confl
             />
             {/* The conflict list, in the drawer: a second way into what the
                 Workspace's bottom panel lists. The icon itself turns amber
-                (open conflicts) or red (a High-risk one is open), so that
-                there's a conflict right now reads first; the open count
-                rides on it, in the same tone, second. */}
+                while any conflict is open, so that there's a conflict right
+                now reads first; the open count rides on it, in the same
+                tone, second. */}
             <div className="relative">
               <RailButton
-                label={conflictTone ? `Conflict Points · ${openConflicts} open${conflictTone === 'danger' ? ', high risk' : ''}` : 'Conflict Points'}
+                label={conflictTone ? `Conflict Points · ${openConflicts} open` : 'Conflict Points'}
                 icon={TriangleAlert}
                 data-conflicts-entry
                 data-tone={conflictTone ?? undefined}
