@@ -1,6 +1,7 @@
 import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
+import { conflictIsAbout } from '@/lib/conflictInsight'
 import DesignLinkThumb, { DesignLinkChip } from '@/components/conflicts/DesignLinkThumb'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
@@ -102,7 +103,7 @@ function ConflictPanel({ inMergeStudio }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages } = useWorkspace()
   // The element picked on the canvas: the Conflict Points about it light up
   // and the first scrolls into view (the other half of the canvas markers).
   const listRef = useRef(null)
@@ -254,7 +255,7 @@ function ConflictPanel({ inMergeStudio }) {
                 return (
                   <Fragment key={conflict.id}>
                   <tr
-                    data-canvas-linked={Boolean(selectedLayerId) && conflict.layerId === selectedLayerId && isOpen(conflict)}
+                    data-canvas-linked={isOpen(conflict) && conflictIsAbout(conflict, selectedLayerId, projectPages)}
                     onClick={() => { openRow(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
