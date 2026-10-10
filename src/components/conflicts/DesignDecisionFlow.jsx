@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
@@ -29,7 +29,17 @@ const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
 // One tablet screen (768px) of the dashboard, drawn small: the cards in
 // the given number of columns — or, built with fixed widths that don't fit,
 // overlapping each other.
-function TabletPreview({ columns, overlap = false, widthMode = 'fit', maxWidth = 200 }) {
+function TabletPreview({ columns, overlap = false, widthMode = 'fit', maxWidth = 200, scale = 1 }) {
+  if (scale !== 1) {
+    // The same small drawing, scaled up as a whole so it stays in proportion.
+    return (
+      <div className="mx-auto" style={{ width: 200 * scale, height: 200 * scale * (640 / 768) }}>
+        <div style={{ width: 200, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+          <TabletPreview columns={columns} overlap={overlap} widthMode={widthMode} />
+        </div>
+      </div>
+    )
+  }
   const cards = [0, 1, 2, 3, 4, 5]
   const shown = columns === 1 ? 3 : columns === 3 ? 6 : 4
   // 'narrow' / 'fixed': the cards keep a set width inside their column instead of filling it.
@@ -241,126 +251,132 @@ function DecisionCard({ conflict, viewerId }) {
 }
 
 // ── The developer's side ─────────────────────────────────────────────
-// Which way forward to take, picked on the screens themselves. The two
-// screens that matter (the design, what is built) sit above as plain
-// references — small, dimmed, nothing to press — and the four ways forward
-// below are cards that draw their own 768px result. Picking one shows what
-// changes: the built screen → the chosen one.
-const PICK_RING = 'border-emerald-400'
-function ReferenceFigure({ layout, tag, tone }) {
+// Which way forward to take. The section's one picture is the Before / After:
+// what is built (with its overlap) beside what the chosen way gives — big,
+// side by side. Below it the ways are a plain text list; picking one only
+// changes the right-hand screen. The design itself is not a third thumbnail:
+// 원안 보기 swaps it in for the left-hand screen while pressed.
+// Green marks the pick, and nothing else here.
+function LayoutGlyph({ columns, widthMode }) {
+  if (!columns) return <span aria-hidden className="size-5 shrink-0 rounded-[4px] border border-dashed border-white/25" />
+  const set = widthMode === 'narrow' || widthMode === 'fixed'
   return (
-    <figure data-reference className="pointer-events-none w-24 shrink-0 select-none">
-      <TabletPreview columns={layout.columns} overlap={layout.overlap} maxWidth={96} />
-      <figcaption className="mt-1 text-center">
-        <span className={cn('inline-block rounded px-1.5 text-[9.5px] leading-4 font-medium', tone)}>{tag}</span>
-        <span className="block text-[10.5px] leading-4 text-slate-500">{layout.label}</span>
-      </figcaption>
-    </figure>
+    <span aria-hidden className="grid size-5 shrink-0 gap-px rounded-[4px] border border-white/25 p-[2px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}>
+      {Array.from({ length: columns === 1 ? 3 : columns === 3 ? 3 : 4 }).map((_, index) => <span key={index} className={cn('rounded-[1px] bg-white/40', set && columns > 1 && 'mx-auto w-[70%]')} />)}
+    </span>
   )
 }
 
 function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
   const layouts = conflict.layouts ?? {}
   const refs = useRef([])
+  const [showDesign, setShowDesign] = useState(false)
   const chosen = proposalOf(proposal, custom)
   const move = (event, index) => {
-    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0
     if (!step) return
     event.preventDefault()
     refs.current[(index + step + PROPOSALS.length) % PROPOSALS.length]?.focus()
   }
   const setCustom = (patch) => onCustom({ ...custom, ...patch })
+  const before = showDesign ? layouts.original : layouts.implementation
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-[13px] font-semibold text-white">수정안 선택 <span className="text-rose-300">*</span></h3>
-        <span className="text-[11px] text-slate-500">768px에서 어떻게 바꿀지 골라 주세요</span>
+      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <h3 className="text-sm font-semibold text-white">수정안 선택 <span className="text-rose-300">*</span></h3>
+        <span className="text-xs text-slate-500">768px에서 어떻게 바꿀지 골라 주세요</span>
+        <button
+          type="button"
+          data-show-design
+          aria-pressed={showDesign}
+          onClick={() => setShowDesign((value) => !value)}
+          className={cn('ds-intrinsic ml-auto rounded-md px-2 py-1 text-[11px] transition-colors hover:text-white', showDesign ? 'bg-white/[0.08] text-white' : 'text-slate-400')}
+        >
+          원안 보기
+        </button>
       </div>
 
-      <div data-references aria-label="참고" className="mb-4 flex items-end gap-4 opacity-60">
-        {layouts.original && <ReferenceFigure layout={layouts.original} tag="기준" tone="bg-emerald-400/10 text-emerald-300" />}
-        {layouts.implementation && <ReferenceFigure layout={layouts.implementation} tag="현재 문제" tone="bg-rose-400/10 text-rose-300" />}
+      {/* Before / After: the section's picture. */}
+      <div data-before-after className="grid grid-cols-1 gap-3 min-[769px]:grid-cols-2">
+        <figure data-layout={showDesign ? 'original' : 'implementation'} className="min-w-0 rounded-xl bg-black/20 p-4">
+          <div className="flex justify-center">{before && <TabletPreview columns={before.columns} overlap={before.overlap} scale={1.5} />}</div>
+          <figcaption className="mt-3 text-center">
+            <span className="block text-[13px] font-medium text-slate-200">{showDesign ? '디자인 원안' : '현재 구현'}</span>
+            <span className="block text-xs text-slate-500">{showDesign ? '화면 폭 맞춤 2열' : `${IMPLEMENTATION_SPEC} → 카드 겹침`}</span>
+          </figcaption>
+        </figure>
+        <figure data-layout="proposal" className={cn('min-w-0 rounded-xl p-4', chosen ? 'border-2 border-emerald-400 bg-emerald-400/[0.04]' : 'border-2 border-dashed border-white/15 bg-black/20')}>
+          <div className="flex items-center justify-center" style={{ minHeight: 200 * 1.5 * (640 / 768) }}>
+            {chosen?.columns ? (
+              <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} scale={1.5} />
+            ) : chosen && custom.description.trim() ? (
+              <p className="line-clamp-2 max-w-[260px] text-center text-[13px] leading-5 text-slate-300">{custom.description.trim()}</p>
+            ) : (
+              <span className="text-[13px] text-slate-500">{chosen ? '아래에 수정안을 적어 주세요' : '수정안을 고르면 여기에 보여요'}</span>
+            )}
+          </div>
+          <figcaption className="mt-3 text-center">
+            <span className={cn('block text-[13px] font-medium', chosen ? 'text-slate-100' : 'text-slate-500')}>{chosen ? chosen.name : '선택한 수정안'}</span>
+            <span className="block text-xs text-slate-500">{chosen ? chosen.spec : '아직 고르지 않았어요'}</span>
+          </figcaption>
+        </figure>
       </div>
 
-      <div role="radiogroup" aria-label="수정안" className="grid grid-cols-2 gap-3 min-[769px]:grid-cols-4">
+      {/* The ways forward: text first, a small layout mark at the end. */}
+      <div role="radiogroup" aria-label="수정안" className="mt-4 flex flex-col">
         {PROPOSALS.map((option, index) => {
           const on = proposal === option.id
           const shape = proposalOf(option.id, custom)
-          const emptyOther = option.id === 'other' && !shape.described
           return (
-            <button
-              key={option.id}
-              ref={(node) => { refs.current[index] = node }}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              data-choice={`proposal:${option.id}`}
-              tabIndex={on || (!proposal && index === 0) ? 0 : -1}
-              onClick={() => onProposal(option.id)}
-              onKeyDown={(event) => move(event, index)}
-              className={cn(
-                'ds-intrinsic relative flex min-w-0 flex-col gap-2 rounded-xl border-2 bg-white/[0.03] p-2 text-left transition-[opacity,border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300',
-                on ? PICK_RING : emptyOther ? 'border-dashed border-white/20 opacity-60 hover:opacity-90' : 'border-white/10 opacity-60 hover:opacity-90',
-              )}
-            >
-              {on && <span data-picked-badge aria-hidden className="absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3.5" strokeWidth={3} /></span>}
-              <div className="flex aspect-[768/640] items-center justify-center">
-                {option.id === 'other' && !shape.columns ? (
-                  shape.described && custom?.description?.trim() ? (
-                    <p className="line-clamp-2 px-1 text-center text-[11px] leading-4 text-slate-300">{custom.description.trim()}</p>
-                  ) : (
-                    <span className="text-[12px] font-medium text-slate-400">+ 직접 입력</span>
-                  )
-                ) : (
-                  <TabletPreview columns={shape.columns} widthMode={shape.widthMode} maxWidth={150} />
+            <Fragment key={option.id}>
+              <button
+                ref={(node) => { refs.current[index] = node }}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                data-choice={`proposal:${option.id}`}
+                tabIndex={on || (!proposal && index === 0) ? 0 : -1}
+                onClick={() => onProposal(option.id)}
+                onKeyDown={(event) => move(event, index)}
+                className={cn(
+                  'ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
+                  on ? 'bg-emerald-400/[0.08]' : 'hover:bg-white/[0.04]',
                 )}
-              </div>
-              <span className="min-w-0">
-                <span className={cn('block text-[12.5px] leading-4 font-semibold', on ? 'text-emerald-100' : 'text-slate-100')}>{option.name}</span>
-                <span className="block text-[11px] leading-4 text-slate-400">{option.id === 'other' ? shape.spec : option.spec}</span>
-              </span>
-            </button>
+              >
+                <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
+                  {on && <span className="size-2 rounded-full bg-emerald-400" />}
+                </span>
+                <span className="min-w-0 flex-1 text-[13px] leading-5">
+                  <span className="font-medium text-slate-100">{option.name}</span>
+                  <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : '직접 입력') : option.spec}</span>
+                </span>
+                <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} />
+              </button>
+              {option.id === 'other' && on && (
+                <div data-custom-proposal className="mb-1 ml-10 flex flex-col gap-3 py-2 pr-1">
+                  <label className={cn(LABEL, 'block')}>
+                    설명 <span className="text-rose-300">*</span>
+                    <textarea
+                      value={custom.description}
+                      onChange={(event) => setCustom({ description: event.target.value })}
+                      rows={2}
+                      placeholder="어떻게 바꾸고 싶은지 적어 주세요. 예: 768px에서는 카드 3열, 폭은 화면에 맞춰요."
+                      className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30"
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Choice label="열 수 (선택)" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
+                    <Choice label="폭 방식 (선택)" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
+                  </div>
+                  <label className={cn(LABEL, 'block')}>
+                    참고 이미지·링크 (선택)
+                    <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-9 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-[13px] font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
+                  </label>
+                </div>
+              )}
+            </Fragment>
           )
         })}
-      </div>
-
-      {proposal === 'other' && (
-        <div data-custom-proposal className="mt-3 flex flex-col gap-3 rounded-lg bg-black/20 p-3">
-          <label className={cn(LABEL, 'block')}>
-            설명 <span className="text-rose-300">*</span>
-            <textarea
-              value={custom.description}
-              onChange={(event) => setCustom({ description: event.target.value })}
-              rows={2}
-              placeholder="어떻게 바꾸고 싶은지 적어 주세요. 예: 768px에서는 카드 3열, 폭은 화면에 맞춰요."
-              className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60"
-            />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Choice label="열 수 (선택)" name="custom-columns" value={custom.columns} onChange={(value) => setCustom({ columns: value })} options={[[1, '1열'], [2, '2열'], [3, '3열']]} />
-            <Choice label="폭 방식 (선택)" name="custom-width" value={custom.widthMode} onChange={(value) => setCustom({ widthMode: value })} options={[['fixed', '고정'], ['fit', '맞춤']]} />
-          </div>
-          <label className={cn(LABEL, 'block')}>
-            참고 이미지·링크 (선택)
-            <input value={custom.reference} onChange={(event) => setCustom({ reference: event.target.value })} placeholder="https://… 또는 이미지 주소" className="mt-1.5 block h-9 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-[13px] font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60" />
-          </label>
-        </div>
-      )}
-
-      {/* What changes: the screen as built → the way picked. */}
-      <div data-proposal-summary className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
-        {chosen && (chosen.columns || chosen.described) ? (
-          <>
-            <span className="w-14 shrink-0"><TabletPreview columns={layouts.implementation?.columns ?? 2} overlap maxWidth={56} /></span>
-            <span aria-hidden className="text-slate-500">→</span>
-            <span className="w-14 shrink-0">
-              {chosen.columns ? <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} maxWidth={56} /> : <span className="flex aspect-[768/640] items-center justify-center rounded-lg border border-dashed border-white/30 text-[10px] text-slate-400">직접</span>}
-            </span>
-            <span className="min-w-0 text-[12px] text-slate-200"><span className="text-slate-400">{IMPLEMENTATION_SPEC}</span> → <span className="font-medium text-emerald-200">{chosen.id === 'other' ? chosen.spec : chosen.spec}</span></span>
-          </>
-        ) : (
-          <span className="text-[12px] text-amber-200">수정안을 선택해 주세요</span>
-        )}
       </div>
     </section>
   )
@@ -383,7 +399,7 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   const chosen = proposalOf(proposal, custom)
   // 원안대로 맞추기 needs no approval: nothing to ask, only to start.
   const direct = proposal === 'original'
-  const missing = direct ? [] : [
+  const missing = [
     !chosen && '수정안',
     proposal === 'other' && !custom.description.trim() && '수정안 설명',
     !reason.trim() && '변경 사유',
@@ -393,38 +409,45 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   // Where it could land: the next releases, by name and date when the project has them.
   const release = project?.release
   const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage, timing })
+  // 원안대로 맞추기: no form at all — only the way to start.
+  if (direct) {
+    return (
+      <section data-decision-request-form data-direct className={cn(CARD, 'flex flex-wrap items-center gap-3')}>
+        <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
+          <span className="font-medium text-slate-100">원안대로 맞추기</span> · 디자인 원안대로 맞추는 거라 승인이 필요 없어요. {designer}님에게는 알림만 가요.
+          <button type="button" onClick={jumpToProposal} className="ml-2 text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">바꾸기</button>
+        </p>
+        <button type="button" data-start-direct-fix onClick={() => onDirect({ ...payload(), devStage: devStage ?? project?.devStage ?? null, timing: 'now' })} className={PRIMARY}>
+          <ArrowRight className="size-3.5" />
+          바로 수정 시작
+        </button>
+      </section>
+    )
+  }
+
   return (
     <section data-decision-request-form className={CARD}>
-      <h3 className="text-[13px] font-semibold text-white">{direct ? '승인 없이 바로 수정' : `${designer}님(디자이너)에게 디자인 결정 요청`}</h3>
+      <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
       <p className="mt-0.5 mb-3 text-xs text-slate-400">
-        {direct ? `디자인 원안대로 맞추는 거라 승인이 필요 없어요. ${designer}님에게는 알림만 가요.` : '디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요.'}
+        디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요.
       </p>
 
-      {/* The way picked above, kept in view here; pressing it goes back to the cards. */}
-      <button
-        type="button"
-        data-picked-proposal
-        onClick={jumpToProposal}
-        className={cn('ds-intrinsic mb-4 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-inset transition-colors hover:bg-white/[0.06]', chosen ? 'bg-emerald-400/[0.07] ring-emerald-400/40' : 'bg-amber-400/[0.07] ring-amber-400/40')}
-      >
-        {chosen && chosen.columns && <span className="w-10 shrink-0"><TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} maxWidth={40} /></span>}
-        <span className="min-w-0 flex-1 text-xs">
-          <span className="text-slate-400">선택한 수정안 · </span>
-          {chosen ? <span className="font-semibold text-emerald-100">{chosen.name}<span className="font-normal text-slate-300"> · {chosen.spec}</span></span> : <span className="font-medium text-amber-200">수정안을 선택해 주세요</span>}
-        </span>
-        <span className="shrink-0 text-[11px] text-slate-400">{chosen ? '바꾸기' : '고르러 가기'} ↑</span>
-      </button>
+      {/* The way picked above, in a line; pressing it goes back to the list. */}
+      <p data-picked-proposal className="mb-4 flex flex-wrap items-baseline gap-x-2 text-xs">
+        <span className="text-slate-400">선택한 수정안</span>
+        {chosen ? <span className="font-medium text-slate-100">{chosen.name}<span className="font-normal text-slate-400"> · {chosen.spec}</span></span> : <span className="font-medium text-amber-200">수정안을 선택해 주세요</span>}
+        <button type="button" onClick={jumpToProposal} className="ml-auto text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">{chosen ? '바꾸기' : '고르러 가기'}</button>
+      </p>
 
       <div className="flex flex-col gap-4">
         <ReasonField
-          label={direct ? '메모 (선택)' : '변경 사유'}
+          label="변경 사유"
           value={reason}
           onChange={setReason}
-          placeholder={direct ? '남기고 싶은 메모가 있다면 적어 주세요' : '왜 디자인 원안과 다르게 바꿔야 하나요?'}
+          placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
           suggestions={[reasonSuggestionFor(proposal, custom)]}
-          required={!direct}
         />
-        {!direct && (
+        {(
           <div className="min-w-0 space-y-3">
             <Choice
               label="희망 반영 시점"
@@ -447,17 +470,10 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
         )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
           {missing.length > 0 && <span className="text-[11px] text-slate-500">{!chosen ? '수정안을 선택해 주세요' : `남은 항목: ${missing.join(', ')}`}</span>}
-          {direct ? (
-            <button type="button" data-start-direct-fix onClick={() => onDirect({ ...payload(), devStage: devStage ?? project?.devStage ?? null, timing: 'now' })} className={PRIMARY}>
-              <ArrowRight className="size-3.5" />
-              바로 수정 시작
-            </button>
-          ) : (
-            <button type="button" data-send-decision-request disabled={missing.length > 0} onClick={() => onSend(payload())} className={PRIMARY}>
-              <Send className="size-3.5" />
-              {designer}님에게 승인 요청 보내기
-            </button>
-          )}
+          <button type="button" data-send-decision-request disabled={missing.length > 0} onClick={() => onSend(payload())} className={PRIMARY}>
+            <Send className="size-3.5" />
+            {designer}님에게 승인 요청 보내기
+          </button>
         </div>
       </div>
     </section>
