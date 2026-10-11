@@ -6,7 +6,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
-import { defaultViewportFor, renderOf, renderPartsOf } from '@/lib/codeRender'
+import { categoryFor, renderOf, renderPartsOf } from '@/lib/codeRender'
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
@@ -339,7 +339,8 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
   const codeRender = ownRender && {
     ...ownRender,
     title: `Checkpoint #${selectedIndex + 1} render`,
-    defaultViewport: defaultViewportFor(conflict.projectId, renderFile),
+    // (The kind of device the conflict is about, when it says; else the file's.)
+    category: conflict.targetDevice ?? categoryFor(conflict.projectId, renderFile),
     previous: previous ? renderOf(conflict.projectId, renderFile, snapshotLines(previous, conflict))?.spec ?? null : null,
     unchanged: Boolean(previous) && snapshotLines(previous, conflict).join('\n') === selectedLines.join('\n'),
     // What the conflict itself is about, marked whatever the step changed:

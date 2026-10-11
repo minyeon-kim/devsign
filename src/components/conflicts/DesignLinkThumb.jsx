@@ -7,7 +7,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ComponentSample, ElementPreviewDialog, ElementView, hasSample } from '@/components/conflicts/ElementPreview'
 import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
-import { viewportOf } from '@/lib/codeRender'
+import { referencePick, screenOf } from '@/lib/devicePresets'
 
 // Which design screen a Conflict Point is about.
 //   · In a list row (`size="sm"`): the element itself — its own component cut
@@ -71,8 +71,8 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
     let drawing
     if (mode === 'render') {
       // A layout the code decides: its code on the screen it's about, the grid marked.
-      const viewport = viewportOf(codeSides.defaultViewport)
-      drawing = <CodeRender spec={codeSides.before} viewportId={viewport.id} scale={Math.min(box.w / viewport.width, box.h / viewport.height)} marked />
+      const viewport = screenOf(referencePick(codeSides.category), codeSides.category)
+      drawing = <CodeRender spec={codeSides.before} screen={viewport} scale={Math.min(box.w / viewport.width, box.h / viewport.height)} marked />
     } else if (mode === 'element') {
       const region = cropOf(target.frame, [target.mainId], 8)
       const scale = Math.min(3, box.w / region.width, box.h / region.height)

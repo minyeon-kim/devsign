@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Crosshair, Maximize2, MonitorSmartphone, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { Check, ChevronDown, Crosshair, LayoutGrid, Maximize2, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -11,7 +11,9 @@ import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/component
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import CodeRender from '@/components/history/CodeRender'
-import { VIEWPORTS, layoutAt, layoutChanged, viewportOf, viewportsChanged } from '@/lib/codeRender'
+import { layoutAt, layoutChanged, screensChanged } from '@/lib/codeRender'
+import { BREAKPOINT_LABEL, DEVICE_PRESETS, referencePick, screenOf } from '@/lib/devicePresets'
+import DevicePicker from '@/components/history/DevicePicker'
 
 // Space between frames, in px.
 const FRAME_GAP = 24
@@ -56,10 +58,12 @@ function parsePadding(value) {
 //     with "Compare latest" on);
 //   · `error` — its code couldn't be rendered: said over the prototype,
 //     which is then shown labelled as the design, never as the render.
-// The screen's width is picked from lib/codeRender's viewports (the one the
-// change is about first); the design prototype is a toggle beside the
-// render, never in its place.
-const VIEWPORT_KEY = 'devsign.previewViewport'
+// The screen it's on is a device of the kind the change is about
+// (`category`; lib/devicePresets) — its reference device upright to start,
+// then any other, on its side, or a width typed in (DevicePicker). "All
+// devices" lays the kind's devices out together, the ones the layout breaks
+// on flagged. The design prototype is a toggle beside the render, never in
+// its place.
 const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
@@ -88,9 +92,13 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const [fullscreen, setFullscreen] = useState(false)
   // A code render's screen width (the change's own first, then the one
   // picked), and whether the design prototype is shown beside it.
-  const [viewportPick, setViewportPickState] = useState(() => stored(VIEWPORT_KEY, null))
-  const setViewportPick = (id) => { setViewportPickState(id); store(VIEWPORT_KEY, id) }
+  // (Not kept between visits: a change opens on its own reference device.)
+  const category = codeRender?.category ?? 'tablet'
+  const [devicePick, setDevicePick] = useState(() => referencePick(category))
+  const [pickedFor, setPickedFor] = useState(category)
+  if (pickedFor !== category) { setPickedFor(category); setDevicePick(referencePick(category)) }
   const [designShown, setDesignShown] = useState(false)
+  const [overview, setOverview] = useState(false)
 
   // (Full screen moves the preview to another element: measured again.)
   useEffect(() => {
@@ -139,18 +147,18 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const focus = ownFocus ?? (viewControls ? boxFor(lastFocus) : null)
   // A code render: the checkpoint's code on a screen of the width picked.
   const rendering = codeRender?.spec ? codeRender : null
-  const viewport = viewportOf(viewportPick ?? codeRender?.defaultViewport)
+  const viewport = screenOf(devicePick, category)
   // What's marked on it, worked out for the screen width in view — never
   // carried over from another one: the grid, where this checkpoint lays it
   // out differently from the one before (or, in a conflict's replay with no
   // step before, from the design — `reference`); and the parts the conflict
   // is about (`parts`), which are theirs at any width.
-  const against = rendering ? (rendering.previous && viewportsChanged(rendering.spec, rendering.previous).length ? rendering.previous : rendering.reference ?? rendering.previous) : null
-  const renderChanged = rendering ? layoutChanged(rendering.spec, against, viewport.id) : false
+  const against = rendering ? (rendering.previous && screensChanged(rendering.spec, rendering.previous, category).length ? rendering.previous : rendering.reference ?? rendering.previous) : null
+  const renderChanged = rendering ? layoutChanged(rendering.spec, against, viewport) : false
   const renderParts = rendering?.parts ?? []
   const canMarkRender = renderChanged || renderParts.length > 0
   // Changed, but not at this width (a tablet-only rule on a phone): where it is.
-  const changedElsewhere = rendering && !canMarkRender ? viewportsChanged(rendering.spec, against) : []
+  const changedElsewhere = rendering && !canMarkRender ? screensChanged(rendering.spec, against, category) : []
   // Whether the changed elements are ringed (there are some, and it's on).
   const marking = rendering ? canMarkRender && viewPick === 'changed' : Boolean(focus) && viewPick === 'changed'
   const changedIds = marking && focus && !rendering ? focus.box.layers.map((layer) => layer.id) : []
@@ -201,9 +209,9 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             // Not hidden without a word: this width isn't affected, and
             // here's the one that is.
             <span data-preview-no-effect role="status" className="inline-flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
-              <span>이 변경은 <LocalizedText text={viewport.label} />({viewport.width}px)에는 영향이 없어요</span>
-              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setViewportPick(changedElsewhere[0].id)} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
-                <LocalizedText text={changedElsewhere[0].label} />({changedElsewhere[0].width}px)에서 보기
+              <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요</span>
+              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: changedElsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+                <span translate="no">{changedElsewhere[0].label}</span>({changedElsewhere[0].width}px)에서 보기
               </button>
             </span>
           ) : rendering?.unchanged && !canMarkRender ? (
@@ -219,7 +227,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           )}
           {marking && rendering && (
             <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
-              <LocalizedText text="Changed" /> · <span translate="no">{[renderChanged && `DashboardGrid · ${layoutAt(against, viewport.id).template} → ${layoutAt(rendering.spec, viewport.id).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')}</span>
+              <LocalizedText text="Changed" /> · <span translate="no">{[renderChanged && `DashboardGrid · ${layoutAt(against, viewport).template} → ${layoutAt(rendering.spec, viewport).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')}</span>
             </span>
           )}
           {marking && !rendering && (
@@ -227,30 +235,18 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               <LocalizedText text="Changed" /> · <span translate="no">{focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
             </span>
           )}
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
             {rendering && (
               <>
                 <button type="button" data-preview-design aria-pressed={designShown} onClick={() => setDesignShown((current) => !current)} className={cn(VIEW_TAB, 'h-7', designShown ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
                   <PenTool className="size-3 shrink-0" />
                   <LocalizedText text="Design original" />
                 </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger data-preview-viewport={viewport.id} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
-                    <MonitorSmartphone className="size-3.5 shrink-0 text-slate-400" />
-                    <LocalizedText text={viewport.label} />
-                    <span className="text-slate-500 tabular-nums">{viewport.width}px</span>
-                    <ChevronDown className="size-3 shrink-0 text-slate-400" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-44">
-                    {VIEWPORTS.map((entry) => (
-                      <DropdownMenuItem key={entry.id} data-viewport-option={entry.id} onClick={() => setViewportPick(entry.id)} className="gap-2 text-xs">
-                        <Check className={cn('size-3.5', entry.id === viewport.id ? 'opacity-100' : 'opacity-0')} />
-                        <LocalizedText text={entry.label} />
-                        <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}px</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <button type="button" data-preview-overview aria-pressed={overview} onClick={() => setOverview((current) => !current)} className={cn(VIEW_TAB, 'h-7', overview ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
+                  <LayoutGrid className="size-3 shrink-0" />
+                  <LocalizedText text="All devices" />
+                </button>
+                <DevicePicker category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />
               </>
             )}
             {phone && !rendering && (
@@ -317,7 +313,33 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
             </div>
-          ) : rendering ? (() => {
+          ) : rendering && overview ? (() => {
+            // Every device of the kind at once (in the orientation picked):
+            // which breakpoint each falls in, and whether the layout holds.
+            const screens = DEVICE_PRESETS[category].devices.map((device) => screenOf({ deviceId: device.id, orientation: devicePick.orientation }, category))
+            const columns = Math.min(screens.length, room.width > 900 ? 6 : 3)
+            const cell = (room.width - 12 * (columns - 1)) / columns
+            const rows = Math.ceil(screens.length / columns)
+            const cellHeight = (room.height - 12 * (rows - 1)) / rows - 40
+            return (
+              <div data-render-overview className="grid w-full justify-center gap-3" style={{ gridTemplateColumns: `repeat(${columns}, ${cell}px)` }}>
+                {screens.map((screen) => {
+                  const layout = layoutAt(rendering.spec, screen)
+                  const scale = Math.max(0.03, Math.min(1, cell / screen.width, cellHeight / screen.height))
+                  return (
+                    <button key={screen.id} type="button" data-overview-device={screen.id} data-overview-status={layout.overlap ? 'overlap' : layout.squeezed != null ? 'squeezed' : 'ok'} onClick={() => { setDevicePick({ ...devicePick, deviceId: screen.id }); setOverview(false) }}
+                      className="ds-intrinsic flex min-w-0 flex-col items-center gap-1 rounded-lg p-1 text-center transition-colors hover:bg-white/[0.05]">
+                      <CodeRender spec={rendering.spec} screen={screen} scale={scale} />
+                      <span translate="no" className="max-w-full truncate text-[11px] font-medium text-slate-200">{screen.label} <span className="font-normal text-slate-500 tabular-nums">{screen.width}</span></span>
+                      <span className={cn('rounded px-1 text-[10px] font-medium', layout.overlap ? 'bg-rose-500/20 text-rose-200' : layout.squeezed != null ? 'bg-amber-400/20 text-amber-100' : 'bg-white/[0.06] text-slate-400')}>
+                        <LocalizedText text={BREAKPOINT_LABEL[screen.breakpoint]} /> · {layout.columns}열{layout.overlap ? ` · 겹침 ${layout.overlap}px` : layout.squeezed != null ? ` · 간격 ${layout.squeezed}px` : ''}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })() : rendering ? (() => {
             // This checkpoint's render — beside the latest's when comparing,
             // and the design original when asked for — each under its name,
             // all at one scale.
@@ -335,8 +357,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
             return (
               <div className="flex items-start justify-center gap-4">
-                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} viewportId={viewport.id} scale={scale} marked={marking && renderChanged} parts={marking ? renderParts : []} />)}
-                {rendering.compare && pane('latest', rendering.compare.title, 'text-emerald-300', <CodeRender spec={rendering.compare.spec} viewportId={viewport.id} scale={scale} />)}
+                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} screen={viewport} scale={scale} marked={marking && renderChanged} parts={marking ? renderParts : []} />)}
+                {rendering.compare && pane('latest', rendering.compare.title, 'text-emerald-300', <CodeRender spec={rendering.compare.spec} screen={viewport} scale={scale} />)}
                 {design && pane('design', 'Design original', 'text-sky-300', (
                   <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>
                     <div className="relative" style={{ width: design.width, height: design.height, transform: `scale(${designScale})`, transformOrigin: 'top left' }}>

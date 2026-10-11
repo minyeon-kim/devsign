@@ -13,7 +13,7 @@ import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
-import { defaultViewportFor, renderOf } from '@/lib/codeRender'
+import { categoryFor, renderOf } from '@/lib/codeRender'
 import { useNavigate } from 'react-router-dom'
 import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
@@ -140,7 +140,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     return {
       ...own,
       title: position ? `Checkpoint #${position.index + 1} render` : 'This step’s render',
-      defaultViewport: defaultViewportFor(projectId, entry.snapshot.fileId),
+      category: categoryFor(projectId, entry.snapshot.fileId),
       previous,
       // (Recorded without a code change — a decision request, a detection.)
       unchanged: Boolean(before) && snapshotLines(before.snapshot).join('\n') === snapshotLines(entry.snapshot).join('\n'),

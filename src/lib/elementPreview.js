@@ -1,6 +1,6 @@
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { focusBox } from '@/lib/devicePreview'
-import { defaultViewportFor, renderOf } from '@/lib/codeRender'
+import { categoryFor, renderOf } from '@/lib/codeRender'
 
 // A Conflict Point's own element, drawn by itself — what its thumbnail and
 // its element preview show, instead of the whole screen scaled down.
@@ -85,5 +85,5 @@ export function codeSidesOf(conflict) {
   if (!conflict?.decisionFlow || !conflict.fixes?.keep || !conflict.diff?.before?.length) return null
   const before = renderOf(conflict.projectId, conflict.fileId, conflict.diff.before)?.spec
   const after = renderOf(conflict.projectId, conflict.fileId, [conflict.fixes.keep])?.spec
-  return before && after ? { before, after, defaultViewport: defaultViewportFor(conflict.projectId, conflict.fileId) } : null
+  return before && after ? { before, after, category: conflict.targetDevice ?? categoryFor(conflict.projectId, conflict.fileId) } : null
 }

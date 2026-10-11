@@ -1,3 +1,5 @@
+import { ALL_DEVICES, breakpointOf, screenOf } from '@/lib/devicePresets'
+
 // What a checkpoint's code renders — read from the code itself.
 //
 // History's preview used to draw the design prototype's frame for every
@@ -13,13 +15,7 @@
 // then shows the design prototype *labelled as that*, never in its place
 // unsaid.
 
-export const VIEWPORTS = [
-  { id: 'mobile', label: 'Mobile', width: 390, height: 700 },
-  { id: 'tablet', label: 'Tablet', width: 768, height: 640 },
-  { id: 'desktop', label: 'Desktop', width: 1280, height: 720 },
-]
-export const viewportOf = (id) => VIEWPORTS.find((viewport) => viewport.id === id) ?? VIEWPORTS[1]
-
+// (The screens it's looked at on — devices, breakpoints — are lib/devicePresets'.)
 // "repeat(2, 360px)" → { count: 2, track: '360px', fixed: 360 }; "minmax(0, 1fr)" → one fluid column.
 export function parseTemplate(template) {
   const text = String(template ?? '').trim()
@@ -46,7 +42,7 @@ function parseDashboardGrid(lines) {
 const dashboardPartOf = (layerId) => (/--cards--/.test(layerId) ? 'cards' : /--cta--/.test(layerId) ? 'cta' : /--h-title$/.test(layerId) ? 'title' : /--h-sub$/.test(layerId) ? 'subtitle' : null)
 
 const CODE_RENDERERS = {
-  'dashboard-redesign:app': { parse: parseDashboardGrid, partOf: dashboardPartOf, file: 'src/components/dashboard/DashboardGrid.tsx', defaultViewport: 'tablet' },
+  'dashboard-redesign:app': { parse: parseDashboardGrid, partOf: dashboardPartOf, file: 'src/components/dashboard/DashboardGrid.tsx', category: 'tablet' },
 }
 
 // The parts of the render a conflict's elements are — marked at every
@@ -57,7 +53,8 @@ export function renderPartsOf(projectId, fileId, layerIds = []) {
 }
 
 export const hasCodeRenderer = (projectId, fileId) => Boolean(CODE_RENDERERS[`${projectId}:${fileId}`])
-export const defaultViewportFor = (projectId, fileId) => CODE_RENDERERS[`${projectId}:${fileId}`]?.defaultViewport ?? 'tablet'
+// The kind of device a file's layout is about (its reference device is where its render starts).
+export const categoryFor = (projectId, fileId) => CODE_RENDERERS[`${projectId}:${fileId}`]?.category ?? 'tablet'
 
 // `{ spec, file }` for a checkpoint's code, `{ error }` when it has a
 // renderer that can't read it, null when its file has no renderer at all.
@@ -69,33 +66,39 @@ export function renderOf(projectId, fileId, lines) {
   return spec ? { spec, file: renderer.file } : { error: 'This checkpoint’s code couldn’t be read into a layout.' }
 }
 
-// The grid as the screen lays it out at a viewport: the columns, and —
-// when the code asks for fixed-width cards that don't fit the screen —
-// how far each card runs over the next (StatCard keeps the width; the
-// grid can't be wider than the screen).
-export function layoutAt(spec, viewportId) {
-  const viewport = viewportOf(viewportId)
-  const template = viewport.id === 'tablet' ? spec.tablet : spec.base
+// The grid as a screen lays it out (`screen`: lib/devicePresets' screenOf —
+// its width decides the breakpoint, so the tablet rule applies from 768 up
+// to 1024 and nowhere else). When the code asks for fixed-width cards:
+//   · they fit → drawn as asked;
+//   · they'd fit without the gap → `squeezed`: the gap that's left;
+//   · they don't fit at all → `overlap`: how far each runs over the next
+//     (the first card sits at the left edge, the last at the right:
+//     2 × 360px in 704px → 16px).
+export function layoutAt(spec, screen) {
+  const breakpoint = breakpointOf(screen.width)
+  const template = breakpoint === 'tablet' ? spec.tablet : spec.base
   const parsed = parseTemplate(template)
-  const padding = viewport.id === 'mobile' ? 16 : 32
-  const gap = viewport.id === 'mobile' ? 12 : 24
-  const available = viewport.width - padding * 2
-  // Fixed tracks wider than the screen: the first card sits at the left
-  // edge, the last at the right, and they run over each other by what's
-  // left (2 × 360px in 704px → 16px).
-  const needed = parsed.fixed ? parsed.fixed * parsed.count + gap * (parsed.count - 1) : 0
-  const overlap = parsed.fixed && parsed.count > 1 && needed > available ? Math.max(0, Math.round((parsed.fixed * parsed.count - available) / (parsed.count - 1))) : 0
-  return { viewport, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, overlap, clipped: Boolean(parsed.fixed && needed > available && !overlap) }
+  const padding = breakpoint === 'mobile' ? 16 : 32
+  const gap = breakpoint === 'mobile' ? 12 : 24
+  const available = screen.width - padding * 2
+  const cards = parsed.fixed ? parsed.fixed * parsed.count : 0
+  const tight = Boolean(parsed.fixed) && parsed.count > 1 && cards + gap * (parsed.count - 1) > available
+  const overlap = tight && cards > available ? Math.round((cards - available) / (parsed.count - 1)) : 0
+  const squeezed = tight && !overlap ? Math.round((available - cards) / (parsed.count - 1)) : null
+  return { breakpoint, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, tight, overlap, squeezed }
 }
 
-// Whether two checkpoints lay the screen out differently at a viewport.
-export function layoutChanged(spec, previous, viewportId) {
+// Whether two checkpoints lay the screen out differently on a screen.
+export function layoutChanged(spec, previous, screen) {
   if (!spec || !previous) return false
-  return layoutAt(spec, viewportId).template !== layoutAt(previous, viewportId).template
+  return layoutAt(spec, screen).template !== layoutAt(previous, screen).template
 }
 
-// The viewports at which they do — where to look for a change that leaves
-// this one as it was (a tablet-only rule changes nothing on a phone).
-export function viewportsChanged(spec, previous) {
-  return VIEWPORTS.filter((viewport) => layoutChanged(spec, previous, viewport.id))
+// The preset devices (upright) on which they do — where to look for a
+// change that leaves this screen as it was (a tablet-only rule changes
+// nothing on a phone). Devices of `category` first.
+export function screensChanged(spec, previous, category = 'tablet') {
+  if (!spec || !previous) return []
+  return [...ALL_DEVICES].sort((a, b) => (b.category === category) - (a.category === category) || (b.id === 'ipad-classic') - (a.id === 'ipad-classic'))
+    .map((device) => screenOf({ deviceId: device.id }, category)).filter((screen) => layoutChanged(spec, previous, screen))
 }

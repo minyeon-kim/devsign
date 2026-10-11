@@ -19,13 +19,16 @@ const CARDS = [
 
 const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(251 191 36 / 22%)' }
 
-export default function CodeRender({ spec, viewportId, scale = 1, marked = false, parts = [] }) {
+export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [] }) {
   const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
-  const layout = layoutAt(spec, viewportId)
-  const { viewport, columns, padding, gap, cardWidth, overlap } = layout
-  const overflowing = overlap > 0
+  const layout = layoutAt(spec, screen)
+  const viewport = screen
+  const { columns, padding, gap, cardWidth, overlap, squeezed } = layout
+  // Fixed-width cards that don't fit with their gap: pushed to the edges —
+  // over each other, or with what's left of the gap between them.
+  const overflowing = layout.tight
   return (
-    <div data-code-render translate="no" data-viewport={viewport.id} data-columns={columns} data-template={layout.template} data-overlap={overlap} className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: viewport.width * scale, height: viewport.height * scale }}>
+    <div data-code-render translate="no" data-viewport={viewport.id} data-width={viewport.width} data-height={viewport.height} data-breakpoint={layout.breakpoint} data-squeezed={squeezed ?? undefined} data-columns={columns} data-template={layout.template} data-overlap={overlap} className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: viewport.width * scale, height: viewport.height * scale }}>
       <div className="absolute top-0 left-0 origin-top-left overflow-hidden bg-slate-50 text-slate-900" style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})`, padding }}>
         <p className="w-fit rounded-md text-[28px] leading-9 font-bold tracking-tight" {...mark('title')}>Dashboard</p>
         <p className="mt-1 w-fit rounded-md text-[14px] text-slate-500" {...mark('subtitle')}>Good morning, Sam · This week</p>
@@ -37,8 +40,10 @@ export default function CodeRender({ spec, viewportId, scale = 1, marked = false
             // (Fixed-width cards that don't fit: the grid stays the screen's
             // width — its columns share it — and each card keeps its own.)
             gridTemplateColumns: overflowing ? `repeat(${columns}, minmax(0, 1fr))` : layout.template,
-            gap,
-            ...(overflowing && { columnGap: 0 }),
+            // (Both set, never the shorthand: going between a tight layout and
+            // a fitting one would otherwise leave the column gap cleared.)
+            rowGap: gap,
+            columnGap: overflowing ? 0 : gap,
             ...(marked && { ...MARK, outlineOffset: 8, borderRadius: 12 }),
           }}
         >
@@ -50,7 +55,7 @@ export default function CodeRender({ spec, viewportId, scale = 1, marked = false
               className="relative flex h-[132px] flex-col gap-2 rounded-2xl border bg-white p-4 shadow-sm"
               style={{
                 ...(overflowing && { width: cardWidth, zIndex: index + 1, background: 'rgb(255 255 255 / 86%)', justifySelf: index % columns === 0 ? 'start' : index % columns === columns - 1 ? 'end' : 'center' }),
-                borderColor: overflowing ? 'rgb(244 63 94)' : 'rgb(226 232 240)',
+                borderColor: overlap > 0 ? 'rgb(244 63 94)' : squeezed != null ? 'rgb(245 158 11)' : 'rgb(226 232 240)',
                 ...(parts.includes('cards') && MARK),
               }}
             >
@@ -59,9 +64,14 @@ export default function CodeRender({ spec, viewportId, scale = 1, marked = false
               <span className="text-[13px] text-slate-500">{label}</span>
             </article>
           ))}
-          {overflowing && (
+          {overlap > 0 && (
             <span data-render-overlap className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
               카드 겹침 {overlap}px
+            </span>
+          )}
+          {squeezed != null && (
+            <span data-render-squeezed className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
+              간격 {squeezed}px (기준 {gap}px)
             </span>
           )}
         </section>

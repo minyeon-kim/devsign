@@ -867,6 +867,9 @@ export const conflictChecklist = [
     // frame — so its screen is linked without one marked.
     designPageId: 'page-dashboard',
     decisionFlow: true,
+    // The kind of device the change is about: its renders start on that
+    // kind's reference device (lib/devicePresets).
+    targetDevice: 'tablet',
     driftType: 'structural',
     title: 'DashboardGrid / Mobile Layout Adjustment',
     token: 'DashboardGrid / Mobile Layout Adjustment',

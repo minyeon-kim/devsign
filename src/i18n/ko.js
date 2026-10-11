@@ -789,6 +789,15 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+layout|레이아웃
+Width in px|폭(px)
+Landscape — switch to portrait|가로 · 세로로 전환
+Portrait — switch to landscape|세로 · 가로로 전환
+Landscape|가로
+Portrait|세로
+All devices|기종별 보기
+Other devices|다른 디바이스 보기
+Custom width|직접 입력
 Screen width|화면 폭
 This checkpoint recorded no code change.|이 체크포인트는 코드 변경 없이 기록됐어요.
 This step’s render|이 단계 렌더링
