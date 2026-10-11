@@ -226,7 +226,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // area comes first. Anything that opens it on arrival (a review asked for
   // by a link or a notification) does so after this.
   const bottomPanelKey = `project:${projectId}:bottomPanel`
-  const [bottomPanel, setBottomPanelState] = useState(() => ({ ...readDemo(bottomPanelKey, { tab: 'conflict', height: 320 }), open: false, maximized: false }))
+  const [bottomPanel, setBottomPanelState] = useState(() => ({ ...readDemo(bottomPanelKey, { tab: 'conflict' }), open: false, maximized: false }))
   useEffect(() => { writeDemo(bottomPanelKey, bottomPanel) }, [bottomPanelKey, bottomPanel])
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
   const openConflictReview = useCallback((id, { view = 'panel' } = {}) => {

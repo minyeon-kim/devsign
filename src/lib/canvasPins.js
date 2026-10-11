@@ -101,3 +101,18 @@ export function layoutPins(pins, { near = PIN.near } = {}) {
   }
   return placed
 }
+
+// What pressing a pin does to the bottom panel. Pressing is the only thing on
+// the canvas that opens it: a first pin opens it, another pin swaps what it
+// shows (no closing and reopening), the picked pin again lets go.
+export function pinPress(pickedConflictId, pressedConflictId) {
+  if (pickedConflictId == null) return 'open'
+  return pickedConflictId === pressedConflictId ? 'close' : 'swap'
+}
+
+// Where a change's pin tip is on screen: its elements' boxes (or their
+// group's), then the corner. The one place that arithmetic lives — a pin has
+// no position of its own, so it can only ever be where its elements are.
+export function pinTip(rects, { group = null, frame = null, inset = PIN.inset } = {}) {
+  return anchorOf(markerRect(rects, group), frame, { inset })
+}

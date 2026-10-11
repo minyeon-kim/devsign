@@ -1020,7 +1020,7 @@ button.editor-line-comment {
 
 /* The canvas's change pins (ConflictPins): they grow from their tip on
    hover and when picked, and a pin picked from the list rings once. */
-.ds-pin { transition: transform 120ms ease-out, width 120ms ease-out, height 120ms ease-out, left 120ms ease-out, top 120ms ease-out; }
+.ds-pin { transition: transform 120ms ease-out; } /* (Never left / top / size: a pin sits on its element's corner in the same frame the element moves.) */
 .ds-pin:hover, .ds-pin:focus-visible { transform: scale(1.1); }
 @keyframes ds-pin-pulse {
   from { transform: scale(1); opacity: 0.55; }

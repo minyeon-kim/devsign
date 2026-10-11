@@ -1051,6 +1051,8 @@ List view|목록 보기
 New project|새 프로젝트
 Nothing needs your review.|검토할 항목이 없습니다.
 High risk|높은 위험도
+Medium risk|중간 위험도
+Low risk|낮은 위험도
 No open high-risk items.|미해결 고위험 항목이 없습니다.
 Nothing is waiting to be merged.|병합 대기 중인 항목이 없습니다.
 You’re a reviewer|내가 검토자인 항목
