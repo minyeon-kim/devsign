@@ -10,7 +10,8 @@ import { allPeople } from '@/data/mockData'
 // (progressOf), so no screen can show a state its history doesn't.
 //
 // ConflictEvent
-//   id, conflictId, type, actor { id, name, role: system | developer | designer },
+//   id, conflictId, type, actor { id, name, role: system | developer | designer,
+//   actorType: person | system },
 //   createdAt (ISO 8601, the server's clock), seq (order within one instant),
 //   step (1–5: which progress step it belongs to), replyTo? (the event it
 //   answers), payload (by type — see EVENT_TYPES).
@@ -25,12 +26,14 @@ export const EVENT_TYPES = {
   reopened: { label: '다시 열림', step: 1 }, // { cause: drift | manual, summary }
 }
 export const STEP_LABELS = ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
-export const SYSTEM_ACTOR = { id: 'system', name: 'Devsign', role: 'system' }
+export const SYSTEM_ACTOR = { id: 'system', name: 'Devsign', role: 'system', actorType: 'system' }
+// (The system is never shown by name: it's an icon and what it did.)
+export const isSystemActor = (actor) => actor?.actorType === 'system' || actor?.role === 'system'
 
 export function actorOf(personId) {
   const person = allPeople.find((entry) => entry.id === personId)
   if (!person) return SYSTEM_ACTOR
-  return { id: person.id, name: person.name, role: person.jobRole === 'Developer' ? 'developer' : 'designer' }
+  return { id: person.id, name: person.name, role: person.jobRole === 'Developer' ? 'developer' : 'designer', actorType: 'person' }
 }
 
 // Oldest first: by the server's time, then by `seq` within the same instant.
@@ -47,6 +50,12 @@ function timeFromLabel(label, now) {
   at.setHours(hours, Number(match[2]), 0, 0)
   if (/yesterday/i.test(label)) at.setDate(at.getDate() - 1)
   return at
+}
+
+// Where a change was noticed: the commit being synced (when known) and the file.
+export function detectionSourceOf(conflict) {
+  const commit = conflict.commit ?? conflict.commitHash ?? null
+  return { commit: commit ? String(commit).slice(0, 7) : null, file: conflict.file ?? null, via: conflict.detectedBy ?? null }
 }
 
 const RESULT_OF_CHOICE = { approve: 'approved', keep: 'changed', rework: 'rejected' }
@@ -66,7 +75,7 @@ function impliedEvents(conflict, now = Date.now()) {
     return event
   }
   const detectedAt = Math.min(timeFromLabel(conflict.detectedAt ?? conflict.timestamp, now).getTime(), now)
-  push('detected', null, detectedAt, { summary: conflict.uxNote ?? conflict.message ?? conflict.title, design: conflict.comparisonFields?.[0]?.expected ?? null, implementation: conflict.comparisonFields?.[0]?.current ?? null })
+  push('detected', null, detectedAt, { summary: conflict.uxNote ?? conflict.message ?? conflict.title, source: detectionSourceOf(conflict), design: conflict.comparisonFields?.[0]?.expected ?? null, implementation: conflict.comparisonFields?.[0]?.current ?? null })
   const request = conflict.decisionRequest
   const asked = request && push('requested', request.by, request.sentAt, { proposal: request.proposal, proposalName: request.proposalName ?? null, reason: request.reason ?? '', timing: request.timing ?? null, reviewerId: conflict.reviewers?.[0]?.id ?? null })
   const decision = conflict.designDecision
@@ -172,17 +181,55 @@ export function dayLabelOf(iso, now = Date.now()) {
   return `${get('month').replace(/월$/, '')}월 ${get('day').replace(/일$/, '')}일 (${get('weekday')})`
 }
 export const clockOf = (iso) => new Intl.DateTimeFormat('ko-KR', { timeZone: KST, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso))
-// "방금", "12분 전" within the hour; the clock time after that.
+// The one way the app writes a time: "오후 3:30" today, "10월 10일 오후 3:30"
+// on any other day. (Everywhere — decision cards, History, the progress card.)
+export function formatTime(value, now = Date.now()) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const clock = clockOf(date)
+  if (dayKey(date) === dayKey(new Date(now))) return clock
+  const parts = new Intl.DateTimeFormat('ko-KR', { timeZone: KST, month: 'numeric', day: 'numeric' }).formatToParts(date)
+  const get = (type) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${get('month')}월 ${get('day')}일 ${clock}`
+}
+// "방금", "4분 전" — only ever a tooltip.
 export function relativeTimeOf(iso, now = Date.now()) {
   const minutes = Math.floor((now - Date.parse(iso)) / 60000)
   if (minutes < 1 && minutes >= 0) return '방금'
   if (minutes > 0 && minutes < 60) return `${minutes}분 전`
-  return clockOf(iso)
+  return formatTime(iso, now)
 }
+// The tooltip: the relative time, then the full date with seconds (their order).
 export function absoluteTimeOf(iso) {
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: KST, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)).replaceAll('-', '.')
-  return `${date} ${clockOf(iso)} KST`
+  const seconds = new Intl.DateTimeFormat('ko-KR', { timeZone: KST, hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }).format(new Date(iso))
+  const ago = Date.now() - Date.parse(iso)
+  return `${ago >= 0 && ago < 3600000 ? `${relativeTimeOf(iso)} · ` : ''}${date} ${seconds} KST`
 }
+
+// What a step's last event did, in a line — a person by name, the system by
+// what it did (never "Devsign").
+//   → { system: boolean, text }
+export function stepActionOf(event) {
+  if (!event) return null
+  const { type, payload = {} } = event
+  if (isSystemActor(event.actor) || (type === 'fixed' && payload.auto)) {
+    if (type === 'detected') {
+      const { commit, file } = payload.source ?? {}
+      return { system: true, text: `자동 감지${commit ? ` · 커밋 ${commit}` : file ? ` · ${file.split('/').at(-1)}` : ''}`, commit }
+    }
+    if (type === 'verified') return { system: true, text: `자동 검증 · ${payload.width ?? 768}px ${payload.match === false ? '차이 있음' : '검증 통과'}` }
+    if (type === 'fixed') return { system: true, text: `자동 수정 · 파일 ${payload.files ?? 1}개` }
+    return { system: true, text: '자동 처리' }
+  }
+  const name = event.actor.name
+  if (type === 'decided') return { system: false, name, text: decisionLineOf(event).text.split(' · ')[0] === '승인' ? '변경 승인' : decisionLineOf(event).text.split(' · ')[0] }
+  if (type === 'resolved') return { system: false, name, text: '병합' }
+  return { system: false, name, text: null }
+}
+
+// A sample's own label ("Today, 9:12 AM") in the same format.
+export const formatTimeLabel = (label, now = Date.now()) => formatTime(timeFromLabel(label, now), now)
 
 // How a decision reads, result first.
 export function decisionLineOf(event) {

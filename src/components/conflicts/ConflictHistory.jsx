@@ -3,7 +3,7 @@ import { Check, CornerDownRight, CornerUpLeft, GitPullRequest, RotateCcw, Sparkl
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import {
-  EVENT_TYPES, absoluteTimeOf, continuesPrevious, dayLabelOf, decisionLineOf, opinionsOnly, referenceNameOf, relativeTimeOf, timelineRows,
+  EVENT_TYPES, absoluteTimeOf, continuesPrevious, dayLabelOf, decisionLineOf, formatTime, isSystemActor, opinionsOnly, referenceNameOf, stepActionOf, timelineRows,
 } from '@/lib/conflictEvents'
 
 // A change's History (lib/conflictEvents): everything that happened to it,
@@ -24,7 +24,7 @@ const NODE = 'absolute left-0 flex items-center justify-center rounded-full'
 const QUOTE = 'mt-1.5 border-l-2 border-white/15 pl-2.5 text-xs leading-[18px] text-slate-300'
 
 function Avatar({ actor }) {
-  if (actor.role === 'system') {
+  if (isSystemActor(actor)) {
     return <span aria-hidden className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300"><Sparkles className="size-3" /></span>
   }
   const person = allPeople.find((entry) => entry.id === actor.id)
@@ -44,6 +44,7 @@ function EventContent({ event }) {
     return (
       <>
         <p className="text-xs leading-[18px] text-slate-200">{payload.summary}</p>
+        {(payload.source?.commit || payload.source?.file) && <p data-detect-source className="mt-0.5 text-[11px] text-slate-500">{payload.source.commit ? `커밋 ${payload.source.commit} 동기화 중` : '동기화 중'}{payload.source.file && ` · ${payload.source.file}`}</p>}
         {(payload.design || payload.implementation) && (
           <p data-value-chips className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
             <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-slate-300"><span className="text-slate-500">디자인</span> {payload.design}</span>
@@ -241,7 +242,7 @@ function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, foo
                     <span aria-hidden className="h-px flex-1 bg-white/15" />
                     <RotateCcw aria-hidden className="size-3" />
                     <span>다시 열림 · {event.payload?.summary ?? '차이가 다시 감지됐어요'}</span>
-                    <time dateTime={event.createdAt} title={absoluteTimeOf(event.createdAt)} className="text-slate-500">{relativeTimeOf(event.createdAt, now)}</time>
+                    <time dateTime={event.createdAt} title={absoluteTimeOf(event.createdAt)} className="text-slate-500">{formatTime(event.createdAt, now)}</time>
                     <span aria-hidden className="h-px flex-1 bg-white/15" />
                   </li>
                 </Fragment>
@@ -276,11 +277,13 @@ function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, foo
                   {!grouped && (
                     <p className="flex min-w-0 items-center gap-1.5 text-xs leading-5">
                       <Avatar actor={event.actor} />
-                      <span className="min-w-0 truncate"><span className="font-medium text-slate-100">{event.actor.name}</span> <span className="text-slate-400">· {EVENT_TYPES[event.type].label}</span></span>
+                      <span className="min-w-0 truncate">{isSystemActor(event.actor)
+                        ? <span className="text-slate-300">{stepActionOf(event)?.text ?? '자동 처리'} <span className="text-slate-400">· {EVENT_TYPES[event.type].label}</span></span>
+                        : <><span className="font-medium text-slate-100">{event.actor.name}</span> <span className="text-slate-400">· {EVENT_TYPES[event.type].label}</span></>}</span>
                       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-slate-500">
                         {/* (Which progress step this belongs to — said on hover.) */}
                         {event.step && <span data-event-step-label className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">{event.step}단계</span>}
-                        <time dateTime={event.createdAt} title={absoluteTimeOf(event.createdAt)} className="tabular-nums">{relativeTimeOf(event.createdAt, now)}</time>
+                        <time dateTime={event.createdAt} title={absoluteTimeOf(event.createdAt)} className="tabular-nums">{formatTime(event.createdAt, now)}</time>
                       </span>
                     </p>
                   )}

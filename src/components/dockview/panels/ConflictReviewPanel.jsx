@@ -52,7 +52,8 @@ import { proposalOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
-import { eventsOf, humanEventCount, progressOf, relativeTimeOf, sampleHistoryForCon002 } from '@/lib/conflictEvents'
+import StepMeta from '@/components/conflicts/StepMeta'
+import { eventsOf, humanEventCount, progressOf, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -3266,7 +3267,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         flow={conflict.decisionFlow ? decisionFlowOf({ ...conflict, events: historyEvents }, currentUserFor(conflict.projectId)) : undefined}
                         // Each finished step says who did it last and when; pressing a
                         // step opens its History at that step's first record.
-                        meta={conflict.decisionFlow ? progressOf(historyEvents).steps.map((step) => (step.last ? `${step.last.actor.name} · ${relativeTimeOf(step.last.createdAt)}` : null)) : undefined}
+                        meta={conflict.decisionFlow ? progressOf(historyEvents).steps.map((step) => (step.last ? <StepMeta key={step.step} step={step} onOpenSource={() => { openSideTab('history'); setHistoryFocus({ step: step.step, nonce: Date.now() }) }} /> : null)) : undefined}
                         onStep={conflict.decisionFlow ? (index) => { openSideTab('history'); setHistoryFocus({ step: index + 1, nonce: Date.now() }) } : undefined}
                         className="mb-5"
                       />}

@@ -71,7 +71,16 @@ try {
   const now = Date.parse('2026-10-11T17:00:00+09:00')
   assert.equal(relativeTimeOf(history[0].createdAt, now), '오전 9:12')
   assert.equal(relativeTimeOf(new Date(now - 12 * 60000).toISOString(), now), '12분 전')
-  assert.equal(absoluteTimeOf(history[0].createdAt), '2026.10.11 오전 9:12 KST')
+  assert.equal(absoluteTimeOf(history[0].createdAt), '2026.10.11 오전 9:12:00 KST')
+  // One time format everywhere: the clock today, the date and clock on another day.
+  const { formatTime, isSystemActor, stepActionOf } = events
+  assert.equal(formatTime(history[0].createdAt, now), '오전 9:12')
+  assert.equal(formatTime(history[0].createdAt, Date.parse('2026-10-12T12:00:00+09:00')), '10월 11일 오전 9:12')
+  // Devsign is never a person: the system reads as what it did.
+  assert.ok(isSystemActor(SYSTEM_ACTOR) && !isSystemActor(history[1].actor))
+  assert.match(stepActionOf(history[0]).text, /^자동 감지/)
+  assert.match(stepActionOf(history[6]).text, /검증 통과/)
+  assert.equal(stepActionOf(history[4]).name, history[4].actor.name)
   assert.equal(dayLabelOf(history[0].createdAt, now), '오늘')
   assert.equal(dayLabelOf('2026-10-10T03:00:00.000Z', now), '어제')
   assert.equal(dayLabelOf('2026-10-09T03:00:00.000Z', now), '10월 9일 (금)')
