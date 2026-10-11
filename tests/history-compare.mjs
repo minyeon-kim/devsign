@@ -37,7 +37,25 @@ try {
   // A render can stop at its content: shorter than the tablet's screen, taller for one column.
   assert.ok(layoutAt(fluid, tablet).contentHeight < tablet.height)
   assert.ok(layoutAt(oneColumn, tablet).contentHeight > layoutAt(fluid, tablet).contentHeight)
-  console.log('Passed: diff hunks fold around a change with real line numbers, and a layout change is said in words.')
+  // Inspection: one mark per problem, on the area it's about and nowhere else.
+  const { problemsAt, inspectionsFor, layoutDeltaCode } = await server.ssrLoadModule('/src/lib/codeRender.js')
+  assert.equal(layoutDeltaCode(fixed, fluid, tablet), 'repeat(2, 360px) → repeat(2, minmax(0, 1fr))')
+  const [overlap] = problemsAt(fixed, tablet)
+  assert.deepEqual([problemsAt(fixed, tablet).length, overlap.id, overlap.tone, overlap.label], [1, 'overlap', 'danger', '카드 겹침 16px'])
+  // 768 − 2×32 = 704 wide from x 32: the right card starts at 32 + 704 − 360 = 376, the left ends at 392.
+  assert.deepEqual([overlap.region.x, overlap.region.width], [376, 16], 'only the strip where the cards overlap')
+  assert.equal(problemsAt(fluid, tablet).length, 0)
+  assert.equal(problemsAt(fixed, screenOf({ deviceId: 'galaxy-tab' }, 'tablet'))[0].id, 'squeezed', 'a gap left too narrow is a warning, not an overlap')
+  // Compared: each side's own problems; the same problem on both is marked once, on this version, and said to be shared.
+  assert.deepEqual([inspectionsFor(fixed, fluid, tablet).mine.length, inspectionsFor(fixed, fluid, tablet).other.length], [1, 0])
+  assert.deepEqual([inspectionsFor(fluid, fixed, tablet).mine.length, inspectionsFor(fluid, fixed, tablet).other.length], [0, 1])
+  const shared = inspectionsFor(fixed, fixed, tablet)
+  assert.deepEqual([shared.mine.length, shared.other.length, shared.mine[0].shared, shared.mine[0].label], [1, 0, true, '카드 겹침 16px · 두 버전 공통'])
+  // "Differences only" with no problem behind the difference: the changed area, once; with a problem, just the problem.
+  assert.deepEqual(inspectionsFor(fluid, oneColumn, tablet, { difference: true }).mine.map((mark) => mark.id), ['difference'])
+  assert.deepEqual(inspectionsFor(fluid, oneColumn, tablet).mine, [])
+  assert.deepEqual(inspectionsFor(fixed, fluid, tablet, { difference: true }).mine.map((mark) => mark.id), ['overlap'])
+  console.log('Passed: diff hunks fold around a change with real line numbers, a layout change is said in words, and a problem is one mark on its own area.')
 } finally {
   await server.close()
 }

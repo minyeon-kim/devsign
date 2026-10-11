@@ -789,6 +789,17 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+Previous checkpoint|이전 체크포인트
+Compared with the previous checkpoint|이전 체크포인트와 비교한 값
+No code changes between these two versions.|두 버전의 코드가 같아요.
+Same as current|현재와 코드 동일
+Same code as the current version|현재 버전과 코드 동일
+This version = current version|이 버전 = 현재 버전
+Back to the current version|현재 버전 기준으로
+Compare with the previous checkpoint|이전 체크포인트와 비교
+Inspection marks are always on in Differences only|차이만 강조에서는 검사 표시가 항상 켜져 있어요
+Nothing to mark on this screen|이 화면에는 표시할 문제가 없어요
+Inspection marks|검사 표시
 This version → current version|이 버전 → 현재 버전
 Renders side by side|나란히
 The file as it was at this version|이 버전의 파일

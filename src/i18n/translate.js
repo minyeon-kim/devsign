@@ -187,6 +187,7 @@ const rules = [
   [/^Checkpoint #(\d+) render$/, (_, n) => `체크포인트 #${n} 렌더링`],
   [/^(\d+) lines hidden$/, (_, n) => `${n}줄 숨김`],
   [/^This version · Checkpoint #(\d+)$/, (_, n) => `이 버전 · 체크포인트 #${n}`],
+  [/^Checkpoint #(\d+)$/, (_, n) => `체크포인트 #${n}`],
   [/^(\d+) lines? of code changed$/, (_, n) => `코드 변경 ${n}줄`],
   [/^Waiting on (\d+) reviewers?$/, (_, n) => `검토자 ${n}명 대기`],
   [/^(\d+) reasons?$/, (_, count) => `이유 ${count}개`],

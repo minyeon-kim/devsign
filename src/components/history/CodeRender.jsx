@@ -11,6 +11,11 @@ import { layoutAt } from '@/lib/codeRender'
 // 'title', 'subtitle') ringed too. A mark is an outline on the element
 // itself, inside the scaled screen — never a stored position — so it's on
 // its element at any viewport, zoom or size, full screen included.
+// `inspect` (History's comparison): the screen is drawn clean — no red
+// borders, no pill over the content — and `inspect` lists what to mark
+// (lib/codeRender's inspectionsFor): one hatched area per problem, exactly
+// where it is. Its label is the caller's to draw, outside the frame.
+// `emphasis`: the id of the mark to draw stronger (its label is hovered).
 const CARDS = [
   ['$12.4k', 'Revenue · +8%', ChartColumn],
   ['320', 'Orders · +12', Zap],
@@ -18,12 +23,20 @@ const CARDS = [
   ['3.9%', 'Conversion · +0.4', ChartColumn],
 ]
 
+// An inspection mark's colors: a 1px line and a faint fill, from the app's
+// own danger / warning / info colors — the content under it stays readable.
+export const INSPECT_TONE = {
+  danger: { line: 'var(--destructive)', fill: 'color-mix(in oklab, var(--destructive) 16%, transparent)' },
+  warning: { line: '#fcd34d', fill: 'color-mix(in oklab, #fcd34d 14%, transparent)' },
+  info: { line: '#7dd3fc', fill: 'transparent' },
+}
+
 const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(251 191 36 / 22%)' }
 
 // `crop`: stop at the end of the content (or at a height given, so two
 // renders compared are the same size) instead of drawing the whole (tall)
 // screen — for comparing layouts at a readable size.
-export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className }) {
+export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className, inspect = null, emphasis = null }) {
   const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
   const layout = layoutAt(spec, screen)
   const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
@@ -59,7 +72,7 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, pa
               className="relative flex h-[132px] flex-col gap-2 rounded-2xl border bg-white p-4 shadow-sm"
               style={{
                 ...(overflowing && { width: cardWidth, zIndex: index + 1, background: 'rgb(255 255 255 / 86%)', justifySelf: index % columns === 0 ? 'start' : index % columns === columns - 1 ? 'end' : 'center' }),
-                borderColor: overlap > 0 ? 'rgb(244 63 94)' : squeezed != null ? 'rgb(245 158 11)' : 'rgb(226 232 240)',
+                borderColor: inspect ? 'rgb(226 232 240)' : overlap > 0 ? 'rgb(244 63 94)' : squeezed != null ? 'rgb(245 158 11)' : 'rgb(226 232 240)',
                 ...(parts.includes('cards') && MARK),
               }}
             >
@@ -68,17 +81,39 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, pa
               <span className="text-[13px] text-slate-500">{label}</span>
             </article>
           ))}
-          {overlap > 0 && (
+          {!inspect && overlap > 0 && (
             <span data-render-overlap className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
               카드 겹침 {overlap}px
             </span>
           )}
-          {squeezed != null && (
+          {!inspect && squeezed != null && (
             <span data-render-squeezed className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
               간격 {squeezed}px (기준 {gap}px)
             </span>
           )}
         </section>
+        {/* What's inspected, where it is: a hatched strip (or, for a
+            difference with no problem behind it, a thin outline) — in the
+            screen's own px, so it scales with the screen. */}
+        {(inspect ?? []).map((item) => {
+          const tone = INSPECT_TONE[item.tone] ?? INSPECT_TONE.info
+          const strong = emphasis === item.id
+          return (
+            <span
+              key={item.id}
+              aria-hidden
+              data-inspect-region={item.id}
+              className="pointer-events-none absolute z-20"
+              style={{
+                left: item.region.x, top: item.region.y, width: item.region.width, height: item.region.height,
+                border: `${Math.max(1, 1 / scale)}px ${item.outline ? 'dashed' : 'solid'} ${tone.line}`,
+                borderRadius: item.outline ? 12 : 2,
+                background: item.outline ? 'transparent' : `repeating-linear-gradient(135deg, ${tone.line} 0 ${1 / scale}px, ${tone.fill} ${1 / scale}px ${5 / scale}px)`,
+                opacity: item.outline ? 1 : strong ? 0.95 : 0.6,
+              }}
+            />
+          )
+        })}
         <button type="button" tabIndex={-1} {...mark('cta')} className="pointer-events-none mt-6 h-12 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white">Upgrade to Pro</button>
       </div>
     </div>

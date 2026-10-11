@@ -1,7 +1,8 @@
-import { Fragment, useCallback, useMemo, useState } from 'react'
-import { Archive, ArchiveRestore, ChevronDown, MoreHorizontal, Code2, MessageSquareText, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Archive, ArchiveRestore, ChevronRight, GitCompareArrows, MoreHorizontal, Code2, MessageSquareText, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
@@ -14,12 +15,14 @@ import { KIND_LABEL, historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
-import { categoryFor, layoutDelta, renderOf } from '@/lib/codeRender'
+import { categoryFor, layoutDelta, layoutDeltaCode, renderOf } from '@/lib/codeRender'
 import { referencePick, screenOf } from '@/lib/devicePresets'
 import { useNavigate } from 'react-router-dom'
 import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
+
+const CHIP = 'inline-flex h-5 shrink-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300'
 
 // This view's diff layout: top to bottom until side by side is picked (kept
 // between visits, apart from the app's other diffs).
@@ -60,11 +63,15 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
   const navigate = useNavigate()
   const [ruleFocus, setRuleFocus] = useState(null)
-  const [reasonOpen, setReasonOpen] = useState(false)
   // The diff: stacked or side by side, and the changed hunks or the whole file.
   const [diffLayout, setDiffLayoutState] = useState(storedLayout)
   const setDiffLayout = (layout) => { setDiffLayoutState(layout); try { localStorage.setItem(LAYOUT_KEY, layout) } catch { /* this visit only */ } }
   const [wholeFile, setWholeFile] = useState(false)
+  // Per checkpoint: compared with the one before it (instead of the current
+  // version), and its file opened where the code section is folded to a line.
+  const [perEntry, setPerEntry] = useState({ id: entryId, againstPrevious: false, fileOpen: false })
+  if (perEntry.id !== entryId) setPerEntry({ id: entryId, againstPrevious: false, fileOpen: false })
+  const { againstPrevious, fileOpen } = perEntry
   const entry = historyEntries.find((h) => h.id === entryId)
   const current = historyEntries.find((h) => h.id === activeHistoryId)
   const isCurrent = entryId === activeHistoryId
@@ -73,15 +80,31 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   const [typedId, setTypedId] = useState(null)
   const typed = typedId === entryId
   const diffBase = current
+  // The checkpoint before this one on the timeline — what it's compared with
+  // on asking, and what its own change is measured against.
+  const previousEntry = historyEntries.find((h) => h.id === baseEntryId) ?? null
+  const number = position ? position.index + 1 : null
+  const mineTitle = number ? `This version · Checkpoint #${number}` : 'This version'
+  // Its code is the current version's: two renders of it side by side would
+  // be the same picture twice — it's shown once, and can be compared with
+  // the checkpoint before it instead.
+  const sameAsCurrent = Boolean(entry && current) && snapshotLines(entry.snapshot).join('\n') === snapshotLines(current.snapshot).join('\n')
+  // What's compared, left → right (or above → below): this version → the
+  // current one; or, on asking, the checkpoint before → this version. Null:
+  // nothing to compare (playing, comparison off, or the same code).
+  const pair = useMemo(() => {
+    if (!entry || playing) return null
+    if (againstPrevious && previousEntry) return { left: previousEntry, right: entry, leftTitle: number ? `Checkpoint #${number - 1}` : 'Previous checkpoint', rightTitle: mineTitle, previous: true }
+    if (compareLatest && current && !sameAsCurrent) return { left: entry, right: current, leftTitle: mineTitle, rightTitle: 'Current version', previous: false }
+    return null
+  }, [entry, playing, againstPrevious, previousEntry, number, mineTitle, compareLatest, current, sameAsCurrent])
 
-  // This version → the current version: this version is the old side (left,
-  // or above), the current one the new — the way the renders above it read.
   const rows = useMemo(
-    () => (entry && diffBase ? diffLines(snapshotLines(entry.snapshot), snapshotLines(diffBase.snapshot)) : []),
-    [entry, diffBase]
+    () => (pair ? diffLines(snapshotLines(pair.left.snapshot), snapshotLines(pair.right.snapshot)) : []),
+    [pair]
   )
-  // Playback shows the code itself, being typed — no diff against latest.
-  const showDiff = compareLatest && Boolean(diffBase) && !playing && !isCurrent
+  // Playback shows the code itself, being typed — no diff.
+  const showDiff = Boolean(pair)
   // The diff as shown: its changed hunks (the rest folded) or the whole
   // file; without a comparison, the file as it was.
   const codeRows = useMemo(() => {
@@ -91,7 +114,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   const changedLines = useMemo(() => changedLineCount(rows), [rows])
   // Playing: the checkpoint before this one until its code is typed in,
   // then this one. Otherwise the latest (comparing) or this version.
-  const shownSnapshot = playing ? (baseEntry && !typed ? baseEntry : entry) : showDiff ? diffBase : entry
+  const shownSnapshot = playing ? (baseEntry && !typed ? baseEntry : entry) : pair ? pair.right : entry
   // A checkpoint about another file doesn't say what the screen looked
   // like, so its design is the last one before it that does — otherwise
   // the preview would snap back to the default between steps.
@@ -125,29 +148,28 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   // prototype with what the code implies, as before.
   const codeRender = useMemo(() => {
     if (!entry) return null
-    const viewed = playing && baseEntry && !typed ? baseEntry : entry
-    const own = renderOf(projectId, viewed.snapshot.fileId, snapshotLines(viewed.snapshot))
+    const specOf = (item) => (item ? renderOf(projectId, item.snapshot.fileId, snapshotLines(item.snapshot)) : null)
+    const viewed = playing && baseEntry && !typed ? baseEntry : pair ? pair.left : entry
+    const own = specOf(viewed)
     if (!own) return null
-    const at = historyEntries.findIndex((h) => h.id === entry.id)
-    const before = baseEntry ?? historyEntries.slice(0, at).findLast((h) => h.snapshot.fileId === entry.snapshot.fileId) ?? null
-    const previous = before ? renderOf(projectId, before.snapshot.fileId, snapshotLines(before.snapshot))?.spec ?? null : null
-    const latest = compareLatest && !playing && current && current.id !== entry.id ? renderOf(projectId, current.snapshot.fileId, snapshotLines(current.snapshot)) : null
-    // The two sides' one name each, everywhere: "This version · Checkpoint
-    // #N" and "Current version".
-    const mine = renderOf(projectId, entry.snapshot.fileId, snapshotLines(entry.snapshot))?.spec
+    const category = categoryFor(projectId, entry.snapshot.fileId)
+    const reference = screenOf(referencePick(category), category)
+    const other = pair ? specOf(pair.right)?.spec ?? null : null
+    // The change the summary bar says: the comparison shown; with none, what
+    // this checkpoint itself changed (the one before it → this one — the
+    // comparison "Compare with the previous checkpoint" opens).
+    const from = pair ? own.spec : specOf(previousEntry)?.spec ?? null
+    const to = pair ? other : specOf(entry)?.spec ?? null
     return {
       ...own,
-      title: isCurrent && !playing ? 'Current version' : position ? `This version · Checkpoint #${position.index + 1}` : 'This version',
-      // The change from this version to the current one, in words (on the
-      // kind's reference screen).
-      delta: latest?.spec && mine ? layoutDelta(mine, latest.spec, screenOf(referencePick(categoryFor(projectId, entry.snapshot.fileId)), categoryFor(projectId, entry.snapshot.fileId))) : null,
-      category: categoryFor(projectId, entry.snapshot.fileId),
-      previous,
-      // (Recorded without a code change — a decision request, a detection.)
-      unchanged: Boolean(before) && snapshotLines(before.snapshot).join('\n') === snapshotLines(entry.snapshot).join('\n'),
-      compare: latest?.spec ? { title: 'Current version', spec: latest.spec } : null,
+      // The two sides' one name each, everywhere.
+      title: pair ? pair.leftTitle : sameAsCurrent && !playing ? 'This version = current version' : mineTitle,
+      category,
+      delta: layoutDelta(from, to, reference),
+      deltaCode: layoutDeltaCode(from, to, reference),
+      compare: other ? { title: pair.rightTitle, spec: other } : null,
     }
-  }, [entry, baseEntry, typed, playing, compareLatest, current, historyEntries, projectId, position, isCurrent])
+  }, [entry, baseEntry, typed, playing, pair, previousEntry, projectId, mineTitle, sameAsCurrent])
 
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
@@ -180,8 +202,12 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   // summary says what *it* changed, which can run the other way. Otherwise
   // the checkpoint's summary, else why it was made. None of them: no line.
   const ownSummary = entry.summary ?? projectHistorySeeds[projectId]?.find((seed) => seed.id === entry.id)?.summary ?? null
-  const comparedSummary = showDiff ? codeRender?.delta ?? null : null
-  const summary = comparedSummary ?? ownSummary ?? why.text ?? null
+  // (Comparing with the current version, the checkpoint's own summary would
+  // describe another change than the one on screen.)
+  const comparedSummary = codeRender?.delta ?? null
+  const summary = comparedSummary ?? (pair && !pair.previous ? null : ownSummary) ?? why.text ?? null
+  const summaryCode = comparedSummary ? codeRender.deltaCode : null
+  const reasonLeft = Boolean(why.text && why.text !== summary) || why.evidence.some((item) => item.kind !== 'conflict')
   // (The change itself is on the meta line; the rest backs the reason.)
   const reasonEvidence = why.evidence.filter((item) => item.kind !== 'conflict')
   // Who made it (and who approved) — without its kind or file, said elsewhere.
@@ -206,58 +232,56 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     // A Merge Studio floating panel: the same surface as the Version
     // History drawer, borderless inside, the mint accent for Restore.
     <div className={cn('flex h-full min-h-0 flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}>
-      <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-4 pb-3">
-        {/* Two lines. What it is and where it stands (its kind, "Current");
-            then when, where, who and the change it belongs to — each said
-            once (the file is the code pane's tab, not here). Why it was made
-            opens on asking. */}
-        <div data-checkpoint-header className="min-w-0">
-          <p className="flex min-w-0 items-center gap-2">
+      <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-3 pb-2">
+        {/* One line (its chips wrap under it when there's no room; the title
+            truncates): what it is, when / where / who, and — as small chips —
+            the change it belongs to, how its code stands against the current
+            version, and why it was made (on asking). The file is the code
+            section's, not here. */}
+        <div data-checkpoint-header className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          {/* (The title asks for little and takes what's left: the chips stay
+              on its line while there's room — it truncates before they wrap.) */}
+          <span className="flex min-w-0 flex-[1_1_180px] items-center gap-2">
             {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
-            <span data-checkpoint-title className="min-w-0 truncate text-[14px] leading-5 font-semibold text-white">{entry.label}</span>
-            {KIND_LABEL[entry.kind] && <span data-checkpoint-kind className="inline-flex h-5 shrink-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300"><LocalizedText text={KIND_LABEL[entry.kind]} /></span>}
-            {isCurrent && !playing && <span data-checkpoint-current className="inline-flex h-5 shrink-0 items-center rounded-full bg-emerald-400/15 px-2 text-[10.5px] font-medium text-emerald-200"><LocalizedText text="Current" /></span>}
-          </p>
-          <div data-checkpoint-meta className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] leading-5 text-slate-400">
-            <span className="shrink-0 tabular-nums">{entry.timestamp}</span>
+            <span data-checkpoint-title title={entry.label} className="min-w-0 truncate text-[14px] leading-6 font-semibold text-white">{entry.label}</span>
+          </span>
+          {KIND_LABEL[entry.kind] && <span data-checkpoint-kind className={CHIP}><LocalizedText text={KIND_LABEL[entry.kind]} /></span>}
+          {isCurrent && !playing && <span data-checkpoint-current className={cn(CHIP, 'bg-emerald-400/15 text-emerald-200')}><LocalizedText text="Current" /></span>}
+          <span data-checkpoint-meta className="flex shrink-0 items-center gap-1.5 text-[11px] text-slate-400">
+            <span className="tabular-nums">{entry.timestamp}</span>
             {/* The branch this checkpoint is on, in its graph color. */}
             {branch && (
               <>
                 <span aria-hidden className="text-slate-600">·</span>
-                <span translate="no" className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full px-2 font-mono text-[10.5px] font-medium" style={{ color: branch.color, background: `${branch.color}1f` }}>
+                <span translate="no" className="inline-flex items-center gap-1 font-mono text-[10.5px] font-medium" style={{ color: branch.color }}>
                   <span className="size-1.5 rounded-full" style={{ background: branch.color }} />
                   {branch.name}
                 </span>
               </>
             )}
-            {who && <><span aria-hidden className="text-slate-600">·</span><span className="shrink-0"><LocalizedText text={who} /></span></>}
-            {/* The change it belongs to: the way to that change's detail. */}
-            {why.evidence.filter((item) => item.kind === 'conflict').map((item) => (
-              <Fragment key={item.id}>
-                <span aria-hidden className="text-slate-600">·</span>
-                <button type="button" data-checkpoint-conflict={item.id} onClick={() => openEvidence(item)} className="ds-intrinsic inline-flex h-5 max-w-[280px] min-w-0 items-center gap-1 rounded-md px-1 text-amber-200 transition-colors hover:bg-white/[0.07] hover:text-amber-100">
-                  <TriangleAlert className="size-3 shrink-0" />
-                  <span className="min-w-0 truncate"><LocalizedText text={item.label} /></span>
-                </button>
-              </Fragment>
-            ))}
-            {showDiff && (
-              <>
-                <span aria-hidden className="text-slate-600">·</span>
-                {/* (+0 −0 isn't a broken comparison: say what it is.) */}
-                {added + removed === 0
-                  ? <span data-checkpoint-diff title={codeRender?.unchanged ? 'This checkpoint recorded no code change.' : undefined}><LocalizedText text="The code is the same as the current version." /></span>
-                  : <span data-checkpoint-diff title="Compared with current" className="shrink-0 tabular-nums"><span className="text-emerald-300">+{added}</span> <span className="text-red-300">−{removed}</span></span>}
-              </>
-            )}
-            {((why.text && why.text !== summary) || reasonEvidence.length > 0) && (
-              <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((current) => !current)} className="ds-intrinsic ml-1 inline-flex h-5 shrink-0 items-center gap-0.5 rounded-md px-1 text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white">
+            {who && <><span aria-hidden className="text-slate-600">·</span><LocalizedText text={who} /></>}
+          </span>
+          {/* The change it belongs to: the way to that change's detail. */}
+          {why.evidence.filter((item) => item.kind === 'conflict').map((item) => (
+            <button key={item.id} type="button" data-checkpoint-conflict={item.id} title={item.label} onClick={() => openEvidence(item)} className={cn(CHIP, 'ds-intrinsic max-w-[260px] min-w-0 gap-1 bg-amber-400/10 text-amber-200 transition-colors hover:bg-amber-400/20')}>
+              <TriangleAlert className="size-3 shrink-0" />
+              <span className="min-w-0 truncate"><LocalizedText text={item.label} /></span>
+            </button>
+          ))}
+          {sameAsCurrent && !isCurrent && <span data-checkpoint-same className={CHIP}><LocalizedText text="Same as current" /></span>}
+          {showDiff && added + removed > 0 && (
+            <span data-checkpoint-diff title={pair.previous ? 'Compared with the previous checkpoint' : 'Compared with current'} className={cn(CHIP, 'gap-1 tabular-nums')}><span className="text-emerald-300">+{added}</span><span className="text-red-300">−{removed}</span></span>
+          )}
+          {reasonLeft && (
+            <Popover>
+              <PopoverTrigger data-checkpoint-reason-toggle className={cn(CHIP, 'ds-intrinsic transition-colors hover:bg-white/[0.12] hover:text-white')}>
                 <LocalizedText text="Reason for the change" />
-                <ChevronDown className={cn('size-3 transition-transform', reasonOpen && 'rotate-180')} />
-              </button>
-            )}
-          </div>
-          {reasonOpen && <ReasonStrip text={why.text !== summary ? why.text : null} evidence={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[360px] p-3">
+                <ReasonStrip text={why.text} evidence={reasonEvidence} onOpen={openEvidence} />
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {onCompareLatestChange && (
@@ -310,21 +334,20 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
         </div>
       </div>
 
-      {/* The change, in a person's words. */}
+      {/* One bar: the change in a person's words, then — fainter, in code —
+          the values it's between. */}
       {summary && (
-        <p data-change-summary className="mx-3 mb-2 flex shrink-0 items-start gap-2 rounded-xl bg-white/[0.04] px-3 py-2 text-[12.5px] leading-5 text-slate-100">
-          <MessageSquareText aria-hidden className="mt-[3px] size-3.5 shrink-0 text-emerald-300" />
+        <p data-change-summary className="mx-3 mb-2 flex shrink-0 items-baseline gap-2 rounded-lg bg-white/[0.04] px-3 py-1.5 text-[12.5px] leading-5 text-slate-100">
+          <MessageSquareText aria-hidden className="size-3.5 shrink-0 translate-y-[2px] text-emerald-300" />
           <span className="sr-only"><LocalizedText text="Change summary" />: </span>
-          <span className="min-w-0">
-            {comparedSummary && <span data-summary-direction className="mr-1.5 text-slate-400"><LocalizedText text="This version → current version" /> ·</span>}
-            <LocalizedText text={summary} />
-          </span>
+          <span data-summary-text className="min-w-0 shrink truncate" title={summary}><LocalizedText text={summary} /></span>
+          {summaryCode && <span data-summary-code translate="no" className="min-w-0 shrink-[2] truncate font-mono text-[11px] text-slate-500" title={summaryCode}>· {summaryCode}</span>}
         </p>
       )}
 
       {/* What it looks like — the main thing: the whole width, this version
           on the left and the current one on the right. */}
-      <div data-compare-render className="relative mx-3 flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden rounded-xl bg-black/15">
+      <div data-compare-render className="relative mx-3 flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden rounded-xl bg-black/35">
         <PreviewPanelContent
           // A new key fades the preview over — on each checkpoint, and
           // during playback each time the typed code changes the design.
@@ -343,10 +366,20 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
           viewControls
           focusLayerIds={changedIds}
           codeRender={codeRender}
+          variant="compare"
+          toolbarExtra={(sameAsCurrent || againstPrevious) && previousEntry && !playing && (
+            // Its code is the current version's: the comparison worth seeing
+            // is with the checkpoint before it — the change the summary says.
+            <button type="button" data-compare-previous aria-pressed={againstPrevious} onClick={() => setPerEntry({ ...perEntry, againstPrevious: !againstPrevious })}
+              className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium whitespace-nowrap transition-colors', againstPrevious ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-200 hover:bg-white/[0.09] hover:text-white')}>
+              <GitCompareArrows className="size-3.5 shrink-0" />
+              <LocalizedText text="Compare with the previous checkpoint" />
+            </button>
+          )}
           caption={
             <span className="shrink-0 text-emerald-300">
               {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
-              {codeRender?.spec || isCurrent ? null : playing ? 'This step' : showDiff ? 'Current version' : 'This version'}
+              {codeRender?.spec || isCurrent ? null : playing ? 'This step' : pair ? pair.rightTitle : sameAsCurrent ? 'This version = current version' : 'This version'}
             </span>
           }
         />
@@ -355,13 +388,28 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
       {/* The code behind it, under it: just what changed (the rest folded)
           until the whole file is asked for — read the same way round, this
           version first. */}
-      <section data-compare-code aria-label="Code" className="mx-3 mt-2 mb-3 flex min-h-[92px] shrink flex-col overflow-hidden rounded-xl bg-black/20" style={{ maxHeight: playing || wholeFile ? '44%' : '36%' }}>
+      {!pair && sameAsCurrent && !playing && !fileOpen ? (
+        // Nothing changed against the current version: one line, not an
+        // empty block — the file is there on asking.
+        <button type="button" data-compare-code="folded" aria-expanded="false" onClick={() => setPerEntry({ ...perEntry, fileOpen: true })} className="ds-intrinsic mx-3 mt-2 mb-3 flex h-9 shrink-0 items-center gap-2 rounded-xl bg-black/20 px-3 text-left text-[11px] text-slate-400 transition-colors hover:bg-black/30 hover:text-slate-200">
+          <ChevronRight className="size-3.5 shrink-0" />
+          <Code2 className="size-3 shrink-0" />
+          <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
+          <span aria-hidden>·</span>
+          <span className="shrink-0"><LocalizedText text={isCurrent ? 'Current version' : 'Same code as the current version'} /></span>
+          <span className="ml-auto shrink-0 text-slate-500"><LocalizedText text="Show the whole file" /></span>
+        </button>
+      ) : (
+      <section data-compare-code="open" aria-label="Code" className="mx-3 mt-2 mb-3 flex min-h-[92px] shrink flex-col overflow-hidden rounded-xl bg-black/20" style={{ maxHeight: playing || wholeFile ? '44%' : '36%' }}>
         <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1 text-[11px] text-slate-500">
           <Code2 className="size-3 shrink-0" />
           <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
           {showDiff && <span data-code-changed className="shrink-0 text-slate-300"><LocalizedText text={`${changedLines} line${changedLines === 1 ? '' : 's'} of code changed`} /></span>}
-          {!showDiff && !playing && <span className="shrink-0"><LocalizedText text="The file as it was at this version" /></span>}
+          {!showDiff && !playing && <span className="shrink-0"><LocalizedText text={sameAsCurrent && !isCurrent ? 'Same code as the current version' : 'The file as it was at this version'} /></span>}
           <span className="ml-auto flex shrink-0 items-center gap-2">
+            {!pair && sameAsCurrent && !playing && (
+              <button type="button" data-code-fold onClick={() => setPerEntry({ ...perEntry, fileOpen: false })} className="ds-intrinsic inline-flex h-6 items-center rounded-md bg-white/[0.12] px-2 font-sans text-[10.5px] font-medium text-white"><LocalizedText text="Show the whole file" /></button>
+            )}
             {showDiff && changedLines > 0 && (
               <button type="button" data-code-whole-file aria-pressed={wholeFile} onClick={() => setWholeFile((current) => !current)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded-md px-2 font-sans text-[10.5px] font-medium transition-colors', wholeFile ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:text-white')}>
                 <LocalizedText text="Show the whole file" />
@@ -373,14 +421,14 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
         </div>
         <div className="min-h-0 flex-1 overflow-auto pb-2 text-[12px] leading-5">
           {showDiff && changedLines === 0 && (
-            <p className="px-3 pb-2 font-sans text-xs text-slate-500">No code changes between this version and the latest.</p>
+            <p className="px-3 pb-2 font-sans text-xs text-slate-500"><LocalizedText text="No code changes between these two versions." /></p>
           )}
           {playing ? (
             // Keyed to the checkpoint: each step starts from the one
             // before it, exactly, and ends on this one, exactly.
             <div className="font-mono"><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>
           ) : showDiff ? (
-            changedLines > 0 && <DiffView rows={codeRows} layout={diffLayout} className="text-[12px]" labels={[position ? `This version · Checkpoint #${position.index + 1}` : 'This version', 'Current version']} />
+            changedLines > 0 && <DiffView rows={codeRows} layout={diffLayout} className="text-[12px]" labels={[pair.leftTitle, pair.rightTitle]} />
           ) : codeRows.map((row, index) => (
             <div key={index} className="flex min-w-0 py-px pr-3 font-mono whitespace-pre-wrap text-slate-300 [word-break:break-all]">
               <span className={GUTTER}>{row.to ?? ''}</span>
@@ -389,6 +437,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
           ))}
         </div>
       </section>
+      )}
 
       {footer}
 

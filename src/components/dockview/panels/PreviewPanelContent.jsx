@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, Minus, PenTool, Plus, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { DEVICES, focusBox, frameOnDevice, isPhoneFrame } from '@/lib/devicePreview'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
+import CanvasZoomControl, { CANVAS_ZOOM_STEP, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import CodeRender from '@/components/history/CodeRender'
-import { layoutAt, layoutChanged, screensChanged } from '@/lib/codeRender'
+import CodeRender, { INSPECT_TONE } from '@/components/history/CodeRender'
+import { inspectionsFor, layoutAt, layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, DEVICE_PRESETS, referencePick, screenOf } from '@/lib/devicePresets'
 import DevicePicker from '@/components/history/DevicePicker'
 
@@ -64,6 +64,18 @@ function parsePadding(value) {
 // devices" lays the kind's devices out together, the ones the layout breaks
 // on flagged. The design prototype is a toggle beside the render, never in
 // its place.
+// `variant="compare"` (History's version comparison — and only there; a
+// conflict's replay keeps the preview as it was): the renders sit on a canvas
+// with room around them (never against its edge, never against each other),
+// the zoom is in the toolbar, and a problem is inspected rather than drawn
+// over the content — one hatched area where it is, its label outside the
+// frame on a thin line (lib/codeRender's inspectionsFor). Inspection is off
+// until the toolbar's button turns it on (kept for the session), and on in
+// "Differences only". `toolbarExtra`: a control of the caller's, after the
+// comparison modes.
+const INSPECT_KEY = 'devsign.previewInspect'
+const sessionFlag = (key) => { try { return sessionStorage.getItem(key) === '1' } catch { return false } }
+const LABEL_ROW = 24
 const COMPARE_KEY = 'devsign.previewCompare'
 // How two renders are compared (this version against the current one):
 // side by side, one over the other with a divider to drag, or side by side
@@ -124,7 +136,7 @@ const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -154,6 +166,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   if (pickedFor !== category) { setPickedFor(category); setDevicePick(referencePick(category)) }
   const [designShown, setDesignShown] = useState(false)
   const [overview, setOverview] = useState(false)
+  const compareView = variant === 'compare'
+  const [inspectPick, setInspectPickState] = useState(() => sessionFlag(INSPECT_KEY))
+  const setInspectPick = (on) => { setInspectPickState(on); try { sessionStorage.setItem(INSPECT_KEY, on ? '1' : '0') } catch { /* this view only */ } }
+  // The inspection mark whose label is under the pointer (drawn stronger).
+  const [hoverMark, setHoverMark] = useState(null)
   const [comparePick, setComparePickState] = useState(() => stored(COMPARE_KEY, 'side'))
   const setComparePick = (mode) => { setComparePickState(mode); store(COMPARE_KEY, mode) }
 
@@ -239,6 +256,14 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const compareMode = !comparing ? null : comparePick === 'side' && narrow ? 'slider' : COMPARE_MODES.some(([id]) => id === comparePick) ? comparePick : 'side'
   const versionsDiffer = comparing ? layoutChanged(rendering.spec, rendering.compare.spec, viewport) : false
 
+  // The comparison's inspection: what's marked (per side), and whether it's on.
+  const inspectable = compareView && rendering && !overview
+  const inspecting = inspectable && (compareMode === 'diff' || inspectPick)
+  const inspection = inspectable ? inspectionsFor(rendering.spec, comparing ? rendering.compare.spec : null, viewport, { difference: compareMode === 'diff' }) : { mine: [], other: [] }
+  const inspectCount = inspection.mine.length + inspection.other.length
+  // Compared, but the same on this screen (a tablet-only rule on a phone): where they do differ.
+  const elsewhere = compareView && rendering ? (comparing && !versionsDiffer ? screensChanged(rendering.spec, rendering.compare.spec, category) : []) : changedElsewhere
+
   // What "Show changed elements" can't do here, as its tooltip: nothing
   // changed in the code at all, or nothing at this width.
   const canMark = rendering ? canMarkRender : Boolean(focus)
@@ -272,7 +297,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 ))}
               </div>
             )}
-            {rendering && !comparing && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
+            {toolbarExtra}
+            {rendering && !comparing && !compareView && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
             {phone && !rendering && (
               <DropdownMenu>
                 <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
@@ -294,10 +320,13 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
-            {comparing && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
+            {(comparing || (compareView && rendering)) && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
             {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
             {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}
-            {tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setViewPick(marking ? 'full' : 'changed') })}
+            {compareView && rendering
+              // Inspection: the problems on the screen(s), marked where they are.
+              ? tool({ id: 'inspect', label: compareMode === 'diff' ? 'Inspection marks are always on in Differences only' : inspectCount ? 'Inspection marks' : 'Nothing to mark on this screen', Icon: Crosshair, on: inspecting && inspectCount > 0, disabled: !inspectable || compareMode === 'diff' || !inspectCount, onClick: () => setInspectPick(!inspectPick) })
+              : tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setViewPick(marking ? 'full' : 'changed') })}
             {fullscreen
               ? (
                 <button type="button" data-preview-fullscreen-close aria-label="Exit full screen" title="Exit full screen" onClick={() => setFullscreen(false)} className="ds-intrinsic ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.08] px-2 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
@@ -306,6 +335,14 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 </button>
               )
               : tool({ id: 'fullscreen', label: 'View full screen', Icon: Maximize2, onClick: () => setFullscreen(true) })}
+            {/* The zoom, with the rest of the tools (not floating over the canvas). */}
+            {compareView && (
+              <span data-preview-zoom className="ml-1 inline-flex h-7 shrink-0 items-center rounded-md bg-white/[0.05]">
+                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= MIN_CANVAS_ZOOM} onClick={() => zoomBy(-CANVAS_ZOOM_STEP)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 hover:bg-white/[0.09] hover:text-white disabled:opacity-35"><Minus className="size-3" /></button>
+                <span className="w-9 text-center text-[10.5px] text-slate-200 tabular-nums">{zoom}%</span>
+                <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_CANVAS_ZOOM} onClick={() => zoomBy(CANVAS_ZOOM_STEP)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 hover:bg-white/[0.09] hover:text-white disabled:opacity-35"><Plus className="size-3" /></button>
+              </span>
+            )}
           </div>
         </div>
       ) : (
@@ -337,18 +374,18 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         <>
           {/* What the marks are, or why there are none here — over the
               canvas, so the toolbar stays one line. */}
-          {changedElsewhere.length > 0 ? (
+          {elsewhere.length > 0 ? (
             <span data-preview-status data-preview-no-effect role="status" className="absolute top-1 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-[#2a2415]/95 px-2 py-1 text-[11px] text-amber-100 shadow-lg ring-1 ring-amber-300/25 ring-inset">
               <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요</span>
-              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: changedElsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
-                <span translate="no">{changedElsewhere[0].label}</span>({changedElsewhere[0].width}px)에서 보기
+              <button type="button" data-preview-go-viewport={elsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: elsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+                <span translate="no">{elsewhere[0].label}</span>({elsewhere[0].width}px)에서 보기
               </button>
             </span>
-          ) : compareMode === 'diff' && !versionsDiffer ? (
+          ) : compareMode === 'diff' && !versionsDiffer && !inspectCount ? (
             <span data-preview-status data-compare-same role="status" className="absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
               <LocalizedText text="Both versions render the same on this screen." />
             </span>
-          ) : marking && !overview && (
+          ) : marking && !overview && !compareView && (
             <span data-preview-status data-preview-changed-names className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
               <LocalizedText text="Changed" /> · <span translate="no">{rendering
                 ? [renderChanged && `DashboardGrid · ${layoutAt(against, viewport).template} → ${layoutAt(rendering.spec, viewport).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')
@@ -357,10 +394,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           )}
           {/* (A design-frame preview says which version it shows here; a code render says so under its frame.) */}
           {caption && !rendering && <span data-preview-caption className="pointer-events-none absolute top-1 right-3 z-20 rounded-md bg-black/60 px-2 py-1 text-[10.5px]">{caption}</span>}
-          <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>
+          {!compareView && <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>}
         </>
       )}
-      <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto pb-4', viewControls ? 'px-3' : 'px-4')}>
+      <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto', compareView && rendering ? '' : 'pb-4', compareView && rendering ? '' : viewControls ? 'px-3' : 'px-4')}>
         {/* Keyed on the snapshot itself in historical mode (History's
             playback and version compare), not the live `previewVersion` —
             otherwise scrubbing/replaying through checkpoints swaps this
@@ -376,7 +413,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             [data-layer-id="${CSS.escape(highlightLayerId)}"] { animation: preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} 1200ms ease-out backwards; border-radius: 6px; z-index: 5; }
           `}</style>
         )}
-        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
+        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', compareView && rendering ? 'w-full' : viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
           {conflictPreview ? (
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
@@ -405,6 +442,98 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                     </button>
                   )
                 })}
+              </div>
+            )
+          })() : rendering && compareView ? (() => {
+            // The comparison on its canvas: this version, an arrow, the other
+            // version — fitted with room on every side (32px; 24px in a
+            // narrow window) and at least 48px between them, the arrow in the
+            // middle of that. Each frame's name is its caption, right above
+            // it; what's inspected is hatched on the screen and named under
+            // the frame, on a thin line.
+            const pad = narrow ? 24 : 32
+            const between = 48
+            const captionHeight = 24
+            const design = designShown ? frames[0] : null
+            const other = rendering.compare
+            const slider = compareMode === 'slider'
+            const marks = inspecting ? inspection : { mine: [], other: [] }
+            const labelRows = slider ? marks.mine.length + marks.other.length : Math.max(marks.mine.length, marks.other.length)
+            const labelSpace = labelRows ? labelRows * LABEL_ROW + 8 : 0
+            const count = 1 + (other && !slider ? 1 : 0) + (design ? 1 : 0)
+            const paneWidth = (room.width - pad * 2 - between * (count - 1)) / count
+            const paneHeight = room.height - pad * 2 - captionHeight - labelSpace
+            // (One height for both, so they line up — and can lie over each other.)
+            const contentHeight = Math.min(viewport.height, Math.max(layoutAt(rendering.spec, viewport).contentHeight, other ? layoutAt(other.spec, viewport).contentHeight : 0))
+            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
+            const frameWidth = viewport.width * scale
+            const frameHeight = contentHeight * scale
+            const emphasisOf = (side) => (hoverMark?.side === side ? hoverMark.id : null)
+            // A mark's name, outside the frame: under it, at the marked area,
+            // on a 1px line from the area. Several stack downwards.
+            const labels = (list, side, offset = 0) => list.map((item, index) => {
+              const tone = INSPECT_TONE[item.tone] ?? INSPECT_TONE.info
+              const x = (item.region.x + item.region.width / 2) * scale
+              const from = Math.min(frameHeight, (item.region.y + item.region.height) * scale)
+              const top = frameHeight + 8 + (index + offset) * LABEL_ROW
+              return (
+                <Fragment key={`${side}:${item.id}`}>
+                  <span aria-hidden data-inspect-line={item.id} className="pointer-events-none absolute z-20 w-px" style={{ left: x, top: from, height: top - from, background: tone.line }} />
+                  <span data-inspect-label={item.id} data-inspect-side={side} onMouseEnter={() => setHoverMark({ side, id: item.id })} onMouseLeave={() => setHoverMark(null)}
+                    className="absolute z-20 -translate-x-1/2 cursor-default rounded-full px-2 text-[10.5px] leading-[18px] font-medium whitespace-nowrap text-slate-100"
+                    style={{ left: x, top, border: `1px solid ${tone.line}`, background: 'color-mix(in oklab, var(--background) 82%, transparent)' }}>
+                    {item.label}
+                  </span>
+                </Fragment>
+              )
+            })
+            const caption = (key, label, tone) => (
+              <figcaption className={cn('flex items-baseline justify-center gap-1 text-[11px] font-medium whitespace-nowrap', tone)} style={{ height: captionHeight }}>
+                <LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span>
+                {/* (A width outside the kind's breakpoint: the layout it gets.) */}
+                {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
+              </figcaption>
+            )
+            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} inspect={marks.mine} emphasis={emphasisOf('mine')} />
+            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} inspect={marks.other} emphasis={emphasisOf('other')} /> : null
+            const framed = (node, list, side) => <div className="relative" style={{ width: frameWidth, height: frameHeight }}>{node}{labels(list, side)}</div>
+            const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, (paneHeight + labelSpace) / design.height)) * (zoom / 100) : 1
+            return (
+              <div data-render-compare={compareMode ?? 'single'} data-render-canvas className="flex w-full items-start justify-center" style={{ padding: pad, paddingBottom: pad + labelSpace }}>
+                {slider ? (
+                  <figure data-render-pane="slider" className="m-0 flex min-w-0 flex-col items-center">
+                    {/* The two names over their own sides (never over the screen itself). */}
+                    <figcaption className="flex items-baseline justify-between gap-3 text-[11px] font-medium" style={{ width: frameWidth, height: captionHeight }}>
+                      <span data-slider-label="left" className="min-w-0 truncate text-slate-100"><LocalizedText text={rendering.title} /></span>
+                      <span className="shrink-0 font-normal text-slate-500"><span className="tabular-nums">{viewport.width}px</span> · <LocalizedText text="Drag the divider, or press ← →" /></span>
+                      <span data-slider-label="right" className="min-w-0 truncate text-emerald-300"><LocalizedText text={other.title} /></span>
+                    </figcaption>
+                    <div className="relative" style={{ width: frameWidth, height: frameHeight }}>
+                      <CompareSlider width={frameWidth} height={frameHeight} left={mine} right={theirs} />
+                      {labels(marks.mine, 'mine')}
+                      {labels(marks.other, 'other', marks.mine.length)}
+                    </div>
+                  </figure>
+                ) : (
+                  <>
+                    <figure data-render-pane="checkpoint" className="m-0 flex min-w-0 flex-col items-center">{caption('checkpoint', rendering.title, 'text-slate-100')}{framed(mine, marks.mine, 'mine')}</figure>
+                    {other && (
+                      // (The space between the frames, the arrow in its middle.)
+                      <div aria-hidden data-render-arrow className="flex shrink-0 items-center justify-center text-slate-500" style={{ width: between, height: frameHeight, marginTop: captionHeight }}><ArrowRight className="size-5" /></div>
+                    )}
+                    {other && <figure data-render-pane="latest" className="m-0 flex min-w-0 flex-col items-center">{caption('latest', other.title, 'text-emerald-300')}{framed(theirs, marks.other, 'other')}</figure>}
+                  </>
+                )}
+                {design && (
+                  <figure data-render-pane="design" className="m-0 flex min-w-0 flex-col items-center" style={{ marginLeft: between }}>
+                    {caption('design', 'Design original', 'text-sky-300')}
+                    <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>
+                      <div className="relative" style={{ width: design.width, height: design.height, transform: `scale(${designScale})`, transformOrigin: 'top left' }}>
+                        {design.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
+                      </div>
+                    </div>
+                  </figure>
+                )}
               </div>
             )
           })() : rendering ? (() => {

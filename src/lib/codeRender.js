@@ -91,7 +91,9 @@ export function layoutAt(spec, screen) {
   // a render can stop there rather than draw the empty rest of a tall screen.
   const rows = Math.ceil(CARD_COUNT / parsed.count)
   const contentHeight = padding + 36 + 4 + 20 + 24 + rows * CARD_HEIGHT + (rows - 1) * gap + 24 + 48 + padding
-  return { breakpoint, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, tight, overlap, squeezed, contentHeight }
+  // Where the card grid sits on the screen (under the title and its line).
+  const grid = { x: padding, y: padding + 36 + 4 + 20 + 24, width: available, height: rows * CARD_HEIGHT + (rows - 1) * gap }
+  return { breakpoint, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, tight, overlap, squeezed, contentHeight, grid }
 }
 
 // Whether two checkpoints lay the screen out differently on a screen.
@@ -125,4 +127,43 @@ export function layoutDelta(from, to, screen) {
   if (!parts.length) return null
   const effect = a.overlap && !b.overlap ? ' · 카드 겹침 해소' : !a.overlap && b.overlap ? ` · 카드가 ${b.overlap}px 겹침` : ''
   return `${where} ${parts.join(', ')}${effect}`
+}
+// The same change as its code values, for beside the words: "repeat(2,
+// 360px) → repeat(2, minmax(0, 1fr))".
+export function layoutDeltaCode(from, to, screen) {
+  if (!from || !to || !layoutChanged(from, to, screen)) return null
+  return `${layoutAt(from, screen).template} → ${layoutAt(to, screen).template}`
+}
+
+// What's wrong with a layout on a screen — one entry per problem, each with
+// the exact area it's about (in the screen's own px), so an inspection
+// overlay marks that area and nothing else:
+//   · 'overlap' (danger) — the strip where the cards run over each other;
+//   · 'squeezed' (warning) — the gap left between cards that should be wider.
+// (Two columns only: the strip is between the first card and the last.)
+export function problemsAt(spec, screen) {
+  const layout = layoutAt(spec, screen)
+  if (!layout.tight || layout.columns !== 2) return []
+  const { grid, cardWidth } = layout
+  if (layout.overlap) return [{ id: 'overlap', tone: 'danger', label: `카드 겹침 ${layout.overlap}px`, region: { x: grid.x + grid.width - cardWidth, y: grid.y, width: layout.overlap, height: grid.height } }]
+  return [{ id: 'squeezed', tone: 'warning', label: `카드 간격 ${layout.squeezed}px (기준 ${layout.gap}px)`, region: { x: grid.x + cardWidth, y: grid.y, width: Math.max(layout.squeezed, 2), height: grid.height } }]
+}
+
+// The marks for two versions compared (`mine` on the left, `other` on the
+// right — or `mine` alone): each side's problems, once each. A problem both
+// have in the same place is marked on `mine` only and said to be shared.
+// `difference`: with no problem to explain it, where the two lay out
+// differently is marked too — the grid, as one area.
+export function inspectionsFor(mine, other, screen, { difference = false } = {}) {
+  const sameRegion = (a, b) => a.id === b.id && a.region.x === b.region.x && a.region.width === b.region.width && a.region.y === b.region.y && a.region.height === b.region.height
+  const left = problemsAt(mine, screen)
+  const right = other ? problemsAt(other, screen) : []
+  const marks = {
+    mine: left.map((mark) => (right.some((theirs) => sameRegion(mark, theirs)) ? { ...mark, shared: true, label: `${mark.label} · 두 버전 공통` } : mark)),
+    other: right.filter((mark) => !left.some((ours) => sameRegion(mark, ours))),
+  }
+  if (difference && other && !marks.mine.length && !marks.other.length && layoutChanged(mine, other, screen)) {
+    marks.mine.push({ id: 'difference', tone: 'info', label: '레이아웃이 달라진 영역', region: layoutAt(mine, screen).grid, outline: true })
+  }
+  return marks
 }
