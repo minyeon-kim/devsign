@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
-import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
+import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocView'
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
@@ -101,17 +101,17 @@ function DocsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      <div className={BREADCRUMB_BAR}>
+      <BreadcrumbBar>
         <Breadcrumb
           items={[
-            { label: project.name, to: `/projects/${project.id}`, translate: false },
+            ...projectCrumbs(project),
             // (On the index, Docs is the page you're on; deeper, the way back to it.)
             { label: 'Docs', ...(view.kind !== 'index' && { onClick: openIndex }) },
             ...(view.kind === 'dsUpdates' ? [{ label: 'Document updates' }] : []),
             ...(view.kind === 'doc' ? [...(docPath(tree, view.doc.id) ?? []).map((label) => ({ label })), { label: view.doc.title, key: view.doc.id }] : []),
           ]}
         />
-      </div>
+      </BreadcrumbBar>
 
       {/* Keyed by the navigation so a fresh deep link re-applies its view,
           fading the content in rather than hard-swapping it. */}

@@ -1,6 +1,7 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, BookOpen, ChevronRight } from 'lucide-react'
+import { ArrowRight, BookOpen } from 'lucide-react'
+import Breadcrumb, { projectCrumbs } from '@/components/layout/Breadcrumb'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
@@ -285,10 +286,10 @@ function ProjectOverviewPage() {
   return (
     <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto bg-background text-foreground">
       <div className="mx-auto flex w-full min-w-0 max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
-        <nav aria-label="Project navigation" className="flex min-w-0 items-center gap-2 text-xs text-slate-400">
-          <Link to="/dashboard" className="shrink-0 hover:text-white"><LocalizedText text="Dashboard" /></Link>
-          <ChevronRight className="size-3" />
-          <span aria-current="page" className="truncate text-white">{project.name}</span>
+        {/* The path — the reference every other page's path is drawn from
+            (components/layout/Breadcrumb) — and, in its row, who's here. */}
+        <div className="flex min-w-0 items-center gap-2">
+          <Breadcrumb items={projectCrumbs(project, { current: true })} />
           {/* Same profile popover and Inbox as the Workspace's top bar —
               Project home had no way to switch user, see who's on the
               project, or check notifications until you opened the
@@ -302,7 +303,7 @@ function ProjectOverviewPage() {
             </div>
             <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
           </span>
-        </nav>
+        </div>
         {/* Header */}
         <header className="flex flex-wrap items-start gap-4">
           <span

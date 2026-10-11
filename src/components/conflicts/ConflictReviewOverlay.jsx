@@ -4,8 +4,7 @@ import { conflictListRecord } from '@/lib/conflicts'
 import { LocalizedText } from '@/i18n/runtime'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
-import { cn } from 'cn'
+import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
 
 // A conflict's detail, full-screen: it covers the whole work area (editor,
 // canvas and bottom panel) while the activity bar and its sidebar stay, so
@@ -40,22 +39,29 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   if (!conflict) return null
   return (
     <div data-review-overlay role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
-      {/* The same path bar as a page's: the project it's in (back to where
-          it was opened from) and this view. */}
-      <div className={cn(BREADCRUMB_BAR, 'justify-between border-white/[0.07] pr-2')}>
-        <Breadcrumb items={[{ label: conflict.projectName ?? conflict.projectId, onClick: () => openConflictReview(null), translate: false }, { label: 'Conflict detail' }]} />
+      {/* The same path, in the same place, as a page's: the dashboard, the
+          project, the change list (back to where this was opened from) and
+          this change — with Close at the end of its row. */}
+      <BreadcrumbBar>
+        <Breadcrumb
+          items={[
+            ...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? conflict.projectId }),
+            { label: 'Conflict', onClick: () => openConflictReview(null) },
+            { label: conflict.title, key: conflict.id },
+          ]}
+        />
         <button
           ref={closeRef}
           type="button"
           data-review-overlay-close
           onClick={() => openConflictReview(null)}
-          className="ds-intrinsic inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+          className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
         >
           <X className="size-3.5" />
           <LocalizedText text="Close" />
           <kbd className="ml-0.5 rounded bg-white/[0.08] px-1 font-sans text-[10px] font-normal text-slate-400">Esc</kbd>
         </button>
-      </div>
+      </BreadcrumbBar>
       <div className="min-h-0 flex-1">
         <ReviewDetail conflict={conflict} inMergeStudio={inMergeStudio} />
       </div>

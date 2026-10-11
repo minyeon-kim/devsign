@@ -3,7 +3,7 @@ import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { Info } from 'lucide-react'
-import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
+import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -87,24 +87,24 @@ function HistoryPage() {
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {/* The path, and how many versions. What the page is sits behind the
           ⓘ; a filter narrowing the playback says so here. */}
-      <div data-history-title className={BREADCRUMB_BAR}>
+      <BreadcrumbBar data-history-title>
         <Breadcrumb
-          items={[{ label: project.name, to: `/projects/${project.id}`, translate: false }, { label: 'History' }]}
+          items={[...projectCrumbs(project), { label: 'History' }]}
           meta={(
             <>
               <span>{`${timeline.length} checkpoints`}</span>
-              <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-5 shrink-0 cursor-help items-center justify-center rounded-full hover:bg-white/[0.06] hover:text-foreground">
-                <Info className="size-3.5" />
+              <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-4 shrink-0 cursor-help items-center justify-center rounded-full hover:text-white">
+                <Info className="size-3" />
               </span>
               {scopeLabel && (
-                <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="inline-flex h-5 items-center rounded-full bg-amber-400/15 px-2 text-amber-200">
+                <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="inline-flex h-4 items-center rounded-full bg-amber-400/15 px-1.5 text-amber-200">
                   {scopeLabel}
                 </span>
               )}
             </>
           )}
         />
-      </div>
+      </BreadcrumbBar>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         <div className="min-h-0 flex-1">
