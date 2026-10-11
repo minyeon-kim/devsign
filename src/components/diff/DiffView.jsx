@@ -108,9 +108,9 @@ function prepare(rows, startLine, lit = true) {
   return out
 }
 
-function Text({ row }) {
+function Text({ row, wrap = true }) {
   return (
-    <span className="min-w-0 flex-1 pr-3 whitespace-pre-wrap [word-break:break-all]">
+    <span className={wrap ? 'min-w-0 flex-1 pr-3 whitespace-pre-wrap [word-break:break-all]' : 'pr-3 whitespace-pre'}>
       {row.runs ? row.runs.map((run, at) => <span key={at} className={run.changed && run.text.trim() ? LIT[row.kind] : undefined}>{run.text}</span>) : row.text || ' '}
     </span>
   )
@@ -127,7 +127,9 @@ function FoldRow({ count }) {
 // `startLine`: the first line's number. `labels`: the split columns' titles.
 // `lit`: light what differs within paired lines (off where the pairs aren't
 // one line changed — a merge conflict's marker block).
-export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers = true, lit = true, className }) {
+// `wrap={false}`: a line of code stays one line — the block scrolls sideways
+// (each column of its own, side by side) instead of folding long lines.
+export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers = true, lit = true, wrap = true, className }) {
   const [preferred] = useDiffLayout()
   const layout = forced ?? preferred
   const shown = prepare(rows, startLine, lit)
@@ -148,10 +150,10 @@ export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers 
       i = e
     }
     const cell = (row, side) => (row?.kind === 'fold' ? <FoldRow count={row.count} /> : row ? (
-      <div className={cn('flex min-w-0', TONE[row.kind === 'same' ? 'same' : row.kind])}>
+      <div className={cn('flex', wrap ? 'min-w-0' : 'w-max min-w-full', TONE[row.kind === 'same' ? 'same' : row.kind])}>
         {numbers && <span className={NUMBER}>{side === 'left' ? row.from : row.to}</span>}
         <span aria-hidden className="w-4 shrink-0 text-center opacity-70 select-none">{MARK[row.kind]}</span>
-        <Text row={row} />
+        <Text row={row} wrap={wrap} />
       </div>
     ) : <div aria-hidden className="h-full min-h-5 bg-[repeating-linear-gradient(135deg,transparent_0_4px,rgba(255,255,255,0.03)_4px_8px)]" />)
     return (
@@ -163,23 +165,25 @@ export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers 
           </div>
         )}
         <div className="grid grid-cols-2 divide-x divide-white/[0.07] font-mono">
-          <div className="min-w-0">{pairs.map(([left], index) => <div key={index} className="min-h-5">{cell(left, 'left')}</div>)}</div>
-          <div className="min-w-0">{pairs.map(([, right], index) => <div key={index} className="min-h-5">{cell(right, 'right')}</div>)}</div>
+          <div className={cn('min-w-0', !wrap && 'overflow-x-auto')}><div className={wrap ? undefined : 'w-max min-w-full'}>{pairs.map(([left], index) => <div key={index} className="min-h-5">{cell(left, 'left')}</div>)}</div></div>
+          <div className={cn('min-w-0', !wrap && 'overflow-x-auto')}><div className={wrap ? undefined : 'w-max min-w-full'}>{pairs.map(([, right], index) => <div key={index} className="min-h-5">{cell(right, 'right')}</div>)}</div></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div data-diff-view="unified" className={cn('min-w-0 font-mono text-[11px] leading-5', className)}>
+    <div data-diff-view="unified" data-diff-wrap={wrap} className={cn('min-w-0 font-mono text-[11px] leading-5', !wrap && 'overflow-x-auto', className)}>
+      <div className={wrap ? undefined : 'w-max min-w-full'}>
       {shown.map((row, index) => (row.kind === 'fold' ? <div key={index} className="font-sans"><FoldRow count={row.count} /></div> : (
-        <div key={index} className={cn('flex min-w-0', TONE[row.kind])}>
+        <div key={index} className={cn('flex', wrap ? 'min-w-0' : 'w-max min-w-full', TONE[row.kind])}>
           {numbers && <span className={NUMBER}>{row.from ?? ''}</span>}
           {numbers && <span className={NUMBER}>{row.to ?? ''}</span>}
           <span aria-hidden className="w-4 shrink-0 text-center opacity-70 select-none">{MARK[row.kind]}</span>
-          <Text row={row} />
+          <Text row={row} wrap={wrap} />
         </div>
       )))}
+      </div>
     </div>
   )
 }

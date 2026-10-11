@@ -62,7 +62,11 @@ function snapshotLines(snapshot) {
 // version. The change line, the renders and the code all read from it, so
 // they can't say different things. A first checkpoint has nothing before
 // it: it's compared with the current version whatever is picked.
-function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
+// `embedded` (a change's replay, inside its detail): the same viewer without
+// its own card and header — `header` is the caller's line in their place
+// (back, which step, the way out to History). Everything under it is this
+// component's, as on the History page.
+function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null }) {
   const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
   const navigate = useNavigate()
   const language = useLanguage()
@@ -253,8 +257,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   return (
     // A Merge Studio floating panel: the same surface as the Version
     // History drawer, borderless inside, the mint accent for Restore.
-    <div className={cn('flex h-full min-h-0 flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}>
-      <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-3 pb-2">
+    <div data-history-compare={embedded ? 'embedded' : 'page'} className={cn('flex h-full min-h-0 flex-col overflow-hidden', embedded ? 'rounded-xl bg-white/[0.03]' : cn(PANEL_RADIUS, FLOATING_PANEL))}>
+      {embedded ? header : <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-3 pb-2">
         {/* One line: the title first (it takes the room; the meta gives way
             before it does, and only then does it truncate — its full text on
             hover), its kind, then when · where · who. */}
@@ -306,7 +310,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             </DropdownMenuContent>
           </DropdownMenu>}
         </div>
-      </div>
+      </div>}
 
       {/* The change line: what this version differs by from what it's
           compared with — in a person's words, then, fainter and in code, the
@@ -429,12 +433,13 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             // before it, exactly, and ends on this one, exactly.
             <div className="font-mono"><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>
           ) : showDiff ? (
-            <DiffView rows={codeRows} layout={diffLayout} className="text-[12px]" labels={[pair.leftTitle, pair.rightTitle]} />
+            <DiffView rows={codeRows} layout={diffLayout} wrap={false} className="text-[12px]" labels={[pair.leftTitle, pair.rightTitle]} />
           ) : codeRows.map((row, index) => (
             // (No difference: the file itself, as it is in both.)
-            <div key={index} className="flex min-w-0 py-px pr-3 font-mono whitespace-pre-wrap text-slate-300 [word-break:break-all]">
+            // (A line stays a line: the block scrolls sideways, the code doesn't wrap.)
+            <div key={index} className="flex w-max min-w-full py-px pr-3 font-mono whitespace-pre text-slate-300">
               <span className={GUTTER}>{row.to ?? ''}</span>
-              <span className="min-w-0 flex-1 whitespace-pre-wrap [word-break:break-all]">{row.text || ' '}</span>
+              <span className="whitespace-pre">{row.text || ' '}</span>
             </div>
           ))}
         </div>

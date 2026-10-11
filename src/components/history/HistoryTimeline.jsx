@@ -45,7 +45,7 @@ function HistoryTimeline({
       aria-label="History playback"
       className={cn(
         'flex shrink-0 items-center bg-transparent',
-        compact ? 'w-full flex-nowrap gap-2 px-2.5 py-1.5' : 'gap-3 px-3 py-2.5'
+        compact ? 'w-full flex-nowrap gap-2 px-3 py-4' : 'gap-3 px-3 py-2.5'
       )}
     >
       <button
@@ -91,18 +91,23 @@ function HistoryTimeline({
                 // A checkpoint off the trunk (or tied to an issue) is a dot;
                 // the rest are quiet ticks. With `branchColor` on the entry
                 // (History's branch graph), the dot takes its branch's color.
-                const hasConflictMarker = entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length) || Boolean(entry.conflictMarks?.length) || Boolean(entry.branch && entry.branch !== 'main')
+                // (A change's own replay — the compact bar — is a few steps: each is a dot.)
+                const hasConflictMarker = compact || entry.kind === 'conflict' || Boolean(entry.conflictId) || Boolean(entry.conflictIds?.length) || Boolean(entry.conflictMarks?.length) || Boolean(entry.branch && entry.branch !== 'main')
                 const isMergeMarker = entry.kind === 'merge' && hasConflictMarker
                 if (count > MAX_TICKS && !hasConflictMarker) return null
                 return (
               <span
                 key={entry.id}
-                title={hasConflictMarker ? `${entry.timestamp ?? entry.label} · ${entry.branch ?? (isMergeMarker ? 'Merged conflict' : 'Conflict history')}` : undefined}
+                // (A dot says which step it is on hover, and goes there on a
+                // press — it sits over the slider's own input.)
+                title={hasConflictMarker ? `${i + 1}/${count} · ${entry.label}` : undefined}
+                onClick={hasConflictMarker ? () => onSelect(entry.id) : undefined}
+                data-timeline-dot={hasConflictMarker ? i : undefined}
                 aria-label={hasConflictMarker ? `${isMergeMarker ? 'Merged conflict' : 'Conflict history'}: ${entry.label}` : undefined}
                 className={cn(
                   'absolute top-1/2 -translate-x-1/2 -translate-y-1/2',
                   hasConflictMarker
-                    ? cn('z-10 size-2 rounded-full ring-1 ring-offset-1 ring-offset-[#19191B]', !entry.branchColor && (isMergeMarker ? 'bg-emerald-300 ring-emerald-200/60' : 'bg-amber-300 ring-amber-200/60'))
+                    ? cn('pointer-events-auto z-20 size-2 cursor-pointer rounded-full ring-1 ring-offset-1 ring-offset-[#19191B]', !entry.branchColor && (isMergeMarker ? 'bg-emerald-300 ring-emerald-200/60' : 'bg-amber-300 ring-amber-200/60'))
                     : cn('h-1 w-px', i <= index ? 'bg-emerald-950/60' : 'bg-white/20')
                 )}
                 style={{

@@ -178,7 +178,9 @@ export function BreakpointScreen({ conflict }) {
         title="768px 렌더링 검증으로 이동"
         onClick={() => window.dispatchEvent(new CustomEvent('devsign:reveal-verify', { detail: conflict.id }))}
         className="ds-intrinsic relative block shrink-0 cursor-pointer overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        style={{ width: THUMB_WIDTH, height: Math.round(device.height * scale), aspectRatio: `${device.width} / ${device.height}` }}
+        // (Where it is, not what it looks like — the renders are the main
+        // view's: the top of the screen, with the cards, is enough.)
+        style={{ width: THUMB_WIDTH, height: Math.min(Math.round(device.height * scale), 96) }}
       >
         <span aria-hidden className="pointer-events-none absolute top-0 left-0 block origin-top-left" style={{ width: device.width, height: device.height, transform: `scale(${scale})`, padding: 48, background: '#fff' }}>
           <div style={{ width: 200, height: 28, borderRadius: 6, background: '#0f172a' }} />

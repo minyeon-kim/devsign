@@ -4,7 +4,7 @@ import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } fro
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import { flowOf } from '@/lib/conflictInsight'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, Pencil, MapPin, Minus, Plus, RotateCcw, Send, Sparkles, TriangleAlert, X, Play } from 'lucide-react'
+import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, Pencil, MapPin, Minus, Plus, RotateCcw, Send, Sparkles, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -52,7 +52,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow, { HistoryReplayButton } from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
@@ -567,7 +567,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
     <div data-review-info className="flex min-h-full flex-col">
       {/* Required rules and rollback status, followed by the next action.
           The title row carries the review status and risk. */}
-      <InfoSection>
+      {/* (Nothing to say here — a design decision's status is the main view's — no empty section.) */}
+      {(conflict.rollback || isAiDraft || todo) && <InfoSection>
         <div data-status-badges className="flex flex-wrap items-center gap-1.5">
           {/* (A conflict's status is the badge beside its title; only a
               rollback agreement, which has none, says it here.) */}
@@ -584,7 +585,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         {todo && <p data-next-step className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={todo} /></p>}
         {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
         {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
-      </InfoSection>
+      </InfoSection>}
 
       {/* (A mix of drafts lists its picks in the main view, beside the
           result — not again here.) */}
@@ -2322,6 +2323,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The main area is the comparison — or, while one is being watched, a
   // step's replay (opened from the sidebar's Activity tab).
   const [replayId, setReplayId] = useState(null)
+  const [replayAutoplay, setReplayAutoplay] = useState(null)
   const activity = useConflictActivity(conflict, workspace)
   // Evidence links and the one question a departure asks.
   const [ruleFocus, setRuleFocus] = useState(null)
@@ -2358,15 +2360,78 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     setReplayId(null)
   }
 
+  // Esc while the replay is open closes the replay, back to the review — not
+  // the page (that's the next Esc). A full-screen preview, a dialog or a menu
+  // open over it closes first, by its own.
+  useEffect(() => {
+    if (!replayId) return undefined
+    function onKey(event) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (document.querySelector('[data-preview-fullscreen-layer], [data-slot="dialog-content"], [role="menu"], [role="listbox"]')) return
+      event.preventDefault()
+      event.stopPropagation()
+      setReplayId(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [replayId])
+  // The activity follows the replay: the step in view is scrolled to.
+  useEffect(() => {
+    if (!replayId || !conflict?.decisionFlow) return
+    const entries = activity.entries
+    const entry = entries.find((item) => item.id === replayId)
+    if (!entry) return
+    const at = entries.findIndex((item) => item.kind === 'conflict')
+    const step = entry.kind === 'merge' ? 5 : entry.kind === 'decision' ? (entries.filter((item) => item.kind === 'decision').indexOf(entry) === 0 ? 2 : 3) : at >= 0 && entries.indexOf(entry) > at ? 4 : 1
+    setHistoryFocus({ step, nonce: Date.now() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayId])
+
   function update(patch) {
     onUpdate?.(conflict.id, patch)
   }
 
-  // Opening a step's replay (the Activity tab's "View replay").
-  function openReplay(id) {
+  // The replay — one thing, opened at a step: from the record's ▶ (the first
+  // step, playing), a step's own row, an activity item, or the merged
+  // banner (the last step). It takes the main area; the side panel turns to
+  // the activity, on the step in view.
+  function openReplay(id, { autoplay = false } = {}) {
+    if (!id) return
     setReplayId(id)
+    setReplayAutoplay(autoplay ? id : null)
+    setSideTab(conflict.decisionFlow ? 'history' : 'activity')
     if (!conflict.historyInspected) update({ historyInspected: true })
   }
+  // Which of the change's saved steps a part of its record is: its
+  // detection, the request, the decision, the fix, the merge.
+  function replayEntryFor(key) {
+    const entries = activity.entries
+    if (!entries.length) return null
+    const at = entries.findIndex((entry) => entry.kind === 'conflict')
+    const decisions = entries.filter((entry) => entry.kind === 'decision')
+    const picked = {
+      start: entries[0],
+      end: entries.at(-1),
+      detect: entries[at] ?? entries[0],
+      request: decisions[0],
+      decision: decisions[1] ?? decisions[0],
+      fix: entries.filter((entry, index) => index > at && (entry.kind === 'edit' || entry.kind === 'ai-edit')).at(-1),
+      resolve: entries.find((entry) => entry.kind === 'merge'),
+    }[key]
+    return (picked ?? entries.at(-1)).id
+  }
+  // …and the other way: the record's step (1–5) a saved step belongs to.
+  function recordStepOf(entryId) {
+    const entries = activity.entries
+    const entry = entries.find((item) => item.id === entryId)
+    if (!entry) return null
+    if (entry.kind === 'merge') return 5
+    const at = entries.findIndex((item) => item.kind === 'conflict')
+    const index = entries.indexOf(entry)
+    if (entry.kind === 'decision') return entries.filter((item) => item.kind === 'decision').indexOf(entry) === 0 ? 2 : 3
+    return at >= 0 && index > at ? 4 : 1
+  }
+  const EVENT_STEP_KEY = { detected: 'detect', requested: 'request', decided: 'decision', fixed: 'fix', verified: 'fix', resolved: 'resolve', reopened: 'detect' }
 
   // The Activity tab is this conflict's own activity, here in the panel
   // (see ConflictHistoryReplay). From there, "Project history" is the way out to the project's archive: it
@@ -3054,14 +3119,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                           conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
                         ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
                       </span>
-                      {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
+                      {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={() => (activity.entries.length ? openReplay(replayEntryFor('end')) : handleOpenFile())} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>
                   )
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div data-review-header className={cn('flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'pt-3 pb-4') : 'px-4 py-4 sm:px-6')}>
+            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
                 <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
                   {!page && <button
@@ -3088,13 +3153,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                   {/* (The page's meta line: when it's due and where it stands.) */}
                   {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="ml-1.5 text-xs" />}
-                  {page && !conflict.rollback && <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />}
+                  {page && !conflict.rollback && stage !== 'resolved' && <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />}
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
               {/* Align the review action with the lower metadata row (on the page: with the title's line). */}
               <div data-review-actions className={cn('flex min-w-0 shrink-0 items-center gap-2', page ? 'self-start' : 'relative top-2 self-end')}>
-                {conflict.rollback ? primary : conflict.decisionFlow ? <HistoryReplayButton conflict={conflict} workspace={workspace} /> : approvalBar}
+                {/* (A design decision's actions are its status block's; its replay opens from its record.) */}
+                {conflict.rollback ? primary : conflict.decisionFlow ? null : approvalBar}
               </div>
             </div>
             {/* A mix of drafts just sent to merge: its next step — asking the
@@ -3147,7 +3213,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
                     <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} />
+                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} onReplay={activity.entries.length ? (key) => openReplay(replayEntryFor(key), { autoplay: key === 'start' }) : undefined} />
                     </div>
                   ) : !replayId ? (
                     <>
@@ -3240,7 +3306,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </>
                   ) : (
                     <div className="flex min-h-0 flex-1">
-                      <ConflictReplay conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onBack={() => setReplayId(null)} onOpenEvidence={openEvidence} />
+                      <ConflictReplay key={`${conflict.id}:${replayAutoplay ?? 'open'}`} conflict={conflict} activity={activity} replayId={replayId} onReplay={setReplayId} onBack={() => setReplayId(null)} autoplay={replayAutoplay != null}
+                        onOpenHistory={(entryId) => navigate(`/projects/${conflict.projectId}/history?v=${entryId}`, { state: { flashCheckpoint: entryId } })} />
                     </div>
                   )}
                 </div>
@@ -3278,7 +3345,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     ))}
                   </div>
                   {sideTab === 'info' ? (
-                    <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                    <div data-review-scroll="info" role="tabpanel" className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:mt-8 [&>[data-info-section]+[data-review-info]]:mt-8')}>
                       {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
                       {!conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
                       {!conflict.rollback && (
@@ -3322,14 +3389,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         // (The sample history is for looking at: nothing is written to it.)
                         canWrite={!historyPreview && Boolean(workspace?.addConflictOpinion)}
                         onSend={(body, replyTo) => workspace.addConflictOpinion(conflict.id, body, replyTo)}
-                        // The way into the code replay (the Activity tab's, which
-                        // this tab stands in for).
-                        footer={activity.entries.length > 0 && (
-                          <button type="button" data-replay-open aria-pressed={Boolean(replayId)} onClick={() => openReplay(replayId ?? activity.entries[0].id)} className="ds-intrinsic mt-2 inline-flex h-7 w-fit shrink-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
-                            <Play className="size-3 fill-current" />
-                            <LocalizedText text="Watch the code replay" />
-                          </button>
-                        )}
+                        // A record opens the replay at its step; while it plays, the
+                        // step it's on is lit here.
+                        onOpenStep={activity.entries.length ? (event) => openReplay(replayEntryFor(EVENT_STEP_KEY[event.type] ?? 'start')) : undefined}
+                        activeStep={replayId ? recordStepOf(replayId) : null}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (

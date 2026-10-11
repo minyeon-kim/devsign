@@ -92,7 +92,7 @@ function LayoutComparison({ conflict, proposal, bare = false }) {
   return (
     <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={bare ? undefined : CARD}>
       {!bare && <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>}
-      <div className={cn('grid gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+      <div className={cn('grid', bare ? 'max-w-[760px] gap-8' : 'gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
         {entries.map(([key, layout, tone]) => (
           <figure key={key} data-layout={key} className="min-w-0">
             <TabletPreview columns={layout.columns} overlap={layout.overlap} widthMode={layout.widthMode} />
@@ -213,7 +213,7 @@ function RequestCard({ conflict, bare = false }) {
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>}
-      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
         <dt className="text-slate-400">변경 사유</dt>
         <dd className="text-slate-100">{request.reason}</dd>
         <dt className="text-slate-400">수정안</dt>
@@ -225,10 +225,11 @@ function RequestCard({ conflict, bare = false }) {
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
-        <dt className="text-slate-400">개발 단계</dt>
+        {/* (In the record, when it's wanted by is on the step's line.) */}
+        {!bare && <><dt className="text-slate-400">개발 단계</dt>
         <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
         <dt className="text-slate-400">희망 반영 시점</dt>
-        <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd>
+        <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd></>}
         {!bare && <><dt className="text-slate-400">영향 범위</dt>
         <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd></>}
       </dl>
@@ -256,11 +257,11 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
         </h3>
         <span className="text-[11px] text-slate-500">{decision.decidedAt ? formatTime(decision.decidedAt) : decision.at}</span>
       </div>}
-      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
         <dt className="text-slate-400">이유</dt>
         <dd className="text-slate-100">{decision.reason}</dd>
-        <dt className="text-slate-400">반영 시점</dt>
-        <dd className="font-medium text-slate-100">{TIMING_LABEL[decision.timing] ?? '—'}</dd>
+        {!bare && <><dt className="text-slate-400">반영 시점</dt>
+        <dd className="font-medium text-slate-100">{TIMING_LABEL[decision.timing] ?? '—'}</dd></>}
         {/* (In the record the proposal is the request's line — not said again here.) */}
         {!bare && <><dt className="text-slate-400">다음 할 일</dt>
         <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
@@ -936,19 +937,6 @@ function useReplayNavigation(conflict, workspace) {
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 }
-// "History" names this one thing: the replay of what was committed. (What
-// people said and did is the 활동 tab.) Sits in the page header.
-export function HistoryReplayButton({ conflict, workspace }) {
-  const open = useReplayNavigation(conflict, workspace)
-  if (!conflict.decisionFlow || !(conflict.decisionRequest || conflict.designDecision)) return null
-  return (
-    <button type="button" data-decision-history onClick={open} className={SECONDARY}>
-      <Play className="size-3.5" />
-      History에서 재생
-    </button>
-  )
-}
-
 // The record of what's been done, as a thin timeline: a small dot on a line,
 // one row a step — [step] · [who] · [what] · [when] — that opens in place.
 // A finished step's dot is a quiet grey check; only the step under way is in
@@ -958,23 +946,33 @@ function StepDot({ state }) {
   return <span aria-hidden data-step-dot={state} className={cn('flex size-4 items-center justify-center rounded-full bg-[#1b1b1e] ring-2 ring-inset', state === 'problem' ? 'ring-amber-300' : 'ring-sky-300')}><span className={cn('size-1.5 rounded-full', state === 'problem' ? 'bg-amber-300' : 'bg-sky-300')} /></span>
 }
 
-function StepRow({ state, title, who, summary, time, open, onToggle, last, children, ...rest }) {
+// `onReplay`: the replay opened at this step — a quiet text button that shows
+// on the row's hover or focus.
+function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, children, ...rest }) {
   return (
-    <li className="relative pl-7" {...rest}>
+    <li className="group/step relative pl-7" {...rest}>
       {/* (The line runs on to the next step's dot; the last one ends at its own.) */}
-      {!last && <span aria-hidden className="absolute top-5 bottom-[-10px] left-[7.5px] w-px bg-white/[0.1]" />}
-      <span className="absolute top-[10px] left-0"><StepDot state={state} /></span>
+      {!last && <span aria-hidden className="absolute top-5 bottom-[-28px] left-[7.5px] w-px bg-white/[0.1]" />}
+      <span className="absolute top-1 left-0"><StepDot state={state} /></span>
       <div data-step-row={state} data-open={open}>
-        <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex h-9 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md text-left text-[12.5px] focus-visible:outline-2 focus-visible:outline-emerald-300">
-          <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
-          <span aria-hidden className="shrink-0 text-slate-600">·</span>
-          <span data-step-who className="shrink-0 whitespace-nowrap text-slate-300">{who}</span>
-          {summary && <span aria-hidden className="shrink-0 text-slate-600">·</span>}
-          <span data-step-summary className="min-w-0 flex-1 truncate text-slate-400">{summary}</span>
+        <div className="flex h-6 min-w-0 items-center gap-2 text-sm">
+          <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+            <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
+            <span aria-hidden className="shrink-0 text-slate-600">·</span>
+            <span data-step-who className="shrink-0 whitespace-nowrap text-slate-300">{who}</span>
+            {summary && <span aria-hidden className="shrink-0 text-slate-600">·</span>}
+            <span data-step-summary className="min-w-0 flex-1 truncate text-slate-400">{summary}</span>
+          </button>
+          {onReplay && (
+            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-xs text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
+              이 단계부터 보기
+            </button>
+          )}
           {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-          <Chevron open={open} className="size-3.5" />
-        </button>
-        <FoldBody open={open}><div className="flex flex-col gap-3 pt-1 pr-6 pb-3">{children}</div></FoldBody>
+          <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3.5" /></button>
+        </div>
+        {/* Opened: 16px under its line, set to the line's own text, a readable measure. */}
+        <FoldBody open={open}><div className="flex flex-col gap-4 pt-4 pr-8 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>
       </div>
     </li>
   )
@@ -985,7 +983,7 @@ const FOLD_ALL = FOLD_STEPS
 // What the detection touched: its file and what's affected — said once, here.
 function DetectionFacts({ conflict }) {
   return (
-    <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+    <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
       <dt className="text-slate-400">관련 파일</dt>
       <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
       <dt className="text-slate-400">영향 범위</dt>
@@ -994,7 +992,9 @@ function DetectionFacts({ conflict }) {
   )
 }
 
-export default function DesignDecisionFlow({ conflict, workspace, viewer, banner = null }) {
+// `onReplay(key)`: opens the change's replay — 'start' (the first step, playing)
+// or at a step of the record ('detect', 'request', 'decision', 'fix').
+export default function DesignDecisionFlow({ conflict, workspace, viewer, banner = null, onReplay }) {
   const navigate = useNavigate()
   const developer = viewer?.jobRole === 'Developer'
   const stage = decisionStageOf(conflict)
@@ -1055,9 +1055,10 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // once everything is done they're all folded.
   const post = Boolean(developer && decision && ['decided', 'fixed', 'verified', 'resolved'].includes(stage))
   const fixPhase = post ? fixPhaseOf(conflict) : null
-  // (Checked and waiting for the merge: nothing in the record is under way —
-  // what's left is the status block's button.)
-  const current = post && stage !== 'resolved' && fixPhase !== 'verified' ? 'fix' : null
+  // The record is folded — every step — unless one needs a person (a failed
+  // check, a go-ahead to give): that one opens. (What's under way or waiting
+  // for the merge is the status block's to say.)
+  const current = post && ['failed', 'manual', 'approval', 'unfixable'].includes(fixPhase) ? 'fix' : null
   const isOpen = (key) => folds.get(key, key === current)
   const allOpen = post && FOLD_STEPS.every(isOpen)
   const toggle = (key) => folds.set(key, !isOpen(key))
@@ -1079,7 +1080,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
       summary: [`${breakpoint}px`, '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
     { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
-      summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', ') },
+      summary: [(proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', '), !request?.direct && TIMING_LABEL[request?.timing] && `${TIMING_LABEL[request.timing]} 반영 희망`].filter(Boolean).join(' · ') },
     { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
       summary: TIMING_LABEL[decision.timing] ? `${TIMING_LABEL[decision.timing]} 반영` : '' },
     { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : needsPerson ? 'problem' : 'current',
@@ -1153,20 +1154,28 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 }}
                 onResolve={() => {
                   const checkpoint = workspace.resolveDecision(conflict.id)
-                  if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: 'History에서 재생', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
+                  if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: '히스토리에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
                 }}
               />
               {/* Then how it got here: the record, light — a line a step. */}
-              <section data-step-record aria-label="진행 기록" className="mt-2">
-                <div data-step-list-head className="mb-1 flex items-center justify-between gap-3">
-                  <h3 className="text-[13px] font-semibold text-white">진행 기록</h3>
-                  <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="cursor-pointer text-[12px] font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
+              {/* (40px under the status block; 24px between its lines.) */}
+              <section data-step-record aria-label="진행 기록" className="mt-5.5">
+                <div data-step-list-head className="mb-4 flex items-center gap-3">
+                  <h3 className="text-sm font-semibold text-white">진행 기록</h3>
+                  <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
                     {allOpen ? '모두 접기' : '모두 펼치기'}
                   </button>
+                  {/* The one way into the replay from the page: from the first step, playing. */}
+                  {onReplay && (
+                    <button type="button" data-replay-open onClick={() => onReplay('start')} className={SECONDARY}>
+                      <Play className="size-3 fill-current" />
+                      리플레이
+                    </button>
+                  )}
                 </div>
-                <ol data-step-list className="m-0 flex list-none flex-col p-0">
+                <ol data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
                   {steps.map((step, index) => (
-                    <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} last={index === steps.length - 1}>
+                    <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} onReplay={onReplay ? () => onReplay(step.key) : undefined} last={index === steps.length - 1}>
                       {step.key === 'detect' && (
                         <>
                           <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
@@ -1201,7 +1210,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 workspace.decideDesign(conflict.id, next)
                 toast(`${nameOf(request.by)}님에게 결정을 보냈어요: ${DECISION_LABEL[next.choice]}`, {
                   description: next.timing ? `반영 시점 ${TIMING_LABEL[next.timing]} · 승인 기록이 남았어요` : '승인 기록이 남았어요',
-                  action: { label: 'History에서 재생', onClick: openHistory },
+                  action: { label: '히스토리에서 보기', onClick: openHistory },
                 })
               }}
             />

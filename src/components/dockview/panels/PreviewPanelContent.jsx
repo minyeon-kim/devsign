@@ -287,8 +287,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         // One line, whatever the pane's width: the device on the left (it
         // gives way first — its name truncates), the views as icon buttons
         // on the right. What's being rendered is said under the frame, once.
-        <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-1.5 px-3 pb-2', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <div data-preview-controls className={cn('flex shrink-0 items-center gap-x-1.5 gap-y-1.5 px-3 pb-2', compareView ? 'flex-wrap' : 'flex-nowrap', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
+          {/* (The comparison's toolbar holds more — what it's compared with, how:
+              in a narrow pane its tools go to a second line rather than run
+              into each other.) */}
+          <div className={cn('flex min-w-0 items-center gap-1.5', compareView ? 'flex-none' : 'flex-1')}>
             {toolbarExtra}
             {/* Comparing: how, first; the device moves to the right, with the views. */}
             {comparing && (
@@ -322,7 +325,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               </DropdownMenu>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className={cn('flex shrink-0 items-center gap-0.5', compareView && 'ml-auto')}>
             {(comparing || (compareView && rendering)) && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
             {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
             {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}

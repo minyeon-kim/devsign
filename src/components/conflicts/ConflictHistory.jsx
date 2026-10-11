@@ -119,7 +119,10 @@ function EventContent({ event }) {
   return null
 }
 
-function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, footer }) {
+// `onOpenStep(event)`: pressing a record opens the replay at its step (what
+// was said — an opinion — has no step of its own to open). `activeStep`: the
+// step the replay is on; its records are lit.
+function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, footer, onOpenStep, activeStep = null }) {
   const [filter, setFilter] = useState('all')
   const [expanded, setExpanded] = useState(() => new Set())
   const [reply, setReply] = useState(null)
@@ -262,7 +265,10 @@ function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, foo
                   data-history-event={event.id}
                   data-event-type={event.type}
                   data-event-step={event.step}
-                  className={cn('group relative rounded-lg pr-2 pl-7 outline-none transition-colors duration-500 focus-visible:ring-1 focus-visible:ring-emerald-300/60', grouped ? 'pt-0 pb-3' : 'pt-1 pb-4', decided && 'bg-white/[0.03]', flash === event.id && 'bg-white/[0.08]')}
+                  data-replay-active={activeStep != null && event.step === activeStep ? '' : undefined}
+                  title={onOpenStep && event.type !== 'commented' ? '이 단계부터 리플레이 보기' : undefined}
+                  onClick={onOpenStep && event.type !== 'commented' ? (click) => { if (!click.target.closest('button, a, textarea, input')) onOpenStep(event) } : undefined}
+                  className={cn('group relative rounded-lg pr-2 pl-7 outline-none transition-colors duration-500 focus-visible:ring-1 focus-visible:ring-emerald-300/60', onOpenStep && event.type !== 'commented' && 'cursor-pointer hover:bg-white/[0.04]', activeStep != null && event.step === activeStep && 'bg-white/[0.06]', grouped ? 'pt-0 pb-3' : 'pt-1 pb-4', decided && 'bg-white/[0.03]', flash === event.id && 'bg-white/[0.08]')}
                 >
                   {/* The line down the page; it ends where the change is resolved. */}
                   {!(last && (resolved || !canWrite)) && !done && <span aria-hidden className={cn('absolute bottom-0 left-[9.5px] w-px bg-white/15', grouped ? 'top-0' : 'top-4')} />}

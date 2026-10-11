@@ -1,22 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Code2, Eye, GitMerge, History, MessageSquare, Play, RotateCcw, Scale, Send, TriangleAlert, XCircle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Code2, GitMerge, History, MessageSquare, Play, RotateCcw, Scale, Send, TriangleAlert, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
-import { diffLines } from '@/lib/lineDiff'
-import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
-import { deriveComponentOverride } from '@/lib/prototypeSync'
-import { changedLayerIds } from '@/lib/devicePreview'
-import { categoryFor, renderOf, renderPartsOf } from '@/lib/codeRender'
-import { layerIdsOf } from '@/lib/conflictInsight'
-import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
 import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
-import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
+import HistoryCompare from '@/components/history/HistoryCompare'
+import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useConflictStore } from '@/state/ConflictStore'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
-import { ReasonStrip } from '@/components/conflicts/Rationale'
-import { mergeEvidence, stepRationale } from '@/lib/rationale'
 
 const EVENT_COPY = {
   review_requested: { action: 'requested a review', Icon: Send },
@@ -59,7 +51,6 @@ const SEEDED_KIND = [
   [/commented/, 'comment'],
 ]
 
-const REPLAY_PANE_LABEL = 'flex h-6 shrink-0 items-center gap-1 px-3 text-[10.5px] font-medium text-slate-400'
 
 function conflictEvents(conflict, events, historyEntries) {
   const issueCheckpoint = [...historyEntries].reverse().find((entry) => entry.kind === 'conflict'
@@ -120,18 +111,6 @@ function stepName(entry, conflict) {
   if (entry?.kind === 'conflict') return conflict.revertOf ? 'Revert requested' : 'Conflict detected'
   if (entry?.kind === 'merge') return 'Merged'
   return entry?.label ?? ''
-}
-
-function snapshotLines(entry, conflict) {
-  const snapshot = entry?.snapshot
-  if (!snapshot) return []
-  const fileId = conflict.fileId ?? snapshot.fileId
-  const targetLines = fileId ? snapshot.files?.[fileId] : null
-  if (Array.isArray(targetLines)) return targetLines
-  const availableFileLines = Object.values(snapshot.files ?? {}).find(Array.isArray)
-  if (availableFileLines) return availableFileLines
-  if (Array.isArray(snapshot.lines)) return snapshot.lines
-  return []
 }
 
 // A conflict's activity, in two places:
@@ -279,167 +258,91 @@ export function ConflictActivityList({ conflict, activity, replayId, onReplay, o
   )
 }
 
-// A step's replay, in the review's main area: which step of how many, the
-// way back to the comparison, why the step happened, its code beside what
-// it renders, and the timeline to play through the steps.
-export function ConflictReplay({ conflict, rationale, activity, replayId, onReplay, onBack, onOpenEvidence }) {
+// A change's replay, in its detail's main area: the History page's own
+// checkpoint viewer (HistoryCompare, embedded) over this change's steps — so
+// what it compares with, its change line, its renders, its code and its
+// inspection marks are the page's, not a second version of them. Here it's
+// given the line on top — back to the review, which step of how many, and
+// the way out to the whole History — and the timeline under it.
+// `onClose` closes it; `onStep(id)` moves it (the caller owns which step).
+export function ConflictReplay({ conflict, activity, replayId, onReplay, onBack, onOpenHistory, autoplay = false }) {
   const { entries } = activity
-  const [playing, setPlaying] = useState(false)
-  const [compareLatest, setCompareLatest] = useState(true)
+  const [baseline, setBaseline] = useState('previous')
   const foundIndex = entries.findIndex((entry) => entry.id === replayId)
   const selectedIndex = foundIndex < 0 ? Math.max(0, entries.length - 1) : foundIndex
   const selected = entries[selectedIndex] ?? null
-  const latest = entries.at(-1) ?? null
-  const selectedLines = snapshotLines(selected, conflict)
-  const latestLines = snapshotLines(latest, conflict)
-  const rows = useMemo(() => {
-    if (!compareLatest || !selected || selected === latest) {
-      return selectedLines.map((text) => ({ kind: 'same', text }))
-    }
-    return diffLines(latestLines, selectedLines)
-  }, [compareLatest, latest, latestLines, selected, selectedLines])
-
+  const { playing, pause, toggle, advance } = useHistoryPlayback(entries, selected?.id ?? null, onReplay)
+  // Opened to play from the start: it starts once, by itself.
+  const started = useRef(false)
   useEffect(() => {
-    if (!playing) return undefined
-    const timer = window.setTimeout(() => {
-      if (selectedIndex < entries.length - 1) onReplay(entries[selectedIndex + 1].id)
-      else setPlaying(false)
-    }, 900)
-    return () => window.clearTimeout(timer)
+    if (!autoplay || started.current || entries.length < 2) return
+    started.current = true
+    toggle()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, playing, selectedIndex])
+  }, [autoplay, entries.length])
 
-  const replayEntries = useMemo(
-    () => entries.map((entry) => ({
-      ...entry,
-      timestamp: entry.timestamp ?? entry.label,
-    })),
-    [entries]
+  const timelineEntries = useMemo(
+    () => entries.map((entry) => ({ ...entry, label: stepName(entry, conflict), timestamp: entry.timestamp ?? entry.label })),
+    [entries, conflict]
   )
 
-  // The screen at a step: its own recorded edits, else what its code
-  // implies (see lib/prototypeSync).
-  const { projectPages } = useWorkspace()
-  const editsOf = (entry) => (entry ? entry.snapshot?.prototypeEdits ?? deriveComponentOverride(conflict.projectId, conflict.fileId ?? entry.snapshot?.fileId, snapshotLines(entry, conflict)) ?? {} : {})
-  // What the step changed on the screen, against the step before it — what
-  // "Show changed elements" rings. A first (or only) step has nothing before
-  // it: it marks the elements the conflict is about instead.
-  const previous = entries[selectedIndex - 1] ?? null
-  const stepFrame = selected?.snapshot?.mergeOutput?.design?.frame
-    ?? (projectPages.find((page) => page.id === selected?.snapshot?.activePageId) ?? projectPages.find((page) => page.id === conflict.designPageId) ?? projectPages[0])?.frames?.[0]
-  const changedOnScreen = selected && previous
-    ? changedLayerIds({ edits: editsOf(selected), previousEdits: editsOf(previous), props: selected.snapshot?.previewProps ?? {}, previousProps: previous.snapshot?.previewProps ?? {}, frame: stepFrame })
-    : []
-  const focusLayerIds = changedOnScreen.length ? changedOnScreen : selected?.snapshot?.selectedLayerId ? [selected.snapshot.selectedLayerId] : layerIdsOf(conflict)
-
-  // The step's code on a screen (lib/codeRender), where its file can be
-  // read into one — beside the latest step's when comparing.
-  const renderFile = conflict.fileId ?? selected?.snapshot?.fileId
-  const ownRender = selected ? renderOf(conflict.projectId, renderFile, selectedLines) : null
-  const codeRender = ownRender && {
-    ...ownRender,
-    title: `Checkpoint #${selectedIndex + 1} render`,
-    // (The kind of device the conflict is about, when it says; else the file's.)
-    category: conflict.targetDevice ?? categoryFor(conflict.projectId, renderFile),
-    previous: previous ? renderOf(conflict.projectId, renderFile, snapshotLines(previous, conflict))?.spec ?? null : null,
-    unchanged: Boolean(previous) && snapshotLines(previous, conflict).join('\n') === selectedLines.join('\n'),
-    // What the conflict itself is about, marked whatever the step changed:
-    // its elements' parts of the render, and — for a layout decision — the
-    // grid where the step's layout isn't the design's.
-    parts: renderPartsOf(conflict.projectId, renderFile, layerIdsOf(conflict)),
-    reference: conflict.fixes?.keep ? renderOf(conflict.projectId, renderFile, [conflict.fixes.keep])?.spec ?? null : null,
-    compare: compareLatest && latest && latest !== selected ? { title: 'Latest render', spec: renderOf(conflict.projectId, renderFile, latestLines)?.spec } : null,
+  if (!selected) {
+    return (
+      <section data-conflict-replay aria-label="Replay" className="flex min-h-[240px] min-w-0 flex-1 flex-col rounded-xl bg-white/[0.03] p-4">
+        <button type="button" data-replay-back onClick={onBack} className={cn(NAV_BUTTON, 'w-fit')}><ArrowLeft className={NAV_BUTTON_ICON} /><LocalizedText text="Back to review" /></button>
+        <p className="mt-4 text-xs text-slate-500"><LocalizedText text="No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline." /></p>
+      </section>
+    )
   }
-  if (codeRender?.compare && !codeRender.compare.spec) codeRender.compare = null
-
-  const step = rationale && selected ? stepRationale(selected, conflict, rationale) : null
-  // Shared sources stay in the summary; only step-specific additions repeat here.
-  const stepEvidence = mergeEvidence(rationale?.evidence, step?.evidence)
-    .slice(mergeEvidence(rationale?.evidence).length)
-    // (Comments are the sidebar's Comments tab's, not evidence here.)
-    .filter((item) => item.kind !== 'comment')
-
   return (
-    // (Tall enough for the screen to read in the preview whatever the
-    // window: the review's main column scrolls while a replay is open.)
-    <section data-conflict-replay aria-label="Conflict change replay" className="flex min-h-[560px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5">
-        {/* Going back: the arrow leads, pointing left. */}
-        <button type="button" data-replay-back onClick={onBack} className={NAV_BUTTON}>
-          <ArrowLeft className={NAV_BUTTON_ICON} />
-          <LocalizedText text="Back to review" />
-        </button>
-        <p data-replay-status className="min-w-0 text-xs text-slate-300">
-          <span className="font-semibold text-white"><LocalizedText text="Watching the replay" /></span>
-          <span className="text-slate-400"> · </span>
-          <span className="tabular-nums"><LocalizedText text={`Step ${selectedIndex + 1}/${entries.length}`} /></span>
-          {/* The step in view — not the conflict's title (that's the page
-              header's, once). */}
-          {selected && <span data-replay-step className="text-slate-400"> · <LocalizedText text={stepName(selected, conflict)} /></span>}
-        </p>
-      </div>
-      {/* Why this step happened, and what backs it — read before its code. */}
-      {step && <ReasonStrip label="Reason for this step" text={step.text} evidence={stepEvidence} onOpen={onOpenEvidence} className="shrink-0 border-t border-white/[0.06] px-3 py-2" />}
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {selected ? (
-          // Code and its preview together, half the replay each — the
-          // checkpoint's code and what it renders are read as a pair.
-          <div className="grid h-full min-h-0 grid-cols-2">
-            <div role="group" aria-label="Code" className="flex min-h-0 min-w-0 flex-col">
-              <p className={REPLAY_PANE_LABEL}><Code2 className="size-3" /><LocalizedText text="Code" />{rows.some((row) => row.kind !== 'same') && <DiffLayoutTabs className="ml-auto" />}</p>
-              <div className="min-h-0 flex-1 overflow-auto pb-2">
-                {rows.length ? <DiffView rows={rows} className="text-[10px]" labels={['Latest', 'This step']} />
-                  : <p className="px-3 py-4 text-xs font-sans text-slate-500">This replay checkpoint has no code snapshot.</p>}
-              </div>
-            </div>
-            <div role="group" aria-label="Preview" className="flex min-h-0 min-w-0 flex-col border-l border-white/[0.06]">
-              <p className={REPLAY_PANE_LABEL}><Eye className="size-3" /><LocalizedText text="Preview" /></p>
-              <div className="min-h-0 flex-1">
-                <PreviewPanelContent
-                  previewProps={selected.snapshot?.previewProps}
-                  // The whole screen at this checkpoint, not a sample of the
-                  // changed element: checkpoints without their own edits get
-                  // them from that checkpoint's code (see lib/prototypeSync).
-                  prototypeEdits={editsOf(selected)}
-                  activePageId={selected.snapshot?.activePageId}
-                  frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
-                  historical
-                  // Mounted through the steps (no `key` per step), so the view
-                  // picked and full screen hold while it plays.
-                  snapshotKey={selected.id}
-                  embedded
-                  viewControls
-                  focusLayerIds={focusLayerIds}
-                  codeRender={codeRender}
-                  highlightLayerId={changedOnScreen[0] ?? null}
-                  highlightKey={selected.id}
-                />
-              </div>
-            </div>
+    // (Tall enough for the render to read whatever the window: the review's
+    // main column scrolls while a replay is open.)
+    <section data-conflict-replay aria-label="Replay" className="flex min-h-[560px] min-w-0 flex-1 flex-col">
+      <HistoryCompare
+        embedded
+        hideRestore
+        entryId={selected.id}
+        baseEntryId={entries[selectedIndex - 1]?.id}
+        position={{ index: selectedIndex, total: entries.length }}
+        baseline={baseline}
+        onBaselineChange={setBaseline}
+        playing={playing}
+        onStepDone={advance}
+        header={(
+          <div data-replay-head className="flex shrink-0 items-center gap-3 px-3 pt-3 pb-2">
+            {/* Going back: the arrow leads, pointing left. */}
+            <button type="button" data-replay-back onClick={onBack} className={NAV_BUTTON}>
+              <ArrowLeft className={NAV_BUTTON_ICON} />
+              <LocalizedText text="Back to review" />
+            </button>
+            <p data-replay-status className="min-w-0 flex-1 truncate text-[13px] text-slate-300">
+              <span className="font-semibold text-white"><LocalizedText text="Replay" /></span>
+              <span className="text-slate-500"> · </span>
+              <span className="tabular-nums"><LocalizedText text={`Step ${selectedIndex + 1}/${entries.length}`} /></span>
+              {/* The step in view — not the change's title (that's the page's, once). */}
+              <span data-replay-step className="text-slate-400"> · <LocalizedText text={stepName(selected, conflict)} /></span>
+            </p>
+            {onOpenHistory && (
+              <button type="button" data-replay-history onClick={() => onOpenHistory(selected.id)} className="ds-intrinsic inline-flex shrink-0 items-center gap-1 rounded text-[12px] text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
+                <LocalizedText text="See it all in History" />
+                <ArrowUpRight className="size-3.5" />
+              </button>
+            )}
           </div>
-        ) : (
-          <p className="px-4 py-5 text-xs text-slate-500">
-            <LocalizedText text="No replay snapshots are linked to this conflict yet. Review and comment activity will still appear in the timeline." />
-          </p>
         )}
-      </div>
-      {entries.length > 0 && (
-        <HistoryTimeline
-          compact
-          entries={replayEntries}
-          selectedId={selected?.id}
-          onSelect={(id) => { setPlaying(false); onReplay(id) }}
-          playing={playing}
-          onTogglePlay={() => {
-            if (!playing && selectedIndex >= entries.length - 1 && entries[0]) onReplay(entries[0].id)
-            setPlaying((current) => !current)
-          }}
-          compareLatest={compareLatest}
-          onCompareLatestChange={setCompareLatest}
-          isCurrent
-          hideRestore
-        />
-      )}
+        footer={(
+          <HistoryTimeline
+            compact
+            entries={timelineEntries}
+            selectedId={selected.id}
+            onSelect={(id) => { pause(); onReplay(id) }}
+            playing={playing}
+            onTogglePlay={toggle}
+            isCurrent
+            hideRestore
+          />
+        )}
+      />
     </section>
   )
 }

@@ -789,6 +789,9 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+Start from this step|이 단계부터 보기
+See it all in History|히스토리에서 전체 보기
+Replay|리플레이
 Fold the code|코드 접기
 This is the first checkpoint: there’s none before it|첫 체크포인트라 이전 체크포인트가 없어요
 It’s the same as the current version|현재 버전과 같아요
@@ -851,7 +854,6 @@ Open the element preview|요소 미리보기 열기
 Open change details|변경점 상세 열기
 Show where it is on the screen|전체 화면에서 위치 보기
 Sides shown|보여줄 쪽
-Watch the code replay|코드 리플레이 보기
 View full screen|전체화면
 Exit full screen|전체화면 닫기
 Showing in full screen|전체화면으로 보는 중이에요
