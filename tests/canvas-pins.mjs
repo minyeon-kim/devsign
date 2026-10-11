@@ -3,7 +3,7 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
-  const { PIN, anchorOf, layoutPins, pinsFor } = await server.ssrLoadModule('/src/lib/canvasPins.js')
+  const { PIN, anchorOf, layoutPins, markerRect, markersOf, pinsFor } = await server.ssrLoadModule('/src/lib/canvasPins.js')
   const { conflictNumbersOf, orderedConflicts } = await server.ssrLoadModule('/src/components/conflicts/useConflictList.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
   const records = allConflictRecords().filter((conflict) => conflict.projectId === 'dashboard-redesign')
@@ -41,25 +41,32 @@ try {
     assert.equal(Boolean(link.layer), Boolean(conflict.layerId))
   }
 
-  // Heads that don't touch stay where they are.
-  const apart = layoutPins([{ id: 'a', number: 1, x: 100, y: 100 }, { id: 'b', number: 2, x: 200, y: 100 }])
-  assert.deepEqual(apart.map((item) => [item.kind, item.x, item.y]), [['pin', 100, 100], ['pin', 200, 100]])
-  // Two that collide (stacked, as beside a header's two lines) spread side by side, 4px apart.
-  const two = layoutPins([{ id: 'a', number: 4, x: 300, y: 100 }, { id: 'b', number: 4, x: 300, y: 112 }])
-  assert.deepEqual(two.map((item) => item.kind), ['pin', 'pin'])
-  assert.equal(Math.abs(two[0].x - two[1].x), PIN.head + PIN.gap)
-  assert.equal(two[0].y, two[1].y)
-  assert.ok(Math.hypot(two[0].x - two[1].x, two[0].y - two[1].y) >= PIN.head, 'no longer overlapping: each can be pressed')
-  // Three or more at one spot are one "+N" pin, which opens out when pressed.
-  const crowd = [{ id: 'a', number: 1, x: 300, y: 100 }, { id: 'b', number: 2, x: 304, y: 104 }, { id: 'c', number: 3, x: 298, y: 96 }]
-  const [cluster] = layoutPins(crowd)
-  assert.equal(cluster.kind, 'cluster')
-  assert.equal(cluster.pins.length, 3)
-  const opened = layoutPins(crowd, { expanded: new Set([cluster.key]) })
-  assert.deepEqual(opened.map((item) => item.pin.number), [1, 2, 3])
-  assert.ok(opened.every((item, index) => index === 0 || item.x - opened[index - 1].x === PIN.head + PIN.gap))
+  // One pin per change, however many elements it's about: four cards → one pin counting 4.
+  const markers = markersOf(pins)
+  assert.equal(markers.filter((marker) => marker.conflictId === padding.id).length, 1)
+  assert.equal(markers.find((marker) => marker.conflictId === padding.id).count, 4)
+  assert.equal(markers.length, new Set(pins.map((pin) => pin.conflictId)).size, 'one marker per change id')
+  assert.deepEqual(markers.map((marker) => marker.number), [...markers.map((marker) => marker.number)].sort((a, b) => a - b))
+  // It goes on all its elements together (their union)…
+  const cards = [{ left: 10, top: 20, right: 110, bottom: 80 }, { left: 130, top: 20, right: 230, bottom: 80 }, { left: 10, top: 100, right: 110, bottom: 160 }, { left: 130, top: 100, right: 230, bottom: 160 }]
+  assert.deepEqual(markerRect(cards), { left: 10, top: 20, right: 230, bottom: 160 })
+  // …or the group they sit in, as long as it isn't far more than they are.
+  const group = { left: 0, top: 10, right: 240, bottom: 170 }
+  assert.deepEqual(markerRect(cards, group), group)
+  assert.deepEqual(markerRect(cards, { left: 0, top: 0, right: 1200, bottom: 900 }), { left: 10, top: 20, right: 230, bottom: 160 })
+
+  // Pins more than 24px apart stay where they are.
+  const apart = layoutPins([{ id: 'a', number: 1, x: 100, y: 100 }, { id: 'b', number: 2, x: 200, y: 100 }, { id: 'c', number: 3, x: 100, y: 125 }])
+  assert.deepEqual(apart.map((item) => [item.kind, item.x, item.y]), [['pin', 100, 100], ['pin', 200, 100], ['pin', 100, 125]])
+  // Two within 24px are one cluster counting both; zooming in (tips moving apart) separates them.
+  const near = layoutPins([{ id: 'a', number: 4, x: 300, y: 100 }, { id: 'b', number: 5, x: 316, y: 116 }])
+  assert.deepEqual(near.map((item) => [item.kind, item.pins?.length]), [['cluster', 2]])
+  assert.deepEqual(layoutPins([{ id: 'a', number: 4, x: 300, y: 100 }, { id: 'b', number: 5, x: 340, y: 140 }]).map((item) => item.kind), ['pin', 'pin'])
+  const crowd = layoutPins([{ id: 'a', number: 3, x: 300, y: 100 }, { id: 'b', number: 1, x: 304, y: 104 }, { id: 'c', number: 2, x: 298, y: 96 }])
+  assert.equal(crowd[0].pins.length, 3)
+  assert.deepEqual(crowd[0].pins.map((pin) => pin.number), [1, 2, 3], 'listed in number order')
   // Sizes: 16 × 21, and 20 × 26 when picked.
   assert.deepEqual([PIN.head, PIN.height, PIN.headSelected, PIN.heightSelected], [16, 21, 20, 26])
   await server.ssrLoadModule('/src/components/conflicts/ConflictPins.jsx')
-  console.log('Passed: pin numbers follow the list, anchors and flipping, spreading two, clustering three, and sizes.')
+  console.log('Passed: pin numbers follow the list, one pin per change, its box, anchors and flipping, clustering within 24px, and sizes.')
 } finally { await server.close() }

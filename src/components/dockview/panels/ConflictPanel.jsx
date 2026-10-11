@@ -103,7 +103,7 @@ function ConflictPanel({ inMergeStudio }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages, conflictPin, hoverConflictPin, focusConflictPin } = useWorkspace()
   // The element picked on the canvas: the Conflict Points about it light up
   // and the first scrolls into view (the other half of the canvas markers).
   const listRef = useRef(null)
@@ -256,7 +256,14 @@ function ConflictPanel({ inMergeStudio }) {
                   <Fragment key={conflict.id}>
                   <tr
                     data-canvas-linked={isOpen(conflict) && conflictIsAbout(conflict, selectedLayerId, projectPages)}
-                    onClick={() => { openRow(conflict.id) }}
+                    // Pointing at a row lights its elements on the canvas (its pin
+                    // does the same for the row); picking it picks the pin.
+                    data-pin-hover={conflictPin?.hoverId === conflict.id}
+                    onMouseEnter={() => hoverConflictPin?.(conflict.id)}
+                    onMouseLeave={() => hoverConflictPin?.(null)}
+                    onFocus={() => hoverConflictPin?.(conflict.id)}
+                    onBlur={() => hoverConflictPin?.(null)}
+                    onClick={() => { focusConflictPin?.(conflict); openRow(conflict.id) }}
                     tabIndex={0}
                     aria-label={`Review ${conflict.title}`}
                     onKeyDown={(event) => {
@@ -268,7 +275,7 @@ function ConflictPanel({ inMergeStudio }) {
                     }}
                     aria-selected={reviewConflictId === conflict.id}
                     className={cn(
-                      'group animate-in scroll-mt-12 cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60 data-[canvas-linked=true]:bg-amber-400/10 data-[canvas-linked=true]:[&>td:first-child]:shadow-[inset_3px_0_0_#fbbf24]',
+                      'group animate-in scroll-mt-12 cursor-pointer border-b border-border/60 align-middle fade-in slide-in-from-top-1 duration-300 transition-colors last:border-0 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-2 focus-visible:outline-primary aria-selected:bg-muted/60 data-[canvas-linked=true]:bg-amber-400/10 data-[pin-hover=true]:bg-amber-400/10 data-[canvas-linked=true]:[&>td:first-child]:shadow-[inset_3px_0_0_#fbbf24]',
                       // Done: the whole row steps back.
                       !isOpen(conflict) && 'opacity-45'
                     )}

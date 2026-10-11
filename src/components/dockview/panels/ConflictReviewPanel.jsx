@@ -50,10 +50,9 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf, proposalOf, proposalPhraseOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow, { HistoryReplayButton, decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { HistoryReplayButton } from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
-import StepMeta from '@/components/conflicts/StepMeta'
-import { eventsOf, humanEventCount, progressOf, sampleHistoryForCon002 } from '@/lib/conflictEvents'
+import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -624,10 +623,19 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
             {conflict.decisionFlow && !conflict.rollback && (() => {
               const pick = conflict.decisionRequest?.proposal ?? conflict.decisionDraft?.proposal
               const shape = proposalOf(pick, conflict.decisionRequest?.custom ?? conflict.decisionDraft?.custom)
+              const outcome = decisionOutcomeOf(conflict)
               return (
-                <Row label="Proposed fix" data-summary-row="Proposed fix">
-                  {shape ? <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span> : <span data-no-proposal className="text-slate-500">—</span>}
-                </Row>
+                <>
+                  <Row label="Proposed fix" data-summary-row="Proposed fix">
+                    {shape
+                      // (Once decided, it says whether the proposal was the one taken.)
+                      ? (outcome && outcome.choice !== 'approve'
+                        ? <span data-proposal-adopted="false" className="text-slate-500">{proposalPhraseOf(shape)} · 미채택</span>
+                        : <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span>)
+                      : <span data-no-proposal className="text-slate-500">—</span>}
+                  </Row>
+                  {outcome && <Row label="최종 결정" data-summary-row="Final decision"><span className="font-medium text-slate-100">{outcome.final}</span></Row>}
+                </>
               )
             })()}
           </dl>
@@ -3265,16 +3273,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </div>
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                      {!conflict.rollback && <FlowSteps
-                        key={`flow:${conflict.id}`}
-                        conflict={conflict}
-                        flow={conflict.decisionFlow ? decisionFlowOf({ ...conflict, events: historyEvents }, currentUserFor(conflict.projectId)) : undefined}
-                        // Each finished step says who did it last and when; pressing a
-                        // step opens its History at that step's first record.
-                        meta={conflict.decisionFlow ? progressOf(historyEvents).steps.map((step) => (step.last ? <StepMeta key={step.step} step={step} onOpenSource={() => { openSideTab('history'); setHistoryFocus({ step: step.step, nonce: Date.now() }) }} /> : null)) : undefined}
-                        onStep={conflict.decisionFlow ? (index) => { openSideTab('history'); setHistoryFocus({ step: index + 1, nonce: Date.now() }) } : undefined}
-                        className="mb-5"
-                      />}
+                      {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
+                      {!conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
                       {!conflict.rollback && (
                         <InfoSection title="Reviewers" className="mb-5">
                           <ReviewersSection

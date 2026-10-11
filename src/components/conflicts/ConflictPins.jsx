@@ -1,23 +1,25 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { listStatusOf, shortDue } from '@/lib/conflicts'
-import { PIN, anchorOf, layoutPins } from '@/lib/canvasPins'
+import { PIN, anchorOf, layoutPins, markerRect, markersOf } from '@/lib/canvasPins'
 
-// The change pins over the canvas (lib/canvasPins): a map-style pin whose
-// tail points at the element a change is about. (No number on it: the list
-// order still decides the order they're tabbed through.) They live in a
-// layer of their own over the canvas —
-// placed from where the elements are on screen, so they follow panning and
-// zooming while staying one size.
+// The change pins over the canvas (lib/canvasPins): one map-style pin per
+// change, its tail on the top-right corner of everything the change is about
+// (all its elements together, or the group they're in). A change about
+// several elements (four cards) says how many on the pin. They live in a
+// layer of their own over the canvas — placed from where the elements are on
+// screen, so they follow panning and zooming while staying one size.
 // A pin is a button: its state is its color alone (amber; orange and larger
-// when picked; grey with a check when the change is done). Pointing at one
-// outlines its element and says what it is; picking one picks its element —
-// the Conflict Points panel comes up below with the changes about it lit —
-// rather than leaving for the detail.
+// when picked; grey with a check when the change is done). Pointing at one —
+// or at its row in the list — outlines and tints every element it's about;
+// otherwise no element is outlined. Picking one picks its element: the
+// Conflict Points panel comes up below with the changes about it lit. Pins
+// within 24px of each other become one cluster saying how many; pressing it
+// lists them, and zooming in separates them again.
 
 const TOOLTIP_DELAY = 150
 const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
@@ -70,7 +72,7 @@ function contentRect(element) {
 function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, version, onHover, onSelect, onClear }) {
   const language = useLanguage()
   const [boxes, setBoxes] = useState(new Map())
-  const [expanded, setExpanded] = useState(() => new Set())
+  const [openCluster, setOpenCluster] = useState(null)
   const [tip, setTip] = useState(null)
   const tipTimer = useRef(null)
   const byId = useMemo(() => new Map(conflicts.map((conflict) => [conflict.id, conflict])), [conflicts])
@@ -106,6 +108,19 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
           inset: boxed ? PIN.inset : 0,
         })
       }
+      // One box per change: all its elements together (or their group).
+      for (const marker of markersOf(pins)) {
+        const own = marker.pins.map((pin) => next.get(pin.id)).filter(Boolean)
+        if (!own.length) continue
+        let group = null
+        if (own.length > 1) {
+          const elements = marker.pins.map((pin) => container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)).filter(Boolean)
+          let host = elements[0]?.parentElement?.closest('[data-layer-id]')
+          while (host && !elements.every((element) => host.contains(element))) host = host.parentElement?.closest('[data-layer-id]')
+          if (host) { const box = host.getBoundingClientRect(); const origin2 = container.getBoundingClientRect(); group = { left: box.left - origin2.left, top: box.top - origin2.top, right: box.right - origin2.left, bottom: box.bottom - origin2.top } }
+        }
+        next.set(`marker:${marker.conflictId}`, { rect: markerRect(own.map((box) => box.rect), group), frame: own[0].frame, inset: own[0].inset })
+      }
       setBoxes((prev) => (JSON.stringify([...prev]) === JSON.stringify([...next]) ? prev : next))
     }
     measure()
@@ -126,11 +141,19 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
     return () => window.removeEventListener('keydown', onKey)
   }, [selection, container, onClear])
   useEffect(() => () => window.clearTimeout(tipTimer.current), [])
+  // The cluster's list closes on Escape or a press anywhere else.
+  useEffect(() => {
+    if (!openCluster) return undefined
+    const close = (event) => { if (event.type === 'keydown' ? event.key === 'Escape' : !event.target.closest?.('[data-pin-cluster-list], [data-pin-cluster]')) setOpenCluster(null) }
+    window.addEventListener('keydown', close)
+    window.addEventListener('pointerdown', close)
+    return () => { window.removeEventListener('keydown', close); window.removeEventListener('pointerdown', close) }
+  }, [openCluster])
 
-  const isSelected = (pin) => selection?.conflictId === pin.conflictId && (selection.layerId ? selection.layerId === pin.layerId : pin.primary)
+  const isSelected = (marker) => selection?.conflictId === marker.conflictId
+  const markers = markersOf(pins).filter((marker) => boxes.has(`marker:${marker.conflictId}`))
   const placed = layoutPins(
-    pins.filter((pin) => boxes.has(pin.id)).map((pin) => ({ ...pin, ...anchorOf(boxes.get(pin.id).rect, boxes.get(pin.id).frame, { inset: boxes.get(pin.id).inset }) })),
-    { expanded }
+    markers.map((marker) => { const box = boxes.get(`marker:${marker.conflictId}`); return { ...marker, ...anchorOf(box.rect, box.frame, { inset: box.inset }) } })
   )
   const viewHeight = container?.clientHeight ?? 0
   const showTip = (key, data) => { window.clearTimeout(tipTimer.current); tipTimer.current = window.setTimeout(() => setTip({ key, ...data }), TOOLTIP_DELAY) }
@@ -139,11 +162,12 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
 
   return (
     <div data-conflict-pins className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-      {/* The element a pointed-at or picked change is about: an outline that
-          follows its corners. Nothing else is dimmed. */}
+      {/* Every element a pointed-at or picked change is about: an outline
+          that follows its corners, and a light tint. Nothing else is outlined
+          or dimmed. */}
       {pins.filter((pin) => boxes.has(pin.id) && (pin.conflictId === hoverId || pin.conflictId === selection?.conflictId)).map((pin) => {
         const { rect, radius } = boxes.get(pin.id)
-        const picked = isSelected(pin)
+        const picked = pin.conflictId === selection?.conflictId
         return (
           <span
             key={`outline:${pin.id}`}
@@ -152,8 +176,8 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             className="absolute"
             style={{
               left: rect.left, top: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top, borderRadius: radius,
-              border: picked ? '1.5px solid var(--color-orange-500)' : '1px solid color-mix(in srgb, var(--color-amber-400) 50%, transparent)',
-              background: picked ? 'color-mix(in srgb, var(--color-orange-500) 8%, transparent)' : undefined,
+              border: picked ? '1.5px solid var(--color-orange-500)' : '1.5px solid color-mix(in srgb, var(--color-amber-400) 70%, transparent)',
+              background: picked ? 'color-mix(in srgb, var(--color-orange-500) 10%, transparent)' : 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)',
             }}
           />
         )
@@ -161,55 +185,88 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
 
       {placed.map((item) => {
         if (item.kind === 'cluster') {
-          // Several at one spot: one pin saying how many; pressing it opens them out.
+          // Several changes at one spot: one pin saying how many; pressing it lists them.
+          const open = openCluster === item.key
           return (
-            <button
-              key={item.key}
-              type="button"
-              data-pin-cluster={item.pins.length}
-              aria-label={translateText(`${item.pins.length} changes here — show them`, language)}
-              onClick={(event) => { event.stopPropagation(); setExpanded((prev) => new Set(prev).add(item.key)) }}
-              className="ds-intrinsic ds-pin pointer-events-auto absolute cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-              style={{ left: item.x - PIN.head / 2, top: item.y - PIN.height, width: PIN.head, height: PIN.height, zIndex: 2 }}
-            >
-              <PinShape head={PIN.head} height={PIN.height} color={HEAD_COLOR.default} />
-              <span className="absolute inset-x-0 top-0 flex items-center justify-center text-[9px] font-semibold text-slate-950 tabular-nums" style={{ height: PIN.head }}>+{item.pins.length}</span>
-            </button>
+            <Fragment key={item.key}>
+              <button
+                type="button"
+                data-pin-cluster={item.pins.length}
+                aria-expanded={open}
+                aria-label={translateText(`${item.pins.length} changes here — show them`, language)}
+                onClick={(event) => { event.stopPropagation(); hideTip(); setOpenCluster(open ? null : item.key) }}
+                className="ds-intrinsic ds-pin pointer-events-auto absolute cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                style={{ left: item.x - PIN.head / 2, top: item.y - PIN.height, width: PIN.head, height: PIN.height, zIndex: open ? 5 : 2 }}
+              >
+                <PinShape head={PIN.head} height={PIN.height} color={HEAD_COLOR.default} />
+                <span className="absolute inset-x-0 top-0 flex items-center justify-center text-[9px] font-semibold text-slate-950 tabular-nums" style={{ height: PIN.head }}>{item.pins.length}</span>
+              </button>
+              {open && (
+                <div data-pin-cluster-list role="menu" className="pointer-events-auto absolute z-10 w-max max-w-64 rounded-lg border border-white/10 bg-popover p-1 shadow-lg" style={{ left: item.x, top: item.y + 6, transform: 'translateX(-50%)' }}>
+                  {item.pins.map((pin) => {
+                    const conflict = byId.get(pin.conflictId)
+                    if (!conflict) return null
+                    return (
+                      <button
+                        key={pin.id}
+                        type="button"
+                        role="menuitem"
+                        data-pin-cluster-item={pin.conflictId}
+                        onMouseEnter={() => onHover(pin.conflictId)}
+                        onMouseLeave={() => onHover(null)}
+                        onFocus={() => onHover(pin.conflictId)}
+                        onBlur={() => onHover(null)}
+                        onClick={(event) => { event.stopPropagation(); setOpenCluster(null); onHover(null); onSelect(conflict, pin.pins[0]) }}
+                        className="ds-intrinsic flex w-full min-w-0 cursor-pointer flex-col items-start rounded-md px-2.5 py-1.5 text-left hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300"
+                      >
+                        <span className="block max-w-full truncate text-xs font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
+                        <span className="block max-w-full truncate text-[11px] text-slate-400">{labelOf(conflict)}{pin.count > 1 ? ` · ${pin.count}` : ''}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </Fragment>
           )
         }
-        const { pin } = item
-        const conflict = byId.get(pin.conflictId)
+        const { pin: marker } = item
+        const conflict = byId.get(marker.conflictId)
         if (!conflict) return null
-        const picked = isSelected(pin)
-        const state = pin.resolved ? 'resolved' : picked ? 'selected' : 'default'
+        const picked = isSelected(marker)
+        const state = marker.resolved ? 'resolved' : picked ? 'selected' : 'default'
         const head = picked ? PIN.headSelected : PIN.head
         const height = picked ? PIN.heightSelected : PIN.height
         return (
           <button
-            key={pin.id}
+            key={marker.id}
             type="button"
-            data-pin={pin.id}
-            data-pin-number={pin.number}
+            data-pin={marker.id}
+            data-pin-number={marker.number}
+            data-pin-count={marker.count}
             data-pin-state={state}
             aria-pressed={picked}
-            aria-label={`${translateText('Change point', language)}: ${translateText(conflict.title, language)}, ${translateText(listStatusOf(conflict).label, language)}`}
-            onClick={(event) => { event.stopPropagation(); hideTip(); onSelect(conflict, pin) }}
-            onMouseEnter={() => { onHover(pin.conflictId); showTip(pin.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
+            aria-label={`${translateText('Change point', language)}: ${translateText(conflict.title, language)}, ${translateText(listStatusOf(conflict).label, language)}${marker.count > 1 ? ` · ${marker.count}` : ''}`}
+            onClick={(event) => { event.stopPropagation(); hideTip(); onSelect(conflict, marker.pins[0]) }}
+            onMouseEnter={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
             onMouseLeave={() => { onHover(null); hideTip() }}
-            onFocus={() => { onHover(pin.conflictId); showTip(pin.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
+            onFocus={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
             onBlur={() => { onHover(null); hideTip() }}
-            className={cn('ds-intrinsic ds-pin pointer-events-auto absolute cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300', pin.resolved && 'opacity-70')}
+            className={cn('ds-intrinsic ds-pin pointer-events-auto absolute cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300', marker.resolved && 'opacity-70')}
             // (The tip stays where it points while the pin grows.)
-            style={{ left: item.x - head / 2, top: item.y - height, width: head, height, zIndex: picked ? 4 : pin.conflictId === hoverId ? 3 : 1, transformOrigin: '50% 100%' }}
+            style={{ left: item.x - head / 2, top: item.y - height, width: head, height, zIndex: picked ? 4 : marker.conflictId === hoverId ? 3 : 1, transformOrigin: '50% 100%' }}
           >
             {/* Picked from the list: one ring of its own color, once. */}
             {picked && pulse > 0 && <span key={pulse} aria-hidden data-pin-pulse className="ds-pin-pulse absolute top-0 left-0 rounded-full" style={{ width: head, height: head, background: HEAD_COLOR.selected }} />}
             <PinShape head={head} height={height} color={HEAD_COLOR[state]} />
-            {/* (No number on a pin: its color says its state, and a done one carries a check.) */}
-            {pin.resolved && (
+            {/* (A done one carries a check.) */}
+            {marker.resolved && (
               <span className="absolute inset-x-0 top-0 flex items-center justify-center text-white" style={{ height: head }}>
                 <Check className="size-2.5" strokeWidth={3} />
               </span>
+            )}
+            {/* How many elements the change is about — only when it's more than one. */}
+            {marker.count > 1 && (
+              <span data-pin-badge className="absolute flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] leading-none font-semibold text-white tabular-nums ring-1 ring-white" style={{ top: -6, right: -9 }}>{marker.count}</span>
             )}
           </button>
         )

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, CircleCheck, History, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, Sparkles, TriangleAlert, GitMerge } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, Sparkles, TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
@@ -1000,8 +1000,8 @@ function StepMark({ number, state }) {
 // there — [mark] [step] [who · result] [summary] [time] [chevron] — and the
 // body opens inside the same card (height + opacity, 200ms). The summary is
 // for the folded card only: it fades out as the card opens, so nothing the
-// body says is said twice. A thin line joins each card to the next.
-function StepCard({ number, state, title, who, summary, time, open, onToggle, joined, children, ...rest }) {
+// body says is said twice. The order is the gap between cards, no line.
+function StepCard({ number, state, title, who, summary, time, open, onToggle, children, ...rest }) {
   return (
     <li className="relative" {...rest}>
       <div data-step-card={state} data-open={open} className={cn('rounded-xl ring-1 ring-inset transition-colors duration-200 motion-reduce:transition-none', state === 'current' ? 'bg-white/[0.045] ring-emerald-400/30' : 'bg-white/[0.03] ring-white/[0.06]')}>
@@ -1015,7 +1015,6 @@ function StepCard({ number, state, title, who, summary, time, open, onToggle, jo
         </button>
         <FoldBody open={open}><div className="flex flex-col gap-3 px-4 pt-1 pb-4">{children}</div></FoldBody>
       </div>
-      {joined && <span aria-hidden data-step-line className={cn('absolute top-full left-[25.5px] h-3 w-px', state === 'done' ? 'bg-emerald-400/50' : 'bg-white/15')} />}
     </li>
   )
 }
@@ -1173,13 +1172,17 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           )}
           {post && (
             <>
-              <div className="relative">
-                <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="absolute -top-[13px] right-0 text-[10.5px] leading-3 font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline">
-                  {allOpen ? '모두 접기' : '모두 펼치기'}
-                </button>
-                <ol data-step-list className="m-0 flex list-none flex-col gap-3 p-0">
+              <div className={banner ? 'mt-3' : undefined}>
+                {/* The list's own header row (24px under the banner, 8px above the first card). */}
+                <div data-step-list-head className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-[12px] text-slate-500">진행 단계 {steps.length}</span>
+                  <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="cursor-pointer text-[12px] font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    {allOpen ? '모두 접기' : '모두 펼치기'}
+                  </button>
+                </div>
+                <ol data-step-list className="m-0 flex list-none flex-col gap-2.5 p-0">
                   {steps.map((step, index) => (
-                    <StepCard key={step.key} data-fold={step.key} number={index + 1} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} joined={index < steps.length - 1}>
+                    <StepCard key={step.key} data-fold={step.key} number={index + 1} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)}>
                       {step.key === 'detect' && (
                         <>
                           <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
