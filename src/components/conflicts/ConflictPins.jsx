@@ -7,15 +7,17 @@ import { useLanguage } from '@/i18n/language'
 import { listStatusOf, shortDue } from '@/lib/conflicts'
 import { PIN, anchorOf, layoutPins } from '@/lib/canvasPins'
 
-// The change pins over the canvas (lib/canvasPins): a numbered, map-style
-// pin whose tail points at the element a change is about, numbered like the
-// "확인할 변경점" list. They live in a layer of their own over the canvas —
+// The change pins over the canvas (lib/canvasPins): a map-style pin whose
+// tail points at the element a change is about. (No number on it: the list
+// order still decides the order they're tabbed through.) They live in a
+// layer of their own over the canvas —
 // placed from where the elements are on screen, so they follow panning and
 // zooming while staying one size.
 // A pin is a button: its state is its color alone (amber; orange and larger
 // when picked; grey with a check when the change is done). Pointing at one
-// outlines its element and says what it is; picking one picks it in the
-// list and opens it.
+// outlines its element and says what it is; picking one picks its element —
+// the Conflict Points panel comes up below with the changes about it lit —
+// rather than leaving for the detail.
 
 const TOOLTIP_DELAY = 150
 const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
@@ -152,7 +154,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             data-pin-number={pin.number}
             data-pin-state={state}
             aria-pressed={picked}
-            aria-label={`${translateText('Change point', language)} ${pin.number}: ${translateText(conflict.title, language)}, ${translateText(listStatusOf(conflict).label, language)}`}
+            aria-label={`${translateText('Change point', language)}: ${translateText(conflict.title, language)}, ${translateText(listStatusOf(conflict).label, language)}`}
             onClick={(event) => { event.stopPropagation(); hideTip(); onSelect(conflict, pin) }}
             onMouseEnter={() => { onHover(pin.conflictId); showTip(pin.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
             onMouseLeave={() => { onHover(null); hideTip() }}
@@ -165,9 +167,12 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             {/* Picked from the list: one ring of its own color, once. */}
             {picked && pulse > 0 && <span key={pulse} aria-hidden data-pin-pulse className="ds-pin-pulse absolute top-0 left-0 rounded-full" style={{ width: head, height: head, background: HEAD_COLOR.selected }} />}
             <PinShape head={head} height={height} color={HEAD_COLOR[state]} />
-            <span className={cn('absolute inset-x-0 top-0 flex items-center justify-center text-xs font-semibold tabular-nums', state === 'selected' ? 'text-white' : state === 'resolved' ? 'text-white' : 'text-slate-950')} style={{ height: head }}>
-              {pin.resolved ? <Check className="size-3" strokeWidth={3} /> : pin.number}
-            </span>
+            {/* (No number on a pin: its color says its state, and a done one carries a check.) */}
+            {pin.resolved && (
+              <span className="absolute inset-x-0 top-0 flex items-center justify-center text-white" style={{ height: head }}>
+                <Check className="size-3" strokeWidth={3} />
+              </span>
+            )}
           </button>
         )
       })}

@@ -431,6 +431,7 @@ function CanvasPanel() {
     aiGenerating,
     conflicts,
     setBottomPanel,
+    reviewConflictId,
     openConflictReview,
     conflictPin,
     hoverConflictPin,
@@ -705,8 +706,7 @@ function CanvasPanel() {
           </div>
 
           {/* The change pins: their own layer over the canvas — they follow
-              it, and stay one size whatever the zoom. Picking one picks it in
-              the list and opens it. */}
+              it, and stay one size whatever the zoom. */}
           {!commentMode && (
             <ConflictPins
               container={canvasViewport}
@@ -717,7 +717,10 @@ function CanvasPanel() {
               pulse={conflictPin.pulse}
               version={`${view.x}:${view.y}:${zoom}:${activePage?.id}:${JSON.stringify(prototypeEdits)}`}
               onHover={hoverConflictPin}
-              onSelect={(conflict, pin) => { selectConflictPin(conflict.id, pin.layerId); openConflictReview(conflict.id, { view: 'overlay' }) }}
+              // Like a click on the element itself: it's selected, and Conflict
+              // Points comes up below with its changes lit. (A detail open in
+              // that panel would hide the list the highlight is in.)
+              onSelect={(conflict, pin) => { selectConflictPin(conflict.id, pin.layerId); if (reviewConflictId) openConflictReview(null); handleSelect(pin.layerId) }}
               onClear={() => selectConflictPin(null)}
             />
           )}
