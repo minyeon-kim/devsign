@@ -29,13 +29,42 @@ function PinShape({ head, height, color }) {
   const spread = r * 0.62
   const from = r + Math.sqrt(r * r - spread * spread)
   return (
-    <svg aria-hidden width={head + 4} height={height + 4} viewBox={`-2 -2 ${head + 4} ${height + 4}`} className="absolute top-0 left-0 overflow-visible" style={{ filter: 'drop-shadow(0 2px 6px rgb(0 0 0 / 0.35))' }}>
-      <path d={`M ${r - spread} ${from} L ${r} ${height} L ${r + spread} ${from} Z`} fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
-      <circle cx={r} cy={r} r={r} fill={color} stroke="white" strokeWidth="2" />
-      {/* (Over the tail's own outline where it meets the head.) */}
-      <path d={`M ${r - spread + 1.5} ${from - 1} L ${r} ${height - 3} L ${r + spread - 1.5} ${from - 1} Z`} fill={color} />
+    // (Drawn 2px past the button's box on every side for its outline, and
+    // offset by as much — so the tip is exactly at the box's bottom center.)
+    <svg aria-hidden width={head + 4} height={height + 4} viewBox={`-2 -2 ${head + 4} ${height + 4}`} className="absolute overflow-visible" style={{ left: -2, top: -2 }}>
+      {/* One outline: around the head, down its sides to the tip. */}
+      <path d={`M ${r - spread} ${from} A ${r} ${r} 0 1 1 ${r + spread} ${from} L ${r} ${height} Z`} fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   )
+}
+
+// Does the element show a box of its own — a fill, a border or a shadow on
+// itself or on something that covers it?
+function hasVisibleBox(element, box) {
+  return [element, ...element.querySelectorAll('*')].some((node) => {
+    const rect = node.getBoundingClientRect()
+    if (Math.abs(rect.width - box.width) > 2 || Math.abs(rect.height - box.height) > 2) return false
+    const style = getComputedStyle(node)
+    const filled = !/rgba?\([^)]*,\s*0\)|transparent/.test(style.backgroundColor)
+    return filled || parseFloat(style.borderTopWidth) > 0 || style.boxShadow !== 'none'
+  })
+}
+// Where the element's own content (its words) actually is, a little padded.
+function contentRect(element) {
+  // (Text node by text node: a block's own range is as wide as the block.)
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+  const range = document.createRange()
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.textContent.trim()) continue
+    range.selectNodeContents(node)
+    for (const rect of range.getClientRects()) {
+      if (!rect.width || !rect.height) continue
+      left = Math.min(left, rect.left); top = Math.min(top, rect.top); right = Math.max(right, rect.right); bottom = Math.max(bottom, rect.bottom)
+    }
+  }
+  if (!Number.isFinite(left)) return null
+  return { left: left - 3, top: top - 2, right: right + 3, bottom: bottom + 2 }
 }
 
 function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, version, onHover, onSelect, onClear }) {
@@ -57,7 +86,13 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
       for (const pin of pins) {
         const element = container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)
         if (!element) continue
-        const rect = element.getBoundingClientRect()
+        const box = element.getBoundingClientRect()
+        // An element that draws a box of its own (a card, a button, a field)
+        // is pinned at that box. Text has no box to see — its layer is often
+        // far wider than its words — so it's pinned where the words end.
+        const boxed = hasVisibleBox(element, box)
+        const words = boxed ? null : contentRect(element)
+        const rect = words ?? box
         const artboard = element.closest('[data-canvas-frame]')?.getBoundingClientRect()
         // The element's own rounding, so its outline follows it.
         const rounded = [element, ...element.querySelectorAll('*')].map((node) => parseFloat(getComputedStyle(node).borderTopLeftRadius)).find((value) => value > 0) ?? 0
@@ -65,7 +100,10 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
         next.set(pin.id, {
           rect: { left: rect.left - origin.left, top: rect.top - origin.top, right: rect.right - origin.left, bottom: rect.bottom - origin.top },
           frame: artboard ? { left: artboard.left - origin.left, right: artboard.right - origin.left } : null,
-          radius: rounded * scale,
+          radius: boxed ? rounded * scale : 4,
+          // (On a box the tip goes 6px inside the corner; on text it touches
+          // the end of the line instead of sitting on the letters.)
+          inset: boxed ? PIN.inset : 0,
         })
       }
       setBoxes((prev) => (JSON.stringify([...prev]) === JSON.stringify([...next]) ? prev : next))
@@ -91,7 +129,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
 
   const isSelected = (pin) => selection?.conflictId === pin.conflictId && (selection.layerId ? selection.layerId === pin.layerId : pin.primary)
   const placed = layoutPins(
-    pins.filter((pin) => boxes.has(pin.id)).map((pin) => ({ ...pin, ...anchorOf(boxes.get(pin.id).rect, boxes.get(pin.id).frame) })),
+    pins.filter((pin) => boxes.has(pin.id)).map((pin) => ({ ...pin, ...anchorOf(boxes.get(pin.id).rect, boxes.get(pin.id).frame, { inset: boxes.get(pin.id).inset }) })),
     { expanded }
   )
   const viewHeight = container?.clientHeight ?? 0
