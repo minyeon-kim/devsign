@@ -1,3 +1,4 @@
+import { eventsOf, progressOf } from '@/lib/conflictEvents'
 // The words of a design decision (a `decisionFlow` conflict, e.g. CON-002),
 // shared by the workspace's actions and the review's DesignDecisionFlow.
 export const DECISION_LABEL = { keep: '원안 유지', approve: '변경 승인', rework: '재검토 요청' }
@@ -84,14 +85,10 @@ export const DEV_STAGE_LABEL = { early: '개발 초기', mid: '개발 중간', l
 // How long the scripted designer takes to answer the developer's request.
 export const DECISION_REPLY_MS = 6000
 
-// Where a design decision stands, for both sides of it.
+// Where a design decision stands, for both sides of it — read off its
+// History (lib/conflictEvents), so the stage can't say something the
+// record doesn't.
 export function decisionStageOf(conflict) {
   if (!conflict) return null
-  if (conflict.reviewStage === 'resolved') return 'resolved'
-  if (conflict.decisionFix?.verified) return 'verified'
-  if (conflict.decisionFix) return 'fixed'
-  if (conflict.designDecision?.choice === 'rework') return 'rework'
-  if (conflict.designDecision) return 'decided'
-  if (conflict.decisionRequest) return 'requested'
-  return 'detected'
+  return progressOf(eventsOf(conflict)).stage
 }

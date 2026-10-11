@@ -1,3 +1,4 @@
+import { eventsOf, progressOf } from '@/lib/conflictEvents'
 import { allPeople, conflictChecklist, conflictPoints, currentUserFor } from '@/data/mockData'
 
 // The one conflict model every conflict surface shares — the Dashboard
@@ -99,6 +100,12 @@ export const LIST_STATUSES = [
   { id: 'done', label: 'Done', dot: 'bg-violet-400' },
 ]
 export function listStatusOf(conflict) {
+  // A design decision's status is its History's (lib/conflictEvents):
+  // not asked yet, being decided or fixed, or done.
+  if (conflict.decisionFlow) {
+    const status = progressOf(eventsOf(conflict)).status
+    return LIST_STATUSES.find((entry) => entry.id === (status === 'before' ? 'detected' : status === 'done' ? 'done' : 'in_review'))
+  }
   const id = conflict.reviewStage === 'resolved'
     ? 'done'
     : conflict.reviewStage === 'approved'
@@ -354,7 +361,7 @@ export function toConflictRecord(raw) {
     // …their details (components, files)…
     impact: raw.impact?.components?.length ? raw.impact : conflictChecklist.find((seed) => seed.id === raw.id)?.impact ?? raw.impact,
     // …and so do the registered reasons (lib/rationale) the samples carry.
-    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation', 'adjustmentReason']
+    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation', 'adjustmentReason', 'designPageId']
       .filter((key) => raw[key] === undefined)
       .map((key) => [key, conflictChecklist.find((seed) => seed.id === raw.id)?.[key]])
       .filter(([, value]) => value !== undefined)),

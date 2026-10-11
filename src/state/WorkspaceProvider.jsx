@@ -3,7 +3,8 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
-import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL } from '@/lib/designDecisions'
+import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, proposalOf } from '@/lib/designDecisions'
+import { appendEvent, eventsOf } from '@/lib/conflictEvents'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
 import { answerDocumentQuestion } from '@/lib/workspaceDocuments'
@@ -825,6 +826,8 @@ export function WorkspaceProvider({ children, projectId }) {
         designDecision: null,
         decisionFix: null,
         dsProposal: null,
+        // (The walkthrough starts over: its History is what these fields imply again.)
+        events: null,
         reviewers: c.reviewers.map((reviewer) => ({ id: reviewer.id, status: 'pending' })),
       })))
       return true
@@ -1290,6 +1293,7 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionRequest: record,
       designDecision: null,
       decisionFix: null,
+      events: appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', timing: request.timing ?? null, reviewerId: designerId } }),
       reviewStage: 'in_review',
       requestedBy: currentUser.id,
       reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
@@ -1318,6 +1322,11 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionRequest: { ...request, by: currentUser.id, at, sentAt: Date.now(), round: (c.decisionRequest?.round ?? 0) + 1, direct: true },
       designDecision: decision,
       decisionFix: null,
+      // (Matching the design needs no approval: asked and settled at once.)
+      events: (() => {
+        const asked = appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId, direct: true } })
+        return appendEvent({ ...c, events: asked }, { type: 'decided', actorId: currentUser.id, replyTo: asked.at(-1).id, payload: { result: 'approved', proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: decision.reason, direct: true } })
+      })(),
       reviewStage: 'approved',
     })))
     logEvent({ kind: 'decided', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
@@ -1336,6 +1345,13 @@ export function WorkspaceProvider({ children, projectId }) {
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c,
       designDecision: record,
+      events: (() => {
+        const asked = eventsOf(c).findLast((event) => event.type === 'requested')
+        const requestedName = asked?.payload?.proposalName ?? null
+        // Keeping the design when something else was asked for is a change of proposal.
+        const finalName = decision.choice === 'keep' ? PROPOSAL_LABEL.original : requestedName
+        return appendEvent(c, { type: 'decided', actorId, replyTo: asked?.id, payload: { result: decision.choice === 'rework' ? 'rejected' : decision.choice === 'keep' && requestedName && requestedName !== finalName ? 'changed' : 'approved', choice: decision.choice, proposalName: decision.choice === 'rework' ? null : finalName, previousName: requestedName, reason: decision.reason ?? '', timing: decision.timing ?? null } })
+      })(),
       reviewStage: settled ? 'approved' : 'in_review',
       reviewers: c.reviewers.map((r) => (r.id === actorId ? { ...r, status: settled ? 'approved' : 'changes_requested', reviewedAt: Date.now(), note: decision.reason } : r)),
     })))
@@ -1355,7 +1371,8 @@ export function WorkspaceProvider({ children, projectId }) {
     const lines = base.map((line, index) => (index + 1 === conflict.line ? fixLine : line))
     setFileOverrides((prev) => ({ ...prev, [conflict.fileId]: lines }))
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
-      ...c, decisionFix: { choice, appliedAt: timeLabel(), designSynced: choice === 'approve', verified: false },
+      ...c, decisionFix: { choice, appliedAt: timeLabel(), appliedAtMs: Date.now(), designSynced: choice === 'approve', verified: false },
+      events: appendEvent(c, { type: 'fixed', actorId: currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'decided')?.id, payload: { files: 1, file: c.file, line: c.line, choice } }),
     })))
     logEvent({ kind: 'code_change', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     recordDecisionStep(conflict, {
@@ -1368,7 +1385,11 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [appendTerminalLines, conflicts, currentUser.id, fileOverrides, files, logEvent, projectId, recordDecisionStep, setConflicts, setFileOverrides])
 
   const verifyDecisionFix = useCallback((conflictId) => {
-    setConflicts((prev) => prev.map((c) => (c.id !== conflictId || !c.decisionFix ? c : { ...c, decisionFix: { ...c.decisionFix, verified: true, verifiedAt: timeLabel() } })))
+    // (Verified is a record, not the end: a person marks it resolved.)
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId || !c.decisionFix ? c : {
+      ...c, decisionFix: { ...c.decisionFix, verified: true, verifiedAt: timeLabel(), verifiedAtMs: Date.now() },
+      events: appendEvent(c, { type: 'verified', actorId: null, replyTo: eventsOf(c).findLast((event) => event.type === 'fixed')?.id, payload: { match: true, width: 768 } }),
+    })))
     appendTerminalLines(['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout'])
   }, [appendTerminalLines, setConflicts])
 
@@ -1377,6 +1398,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!conflict?.decisionFix?.verified) return null
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
+      events: appendEvent(c, { type: 'resolved', actorId: currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'verified')?.id, payload: { how: c.decisionFix?.choice === 'approve' ? 'design-change' : 'fix' } }),
     })))
     logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     notifyPerson(conflict.designDecision?.by, conflict, `충돌을 해결했어요 · ${conflict.id} ${conflict.title}`, 'comment')
@@ -1386,6 +1408,17 @@ export function WorkspaceProvider({ children, projectId }) {
       reason: `${DECISION_LABEL[conflict.designDecision?.choice] ?? ''} · ${TIMING_LABEL[conflict.designDecision?.timing] ?? ''} 반영 — 검증 완료`,
     })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
+
+  // An opinion on a change, into its History — optionally as an answer to
+  // one of its events. Returns the event's id, or throws if it can't be kept.
+  const addConflictOpinion = useCallback((conflictId, body, replyTo = null) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    const text = body?.trim()
+    if (!conflict || !text) throw new Error('Nothing to send')
+    const events = appendEvent(conflict, { type: 'commented', actorId: currentUser.id, replyTo: replyTo ?? undefined, payload: { body: text, mentions: [...text.matchAll(/@([\p{L}\p{N}_]+)/gu)].map((match) => match[1]) } })
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, events: appendEvent(c, { type: 'commented', actorId: currentUser.id, replyTo: replyTo ?? undefined, payload: events.at(-1).payload }) })))
+    return events.at(-1).id
+  }, [conflicts, currentUser.id, setConflicts])
 
   // A shared component or token changed along the way: a note for the
   // design system's owners (optional; kept on the conflict).
@@ -2299,6 +2332,17 @@ export function WorkspaceProvider({ children, projectId }) {
   // pan / zoom / pulse as "Show on canvas", the element selected, and its
   // code file opened at the changed line.
   const revealConflictOnCanvas = useCallback((conflict) => {
+    // About a screen as a whole: go to that screen — nothing to select there.
+    if (conflict && !conflict.layerId && conflict.designPageId) {
+      const frame = projectPages.find((page) => page.id === conflict.designPageId)?.frames?.[0]
+      if (!frame) return false
+      exitMergeStudio()
+      setMergeDrawer(null)
+      setActivePageId(conflict.designPageId)
+      setSelectedLayerId(null)
+      setCanvasFocus({ pageId: conflict.designPageId, frameId: frame.id, x: frame.x + frame.width / 2, y: frame.y + frame.height * 0.3, commentId: null, quiet: true, nonce: nextId('canvas-focus') })
+      return true
+    }
     const location = conflict?.layerId && canvasLocationFor({ layerId: conflict.layerId })
     if (!location) return false
     exitMergeStudio()
@@ -2311,7 +2355,7 @@ export function WorkspaceProvider({ children, projectId }) {
       if (conflict.line) setCodeFlash({ fileId: conflict.fileId, line: conflict.line, nonce: nextId('flash') })
     }
     return true
-  }, [canvasLocationFor, exitMergeStudio])
+  }, [canvasLocationFor, exitMergeStudio, projectPages])
 
   // Picked in the list: its pin is picked too, and the canvas glides to it
   // (the pin rings once). Unlike revealConflictOnCanvas it only moves the
@@ -2498,6 +2542,7 @@ export function WorkspaceProvider({ children, projectId }) {
     canvasLocationFor,
     revealOnCanvas,
     revealConflictOnCanvas,
+    addConflictOpinion,
     conflictPin,
     hoverConflictPin,
     selectConflictPin,

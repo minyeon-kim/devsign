@@ -641,7 +641,7 @@ function FixSteps({ conflict, onApply, onVerify, onResolve, onPropose }) {
       title: 'Conflict 해결',
       detail: conflict.reviewStage === 'resolved' ? '해결됐어요. History에 수정 · 승인 · 해결 이력이 남았어요.' : '검증이 끝나면 변경 확인을 해결로 닫아요.',
       done: conflict.reviewStage === 'resolved',
-      action: fix?.verified && conflict.reviewStage !== 'resolved' && <button type="button" data-resolve-decision onClick={onResolve} className={PRIMARY}><CircleCheck className="size-3.5" />해결하기</button>,
+      action: fix?.verified && conflict.reviewStage !== 'resolved' && <button type="button" data-resolve-decision onClick={onResolve} className={PRIMARY}><CircleCheck className="size-3.5" />해결로 표시</button>,
     },
   ]
   return (

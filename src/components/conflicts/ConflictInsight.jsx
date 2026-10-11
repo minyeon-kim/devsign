@@ -170,12 +170,16 @@ const STEP_DOT = 16
 const STEP_DOT_TOP = (STEP_ROW - STEP_DOT) / 2
 const STEP_LINE_INSET = 4
 
-export function FlowSteps({ conflict, flow: given, className }) {
+// `meta`: a line under each finished step (who did it last, and when) —
+// `onStep(index)`: pressing a step goes to its record (its History).
+export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
   const flow = given ?? flowOf(conflict)
   const [doneStepsExpanded, setDoneStepsExpanded] = useState(null)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
-  const isExpanded = doneStepsExpanded ?? flow.current !== 'done'
+  // (With a record behind each step, the steps stay open when it's all done:
+  // that's where who-and-when is read, and the way into the History.)
+  const isExpanded = doneStepsExpanded ?? (flow.current !== 'done' || Boolean(meta))
   return (
     <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="px-3 pt-3 pb-1">
@@ -227,8 +231,11 @@ export function FlowSteps({ conflict, flow: given, className }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p data-step-title className={cn('flex items-center text-xs font-medium', step.state === 'current' ? 'text-white' : step.state === 'done' ? 'text-slate-200' : 'text-slate-400')} style={{ height: STEP_ROW }}>
-                  <LocalizedText text={step.label} />
+                  {onStep
+                    ? <button type="button" data-step-jump={index + 1} onClick={() => onStep(index)} className="ds-intrinsic cursor-pointer rounded text-left underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text={step.label} /></button>
+                    : <LocalizedText text={step.label} />}
                 </p>
+                {step.state === 'done' && meta?.[index] && <p data-step-meta className="text-[11px] leading-4 text-slate-500">{meta[index]}</p>}
                 {step.state === 'current' && (step.description ?? STEP_DESCRIPTION[step.id]) && (
                   <p className="text-[11px] leading-4 text-slate-400" style={{ marginTop: STEP_TEXT_GAP }}><LocalizedText text={step.description ?? STEP_DESCRIPTION[step.id]} /></p>
                 )}

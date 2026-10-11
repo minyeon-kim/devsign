@@ -1,7 +1,7 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
-import { Fragment, useEffect, useEffectEvent, useId, useRef, useState } from 'react'
+import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   Ban,
@@ -72,6 +72,8 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { proposalOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
+import ConflictHistory from '@/components/conflicts/ConflictHistory'
+import { eventsOf, humanEventCount, progressOf, relativeTimeOf, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -2344,6 +2346,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The sidebar's tab, and how many comments there were when Comments was
   // last looked at (more than that since puts a dot on the tab).
   const [sideTab, setSideTab] = useState('info')
+  // A design decision's History: its events, in order (lib/conflictEvents)
+  // — and the step the progress card asked to see. `?historySeed` shows the
+  // sample history for CON-002 in their place (`=rejected`: the decision
+  // turned down), for looking at the screen only.
+  const [historyFocus, setHistoryFocus] = useState(null)
+  const historyPreview = conflict?.id === 'CON-002' ? new URLSearchParams(window.location.search).get('historySeed') : null
+  const historyEvents = useMemo(
+    () => (!conflict?.decisionFlow ? [] : historyPreview != null ? sampleHistoryForCon002({ rejected: historyPreview === 'rejected' }) : eventsOf(conflict)),
+    [conflict, historyPreview]
+  )
   const commentCount = conflict && workspace ? workspace.comments.filter((c) => c.id === conflict.linkedCommentId || c.target?.conflictId === conflict.id).length : 0
   const [seen, setSeen] = useState({ id: conflict?.id, count: commentCount })
   if (conflict && seen.id !== conflict.id) setSeen({ id: conflict.id, count: commentCount })
@@ -3238,7 +3250,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
                   <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
-                    {[['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])].map(([value, label]) => (
+                    {/* A design decision keeps one record — its History — in
+                        place of separate Comments and Activity. */}
+                    {(conflict.decisionFlow ? [['info', 'Info'], ['history', '히스토리']] : [['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
@@ -3249,6 +3263,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         className="ds-intrinsic -mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
                       >
                         <LocalizedText text={label} />
+                        {/* (What people did: the system's own notes aren't counted.) */}
+                        {value === 'history' && <span data-history-count className="text-[11px] font-normal text-slate-400 tabular-nums">{humanEventCount(historyEvents)}</span>}
                         {value === 'activity' && <span data-activity-count className="text-[11px] font-normal text-slate-400 tabular-nums">{activity.timeline.length}</span>}
                         {value === 'comments' && (
                           <>
@@ -3265,7 +3281,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!conflict.rollback && <FlowSteps
                         key={`flow:${conflict.id}`}
                         conflict={conflict}
-                        flow={conflict.decisionFlow ? decisionFlowOf(conflict, currentUserFor(conflict.projectId)) : undefined}
+                        flow={conflict.decisionFlow ? decisionFlowOf({ ...conflict, events: historyEvents }, currentUserFor(conflict.projectId)) : undefined}
+                        // Each finished step says who did it last and when; pressing a
+                        // step opens its History at that step's first record.
+                        meta={conflict.decisionFlow ? progressOf(historyEvents).steps.map((step) => (step.last ? `${step.last.actor.name} · ${relativeTimeOf(step.last.createdAt)}` : null)) : undefined}
+                        onStep={conflict.decisionFlow ? (index) => { openSideTab('history'); setHistoryFocus({ step: index + 1, nonce: Date.now() }) } : undefined}
                         className="mb-5"
                       />}
                       {!conflict.rollback && (
@@ -3296,6 +3316,18 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         mix={!conflict.rollback && driftItem && draftColumns(driftItem)
                           ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
                           : null}
+                      />
+                    </div>
+                  ) : sideTab === 'history' && conflict.decisionFlow ? (
+                    <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">
+                      <ConflictHistory
+                        key={conflict.id}
+                        events={historyEvents}
+                        viewerId={viewerId}
+                        focus={historyFocus}
+                        // (The sample history is for looking at: nothing is written to it.)
+                        canWrite={!historyPreview && Boolean(workspace?.addConflictOpinion)}
+                        onSend={(body, replyTo) => workspace.addConflictOpinion(conflict.id, body, replyTo)}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (
