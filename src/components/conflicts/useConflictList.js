@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { conflictListRecord, isOpen, isQueuedConflict, LIST_STATUSES, listStatusOf, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
+import { conflictListRecord, dueRank, isOpen, isQueuedConflict, LIST_STATUSES, listStatusOf, needsReviewFrom, sortOpenFirst } from '@/lib/conflicts'
 import { dueDateOf, EMPTY_FILTERS, matchesDue } from '@/components/mergestudio/mergeFilters'
 import { CONFLICT_TYPES, conflictTypeOf } from '@/lib/conflictInsight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -46,6 +46,25 @@ function matchesConflictFilters(conflict, filters) {
   return matchesDue(conflict, filters.due)
 }
 
+// The list's order as it's shown — what's open first (waiting on you on
+// top), by when it's due (this week, then later), then what's done — and
+// each change's number in it. The number is the change's name on the
+// canvas too (its pins), so it's counted over the whole list, whatever
+// filter is on.
+export const THIS_WEEK_DAYS = 7
+export function dueGroupsOf(items) {
+  const soon = items.filter((conflict) => dueRank(conflict) <= THIS_WEEK_DAYS)
+  const later = items.filter((conflict) => !(dueRank(conflict) <= THIS_WEEK_DAYS))
+  return [['This week', soon], ['Later', later]].filter(([, list]) => list.length > 0)
+}
+export function orderedConflicts(conflicts = []) {
+  const sorted = sortOpenFirst(conflicts.filter(conflictListRecord)).sort((a, b) => Number(isOpen(b) && needsReviewFrom(b)) - Number(isOpen(a) && needsReviewFrom(a)))
+  return [...dueGroupsOf(sorted.filter(isOpen)).flatMap(([, list]) => list), ...sorted.filter((conflict) => !isOpen(conflict))]
+}
+export function conflictNumbersOf(conflicts = []) {
+  return new Map(orderedConflicts(conflicts).map((conflict, index) => [conflict.id, index + 1]))
+}
+
 // `view`: where a row's detail opens — 'overlay' (the full-screen viewer
 // over the work area) or 'panel' (in the bottom panel, beside the canvas).
 export function useConflictList({ view = 'overlay' } = {}) {
@@ -84,6 +103,7 @@ export function useConflictList({ view = 'overlay' } = {}) {
     conflicts,
     openItems,
     doneItems,
+    numbers: conflictNumbersOf(conflicts),
     primaryFilters: PRIMARY_FILTERS,
     statusFilters: STATUS_FILTERS,
     queued,

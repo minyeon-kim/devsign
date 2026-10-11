@@ -1,5 +1,5 @@
 import './CanvasToolbar.css'
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FileImage,
   Check,
@@ -20,6 +20,9 @@ import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
+import ConflictPins from '@/components/conflicts/ConflictPins'
+import { conflictNumbersOf } from '@/components/conflicts/useConflictList'
+import { pinsFor } from '@/lib/canvasPins'
 import { overrideFromEdit } from '@/lib/prototypeSync'
 import { conflictCountOnPage, conflictIsAbout, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
@@ -320,33 +323,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // — is synced to the page's code file (see lib/prototypeSync).
 // `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
 // under the pointer, its size and its spacing.
-// A conflict's mark on the canvas: an amber dot on the element's top-right
-// corner (with a count when several are about it). Pressing it picks the
-// element like a click on it does — the Conflict Points panel comes up
-// below with the conflicts about it lit — rather than leaving for a review.
-function ConflictMarkers({ frame, byLayer, onSelect }) {
-  return frame.layers.filter((layer) => byLayer.has(layer.id)).map((layer) => {
-    const list = byLayer.get(layer.id)
-    const left = Math.min(layer.x + layer.width - 7, frame.width - 14)
-    const top = Math.max(layer.y - 7, 2)
-    return (
-      <div key={layer.id} className="absolute z-20" style={{ left, top }}>
-        <button
-          type="button"
-          data-canvas-conflict-marker={layer.id}
-          aria-label={`${list.length} conflict${list.length > 1 ? 's' : ''} on ${layer.name} — show in Conflict Points`}
-          title={list.length > 1 ? `${list.length} conflicts · ${layer.name}` : list[0].title}
-          onClick={(event) => { event.stopPropagation(); onSelect(layer.id) }}
-          className="flex size-3.5 min-w-3.5 cursor-pointer items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-slate-950 ring-2 ring-white transition-transform hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-        >
-          {list.length > 1 ? list.length : ''}
-        </button>
-      </div>
-    )
-  })
-}
-
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom, conflictsByLayer, onSelectLayer }) {
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -359,7 +336,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
   }
 
   return (
-    <div className="absolute" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+    <div data-canvas-frame={frame.id} className="absolute" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       <span className="absolute -top-5 left-0 text-[10px] text-muted-foreground select-none">{frame.name}</span>
       <div
         ref={setContainer}
@@ -394,7 +371,6 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
         </div>
         {isFrameSelected && <SelectionHandles />}
       </div>
-      {conflictsByLayer && !merged && <ConflictMarkers frame={frame} byLayer={conflictsByLayer} onSelect={onSelectLayer} />}
       {/* (Beside the frame's box, not in it: that clips, and a tag at the
           edge would be cut off.) */}
       {measure && <SpacingOverlay container={container} frame={frame} selectedId={selectedId} hoverId={hoverId} version={`${zoom}:${JSON.stringify(edits)}`} />}
@@ -414,6 +390,9 @@ function CanvasPanel() {
   const [pendingDraft, setPendingDraft] = useState('')
   const [openPinId, setOpenPinId] = useState(null)
   const scrollRef = useRef(null)
+  // (Also kept as state: the pins' layer measures inside it once it's there.)
+  const [canvasViewport, setCanvasViewport] = useState(null)
+  const setScrollNode = useCallback((node) => { scrollRef.current = node; setCanvasViewport(node) }, [])
   const [canvasWidth, setCanvasWidth] = useState(0)
   const compactToolbar = canvasWidth > 0 && canvasWidth < 380
 
@@ -452,10 +431,18 @@ function CanvasPanel() {
     aiGenerating,
     conflicts,
     setBottomPanel,
-    reviewConflictId,
     openConflictReview,
+    conflictPin,
+    hoverConflictPin,
+    selectConflictPin,
   } = useWorkspace()
   const conflictsByLayer = useMemo(() => openConflictsByLayer(conflicts), [conflicts])
+  // The change pins on this page: one per element a change is about,
+  // numbered as the "확인할 변경점" list numbers them.
+  const pagePins = useMemo(() => {
+    const onPage = new Set((projectPages.find((p) => p.id === activePageId) ?? projectPages[0])?.frames.flatMap((frame) => frame.layers.map((layer) => layer.id)) ?? [])
+    return pinsFor(conflicts, conflictNumbersOf(conflicts)).filter((pin) => onPage.has(pin.layerId))
+  }, [conflicts, projectPages, activePageId])
   // The value a text slot had when in-place editing started, so Escape can
   // put it back after the live preview.
   const editStart = useRef(new Map())
@@ -629,6 +616,8 @@ function CanvasPanel() {
   // its pin for a moment. A target without a comment pulses its element.
   const handledFocus = useRef(null)
   const [flashPinId, setFlashPinId] = useState(null)
+  // Moving to a pin picked in the list glides (250ms) rather than jumps.
+  const [gliding, setGliding] = useState(false)
   useEffect(() => {
     if (!canvasFocus || handledFocus.current === canvasFocus.nonce || activePage?.id !== canvasFocus.pageId) return
     const viewport = scrollRef.current
@@ -637,6 +626,7 @@ function CanvasPanel() {
     if (dockApi) openOrFocusPanel(dockApi, panelById.canvas)
     const scale = Math.max(view.zoom, 100) / 100
     // A little above center: the thread opens below the pin.
+    setGliding(Boolean(canvasFocus.smooth))
     setView({ zoom: scale * 100, x: viewport.clientWidth / 2 - canvasFocus.x * scale, y: viewport.clientHeight * 0.4 - canvasFocus.y * scale })
     setPendingComment(null)
     if (canvasFocus.commentId) {
@@ -644,9 +634,11 @@ function CanvasPanel() {
       setFlashPinId(canvasFocus.commentId)
     } else if (canvasFocus.layerId) {
       setOpenPinId(null)
-      setAiPulseId(canvasFocus.layerId)
+      // (Picked from the change list: its pin rings; the element isn't pulsed.)
+      if (!canvasFocus.quiet) setAiPulseId(canvasFocus.layerId)
     }
-    const timer = window.setTimeout(() => { setFlashPinId(null); if (!canvasFocus.commentId) setAiPulseId(null) }, 2400)
+    const glide = window.setTimeout(() => setGliding(false), 300)
+    const timer = window.setTimeout(() => { window.clearTimeout(glide); setGliding(false); setFlashPinId(null); if (!canvasFocus.commentId) setAiPulseId(null) }, 2400)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasFocus?.nonce, activePage?.id])
@@ -665,7 +657,7 @@ function CanvasPanel() {
       <div className="flex min-h-0 flex-1">
 
         <div
-          ref={scrollRef}
+          ref={setScrollNode}
           data-cursor-zone="canvas"
           data-cursor-tool={canvasTool}
           onPointerDown={handlePointerDown}
@@ -682,7 +674,7 @@ function CanvasPanel() {
           <div
             ref={surfaceRef}
             className="absolute top-0 left-0 min-h-full min-w-full p-16"
-            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${zoom / 100})`, transformOrigin: 'top left' }}
+            style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${zoom / 100})`, transformOrigin: 'top left', transition: gliding ? 'transform 250ms ease-out' : undefined }}
           >
             {activePage?.frames.map((frame) => (
               <CanvasFrame
@@ -698,9 +690,6 @@ function CanvasPanel() {
                 genProgress={genProgress}
                 measure={!commentMode && canvasTool === 'move'}
                 zoom={zoom}
-                conflictsByLayer={conflictsByLayer}
-                // (A review open in the panel would hide the list the highlight is in.)
-                onSelectLayer={(id) => { if (reviewConflictId) openConflictReview(null); handleSelect(id) }}
               />
             ))}
 
@@ -714,6 +703,24 @@ function CanvasPanel() {
               />
             ))}
           </div>
+
+          {/* The change pins: their own layer over the canvas — they follow
+              it, and stay one size whatever the zoom. Picking one picks it in
+              the list and opens it. */}
+          {!commentMode && (
+            <ConflictPins
+              container={canvasViewport}
+              pins={pagePins}
+              conflicts={conflicts}
+              selection={conflictPin.selected}
+              hoverId={conflictPin.hoverId}
+              pulse={conflictPin.pulse}
+              version={`${view.x}:${view.y}:${zoom}:${activePage?.id}:${JSON.stringify(prototypeEdits)}`}
+              onHover={hoverConflictPin}
+              onSelect={(conflict, pin) => { selectConflictPin(conflict.id, pin.layerId); openConflictReview(conflict.id, { view: 'overlay' }) }}
+              onClear={() => selectConflictPin(null)}
+            />
+          )}
 
           <MultiplayerCursors members={getViewersForCanvasPage(activePage?.id)} scopeKey={activePage?.id} />
 

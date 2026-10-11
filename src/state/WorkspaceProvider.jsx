@@ -2267,6 +2267,15 @@ export function WorkspaceProvider({ children, projectId }) {
   // to the spot (CanvasPanel). A comment gets its pin there, carrying the
   // comment and its replies, so the canvas can open the thread.
   const [canvasFocus, setCanvasFocus] = useState(null)
+  // The change pins on the canvas and the "확인할 변경점" list are one
+  // selection, shown in both: which change is under the pointer (in either
+  // place), which one is picked — and on which of its elements — and a
+  // nonce that rings the picked pin once when it's picked from the list.
+  const [conflictPin, setConflictPin] = useState({ hoverId: null, selected: null, pulse: 0 })
+  const hoverConflictPin = useCallback((conflictId) => setConflictPin((prev) => (prev.hoverId === conflictId ? prev : { ...prev, hoverId: conflictId })), [])
+  const selectConflictPin = useCallback((conflictId, layerId = null, { pulse = false } = {}) => {
+    setConflictPin((prev) => ({ ...prev, selected: conflictId ? { conflictId, layerId } : null, pulse: pulse ? prev.pulse + 1 : prev.pulse }))
+  }, [])
   const revealOnCanvas = useCallback((notification) => {
     const location = canvasLocationFor(notification.target)
     if (!location) return false
@@ -2303,6 +2312,18 @@ export function WorkspaceProvider({ children, projectId }) {
     }
     return true
   }, [canvasLocationFor, exitMergeStudio])
+
+  // Picked in the list: its pin is picked too, and the canvas glides to it
+  // (the pin rings once). Unlike revealConflictOnCanvas it only moves the
+  // canvas — no element selected, no file opened.
+  const focusConflictPin = useCallback((conflict) => {
+    const location = conflict?.layerId && canvasLocationFor({ layerId: conflict.layerId })
+    selectConflictPin(conflict?.id ?? null, conflict?.layerId ?? null, { pulse: true })
+    if (!location) return false
+    setActivePageId(location.pageId)
+    setCanvasFocus({ ...location, commentId: null, quiet: true, smooth: true, nonce: nextId('canvas-focus') })
+    return true
+  }, [canvasLocationFor, selectConflictPin])
 
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's
@@ -2477,6 +2498,10 @@ export function WorkspaceProvider({ children, projectId }) {
     canvasLocationFor,
     revealOnCanvas,
     revealConflictOnCanvas,
+    conflictPin,
+    hoverConflictPin,
+    selectConflictPin,
+    focusConflictPin,
     canvasFocus,
     historyDrawerRequest,
     requestHistoryDrawer,

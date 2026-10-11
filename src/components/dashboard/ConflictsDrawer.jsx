@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
-import { useConflictList } from '@/components/conflicts/useConflictList'
+import { dueGroupsOf, useConflictList } from '@/components/conflicts/useConflictList'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { dueRank, listStatusOf, shortDue } from '@/lib/conflicts'
@@ -23,6 +24,9 @@ import { kindWordOf } from '@/lib/conflictInsight'
 // thing: a due date that's today or tomorrow (accent) or already past
 // (warning). The selected row is marked by its background and a 2px bar at
 // its left, and by nothing that changes its height or layout.
+// (Since the canvas's pins: a small number leads each row — the same number
+// its pins carry — neutral, and the accent orange on the picked row, whose
+// card also takes that color's border. Pointing at a row points at its pin.)
 // Done items fold under "Done N" at the bottom.
 
 // Due today or tomorrow reads as urgent; past due, as late.
@@ -32,7 +36,10 @@ function dueToneOf(conflict) {
 }
 const DUE_TONE = { late: 'font-medium text-destructive', urgent: 'font-medium text-amber-300', later: 'text-slate-500' }
 
-function ConflictCard({ conflict, selected, onOpen }) {
+function ConflictCard({ conflict, number, selected, hovered, onOpen, onHover }) {
+  const row = useRef(null)
+  // Picked (here or by its pin on the canvas): brought into view in the list.
+  useEffect(() => { if (selected) row.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [selected])
   const done = conflict.reviewStage === 'resolved'
   const when = done ? conflict.resolvedAtLabel ?? conflict.timestamp ?? null : shortDue(conflict.dueLabel)
   const tone = done ? 'later' : dueToneOf(conflict)
@@ -41,16 +48,25 @@ function ConflictCard({ conflict, selected, onOpen }) {
   return (
     <li>
       <button
+        ref={row}
         type="button"
         data-conflict-row={conflict.id}
         data-conflict-stage={conflict.reviewStage}
+        data-pin-hover={hovered ? '' : undefined}
         aria-current={selected ? 'true' : undefined}
         onClick={() => onOpen(conflict)}
+        // (Pointing at a row points at its pin on the canvas, and back.)
+        onMouseEnter={() => onHover(conflict.id)}
+        onMouseLeave={() => onHover(null)}
+        onFocus={() => onHover(conflict.id)}
+        onBlur={() => onHover(null)}
         className={cn(
-          'flex w-full min-w-0 cursor-pointer flex-col gap-0.5 rounded-r-lg border-l-2 border-transparent py-2.5 pr-3 pl-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300 aria-[current=true]:border-emerald-400 aria-[current=true]:bg-white/[0.07]',
+          'grid w-full min-w-0 cursor-pointer grid-cols-[18px_minmax(0,1fr)] items-start gap-x-2 gap-y-0.5 rounded-lg border border-transparent px-2.5 py-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300 data-[pin-hover]:bg-white/[0.04] aria-[current=true]:border-orange-500 aria-[current=true]:bg-white/[0.07]',
           done && 'opacity-60'
         )}
       >
+        {/* Its number — the one on its pins on the canvas. */}
+        <span data-row-number aria-hidden className={cn('row-span-2 mt-px flex size-[18px] items-center justify-center rounded-full text-[11px] leading-none font-semibold tabular-nums', selected ? 'bg-orange-500 text-white' : 'bg-white/[0.08] text-slate-300')}>{number}</span>
         <span className="flex min-w-0 items-baseline gap-3">
           <span data-row-title className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
           {when && <span data-due={tone} className={cn('shrink-0 text-[11px] leading-5 tabular-nums', DUE_TONE[tone])}><LocalizedText text={when} /></span>}
@@ -63,18 +79,11 @@ function ConflictCard({ conflict, selected, onOpen }) {
   )
 }
 
-// What's still open, by when it's due: this week, then later (or no date).
-const THIS_WEEK_DAYS = 7
-function groupsOf(items) {
-  const soon = items.filter((conflict) => dueRank(conflict) <= THIS_WEEK_DAYS)
-  const later = items.filter((conflict) => !(dueRank(conflict) <= THIS_WEEK_DAYS))
-  return [['This week', soon], ['Later', later]].filter(([, list]) => list.length > 0)
-}
-
 const FILTER = 'ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 text-xs whitespace-nowrap transition-colors'
 
 function ConflictsDrawer({ project }) {
-  const { conflicts, openItems, doneItems, filter, primaryFilters, statusFilters, setFilter, countOf, selectedId, open } = useConflictList({ view: 'overlay' })
+  const { conflicts, openItems, doneItems, filter, primaryFilters, statusFilters, setFilter, countOf, selectedId, open, numbers } = useConflictList({ view: 'overlay' })
+  const { conflictPin, hoverConflictPin, focusConflictPin } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [showDone, setShowDone] = useState(false)
@@ -82,6 +91,9 @@ function ConflictsDrawer({ project }) {
   const onWorkspace = pathname.replace(/\/$/, '') === workspacePath
 
   function openRow(conflict) {
+    // Its pin is picked with it, and the canvas glides there (seen as soon
+    // as the detail is closed: the pin rings once).
+    focusConflictPin(conflict)
     if (onWorkspace) open(conflict.id)
     else navigate(workspacePath, { state: { openConflictId: conflict.id, reviewView: 'overlay' } })
   }
@@ -97,7 +109,9 @@ function ConflictsDrawer({ project }) {
 
   // A finer status picked from the dropdown shows on its trigger.
   const status = statusFilters.find((entry) => entry.id === filter.id && !primaryFilters.includes(entry)) ?? null
-  const card = (conflict) => <ConflictCard key={conflict.id} conflict={conflict} selected={selectedId === conflict.id} onOpen={openRow} />
+  // Picked: the one open in the detail, else the one whose pin is picked.
+  const pickedId = selectedId ?? conflictPin.selected?.conflictId ?? null
+  const card = (conflict) => <ConflictCard key={conflict.id} conflict={conflict} number={numbers.get(conflict.id)} selected={pickedId === conflict.id} hovered={conflictPin.hoverId === conflict.id} onOpen={openRow} onHover={hoverConflictPin} />
 
   return (
     <div data-conflicts-drawer className="flex flex-col pb-2">
@@ -135,7 +149,7 @@ function ConflictsDrawer({ project }) {
         <p className="px-2.5 py-6 text-center text-xs text-slate-500"><LocalizedText text="No conflicts in this view." /></p>
       )}
       {/* Grouped by when it's due, under small captions — spaced apart, no rules between rows. */}
-      {groupsOf(openItems).map(([label, items], index) => (
+      {dueGroupsOf(openItems).map(([label, items], index) => (
         <section key={label} data-due-group={label} className={cn(index > 0 && 'mt-3')}>
           <h4 className="mb-1 px-3 text-[11px] leading-4 text-slate-500"><LocalizedText text={label} /></h4>
           <ul className="flex flex-col gap-1">{items.map(card)}</ul>

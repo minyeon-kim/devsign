@@ -828,6 +828,7 @@ Add user|사용자 추가
 Teams|팀
 All projects|모든 프로젝트
 This week|이번 주
+Change point|변경점
 Structural difference|구조 차이
 Color token|컬러 토큰
 Spacing|간격

@@ -1018,6 +1018,21 @@ button.editor-line-comment {
   color: var(--notification-action-text) !important;
 }
 
+/* The canvas's change pins (ConflictPins): they grow from their tip on
+   hover and when picked, and a pin picked from the list rings once. */
+.ds-pin { transition: transform 120ms ease-out, width 120ms ease-out, height 120ms ease-out, left 120ms ease-out, top 120ms ease-out; }
+.ds-pin:hover, .ds-pin:focus-visible { transform: scale(1.1); }
+@keyframes ds-pin-pulse {
+  from { transform: scale(1); opacity: 0.55; }
+  to { transform: scale(2.6); opacity: 0; }
+}
+.ds-pin-pulse { animation: ds-pin-pulse 400ms ease-out 1 both; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ds-pin { transition: none; }
+  .ds-pin:hover, .ds-pin:focus-visible { transform: none; }
+  .ds-pin-pulse { animation: none; opacity: 0; }
+}
+
 /* Inline decision reasons enter without an extra card surface. */
 @keyframes ds-reason-enter {
   from { opacity: 0; transform: translateY(-4px); }
