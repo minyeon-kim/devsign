@@ -789,6 +789,7 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+Screen width|화면 폭
 This checkpoint recorded no code change.|이 체크포인트는 코드 변경 없이 기록됐어요.
 This step’s render|이 단계 렌더링
 Latest render|최신 렌더링

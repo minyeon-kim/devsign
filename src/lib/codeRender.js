@@ -41,8 +41,19 @@ function parseDashboardGrid(lines) {
   return single ? { component: 'dashboard-grid', tablet: single[1], base: single[1] } : null
 }
 
+// Which part of the rendered dashboard a design layer is (the render has no
+// layers of its own): what a conflict about that layer marks on it.
+const dashboardPartOf = (layerId) => (/--cards--/.test(layerId) ? 'cards' : /--cta--/.test(layerId) ? 'cta' : /--h-title$/.test(layerId) ? 'title' : /--h-sub$/.test(layerId) ? 'subtitle' : null)
+
 const CODE_RENDERERS = {
-  'dashboard-redesign:app': { parse: parseDashboardGrid, file: 'src/components/dashboard/DashboardGrid.tsx', defaultViewport: 'tablet' },
+  'dashboard-redesign:app': { parse: parseDashboardGrid, partOf: dashboardPartOf, file: 'src/components/dashboard/DashboardGrid.tsx', defaultViewport: 'tablet' },
+}
+
+// The parts of the render a conflict's elements are — marked at every
+// viewport (a card's padding is the card's on any screen).
+export function renderPartsOf(projectId, fileId, layerIds = []) {
+  const partOf = CODE_RENDERERS[`${projectId}:${fileId}`]?.partOf
+  return partOf ? [...new Set(layerIds.map(partOf).filter(Boolean))] : []
 }
 
 export const hasCodeRenderer = (projectId, fileId) => Boolean(CODE_RENDERERS[`${projectId}:${fileId}`])
@@ -81,4 +92,10 @@ export function layoutAt(spec, viewportId) {
 export function layoutChanged(spec, previous, viewportId) {
   if (!spec || !previous) return false
   return layoutAt(spec, viewportId).template !== layoutAt(previous, viewportId).template
+}
+
+// The viewports at which they do — where to look for a change that leaves
+// this one as it was (a tablet-only rule changes nothing on a phone).
+export function viewportsChanged(spec, previous) {
+  return VIEWPORTS.filter((viewport) => layoutChanged(spec, previous, viewport.id))
 }

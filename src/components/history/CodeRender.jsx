@@ -6,7 +6,10 @@ import { layoutAt } from '@/lib/codeRender'
 // scaled to the room there is. Cards the code makes wider than their column
 // are drawn that wide — over their neighbours — and say by how much.
 // `marked`: what this checkpoint changed against the one before it (the card
-// grid) ringed.
+// grid) ringed. `parts`: the parts a conflict is about ('cards', 'cta',
+// 'title', 'subtitle') ringed too. A mark is an outline on the element
+// itself, inside the scaled screen — never a stored position — so it's on
+// its element at any viewport, zoom or size, full screen included.
 const CARDS = [
   ['$12.4k', 'Revenue · +8%', ChartColumn],
   ['320', 'Orders · +12', Zap],
@@ -14,17 +17,21 @@ const CARDS = [
   ['3.9%', 'Conversion · +0.4', ChartColumn],
 ]
 
-export default function CodeRender({ spec, viewportId, scale = 1, marked = false }) {
+const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(251 191 36 / 22%)' }
+
+export default function CodeRender({ spec, viewportId, scale = 1, marked = false, parts = [] }) {
+  const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
   const layout = layoutAt(spec, viewportId)
   const { viewport, columns, padding, gap, cardWidth, overlap } = layout
   const overflowing = overlap > 0
   return (
     <div data-code-render translate="no" data-viewport={viewport.id} data-columns={columns} data-template={layout.template} data-overlap={overlap} className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: viewport.width * scale, height: viewport.height * scale }}>
       <div className="absolute top-0 left-0 origin-top-left overflow-hidden bg-slate-50 text-slate-900" style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})`, padding }}>
-        <p className="text-[28px] leading-9 font-bold tracking-tight">Dashboard</p>
-        <p className="mt-1 text-[14px] text-slate-500">Good morning, Sam · This week</p>
+        <p className="w-fit rounded-md text-[28px] leading-9 font-bold tracking-tight" {...mark('title')}>Dashboard</p>
+        <p className="mt-1 w-fit rounded-md text-[14px] text-slate-500" {...mark('subtitle')}>Good morning, Sam · This week</p>
         <section
           data-render-grid
+          data-render-mark={marked ? 'grid' : undefined}
           className="relative mt-6 grid"
           style={{
             // (Fixed-width cards that don't fit: the grid stays the screen's
@@ -32,17 +39,19 @@ export default function CodeRender({ spec, viewportId, scale = 1, marked = false
             gridTemplateColumns: overflowing ? `repeat(${columns}, minmax(0, 1fr))` : layout.template,
             gap,
             ...(overflowing && { columnGap: 0 }),
-            ...(marked && { outline: '3px solid rgb(52 211 153)', outlineOffset: 8, borderRadius: 12 }),
+            ...(marked && { ...MARK, outlineOffset: 8, borderRadius: 12 }),
           }}
         >
           {CARDS.map(([value, label, Icon], index) => (
             <article
               key={label}
               data-render-card
+              data-render-mark={parts.includes('cards') ? 'cards' : undefined}
               className="relative flex h-[132px] flex-col gap-2 rounded-2xl border bg-white p-4 shadow-sm"
               style={{
                 ...(overflowing && { width: cardWidth, zIndex: index + 1, background: 'rgb(255 255 255 / 86%)', justifySelf: index % columns === 0 ? 'start' : index % columns === columns - 1 ? 'end' : 'center' }),
                 borderColor: overflowing ? 'rgb(244 63 94)' : 'rgb(226 232 240)',
+                ...(parts.includes('cards') && MARK),
               }}
             >
               <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><Icon className="size-4" /></span>
@@ -56,7 +65,7 @@ export default function CodeRender({ spec, viewportId, scale = 1, marked = false
             </span>
           )}
         </section>
-        <button type="button" tabIndex={-1} className="pointer-events-none mt-6 h-12 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white">Upgrade to Pro</button>
+        <button type="button" tabIndex={-1} {...mark('cta')} className="pointer-events-none mt-6 h-12 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white">Upgrade to Pro</button>
       </div>
     </div>
   )

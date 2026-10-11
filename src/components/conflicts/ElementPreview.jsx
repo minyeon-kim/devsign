@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { codeOverridesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import CodeRender from '@/components/history/CodeRender'
+import { VIEWPORTS, layoutChanged, viewportOf, viewportsChanged } from '@/lib/codeRender'
 
 // A Conflict Point's element, by itself.
 //   · ElementView — the frame drawn at a scale, cut to a region, the element
@@ -94,11 +96,17 @@ function useBox(dependency) {
 }
 
 // One side, as large as its pane allows.
-function Pane({ label, value, conflict, target, link, side, marked, whole, tone, resizeKey }) {
+function Pane({ label, value, conflict, target, link, side, marked, whole, tone, resizeKey, sides, viewportId }) {
   const [ref, box] = useBox(resizeKey)
   const frame = target?.frame ?? link?.frame
   let content = null
-  if (box.width > 0 && frame && (target || whole)) {
+  if (box.width > 0 && sides && !whole) {
+    // A layout the code decides: that side's code on a screen of the width
+    // picked, the grid marked where the two sides differ at that width.
+    const viewport = viewportOf(viewportId)
+    const scale = Math.max(0.05, Math.min(1, (box.width - 8) / viewport.width, (box.height - 8) / viewport.height))
+    content = <CodeRender spec={sides[side]} viewportId={viewport.id} scale={scale} marked={marked && layoutChanged(sides.before, sides.after, viewport.id)} />
+  } else if (box.width > 0 && frame && (target || whole)) {
     const region = whole || !target ? { x: 0, y: 0, width: frame.width, height: frame.height } : cropOf(frame, target.ids, 14)
     const scale = Math.max(0.05, Math.min(whole ? 2.5 : 4, (box.width - 8) / region.width, (box.height - 8) / region.height))
     content = (
@@ -135,6 +143,11 @@ const ON = 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-i
 
 export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onReveal, onOpenReview }) {
   const target = targetOf(conflict, link)
+  const codeSides = codeSidesOf(conflict)
+  const [viewportId, setViewportId] = useState(codeSides?.defaultViewport ?? 'tablet')
+  const viewport = viewportOf(viewportId)
+  const differsHere = codeSides ? layoutChanged(codeSides.before, codeSides.after, viewport.id) : false
+  const differsAt = codeSides ? viewportsChanged(codeSides.before, codeSides.after) : []
   const [sides, setSides] = useState('both')
   const [marked, setMarked] = useState(true)
   const [whole, setWhole] = useState(false)
@@ -143,7 +156,7 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
   const field = conflict.comparisonFields?.find((entry) => entry.current !== entry.expected) ?? conflict.comparisonFields?.[0]
   // Whether there's anything to mark: an element on the frame, or a sample
   // that draws its own (the legend's gaps).
-  const canMark = Boolean(target) || conflict.sample === 'legend'
+  const canMark = codeSides ? differsHere : Boolean(target) || conflict.sample === 'legend'
   // The code side is drawn from the conflict's values; when they can't be
   // put on the element, both sides are the design — said, not hidden.
   const sameDrawing = target ? Object.keys(codeOverridesOf(conflict, target.frame)).length === 0 : false
@@ -192,6 +205,15 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
               </button>
             ))}
           </div>
+          {codeSides && (
+            <div role="tablist" aria-label="Screen width" className="inline-flex h-7 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+              {VIEWPORTS.map((entry) => (
+                <button key={entry.id} type="button" role="tab" data-element-viewport={entry.id} aria-selected={viewport.id === entry.id} onClick={() => setViewportId(entry.id)} className={cn('ds-intrinsic inline-flex h-6 items-center gap-1 rounded px-2 text-[11.5px] font-medium whitespace-nowrap transition-colors', viewport.id === entry.id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                  <LocalizedText text={entry.label} /><span className="text-slate-500 tabular-nums">{entry.width}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <button type="button" data-element-marked aria-pressed={marked && canMark} disabled={!canMark} onClick={() => setMarked((current) => !current)} className={cn(CONTROL, marked && canMark ? ON : OFF)}>
             <Crosshair className="size-3 shrink-0" />
             <LocalizedText text="Show changed elements" />
@@ -221,11 +243,21 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
               whole={whole && Boolean(link?.frame)}
               tone={resolved ? 'done' : 'open'}
               resizeKey={`${fullscreen}:${sides}`}
+              sides={codeSides}
+              viewportId={viewport.id}
             />
           ))}
         </div>
 
-        {(sameDrawing || (whole && !target)) && (
+        {codeSides && !differsHere && differsAt.length > 0 && !whole && (
+          <p data-element-no-effect role="status" className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-amber-400/10 px-3 py-2 text-[11.5px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
+            <span>이 변경은 <LocalizedText text={viewport.label} />({viewport.width}px)에는 영향이 없어요 · 양쪽 렌더링이 같아요</span>
+            <button type="button" data-element-go-viewport={differsAt[0].id} onClick={() => setViewportId(differsAt[0].id)} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+              <LocalizedText text={differsAt[0].label} />({differsAt[0].width}px)에서 보기
+            </button>
+          </p>
+        )}
+        {!codeSides && (sameDrawing || (whole && !target)) && (
           <p data-element-note className="shrink-0 text-[11.5px] text-slate-400">
             <LocalizedText text={whole && !target ? 'This component isn’t placed on the design screen, so nothing is marked on it.' : 'This difference can’t be drawn on the element; both sides show the design. Compare the values above.'} />
           </p>

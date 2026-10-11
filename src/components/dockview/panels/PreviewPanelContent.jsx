@@ -11,7 +11,7 @@ import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/component
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import CodeRender from '@/components/history/CodeRender'
-import { VIEWPORTS, layoutAt, layoutChanged, viewportOf } from '@/lib/codeRender'
+import { VIEWPORTS, layoutAt, layoutChanged, viewportOf, viewportsChanged } from '@/lib/codeRender'
 
 // Space between frames, in px.
 const FRAME_GAP = 24
@@ -140,9 +140,19 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   // A code render: the checkpoint's code on a screen of the width picked.
   const rendering = codeRender?.spec ? codeRender : null
   const viewport = viewportOf(viewportPick ?? codeRender?.defaultViewport)
-  const renderChanged = rendering ? layoutChanged(rendering.spec, rendering.previous, viewport.id) : false
+  // What's marked on it, worked out for the screen width in view — never
+  // carried over from another one: the grid, where this checkpoint lays it
+  // out differently from the one before (or, in a conflict's replay with no
+  // step before, from the design — `reference`); and the parts the conflict
+  // is about (`parts`), which are theirs at any width.
+  const against = rendering ? (rendering.previous && viewportsChanged(rendering.spec, rendering.previous).length ? rendering.previous : rendering.reference ?? rendering.previous) : null
+  const renderChanged = rendering ? layoutChanged(rendering.spec, against, viewport.id) : false
+  const renderParts = rendering?.parts ?? []
+  const canMarkRender = renderChanged || renderParts.length > 0
+  // Changed, but not at this width (a tablet-only rule on a phone): where it is.
+  const changedElsewhere = rendering && !canMarkRender ? viewportsChanged(rendering.spec, against) : []
   // Whether the changed elements are ringed (there are some, and it's on).
-  const marking = rendering ? renderChanged && viewPick === 'changed' : Boolean(focus) && viewPick === 'changed'
+  const marking = rendering ? canMarkRender && viewPick === 'changed' : Boolean(focus) && viewPick === 'changed'
   const changedIds = marking && focus && !rendering ? focus.box.layers.map((layer) => layer.id) : []
 
   // One scale for every frame, from whichever arrangement — a row
@@ -187,12 +197,21 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         <div data-preview-controls className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-2">
           {/* Always there (a step with nothing changed on the screen can't
               show any: it waits, disabled). */}
-          {rendering?.unchanged ? (
+          {changedElsewhere.length > 0 ? (
+            // Not hidden without a word: this width isn't affected, and
+            // here's the one that is.
+            <span data-preview-no-effect role="status" className="inline-flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
+              <span>이 변경은 <LocalizedText text={viewport.label} />({viewport.width}px)에는 영향이 없어요</span>
+              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setViewportPick(changedElsewhere[0].id)} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+                <LocalizedText text={changedElsewhere[0].label} />({changedElsewhere[0].width}px)에서 보기
+              </button>
+            </span>
+          ) : rendering?.unchanged && !canMarkRender ? (
             // (A checkpoint that recorded no code change has nothing to mark.)
             <span data-preview-unchanged className="inline-flex h-7 items-center rounded-md bg-white/[0.04] px-2 text-[11px] text-slate-400"><LocalizedText text="No code change in this version" /></span>
           ) : (
-          <button type="button" data-preview-changed aria-pressed={marking} disabled={rendering ? !renderChanged : !focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
-            title={(rendering ? renderChanged : focus) ? undefined : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'}
+          <button type="button" data-preview-changed aria-pressed={marking} disabled={rendering ? !canMarkRender : !focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
+            title={(rendering ? canMarkRender : focus) ? undefined : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'}
             className={cn(VIEW_TAB, 'h-7 disabled:cursor-not-allowed disabled:opacity-40', marking ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
             <Crosshair className="size-3 shrink-0" />
             <LocalizedText text="Show changed elements" />
@@ -200,7 +219,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           )}
           {marking && rendering && (
             <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
-              <LocalizedText text="Changed" /> · <span translate="no">DashboardGrid · {layoutAt(rendering.previous, viewport.id).template} → {layoutAt(rendering.spec, viewport.id).template}</span>
+              <LocalizedText text="Changed" /> · <span translate="no">{[renderChanged && `DashboardGrid · ${layoutAt(against, viewport.id).template} → ${layoutAt(rendering.spec, viewport.id).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')}</span>
             </span>
           )}
           {marking && !rendering && (
@@ -316,7 +335,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
             return (
               <div className="flex items-start justify-center gap-4">
-                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} viewportId={viewport.id} scale={scale} marked={marking} />)}
+                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} viewportId={viewport.id} scale={scale} marked={marking && renderChanged} parts={marking ? renderParts : []} />)}
                 {rendering.compare && pane('latest', rendering.compare.title, 'text-emerald-300', <CodeRender spec={rendering.compare.spec} viewportId={viewport.id} scale={scale} />)}
                 {design && pane('design', 'Design original', 'text-sky-300', (
                   <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>

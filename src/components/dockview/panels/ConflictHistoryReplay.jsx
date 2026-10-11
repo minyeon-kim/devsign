@@ -6,7 +6,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
-import { defaultViewportFor, renderOf } from '@/lib/codeRender'
+import { defaultViewportFor, renderOf, renderPartsOf } from '@/lib/codeRender'
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
@@ -342,6 +342,11 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
     defaultViewport: defaultViewportFor(conflict.projectId, renderFile),
     previous: previous ? renderOf(conflict.projectId, renderFile, snapshotLines(previous, conflict))?.spec ?? null : null,
     unchanged: Boolean(previous) && snapshotLines(previous, conflict).join('\n') === selectedLines.join('\n'),
+    // What the conflict itself is about, marked whatever the step changed:
+    // its elements' parts of the render, and — for a layout decision — the
+    // grid where the step's layout isn't the design's.
+    parts: renderPartsOf(conflict.projectId, renderFile, layerIdsOf(conflict)),
+    reference: conflict.fixes?.keep ? renderOf(conflict.projectId, renderFile, [conflict.fixes.keep])?.spec ?? null : null,
     compare: compareLatest && latest && latest !== selected ? { title: 'Latest render', spec: renderOf(conflict.projectId, renderFile, latestLines)?.spec } : null,
   }
   if (codeRender?.compare && !codeRender.compare.spec) codeRender.compare = null

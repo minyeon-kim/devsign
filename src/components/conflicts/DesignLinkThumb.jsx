@@ -5,7 +5,9 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { designLinkOf } from '@/lib/conflictInsight'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ComponentSample, ElementPreviewDialog, ElementView, hasSample } from '@/components/conflicts/ElementPreview'
-import { codeOverridesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import CodeRender from '@/components/history/CodeRender'
+import { viewportOf } from '@/lib/codeRender'
 
 // Which design screen a Conflict Point is about.
 //   · In a list row (`size="sm"`): the element itself — its own component cut
@@ -64,9 +66,14 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
     const box = SIZES.sm
     const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
     // The element alone → the component drawn alone → the whole screen.
-    const mode = target ? 'element' : hasSample(conflict) ? 'sample' : 'screen'
+    const codeSides = target ? null : codeSidesOf(conflict)
+    const mode = target ? 'element' : codeSides ? 'render' : hasSample(conflict) ? 'sample' : 'screen'
     let drawing
-    if (mode === 'element') {
+    if (mode === 'render') {
+      // A layout the code decides: its code on the screen it's about, the grid marked.
+      const viewport = viewportOf(codeSides.defaultViewport)
+      drawing = <CodeRender spec={codeSides.before} viewportId={viewport.id} scale={Math.min(box.w / viewport.width, box.h / viewport.height)} marked />
+    } else if (mode === 'element') {
       const region = cropOf(target.frame, [target.mainId], 8)
       const scale = Math.min(3, box.w / region.width, box.h / region.height)
       drawing = <ElementView frame={target.frame} region={region} scale={scale} overrides={codeOverridesOf(conflict, target.frame)} markIds={[target.mainId]} mark={markOf(conflict, target.frame, 'before')} tone={resolved ? 'done' : 'open'} />
