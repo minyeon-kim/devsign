@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionStageOf, proposalOf, reasonChipsFor, summarizeValues, valuesOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionStageOf, proposalOf, reasonChipsFor, seedValuesFor } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -268,7 +268,8 @@ function DecisionCard({ conflict, viewerId }) {
 // Which way forward to take. The section's one picture is the Before / After:
 // what is built (with its overlap) beside what the chosen way gives — big,
 // side by side. Below it the ways are a plain text list; picking one only
-// changes the right-hand screen. The design itself is not a third thumbnail:
+// changes the right-hand screen — a preset has nothing to edit, and only
+// 다른 수정안 opens controls under its row. The design itself is not a third thumbnail:
 // 원안 보기 swaps it in for the left-hand screen while pressed.
 // Green marks the pick, and nothing else here.
 function LayoutGlyph({ columns, widthMode }) {
@@ -281,10 +282,13 @@ function LayoutGlyph({ columns, widthMode }) {
   )
 }
 
-// The controls for the values of a way forward: one per property that
-// differs between the design and the code (controlsOf), each beside what the
-// code has now. Used for 다른 수정안, and for a preset too — touching a value
-// there turns it into 다른 수정안 with the rest carried over.
+// 다른 수정안's controls — the only way with any: a preset is a fixed set of
+// values, picked and nothing more.
+// One row shows what matters most — how many columns, and whether a card
+// fits the screen or has a fixed width (its px field appears only then,
+// already holding what the code has). Everything else (the gap, where it
+// applies, a note) sits behind 세부 조정, each field filled with its current
+// value and labelled with what the code has now.
 const numberField = 'h-8 w-20 rounded-lg border border-white/10 bg-black/20 px-2.5 text-[13px] text-slate-100 outline-none focus:border-white/30 disabled:opacity-40'
 function ControlChips({ label, name, options, value, onChange }) {
   return (
@@ -308,50 +312,74 @@ function ControlChips({ label, name, options, value, onChange }) {
   )
 }
 
+// One control's input, by its kind. `current` is what the code has — what a
+// field falls back to, so it's never empty.
+function ControlInput({ control, values, onEdit }) {
+  if (control.kind === 'choice') {
+    return <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? control.current ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : String(option)])} />
+  }
+  if (control.kind === 'width') {
+    const width = values.cardWidth ?? control.current ?? {}
+    const currentPx = control.current?.px ?? ''
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Choosing 고정 brings its field up with the code's width in it. */}
+        <ControlChips label={control.label} name={`control-${control.id}`} value={width.mode ?? null} onChange={(mode) => onEdit('cardWidth', mode === 'fixed' ? { mode, px: width.px ?? currentPx } : { mode })} options={[['fit', '화면 맞춤'], ['fixed', '고정']]} />
+        {width.mode === 'fixed' && (
+          <span className="flex items-center gap-1 text-xs text-slate-400">
+            <input type="number" min="0" aria-label="카드 폭(px)" data-control-input="cardWidth" value={width.px ?? currentPx} onChange={(event) => onEdit('cardWidth', { mode: 'fixed', px: event.target.value === '' ? '' : Number(event.target.value) })} className={numberField} />
+            px
+          </span>
+        )}
+      </div>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1 text-xs text-slate-400">
+      <input type="number" min="0" aria-label={`${control.label}(px)`} data-control-input={control.id} value={values[control.id] ?? control.current ?? ''} onChange={(event) => onEdit(control.id, event.target.value === '' ? '' : Number(event.target.value))} className={numberField} />
+      px
+    </span>
+  )
+}
+
 function ProposalControls({ conflict, values, onEdit, note, onNote }) {
-  const [noteOpen, setNoteOpen] = useState(Boolean(note))
-  const summary = summarizeValues(values)
+  const [details, setDetails] = useState(false)
+  const controls = controlsOf(conflict)
+  const primary = controls.filter((control) => PRIMARY_CONTROLS.includes(control.id))
+  const rest = controls.filter((control) => !PRIMARY_CONTROLS.includes(control.id))
   return (
     <div data-proposal-controls className="mb-1 ml-10 flex flex-col gap-3 py-3 pr-1">
-      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {controlsOf(conflict).map((control) => (
-          <div key={control.id} data-control={control.id} className="min-w-0">
-            <div className="mb-1.5 flex items-baseline gap-2">
-              <span className={LABEL}>{control.label}</span>
-              {control.currentText && <span className="text-[11px] text-slate-500">{control.currentText}</span>}
-            </div>
-            {control.kind === 'choice' && (
-              <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : option === '전체' ? '모든 화면' : option])} />
-            )}
-            {control.kind === 'width' && (
-              <div className="flex flex-wrap items-center gap-2">
-                <ControlChips label={control.label} name={`control-${control.id}`} value={values.cardWidth?.mode ?? null} onChange={(mode) => onEdit('cardWidth', { ...values.cardWidth, mode })} options={[['fit', '화면 맞춤'], ['fixed', '고정']]} />
-                <span className="flex items-center gap-1 text-xs text-slate-400">
-                  <input type="number" min="0" aria-label="카드 폭(px)" data-control-input="cardWidth" disabled={values.cardWidth?.mode !== 'fixed'} value={values.cardWidth?.px ?? ''} onChange={(event) => onEdit('cardWidth', { ...values.cardWidth, mode: 'fixed', px: event.target.value === '' ? undefined : Number(event.target.value) })} className={numberField} />
-                  px
-                </span>
-              </div>
-            )}
-            {control.kind === 'px' && (
-              <span className="flex items-center gap-1 text-xs text-slate-400">
-                <input type="number" min="0" aria-label={`${control.label}(px)`} data-control-input={control.id} value={values[control.id] ?? ''} onChange={(event) => onEdit(control.id, event.target.value === '' ? null : Number(event.target.value))} className={numberField} />
-                px
-              </span>
-            )}
+      {/* One row: columns, then card width. */}
+      <div data-controls-row className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {primary.map((control) => (
+          <div key={control.id} data-control={control.id} className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className={LABEL}>{control.label}</span>
+            <ControlInput control={control} values={values} onEdit={onEdit} />
           </div>
         ))}
       </div>
-      <p data-proposal-summary-line className="text-xs text-slate-400">
-        요약 · <span className="text-slate-100">{summary || '값을 정하면 한 줄로 정리해 드려요'}</span>
-      </p>
-      {noteOpen ? (
-        <label className={cn(LABEL, 'block')}>
-          추가 설명 (선택)
-          <textarea value={note} onChange={(event) => onNote(event.target.value)} rows={3} placeholder="위 값으로 표현하기 어려운 내용만 적어 주세요." className="mt-1.5 block min-h-20 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm leading-6 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
-        </label>
-      ) : (
-        <button type="button" data-open-note onClick={() => setNoteOpen(true)} className="w-fit text-xs text-slate-400 underline-offset-2 hover:text-white hover:underline">+ 추가 설명 (선택)</button>
-      )}
+      <div>
+        <button type="button" data-open-details aria-expanded={details} onClick={() => setDetails((open) => !open)} className="ds-intrinsic inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+          세부 조정
+          <ChevronRight className={cn('size-3.5 transition-transform', details && 'rotate-90')} />
+        </button>
+        {details && (
+          <div data-proposal-details className="mt-3 flex flex-col gap-3 rounded-lg bg-black/15 p-3">
+            {/* What the code has now is said here, beside each field — and only here. */}
+            <p data-current-values className="text-[11px] text-slate-500">{controls.map((control) => control.currentText).filter(Boolean).join(' · ')}</p>
+            {rest.map((control) => (
+              <div key={control.id} data-control={control.id} className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className={cn(LABEL, 'w-16 shrink-0')}>{control.label}</span>
+                <ControlInput control={control} values={values} onEdit={onEdit} />
+              </div>
+            ))}
+            <label className={cn(LABEL, 'block')}>
+              추가 설명 (선택)
+              <textarea value={note} onChange={(event) => onNote(event.target.value)} rows={2} placeholder="위 값으로 표현하기 어려운 내용만 적어 주세요." className="mt-1.5 block min-h-16 w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/30" />
+            </label>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -367,11 +395,14 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
     event.preventDefault()
     refs.current[(index + step + PROPOSALS.length) % PROPOSALS.length]?.focus()
   }
-  // A value changed: that is 다른 수정안, with whatever the picked way had kept.
-  const edit = (id, value) => {
-    onCustom({ ...custom, values: { ...valuesOf(proposal, custom), [id]: value } })
-    if (proposal !== 'other') onProposal('other')
+  // A preset is picked as it is: only the picture changes. 다른 수정안 is the
+  // one way with values to set — and the first time it's opened it starts
+  // from the preset picked just before (else from what the code has now).
+  const pick = (id) => {
+    if (id === 'other' && !Object.keys(custom.values ?? {}).length) onCustom({ ...custom, values: seedValuesFor(conflict, proposal) })
+    onProposal(id)
   }
+  const edit = (id, value) => onCustom({ ...custom, values: { ...custom.values, [id]: value } })
   const before = showDesign ? layouts.original : layouts.implementation
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
@@ -427,7 +458,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 aria-checked={on}
                 data-choice={`proposal:${option.id}`}
                 tabIndex={on || (!proposal && index === 0) ? 0 : -1}
-                onClick={() => onProposal(option.id)}
+                onClick={() => pick(option.id)}
                 onKeyDown={(event) => move(event, index)}
                 className={cn(
                   'ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
@@ -443,7 +474,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 </span>
                 <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} />
               </button>
-              {on && <ProposalControls conflict={conflict} values={valuesOf(option.id, custom)} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
+              {/* Controls belong to 다른 수정안 alone, right under its row. */}
+              {on && option.id === 'other' && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
             </Fragment>
           )
         })}

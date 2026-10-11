@@ -24,6 +24,23 @@ const DEFAULT_PROPS = [
   { id: 'cardWidth', label: '카드 폭', kind: 'width', current: { mode: 'fixed', px: 360 }, currentText: '현재 360px 고정' },
 ]
 export const controlsOf = (conflict) => conflict?.driftProps ?? DEFAULT_PROPS
+// 다른 수정안 shows two of them at once — how many columns, how wide a card —
+// and keeps the rest (the gap, where it applies) behind 세부 조정.
+export const PRIMARY_CONTROLS = ['columns', 'cardWidth']
+// What the code has now, as values: what every control starts from, so no
+// field is ever empty.
+export const currentValuesOf = (conflict) => Object.fromEntries(controlsOf(conflict).map((control) => [control.id, control.current]))
+// Where 다른 수정안 starts the first time it's opened: the code's current
+// values, with the preset that was picked just before laid over them — so
+// it begins from that way, not from nothing. A fixed width always has a
+// number (the preset's, else what the code has).
+export function seedValuesFor(conflict, fromProposal) {
+  const current = currentValuesOf(conflict)
+  const preset = fromProposal && fromProposal !== 'other' ? PROPOSALS.find((proposal) => proposal.id === fromProposal)?.values ?? {} : {}
+  const values = { ...current, ...preset }
+  if (values.cardWidth?.mode === 'fixed' && !values.cardWidth.px) values.cardWidth = { ...values.cardWidth, px: current.cardWidth?.px ?? null }
+  return values
+}
 const RANGE_LABEL = { '~768px': '768px 이하', '~1024px': '1024px 이하', 전체: '모든 화면' }
 // The values as one line: "768px 이하 · 카드 3열 · 화면 맞춤 · 간격 12px".
 export function summarizeValues(values = {}) {
