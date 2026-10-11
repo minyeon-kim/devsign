@@ -74,6 +74,8 @@ export function renderOf(projectId, fileId, lines) {
 //   · they don't fit at all → `overlap`: how far each runs over the next
 //     (the first card sits at the left edge, the last at the right:
 //     2 × 360px in 704px → 16px).
+export const CARD_COUNT = 4
+export const CARD_HEIGHT = 132
 export function layoutAt(spec, screen) {
   const breakpoint = breakpointOf(screen.width)
   const template = breakpoint === 'tablet' ? spec.tablet : spec.base
@@ -85,7 +87,11 @@ export function layoutAt(spec, screen) {
   const tight = Boolean(parsed.fixed) && parsed.count > 1 && cards + gap * (parsed.count - 1) > available
   const overlap = tight && cards > available ? Math.round((cards - available) / (parsed.count - 1)) : 0
   const squeezed = tight && !overlap ? Math.round((available - cards) / (parsed.count - 1)) : null
-  return { breakpoint, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, tight, overlap, squeezed }
+  // How tall the screen's content is (title, the card rows, the button):
+  // a render can stop there rather than draw the empty rest of a tall screen.
+  const rows = Math.ceil(CARD_COUNT / parsed.count)
+  const contentHeight = padding + 36 + 4 + 20 + 24 + rows * CARD_HEIGHT + (rows - 1) * gap + 24 + 48 + padding
+  return { breakpoint, template: parsed.template, columns: parsed.count, padding, gap, cardWidth: parsed.fixed, tight, overlap, squeezed, contentHeight }
 }
 
 // Whether two checkpoints lay the screen out differently on a screen.
@@ -101,4 +107,22 @@ export function screensChanged(spec, previous, category = 'tablet') {
   if (!spec || !previous) return []
   return [...ALL_DEVICES].sort((a, b) => (b.category === category) - (a.category === category) || (b.id === 'ipad-classic') - (a.id === 'ipad-classic'))
     .map((device) => screenOf({ deviceId: device.id }, category)).filter((screen) => layoutChanged(spec, previous, screen))
+}
+
+// A code change in a person's words: how two versions lay the cards out on a
+// screen — "태블릿(768px)에서 카드 열 너비: 360px 고정 → 화면에 맞춰 늘어남". Null
+// when they lay it out the same there.
+const BREAKPOINT_KO = { mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }
+const trackWords = (layout) => (layout.cardWidth ? `${layout.cardWidth}px 고정` : '화면에 맞춰 늘어남')
+export function layoutDelta(from, to, screen) {
+  if (!from || !to || !layoutChanged(from, to, screen)) return null
+  const a = layoutAt(from, screen)
+  const b = layoutAt(to, screen)
+  const where = `${BREAKPOINT_KO[a.breakpoint]}(${screen.width}px)에서`
+  const parts = []
+  if (a.columns !== b.columns) parts.push(`카드 열 수: ${a.columns}열 → ${b.columns}열`)
+  if (trackWords(a) !== trackWords(b)) parts.push(`카드 열 너비: ${trackWords(a)} → ${trackWords(b)}`)
+  if (!parts.length) return null
+  const effect = a.overlap && !b.overlap ? ' · 카드 겹침 해소' : !a.overlap && b.overlap ? ` · 카드가 ${b.overlap}px 겹침` : ''
+  return `${where} ${parts.join(', ')}${effect}`
 }

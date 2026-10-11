@@ -3280,9 +3280,9 @@ const DASHBOARD_GRID_DESKTOP = [
   '  )',
   '}',
 ]
-function dashboardCheckpoint({ id, label, reason, actorId, target, timestamp, lines = projectFileSets['dashboard-redesign'][0].lines }) {
+function dashboardCheckpoint({ id, label, summary, reason, actorId, target, timestamp, lines = projectFileSets['dashboard-redesign'][0].lines }) {
   return {
-    id, label, ...(reason && { reason }), kind: 'edit', ...(actorId && { actorId }), target, timestamp, archived: false,
+    id, label, ...(summary && { summary }), ...(reason && { reason }), kind: 'edit', ...(actorId && { actorId }), target, timestamp, archived: false,
     snapshot: { activeFileId: 'app', fileId: 'app', lines, activePageId: 'page-dashboard', conflicts: [], selectedLayerId: null },
   }
 }
@@ -3323,7 +3323,7 @@ export const projectHistorySeeds = {
   // design until a mix is saved; the grid code is the file as it is now.)
   'dashboard-redesign': [
     dashboardCheckpoint({ id: 'history-db-1', label: 'AI 시안 A · B 생성 (대시보드 리디자인)', actorId: 'jane', target: 'Dashboard.jsx', timestamp: 'Yesterday, 10:20 AM', lines: DASHBOARD_GRID_DESKTOP }),
-    dashboardCheckpoint({ id: 'history-db-2', label: 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정', reason: '태블릿에서도 데스크톱과 같은 2열을 유지하려고', actorId: 'min', target: 'DashboardGrid.tsx · line 7', timestamp: 'Today, 9:05 AM' }),
+    dashboardCheckpoint({ id: 'history-db-2', label: 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정', summary: '태블릿(768px)에서 카드 열 너비: 화면에 맞춰 늘어남 → 360px 고정', reason: '태블릿에서도 데스크톱과 같은 2열을 유지하려고', actorId: 'min', target: 'DashboardGrid.tsx · line 7', timestamp: 'Today, 9:05 AM' }),
     {
       ...dashboardCheckpoint({ id: 'history-conflict-con-002', label: '768px에서 카드 2열이 겹쳐요 — 디자인 원안과 구조가 달라요 (Structural Drift)', target: 'DashboardGrid.tsx · Structural Drift', timestamp: 'Today, 9:12 AM' }),
       kind: 'conflict',

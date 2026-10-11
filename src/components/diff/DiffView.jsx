@@ -35,8 +35,13 @@ const LAYOUTS = [
   { id: 'unified', label: 'Stacked', icon: Rows3, title: 'Compare top to bottom' },
   { id: 'split', label: 'Side by side', icon: Columns2, title: 'Compare side by side' },
 ]
-export function DiffLayoutTabs({ className }) {
-  const [layout, setLayout] = useDiffLayout()
+// `layout` / `onLayout`: a view with a layout of its own (History's
+// comparison reads top to bottom until someone picks side by side) instead
+// of the app's.
+export function DiffLayoutTabs({ className, layout: own, onLayout }) {
+  const [shared, setShared] = useDiffLayout()
+  const layout = own ?? shared
+  const setLayout = onLayout ?? setShared
   const language = useLanguage()
   return (
     <div role="tablist" aria-label={translateText('Diff layout', language)} data-diff-layout-tabs className={cn('inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5', className)}>
@@ -81,7 +86,8 @@ const coalesce = (runs) => runs.reduce((out, run) => {
 function prepare(rows, startLine, lit = true) {
   let a = startLine - 1
   let b = startLine - 1
-  const out = rows.map((row) => ({
+  // (A fold — lib/diffHunks — is a row of its own: it has no line.)
+  const out = rows.map((row) => (row.kind === 'fold' ? row : {
     ...row,
     from: row.from !== undefined ? row.from : row.kind === 'add' ? null : ++a,
     to: row.to !== undefined ? row.to : row.kind === 'remove' ? null : ++b,
@@ -110,6 +116,13 @@ function Text({ row }) {
   )
 }
 
+// The unchanged lines a fold stands for.
+function FoldRow({ count }) {
+  // (Translated here: a diff's code is marked not-for-translation around it.)
+  const language = useLanguage()
+  return <div data-diff-fold={count} translate="no" className="flex h-6 items-center gap-2 bg-white/[0.025] px-3 font-sans text-[10.5px] text-slate-500 select-none">··· {translateText(`${count} lines hidden`, language)}</div>
+}
+
 // `rows`: lib/lineDiff's diffLines (optionally with `from` / `to` numbers).
 // `startLine`: the first line's number. `labels`: the split columns' titles.
 // `lit`: light what differs within paired lines (off where the pairs aren't
@@ -124,7 +137,7 @@ export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers 
     // the added run that replaces it, the other side left empty.
     const pairs = []
     for (let i = 0; i < shown.length;) {
-      if (shown[i].kind === 'same') { pairs.push([shown[i], shown[i]]); i += 1; continue }
+      if (shown[i].kind === 'same' || shown[i].kind === 'fold') { pairs.push([shown[i], shown[i]]); i += 1; continue }
       let r = i
       while (r < shown.length && shown[r].kind === 'remove') r += 1
       let e = r
@@ -134,7 +147,7 @@ export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers 
       for (let k = 0; k < Math.max(removed.length, added.length); k += 1) pairs.push([removed[k] ?? null, added[k] ?? null])
       i = e
     }
-    const cell = (row, side) => (row ? (
+    const cell = (row, side) => (row?.kind === 'fold' ? <FoldRow count={row.count} /> : row ? (
       <div className={cn('flex min-w-0', TONE[row.kind === 'same' ? 'same' : row.kind])}>
         {numbers && <span className={NUMBER}>{side === 'left' ? row.from : row.to}</span>}
         <span aria-hidden className="w-4 shrink-0 text-center opacity-70 select-none">{MARK[row.kind]}</span>
@@ -159,14 +172,14 @@ export function DiffView({ rows, layout: forced, startLine = 1, labels, numbers 
 
   return (
     <div data-diff-view="unified" className={cn('min-w-0 font-mono text-[11px] leading-5', className)}>
-      {shown.map((row, index) => (
+      {shown.map((row, index) => (row.kind === 'fold' ? <div key={index} className="font-sans"><FoldRow count={row.count} /></div> : (
         <div key={index} className={cn('flex min-w-0', TONE[row.kind])}>
           {numbers && <span className={NUMBER}>{row.from ?? ''}</span>}
           {numbers && <span className={NUMBER}>{row.to ?? ''}</span>}
           <span aria-hidden className="w-4 shrink-0 text-center opacity-70 select-none">{MARK[row.kind]}</span>
           <Text row={row} />
         </div>
-      ))}
+      )))}
     </div>
   )
 }

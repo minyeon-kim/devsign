@@ -1,4 +1,5 @@
 import { ChartColumn, ShieldCheck, Zap } from 'lucide-react'
+import { cn } from 'cn'
 import { layoutAt } from '@/lib/codeRender'
 
 // A checkpoint's code on a screen: the dashboard as its DashboardGrid lays it
@@ -19,16 +20,19 @@ const CARDS = [
 
 const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(251 191 36 / 22%)' }
 
-export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [] }) {
+// `crop`: stop at the end of the content (or at a height given, so two
+// renders compared are the same size) instead of drawing the whole (tall)
+// screen — for comparing layouts at a readable size.
+export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className }) {
   const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
   const layout = layoutAt(spec, screen)
-  const viewport = screen
+  const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
   const { columns, padding, gap, cardWidth, overlap, squeezed } = layout
   // Fixed-width cards that don't fit with their gap: pushed to the edges —
   // over each other, or with what's left of the gap between them.
   const overflowing = layout.tight
   return (
-    <div data-code-render translate="no" data-viewport={viewport.id} data-width={viewport.width} data-height={viewport.height} data-breakpoint={layout.breakpoint} data-squeezed={squeezed ?? undefined} data-columns={columns} data-template={layout.template} data-overlap={overlap} className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: viewport.width * scale, height: viewport.height * scale }}>
+    <div data-code-render translate="no" data-viewport={viewport.id} data-width={viewport.width} data-height={viewport.height} data-breakpoint={layout.breakpoint} data-squeezed={squeezed ?? undefined} data-columns={columns} data-template={layout.template} data-overlap={overlap} className={cn('relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', className)} style={{ width: viewport.width * scale, height: viewport.height * scale }}>
       <div className="absolute top-0 left-0 origin-top-left overflow-hidden bg-slate-50 text-slate-900" style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})`, padding }}>
         <p className="w-fit rounded-md text-[28px] leading-9 font-bold tracking-tight" {...mark('title')}>Dashboard</p>
         <p className="mt-1 w-fit rounded-md text-[14px] text-slate-500" {...mark('subtitle')}>Good morning, Sam · This week</p>

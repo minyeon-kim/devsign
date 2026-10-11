@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Crosshair, LayoutGrid, Maximize2, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -64,6 +64,62 @@ function parsePadding(value) {
 // devices" lays the kind's devices out together, the ones the layout breaks
 // on flagged. The design prototype is a toggle beside the render, never in
 // its place.
+const COMPARE_KEY = 'devsign.previewCompare'
+// How two renders are compared (this version against the current one):
+// side by side, one over the other with a divider to drag, or side by side
+// with what differs marked.
+const COMPARE_MODES = [['side', 'Renders side by side'], ['slider', 'Slider'], ['diff', 'Differences only']]
+// At or under this window width, two renders side by side are too small to
+// read: side by side becomes the slider.
+const NARROW_WINDOW = 1280
+
+// Two renders of one size, one over the other: the left one shows up to the
+// divider, the right one past it. The divider drags, and moves with ← / →
+// (Shift: further; Home / End: all the way).
+function CompareSlider({ width, height, left, right }) {
+  const [position, setPosition] = useState(50)
+  const ref = useRef(null)
+  const moveTo = (clientX) => {
+    const bounds = ref.current.getBoundingClientRect()
+    setPosition(Math.max(0, Math.min(100, ((clientX - bounds.left) / bounds.width) * 100)))
+  }
+  return (
+    <div
+      ref={ref}
+      data-compare-slider
+      className="relative shrink-0 cursor-ew-resize touch-none select-none"
+      style={{ width, height }}
+      onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); moveTo(event.clientX) }}
+      onPointerMove={(event) => { if (event.buttons === 1) moveTo(event.clientX) }}
+    >
+      <div data-slider-side="right" className="absolute inset-0">{right}</div>
+      <div data-slider-side="left" className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${position}%` }}>{left}</div>
+      <div
+        role="slider"
+        tabIndex={0}
+        data-slider-handle
+        aria-label="Comparison divider"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(position)}
+        aria-valuetext={`${Math.round(position)}%`}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 10 : 2
+          const next = event.key === 'ArrowLeft' ? position - step : event.key === 'ArrowRight' ? position + step : event.key === 'Home' ? 0 : event.key === 'End' ? 100 : null
+          if (next === null) return
+          event.preventDefault()
+          event.stopPropagation()
+          setPosition(Math.max(0, Math.min(100, next)))
+        }}
+        className="absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-emerald-300 outline-none focus-visible:bg-white"
+        style={{ left: `${position}%` }}
+      >
+        <span className="absolute top-1/2 left-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-300 text-slate-950 shadow-lg ring-2 ring-black/30"><ChevronsLeftRight className="size-4" /></span>
+      </div>
+    </div>
+  )
+}
+
 const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
@@ -98,6 +154,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   if (pickedFor !== category) { setPickedFor(category); setDevicePick(referencePick(category)) }
   const [designShown, setDesignShown] = useState(false)
   const [overview, setOverview] = useState(false)
+  const [comparePick, setComparePickState] = useState(() => stored(COMPARE_KEY, 'side'))
+  const setComparePick = (mode) => { setComparePickState(mode); store(COMPARE_KEY, mode) }
 
   // (Full screen moves the preview to another element: measured again.)
   useEffect(() => {
@@ -174,6 +232,13 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const inRow = !conflictPreview && rowScale >= columnScale
   const fitScale = Math.max(0.05, Math.min(1, Math.max(rowScale, columnScale)))
 
+  // Two renders compared: how (side by side unless the window's too narrow
+  // for two to read — then the slider), and whether they differ on this screen.
+  const comparing = Boolean(rendering?.compare) && !overview
+  const narrow = typeof window !== 'undefined' && window.innerWidth <= NARROW_WINDOW && !fullscreen
+  const compareMode = !comparing ? null : comparePick === 'side' && narrow ? 'slider' : COMPARE_MODES.some(([id]) => id === comparePick) ? comparePick : 'side'
+  const versionsDiffer = comparing ? layoutChanged(rendering.spec, rendering.compare.spec, viewport) : false
+
   // What "Show changed elements" can't do here, as its tooltip: nothing
   // changed in the code at all, or nothing at this width.
   const canMark = rendering ? canMarkRender : Boolean(focus)
@@ -196,7 +261,18 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         // on the right. What's being rendered is said under the frame, once.
         <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-1.5 px-3 pb-2', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            {rendering && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
+            {/* Comparing: how, first; the device moves to the right, with the views. */}
+            {comparing && (
+              <div role="tablist" aria-label="Comparison mode" data-compare-modes className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+                {COMPARE_MODES.map(([id, label]) => (
+                  <button key={id} type="button" role="tab" data-compare-mode={id} aria-selected={compareMode === id} title={id === 'side' && narrow ? 'Shown as a slider in a narrow window' : undefined} onClick={() => setComparePick(id)}
+                    className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors', compareMode === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                    <LocalizedText text={label} />
+                  </button>
+                ))}
+              </div>
+            )}
+            {rendering && !comparing && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
             {phone && !rendering && (
               <DropdownMenu>
                 <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
@@ -218,6 +294,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
+            {comparing && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
             {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
             {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}
             {tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setViewPick(marking ? 'full' : 'changed') })}
@@ -266,6 +343,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: changedElsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
                 <span translate="no">{changedElsewhere[0].label}</span>({changedElsewhere[0].width}px)에서 보기
               </button>
+            </span>
+          ) : compareMode === 'diff' && !versionsDiffer ? (
+            <span data-preview-status data-compare-same role="status" className="absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
+              <LocalizedText text="Both versions render the same on this screen." />
             </span>
           ) : marking && !overview && (
             <span data-preview-status data-preview-changed-names className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
@@ -327,29 +408,54 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               </div>
             )
           })() : rendering ? (() => {
-            // This checkpoint's render — beside the latest's when comparing,
-            // and the design original when asked for — each under its name,
-            // all at one scale.
+            // This version's render — and, comparing, the current version's:
+            // this version always on the left, an arrow, the current one on
+            // the right (the way the code under it reads). Each stops at its
+            // content, so the layout is read at a size, not a thumbnail. The
+            // design original joins on the right when asked for.
             const design = designShown ? frames[0] : null
-            const count = 1 + (rendering.compare ? 1 : 0) + (design ? 1 : 0)
-            const paneWidth = (room.width - 16 * (count - 1)) / count
-            const paneHeight = room.height - 24
-            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / viewport.height)) * (zoom / 100)
+            const other = rendering.compare
+            const slider = compareMode === 'slider'
+            const count = 1 + (other && !slider ? 1 : 0) + (design ? 1 : 0)
+            const arrow = other && !slider ? 32 : 0
+            const paneWidth = (room.width - 16 * (count - 1) - arrow) / count
+            const paneHeight = room.height - 28
+            // (One height for both, so they line up — and can lie over each other.)
+            const contentHeight = Math.min(viewport.height, Math.max(layoutAt(rendering.spec, viewport).contentHeight, other ? layoutAt(other.spec, viewport).contentHeight : 0))
+            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
+            const marks = compareMode === 'diff' && versionsDiffer
             const pane = (key, label, tone, node) => (
               <figure key={key} data-render-pane={key} className="m-0 flex min-w-0 flex-col items-center gap-1.5">
-                {node}
                 <figcaption className={cn('text-[11px] font-medium', tone)}>
                   <LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span>
                   {/* (A width outside the kind's breakpoint: the layout it gets.) */}
                   {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
                 </figcaption>
+                {node}
               </figure>
             )
+            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} marked={marks || (marking && renderChanged)} parts={marking ? renderParts : []} />
+            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} marked={marks} /> : null
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
             return (
-              <div className="flex items-start justify-center gap-4">
-                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} screen={viewport} scale={scale} marked={marking && renderChanged} parts={marking ? renderParts : []} />)}
-                {rendering.compare && pane('latest', rendering.compare.title, 'text-emerald-300', <CodeRender spec={rendering.compare.spec} screen={viewport} scale={scale} />)}
+              <div data-render-compare={compareMode ?? 'single'} className="flex items-start justify-center gap-4">
+                {slider ? (
+                  <figure data-render-pane="slider" className="m-0 flex min-w-0 flex-col items-center gap-1.5">
+                    {/* The two names over their own sides (never over the screen itself). */}
+                    <figcaption className="flex items-baseline justify-between gap-3 text-[11px] font-medium" style={{ width: viewport.width * scale }}>
+                      <span data-slider-label="left" className="min-w-0 truncate text-slate-100"><LocalizedText text={rendering.title} /></span>
+                      <span className="shrink-0 font-normal text-slate-500"><span className="tabular-nums">{viewport.width}px</span> · <LocalizedText text="Drag the divider, or press ← →" /></span>
+                      <span data-slider-label="right" className="min-w-0 truncate text-emerald-300"><LocalizedText text={other.title} /></span>
+                    </figcaption>
+                    <CompareSlider width={viewport.width * scale} height={contentHeight * scale} left={mine} right={theirs} />
+                  </figure>
+                ) : (
+                  <>
+                    {pane('checkpoint', rendering.title, 'text-slate-100', mine)}
+                    {other && <ArrowRight aria-hidden data-render-arrow className="mt-[72px] size-5 shrink-0 text-slate-500" />}
+                    {other && pane('latest', other.title, 'text-emerald-300', theirs)}
+                  </>
+                )}
                 {design && pane('design', 'Design original', 'text-sky-300', (
                   <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>
                     <div className="relative" style={{ width: design.width, height: design.height, transform: `scale(${designScale})`, transformOrigin: 'top left' }}>

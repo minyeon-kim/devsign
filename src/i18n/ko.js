@@ -789,6 +789,18 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+This version → current version|이 버전 → 현재 버전
+Renders side by side|나란히
+The file as it was at this version|이 버전의 파일
+Change summary|변경 요약
+Show the whole file|전체 파일 보기
+Shown as a slider in a narrow window|좁은 화면에서는 슬라이더로 보여줘요
+Both versions render the same on this screen.|이 화면에서는 두 버전의 렌더링이 같아요.
+Drag the divider, or press ← →|경계선을 끌거나 ← → 키로 이동
+Comparison divider|비교 경계선
+Comparison mode|비교 모드
+Differences only|차이만 강조
+Slider|슬라이더
 About this page|이 페이지 안내
 Reason for the change|변경 사유
 No code change since the version before|직전 버전 대비 코드 변경 없음
