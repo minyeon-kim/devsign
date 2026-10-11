@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, MoreHorizontal, Code2, GitCompareArrows, RotateCcw, Sparkles } from 'lucide-react'
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
+import { Archive, ArchiveRestore, ChevronDown, MoreHorizontal, Code2, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { ACCENT_CTA, FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
@@ -9,7 +9,7 @@ import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { diffLines } from '@/lib/lineDiff'
 import { DiffLayoutTabs, DiffView, useDiffLayout } from '@/components/diff/DiffView'
-import { historyMeta } from '@/lib/historyMeta'
+import { KIND_LABEL, historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
@@ -51,11 +51,12 @@ function snapshotLines(snapshot) {
 // the typing is in, then switches to this checkpoint's own recorded
 // preview values, the element that changed ringed for a moment. Half a
 // second later `onStepDone` moves on to the next checkpoint.
-// `position` ({ index, total }) feeds the temporary debug readout.
+// `position` ({ index, total }) names the checkpoint in the preview's caption.
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLatest = true, onCompareLatestChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position }) {
   const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
   const navigate = useNavigate()
   const [ruleFocus, setRuleFocus] = useState(null)
+  const [reasonOpen, setReasonOpen] = useState(false)
   // The code pane's width in px (null = its default share); the canvas
   // takes the rest.
   const [codeWidth, setCodeWidth] = useState(null)
@@ -173,6 +174,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
   const marks = foldConflictCheckpoints(withBranches(historyEntries, conflicts)).find((version) => version.id === entry.id)?.conflictMarks ?? []
   const relatedIds = new Set([entry.conflictId, ...(entry.conflictIds ?? []), ...marks.map((mark) => mark.conflictId)].filter(Boolean))
   const why = checkpointRationale(entry, conflicts.filter((conflict) => relatedIds.has(conflict.id)), comments)
+  // (The change itself is on the meta line; the rest backs the reason.)
+  const reasonEvidence = why.evidence.filter((item) => item.kind !== 'conflict')
+  // Who made it (and who approved) — without its kind or file, said elsewhere.
+  const who = historyMeta({ ...entry, kind: null, target: null }, currentUser.id)
   // A rule opens in the rule list; everything else lives in the Workspace,
   // on that conflict's review.
   function openEvidence(item) {
@@ -180,14 +185,13 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
     setRuleFocus(null)
     const conflictId = item.conflictId ?? [...relatedIds][0]
-    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId, evidence: item } })
+    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId, evidence: item, reviewView: 'overlay' } })
   }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
         (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
       )
     : []
-  const conflictDelta = (entry.snapshot.conflicts?.length ?? 0) - (diffBase?.snapshot.conflicts?.length ?? 0)
 
 
   return (
@@ -195,46 +199,57 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     // History drawer, borderless inside, the mint accent for Restore.
     <div className={cn('flex h-full min-h-0 flex-col overflow-hidden', PANEL_RADIUS, FLOATING_PANEL)}>
       <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-4 pb-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[11px] text-slate-500 tabular-nums">
-            {entry.timestamp}
+        {/* Two lines. What it is and where it stands (its kind, "Current");
+            then when, where, who and the change it belongs to — each said
+            once (the file is the code pane's tab, not here). Why it was made
+            opens on asking. */}
+        <div data-checkpoint-header className="min-w-0">
+          <p className="flex min-w-0 items-center gap-2">
+            {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
+            <span data-checkpoint-title className="min-w-0 truncate text-[14px] leading-5 font-semibold text-white">{entry.label}</span>
+            {KIND_LABEL[entry.kind] && <span data-checkpoint-kind className="inline-flex h-5 shrink-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300"><LocalizedText text={KIND_LABEL[entry.kind]} /></span>}
+            {isCurrent && !playing && <span data-checkpoint-current className="inline-flex h-5 shrink-0 items-center rounded-full bg-emerald-400/15 px-2 text-[10.5px] font-medium text-emerald-200"><LocalizedText text="Current" /></span>}
+          </p>
+          <div data-checkpoint-meta className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] leading-5 text-slate-400">
+            <span className="shrink-0 tabular-nums">{entry.timestamp}</span>
             {/* The branch this checkpoint is on, in its graph color. */}
             {branch && (
-              <span translate="no" className="inline-flex h-5 items-center gap-1.5 rounded-full px-2 font-mono text-[10.5px] font-medium" style={{ color: branch.color, background: `${branch.color}1f` }}>
-                <span className="size-1.5 rounded-full" style={{ background: branch.color }} />
-                {branch.name}
-              </span>
-            )}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] font-semibold text-white">
-            {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
-            {entry.label}
-          </p>
-          {historyMeta(entry, currentUser.id) && <p className="mt-0.5 truncate text-[11px] text-slate-400">{historyMeta(entry, currentUser.id)}</p>}
-          {/* Why this version exists and what backs it — the same reasons
-              its conflicts carry — with the way to those conflicts and
-              their comments. */}
-          <ReasonStrip text={why.text} evidence={why.evidence} onOpen={openEvidence} className="mt-1.5" />
-          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
-            <GitCompareArrows className="size-3" />
-            {!playing && isCurrent ? (
-              'This is the current version.'
-            ) : !showDiff ? (
-              'The file as it was at this version.'
-            ) : (
               <>
-                Compared with current ·{' '}
-                <span className="text-emerald-300">+{added}</span>
-                <span className="text-red-300">−{removed}</span> lines
-                {/* (+0 −0 isn't a broken comparison: say what it is.) */}
-                {added + removed === 0 && <> · <LocalizedText text="The code is the same as the current version." />{codeRender?.unchanged && <> <LocalizedText text="This checkpoint recorded no code change." /></>}</>}
-                {/* Each as its own string, so it's translated (a leading
-                    " · " glued on kept them in English). */}
-                {propChanges.length > 0 && <> · <LocalizedText text={`${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`} /></>}
-                {conflictDelta !== 0 && <> · <LocalizedText text={`${conflictDelta > 0 ? '+' : ''}${conflictDelta} conflicts`} /></>}
+                <span aria-hidden className="text-slate-600">·</span>
+                <span translate="no" className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full px-2 font-mono text-[10.5px] font-medium" style={{ color: branch.color, background: `${branch.color}1f` }}>
+                  <span className="size-1.5 rounded-full" style={{ background: branch.color }} />
+                  {branch.name}
+                </span>
               </>
             )}
-          </p>
+            {who && <><span aria-hidden className="text-slate-600">·</span><span className="shrink-0"><LocalizedText text={who} /></span></>}
+            {/* The change it belongs to: the way to that change's detail. */}
+            {why.evidence.filter((item) => item.kind === 'conflict').map((item) => (
+              <Fragment key={item.id}>
+                <span aria-hidden className="text-slate-600">·</span>
+                <button type="button" data-checkpoint-conflict={item.id} onClick={() => openEvidence(item)} className="ds-intrinsic inline-flex h-5 max-w-[280px] min-w-0 items-center gap-1 rounded-md px-1 text-amber-200 transition-colors hover:bg-white/[0.07] hover:text-amber-100">
+                  <TriangleAlert className="size-3 shrink-0" />
+                  <span className="min-w-0 truncate"><LocalizedText text={item.label} /></span>
+                </button>
+              </Fragment>
+            ))}
+            {showDiff && (
+              <>
+                <span aria-hidden className="text-slate-600">·</span>
+                {/* (+0 −0 isn't a broken comparison: say what it is.) */}
+                {added + removed === 0
+                  ? <span data-checkpoint-diff title={codeRender?.unchanged ? 'This checkpoint recorded no code change.' : undefined}><LocalizedText text="The code is the same as the current version." /></span>
+                  : <span data-checkpoint-diff title="Compared with current" className="shrink-0 tabular-nums"><span className="text-emerald-300">+{added}</span> <span className="text-red-300">−{removed}</span></span>}
+              </>
+            )}
+            {(why.text || reasonEvidence.length > 0) && (
+              <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((current) => !current)} className="ds-intrinsic ml-1 inline-flex h-5 shrink-0 items-center gap-0.5 rounded-md px-1 text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white">
+                <LocalizedText text="Reason for the change" />
+                <ChevronDown className={cn('size-3 transition-transform', reasonOpen && 'rotate-180')} />
+              </button>
+            )}
+          </div>
+          {reasonOpen && <ReasonStrip text={why.text} evidence={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {onCompareLatestChange && (
@@ -331,16 +346,6 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             plainly. Having the toggle and a separate This-version/Latest
             switch do overlapping jobs was confusing — one control. */}
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
-          {/* TEMP (debug): which checkpoint is showing and the values its
-              preview is drawn from — to check that code, preview and this
-              readout change together during playback. Remove when done. */}
-          <p data-history-debug translate="no" className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[45%] rounded-md bg-black/70 px-2 py-1 font-mono text-[10.5px] leading-4 text-emerald-200">
-            #{position ? `${position.index + 1}/${position.total}` : '–'}
-            {playing && <span className="text-slate-400"> {typed || !baseEntry ? 'shown' : 'typing…'}</span>}
-            {['iconSize', 'hitArea', 'badgeCount', 'badgeCap'].filter((key) => shownProps[key] !== undefined).map((key) => (
-              <span key={key}> · {key} <span className="text-white">{String(shownProps[key])}</span></span>
-            ))}
-          </p>
           <PreviewPanelContent
             // A new key fades the preview over — on each checkpoint, and
             // during playback each time the typed code changes the design.
@@ -360,8 +365,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             codeRender={codeRender}
             caption={
               <span className="shrink-0 text-emerald-300">
-                {/* (A code render names what it shows itself — this checkpoint, the latest beside it.) */}
-                {codeRender?.spec ? (isCurrent ? 'Current' : null) : playing ? 'This step' : showDiff ? 'Latest' : isCurrent ? 'Current' : `At ${entry.timestamp}`}
+                {/* (A code render names what it shows under its frame; "Current" is the header's badge.) */}
+                {codeRender?.spec || isCurrent ? null : playing ? 'This step' : showDiff ? 'Latest' : `At ${entry.timestamp}`}
               </span>
             }
           />

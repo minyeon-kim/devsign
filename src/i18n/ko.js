@@ -789,6 +789,10 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+About this page|이 페이지 안내
+Reason for the change|변경 사유
+No code change since the version before|직전 버전 대비 코드 변경 없음
+Compare with the design original|디자인 원안 비교
 layout|레이아웃
 Width in px|폭(px)
 Landscape — switch to portrait|가로 · 세로로 전환

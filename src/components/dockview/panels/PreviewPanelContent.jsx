@@ -68,7 +68,6 @@ const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-const VIEW_TAB = 'ds-intrinsic inline-flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors'
 function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
@@ -175,89 +174,38 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const inRow = !conflictPreview && rowScale >= columnScale
   const fitScale = Math.max(0.05, Math.min(1, Math.max(rowScale, columnScale)))
 
+  // What "Show changed elements" can't do here, as its tooltip: nothing
+  // changed in the code at all, or nothing at this width.
+  const canMark = rendering ? canMarkRender : Boolean(focus)
+  const changedTitle = canMark ? 'Show changed elements'
+    : rendering?.unchanged ? 'No code change since the version before'
+      : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'
+  // One icon button of the toolbar: named by its tooltip, lit while on.
+  const tool = ({ id, label, Icon, on = false, disabled = false, onClick }) => (
+    <button key={id} type="button" {...{ [`data-preview-${id}`]: '' }} aria-label={label} title={label} aria-pressed={on} disabled={disabled} onClick={onClick}
+      className={cn('ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-35', on ? 'bg-emerald-400/20 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
+      <Icon className="size-3.5" />
+    </button>
+  )
+
   const panel = (
     <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
-      <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded && !fullscreen ? 'pt-0' : 'pt-3')}>
-        {rendering ? (
-          // Which checkpoint's code this is, and the file it's read from.
-          <span data-preview-source="code" className="flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 font-semibold text-slate-100"><LocalizedText text={rendering.title} /></span>
-            <span translate="no" className="min-w-0 truncate font-mono text-[10.5px]">{rendering.file}</span>
-          </span>
-        ) : codeRender ? (
-          <span data-preview-source="design" className="min-w-0 truncate"><LocalizedText text="Design prototype" /> · <span translate="no">{file?.path}</span></span>
-        ) : (
-          <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>
-        )}
-        <div className="flex shrink-0 items-center gap-2">
-          {caption}
-          <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
-          {fullscreen && (
-            <button type="button" data-preview-fullscreen-close onClick={() => setFullscreen(false)} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.08] px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
-              <X className="size-3.5 shrink-0" />
-              <LocalizedText text="Exit full screen" />
-              <kbd className="rounded bg-white/[0.1] px-1 font-sans text-[10px] text-slate-300">Esc</kbd>
-            </button>
-          )}
-        </div>
-      </div>
-      {viewControls && (
-        <div data-preview-controls className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-2">
-          {/* Always there (a step with nothing changed on the screen can't
-              show any: it waits, disabled). */}
-          {changedElsewhere.length > 0 ? (
-            // Not hidden without a word: this width isn't affected, and
-            // here's the one that is.
-            <span data-preview-no-effect role="status" className="inline-flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
-              <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요</span>
-              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: changedElsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
-                <span translate="no">{changedElsewhere[0].label}</span>({changedElsewhere[0].width}px)에서 보기
-              </button>
-            </span>
-          ) : rendering?.unchanged && !canMarkRender ? (
-            // (A checkpoint that recorded no code change has nothing to mark.)
-            <span data-preview-unchanged className="inline-flex h-7 items-center rounded-md bg-white/[0.04] px-2 text-[11px] text-slate-400"><LocalizedText text="No code change in this version" /></span>
-          ) : (
-          <button type="button" data-preview-changed aria-pressed={marking} disabled={rendering ? !canMarkRender : !focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
-            title={(rendering ? canMarkRender : focus) ? undefined : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'}
-            className={cn(VIEW_TAB, 'h-7 disabled:cursor-not-allowed disabled:opacity-40', marking ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
-            <Crosshair className="size-3 shrink-0" />
-            <LocalizedText text="Show changed elements" />
-          </button>
-          )}
-          {marking && rendering && (
-            <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
-              <LocalizedText text="Changed" /> · <span translate="no">{[renderChanged && `DashboardGrid · ${layoutAt(against, viewport).template} → ${layoutAt(rendering.spec, viewport).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')}</span>
-            </span>
-          )}
-          {marking && !rendering && (
-            <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
-              <LocalizedText text="Changed" /> · <span translate="no">{focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
-            </span>
-          )}
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-            {rendering && (
-              <>
-                <button type="button" data-preview-design aria-pressed={designShown} onClick={() => setDesignShown((current) => !current)} className={cn(VIEW_TAB, 'h-7', designShown ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
-                  <PenTool className="size-3 shrink-0" />
-                  <LocalizedText text="Design original" />
-                </button>
-                <button type="button" data-preview-overview aria-pressed={overview} onClick={() => setOverview((current) => !current)} className={cn(VIEW_TAB, 'h-7', overview ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
-                  <LayoutGrid className="size-3 shrink-0" />
-                  <LocalizedText text="All devices" />
-                </button>
-                <DevicePicker category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />
-              </>
-            )}
+      {viewControls ? (
+        // One line, whatever the pane's width: the device on the left (it
+        // gives way first — its name truncates), the views as icon buttons
+        // on the right. What's being rendered is said under the frame, once.
+        <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-1.5 px-3 pb-2', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {rendering && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
             {phone && !rendering && (
               <DropdownMenu>
-                <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
                   <Smartphone className="size-3.5 shrink-0 text-slate-400" />
-                  <LocalizedText text={device.label} />
-                  {device.width && <span className="text-slate-500 tabular-nums">{device.width}×{device.height}</span>}
+                  <span className="min-w-0 truncate"><LocalizedText text={device.label} /></span>
+                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums">{device.width}</span>}
                   <ChevronDown className="size-3 shrink-0 text-slate-400" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuContent align="start" className="min-w-52">
                   {DEVICES.map((entry) => (
                     <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
                       <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
@@ -268,12 +216,27 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {!fullscreen && (
-              <button type="button" data-preview-fullscreen onClick={() => setFullscreen(true)} className={cn(VIEW_TAB, 'h-7 bg-white/[0.05] text-slate-200 hover:bg-white/[0.09] hover:text-white')}>
-                <Maximize2 className="size-3 shrink-0" />
-                <LocalizedText text="View full screen" />
-              </button>
-            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
+            {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}
+            {tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setViewPick(marking ? 'full' : 'changed') })}
+            {fullscreen
+              ? (
+                <button type="button" data-preview-fullscreen-close aria-label="Exit full screen" title="Exit full screen" onClick={() => setFullscreen(false)} className="ds-intrinsic ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.08] px-2 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
+                  <X className="size-3.5 shrink-0" />
+                  <kbd className="rounded bg-white/[0.1] px-1 font-sans text-[10px] text-slate-300">Esc</kbd>
+                </button>
+              )
+              : tool({ id: 'fullscreen', label: 'View full screen', Icon: Maximize2, onClick: () => setFullscreen(true) })}
+          </div>
+        </div>
+      ) : (
+        <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
+          <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            {caption}
+            <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
           </div>
         </div>
       )}
@@ -292,7 +255,31 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           <span><LocalizedText text={codeRender.error} /> <LocalizedText text="Showing the design prototype instead." /></span>
         </p>
       )}
-      <div ref={boxRef} className="flex min-h-0 flex-1 flex-col overflow-auto px-4 pb-4">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+      {viewControls && (
+        <>
+          {/* What the marks are, or why there are none here — over the
+              canvas, so the toolbar stays one line. */}
+          {changedElsewhere.length > 0 ? (
+            <span data-preview-status data-preview-no-effect role="status" className="absolute top-1 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-[#2a2415]/95 px-2 py-1 text-[11px] text-amber-100 shadow-lg ring-1 ring-amber-300/25 ring-inset">
+              <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요</span>
+              <button type="button" data-preview-go-viewport={changedElsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: changedElsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+                <span translate="no">{changedElsewhere[0].label}</span>({changedElsewhere[0].width}px)에서 보기
+              </button>
+            </span>
+          ) : marking && !overview && (
+            <span data-preview-status data-preview-changed-names className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
+              <LocalizedText text="Changed" /> · <span translate="no">{rendering
+                ? [renderChanged && `DashboardGrid · ${layoutAt(against, viewport).template} → ${layoutAt(rendering.spec, viewport).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')
+                : focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
+            </span>
+          )}
+          {/* (A design-frame preview says which version it shows here; a code render says so under its frame.) */}
+          {caption && !rendering && <span data-preview-caption className="pointer-events-none absolute top-1 right-3 z-20 rounded-md bg-black/60 px-2 py-1 text-[10.5px]">{caption}</span>}
+          <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>
+        </>
+      )}
+      <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto pb-4', viewControls ? 'px-3' : 'px-4')}>
         {/* Keyed on the snapshot itself in historical mode (History's
             playback and version compare), not the live `previewVersion` —
             otherwise scrubbing/replaying through checkpoints swaps this
@@ -308,7 +295,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             [data-layer-id="${CSS.escape(highlightLayerId)}"] { animation: preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} 1200ms ease-out backwards; border-radius: 6px; z-index: 5; }
           `}</style>
         )}
-        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('m-auto flex items-center animate-in fade-in duration-500', inRow ? 'flex-row' : 'w-full flex-col')}>
+        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
           {conflictPreview ? (
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
@@ -351,7 +338,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const pane = (key, label, tone, node) => (
               <figure key={key} data-render-pane={key} className="m-0 flex min-w-0 flex-col items-center gap-1.5">
                 {node}
-                <figcaption className={cn('text-[11px] font-medium', tone)}><LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span></figcaption>
+                <figcaption className={cn('text-[11px] font-medium', tone)}>
+                  <LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span>
+                  {/* (A width outside the kind's breakpoint: the layout it gets.) */}
+                  {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
+                </figcaption>
               </figure>
             )
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
@@ -392,6 +383,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             )
           })}
         </div>
+      </div>
       </div>
     </div>
   )

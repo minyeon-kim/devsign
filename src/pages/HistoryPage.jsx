@@ -2,6 +2,7 @@ import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { Info } from 'lucide-react'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -80,23 +81,22 @@ function HistoryPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      <div className="shrink-0 border-b px-6 py-4">
-        <div className="flex items-center gap-2 text-[15px] font-semibold">
-          <span className="max-w-[240px] min-w-0 truncate text-muted-foreground">{project.name}</span>
-          <span className="font-normal text-muted-foreground/60">/</span>
-          <span className="text-foreground">History</span>
-          <span className="ml-2 text-xs font-normal text-slate-500">{timeline.length} checkpoints</span>
-        </div>
-        {/* Every file/element this project touched shares one timeline —
-            this line says whether that's what's currently playing back, or
-            just the slice the History drawer's filters narrowed it to. */}
-        <p className="mt-1 text-xs text-slate-500">
-          {scopeLabel ? (
-            <>Showing <span className="font-medium text-slate-300">{scopeLabel}</span> — every other checkpoint is filtered out of this playback.</>
-          ) : (
-            'Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer.'
-          )}
-        </p>
+      {/* One line: where this is and how many versions. What the page is
+          sits behind the ⓘ; a filter narrowing the playback says so here. */}
+      <div data-history-title className="flex shrink-0 items-center gap-2 border-b px-6 py-3 text-[15px] font-semibold">
+        <span className="max-w-[240px] min-w-0 truncate text-muted-foreground">{project.name}</span>
+        <span className="font-normal text-muted-foreground/60">/</span>
+        <span className="text-foreground">History</span>
+        <span className="text-xs font-normal text-slate-500">·</span>
+        <span className="text-xs font-normal text-slate-500">{`${timeline.length} checkpoints`}</span>
+        <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-5 shrink-0 cursor-help items-center justify-center rounded-full text-slate-500 hover:bg-white/[0.06] hover:text-slate-300">
+          <Info className="size-3.5" />
+        </span>
+        {scopeLabel && (
+          <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="ml-1 inline-flex h-5 items-center rounded-full bg-amber-400/15 px-2 text-[11px] font-medium text-amber-200">
+            {scopeLabel}
+          </span>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
