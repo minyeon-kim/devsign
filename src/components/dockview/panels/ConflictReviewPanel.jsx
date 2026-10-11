@@ -642,7 +642,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               const shape = proposalOf(pick, conflict.decisionRequest?.custom ?? conflict.decisionDraft?.custom)
               return (
                 <Row label="Proposed fix" data-summary-row="Proposed fix">
-                  {shape ? <span className="font-medium text-sky-200">{shape.name}<span className="font-normal text-slate-300"> · {shape.spec}</span></span> : <span className="text-amber-200">수정안을 선택해 주세요</span>}
+                  {shape ? <span className="font-medium text-sky-200">{shape.name}<span className="font-normal text-slate-300"> · {shape.spec}</span></span> : <span data-no-proposal className="text-slate-500">—</span>}
                 </Row>
               )
             })()}

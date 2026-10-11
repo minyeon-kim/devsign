@@ -84,6 +84,23 @@ export function differencesOf(conflict) {
   })
 }
 
+// What kind of change it is, in a couple of words for a list's meta line
+// ("Structure", "Color token", "Spacing", "Font weight") — the type when
+// that says it, else the first property that differs. No tag, no color:
+// the detail's header carries the full type.
+const KIND_WORD = { color: 'Color token', spacing: 'Spacing', radius: 'Corner radius', stroke: 'Stroke width', size: 'Size' }
+const TYPE_WORD = { 'structural-drift': 'Structural difference', 'code-conflict': 'Merge conflict', 'design-decision': 'Draft choice', revert: 'Merge cancellation', restore: 'Restore previous version' }
+export function kindWordOf(conflict) {
+  const type = conflictTypeOf(conflict)
+  if (!type) return null
+  if (TYPE_WORD[type.id]) return TYPE_WORD[type.id]
+  const differences = differencesOf(conflict)
+  const first = differences.find((entry) => !entry.shared) ?? differences[0]
+  if (!first) return null
+  if (first.kind === 'typography') return /weight/i.test(first.label) ? 'Font weight' : /tracking|letter/i.test(first.label) ? 'Letter spacing' : 'Typography'
+  return KIND_WORD[first.kind] ?? 'Value'
+}
+
 // The cause in a few words: the kinds of difference, most telling first —
 // "Size mismatch", "Size mismatch · Color mismatch", "Merge conflict".
 export function mismatchesOf(conflict) {

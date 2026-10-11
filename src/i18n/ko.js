@@ -828,6 +828,12 @@ Add user|사용자 추가
 Teams|팀
 All projects|모든 프로젝트
 This week|이번 주
+Structural difference|구조 차이
+Color token|컬러 토큰
+Spacing|간격
+Font weight|폰트 굵기
+Value|값 차이
+Draft choice|시안 선택
 Last week|지난 주
 This month|이번 달
 Earlier|이전 히스토리

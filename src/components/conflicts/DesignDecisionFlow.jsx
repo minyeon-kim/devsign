@@ -267,17 +267,20 @@ function DecisionCard({ conflict, viewerId }) {
 // ── The developer's side ─────────────────────────────────────────────
 // Which way forward to take. The section's one picture is the Before / After:
 // what is built (with its overlap) beside what the chosen way gives — big,
-// side by side. Below it the ways are a plain text list; picking one only
-// changes the right-hand screen — a preset has nothing to edit, and only
-// 다른 수정안 opens controls under its row. The design itself is not a third thumbnail:
+// side by side, never an empty box (before anything is picked the right-hand
+// screen is the design itself). Below it the ways are a plain text list;
+// pointing at one previews it, picking one holds it — a preset has nothing
+// to edit, and only 다른 수정안 opens controls under its row. The design itself is not a third thumbnail:
 // 원안 보기 swaps it in for the left-hand screen while pressed.
 // Green marks the pick, and nothing else here.
-function LayoutGlyph({ columns, widthMode }) {
-  if (!columns) return <span aria-hidden className="size-5 shrink-0 rounded-[4px] border border-dashed border-white/25" />
+// A way's layout, as a small mark at its row's end — in the accent color on
+// the picked row. (A way with no layout to draw yet has no mark.)
+function LayoutGlyph({ columns, widthMode, on = false }) {
+  if (!columns) return <span aria-hidden className="size-5 shrink-0" />
   const set = widthMode === 'narrow' || widthMode === 'fixed'
   return (
-    <span aria-hidden className="grid size-5 shrink-0 gap-px rounded-[4px] border border-white/25 p-[2px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}>
-      {Array.from({ length: columns === 1 ? 3 : columns === 3 ? 3 : 4 }).map((_, index) => <span key={index} className={cn('rounded-[1px] bg-white/40', set && columns > 1 && 'mx-auto w-[70%]')} />)}
+    <span aria-hidden data-glyph={on ? 'on' : 'off'} className={cn('grid size-5 shrink-0 gap-px rounded-[4px] border p-[2px]', on ? 'border-emerald-400' : 'border-white/25')} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}>
+      {Array.from({ length: columns === 1 ? 3 : columns === 3 ? 3 : 4 }).map((_, index) => <span key={index} className={cn('rounded-[1px]', on ? 'bg-emerald-400' : 'bg-white/40', set && columns > 1 && 'mx-auto w-[70%]')} />)}
     </span>
   )
 }
@@ -404,6 +407,23 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
   }
   const edit = (id, value) => onCustom({ ...custom, values: { ...custom.values, [id]: value } })
   const before = showDesign ? layouts.original : layouts.implementation
+  // The right-hand screen always shows something to compare with:
+  //   · nothing picked — the design itself, so "what's built vs. what was
+  //     designed" reads at once;
+  //   · a way under the pointer — that way's result, for as long as it's there;
+  //   · a way picked — its result, held ("수정 후"), with the accent border.
+  // A way with no layout to draw (다른 수정안 before it has values) keeps the
+  // design up and says there's no preview — the box is never empty.
+  const [hovered, setHovered] = useState(null)
+  const peeking = hovered && hovered !== proposal ? proposalOf(hovered, custom) : null
+  const shown = peeking ?? chosen
+  const drawable = Boolean(shown?.columns)
+  const after = !shown ? { title: '디자인 원안', sub: '화면 폭 맞춤 2열' }
+    : peeking ? { title: `미리보기 · ${peeking.name}`, sub: drawable ? peeking.spec : '직접 입력한 수정안은 미리보기가 없어요' }
+      : !drawable ? { title: '디자인 원안', sub: '직접 입력한 수정안은 미리보기가 없어요' }
+        : { title: proposal === 'original' ? '수정 후 · 디자인 원안과 동일' : '수정 후', sub: chosen.spec }
+  const afterKey = peeking ? `peek:${hovered}` : chosen ? `pick:${proposal}` : 'design'
+  const PICTURE = 'min-w-0 rounded-xl border-2 bg-black/20 p-4'
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -420,27 +440,30 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
         </button>
       </div>
 
-      {/* Before / After: the section's picture. */}
-      <div data-before-after className="grid grid-cols-1 gap-3 min-[769px]:grid-cols-2">
-        <figure data-layout={showDesign ? 'original' : 'implementation'} className="min-w-0 rounded-xl bg-black/20 p-4">
+      {/* Before → After: the section's picture. Two cards of the same kind,
+          side by side with an arrow between; stacked (before first) when narrow. */}
+      <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
           <div className="flex justify-center">{before && <TabletPreview columns={before.columns} overlap={before.overlap} scale={1.5} />}</div>
           <figcaption className="mt-3 text-center">
             <span className="block text-[13px] font-medium text-slate-200">{showDesign ? '디자인 원안' : '현재 구현'}</span>
             <span className="block text-xs text-slate-500">{showDesign ? '화면 폭 맞춤 2열' : `${IMPLEMENTATION_SPEC} → 카드 겹침`}</span>
           </figcaption>
         </figure>
-        <figure data-layout="proposal" className={cn('min-w-0 rounded-xl p-4', chosen ? 'border-2 border-emerald-400 bg-emerald-400/[0.04]' : 'border-2 border-dashed border-white/15 bg-black/20')}>
-          <div className="flex items-center justify-center" style={{ minHeight: 200 * 1.5 * (640 / 768) }}>
-            {chosen?.columns ? (
-              <TabletPreview columns={chosen.columns} widthMode={chosen.widthMode} gap={chosen.gap} scale={1.5} />
-            ) : (
-              <span className="max-w-[260px] text-center text-[13px] leading-5 text-slate-500">{chosen ? '아래 값을 정하면 여기에 보여요' : '수정안을 고르면 여기에 보여요'}</span>
-            )}
+        <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
+        <figure data-layout="proposal" data-after={peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, chosen && drawable && !peeking ? 'border-emerald-400' : 'border-transparent')}>
+          {/* (Re-keyed per state, so one fades into the next — 150ms.) */}
+          <div key={afterKey} className="animate-in fade-in duration-150 motion-reduce:animate-none">
+            <div className="flex justify-center">
+              {drawable
+                ? <TabletPreview columns={shown.columns} widthMode={shown.widthMode} gap={shown.gap} scale={1.5} />
+                : layouts.original && <TabletPreview columns={layouts.original.columns} overlap={layouts.original.overlap} scale={1.5} />}
+            </div>
+            <figcaption className="mt-3 text-center">
+              <span data-after-title className="block text-[13px] font-medium text-slate-200">{after.title}</span>
+              <span data-after-sub className="block text-xs text-slate-500">{after.sub}</span>
+            </figcaption>
           </div>
-          <figcaption className="mt-3 text-center">
-            <span className={cn('block text-[13px] font-medium', chosen ? 'text-slate-100' : 'text-slate-500')}>{chosen ? chosen.name : '선택한 수정안'}</span>
-            <span className="block text-xs text-slate-500">{chosen ? chosen.spec : '아직 고르지 않았어요'}</span>
-          </figcaption>
         </figure>
       </div>
 
@@ -460,6 +483,11 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 tabIndex={on || (!proposal && index === 0) ? 0 : -1}
                 onClick={() => pick(option.id)}
                 onKeyDown={(event) => move(event, index)}
+                // (The way under the pointer or the focus shows on the right, until it leaves.)
+                onMouseEnter={() => setHovered(option.id)}
+                onMouseLeave={() => setHovered((current) => (current === option.id ? null : current))}
+                onFocus={() => setHovered(option.id)}
+                onBlur={() => setHovered((current) => (current === option.id ? null : current))}
                 className={cn(
                   'ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
                   on ? 'bg-emerald-400/[0.08]' : 'hover:bg-white/[0.04]',
@@ -471,8 +499,10 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
                 <span className="min-w-0 flex-1 text-[13px] leading-5">
                   <span className="font-medium text-slate-100">{option.name}</span>
                   <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : '직접 입력') : option.spec}</span>
+                  {/* Suggested, not chosen for you: nothing is picked by default. */}
+                  {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">추천</span>}
                 </span>
-                <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} />
+                <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} on={on} />
               </button>
               {/* Controls belong to 다른 수정안 alone, right under its row. */}
               {on && option.id === 'other' && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
@@ -537,8 +567,8 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
       {/* The way picked above, in a line; pressing it goes back to the list. */}
       <p data-picked-proposal className="mb-4 flex flex-wrap items-baseline gap-x-2 text-xs">
         <span className="text-slate-400">선택한 수정안</span>
-        {chosen ? <span className="font-medium text-slate-100">{chosen.name}<span className="font-normal text-slate-400"> · {chosen.spec}</span></span> : <span className="font-medium text-amber-200">수정안을 선택해 주세요</span>}
-        <button type="button" onClick={jumpToProposal} className="ml-auto text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">{chosen ? '바꾸기' : '고르러 가기'}</button>
+        {chosen ? <span className="font-medium text-slate-100">{chosen.name}</span> : <span className="text-slate-500">—</span>}
+        {!chosen && <button type="button" data-go-pick onClick={jumpToProposal} className="ml-auto text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">고르러 가기</button>}
       </p>
 
       <div className="flex flex-col gap-4">
@@ -572,8 +602,9 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
           </div>
         )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
-          {missing.length > 0 && <span className="text-[11px] text-slate-500">{!chosen ? '수정안을 선택해 주세요' : `남은 항목: ${missing.join(', ')}`}</span>}
-          <button type="button" data-send-decision-request disabled={missing.length > 0} onClick={() => onSend(payload())} className={PRIMARY}>
+          {/* (The section's own * says a way is required; here only what else is left.) */}
+          {chosen && missing.length > 0 && <span className="text-[11px] text-slate-500">{`남은 항목: ${missing.join(', ')}`}</span>}
+          <button type="button" data-send-decision-request disabled={missing.length > 0} title={!chosen ? '수정안을 먼저 골라 주세요' : undefined} onClick={() => onSend(payload())} className={PRIMARY}>
             <Send className="size-3.5" />
             {designer}님에게 승인 요청 보내기
           </button>

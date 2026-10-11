@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, ChevronDown, CircleCheck } from 'lucide-react'
+import { ChevronDown, CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
-import { ListStatusLabel } from '@/components/conflicts/ConflictBadges'
-import { ConflictTypeTag } from '@/components/conflicts/ConflictInsight'
-import { RiskDot } from '@/components/mergestudio/ConflictTag'
 import { useConflictList } from '@/components/conflicts/useConflictList'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
-import { translateText } from '@/i18n/translate'
-import { useLanguage } from '@/i18n/language'
-import { dueRank, shortDue } from '@/lib/conflicts'
-import { differenceNoteOf, exceptionTypeOf } from '@/lib/conflictInsight'
+import { dueRank, listStatusOf, shortDue } from '@/lib/conflicts'
+import { kindWordOf } from '@/lib/conflictInsight'
 
 // The drawer behind the activity bar's Conflict Points icon: the same list
 // as the bottom panel's tab (useConflictList — one set of records, filters
@@ -19,24 +14,30 @@ import { differenceNoteOf, exceptionTypeOf } from '@/lib/conflictInsight'
 // full-screen viewer over the work area; from a page without one (the
 // project's home, Docs, History) it goes to the Workspace and opens there.
 //
-// A card is two lines, no more:
-//   1 · the title — led by a risk dot when it's High (red) or Medium
-//       (yellow), and a tag only when it's an exception (most conflicts
-//       are design drifts, so that's never tagged; one tag at most);
-//   2 · its status, when it's due (accented only when that's close), and
-//       anything about the difference the title doesn't already say.
-// The whole card is the way in (a → shows on hover) — it carries no action
-// of its own. Done items fold under "Done N" at the bottom.
+// A row is two lines, the same for every item — selected or not:
+//   1 · the title on one line (cut with … when long), the due date at the right;
+//   2 · muted meta: its status, then what kind of change it is.
+// One meaning, one signal: no dots, no tags, no arrows. The list holds what
+// picking a row needs — its type and risk are the detail's to say. Color is
+// kept for what has to be acted on now, so a row has at most one colored
+// thing: a due date that's today or tomorrow (accent) or already past
+// (warning). The selected row is marked by its background and a 2px bar at
+// its left, and by nothing that changes its height or layout.
+// Done items fold under "Done N" at the bottom.
 
-// Due within this many days reads as close.
-const DUE_CLOSE_DAYS = 2
+// Due today or tomorrow reads as urgent; past due, as late.
+function dueToneOf(conflict) {
+  const rank = dueRank(conflict)
+  return rank < 0 ? 'late' : rank <= 1 ? 'urgent' : 'later'
+}
+const DUE_TONE = { late: 'font-medium text-destructive', urgent: 'font-medium text-amber-300', later: 'text-slate-500' }
 
 function ConflictCard({ conflict, selected, onOpen }) {
-  const language = useLanguage()
   const done = conflict.reviewStage === 'resolved'
   const when = done ? conflict.resolvedAtLabel ?? conflict.timestamp ?? null : shortDue(conflict.dueLabel)
-  const close = !done && dueRank(conflict) <= DUE_CLOSE_DAYS
-  const note = differenceNoteOf(conflict)
+  const tone = done ? 'later' : dueToneOf(conflict)
+  const status = done ? (conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged') : listStatusOf(conflict).label
+  const kind = kindWordOf(conflict)
   return (
     <li>
       <button
@@ -46,32 +47,28 @@ function ConflictCard({ conflict, selected, onOpen }) {
         aria-current={selected ? 'true' : undefined}
         onClick={() => onOpen(conflict)}
         className={cn(
-          'group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-emerald-300 aria-[current=true]:bg-white/[0.08]',
+          'flex w-full min-w-0 cursor-pointer flex-col gap-0.5 rounded-r-lg border-l-2 border-transparent py-2.5 pr-3 pl-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300 aria-[current=true]:border-emerald-400 aria-[current=true]:bg-white/[0.07]',
           done && 'opacity-60'
         )}
       >
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {!done && <RiskDot level={conflict.severity} />}
-            <span className="min-w-0 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
-            {exceptionTypeOf(conflict) && <ConflictTypeTag conflict={conflict} quiet className="h-[18px] px-1.5 text-[10.5px]" />}
-          </span>
-          <span className="flex min-w-0 items-center gap-x-1.5 text-[11px] leading-4 text-slate-400">
-            <ListStatusLabel conflict={conflict} className="text-[11px] leading-4 font-normal text-slate-300" />
-            {when && <>
-              <span aria-hidden className="text-slate-600">·</span>
-              <span data-due={close ? 'close' : 'later'} className={cn('shrink-0', close && 'font-medium text-amber-300')}><LocalizedText text={when} /></span>
-            </>}
-            {note && <>
-              <span aria-hidden className="text-slate-600">·</span>
-              <span data-difference-note className="min-w-0 truncate" title={note.detail.length ? note.detail.map((label) => translateText(label, language)).join(', ') : undefined}><LocalizedText text={note.text} /></span>
-            </>}
-          </span>
+        <span className="flex min-w-0 items-baseline gap-3">
+          <span data-row-title className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
+          {when && <span data-due={tone} className={cn('shrink-0 text-[11px] leading-5 tabular-nums', DUE_TONE[tone])}><LocalizedText text={when} /></span>}
         </span>
-        <ArrowRight aria-hidden className="size-3.5 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <span data-row-meta className="block min-w-0 truncate text-[11px] leading-4 text-slate-500">
+          <LocalizedText text={status} />{kind && <> · <LocalizedText text={kind} /></>}
+        </span>
       </button>
     </li>
   )
+}
+
+// What's still open, by when it's due: this week, then later (or no date).
+const THIS_WEEK_DAYS = 7
+function groupsOf(items) {
+  const soon = items.filter((conflict) => dueRank(conflict) <= THIS_WEEK_DAYS)
+  const later = items.filter((conflict) => !(dueRank(conflict) <= THIS_WEEK_DAYS))
+  return [['This week', soon], ['Later', later]].filter(([, list]) => list.length > 0)
 }
 
 const FILTER = 'ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 text-xs whitespace-nowrap transition-colors'
@@ -109,7 +106,8 @@ function ConflictsDrawer({ project }) {
         {primaryFilters.map((entry) => (
           <button key={entry.id} type="button" aria-pressed={entry.id === filter.id} onClick={() => setFilter(entry.id)} className={cn(FILTER, entry.id === filter.id ? 'font-medium text-white' : 'text-slate-400 hover:text-slate-200')}>
             <LocalizedText text={entry.label} />
-            <span className="text-slate-500 tabular-nums">{countOf(entry)}</span>
+            {/* (A count of nothing is there, quieter.) */}
+            <span data-count={countOf(entry)} className={cn('tabular-nums', countOf(entry) === 0 ? 'text-slate-600' : 'text-slate-500')}>{countOf(entry)}</span>
           </button>
         ))}
         <DropdownMenu>
@@ -136,7 +134,13 @@ function ConflictsDrawer({ project }) {
       {openItems.length === 0 && doneItems.length === 0 && (
         <p className="px-2.5 py-6 text-center text-xs text-slate-500"><LocalizedText text="No conflicts in this view." /></p>
       )}
-      {openItems.length > 0 && <ul className="flex flex-col gap-0.5">{openItems.map(card)}</ul>}
+      {/* Grouped by when it's due, under small captions — spaced apart, no rules between rows. */}
+      {groupsOf(openItems).map(([label, items], index) => (
+        <section key={label} data-due-group={label} className={cn(index > 0 && 'mt-3')}>
+          <h4 className="mb-1 px-3 text-[11px] leading-4 text-slate-500"><LocalizedText text={label} /></h4>
+          <ul className="flex flex-col gap-1">{items.map(card)}</ul>
+        </section>
+      ))}
       {/* Done: folded away at the bottom until asked for. */}
       {doneItems.length > 0 && (
         <div data-done-group className="mt-2 border-t border-white/[0.07] pt-2">
@@ -145,7 +149,7 @@ function ConflictsDrawer({ project }) {
             <LocalizedText text="Done" />
             <span className="text-slate-500 tabular-nums">{doneItems.length}</span>
           </button>
-          {showDone && <ul className="mt-0.5 flex flex-col gap-0.5">{doneItems.map(card)}</ul>}
+          {showDone && <ul className="mt-1 flex flex-col gap-1">{doneItems.map(card)}</ul>}
         </div>
       )}
     </div>
