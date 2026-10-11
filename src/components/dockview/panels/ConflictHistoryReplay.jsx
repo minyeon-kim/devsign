@@ -5,6 +5,9 @@ import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
 import { diffLines } from '@/lib/lineDiff'
 import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
+import { changedLayerIds } from '@/lib/devicePreview'
+import { layerIdsOf } from '@/lib/conflictInsight'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 import { LocalizedText } from '@/i18n/runtime'
 import { NAV_BUTTON, NAV_BUTTON_ICON } from '@/components/conflicts/ConflictBadges'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
@@ -313,6 +316,21 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
     [entries]
   )
 
+  // The screen at a step: its own recorded edits, else what its code
+  // implies (see lib/prototypeSync).
+  const { projectPages } = useWorkspace()
+  const editsOf = (entry) => (entry ? entry.snapshot?.prototypeEdits ?? deriveComponentOverride(conflict.projectId, conflict.fileId ?? entry.snapshot?.fileId, snapshotLines(entry, conflict)) ?? {} : {})
+  // What the step changed on the screen, against the step before it — what
+  // "Show changed elements" rings. A first (or only) step has nothing before
+  // it: it marks the elements the conflict is about instead.
+  const previous = entries[selectedIndex - 1] ?? null
+  const stepFrame = selected?.snapshot?.mergeOutput?.design?.frame
+    ?? (projectPages.find((page) => page.id === selected?.snapshot?.activePageId) ?? projectPages.find((page) => page.id === conflict.designPageId) ?? projectPages[0])?.frames?.[0]
+  const changedOnScreen = selected && previous
+    ? changedLayerIds({ edits: editsOf(selected), previousEdits: editsOf(previous), props: selected.snapshot?.previewProps ?? {}, previousProps: previous.snapshot?.previewProps ?? {}, frame: stepFrame })
+    : []
+  const focusLayerIds = changedOnScreen.length ? changedOnScreen : selected?.snapshot?.selectedLayerId ? [selected.snapshot.selectedLayerId] : layerIdsOf(conflict)
+
   const step = rationale && selected ? stepRationale(selected, conflict, rationale) : null
   // Shared sources stay in the summary; only step-specific additions repeat here.
   const stepEvidence = mergeEvidence(rationale?.evidence, step?.evidence)
@@ -321,7 +339,9 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
     .filter((item) => item.kind !== 'comment')
 
   return (
-    <section data-conflict-replay aria-label="Conflict change replay" className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
+    // (Tall enough for the screen to read in the preview whatever the
+    // window: the review's main column scrolls while a replay is open.)
+    <section data-conflict-replay aria-label="Conflict change replay" className="flex min-h-[560px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white/[0.03]">
       <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5">
         {/* Going back: the arrow leads, pointing left. */}
         <button type="button" data-replay-back onClick={onBack} className={NAV_BUTTON}>
@@ -355,19 +375,22 @@ export function ConflictReplay({ conflict, rationale, activity, replayId, onRepl
               <p className={REPLAY_PANE_LABEL}><Eye className="size-3" /><LocalizedText text="Preview" /></p>
               <div className="min-h-0 flex-1">
                 <PreviewPanelContent
-                  key={`conflict-replay-${selected.id}`}
                   previewProps={selected.snapshot?.previewProps}
                   // The whole screen at this checkpoint, not a sample of the
                   // changed element: checkpoints without their own edits get
                   // them from that checkpoint's code (see lib/prototypeSync).
-                  prototypeEdits={selected.snapshot?.prototypeEdits
-                    ?? deriveComponentOverride(conflict.projectId, conflict.fileId ?? selected.snapshot?.fileId, selectedLines)
-                    ?? {}}
+                  prototypeEdits={editsOf(selected)}
                   activePageId={selected.snapshot?.activePageId}
                   frames={selected.snapshot?.mergeOutput?.design?.frame ? [selected.snapshot.mergeOutput.design.frame] : undefined}
                   historical
+                  // Mounted through the steps (no `key` per step), so the view
+                  // picked and full screen hold while it plays.
                   snapshotKey={selected.id}
                   embedded
+                  viewControls
+                  focusLayerIds={focusLayerIds}
+                  highlightLayerId={changedOnScreen[0] ?? null}
+                  highlightKey={selected.id}
                 />
               </div>
             </div>

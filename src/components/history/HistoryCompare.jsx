@@ -12,6 +12,7 @@ import { DiffLayoutTabs, DiffView, useDiffLayout } from '@/components/diff/DiffV
 import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
+import { changedLayerIds } from '@/lib/devicePreview'
 import { useNavigate } from 'react-router-dom'
 import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
@@ -108,25 +109,16 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     return {}
   }, [historyEntries, projectId])
   const shownEdits = useMemo(() => editsAt(shownSnapshot?.id), [editsAt, shownSnapshot?.id])
-  // What this version changed on the screen — the preview's "Changed
-  // element" view: the element it was made on, else every element whose
-  // edits differ from the version just before it, and a tab bar when the
-  // nav values it records differ.
-  const changedLayerIds = useMemo(() => {
+  // What this version changed on the screen — what the preview's "Show
+  // changed elements" rings: the element it was made on, else whatever
+  // differs from the version just before it (lib/devicePreview).
+  const changedIds = useMemo(() => {
     if (!entry) return []
     if (entry.snapshot.selectedLayerId) return [entry.snapshot.selectedLayerId]
     const at = historyEntries.findIndex((h) => h.id === entry.id)
     const other = baseEntry ?? historyEntries[at - 1] ?? null
-    const mine = editsAt(entry.id)
-    const theirs = other ? editsAt(other.id) : {}
-    const ids = [...new Set([...Object.keys(mine), ...Object.keys(theirs)])].filter((id) => JSON.stringify(mine[id]) !== JSON.stringify(theirs[id]))
-    const props = entry.snapshot.previewProps ?? {}
-    const otherProps = other?.snapshot.previewProps ?? {}
-    const differs = (keys) => keys.some((key) => props[key] !== otherProps[key])
     const frame = projectPages.find((page) => page.id === (entry.snapshot.activePageId ?? projectPages[0]?.id))?.frames[0]
-    if (differs(['iconSize', 'hitArea', 'badgeCount', 'badgeCap'])) ids.push(...(frame?.layers ?? []).filter((layer) => layer.type === 'tabs').map((layer) => layer.id))
-    if (differs(['buttonPadding'])) ids.push('primary-button')
-    return [...new Set(ids)]
+    return changedLayerIds({ edits: editsAt(entry.id), previousEdits: other ? editsAt(other.id) : {}, props: entry.snapshot.previewProps ?? {}, previousProps: other?.snapshot.previewProps ?? {}, frame })
   }, [entry, historyEntries, baseEntry, editsAt, projectPages])
 
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
@@ -335,7 +327,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
             historical
             viewControls
-            focusLayerIds={changedLayerIds}
+            focusLayerIds={changedIds}
             caption={
               <span className="shrink-0 text-emerald-300">
                 {playing ? 'This step' : showDiff ? 'Latest' : isCurrent ? 'Current' : `At ${entry.timestamp}`}

@@ -2,28 +2,7 @@ import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import {
-  ArrowRight,
-  Ban,
-  Bell,
-  Check,
-  ChevronDown,
-  CircleCheck,
-  FileCode2,
-  ChevronLeft,
-  Clock3,
-  GitMerge,
-  Layers3,
-  Pencil,
-  MapPin,
-  Minus,
-  Plus,
-  RotateCcw,
-  Send,
-  Sparkles,
-  TriangleAlert,
-  X,
-} from 'lucide-react'
+import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, Pencil, MapPin, Minus, Plus, RotateCcw, Send, Sparkles, TriangleAlert, X, Play } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -3131,7 +3110,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
               )}>
-                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', !replayId && 'xl:overflow-hidden')}>
+                {/* (Stacked, a replay keeps its height — the page scrolls —
+                    rather than sharing the window with the sidebar below:
+                    its preview would shrink to nothing.) */}
+                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', replayId ? 'max-xl:min-h-[576px]' : 'xl:overflow-hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
                   {stage === 'resolved' && (
@@ -3328,6 +3310,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         // (The sample history is for looking at: nothing is written to it.)
                         canWrite={!historyPreview && Boolean(workspace?.addConflictOpinion)}
                         onSend={(body, replyTo) => workspace.addConflictOpinion(conflict.id, body, replyTo)}
+                        // The way into the code replay (the Activity tab's, which
+                        // this tab stands in for).
+                        footer={activity.entries.length > 0 && (
+                          <button type="button" data-replay-open aria-pressed={Boolean(replayId)} onClick={() => openReplay(replayId ?? activity.entries[0].id)} className="ds-intrinsic mt-2 inline-flex h-7 w-fit shrink-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                            <Play className="size-3 fill-current" />
+                            <LocalizedText text="Watch the code replay" />
+                          </button>
+                        )}
                       />
                     </div>
                   ) : sideTab === 'activity' ? (

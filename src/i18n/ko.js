@@ -788,6 +788,13 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
+Show changed elements|변경 요소 보기
+Watch the code replay|코드 리플레이 보기
+View full screen|전체화면
+Exit full screen|전체화면 닫기
+Showing in full screen|전체화면으로 보는 중이에요
+Nothing on the screen changed in this step|이 단계에서는 화면에서 바뀐 요소가 없어요
+Preview, full screen|미리보기 전체화면
 Design frame|디자인 프레임
 Changed|바뀐 곳
 Adjust in Merge Studio|병합 스튜디오에서 조정

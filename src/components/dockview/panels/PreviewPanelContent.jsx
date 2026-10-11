@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Crosshair, Maximize2, Smartphone } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Check, ChevronDown, Crosshair, Maximize2, Smartphone, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -33,10 +34,14 @@ function parsePadding(value) {
 // larger), so nothing has to be scrolled to — the zoom control goes closer.
 // `embedded` drops the panel's own surface and top inset, for a preview
 // placed inside another card (the conflict review's change replay).
-// `viewControls` (History): what to look at — the element that changed
-// (`focusLayerIds`, zoomed in and ringed; the first view when there is one)
-// or the full screen — and on which phone (lib/devicePreview), as tabs and
-// a dropdown over the preview.
+// `viewControls` (History, and a conflict's replay): the controls over the
+// preview —
+//   · "Show changed elements": the elements that changed since the step
+//     before (`focusLayerIds`) ringed on the screen, on by default;
+//   · which phone it's drawn on (lib/devicePreview);
+//   · full screen: the same preview over the whole app, so the screen reads
+//     at a real size whatever room its pane has — Esc or Close goes back,
+//     and playback carries on under it.
 const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
@@ -62,14 +67,30 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   // The last element that changed: a step that changes nothing on the
   // screen stays on it (rather than jumping to the full screen).
   const [lastFocus, setLastFocus] = useState([])
+  const [fullscreen, setFullscreen] = useState(false)
 
+  // (Full screen moves the preview to another element: measured again.)
   useEffect(() => {
     const el = boxRef.current
     if (!el) return
     const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [fullscreen])
+
+  // Esc leaves full screen — and only that: whatever is under it (the
+  // review overlay closes on Esc too) doesn't hear the key.
+  useEffect(() => {
+    if (!fullscreen) return undefined
+    function onKey(event) {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [fullscreen])
 
   const buttonPadding = parsePadding(previewProps?.buttonPadding)
   function zoomBy(step) {
@@ -93,7 +114,9 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const ownFocus = viewControls ? boxFor(focusLayerIds) : null
   if (ownFocus && focusLayerIds.join() !== lastFocus.join()) setLastFocus(focusLayerIds)
   const focus = ownFocus ?? (viewControls ? boxFor(lastFocus) : null)
-  const view = focus && viewPick === 'changed' ? 'changed' : 'full'
+  // Whether the changed elements are ringed (there are some, and it's on).
+  const marking = Boolean(focus) && viewPick === 'changed'
+  const changedIds = marking ? focus.box.layers.map((layer) => layer.id) : []
 
   // One scale for every frame, from whichever arrangement — a row
   // or a column — shows them larger in the space there is.
@@ -107,47 +130,64 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const inRow = !conflictPreview && rowScale >= columnScale
   const fitScale = Math.max(0.05, Math.min(1, Math.max(rowScale, columnScale)))
 
-  return (
-    <div className={cn('flex h-full flex-col overflow-hidden', !embedded && 'bg-card')}>
-      <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
+  const panel = (
+    <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
+      <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded && !fullscreen ? 'pt-0' : 'pt-3')}>
         <span className="min-w-0 truncate">Synced from {file?.path}</span>
         <div className="flex shrink-0 items-center gap-2">
           {caption}
           <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
+          {fullscreen && (
+            <button type="button" data-preview-fullscreen-close onClick={() => setFullscreen(false)} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.08] px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
+              <X className="size-3.5 shrink-0" />
+              <LocalizedText text="Exit full screen" />
+              <kbd className="rounded bg-white/[0.1] px-1 font-sans text-[10px] text-slate-300">Esc</kbd>
+            </button>
+          )}
         </div>
       </div>
       {viewControls && (
-        <div data-preview-controls className="flex shrink-0 items-center gap-2 px-4 pb-2">
-          {/* Always both tabs (a version with nothing changed on the screen
-              can't show "Changed element": that tab waits, disabled). */}
-          <div role="tablist" aria-label="Preview view" className="inline-flex h-7 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
-              {[['changed', 'Changed element', Crosshair], ['full', 'Full screen', Maximize2]].map(([id, label, Icon]) => (
-                <button key={id} type="button" role="tab" data-preview-view={id} aria-selected={view === id} disabled={id === 'changed' && !focus} onClick={() => setViewPick(id)}
-                  className={cn(VIEW_TAB, 'disabled:cursor-not-allowed disabled:opacity-40', view === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
-                  <Icon className="size-3 shrink-0" />
-                  <LocalizedText text={label} />
-                </button>
-              ))}
-          </div>
-          {phone && (
-            <DropdownMenu>
-              <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
-                <Smartphone className="size-3.5 shrink-0 text-slate-400" />
-                <LocalizedText text={device.label} />
-                {device.width && <span className="text-slate-500 tabular-nums">{device.width}×{device.height}</span>}
-                <ChevronDown className="size-3 shrink-0 text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-52">
-                {DEVICES.map((entry) => (
-                  <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
-                    <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
-                    <LocalizedText text={entry.label} />
-                    {entry.width && <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}×{entry.height}</span>}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <div data-preview-controls className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-2">
+          {/* Always there (a step with nothing changed on the screen can't
+              show any: it waits, disabled). */}
+          <button type="button" data-preview-changed aria-pressed={marking} disabled={!focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
+            title={focus ? undefined : 'Nothing on the screen changed in this step'}
+            className={cn(VIEW_TAB, 'h-7 disabled:cursor-not-allowed disabled:opacity-40', marking ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
+            <Crosshair className="size-3 shrink-0" />
+            <LocalizedText text="Show changed elements" />
+          </button>
+          {marking && (
+            <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
+              <LocalizedText text="Changed" /> · <span translate="no">{focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
+            </span>
           )}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {phone && (
+              <DropdownMenu>
+                <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                  <Smartphone className="size-3.5 shrink-0 text-slate-400" />
+                  <LocalizedText text={device.label} />
+                  {device.width && <span className="text-slate-500 tabular-nums">{device.width}×{device.height}</span>}
+                  <ChevronDown className="size-3 shrink-0 text-slate-400" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-52">
+                  {DEVICES.map((entry) => (
+                    <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
+                      <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
+                      <LocalizedText text={entry.label} />
+                      {entry.width && <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}×{entry.height}</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!fullscreen && (
+              <button type="button" data-preview-fullscreen onClick={() => setFullscreen(true)} className={cn(VIEW_TAB, 'h-7 bg-white/[0.05] text-slate-200 hover:bg-white/[0.09] hover:text-white')}>
+                <Maximize2 className="size-3 shrink-0" />
+                <LocalizedText text="View full screen" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -178,28 +218,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
             </div>
-          ) : view === 'changed' ? (() => {
-            // The changed element, close up: its box (with room around
-            // it) scaled to the space — up to 3×, then the zoom — and
-            // ringed; the rest of the screen is cut off at the box.
-            const { frame, box } = focus
-            const scale = Math.max(0.05, Math.min(3, room.width / box.width, (room.height - 24) / box.height)) * (zoom / 100)
-            return (
-              <figure data-preview-focus className="m-0 flex flex-col items-center gap-2">
-                <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: box.width * scale, height: box.height * scale }}>
-                  <div className="absolute" style={{ left: -box.x * scale, top: -box.y * scale, width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                    {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
-                    {box.layers.map((layer) => (
-                      <span key={`ring-${layer.id}`} aria-hidden className="pointer-events-none absolute rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153)` }} />
-                    ))}
-                  </div>
-                </div>
-                <figcaption className="text-[11px] text-slate-400">
-                  <LocalizedText text="Changed" /> · <span translate="no">{box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
-                </figcaption>
-              </figure>
-            )
-          })() : shownFrames.map((frame) => {
+          ) : shownFrames.map((frame) => {
             const scale = fitScale * (zoom / 100)
             return (
               <div
@@ -212,6 +231,12 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                 >
                   {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
+                  {/* What changed since the step before, ringed where it
+                      sits on the screen (the ring keeps its weight at any
+                      scale). */}
+                  {frame.layers.filter((layer) => changedIds.includes(layer.id)).map((layer) => (
+                    <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden className="pointer-events-none absolute z-10 rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
+                  ))}
                 </div>
               </div>
             )
@@ -219,6 +244,19 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         </div>
       </div>
     </div>
+  )
+
+  if (!fullscreen) return panel
+  // Over the whole app: above the review overlay, under menus and dialogs
+  // (the phone dropdown still opens over it).
+  return (
+    <>
+      <div data-preview-away className="flex h-full items-center justify-center text-[11px] text-slate-500"><LocalizedText text="Showing in full screen" /></div>
+      {createPortal(
+        <div data-preview-fullscreen-layer role="dialog" aria-modal="true" aria-label="Preview, full screen" className="fixed inset-0 z-[900] bg-background text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">{panel}</div>,
+        document.body
+      )}
+    </>
   )
 }
 

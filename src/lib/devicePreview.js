@@ -55,3 +55,16 @@ export function focusBox(frame, layerIds = [], pad = 16) {
   const y1 = Math.min(frame.height, Math.max(...hits.map((l) => l.y + l.height)) + pad)
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0, layers: hits }
 }
+
+// The elements a step changed on the screen, against the step before it:
+// every element whose edits differ, and — when the values a checkpoint
+// records for the preview differ — the elements those draw (the tab bar,
+// the primary button). `frame`: the screen the step is shown on.
+const NAV_PROPS = ['iconSize', 'hitArea', 'badgeCount', 'badgeCap']
+export function changedLayerIds({ edits = {}, previousEdits = {}, props = {}, previousProps = {}, frame } = {}) {
+  const ids = [...new Set([...Object.keys(edits), ...Object.keys(previousEdits)])].filter((id) => JSON.stringify(edits[id]) !== JSON.stringify(previousEdits[id]))
+  const differs = (keys) => keys.some((key) => props[key] !== previousProps[key])
+  if (differs(NAV_PROPS)) ids.push(...(frame?.layers ?? []).filter((layer) => layer.type === 'tabs').map((layer) => layer.id))
+  if (differs(['buttonPadding'])) ids.push('primary-button')
+  return [...new Set(ids)]
+}
