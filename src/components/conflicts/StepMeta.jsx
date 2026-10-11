@@ -1,4 +1,3 @@
-import { Bot } from 'lucide-react'
 import { formatTime, isSystemActor, relativeTimeOf, stepActionOf } from '@/lib/conflictEvents'
 
 // The line under a finished progress step: who (a person's name, or the
@@ -18,7 +17,6 @@ export default function StepMeta({ step, onOpenSource }) {
   }
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1">
-      {action.system && <Bot aria-hidden data-system-icon className="size-3 shrink-0" />}
       {!action.system && <span className="text-slate-300">{action.name}</span>}
       {action.text && <span>{!action.system && '· '}{action.text}</span>}
       {action.commit && onOpenSource && (
