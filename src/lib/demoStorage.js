@@ -1,3 +1,5 @@
+import { noteDataChange } from '@/lib/workspaceReset'
+
 // Only this prototype's versioned namespace is read or reset.
 export const DEMO_PREFIX = 'devsign:demo:'
 // Bump this whenever a mock data shape/seed changes in a way existing
@@ -53,7 +55,9 @@ export function readDemo(key, fallback) {
 let warned = false
 export function writeDemo(key, value) {
   try {
-    localStorage.setItem(DEMO_PREFIX + key, JSON.stringify({ version: DEMO_VERSION, value }))
+    const next = JSON.stringify({ version: DEMO_VERSION, value })
+    if (localStorage.getItem(DEMO_PREFIX + key) !== next) noteDataChange()
+    localStorage.setItem(DEMO_PREFIX + key, next)
     return true
   } catch {
     if (!warned && typeof window !== 'undefined') {
@@ -62,14 +66,6 @@ export function writeDemo(key, value) {
     }
     return false
   }
-}
-
-export function resetDemo() {
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith(DEMO_PREFIX)) localStorage.removeItem(key)
-  }
-  // (…and which walkthrough notices were seen, so they start over too.)
-  try { sessionStorage.removeItem('devsign:notices-seen:v1') } catch { /* storage unavailable */ }
 }
 
 // Stable ordering prevents object insertion order from invalidating reviews.

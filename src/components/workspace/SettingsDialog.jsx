@@ -12,8 +12,9 @@ const LANGUAGES = [
 
 // Plain rows, no boxes or rules: "Language ··· English 한국어" with both
 // choices right in the row as text toggles — two options don't need a
-// menu of their own popping out of the popover — then the reset row.
-export function SettingsContent() {
+// menu of their own popping out of the popover — then, under a rule, the
+// reset row.
+export function SettingsContent({ onDone }) {
   const language = useLanguage()
   useDemoStorageWarnings()
   return (
@@ -39,7 +40,7 @@ export function SettingsContent() {
           ))}
         </div>
       </section>
-      <DemoTools />
+      <DemoTools onDone={onDone} />
     </div>
   )
 }
@@ -55,7 +56,7 @@ export default function SettingsDialog({ triggerClassName }) {
       </PopoverTrigger>
       <PopoverContent side="right" align="end" sideOffset={14} alignOffset={8} className="w-56 gap-1 rounded-xl border-white/10 bg-popover p-1.5 shadow-xl">
         <PopoverTitle className="px-2 pt-1 pb-0.5 text-[11px] font-medium text-slate-500">Settings</PopoverTitle>
-        <SettingsContent />
+        <SettingsContent onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
   )

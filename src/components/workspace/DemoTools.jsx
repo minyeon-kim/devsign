@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { resetDemo } from '@/lib/demoStorage'
+import { Loader2 } from 'lucide-react'
+import { discardUndo, pendingUndo, resetWorkspace, undoReset } from '@/lib/workspaceReset'
 import { getLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
+
+const UNDONE_KEY = 'devsign:reset-undone'
 
 export function useDemoStorageWarnings() {
   useEffect(() => {
@@ -15,30 +18,69 @@ export function useDemoStorageWarnings() {
 }
 
 // Settings owns the entry point; resetting affects this browser's saved
-// workspace state only (drafts, reviews, history), not language. One quiet
-// row, the same shape as Settings' Language row; confirming swaps it for
-// the question and two small actions in place — no divider, no boxes.
-export default function DemoTools() {
-  const [confirming, setConfirming] = useState(false)
+// workspace state only (drafts, reviews, history), not language. One click
+// resets at once — no confirmation — and the Undo toast (see
+// useResetUndoToast) is the safety net. Separated from the other settings
+// by a rule, in the danger colour.
+export default function DemoTools({ onDone }) {
+  const [busy, setBusy] = useState(false)
+  const reset = () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      resetWorkspace()
+    } catch {
+      setBusy(false)
+      toast(translateText('Could not reset. Please try again.', getLanguage()))
+      return
+    }
+    onDone?.()
+    window.location.assign(`${import.meta.env.BASE_URL}dashboard`)
+  }
   return (
-    <section aria-label="Workspace data">
-      {confirming ? (
-        <div className="space-y-2 px-2 py-1.5">
-          <p className="text-xs leading-relaxed text-slate-300">Reset all drafts, reviews and history for every project?</p>
-          <div className="flex justify-end gap-1">
-            <button type="button" className="h-7 rounded-md px-2.5 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white" onClick={() => setConfirming(false)}>Cancel</button>
-            <button type="button" className="h-7 rounded-md bg-red-500/15 px-2.5 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/25" onClick={() => {
-              try { resetDemo(); window.location.reload() } catch {
-                toast(translateText('Reset failed. Allow access to browser storage and try again.', getLanguage()))
-              }
-            }}>Reset</button>
-          </div>
-        </div>
-      ) : (
-        <button type="button" className="flex h-8 w-full items-center rounded-md px-2 text-left text-xs text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-red-300" onClick={() => setConfirming(true)}>
-          Reset workspace data
-        </button>
-      )}
+    <section aria-label="Workspace data" className="mt-1 border-t border-white/10 pt-1">
+      <button type="button" disabled={busy} aria-busy={busy} className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-60" onClick={reset}>
+        {busy && <Loader2 className="size-3 animate-spin" aria-hidden />}
+        Reset workspace data
+      </button>
     </section>
   )
+}
+
+// After a reset the app has reloaded onto the dashboard: say so, with Undo
+// for what is left of the 10 seconds. Undo writes the snapshot back and
+// reloads in place; "Restored" shows on the other side of that reload.
+export function useResetUndoToast() {
+  useEffect(() => {
+    const language = getLanguage()
+    try {
+      if (sessionStorage.getItem(UNDONE_KEY)) {
+        sessionStorage.removeItem(UNDONE_KEY)
+        toast(translateText('Restored', language))
+        return
+      }
+    } catch { /* storage unavailable */ }
+    const pending = pendingUndo()
+    if (!pending) return
+    const remaining = pending.expiresAt - Date.now()
+    const timer = setTimeout(discardUndo, remaining)
+    toast(translateText('Workspace reset', language), {
+      id: 'workspace-reset',
+      duration: remaining,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(timer)
+          try {
+            if (!undoReset()) throw new Error('expired')
+            sessionStorage.setItem(UNDONE_KEY, '1')
+            window.location.reload()
+          } catch {
+            toast(translateText('Could not undo. Please try again.', language))
+          }
+        },
+      },
+    })
+    return () => clearTimeout(timer)
+  }, [])
 }

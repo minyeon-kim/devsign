@@ -3,6 +3,7 @@ import LanguageProvider from '@/i18n/LanguageProvider'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { useResetUndoToast } from '@/components/workspace/DemoTools'
 import LocalCursor from '@/components/collab/LocalCursor'
 import ConditionalScrollFade from '@/components/layout/ConditionalScrollFade'
 import { ConflictStoreProvider } from '@/state/ConflictStore'
@@ -25,6 +26,7 @@ function ArchiveRedirect() {
 }
 
 function App() {
+  useResetUndoToast()
   return (
     <LanguageProvider>
     <TooltipProvider>
