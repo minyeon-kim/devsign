@@ -4,6 +4,8 @@ import { conflictListRecord } from '@/lib/conflicts'
 import { LocalizedText } from '@/i18n/runtime'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
+import { cn } from 'cn'
 
 // A conflict's detail, full-screen: it covers the whole work area (editor,
 // canvas and bottom panel) while the activity bar and its sidebar stay, so
@@ -38,8 +40,10 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   if (!conflict) return null
   return (
     <div data-review-overlay role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
-      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] pr-2 pl-4">
-        <p className="text-xs font-medium text-slate-400"><LocalizedText text="Conflict detail" /></p>
+      {/* The same path bar as a page's: the project it's in (back to where
+          it was opened from) and this view. */}
+      <div className={cn(BREADCRUMB_BAR, 'justify-between border-white/[0.07] pr-2')}>
+        <Breadcrumb items={[{ label: conflict.projectName ?? conflict.projectId, onClick: () => openConflictReview(null), translate: false }, { label: 'Conflict detail' }]} />
         <button
           ref={closeRef}
           type="button"

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
+import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocView'
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
@@ -71,20 +72,6 @@ function DocsIndex({ tree, onOpen }) {
   )
 }
 
-function Crumb({ children, onClick, current }) {
-  if (current) return <span className="min-w-0 truncate text-foreground">{children}</span>
-  if (!onClick) return <span className="shrink-0 text-muted-foreground">{children}</span>
-  return (
-    <button type="button" onClick={onClick} className="shrink-0 text-muted-foreground transition-colors hover:text-foreground">
-      {children}
-    </button>
-  )
-}
-
-function CrumbSeparator() {
-  return <span className="shrink-0 font-normal text-muted-foreground/60">/</span>
-}
-
 // Which view to show, from the link that opened it (`location.state`):
 // `{ docId }` a doc, `{ tab: 'dsUpdates' }` the Document updates
 // pipeline, nothing the categorized index.
@@ -114,32 +101,16 @@ function DocsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      <div className="flex shrink-0 items-center gap-3 border-b px-6 py-4">
-        <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">
-          <span className="max-w-[240px] min-w-0 truncate text-muted-foreground">{project.name}</span>
-          <CrumbSeparator />
-          <Crumb current={view.kind === 'index'} onClick={openIndex}>
-            Docs
-          </Crumb>
-          {view.kind === 'dsUpdates' && (
-            <>
-              <CrumbSeparator />
-              <Crumb current>Document updates</Crumb>
-            </>
-          )}
-          {view.kind === 'doc' && (
-            <>
-              {(docPath(tree, view.doc.id) ?? []).map((label) => (
-                <span key={label} className="flex shrink-0 items-center gap-2">
-                  <CrumbSeparator />
-                  <Crumb>{label}</Crumb>
-                </span>
-              ))}
-              <CrumbSeparator />
-              <Crumb current>{view.doc.title}</Crumb>
-            </>
-          )}
-        </div>
+      <div className={BREADCRUMB_BAR}>
+        <Breadcrumb
+          items={[
+            { label: project.name, to: `/projects/${project.id}`, translate: false },
+            // (On the index, Docs is the page you're on; deeper, the way back to it.)
+            { label: 'Docs', ...(view.kind !== 'index' && { onClick: openIndex }) },
+            ...(view.kind === 'dsUpdates' ? [{ label: 'Document updates' }] : []),
+            ...(view.kind === 'doc' ? [...(docPath(tree, view.doc.id) ?? []).map((label) => ({ label })), { label: view.doc.title, key: view.doc.id }] : []),
+          ]}
+        />
       </div>
 
       {/* Keyed by the navigation so a fresh deep link re-applies its view,
