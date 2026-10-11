@@ -870,6 +870,8 @@ export const conflictChecklist = [
     // The kind of device the change is about: its renders start on that
     // kind's reference device (lib/devicePresets).
     targetDevice: 'tablet',
+    // The width the change is about (px): its screen is drawn at this size.
+    breakpoint: 768,
     driftType: 'structural',
     title: 'DashboardGrid / Mobile Layout Adjustment',
     token: 'DashboardGrid / Mobile Layout Adjustment',

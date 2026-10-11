@@ -49,7 +49,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { proposalOf } from '@/lib/designDecisions'
-import DesignLinkThumb, { DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
+import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import StepMeta from '@/components/conflicts/StepMeta'
@@ -552,7 +552,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           : stage === 'approved' ? (conflict.rollback ? 'Ready to restore previous version' : 'Ready to merge') : null
   const status = listStatusOf(conflict)
   // The design screen it is about (a design-decision review shows its own comparison).
-  const designLink = (useDesignLink(conflict).link || conflict.layerId) && !isDesignReview(conflict)
+  const designLink = (useDesignLink(conflict).link || conflict.layerId || conflict.decisionFlow) && !isDesignReview(conflict)
   // One label column for the whole tab: every row's label starts at the
   // same x, and so does every value.
   const GRID = 'grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2'
@@ -594,10 +594,12 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           <dl data-info-problem className={GRID}>
             {designLink && (
               <Row label="Screen" data-summary-row="Screen">
-                <div className="flex min-w-0 flex-col items-start gap-1.5">
-                  <DesignLinkChip conflict={conflict} />
-                  <DesignLinkThumb conflict={conflict} size="md" placeholder />
-                </div>
+                {conflict.decisionFlow ? <BreakpointScreen conflict={conflict} /> : (
+                  <div className="flex min-w-0 flex-col items-start gap-1.5">
+                    <DesignLinkChip conflict={conflict} />
+                    <DesignLinkThumb conflict={conflict} size="md" placeholder />
+                  </div>
+                )}
               </Row>
             )}
             {(cause_text || cause) && (
