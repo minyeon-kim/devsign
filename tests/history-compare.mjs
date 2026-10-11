@@ -57,7 +57,25 @@ try {
   assert.deepEqual(inspectionsFor(fluid, oneColumn, tablet, { difference: true }).mine.map((mark) => mark.id), ['difference'])
   assert.deepEqual(inspectionsFor(fluid, oneColumn, tablet).mine, [])
   assert.deepEqual(inspectionsFor(fixed, fluid, tablet, { difference: true }).mine.map((mark) => mark.id), ['overlap'])
-  console.log('Passed: diff hunks fold around a change with real line numbers, a layout change is said in words, and a problem is one mark on its own area.')
+  // The code area: unfolded or not is the reader's alone — playing, pausing and the end change how the step is shown, never whether.
+  const { codeViewOf } = await server.ssrLoadModule('/src/lib/diffHunks.js')
+  const step = { comparing: true, changedLines: 1 }
+  // play → pause → resume → end → previous, with the code unfolded: never folded, never empty.
+  assert.deepEqual(
+    [{ playing: true }, { playing: false }, { playing: true }, { playing: false }, { playing: false }].map((state) => codeViewOf({ open: true, ...step, ...state })),
+    ['typing', 'hunks', 'typing', 'hunks', 'hunks'],
+  )
+  // Folded by the reader: it stays folded whatever playback does.
+  assert.deepEqual([true, false].map((playing) => codeViewOf({ open: false, ...step, playing })), ['folded', 'folded'])
+  // Entered without playing (a step picked): the code is there from the first frame.
+  assert.equal(codeViewOf({ open: true, ...step }), 'hunks')
+  assert.equal(codeViewOf({ open: true, ...step, wholeFile: true }), 'whole')
+  // A step that changed no code keeps the area and says so (the file, on asking).
+  assert.equal(codeViewOf({ open: true, comparing: false }), 'none')
+  assert.equal(codeViewOf({ open: true, comparing: true, changedLines: 0 }), 'none')
+  assert.equal(codeViewOf({ open: true, comparing: false, wholeFile: true }), 'file')
+  assert.equal(codeViewOf({ open: true, comparing: false, playing: true }), 'typing')
+  console.log('Passed: diff hunks fold around a change with real line numbers, a layout change is said in words, a problem is one mark on its own area, and the code stays shown through playback.')
 } finally {
   await server.close()
 }

@@ -789,6 +789,7 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+No code change|코드 변경 없음
 Start from this step|이 단계부터 보기
 See it all in History|히스토리에서 전체 보기
 Replay|리플레이

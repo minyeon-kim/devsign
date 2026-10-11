@@ -48,3 +48,21 @@ export function changedLineCount(rows) {
   }
   return count
 }
+
+// What a viewer's code area shows — decided by three things that don't touch
+// each other:
+//   · `open` — whether the area is unfolded: the reader's own choice, changed
+//     by pressing it and by nothing else (not by playing, pausing or the end);
+//   · `playing` — only *how* the step in view is shown while it plays: typed
+//     in, rather than as its finished diff;
+//   · the step itself (`comparing` with something, `changedLines` between) —
+//     what there is to show.
+// 'folded' (one line) · 'typing' (playing) · 'hunks' / 'whole' (a diff: its
+// changed parts, or the whole file) · 'none' (nothing changed: said in a
+// line, the area kept) · 'file' (nothing changed, the file asked for).
+export function codeViewOf({ open, playing = false, comparing = false, changedLines = 0, wholeFile = false }) {
+  if (!open) return 'folded'
+  if (playing) return 'typing'
+  if (comparing && changedLines > 0) return wholeFile ? 'whole' : 'hunks'
+  return wholeFile ? 'file' : 'none'
+}

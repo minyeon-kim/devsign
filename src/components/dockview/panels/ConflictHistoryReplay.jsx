@@ -301,6 +301,8 @@ export function ConflictReplay({ conflict, activity, replayId, onReplay, onBack,
       <HistoryCompare
         embedded
         hideRestore
+        // (A replay is for seeing the code change: it opens unfolded.)
+        codeOpenByDefault
         entryId={selected.id}
         baseEntryId={entries[selectedIndex - 1]?.id}
         position={{ index: selectedIndex, total: entries.length }}
