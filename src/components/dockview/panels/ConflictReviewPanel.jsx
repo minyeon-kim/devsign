@@ -53,6 +53,8 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
+import { ReplayStepRail } from '@/components/conflicts/StepTimeline'
+import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
@@ -2431,6 +2433,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (entry.kind === 'decision') return entries.filter((item) => item.kind === 'decision').indexOf(entry) === 0 ? 2 : 3
     return at >= 0 && index > at ? 4 : 1
   }
+  // The record's four steps as the replay has reached them: how many of them
+  // sit at or before the saved step in view.
+  const replayRailSteps = (() => {
+    if (!replayId) return null
+    const at = activity.entries.findIndex((entry) => entry.id === replayId)
+    if (at < 0) return null
+    const reached = RECORD_STEPS.filter((step) => activity.entries.findIndex((entry) => entry.id === replayEntryFor(step.key)) <= at).length
+    const states = replayStates(RECORD_STEPS.length, reached, at === activity.entries.length - 1)
+    return RECORD_STEPS.map((step, index) => ({ ...step, state: states[index] }))
+  })()
   const EVENT_STEP_KEY = { detected: 'detect', requested: 'request', decided: 'decision', fixed: 'fix', verified: 'fix', resolved: 'resolve', reopened: 'detect' }
 
   // The Activity tab is this conflict's own activity, here in the panel
@@ -3305,9 +3317,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                     </>
                   ) : (
-                    <div className="flex min-h-0 flex-1">
+                    <div className="flex min-h-0 flex-1 flex-col gap-3">
+                      {/* The record, kept in view: the step being replayed is under way, those before it done. */}
+                      {conflict.decisionFlow && replayRailSteps && <ReplayStepRail steps={replayRailSteps} />}
+                      <div className="flex min-h-0 flex-1">
                       <ConflictReplay key={`${conflict.id}:${replayAutoplay ?? 'open'}`} conflict={conflict} activity={activity} replayId={replayId} onReplay={setReplayId} onBack={() => setReplayId(null)} autoplay={replayAutoplay != null}
                         onOpenHistory={(entryId) => navigate(`/projects/${conflict.projectId}/history?v=${entryId}`, { state: { flashCheckpoint: entryId } })} />
+                      </div>
                     </div>
                   )}
                 </div>

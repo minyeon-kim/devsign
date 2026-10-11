@@ -1092,3 +1092,31 @@ button.editor-line-comment {
 [data-reason-field][data-tone='warning'] input:focus {
   border-color: color-mix(in srgb, var(--color-amber-100) 40%, transparent);
 }
+
+/* The change detail's 진행 기록 (conflicts/StepTimeline): a step that has just
+   finished fills in, once — the row eases in, its dot pops, the check is
+   drawn, the line to the next step runs down; each starts after `--d`.
+   Transform, opacity and stroke only. Under reduced motion none of it is
+   defined, so the still state shows at once. */
+@keyframes ds-step-row { from { opacity: 0; transform: translateY(4px); } }
+@keyframes ds-step-pop { from { transform: scale(0.6); opacity: 0.4; } }
+@keyframes ds-step-check { from { stroke-dashoffset: 1; } }
+@keyframes ds-step-line { from { transform: scaleY(0); } }
+@keyframes ds-step-line-x { from { transform: scaleX(0); } }
+@keyframes ds-step-ring { 0% { transform: scale(1); opacity: 0.55; } 70%, 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes ds-step-arrive { from { opacity: 0; transform: scale(0.8); } }
+@keyframes ds-step-tick { from { opacity: 0; transform: translateY(4px); } }
+@keyframes ds-step-status { from { opacity: 0.35; } }
+.ds-step-check { stroke-dasharray: 1; stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-step-anim='wait'] { opacity: 0; }
+  [data-step-anim='play'] { animation: ds-step-row 160ms ease-out var(--d, 0ms) backwards; }
+  .ds-step-pop { animation: ds-step-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--d, 0ms) + 60ms) backwards; }
+  .ds-step-check-draw { animation: ds-step-check 240ms ease-out calc(var(--d, 0ms) + 160ms) backwards; }
+  .ds-step-line { transform-origin: top; animation: ds-step-line 200ms ease-out calc(var(--d, 0ms) + 260ms) backwards; }
+  .ds-step-line-x { transform-origin: left; animation: ds-step-line-x 200ms ease-out calc(var(--d, 0ms) + 260ms) backwards; }
+  .ds-step-ring { animation: ds-step-ring 2s ease-out infinite; }
+  .ds-step-arrive { animation: ds-step-arrive 200ms ease-out calc(var(--d, 0ms) + 460ms) backwards; }
+  .ds-step-tick { animation: ds-step-tick 160ms ease-out 80ms backwards; }
+  [data-step-live] [data-status-block] { animation: ds-step-status 400ms ease-out 640ms backwards; }
+}
