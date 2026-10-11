@@ -102,7 +102,9 @@ export function decisionOutcomeOf(conflict) {
   const shape = decision.choice === 'approve' ? proposalOf(request?.proposal, request?.custom) : null
   const name = decision.choice === 'approve' ? (shape ? (PROPOSAL_RESULT[shape.id] ?? shape.spec) : '수정안') : `디자인 원안(${conflict.layouts?.original?.columns ?? 2}열)`
   const label = DECISION_LABEL[decision.choice]
-  return { choice: decision.choice, label, name, shape, line: `${label} · ${name}`, resolvedLine: `${label} · ${withRo(name)} 해결` }
+  // The final decision, said whole ("디자인 원안 유지(2열)", "변경 승인 · 1열 레이아웃").
+  const final = decision.choice === 'approve' ? `${label} · ${name}` : decision.choice === 'keep' ? `디자인 원안 유지(${conflict.layouts?.original?.columns ?? 2}열)` : label
+  return { choice: decision.choice, label, name, shape, final, line: `${label} · ${name}`, resolvedLine: `${label} · ${withRo(name)} 해결` }
 }
 // The code line the decision lands on: the design as it is, or the way
 // that was approved (each has its own).
