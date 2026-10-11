@@ -22,9 +22,9 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import ConflictPins from '@/components/conflicts/ConflictPins'
 import { conflictNumbersOf } from '@/components/conflicts/useConflictList'
-import { pinsFor } from '@/lib/canvasPins'
+import { pinPress, pinsFor } from '@/lib/canvasPins'
 import { overrideFromEdit } from '@/lib/prototypeSync'
-import { conflictCountOnPage, conflictIsAbout, openConflictsByLayer } from '@/lib/conflictInsight'
+import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import {
@@ -394,12 +394,13 @@ function CanvasPanel() {
   const [canvasViewport, setCanvasViewport] = useState(null)
   const setScrollNode = useCallback((node) => { scrollRef.current = node; setCanvasViewport(node) }, [])
   const [canvasWidth, setCanvasWidth] = useState(0)
+  const [canvasHeight, setCanvasHeight] = useState(0)
   const compactToolbar = canvasWidth > 0 && canvasWidth < 380
 
   useEffect(() => {
     const viewport = scrollRef.current
     if (!viewport) return
-    const measure = () => setCanvasWidth(viewport.clientWidth)
+    const measure = () => { setCanvasWidth(viewport.clientWidth); setCanvasHeight(viewport.clientHeight) }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(viewport)
@@ -430,6 +431,7 @@ function CanvasPanel() {
     aiEditPulse,
     aiGenerating,
     conflicts,
+    bottomPanel,
     setBottomPanel,
     reviewConflictId,
     openConflictReview,
@@ -437,7 +439,6 @@ function CanvasPanel() {
     hoverConflictPin,
     selectConflictPin,
   } = useWorkspace()
-  const conflictsByLayer = useMemo(() => openConflictsByLayer(conflicts), [conflicts])
   // The change pins on this page: one per element a change is about,
   // numbered as the "확인할 변경점" list numbers them.
   const pagePins = useMemo(() => {
@@ -492,8 +493,7 @@ function CanvasPanel() {
       conflict: id === 'primary-button' ? paddingConflict : undefined,
     })
     setPendingComment(null)
-    // An element with open conflicts: bring up Conflict Points, where they're lit.
-    if ([...conflictsByLayer.values()].flat().some((conflict) => conflictIsAbout(conflict, id, projectPages))) setBottomPanel({ open: true, tab: 'conflict' })
+    // (Selecting an element never opens Conflict Points: only a pin does.)
     const target = findCanvasTarget(id)
     if (target) {
       openLayerInspectTab(dockApi, target.layer ?? target.frame)
@@ -502,6 +502,32 @@ function CanvasPanel() {
       openOrFocusPanel(dockApi, panelById.navigator)
     }
   }
+
+  // A press on a pin is the one thing that opens Conflict Points from the
+  // canvas: the pin is picked, its element selected and the panel comes up
+  // with the changes about it lit. Another pin swaps what the panel shows
+  // (it isn't closed and reopened); the same pin again lets go.
+  function pickConflictPin(conflict, pin) {
+    if (pinPress(conflictPin.selected?.conflictId, conflict.id) === 'close') { closeConflictPin(); return }
+    selectConflictPin(conflict.id, pin.layerId)
+    // (A detail open in the panel would hide the list the highlight is in.)
+    if (reviewConflictId) openConflictReview(null)
+    handleSelect(pin.layerId)
+    setBottomPanel({ open: true, tab: 'conflict' })
+  }
+  function closeConflictPin() {
+    selectConflictPin(null)
+    setBottomPanel({ open: false })
+  }
+  // The panel closing — by its button, its strip, Escape — lets go of the pin.
+  // (Only on the closing itself: a pin picked from the sidebar's list with
+  // the panel shut stays picked.)
+  const panelOpen = bottomPanel.open
+  const wasPanelOpen = useRef(panelOpen)
+  useEffect(() => {
+    if (wasPanelOpen.current && !panelOpen) selectConflictPin(null)
+    wasPanelOpen.current = panelOpen
+  }, [panelOpen, selectConflictPin])
 
   function handleSelectTool(id) {
     setCanvasTool(id)
@@ -596,6 +622,7 @@ function CanvasPanel() {
     }
     selectCanvasLayer(null)
     setOpenPinId(null)
+    if (conflictPin.selected) closeConflictPin()
   }
 
   function submitPendingComment() {
@@ -643,6 +670,31 @@ function CanvasPanel() {
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasFocus?.nonce, activePage?.id])
+
+  // The panel coming up shortens the canvas: if the picked pin or its element
+  // ended up under it (or off an edge), the canvas glides by just enough to
+  // bring them back into view.
+  const pickedLayerId = conflictPin.selected?.layerId
+  useEffect(() => {
+    const viewport = scrollRef.current
+    if (!viewport || !pickedLayerId || !canvasHeight) return
+    const element = viewport.querySelector(`[data-layer-id="${CSS.escape(pickedLayerId)}"]`)
+    if (!element) return
+    const origin = viewport.getBoundingClientRect()
+    const box = element.getBoundingClientRect()
+    const margin = 16
+    const head = 32 // (the picked pin's head stands above the element's corner)
+    const top = box.top - origin.top - head
+    const bottom = box.bottom - origin.top
+    let dy = 0
+    if (bottom > canvasHeight - margin) dy = canvasHeight - margin - bottom
+    if (top + dy < margin) dy = margin - top
+    if (!dy) return
+    setGliding(true)
+    setView((v) => ({ ...v, y: v.y + dy }))
+    window.setTimeout(() => setGliding(false), 300)
+    // (Only when the pick or the canvas's height changes — not on every pan.)
+  }, [pickedLayerId, canvasHeight])
 
   const pinsForPage = comments.filter(
     (c) => c.target?.type === 'canvas' && c.target.pageId === activePage?.id
@@ -720,8 +772,8 @@ function CanvasPanel() {
               // Like a click on the element itself: it's selected, and Conflict
               // Points comes up below with its changes lit. (A detail open in
               // that panel would hide the list the highlight is in.)
-              onSelect={(conflict, pin) => { selectConflictPin(conflict.id, pin.layerId); if (reviewConflictId) openConflictReview(null); handleSelect(pin.layerId) }}
-              onClear={() => selectConflictPin(null)}
+              onSelect={pickConflictPin}
+              onClear={closeConflictPin}
             />
           )}
 

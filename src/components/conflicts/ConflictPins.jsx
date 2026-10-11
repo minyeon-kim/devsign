@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
-import { listStatusOf, shortDue } from '@/lib/conflicts'
+import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
 import { PIN, anchorOf, layoutPins, markerRect, markersOf } from '@/lib/canvasPins'
 
 // The change pins over the canvas (lib/canvasPins): one map-style pin per
@@ -79,59 +79,65 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
 
   // Where each pin's element is on screen, in the canvas viewport's own
   // coordinates — measured, so text edits, zoom and pan are all accounted for.
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     if (!container) return
-    let frame = 0
-    const measure = () => {
-      const origin = container.getBoundingClientRect()
-      const next = new Map()
-      for (const pin of pins) {
-        const element = container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)
-        if (!element) continue
-        const box = element.getBoundingClientRect()
-        // An element that draws a box of its own (a card, a button, a field)
-        // is pinned at that box. Text has no box to see — its layer is often
-        // far wider than its words — so it's pinned where the words end.
-        const boxed = hasVisibleBox(element, box)
-        const words = boxed ? null : contentRect(element)
-        const rect = words ?? box
-        const artboard = element.closest('[data-canvas-frame]')?.getBoundingClientRect()
-        // The element's own rounding, so its outline follows it.
-        const rounded = [element, ...element.querySelectorAll('*')].map((node) => parseFloat(getComputedStyle(node).borderTopLeftRadius)).find((value) => value > 0) ?? 0
-        const scale = element.offsetWidth ? rect.width / element.offsetWidth : 1
-        next.set(pin.id, {
-          rect: { left: rect.left - origin.left, top: rect.top - origin.top, right: rect.right - origin.left, bottom: rect.bottom - origin.top },
-          frame: artboard ? { left: artboard.left - origin.left, right: artboard.right - origin.left } : null,
-          radius: boxed ? rounded * scale : 4,
-          // (On a box the tip goes 6px inside the corner; on text it touches
-          // the end of the line instead of sitting on the letters.)
-          inset: boxed ? PIN.inset : 0,
-        })
-      }
-      // One box per change: all its elements together (or their group).
-      for (const marker of markersOf(pins)) {
-        const own = marker.pins.map((pin) => next.get(pin.id)).filter(Boolean)
-        if (!own.length) continue
-        let group = null
-        if (own.length > 1) {
-          const elements = marker.pins.map((pin) => container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)).filter(Boolean)
-          let host = elements[0]?.parentElement?.closest('[data-layer-id]')
-          while (host && !elements.every((element) => host.contains(element))) host = host.parentElement?.closest('[data-layer-id]')
-          if (host) { const box = host.getBoundingClientRect(); const origin2 = container.getBoundingClientRect(); group = { left: box.left - origin2.left, top: box.top - origin2.top, right: box.right - origin2.left, bottom: box.bottom - origin2.top } }
-        }
-        next.set(`marker:${marker.conflictId}`, { rect: markerRect(own.map((box) => box.rect), group), frame: own[0].frame, inset: own[0].inset })
-      }
-      setBoxes((prev) => (JSON.stringify([...prev]) === JSON.stringify([...next]) ? prev : next))
+    const origin = container.getBoundingClientRect()
+    const next = new Map()
+    for (const pin of pins) {
+      const element = container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)
+      if (!element) continue
+      const box = element.getBoundingClientRect()
+      // An element that draws a box of its own (a card, a button, a field)
+      // is pinned at that box. Text has no box to see — its layer is often
+      // far wider than its words — so it's pinned where the words end.
+      const boxed = hasVisibleBox(element, box)
+      const words = boxed ? null : contentRect(element)
+      const rect = words ?? box
+      const artboard = element.closest('[data-canvas-frame]')?.getBoundingClientRect()
+      // The element's own rounding, so its outline follows it.
+      const rounded = [element, ...element.querySelectorAll('*')].map((node) => parseFloat(getComputedStyle(node).borderTopLeftRadius)).find((value) => value > 0) ?? 0
+      const scale = element.offsetWidth ? rect.width / element.offsetWidth : 1
+      next.set(pin.id, {
+        rect: { left: rect.left - origin.left, top: rect.top - origin.top, right: rect.right - origin.left, bottom: rect.bottom - origin.top },
+        frame: artboard ? { left: artboard.left - origin.left, right: artboard.right - origin.left } : null,
+        radius: boxed ? rounded * scale : 4,
+        // (On a box the tip goes 6px inside the corner; on text it touches
+        // the end of the line instead of sitting on the letters.)
+        inset: boxed ? PIN.inset : 0,
+      })
     }
-    measure()
-    // (A glide to a pin moves the canvas for a moment after this runs.)
+    // One box per change: all its elements together (or their group).
+    for (const marker of markersOf(pins)) {
+      const own = marker.pins.map((pin) => next.get(pin.id)).filter(Boolean)
+      if (!own.length) continue
+      let group = null
+      if (own.length > 1) {
+        const elements = marker.pins.map((pin) => container.querySelector(`[data-layer-id="${CSS.escape(pin.layerId)}"]`)).filter(Boolean)
+        let host = elements[0]?.parentElement?.closest('[data-layer-id]')
+        while (host && !elements.every((element) => host.contains(element))) host = host.parentElement?.closest('[data-layer-id]')
+        if (host) { const box = host.getBoundingClientRect(); const origin2 = container.getBoundingClientRect(); group = { left: box.left - origin2.left, top: box.top - origin2.top, right: box.right - origin2.left, bottom: box.bottom - origin2.top } }
+      }
+      next.set(`marker:${marker.conflictId}`, { rect: markerRect(own.map((box) => box.rect), group), frame: own[0].frame, inset: own[0].inset })
+    }
+    setBoxes((prev) => (JSON.stringify([...prev]) === JSON.stringify([...next]) ? prev : next))
+  }, [container, pins])
+  // Measured in the same commit as whatever moved the element (a pan, a zoom,
+  // an edit, an undo, a resize) — before the browser paints it — so a pin is
+  // never a frame behind. (The boxes only become new state when they changed.)
+  useLayoutEffect(() => { measure() })
+  // The two things no commit announces: the canvas gliding to a pin (a CSS
+  // transition on its transform — followed frame by frame while it runs) and
+  // the viewport itself being resized.
+  useEffect(() => {
+    if (!container) return undefined
+    let frame = 0
     const until = performance.now() + 400
     const follow = () => { measure(); if (performance.now() < until) frame = requestAnimationFrame(follow) }
     frame = requestAnimationFrame(follow)
     const observer = new ResizeObserver(measure)
     observer.observe(container)
     return () => { cancelAnimationFrame(frame); observer.disconnect() }
-  }, [container, pins, version])
+  }, [container, measure, version])
 
   // Escape lets go of the picked pin.
   useEffect(() => {
@@ -158,6 +164,8 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
   const viewHeight = container?.clientHeight ?? 0
   const showTip = (key, data) => { window.clearTimeout(tipTimer.current); tipTimer.current = window.setTimeout(() => setTip({ key, ...data }), TOOLTIP_DELAY) }
   const hideTip = () => { window.clearTimeout(tipTimer.current); setTip(null) }
+  // (Pointing at a pin says what kind of risk and how many — nothing opens.)
+  const summaryOf = (conflict, count) => [translateText(`${RISK_LABEL[conflict.severity] ?? RISK_LABEL.medium} risk`, language), count].join(' · ')
   const labelOf = (conflict) => [translateText(listStatusOf(conflict).label, language), shortDue(conflict.dueLabel) && translateText(shortDue(conflict.dueLabel), language)].filter(Boolean).join(' · ')
 
   return (
@@ -247,9 +255,9 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             aria-pressed={picked}
             aria-label={`${translateText('Change point', language)}: ${translateText(conflict.title, language)}, ${translateText(listStatusOf(conflict).label, language)}${marker.count > 1 ? ` · ${marker.count}` : ''}`}
             onClick={(event) => { event.stopPropagation(); hideTip(); onSelect(conflict, marker.pins[0]) }}
-            onMouseEnter={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
+            onMouseEnter={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, summary: summaryOf(conflict, marker.count) }) }}
             onMouseLeave={() => { onHover(null); hideTip() }}
-            onFocus={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, conflict }) }}
+            onFocus={() => { onHover(marker.conflictId); showTip(marker.id, { x: item.x, y: item.y - height, bottom: item.y, summary: summaryOf(conflict, marker.count) }) }}
             onBlur={() => { onHover(null); hideTip() }}
             className={cn('ds-intrinsic ds-pin pointer-events-auto absolute cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300', marker.resolved && 'opacity-70')}
             // (The tip stays where it points while the pin grows.)
@@ -277,8 +285,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
         const below = tip.y < 56
         return (
           <div role="tooltip" data-pin-tooltip={below ? 'below' : 'above'} className="absolute z-10 w-max max-w-60 -translate-x-1/2 rounded-lg border border-white/10 bg-popover px-2.5 py-1.5 shadow-lg" style={below ? { left: tip.x, top: Math.min(tip.bottom + 8, viewHeight - 48) } : { left: tip.x, top: tip.y - 8, transform: 'translate(-50%, -100%)' }}>
-            <span className="block truncate text-xs font-medium text-slate-100"><LocalizedText text={tip.conflict.title} /></span>
-            <span className="block truncate text-[11px] text-slate-400">{labelOf(tip.conflict)}</span>
+            <span className="block truncate text-xs font-medium text-slate-100">{tip.summary}</span>
             <span aria-hidden className={cn('absolute left-1/2 size-2 -translate-x-1/2 rotate-45 border-white/10 bg-popover', below ? '-top-1 border-t border-l' : '-bottom-1 border-r border-b')} />
           </div>
         )
