@@ -198,7 +198,7 @@ function ConflictHistory({ events, viewerId, onSend, focus, canWrite = true, foo
   let previous = null
   return (
     <div data-conflict-history className="flex min-h-0 flex-1 flex-col">
-      <div role="group" aria-label="히스토리 필터" className="mb-3 flex shrink-0 items-center gap-1">
+      <div role="group" aria-label="활동 필터" className="mb-3 flex shrink-0 items-center gap-1">
         {[['all', '전체'], ['opinions', '의견만']].map(([id, label]) => (
           <button key={id} type="button" aria-pressed={filter === id} data-history-filter={id} onClick={() => setFilter(id)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium transition-colors', filter === id ? 'bg-white/[0.1] text-white' : 'text-slate-400 hover:text-slate-200')}>
             {label}
