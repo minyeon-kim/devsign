@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, CircleCheck, History, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, History, LoaderCircle, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
@@ -108,7 +108,7 @@ function LayoutComparison({ conflict, proposal }) {
 // Where the decision is, as steps — worded for whoever's looking.
 const DEV_STEPS = ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
 const DESIGN_STEPS = ['요청 확인', '비교', '결정 · 반영 시점', 'Alex에게 전달', '개발 반영']
-const STAGE_INDEX = { detected: 0, requested: 1, rework: 1, decided: 3, fixed: 3, verified: 3, resolved: 5 }
+const STAGE_INDEX = { detected: 0, requested: 1, rework: 1, decided: 3, fixed: 3, verified: 4, resolved: 5 }
 
 // The same shape the review's progress card (FlowSteps) draws, so the
 // design-decision flow reads like every other conflict's progress.
@@ -121,11 +121,13 @@ export function decisionFlowOf(conflict, viewer) {
     ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
     : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
   const next = (developer
-    ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 수정하세요', resolved: '해결됐어요' }
+    ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: '768px 렌더링을 검증하고 있어요', verified: '검증을 통과했어요. 변경 확인을 해결하세요', resolved: '해결됐어요' }
     : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요', resolved: '해결됐어요' })[stage]
+  // (A check that failed isn't "being checked": it waits for a choice.)
+  const stuck = developer && stage === 'fixed' && conflict.decisionFix?.failed ? '검증에 실패했어요. 다시 시도하거나 직접 수정하세요' : null
   return {
     current: at >= labels.length ? 'done' : labels[at],
-    next: next ?? '',
+    next: stuck ?? next ?? '',
     steps: labels.map((label, index) => ({ id: label, label, state: index < at ? 'done' : index === at ? 'current' : 'todo' })),
   }
 }
@@ -614,53 +616,144 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   )
 }
 
-function FixSteps({ conflict, onApply, onVerify, onResolve, onPropose }) {
+// Carrying out the decision. Nothing here is a step to press through: once
+// the decision is in, Devsign applies the decided fix and checks the 768px
+// render by itself (DesignDecisionFlow runs it), and this shows what that
+// did — the change to the code, then the render before and after it with
+// whether it matches. The steps themselves are the progress card's (4 수정 ·
+// 검증, 5 해결), nowhere else; the one thing a person presses is in the action
+// bar under this (DecisionActionBar), always in the same place.
+//
+// Where the fix is: waiting for a go-ahead (a high-risk change only) →
+// applying → verifying → verified | failed (→ retried, or taken over by
+// hand) → resolved.
+function fixPhaseOf(conflict) {
+  const fix = conflict.decisionFix
+  if (conflict.reviewStage === 'resolved') return 'resolved'
+  if (!fix) return fixNeedsApproval(conflict) ? 'approval' : canAutoFix(conflict) ? 'applying' : 'unfixable'
+  if (fix.verified) return 'verified'
+  if (fix.manual) return 'manual'
+  if (fix.failed) return 'failed'
+  return 'verifying'
+}
+// A change Devsign doesn't make by itself: the risk is high, so its diff is
+// looked at and approved first.
+const fixNeedsApproval = (conflict) => conflict.severity === 'high' || conflict.severity === 'critical'
+const canAutoFix = (conflict) => Boolean(conflict.fixes?.[conflict.designDecision?.choice] && conflict.fileId && conflict.line)
+
+const PHASE_CHIP = {
+  approval: ['수정 전 확인 필요', 'bg-amber-400/15 text-amber-200'],
+  applying: ['코드 수정 중', 'bg-sky-400/15 text-sky-200'],
+  unfixable: ['자동 수정 불가', 'bg-amber-400/15 text-amber-200'],
+  verifying: ['768px 검증 중', 'bg-sky-400/15 text-sky-200'],
+  failed: ['검증 실패', 'bg-destructive/15 text-destructive'],
+  manual: ['직접 수정 중', 'bg-amber-400/15 text-amber-200'],
+  verified: ['검증 통과', 'bg-emerald-400/15 text-emerald-200'],
+  resolved: ['해결됨', 'bg-emerald-400/15 text-emerald-200'],
+}
+
+function StateIcon({ state }) {
+  if (state === 'running') return <LoaderCircle data-state="running" className="size-4 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />
+  if (state === 'done') return <span data-state="done" className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>
+  if (state === 'failed') return <TriangleAlert data-state="failed" className="size-4 shrink-0 text-destructive" />
+  return <span data-state="waiting" className="size-4 shrink-0 rounded-full border border-white/20" />
+}
+
+function FixPanel({ conflict, onPropose }) {
   const decision = conflict.designDecision
   const fix = conflict.decisionFix
+  const phase = fixPhaseOf(conflict)
   const [proposalOpen, setProposalOpen] = useState(false)
   const [note, setNote] = useState('Breakpoint 768px의 대시보드 카드 그리드를 1열로 — DashboardGrid / StatCard 공통 규칙 업데이트 제안')
-  const steps = [
-    {
-      id: 'apply',
-      title: decision.choice === 'approve' ? '1열 레이아웃 적용 · 디자인 동기화' : '코드를 디자인 원안에 맞게 수정',
-      detail: decision.choice === 'approve'
-        ? `${conflict.file?.split('/').pop()} ${conflict.line}행: 768px에서 minmax(0, 1fr) 1열 · 디자인 원안도 1열로 업데이트`
-        : `${conflict.file?.split('/').pop()} ${conflict.line}행: 768px에서 repeat(2, minmax(0, 1fr)) — 화면 폭에 맞춘 2열`,
-      done: Boolean(fix),
-      action: !fix && <button type="button" data-apply-fix onClick={onApply} className={PRIMARY}><Check className="size-3.5" />{decision.choice === 'approve' ? '적용하고 동기화' : '코드 수정하기'}</button>,
-    },
-    {
-      id: 'verify',
-      title: '수정 사항 검증',
-      detail: fix?.verified ? '768px 카드 겹침 없음 · 결정한 레이아웃과 일치' : '768px에서 카드가 겹치지 않는지, 결정한 레이아웃과 같은지 확인해요.',
-      done: Boolean(fix?.verified),
-      action: fix && !fix.verified && <button type="button" data-verify-fix onClick={onVerify} className={PRIMARY}><ShieldCheck className="size-3.5" />검증하기</button>,
-    },
-    {
-      id: 'resolve',
-      title: 'Conflict 해결',
-      detail: conflict.reviewStage === 'resolved' ? '해결됐어요. History에 수정 · 승인 · 해결 이력이 남았어요.' : '검증이 끝나면 변경 확인을 해결로 닫아요.',
-      done: conflict.reviewStage === 'resolved',
-      action: fix?.verified && conflict.reviewStage !== 'resolved' && <button type="button" data-resolve-decision onClick={onResolve} className={PRIMARY}><CircleCheck className="size-3.5" />해결로 표시</button>,
-    },
-  ]
+  const request = conflict.decisionRequest
+  const layouts = conflict.layouts ?? {}
+  // The layout decided on: the design as it is, or the proposal approved.
+  const decided = decision.choice === 'approve'
+    ? { ...(proposalOf(request?.proposal, request?.custom) ?? layouts.proposal), label: '승인된 수정안' }
+    : { ...layouts.original, label: '디자인 원안' }
+  const fileName = conflict.file?.split('/').pop()
+  const fixLine = conflict.fixes?.[decision.choice]
+  const beforeLine = conflict.diff?.before?.[0]
+  const [chip, chipTone] = PHASE_CHIP[phase]
+  const applyState = fix ? 'done' : phase === 'applying' ? 'running' : 'waiting'
+  const verifyState = fix?.verified ? 'done' : phase === 'verifying' ? 'running' : phase === 'failed' || phase === 'manual' ? 'failed' : 'waiting'
+  // What just happened is brought into view (it runs by itself, below
+  // the decision: without this it would happen off screen).
+  const sectionRef = useRef(null)
+  const firstPhase = useRef(phase)
+  useEffect(() => {
+    if (phase === 'resolved' && firstPhase.current === 'resolved') return
+    sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [phase])
   return (
-    <section data-decision-fix className={CARD}>
-      <h3 className="mb-3 text-[13px] font-semibold text-white">결정 반영하기</h3>
-      <ol className="flex flex-col gap-3">
-        {steps.map((step, index) => (
-          <li key={step.id} data-fix-step={step.id} data-done={step.done || undefined} className="flex flex-wrap items-center gap-3">
-            <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold', step.done ? 'bg-emerald-400 text-slate-950' : 'bg-white/[0.06] text-slate-300')}>
-              {step.done ? <Check className="size-3.5" strokeWidth={3} /> : index + 1}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className={cn('block text-[13px] font-medium', step.done ? 'text-emerald-100' : 'text-slate-100')}>{step.title}</span>
-              <span className="block text-[11px] leading-4 text-slate-400">{step.detail}</span>
-            </span>
-            {step.action}
-          </li>
-        ))}
-      </ol>
+    <section ref={sectionRef} data-decision-fix data-fix-phase={phase} className={cn(CARD, 'scroll-mt-3')}>
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-[13px] font-semibold text-white">결정 반영</h3>
+        <span data-fix-chip role="status" className={cn('inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium', chipTone)}>{chip}</span>
+      </div>
+
+      {/* What the fix changes in the code. */}
+      <div data-fix-detail="code" data-state={applyState}>
+        <p className="flex items-center gap-2 text-[12.5px] font-medium text-slate-100">
+          <StateIcon state={applyState} />
+          {phase === 'approval' ? '수정할 내용' : fix ? '코드를 수정했어요' : phase === 'unfixable' ? '자동으로 수정할 수 없어요' : '코드를 수정하고 있어요'}
+          <span translate="no" className="font-mono text-[11px] font-normal text-slate-400">{fileName} · {conflict.line}행</span>
+        </p>
+        {fixLine && (
+          <div data-fix-diff className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
+            {beforeLine && <p className="flex bg-red-500/[0.14] px-3 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{beforeLine.trim()}</p>}
+            <p className="flex bg-emerald-500/[0.14] px-3 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{fixLine.trim()}</p>
+          </div>
+        )}
+        {phase === 'approval' && <p className="mt-2 text-[11.5px] leading-4 text-amber-200">위험도가 높은 변경이라 자동으로 수정하지 않았어요. 내용을 확인하고 승인하면 수정과 검증이 이어서 진행돼요.</p>}
+        {phase === 'unfixable' && <p className="mt-2 text-[11.5px] leading-4 text-amber-200">이 결정에 맞는 수정 내용을 만들 수 없어요. 코드를 직접 수정해 주세요.</p>}
+      </div>
+
+      {/* The render at 768px, before and after the fix — shown once there's a fix to check. */}
+      {fix && (
+        <div data-fix-detail="verify" data-state={verifyState} className="mt-4 border-t border-white/[0.06] pt-4">
+          <p className="flex items-center gap-2 text-[12.5px] font-medium text-slate-100">
+            <StateIcon state={verifyState} />
+            {fix.verified ? '768px 렌더링을 검증했어요' : phase === 'verifying' ? '768px 렌더링을 검증하고 있어요' : phase === 'manual' ? '직접 수정한 뒤 다시 검증해 주세요' : '768px 렌더링이 결정과 달라요'}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <figure data-fix-render="before" className="m-0 min-w-0">
+              <TabletPreview columns={layouts.implementation?.columns ?? 2} overlap={layouts.implementation?.overlap} widthMode={layouts.implementation?.widthMode} />
+              <figcaption className="mt-2 text-center">
+                <span className="block text-xs font-semibold text-rose-300">수정 전</span>
+                <span className="block text-[11px] leading-4 text-slate-400">{layouts.implementation?.note}</span>
+              </figcaption>
+            </figure>
+            <figure data-fix-render="after" className="m-0 min-w-0">
+              {phase === 'verifying' ? (
+                <div data-fix-rendering className="mx-auto flex w-full max-w-[200px] items-center justify-center rounded-lg border border-dashed border-white/15 text-[11px] text-slate-400" style={{ aspectRatio: '768 / 640' }}>
+                  <LoaderCircle className="mr-1.5 size-3.5 animate-spin motion-reduce:animate-none" />렌더링 중
+                </div>
+              ) : (
+                // (A failed check: the fix as it actually rendered — still overlapping.)
+                <TabletPreview columns={decided.columns ?? 2} overlap={!fix.verified} widthMode={decided.widthMode} gap={decided.gap} />
+              )}
+              <figcaption className="mt-2 text-center">
+                <span className={cn('block text-xs font-semibold', fix.verified ? 'text-emerald-300' : 'text-slate-200')}>수정 후</span>
+                <span className="block text-[11px] leading-4 text-slate-400">{fix.verified ? `768px · ${decided.note?.replace(/^768px · /, '') ?? decided.spec ?? ''}` : phase === 'verifying' ? '768px' : '768px · 아직 결정과 달라요'}</span>
+              </figcaption>
+            </figure>
+          </div>
+          {fix.verified && (
+            <p data-fix-match className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-400/[0.08] px-3 py-2 text-[12px] text-emerald-100 ring-1 ring-emerald-400/25 ring-inset">
+              <ShieldCheck className="size-3.5 shrink-0 text-emerald-300" />
+              {decided.label}과 일치해요 · 카드 겹침 없음
+            </p>
+          )}
+          {(phase === 'failed' || phase === 'manual') && fix.failed && (
+            <p data-fix-failure role="alert" className="mt-3 flex items-start gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-[12px] leading-[18px] text-slate-100 ring-1 ring-destructive/30 ring-inset">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+              <span><span className="font-medium text-destructive">검증에 실패했어요.</span> {fix.failed.reason}</span>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* (Optional: a shared component or token changed along the way.) */}
       {decision.choice === 'approve' && fix && (
         <div className="mt-4 border-t border-white/[0.06] pt-3">
@@ -685,6 +778,51 @@ function FixSteps({ conflict, onApply, onVerify, onResolve, onPropose }) {
         </div>
       )}
     </section>
+  )
+}
+
+// The one place the decision's action is pressed: a bar stuck to the bottom
+// of the review, its button always in the same spot. What it says and
+// whether it can be pressed follow the fix; it never moves. Normally that's
+// one press in all — 변경 확인 해결, once the check has passed. A failed check
+// offers trying again or taking over by hand; a high-risk change asks for a
+// go-ahead first.
+const BAR_STATUS = {
+  approval: '수정 내용을 확인하고 승인해 주세요',
+  applying: '결정대로 코드를 수정하고 있어요',
+  unfixable: '자동으로 수정할 수 없어요',
+  verifying: '768px 렌더링을 검증하고 있어요',
+  failed: '검증에 실패했어요 · 다시 시도하거나 직접 수정하세요',
+  manual: '직접 수정 중 · 수정이 끝나면 다시 검증하세요',
+  verified: '검증을 통과했어요 · 변경 확인을 해결할 수 있어요',
+  resolved: '해결됐어요 · History에 이력이 남았어요',
+}
+function DecisionActionBar({ conflict, onApprove, onRetry, onManual, onResolve }) {
+  const phase = fixPhaseOf(conflict)
+  const busy = phase === 'applying' || phase === 'verifying'
+  const primary = {
+    approval: { label: '수정 승인', Icon: Check, onClick: onApprove },
+    failed: { label: '다시 시도', Icon: RotateCcw, onClick: onRetry },
+    manual: { label: '다시 검증', Icon: ShieldCheck, onClick: onRetry },
+    unfixable: { label: '변경 확인 해결', Icon: CircleCheck, disabled: true },
+    applying: { label: '변경 확인 해결', Icon: CircleCheck, disabled: true },
+    verifying: { label: '변경 확인 해결', Icon: CircleCheck, disabled: true },
+    verified: { label: '변경 확인 해결', Icon: CircleCheck, onClick: onResolve },
+    resolved: { label: '해결됨', Icon: CircleCheck, disabled: true },
+  }[phase]
+  return (
+    <div data-decision-actionbar data-fix-phase={phase} className="sticky bottom-0 z-20 -mx-1 flex min-h-[56px] items-center gap-3 rounded-xl bg-[#1d1d20]/95 px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.08] backdrop-blur ring-inset">
+      <p data-actionbar-status role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[12px] leading-4 text-slate-300">
+        {busy && <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />}
+        <span className="min-w-0">{BAR_STATUS[phase]}</span>
+      </p>
+      {/* (The second way out of a failed check, beside the first — never in its place.) */}
+      {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
+      <button type="button" data-decision-primary disabled={primary.disabled} onClick={primary.onClick} className={cn(PRIMARY, 'min-w-[148px] justify-center')}>
+        <primary.Icon className="size-3.5" />
+        {primary.label}
+      </button>
+    </div>
   )
 }
 
@@ -834,6 +972,26 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     workspace.setDecisionDraft(conflict.id, { proposal, custom })
   }, [draftKey])
 
+  // Once the decision is in, the fix and its check run by themselves — the
+  // decided code is already known, so there's nothing to press: the fix is
+  // applied, then the 768px render is checked. (Not a high-risk change, which
+  // waits for a go-ahead; not after a failed check, which waits for a choice.)
+  // `?verifyFail=1` makes the first check fail, to look at that path.
+  const phase = developer && decision && decision.choice !== 'rework' && ['decided', 'fixed', 'verified'].includes(stage) ? fixPhaseOf(conflict) : null
+  const run = useRef(null)
+  useEffect(() => { run.current = () => {
+    if (phase === 'applying') workspace.applyDecisionFix(conflict.id, { auto: true })
+    if (phase === 'verifying') {
+      const failFirst = new URLSearchParams(window.location.search).get('verifyFail') && !conflict.decisionFix?.retried
+      workspace.verifyDecisionFix(conflict.id, failFirst ? { match: false, difference: '768px에서 카드 2장이 여전히 12px 겹쳐요. StatCard의 min-width(360px)가 남아 있어요.' } : {})
+    }
+  } })
+  useEffect(() => {
+    if (!workspace || (phase !== 'applying' && phase !== 'verifying')) return undefined
+    const timer = window.setTimeout(() => run.current(), phase === 'applying' ? 1400 : 1800)
+    return () => window.clearTimeout(timer)
+  }, [phase, conflict.id, workspace])
+
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
       {(request || decision) && <div className="flex justify-end">{historyLink}</div>}
@@ -885,23 +1043,24 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
           {['decided', 'fixed', 'verified', 'resolved'].includes(stage) && decision && (
             <>
               <DecisionCard conflict={conflict} viewerId={viewer.id} />
-              <FixSteps
+              <FixPanel
                 conflict={conflict}
-                onApply={() => {
-                  workspace.applyDecisionFix(conflict.id)
-                  toast(decision.choice === 'approve' ? '1열 레이아웃을 적용하고 디자인에 동기화했어요' : '코드를 디자인 원안에 맞게 수정했어요', { description: `${conflict.file} · ${conflict.line}행` })
+                onPropose={(note) => {
+                  workspace.proposeDesignSystemUpdate(conflict.id, note)
+                  toast('Design System 업데이트를 제안했어요', { description: note })
                 }}
-                onVerify={() => {
-                  workspace.verifyDecisionFix(conflict.id)
-                  toast('검증을 통과했어요', { description: '768px 카드 겹침 없음 · 결정한 레이아웃과 일치' })
+              />
+              <DecisionActionBar
+                conflict={conflict}
+                onApprove={() => workspace.applyDecisionFix(conflict.id)}
+                onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}
+                onManual={() => {
+                  workspace.patchDecisionFix(conflict.id, { manual: true })
+                  toast('직접 수정으로 전환했어요', { description: `${conflict.file} · ${conflict.line}행을 고친 뒤 다시 검증하세요.` })
                 }}
                 onResolve={() => {
                   const checkpoint = workspace.resolveDecision(conflict.id)
                   if (checkpoint) toast(`${conflict.id}을 해결했어요`, { description: 'History에 수정 · 승인 · 해결 이력이 남았어요.', action: { label: 'History에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
-                }}
-                onPropose={(note) => {
-                  workspace.proposeDesignSystemUpdate(conflict.id, note)
-                  toast('Design System 업데이트를 제안했어요', { description: note })
                 }}
               />
             </>

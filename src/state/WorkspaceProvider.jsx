@@ -1362,7 +1362,9 @@ export function WorkspaceProvider({ children, projectId }) {
 
   // The developer acts on the decision: the code (and, for an approved
   // change, the design) moves to what was decided.
-  const applyDecisionFix = useCallback((conflictId) => {
+  // `auto`: Devsign applies the decided fix by itself once the decision is in
+  // (the event is the system's, not a person's).
+  const applyDecisionFix = useCallback((conflictId, { auto = false } = {}) => {
     const conflict = conflicts.find((c) => c.id === conflictId)
     const choice = conflict?.designDecision?.choice
     const fixLine = conflict?.fixes?.[choice]
@@ -1372,9 +1374,9 @@ export function WorkspaceProvider({ children, projectId }) {
     setFileOverrides((prev) => ({ ...prev, [conflict.fileId]: lines }))
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c, decisionFix: { choice, appliedAt: timeLabel(), appliedAtMs: Date.now(), designSynced: choice === 'approve', verified: false },
-      events: appendEvent(c, { type: 'fixed', actorId: currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'decided')?.id, payload: { files: 1, file: c.file, line: c.line, choice } }),
+      events: appendEvent(c, { type: 'fixed', actorId: auto ? null : currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'decided')?.id, payload: { files: 1, file: c.file, line: c.line, choice, auto } }),
     })))
-    logEvent({ kind: 'code_change', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
+    logEvent({ kind: 'code_change', projectId, conflictId, actorId: auto ? 'system' : currentUser.id, title: conflict.title })
     recordDecisionStep(conflict, {
       kind: 'edit',
       label: choice === 'approve' ? `${conflict.id} 1열 레이아웃 적용 · 디자인 원안 동기화` : `${conflict.id} 코드를 디자인 원안(2열)에 맞춤`,
@@ -1384,14 +1386,28 @@ export function WorkspaceProvider({ children, projectId }) {
     appendTerminalLines([`$ devsign apply ${conflict.id} --decision ${choice}`, `✓ ${conflict.file} · line ${conflict.line} updated`])
   }, [appendTerminalLines, conflicts, currentUser.id, fileOverrides, files, logEvent, projectId, recordDecisionStep, setConflicts, setFileOverrides])
 
-  const verifyDecisionFix = useCallback((conflictId) => {
+  // `match: false` (with what differs): the render at 768px doesn't match the
+  // decided layout — the fix stays unverified, with why, until it's tried
+  // again or taken over by hand.
+  const verifyDecisionFix = useCallback((conflictId, { match = true, difference = null } = {}) => {
     // (Verified is a record, not the end: a person marks it resolved.)
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId || !c.decisionFix ? c : {
-      ...c, decisionFix: { ...c.decisionFix, verified: true, verifiedAt: timeLabel(), verifiedAtMs: Date.now() },
-      events: appendEvent(c, { type: 'verified', actorId: null, replyTo: eventsOf(c).findLast((event) => event.type === 'fixed')?.id, payload: { match: true, width: 768 } }),
+      ...c,
+      decisionFix: match
+        ? { ...c.decisionFix, verified: true, failed: null, verifiedAt: timeLabel(), verifiedAtMs: Date.now() }
+        : { ...c.decisionFix, verified: false, failed: { reason: difference ?? '결정한 레이아웃과 달라요', at: timeLabel() }, attempts: (c.decisionFix.attempts ?? 0) + 1 },
+      events: appendEvent(c, { type: 'verified', actorId: null, replyTo: eventsOf(c).findLast((event) => event.type === 'fixed')?.id, payload: { match, width: 768, ...(difference && { difference }) } }),
     })))
-    appendTerminalLines(['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout'])
+    appendTerminalLines(match
+      ? ['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout']
+      : ['$ devsign verify --breakpoint 768', `✗ ${difference ?? 'does not match the decided layout'}`])
   }, [appendTerminalLines, setConflicts])
+
+  // After a failed verification: run it again (`retry`), or take the fix over
+  // by hand (`manual` — nothing runs by itself until it's verified again).
+  const patchDecisionFix = useCallback((conflictId, patch) => {
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId || !c.decisionFix ? c : { ...c, decisionFix: { ...c.decisionFix, ...patch } })))
+  }, [setConflicts])
 
   const resolveDecision = useCallback((conflictId) => {
     const conflict = conflicts.find((c) => c.id === conflictId)
@@ -2527,6 +2543,7 @@ export function WorkspaceProvider({ children, projectId }) {
     decideDesign,
     applyDecisionFix,
     verifyDecisionFix,
+    patchDecisionFix,
     resolveDecision,
     proposeDesignSystemUpdate,
     mergeDrawer,
