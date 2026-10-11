@@ -944,7 +944,13 @@ export const conflictChecklist = [
     scriptedDecision: {
       by: 'jane',
       choice: 'approve',
-      reason: '768px에서는 1열이 더 읽기 쉬워요. 출시 전에 디자인 원안도 1열로 업데이트할게요.',
+      reason: '제안하신 방향으로 진행해 주세요. 출시 전에 디자인 원안도 맞춰 업데이트할게요.',
+      // (The reason follows the way that was asked for, so it never talks about another.)
+      reasons: {
+        'one-column': '768px에서는 1열이 더 읽기 쉬워요. 출시 전에 디자인 원안도 1열로 업데이트할게요.',
+        'narrow-cards': '2열을 유지하면서 카드 폭만 줄이면 겹치지 않아요. 제안대로 진행하고, 출시 전에 디자인 원안도 맞춰 업데이트할게요.',
+        original: '원안대로 맞추는 게 가장 간단해요. 코드를 디자인 원안에 맞춰 주세요.',
+      },
     },
   },
   {

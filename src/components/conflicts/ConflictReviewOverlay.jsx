@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
 import { LocalizedText } from '@/i18n/runtime'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
@@ -39,7 +39,20 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   return (
     <div data-review-overlay role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
       <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] pr-2 pl-4">
-        <p className="text-xs font-medium text-slate-400"><LocalizedText text="Conflict detail" /></p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {/* The way back to the list, with the name of where you are. */}
+          <button
+            type="button"
+            data-review-overlay-back
+            onClick={() => openConflictReview(null)}
+            title="Back to list"
+            aria-label="Back to list"
+            className="ds-intrinsic -ml-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <p className="text-xs font-medium text-slate-400"><LocalizedText text="Conflict detail" /></p>
+        </div>
         <button
           ref={closeRef}
           type="button"

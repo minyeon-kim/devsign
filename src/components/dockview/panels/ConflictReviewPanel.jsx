@@ -626,15 +626,19 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               const outcome = decisionOutcomeOf(conflict)
               return (
                 <>
-                  <Row label="Proposed fix" data-summary-row="Proposed fix">
-                    {shape
-                      // (Once decided, it says whether the proposal was the one taken.)
-                      ? (outcome && outcome.choice !== 'approve'
-                        ? <span data-proposal-adopted="false" className="text-slate-500">{proposalPhraseOf(shape)} · 미채택</span>
-                        : <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span>)
-                      : <span data-no-proposal className="text-slate-500">—</span>}
-                  </Row>
-                  {outcome && <Row label="최종 결정" data-summary-row="Final decision"><span className="font-medium text-slate-100">{outcome.final}</span></Row>}
+                  {/* The proposal and what was finally decided — one line when they're the same. */}
+                  {outcome && outcome.choice === 'approve' && outcome.shape?.id === (conflict.decisionRequest?.proposal ?? pick)
+                    ? <Row label="최종 결정" data-summary-row="Final decision"><span data-final-decision="as-proposed" className="font-medium text-slate-100">제안안 그대로 승인</span></Row>
+                    : (
+                      <>
+                        <Row label="Proposed fix" data-summary-row="Proposed fix">
+                          {shape
+                            ? (outcome ? <span data-proposal-adopted="false" className="text-slate-500">{proposalPhraseOf(shape)} · 미채택</span> : <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span>)
+                            : <span data-no-proposal className="text-slate-500">—</span>}
+                        </Row>
+                        {outcome && <Row label="최종 결정" data-summary-row="Final decision"><span className="font-medium text-slate-100">{outcome.final}</span></Row>}
+                      </>
+                    )}
                 </>
               )
             })()}
@@ -2318,7 +2322,7 @@ const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/
 // step up from the plain note: larger type and the in-review sky tint.
 const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
+function ConflictModal({ inOverlay = false, conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
   const workspace = useWorkspaceOptional()
   const navigate = useNavigate()
 
@@ -3071,21 +3075,23 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             <div className="flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card px-4 py-4 sm:px-6">
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onOpenChange(false)}
-                    title="Back to list"
-                    aria-label="Back to list"
-                    className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
-                  >
-                    <ChevronLeft className="size-5" />
-                  </button>
+                  {!inOverlay && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenChange(false)}
+                      title="Back to list"
+                      aria-label="Back to list"
+                      className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                    >
+                      <ChevronLeft className="size-5" />
+                    </button>
+                  )}
                   <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
                   {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
-                <div data-conflict-meta className="flex flex-wrap items-center gap-1.5 pl-10">
+                <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', !inOverlay && 'pl-10')}>
                   <ConflictTypeTag conflict={conflict} header />
                   {severity && (
                     <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
@@ -3097,7 +3103,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
               </div>
               {/* Align the review action with the lower metadata row. */}
-              <div className="relative top-2 flex min-w-0 shrink-0 self-end items-center gap-2">
+              <div className={cn('flex min-w-0 shrink-0 items-center gap-2', conflict.decisionFlow ? 'self-start' : 'relative top-2 self-end')}>
                 {conflict.rollback ? primary : conflict.decisionFlow ? <HistoryReplayButton conflict={conflict} workspace={workspace} /> : approvalBar}
               </div>
             </div>
@@ -3136,6 +3142,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 comments — each scroll on their own, so none of these
                 wrappers scrolls; narrower, where they stack, the page does. */}
             <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-4 pt-2 pb-4 sm:px-6 sm:pb-6 xl:overflow-hidden')}>
+              {/* A design decision's banner spans both columns, 24px above the steps'
+                  header row — which the sidebar then starts level with. */}
+              {conflict.decisionFlow && mergedBanner && <div className="mb-6 shrink-0 [&>[data-merged-banner]]:mb-0">{mergedBanner}</div>}
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
@@ -3151,7 +3160,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
                     <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} />
+                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} />
                     </div>
                   ) : !replayId ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">

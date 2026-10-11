@@ -18,6 +18,7 @@ import { allPeople } from '@/data/mockData'
 export const EVENT_TYPES = {
   detected: { label: '변경 감지', step: 1 }, // { summary, width, design, implementation }
   requested: { label: '결정 요청', step: 2 }, // { proposal, proposalName, reason, timing, reviewerId }
+  withdrawn: { label: '요청 취소', step: 2 }, // { reviewerId } — the developer took the request back
   commented: { label: '의견', step: null }, // { body, mentions?, editedAt?, deleted? } — the step it was said in
   decided: { label: '결정', step: 3 }, // { result: approved | changed | rejected, proposalName, previousName?, reason }
   fixed: { label: '수정', step: 4 }, // { pr: { number, title }, files, preview? }
@@ -119,6 +120,7 @@ export function progressOf(events = []) {
     round.push(event)
     if (event.type === 'detected') stage = 'detected'
     else if (event.type === 'requested') stage = 'requested'
+    else if (event.type === 'withdrawn') stage = 'detected'
     else if (event.type === 'decided') stage = event.payload?.result === 'rejected' ? 'rework' : 'decided'
     else if (event.type === 'fixed') stage = 'fixed'
     else if (event.type === 'verified') stage = event.payload?.match === false ? 'fixed' : 'verified'

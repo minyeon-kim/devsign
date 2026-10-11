@@ -68,6 +68,7 @@ function EventContent({ event }) {
       </>
     )
   }
+  if (type === 'withdrawn') return <p className="text-xs leading-[18px] text-slate-200">디자인 결정 요청을 취소했어요</p>
   if (type === 'commented') {
     if (payload.deleted) return <p data-deleted className="text-xs text-slate-500 italic">삭제된 의견이에요</p>
     return (

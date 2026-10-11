@@ -10,6 +10,8 @@ export default function ReviewDetail({ conflict, inMergeStudio = false }) {
     <ConflictReviewPanel
       conflict={conflict}
       inMergeStudio={inMergeStudio}
+      // (In the full-screen view the way back is in its top bar.)
+      inOverlay={reviewView === 'overlay'}
       onOpenChange={open => !open && openConflictReview(null)}
       onUpdate={updateConflict}
       onApprove={approveConflict}

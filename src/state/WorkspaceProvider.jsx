@@ -3,7 +3,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
-import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, decisionOutcomeOf, fixLineOf, proposalOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DECISION_MIN_WAIT_MS, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, decisionOutcomeOf, fixLineOf, proposalOf } from '@/lib/designDecisions'
 import { appendEvent, eventsOf } from '@/lib/conflictEvents'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -1309,6 +1309,31 @@ export function WorkspaceProvider({ children, projectId }) {
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, decisionDraft: draft })))
   }, [setConflicts])
 
+  // While the designer hasn't answered: nudge them (the request notes it), or
+  // take the request back — it returns to being drafted, its way kept.
+  const remindDesigner = useCallback((conflictId) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict?.decisionRequest || conflict.designDecision) return
+    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, decisionRequest: { ...c.decisionRequest, remindedAt: Date.now() } })))
+    notifyPerson(designerId, conflict, `결정을 기다리고 있어요 · ${conflict.id} ${conflict.title}`)
+  }, [conflicts, notifyPerson, setConflicts])
+  const cancelDecisionRequest = useCallback((conflictId) => {
+    const conflict = conflicts.find((c) => c.id === conflictId)
+    if (!conflict?.decisionRequest || conflict.designDecision) return
+    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    const { proposal, custom } = conflict.decisionRequest
+    setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
+      ...c,
+      decisionRequest: null,
+      decisionDraft: { proposal: proposal ?? null, custom },
+      events: appendEvent(c, { type: 'withdrawn', actorId: currentUser.id, payload: { reviewerId: designerId } }),
+      reviewStage: 'detected',
+      reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
+    })))
+    notifyPerson(designerId, conflict, `디자인 결정 요청을 취소했어요 · ${conflict.id} ${conflict.title}`)
+  }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, setConflicts])
+
   // 원안대로 맞추기: the way forward is the design itself, so there is nothing
   // to ask — the developer goes straight to the fix, and the designer is told.
   const startDirectFix = useCallback((conflictId, request) => {
@@ -1466,13 +1491,14 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!asked.length) return
     const timer = window.setTimeout(() => {
       for (const c of asked) {
-        const decision = { ...c.scriptedDecision, timing: c.decisionRequest.timing ?? 'before-release' }
+        const decision = { ...c.scriptedDecision, reason: c.scriptedDecision.reasons?.[c.decisionRequest.proposal] ?? c.scriptedDecision.reason, timing: c.decisionRequest.timing ?? 'before-release' }
         decideDesign(c.id, decision, { actorId: c.scriptedDecision.by })
         const designer = teamMembers.find((p) => p.id === c.scriptedDecision.by)?.name ?? 'The designer'
         notifyPerson(currentUser.id, c, `${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing]} — ${c.title}`, 'comment', c.scriptedDecision.by)
         toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · ${TIMING_LABEL[decision.timing]} 반영`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id, { view: 'overlay' }) } })
       }
-    }, Math.max(0, Math.min(...asked.map((c) => c.decisionRequest.sentAt)) + DECISION_REPLY_MS - Date.now()))
+    // (Waiting is always seen: the answer never lands in under a second and a half.)
+    }, Math.max(DECISION_MIN_WAIT_MS, Math.min(...asked.map((c) => c.decisionRequest.sentAt)) + DECISION_REPLY_MS - Date.now()))
     return () => window.clearTimeout(timer)
   }, [conflicts, currentUser.id, decideDesign, isDeveloperViewer, notifyPerson, openConflictReview])
 
@@ -2545,6 +2571,8 @@ export function WorkspaceProvider({ children, projectId }) {
     verifyDecisionFix,
     patchDecisionFix,
     resolveDecision,
+    remindDesigner,
+    cancelDecisionRequest,
     proposeDesignSystemUpdate,
     mergeDrawer,
     setMergeDrawer,

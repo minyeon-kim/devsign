@@ -118,6 +118,7 @@ export const proposalPhraseOf = (shape) => (!shape ? null : shape.id === 'other'
 export const DEV_STAGE_LABEL = { early: '개발 초기', mid: '개발 중간', late: '완료 직전' }
 // How long the scripted designer takes to answer the developer's request.
 export const DECISION_REPLY_MS = 6000
+export const DECISION_MIN_WAIT_MS = 1500
 
 // Where a design decision stands, for both sides of it — read off its
 // History (lib/conflictEvents), so the stage can't say something the
