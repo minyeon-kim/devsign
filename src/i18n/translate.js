@@ -184,6 +184,7 @@ const rules = [
   [/^Sign-off from (.+)$/, (_, names) => `${names} 승인`],
   [/^Resolve (\d+) required standards?$/, (_, n) => `필수 규칙 ${n}개 해결 필요`],
   [/^Step (\d+)\/(\d+)$/, (_, a, b) => `${a}/${b} 단계`],
+  [/^Checkpoint #(\d+) render$/, (_, n) => `체크포인트 #${n} 렌더링`],
   [/^(\d+) lines hidden$/, (_, n) => `${n}줄 숨김`],
   [/^Waiting on (\d+) reviewers?$/, (_, n) => `검토자 ${n}명 대기`],
   [/^(\d+) reasons?$/, (_, count) => `이유 ${count}개`],

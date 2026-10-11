@@ -789,6 +789,16 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+This checkpoint recorded no code change.|이 체크포인트는 코드 변경 없이 기록됐어요.
+This step’s render|이 단계 렌더링
+Latest render|최신 렌더링
+This checkpoint’s code couldn’t be read into a layout.|이 체크포인트의 코드를 레이아웃으로 읽지 못했어요.
+This checkpoint has no code snapshot to render.|이 체크포인트에는 렌더링할 코드 스냅샷이 없어요.
+Showing the design prototype instead.|대신 디자인 프로토타입을 보여줘요.
+Nothing changed at this screen width|이 화면 폭에서는 바뀐 것이 없어요
+No code change in this version|이 버전은 코드 변경 없음
+Design original|디자인 원안
+Design prototype|디자인 프로토타입
 Code beside design|나란히 보기
 This difference can’t be drawn on the element; both sides show the design. Compare the values above.|이 차이는 요소 위에 그릴 수 없어 양쪽 모두 디자인으로 보여요. 위의 값을 비교해 주세요.
 This component isn’t placed on the design screen, so nothing is marked on it.|이 컴포넌트는 디자인 화면에 배치돼 있지 않아 표시할 위치가 없어요.

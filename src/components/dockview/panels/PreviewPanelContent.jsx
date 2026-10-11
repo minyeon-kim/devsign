@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Crosshair, Maximize2, Smartphone, X } from 'lucide-react'
+import { Check, ChevronDown, Crosshair, Maximize2, MonitorSmartphone, PenTool, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -10,6 +10,8 @@ import ChangePreview from '@/components/conflicts/ChangePreview'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import CodeRender from '@/components/history/CodeRender'
+import { VIEWPORTS, layoutAt, layoutChanged, viewportOf } from '@/lib/codeRender'
 
 // Space between frames, in px.
 const FRAME_GAP = 24
@@ -42,12 +44,28 @@ function parsePadding(value) {
 //   · full screen: the same preview over the whole app, so the screen reads
 //     at a real size whatever room its pane has — Esc or Close goes back,
 //     and playback carries on under it.
+// `codeRender` (History, a conflict's replay — a file lib/codeRender can
+// read): the preview is that checkpoint's *code* on a screen, not the design
+// prototype. `{ title, file, spec, previous, unchanged, compare, error }`:
+//   · `spec` — what the checkpoint's code lays out; `title` says which
+//     checkpoint ("Checkpoint #3 render"), `file` the code it's read from;
+//   · `previous` — the checkpoint before it, for "Show changed elements";
+//     `unchanged`: its code is the same as that one's (a decision request,
+//     a detection) — said in place of the toggle;
+//   · `compare` ({ title, spec }) — a second render beside it (the latest,
+//     with "Compare latest" on);
+//   · `error` — its code couldn't be rendered: said over the prototype,
+//     which is then shown labelled as the design, never as the render.
+// The screen's width is picked from lib/codeRender's viewports (the one the
+// change is about first); the design prototype is a toggle beside the
+// render, never in its place.
+const VIEWPORT_KEY = 'devsign.previewViewport'
 const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
 const VIEW_TAB = 'ds-intrinsic inline-flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors'
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [] } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -68,6 +86,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   // screen stays on it (rather than jumping to the full screen).
   const [lastFocus, setLastFocus] = useState([])
   const [fullscreen, setFullscreen] = useState(false)
+  // A code render's screen width (the change's own first, then the one
+  // picked), and whether the design prototype is shown beside it.
+  const [viewportPick, setViewportPickState] = useState(() => stored(VIEWPORT_KEY, null))
+  const setViewportPick = (id) => { setViewportPickState(id); store(VIEWPORT_KEY, id) }
+  const [designShown, setDesignShown] = useState(false)
 
   // (Full screen moves the preview to another element: measured again.)
   useEffect(() => {
@@ -114,9 +137,13 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const ownFocus = viewControls ? boxFor(focusLayerIds) : null
   if (ownFocus && focusLayerIds.join() !== lastFocus.join()) setLastFocus(focusLayerIds)
   const focus = ownFocus ?? (viewControls ? boxFor(lastFocus) : null)
+  // A code render: the checkpoint's code on a screen of the width picked.
+  const rendering = codeRender?.spec ? codeRender : null
+  const viewport = viewportOf(viewportPick ?? codeRender?.defaultViewport)
+  const renderChanged = rendering ? layoutChanged(rendering.spec, rendering.previous, viewport.id) : false
   // Whether the changed elements are ringed (there are some, and it's on).
-  const marking = Boolean(focus) && viewPick === 'changed'
-  const changedIds = marking ? focus.box.layers.map((layer) => layer.id) : []
+  const marking = rendering ? renderChanged && viewPick === 'changed' : Boolean(focus) && viewPick === 'changed'
+  const changedIds = marking && focus && !rendering ? focus.box.layers.map((layer) => layer.id) : []
 
   // One scale for every frame, from whichever arrangement — a row
   // or a column — shows them larger in the space there is.
@@ -133,7 +160,17 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const panel = (
     <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
       <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded && !fullscreen ? 'pt-0' : 'pt-3')}>
-        <span className="min-w-0 truncate">Synced from {file?.path}</span>
+        {rendering ? (
+          // Which checkpoint's code this is, and the file it's read from.
+          <span data-preview-source="code" className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 font-semibold text-slate-100"><LocalizedText text={rendering.title} /></span>
+            <span translate="no" className="min-w-0 truncate font-mono text-[10.5px]">{rendering.file}</span>
+          </span>
+        ) : codeRender ? (
+          <span data-preview-source="design" className="min-w-0 truncate"><LocalizedText text="Design prototype" /> · <span translate="no">{file?.path}</span></span>
+        ) : (
+          <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>
+        )}
         <div className="flex shrink-0 items-center gap-2">
           {caption}
           <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
@@ -150,19 +187,54 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         <div data-preview-controls className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-2">
           {/* Always there (a step with nothing changed on the screen can't
               show any: it waits, disabled). */}
-          <button type="button" data-preview-changed aria-pressed={marking} disabled={!focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
-            title={focus ? undefined : 'Nothing on the screen changed in this step'}
+          {rendering?.unchanged ? (
+            // (A checkpoint that recorded no code change has nothing to mark.)
+            <span data-preview-unchanged className="inline-flex h-7 items-center rounded-md bg-white/[0.04] px-2 text-[11px] text-slate-400"><LocalizedText text="No code change in this version" /></span>
+          ) : (
+          <button type="button" data-preview-changed aria-pressed={marking} disabled={rendering ? !renderChanged : !focus} onClick={() => setViewPick(marking ? 'full' : 'changed')}
+            title={(rendering ? renderChanged : focus) ? undefined : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'}
             className={cn(VIEW_TAB, 'h-7 disabled:cursor-not-allowed disabled:opacity-40', marking ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
             <Crosshair className="size-3 shrink-0" />
             <LocalizedText text="Show changed elements" />
           </button>
-          {marking && (
+          )}
+          {marking && rendering && (
+            <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
+              <LocalizedText text="Changed" /> · <span translate="no">DashboardGrid · {layoutAt(rendering.previous, viewport.id).template} → {layoutAt(rendering.spec, viewport.id).template}</span>
+            </span>
+          )}
+          {marking && !rendering && (
             <span data-preview-changed-names className="min-w-0 truncate text-[11px] text-slate-400">
               <LocalizedText text="Changed" /> · <span translate="no">{focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
             </span>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            {phone && (
+            {rendering && (
+              <>
+                <button type="button" data-preview-design aria-pressed={designShown} onClick={() => setDesignShown((current) => !current)} className={cn(VIEW_TAB, 'h-7', designShown ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.09] hover:text-white')}>
+                  <PenTool className="size-3 shrink-0" />
+                  <LocalizedText text="Design original" />
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger data-preview-viewport={viewport.id} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                    <MonitorSmartphone className="size-3.5 shrink-0 text-slate-400" />
+                    <LocalizedText text={viewport.label} />
+                    <span className="text-slate-500 tabular-nums">{viewport.width}px</span>
+                    <ChevronDown className="size-3 shrink-0 text-slate-400" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-44">
+                    {VIEWPORTS.map((entry) => (
+                      <DropdownMenuItem key={entry.id} data-viewport-option={entry.id} onClick={() => setViewportPick(entry.id)} className="gap-2 text-xs">
+                        <Check className={cn('size-3.5', entry.id === viewport.id ? 'opacity-100' : 'opacity-0')} />
+                        <LocalizedText text={entry.label} />
+                        <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}px</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+            {phone && !rendering && (
               <DropdownMenu>
                 <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
                   <Smartphone className="size-3.5 shrink-0 text-slate-400" />
@@ -197,6 +269,14 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           reads as crammed into the top-left corner. `overflow-auto` still
           scrolls to the full content when a frame is taller than the
           panel (auto margins collapse to 0 once there's no extra room). */}
+      {/* (Its code couldn't be rendered: said — the prototype under it is the
+          design, labelled so above.) */}
+      {codeRender?.error && (
+        <p data-preview-render-error role="status" className="mx-4 mb-2 flex shrink-0 items-start gap-1.5 rounded-lg bg-amber-400/10 px-3 py-2 text-[11.5px] leading-4 text-amber-100 ring-1 ring-amber-300/25 ring-inset">
+          <TriangleAlert className="mt-px size-3.5 shrink-0 text-amber-300" />
+          <span><LocalizedText text={codeRender.error} /> <LocalizedText text="Showing the design prototype instead." /></span>
+        </p>
+      )}
       <div ref={boxRef} className="flex min-h-0 flex-1 flex-col overflow-auto px-4 pb-4">
         {/* Keyed on the snapshot itself in historical mode (History's
             playback and version compare), not the live `previewVersion` —
@@ -218,7 +298,36 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
             </div>
-          ) : shownFrames.map((frame) => {
+          ) : rendering ? (() => {
+            // This checkpoint's render — beside the latest's when comparing,
+            // and the design original when asked for — each under its name,
+            // all at one scale.
+            const design = designShown ? frames[0] : null
+            const count = 1 + (rendering.compare ? 1 : 0) + (design ? 1 : 0)
+            const paneWidth = (room.width - 16 * (count - 1)) / count
+            const paneHeight = room.height - 24
+            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / viewport.height)) * (zoom / 100)
+            const pane = (key, label, tone, node) => (
+              <figure key={key} data-render-pane={key} className="m-0 flex min-w-0 flex-col items-center gap-1.5">
+                {node}
+                <figcaption className={cn('text-[11px] font-medium', tone)}><LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span></figcaption>
+              </figure>
+            )
+            const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
+            return (
+              <div className="flex items-start justify-center gap-4">
+                {pane('checkpoint', rendering.title, 'text-slate-100', <CodeRender spec={rendering.spec} viewportId={viewport.id} scale={scale} marked={marking} />)}
+                {rendering.compare && pane('latest', rendering.compare.title, 'text-emerald-300', <CodeRender spec={rendering.compare.spec} viewportId={viewport.id} scale={scale} />)}
+                {design && pane('design', 'Design original', 'text-sky-300', (
+                  <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>
+                    <div className="relative" style={{ width: design.width, height: design.height, transform: `scale(${designScale})`, transformOrigin: 'top left' }}>
+                      {design.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })() : shownFrames.map((frame) => {
             const scale = fitScale * (zoom / 100)
             return (
               <div

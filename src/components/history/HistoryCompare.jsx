@@ -13,6 +13,7 @@ import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
+import { defaultViewportFor, renderOf } from '@/lib/codeRender'
 import { useNavigate } from 'react-router-dom'
 import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
@@ -121,6 +122,32 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
     return changedLayerIds({ edits: editsAt(entry.id), previousEdits: other ? editsAt(other.id) : {}, props: entry.snapshot.previewProps ?? {}, previousProps: other?.snapshot.previewProps ?? {}, frame })
   }, [entry, historyEntries, baseEntry, editsAt, projectPages])
 
+  // The preview as this checkpoint's code on a screen (lib/codeRender), for
+  // a file that can be read into one: the checkpoint in view (while playing,
+  // the one before it until its code is typed in) — never the latest in its
+  // place; with "Compare latest" on, the latest is a second render beside it.
+  // Null for a file with no renderer: the preview is then the design
+  // prototype with what the code implies, as before.
+  const codeRender = useMemo(() => {
+    if (!entry) return null
+    const viewed = playing && baseEntry && !typed ? baseEntry : entry
+    const own = renderOf(projectId, viewed.snapshot.fileId, snapshotLines(viewed.snapshot))
+    if (!own) return null
+    const at = historyEntries.findIndex((h) => h.id === entry.id)
+    const before = baseEntry ?? historyEntries.slice(0, at).findLast((h) => h.snapshot.fileId === entry.snapshot.fileId) ?? null
+    const previous = before ? renderOf(projectId, before.snapshot.fileId, snapshotLines(before.snapshot))?.spec ?? null : null
+    const latest = compareLatest && !playing && current && current.id !== entry.id ? renderOf(projectId, current.snapshot.fileId, snapshotLines(current.snapshot)) : null
+    return {
+      ...own,
+      title: position ? `Checkpoint #${position.index + 1} render` : 'This step’s render',
+      defaultViewport: defaultViewportFor(projectId, entry.snapshot.fileId),
+      previous,
+      // (Recorded without a code change — a decision request, a detection.)
+      unchanged: Boolean(before) && snapshotLines(before.snapshot).join('\n') === snapshotLines(entry.snapshot).join('\n'),
+      compare: latest?.spec ? { title: 'Latest render', spec: latest.spec } : null,
+    }
+  }, [entry, baseEntry, typed, playing, compareLatest, current, historyEntries, projectId, position])
+
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
   const handleTyped = useCallback(() => setTypedId(entryId), [entryId])
@@ -199,6 +226,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
                 Compared with current ·{' '}
                 <span className="text-emerald-300">+{added}</span>
                 <span className="text-red-300">−{removed}</span> lines
+                {/* (+0 −0 isn't a broken comparison: say what it is.) */}
+                {added + removed === 0 && <> · <LocalizedText text="The code is the same as the current version." />{codeRender?.unchanged && <> <LocalizedText text="This checkpoint recorded no code change." /></>}</>}
                 {/* Each as its own string, so it's translated (a leading
                     " · " glued on kept them in English). */}
                 {propChanges.length > 0 && <> · <LocalizedText text={`${propChanges.length} preview prop${propChanges.length === 1 ? '' : 's'}`} /></>}
@@ -328,9 +357,11 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, compareLa
             historical
             viewControls
             focusLayerIds={changedIds}
+            codeRender={codeRender}
             caption={
               <span className="shrink-0 text-emerald-300">
-                {playing ? 'This step' : showDiff ? 'Latest' : isCurrent ? 'Current' : `At ${entry.timestamp}`}
+                {/* (A code render names what it shows itself — this checkpoint, the latest beside it.) */}
+                {codeRender?.spec ? (isCurrent ? 'Current' : null) : playing ? 'This step' : showDiff ? 'Latest' : isCurrent ? 'Current' : `At ${entry.timestamp}`}
               </span>
             }
           />
