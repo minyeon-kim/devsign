@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, CornerDownRight, CornerUpLeft, GitPullRequest, RotateCcw, Sparkles, X } from 'lucide-react'
+import { Check, CornerDownRight, CornerUpLeft, GitPullRequest, RotateCcw, X } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople } from '@/data/mockData'
 import {
@@ -24,9 +24,7 @@ const NODE = 'absolute left-0 flex items-center justify-center rounded-full'
 const QUOTE = 'mt-1.5 border-l-2 border-white/15 pl-2.5 text-xs leading-[18px] text-slate-300'
 
 function Avatar({ actor }) {
-  if (isSystemActor(actor)) {
-    return <span aria-hidden className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300"><Sparkles className="size-3" /></span>
-  }
+  if (isSystemActor(actor)) return null
   const person = allPeople.find((entry) => entry.id === actor.id)
   return <span aria-hidden className={cn('flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white', person?.colorClass ?? 'bg-slate-600')}>{person?.initials ?? actor.name.slice(0, 2)}</span>
 }
