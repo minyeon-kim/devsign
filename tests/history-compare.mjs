@@ -34,6 +34,8 @@ try {
   assert.match(layoutDelta(fixed, oneColumn, tablet), /카드 열 수: 2열 → 1열/)
   assert.equal(layoutDelta(fixed, fluid, screenOf({ deviceId: 'iphone-15' }, 'tablet')), null, 'a tablet-only rule changes nothing on a phone')
   assert.equal(layoutDelta(fixed, fixed, tablet), null)
+  // The change alone, for the change line: a problem it causes is said apart, as a problem.
+  assert.equal(layoutDelta(fluid, fixed, tablet, { effects: false }), '태블릿(768px)에서 카드 열 너비: 화면에 맞춰 늘어남 → 360px 고정')
   // A render can stop at its content: shorter than the tablet's screen, taller for one column.
   assert.ok(layoutAt(fluid, tablet).contentHeight < tablet.height)
   assert.ok(layoutAt(oneColumn, tablet).contentHeight > layoutAt(fluid, tablet).contentHeight)

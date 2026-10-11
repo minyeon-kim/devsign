@@ -71,8 +71,11 @@ function parsePadding(value) {
 // over the content — one hatched area where it is, its label outside the
 // frame on a thin line (lib/codeRender's inspectionsFor). Inspection is off
 // until the toolbar's button turns it on (kept for the session), and on in
-// "Differences only". `toolbarExtra`: a control of the caller's, after the
-// comparison modes.
+// "Differences only" — except a problem on this version's own render
+// (`codeRender.thisSide`: which of the two it is), which is marked from the
+// start, one area. `toolbarExtra`: a control of the caller's, before the
+// comparison modes. `emphasizeMark`: the id of a mark to draw stronger (the
+// caller's line about it is hovered).
 const INSPECT_KEY = 'devsign.previewInspect'
 const sessionFlag = (key) => { try { return sessionStorage.getItem(key) === '1' } catch { return false } }
 const LABEL_ROW = 24
@@ -136,7 +139,7 @@ const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -286,6 +289,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         // on the right. What's being rendered is said under the frame, once.
         <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-1.5 px-3 pb-2', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {toolbarExtra}
             {/* Comparing: how, first; the device moves to the right, with the views. */}
             {comparing && (
               <div role="tablist" aria-label="Comparison mode" data-compare-modes className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
@@ -297,7 +301,6 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 ))}
               </div>
             )}
-            {toolbarExtra}
             {rendering && !comparing && !compareView && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
             {phone && !rendering && (
               <DropdownMenu>
@@ -457,7 +460,12 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const design = designShown ? frames[0] : null
             const other = rendering.compare
             const slider = compareMode === 'slider'
-            const marks = inspecting ? inspection : { mine: [], other: [] }
+            // Inspecting: every mark. Otherwise just the problem on this
+            // version's own render — one area, there from the start.
+            const thisSide = rendering.thisSide ?? 'mine'
+            const own = inspection[thisSide].filter((mark) => mark.tone !== 'info').slice(0, 1)
+            const shared = own.length ? [] : inspection.mine.filter((mark) => mark.shared).slice(0, 1)
+            const marks = inspecting ? inspection : { mine: thisSide === 'mine' ? own : shared, other: thisSide === 'other' ? own : [] }
             const labelRows = slider ? marks.mine.length + marks.other.length : Math.max(marks.mine.length, marks.other.length)
             const labelSpace = labelRows ? labelRows * LABEL_ROW + 8 : 0
             const count = 1 + (other && !slider ? 1 : 0) + (design ? 1 : 0)
@@ -468,7 +476,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
             const frameWidth = viewport.width * scale
             const frameHeight = contentHeight * scale
-            const emphasisOf = (side) => (hoverMark?.side === side ? hoverMark.id : null)
+            const emphasisOf = (side) => (hoverMark?.side === side ? hoverMark.id : emphasizeMark)
             // A mark's name, outside the frame: under it, at the marked area,
             // on a 1px line from the area. Several stack downwards.
             const labels = (list, side, offset = 0) => list.map((item, index) => {

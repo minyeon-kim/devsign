@@ -138,9 +138,11 @@ function HistoryTimeline({
         />
       </div>
 
-      {!compact && <span className="h-6 w-px shrink-0 bg-white/[0.08]" />}
+      {/* (Only where the caller has a comparison to switch: History picks its
+          baseline in the viewer itself.) */}
+      {onCompareLatestChange && !compact && <span className="h-6 w-px shrink-0 bg-white/[0.08]" />}
 
-      <label className={cn('flex shrink-0 cursor-pointer items-center whitespace-nowrap select-none', compact ? 'gap-1.5 text-[10.5px] text-slate-400' : 'gap-2 text-[12px] font-medium text-slate-300')}>
+      {onCompareLatestChange && <label className={cn('flex shrink-0 cursor-pointer items-center whitespace-nowrap select-none', compact ? 'gap-1.5 text-[10.5px] text-slate-400' : 'gap-2 text-[12px] font-medium text-slate-300')}>
         Compare latest
         <button
           type="button"
@@ -162,7 +164,7 @@ function HistoryTimeline({
             )}
           />
         </button>
-      </label>
+      </label>}
 
       {!hideRestore && <button
         type="button"

@@ -3,6 +3,7 @@ import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { Info } from 'lucide-react'
+import Breadcrumb, { BREADCRUMB_BAR } from '@/components/layout/Breadcrumb'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -26,7 +27,10 @@ function HistoryPage() {
   const { historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
-  const [compareLatest, setCompareLatest] = useState(true)
+  // What the checkpoint in view is compared with — the one before it, or the
+  // current version. One state for the whole viewer (its change line, its
+  // renders, its code), kept as checkpoints are stepped through.
+  const [baseline, setBaseline] = useState('previous')
 
   // Each checkpoint with its branch and that branch's color — the same
   // ones the drawer's graph uses (lib/historyBranches).
@@ -81,22 +85,25 @@ function HistoryPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      {/* One line: where this is and how many versions. What the page is
-          sits behind the ⓘ; a filter narrowing the playback says so here. */}
-      <div data-history-title className="flex shrink-0 items-center gap-2 border-b px-6 py-3 text-[15px] font-semibold">
-        <span className="max-w-[240px] min-w-0 truncate text-muted-foreground">{project.name}</span>
-        <span className="font-normal text-muted-foreground/60">/</span>
-        <span className="text-foreground">History</span>
-        <span className="text-xs font-normal text-slate-500">·</span>
-        <span className="text-xs font-normal text-slate-500">{`${timeline.length} checkpoints`}</span>
-        <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-5 shrink-0 cursor-help items-center justify-center rounded-full text-slate-500 hover:bg-white/[0.06] hover:text-slate-300">
-          <Info className="size-3.5" />
-        </span>
-        {scopeLabel && (
-          <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="ml-1 inline-flex h-5 items-center rounded-full bg-amber-400/15 px-2 text-[11px] font-medium text-amber-200">
-            {scopeLabel}
-          </span>
-        )}
+      {/* The path, and how many versions. What the page is sits behind the
+          ⓘ; a filter narrowing the playback says so here. */}
+      <div data-history-title className={BREADCRUMB_BAR}>
+        <Breadcrumb
+          items={[{ label: project.name, to: `/projects/${project.id}`, translate: false }, { label: 'History' }]}
+          meta={(
+            <>
+              <span>{`${timeline.length} checkpoints`}</span>
+              <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-5 shrink-0 cursor-help items-center justify-center rounded-full hover:bg-white/[0.06] hover:text-foreground">
+                <Info className="size-3.5" />
+              </span>
+              {scopeLabel && (
+                <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="inline-flex h-5 items-center rounded-full bg-amber-400/15 px-2 text-amber-200">
+                  {scopeLabel}
+                </span>
+              )}
+            </>
+          )}
+        />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
@@ -104,7 +111,8 @@ function HistoryPage() {
           <HistoryCompare
             entryId={selectedId}
             branch={selectedBranch ? { name: selectedBranch.branch, color: selectedBranch.branchColor } : null}
-            compareLatest={compareLatest}
+            baseline={baseline}
+            onBaselineChange={setBaseline}
             // Restore sits up in the viewer's header, with the checkpoint
             // it applies to — not down at the end of the playback bar.
             onRollback={(id) => {
@@ -133,8 +141,6 @@ function HistoryPage() {
           onSelect={selectVersion}
           playing={playing}
           onTogglePlay={toggle}
-          compareLatest={compareLatest}
-          onCompareLatestChange={setCompareLatest}
           isCurrent={selectedId === activeHistoryId}
           hideRestore
         />

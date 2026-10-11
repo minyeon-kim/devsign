@@ -789,6 +789,14 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+Fold the code|코드 접기
+This is the first checkpoint: there’s none before it|첫 체크포인트라 이전 체크포인트가 없어요
+It’s the same as the current version|현재 버전과 같아요
+Compared with|비교 기준
+No difference|차이 없음
+No difference from the current version|현재 버전과 차이 없음
+No difference from the previous checkpoint|이전 체크포인트와 차이 없음
+Path|경로
 Previous checkpoint|이전 체크포인트
 Compared with the previous checkpoint|이전 체크포인트와 비교한 값
 No code changes between these two versions.|두 버전의 코드가 같아요.

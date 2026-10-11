@@ -116,7 +116,9 @@ export function screensChanged(spec, previous, category = 'tablet') {
 // when they lay it out the same there.
 const BREAKPOINT_KO = { mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }
 const trackWords = (layout) => (layout.cardWidth ? `${layout.cardWidth}px 고정` : '화면에 맞춰 늘어남')
-export function layoutDelta(from, to, screen) {
+// `effects: false`: the change alone — a problem it causes or clears (an
+// overlap) is said apart, as a problem.
+export function layoutDelta(from, to, screen, { effects = true } = {}) {
   if (!from || !to || !layoutChanged(from, to, screen)) return null
   const a = layoutAt(from, screen)
   const b = layoutAt(to, screen)
@@ -125,7 +127,7 @@ export function layoutDelta(from, to, screen) {
   if (a.columns !== b.columns) parts.push(`카드 열 수: ${a.columns}열 → ${b.columns}열`)
   if (trackWords(a) !== trackWords(b)) parts.push(`카드 열 너비: ${trackWords(a)} → ${trackWords(b)}`)
   if (!parts.length) return null
-  const effect = a.overlap && !b.overlap ? ' · 카드 겹침 해소' : !a.overlap && b.overlap ? ` · 카드가 ${b.overlap}px 겹침` : ''
+  const effect = !effects ? '' : a.overlap && !b.overlap ? ' · 카드 겹침 해소' : !a.overlap && b.overlap ? ` · 카드가 ${b.overlap}px 겹침` : ''
   return `${where} ${parts.join(', ')}${effect}`
 }
 // The same change as its code values, for beside the words: "repeat(2,
