@@ -789,6 +789,13 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
+Code beside design|나란히 보기
+This difference can’t be drawn on the element; both sides show the design. Compare the values above.|이 차이는 요소 위에 그릴 수 없어 양쪽 모두 디자인으로 보여요. 위의 값을 비교해 주세요.
+This component isn’t placed on the design screen, so nothing is marked on it.|이 컴포넌트는 디자인 화면에 배치돼 있지 않아 표시할 위치가 없어요.
+Open the element preview|요소 미리보기 열기
+Open change details|변경점 상세 열기
+Show where it is on the screen|전체 화면에서 위치 보기
+Sides shown|보여줄 쪽
 Watch the code replay|코드 리플레이 보기
 View full screen|전체화면
 Exit full screen|전체화면 닫기

@@ -306,7 +306,7 @@ function ConflictPanel({ inMergeStudio }) {
                       {/* The screen it's about, beside its name; not in Merge Studio, which already has the canvas beside it. */}
                       {!inMergeStudio && (
                         <div className="flex shrink-0 flex-col items-start gap-1">
-                          <DesignLinkThumb conflict={conflict} size="sm" />
+                          <DesignLinkThumb conflict={conflict} size="sm" onOpenReview={() => openRow(conflict.id)} />
                           <DesignLinkChip conflict={conflict} compact />
                         </div>
                       )}

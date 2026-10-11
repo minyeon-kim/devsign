@@ -1026,6 +1026,8 @@ export const conflictChecklist = [
     // About the Dashboard screen as a whole — no single element on its canvas
     // frame — so its screen is linked without one marked.
     designPageId: 'page-dashboard',
+    // …so its own component is drawn alone (ElementPreview's ComponentSample).
+    sample: 'legend',
     title: 'Chart legend / Spacing',
     token: 'Chart legend / Spacing',
     file: 'src/components/dashboard/RevenueChart.tsx',
